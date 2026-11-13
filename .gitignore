@@ -1,0 +1,17 @@
+# secrets
+.env
+.env.*
+*.key
+*.pem
+
+# deps and builds
+node_modules/
+dist/
+build/
+out/
+cache/
+
+# OS / editors
+.DS_Store
+.vscode/
+.idea/
