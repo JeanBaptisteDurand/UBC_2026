@@ -1,0 +1,38 @@
+{
+  "address": "0x26c1803de523ac896ba7f1787f1401ec792951ca",
+  "constructorDcap": "0x48640f7d94de64b13c89686f3d1240a31aeb4dc9",
+  "source": "contracts/src/attestation/TdxAttestationModule.sol (inchang\u00e9) \u2014 solc 0.8.28 via-IR prague (contracts/foundry.toml)",
+  "tx": {
+    "hash": "0xdb3c70d612a8b0188da2d22b384a8c7cd65d8d3b45e1937a2b2bbae229dea0a2",
+    "block": 71124302,
+    "gasUsed": 589932,
+    "effectiveGasPriceWei": 21000000000,
+    "costUsdc": 0.01238857
+  },
+  "verifyEthCall": {
+    "ok": true,
+    "version": 4,
+    "bodyType": 2,
+    "tcbStatus": 0,
+    "fmspc": "0x20a06f000000",
+    "reportData": "0x49ec2b0717ab96c4b687e80f0fd846f1b8e3dc40595e73295ae6a18e09925f9b19ac381ff371dd886b13ef91537aee19c66249a70db18086a08cf5094dd591f0",
+    "mrtd": "0x7fe60787222bd394cb516abca2435f22f035ab2cc9c0a4b4b3b148e46297f3d931a237b72f359052c6e657d8c1409173",
+    "rtmr0": "0x68102e7b524af310f7b7d426ce75481e36c40f5d513a9009c046e9d37e31551f0134d954b496a3357fd61d03f07ffe96",
+    "rtmr1": "0x4ae609807c765916a31d724786ed74bcb97e168a9d937b04936aeef2015c907eba5ac352c6bcd749c246fd62ffb659ec",
+    "rtmr2": "0x80e945df96ec417b68d574dba18d199a7448d66c3d0e56f073167a9513d2381601f5d614853646d2c49c5d8d58a7daf5",
+    "rtmr3": "0x5554144807a80cffb2bd68b44f2a61f021143ef64831eccb1af3f31aee18a0fb74f7af4e4d102a91e8f2045cffb10a1b",
+    "mrConfigId": "0x0132eae95f4316f4ead0413c62a0564e22a981640843007450c4fc050110896d3d000000000000000000000000000000",
+    "xfam": "0x0702000000000000",
+    "tdAttributes": "0x0000001000000000",
+    "advisories": []
+  },
+  "verifyEstimateGas": 5310757,
+  "checks": {
+    "ok": true,
+    "mrtd == sortie DCAP": true,
+    "rtmr0..3 == sortie DCAP": true,
+    "reportData == sortie DCAP": true,
+    "fmspc": true,
+    "tcbStatus": true
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "method": "eth_estimateGas sur Arc, m\u00eame \u00e9tat ; Daimo = code du V4QuoteVerifier surcharg\u00e9 (immutable P256_VERIFIER 0x100 -> Daimo 0xc2b7\u2026) le temps de l'estimation",
+  "estimateGasPrecompile0x100": 5208699,
+  "estimateGasDaimoSolidity": 6915287,
+  "differenceGas": 1706588,
+  "p256VerificationsPerQuote": 5,
+  "tamperedQuotes": {
+    "reportData[0] modifie": "refuse : revert (Error: server returned an error response: error code 3: execution reverted)",
+    "MRTD[0] modifie": "refuse : revert (Error: server returned an error response: error code 3: execution reverted)",
+    "signature ECDSA du quote modifiee": "refuse : revert (Error: server returned an error response: error code 3: execution reverted)"
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "fetchedAtUtc": "2026-11-09T20:26:15Z",
+  "source": "https://659d8740a0a8364fc0f805cb48f38a6977749783-8802.dstack-pha1-prod9.phala.network/pubkeys",
+  "quoteBytes": 5010,
+  "fmspc": "20A06F000000",
+  "pckCa": "platform",
+  "pckCaCode": 2,
+  "tcbEvaluationDataNumber": 20,
+  "standardTcbEvaluationDataNumber": 20,
+  "earlyTcbEvaluationDataNumber": 22,
+  "tcbInfo": {
+    "issueDate": "2026-11-09T19:38:54Z",
+    "nextUpdate": "2026-12-09T19:38:54Z",
+    "url": "https://api.trustedservices.intel.com/tdx/certification/v4/tcb?fmspc=20A06F000000&tcbEvaluationDataNumber=20"
+  },
+  "qeIdentity": {
+    "issueDate": "2026-11-09T19:31:58Z",
+    "nextUpdate": "2026-12-09T19:31:58Z",
+    "url": "https://api.trustedservices.intel.com/tdx/certification/v4/qe/identity?tcbEvaluationDataNumber=20"
+  },
+  "tcbEval": {
+    "nextUpdate": "2026-12-09T19:20:00Z"
+  },
+  "urls": {
+    "pckCrl": "https://api.trustedservices.intel.com/sgx/certification/v4/pckcrl?ca=platform&encoding=der",
+    "rootCrl": "https://certificates.trustedservices.intel.com/IntelSGXRootCA.der",
+    "tcbEval": "https://api.trustedservices.intel.com/tdx/certification/v4/tcbevaluationdatanumbers"
+  },
+  "sha256": {
+    "quote.hex": "c1a6fb164ce7b712504bbac0cfe98ea50498c5391056385d050535474f4720e8",
+    "root_ca.der": "44a0196b2b99f889b8e149e95b807a350e7424964399e885a7cbb8ccfab674d3",
+    "pck_ca.der": "22eb770dca215b607b5ccfc21a672b1da5cc660b1ad0365020567979edcaa0e1",
+    "tcb_signing.der": "c0575e76d0303b61d09cde8cbdb70db34a74f38318300d7c0e6ba8cf4bf45aea",
+    "root_ca_crl.der": "c114be5d5ca7aab2d37817eca55aa8a2353853809904ff3695b31c26bcb7465b",
+    "pck_crl.der": "a158112bab4899d5c71e31e7f7731d70a6e234e75719cc6f4d55638c87250212",
+    "tdx_tcb_info.json": "2900549de4f8b38c859bdd4947820c6a83012e85cfdb0cc004ed71db39a80b88",
+    "tdx_qe_identity.json": "38aa6b399c3440ee8a9d14ee201d6678357561ab9657aaeb59cc81962d488d76",
+    "tdx_tcb_eval.json": "db43c0ac057c434934f7e978d09a42bcc4ebca475b301080fac20411e1431fe8"
+  }
+}
