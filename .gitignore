@@ -15,3 +15,10 @@ cache/
 .DS_Store
 .vscode/
 .idea/
+broadcast/
+lib/
+vendor/
+.secrets/
+__pycache__/
+*.log
+*.swp

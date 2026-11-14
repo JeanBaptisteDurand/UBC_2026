@@ -1,0 +1,29 @@
+[profile.default]
+src = "src"
+test = "test"
+out = "out"
+libs = ["lib"]
+solc_version = "0.8.28"
+evm_version = "prague"
+optimizer = true
+optimizer_runs = 200
+via_ir = true
+remappings = [
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+    "forge-std/=lib/forge-std/src/",
+    # 10/11 : la version de solady compilée dans le vérificateur d'Automata (lecture du certificat PCK à l'identique)
+    "solady/=lib/solady-0.0.160/src/",
+    # 10/11 : Smooth CryptoLib (MIT, auditée 2024) : vérification Ed25519 (jetons de l'alliance Proof of Cloud)
+    "@solidity/=lib/smooth-crypto-lib/src/",
+]
+
+# 10/11 : les tests des niveaux lisent leurs vecteurs réels (quote, jeton Proof of Cloud) : lecture seule de ce dossier
+fs_permissions = [{ access = "read", path = "./test/vectors" }]
+
+# 10/11 : la Smooth CryptoLib (Ed25519) se compile SANS via_ir, comme dans son dépôt (assembleur trop profond pour via_ir) ;
+# ce qui l'importe (ProofOfCloudAuditor) est compilé avec ce profil, le reste ne change pas.
+additional_compiler_profiles = [{ name = "scl", via_ir = false, optimizer_runs = 200 }]
+compilation_restrictions = [{ paths = "lib/smooth-crypto-lib/**", via_ir = false }]
+
+[fmt]
+line_length = 120
