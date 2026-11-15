@@ -1,0 +1,8 @@
+{
+  "name": "@arcvault/registrar",
+  "private": true,
+  "type": "module",
+  "scripts": { "start": "tsx --env-file=.env src/server.ts" },
+  "dependencies": { "@arcvault/sdk": "file:../../packages/sdk", "viem": "2.21.54" },
+  "devDependencies": { "tsx": "4.19.2", "typescript": "5.7.2", "@types/node": "22.10.2" }
+}
