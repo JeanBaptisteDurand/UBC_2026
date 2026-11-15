@@ -1,0 +1,19 @@
+{
+  "name": "@arcvault/sdk",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "SDK client du réseau d'enclaves d'Arc : sessions, clés, HPKE, reçus, client compatible OpenAI, primes, CCTP, lecture du registre",
+  "main": "src/index.ts",
+  "scripts": { "test": "vitest run", "build": "tsc -p tsconfig.json" },
+  "dependencies": {
+    "@hpke/chacha20poly1305": "1.6.1",
+    "@hpke/core": "1.7.1",
+    "@noble/ciphers": "1.2.1",
+    "@noble/curves": "1.9.1",
+    "@noble/hashes": "1.7.1",
+    "viem": "2.21.54",
+    "zod": "3.24.1"
+  },
+  "devDependencies": { "typescript": "5.7.2", "vitest": "2.1.8", "@types/node": "22.10.2" }
+}
