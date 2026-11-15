@@ -1,0 +1,13 @@
+{
+  "product": "ArcHive — Inférence privée (sealed-chat)",
+  "version": "2",
+  "image": "ghcr.io/jeanbaptistedurand/archive-sealed-chat@sha256:eceb67a5bf985a9672d51db288ef85c9e2cb7908835057ea24888517793173fa",
+  "build": { "context": "enclave/", "dockerfile": "enclave/Dockerfile", "lockfile": "enclave/package-lock.json", "entry": "enclave/products/sealed-chat/server.ts" },
+  "model": "openai/gpt-oss-120b",
+  "modelHash": "0xef1e61108815d160396825dfc53f2d5f45f26f70a6c8de9fcd7795e6a7ffcab6",
+  "upstream": "https://api.redpill.ai/v1",
+  "billing": { "unit": "1 jeton lu ou écrit", "unitTokens": 1, "outWeight": 1, "priceUsdcPerUnit": "0.0001" },
+  "settlement": "SessionPay 0x50158CDF4e7A020b198984a1D54CeDE878693193 (Arc testnet)",
+  "tee": "Intel TDX, VM dstack chez Phala Cloud",
+  "attestation": "DCAP vérifié sur Arc : TdxAttestationModule 0x26C1803dE523aC896Ba7F1787f1401ec792951ca → Automata 0x48640f7d94dE64b13c89686F3d1240A31Aeb4dc9"
+}

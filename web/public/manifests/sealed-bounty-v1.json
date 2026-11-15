@@ -1,0 +1,12 @@
+{
+  "product": "ArcHive — Prime scellée (sealed-bounty)",
+  "version": "2",
+  "image": "ghcr.io/jeanbaptistedurand/archive-sealed-bounty@sha256:db0f1a9d7b4ad13bca703d555581a2e504cd527e70ba6dc13f1ace7283d1267a",
+  "build": { "context": "enclave/", "dockerfile": "enclave/Dockerfile.bounty", "base": "node:22-trixie-slim", "lockfile": "enclave/package-lock.json", "entry": "enclave/products/sealed-bounty/server.ts" },
+  "replay": "arc-anvil d'Arc Foundry (circlefin/arc-foundry v0.8.0-4, archive x86_64 sha256 78330505af7dc0d2c9b55fc1aed00d9d063581bb57054949d31ef1c1b4bdbc5e) --network arc : fork d'Arc au bloc N avec les précompilés d'Arc (USDC natif, liste de blocage, journaux EIP-7708), sans émulation ; gas payé au base fee d'Arc sur une avance de 20 USDC propre au fork, retirée du profit",
+  "exploitTx": "abi.encode(address to, uint256 value, bytes data), envoyée depuis le chasseur",
+  "fingerprint": "keccak256(abi.encode(keccak256(attackCode), keccak256(tx)[]))",
+  "settlement": "SealedBounty 0xaC8949a108e8288aBe0DdC5b5A4120De4636E4BF (Arc testnet), acceptClaim puis deliver",
+  "tee": "Intel TDX, VM dstack chez Phala Cloud",
+  "attestation": "DCAP vérifié sur Arc : TdxAttestationModule 0x26C1803dE523aC896Ba7F1787f1401ec792951ca → Automata 0x48640f7d94dE64b13c89686F3d1240A31Aeb4dc9"
+}

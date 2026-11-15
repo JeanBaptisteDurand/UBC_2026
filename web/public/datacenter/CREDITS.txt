@@ -1,0 +1,7 @@
+ArcHive Datacenter: what this page is made of
+- Characters, furniture and room parts: Kenney (kenney.nl), Factory Kit, Space Station Kit, Furniture Kit,
+  Mini Shop and Mini Characters, CC0 1.0 (m/LICENSE-kenney-cc0.txt).
+- Server racks: "Data center rack" by Animase (NodeStar) on Sketchfab, Free Standard licence:
+  https://sketchfab.com/3d-models/data-center-rack-f178ec0a9c5f4605a5acbaaeb52dc721
+- three.js r160, MIT licence (at the end of room.js).
+- Data: the ArcHive API of this site and Arc testnet (https://explorer.testnet.arc.io).
