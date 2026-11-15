@@ -1,0 +1,43 @@
+# 11/11 : MODEL_ATTESTATION=aci : la passerelle du modèle (RedPill) est VÉRIFIÉE par l'enclave avant tout appel (quote Intel,
+# image système de production, TLS épinglé, reçus exigés ; GET /model-attestation).
+# Copilote attesté d'ArcHive, pile v2.1 (Arc testnet, produit 4) : le copilote du site (base de connaissances + outils
+# qui lisent Arc et PRÉPARENT des actions que l'utilisateur signe ; il ne détient aucune clé) dans SA PROPRE VM Intel TDX
+# (image système de PRODUCTION dstack-0.5.12) : une faille du copilote ne peut pas produire de quotes pour l'inférence
+# ni pour la prime. Conversation chiffrée vers l'enclave (ARC-COPILOT-CHAT-v1), réponse scellée pour la requête.
+# TOUT ce qui suit est mesuré (compose-hash → empreinte d'image), y compris le modèle et son URL : un opérateur ne peut
+# pas brancher un autre modèle sous le badge « attesté ». Variables CHIFFRÉES (non mesurées) : OPENAI_API_KEY (clé du
+# fournisseur du modèle), OPERATOR_ALLOWLIST, COPILOT_PROXY_TOKEN (≥ 32 octets, hexadécimal : seul le proxy du site peut
+# poser des questions ; /attest, /pubkeys et /health restent publics), et les identifiants du registre d'images.
+# Jamais de DEBUG, d'env_file ni de NODE_OPTIONS ici (l'enclave refuse de démarrer avec DEBUG).
+services:
+  copilot-enclave:
+    image: ghcr.io/jeanbaptistedurand/archive-copilot-enclave@sha256:b4e784a57d9133ce91fb6277240d038b3dc69920ca5a59bbe403c87b686d3a77
+    ports:
+      - "8808:8808"
+    environment:
+      - PORT=8808
+      - PRODUCT_ID=4
+      - CHAIN_ID=5042002
+      - REGISTRY=0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d
+      - DEPLOYMENTS=/app/deployments/deployments.v21.testnet.json
+      - RPC_URL=https://rpc.testnet.arc.io
+      - OPENAI_BASE_URL=https://tee.redpill.ai/v1
+      - MODEL_ATTESTATION=aci
+      - MODEL_GATEWAY_OS_IMAGES=8db40cb23008d6213668b5816702d100b37b859a8a5bfd18d938ae3a1b3715bd
+      - COPILOT_MODEL=openai/gpt-oss-120b
+      - COPILOT_MAX_TOKENS=2000
+      - COPILOT_MAX_TOOL_CHARS=40000
+      - COPILOT_MAX_INPUT_TOKENS=50000
+      - COPILOT_RATE_PER_MINUTE=20
+      - COPILOT_RATE_PER_DAY=300
+      - COPILOT_GLOBAL_PER_DAY=2000
+      - ALLOWED_ORIGINS=https://archive.62-171-153-35.sslip.io
+      - ARCHIVE_API=https://archive.62-171-153-35.sslip.io/api
+      - ENCLAVE_URL=https://archive.62-171-153-35.sslip.io/enclave/inference
+      - ENCLAVE_PATH_PREFIXES=/enclave/inference,/enclave/bounty,/enclave/x402
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPERATOR_ALLOWLIST=${OPERATOR_ALLOWLIST}
+      - COPILOT_PROXY_TOKEN=${COPILOT_PROXY_TOKEN}
+    volumes:
+      - /var/run/dstack.sock:/var/run/dstack.sock
+    restart: unless-stopped

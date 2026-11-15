@@ -1,0 +1,63 @@
+# 11/11 : MODEL_ATTESTATION=aci : l'enclave VÉRIFIE la passerelle du modèle (RedPill, Attested Confidential Inference :
+# quote Intel, clés liées, compose mesuré, image système de production MODEL_GATEWAY_OS_IMAGES), appelle le modèle en TLS
+# épinglé sur la clé attestée et exige un reçu citant un service amont vérifié (src/services/model-attestation.ts).
+# Inférence privée, pile v2.1 (Arc testnet) : produit 1 (sessions prépayées, SessionPay) et produit 3 (paiement à
+# l'appel x402, X402Settler), deux services de la même image dans la même VM Intel TDX (image système de PRODUCTION
+# dstack-0.5.12 : aucun accès SSH possible). TOUT ce qui suit est mesuré (compose-hash → empreinte d'image), y compris
+# le modèle, l'URL amont et les adresses ; seules les variables ${…} sont chiffrées (non mesurées) : REDPILL_API_KEY,
+# OPERATOR_ALLOWLIST et les identifiants du registre d'images.
+services:
+  sealed-chat:
+    image: ghcr.io/jeanbaptistedurand/archive-sealed-chat@sha256:3ab9659901154934efa1be120143dbe4fb8f83bf6394af5599db49ed74bff5bd
+    ports:
+      - "8802:8802"
+    environment:
+      - RPC_URL=https://rpc.testnet.arc.io
+      - CHAIN_ID=5042002
+      - PRODUCT_ID=1
+      - REGISTRY=0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d
+      - SESSIONPAY=0x8Bf8A8356f53006E9aB359AA6382f783923058a6
+      - REDPILL_BASE_URL=https://tee.redpill.ai/v1
+      - MODEL_ATTESTATION=aci
+      - MODEL_GATEWAY_OS_IMAGES=8db40cb23008d6213668b5816702d100b37b859a8a5bfd18d938ae3a1b3715bd
+      - REDPILL_MODEL=openai/gpt-oss-120b
+      - MODEL_TIMEOUT_MS=120000
+      - REDPILL_API_KEY=${REDPILL_API_KEY}
+      - OPERATOR_ALLOWLIST=${OPERATOR_ALLOWLIST}
+    volumes:
+      - /var/run/dstack.sock:/var/run/dstack.sock
+    restart: unless-stopped
+  sealed-x402:
+    image: ghcr.io/jeanbaptistedurand/archive-sealed-chat@sha256:3ab9659901154934efa1be120143dbe4fb8f83bf6394af5599db49ed74bff5bd
+    command: ["node", "dist/sealed-x402.mjs"]
+    ports:
+      - "8804:8804"
+    environment:
+      - PORT=8804
+      - RPC_URL=https://rpc.testnet.arc.io
+      - CHAIN_ID=5042002
+      - PRODUCT_ID=3
+      - REGISTRY=0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d
+      - X402SETTLER=0xccDb1a5641F2F3f2Cf2112c8E14669DBb6E11634
+      - USDC=0x3600000000000000000000000000000000000000
+      - REDPILL_BASE_URL=https://tee.redpill.ai/v1
+      - MODEL_ATTESTATION=aci
+      - MODEL_GATEWAY_OS_IMAGES=8db40cb23008d6213668b5816702d100b37b859a8a5bfd18d938ae3a1b3715bd
+      - REDPILL_MODEL=openai/gpt-oss-120b
+      - MAX_OUTPUT_TOKENS=1024
+      - MAX_REQUEST_BYTES=32768
+      - AUTH_VALIDITY_SECONDS=900
+      - MIN_SETTLE_WINDOW_SECONDS=600
+      - MAX_PENDING_PER_PAYER=3
+      - MAX_STORED_CALLS=2000
+      - MAX_UNSETTLED_PER_WINDOW=300
+      - UNSETTLED_WINDOW_SECONDS=600
+      - MODEL_TIMEOUT_MS=120000
+      - CHECK_PAYER_BALANCE=1
+      - PAYMENT_READS_PER_MINUTE=120
+      - PAYMENT_READS_PER_MINUTE_PER_IP=60
+      - REDPILL_API_KEY=${REDPILL_API_KEY}
+      - OPERATOR_ALLOWLIST=${OPERATOR_ALLOWLIST}
+    volumes:
+      - /var/run/dstack.sock:/var/run/dstack.sock
+    restart: unless-stopped

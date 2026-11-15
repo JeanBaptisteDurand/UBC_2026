@@ -1,0 +1,20 @@
+# Prime scellée, pile v2.1 (Arc testnet, produit 2) : rejeu RÉEL et FIDÈLE d'un exploit sur un fork d'Arc par arc-anvil
+# (Arc Foundry, précompilés d'Arc natifs), réfutation des réclamations acceptées (/v1/refute). VM Intel TDX en image
+# système de PRODUCTION dstack-0.5.12, journaux non publics. Tout est mesuré ; seuls OPERATOR_ALLOWLIST et les
+# identifiants du registre d'images sont des variables chiffrées.
+services:
+  sealed-bounty:
+    image: ghcr.io/jeanbaptistedurand/archive-sealed-bounty@sha256:ca06d9cc2c8f7baeb85bf15fa1592da90719b38581615109852e6fa95625ad36
+    ports:
+      - "8803:8803"
+    environment:
+      - RPC_URL=https://rpc.testnet.arc.io
+      - FORK_RPC_URL=https://rpc.testnet.arc.io
+      - CHAIN_ID=5042002
+      - PRODUCT_ID=2
+      - REGISTRY=0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d
+      - SEALEDBOUNTY=0x182871d34438aB37a7FD4d8689f3e0812E447A9b
+      - OPERATOR_ALLOWLIST=${OPERATOR_ALLOWLIST}
+    volumes:
+      - /var/run/dstack.sock:/var/run/dstack.sock
+    restart: unless-stopped

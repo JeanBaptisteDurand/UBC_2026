@@ -1,0 +1,23 @@
+# Inférence privée, pile v2 (Arc testnet, produit 1). TOUT ce qui suit est mesuré (mrConfigId → workloadId), y compris
+# le modèle et l'URL amont ; seuls REDPILL_API_KEY, OPERATOR_ALLOWLIST et les identifiants du registre d'images sont
+# des variables chiffrées (non mesurées).
+services:
+  sealed-chat:
+    image: ghcr.io/jeanbaptistedurand/archive-sealed-chat@sha256:eceb67a5bf985a9672d51db288ef85c9e2cb7908835057ea24888517793173fa
+    ports:
+      - "8802:8802"
+    environment:
+      - RPC_URL=https://rpc.testnet.arc.io
+      - CHAIN_ID=5042002
+      - PRODUCT_ID=1
+      - REGISTRY=0x54AeCc6500a1CfB33FD5BFB3008ed7A600Ae7d38
+      - SESSIONPAY=0x50158CDF4e7A020b198984a1D54CeDE878693193
+      - REDPILL_BASE_URL=https://api.redpill.ai/v1
+      - REDPILL_MODEL=openai/gpt-oss-120b
+      - UNIT_TOKENS=1
+      - OUT_WEIGHT=1
+      - REDPILL_API_KEY=${REDPILL_API_KEY}
+      - OPERATOR_ALLOWLIST=${OPERATOR_ALLOWLIST}
+    volumes:
+      - /var/run/dstack.sock:/var/run/dstack.sock
+    restart: unless-stopped

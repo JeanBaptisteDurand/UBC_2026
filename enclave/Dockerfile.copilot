@@ -1,0 +1,42 @@
+# Image « copilot-enclave » d'ArcHive : le copilote (services/copilot, le MÊME qu'au VPS) DANS une enclave Intel TDX
+# (Phala dstack), avec le kit d'enclave : clés nées en mémoire, POST /attest (quote dstack lié à l'opérateur et au produit,
+# OPERATOR_ALLOWLIST), GET /pubkeys, conversation chiffrée (HPKE) en plus du mode clair.
+# Point d'entrée : services/copilot/src/enclave-server.ts. Configuration : services/copilot/src/enclave-config.ts.
+#
+# Construite depuis la RACINE du dépôt (le code vient de trois dossiers) :
+#   docker build --platform linux/amd64 -f enclave/Dockerfile.copilot -t ghcr.io/<compte>/archive-copilot-enclave:v21 .
+# enclave/Dockerfile.copilot.dockerignore n'envoie au constructeur QUE les sources et les fichiers de verrouillage
+# utiles : jamais .secrets/, .git/, ni les node_modules locaux.
+# Reproductible : base épinglée par condensat (la même que les services du VPS), dépendances figées par les fichiers de
+# verrouillage (npm ci), un seul fichier JavaScript dans l'image finale, aucun paquet système installé (Node embarque ses
+# propres autorités de certification).
+
+FROM node:22-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d AS build
+WORKDIR /src
+COPY packages/sdk/package.json packages/sdk/package-lock.json packages/sdk/
+COPY services/copilot/package.json services/copilot/package-lock.json services/copilot/
+COPY enclave/package.json enclave/package-lock.json enclave/
+RUN cd /src/packages/sdk && npm ci --no-audit --no-fund --omit=dev \
+ && cd /src/services/copilot && npm ci --no-audit --no-fund \
+ && cd /src/enclave && npm ci --no-audit --no-fund --omit=dev --legacy-peer-deps
+COPY packages/sdk/src packages/sdk/src
+COPY enclave/src enclave/src
+COPY services/copilot/src services/copilot/src
+# un seul fichier : le copilote, le SDK (sources) et le kit d'enclave ; esbuild est celui du verrou du copilote (via tsx)
+RUN cd /src/services/copilot && node_modules/.bin/esbuild src/enclave-server.ts --bundle --platform=node --format=esm \
+      --log-level=warning --outfile=/out/copilot-enclave.mjs --alias:@arcvault/sdk=/src/packages/sdk/src/index.ts \
+      --external:@phala/aci-verifier \
+      '--banner:js=import { createRequire as _cr } from "module"; const require = _cr(import.meta.url);'
+
+FROM node:22-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d
+WORKDIR /app
+COPY --from=build /out/copilot-enclave.mjs ./copilot-enclave.mjs
+# 11/11 : le vérificateur du fournisseur du modèle (@phala/aci-verifier, avec dcap-qvl en WebAssembly) reste un module
+# EXTERNE : ses dépendances viennent du verrou de l'enclave (npm ci --omit=dev ci-dessus), copiées telles quelles
+COPY --from=build /src/enclave/node_modules ./node_modules
+# les piles déployées (adresses des contrats, jamais écrites dans le code) : DEPLOYMENTS=/app/deployments/<fichier>,
+# écrit en clair dans le compose (mesuré) ; le fichier lui-même est dans l'image (épinglée par condensat)
+COPY deployments.*.json ./deployments/
+ENV PORT=8808
+EXPOSE 8808
+CMD ["node", "copilot-enclave.mjs"]

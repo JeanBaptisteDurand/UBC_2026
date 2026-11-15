@@ -1,0 +1,23 @@
+# REFUTATION DEMO, v2.1 stack (Arc testnet, product 5 "Sealed Bounty - refutation demo"): this VM runs the Sealed Bounty
+# image with a DELIBERATE FAULT. DEMO_FAULT=inflate-loss is written in clear below, so it is measured in the compose-hash
+# and in the image fingerprint allowed on-chain: this enclave signs its claims with a DOUBLED loss (everything else is
+# what an honest enclave signs; its refutations are honest). Same image as the real Sealed Bounty (product 2), which
+# refuses to start with DEMO_FAULT on product 2 and announces the fault on /pubkeys and /health. Operator: demo key A,
+# never the main operator. Only OPERATOR_ALLOWLIST and the image registry credentials are encrypted (not measured).
+services:
+  sealed-bounty-liar:
+    image: ghcr.io/jeanbaptistedurand/archive-sealed-bounty@sha256:ca06d9cc2c8f7baeb85bf15fa1592da90719b38581615109852e6fa95625ad36
+    ports:
+      - "8803:8803"
+    environment:
+      - RPC_URL=https://rpc.testnet.arc.io
+      - FORK_RPC_URL=https://rpc.testnet.arc.io
+      - CHAIN_ID=5042002
+      - PRODUCT_ID=5
+      - REGISTRY=0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d
+      - SEALEDBOUNTY=0x182871d34438aB37a7FD4d8689f3e0812E447A9b
+      - DEMO_FAULT=inflate-loss
+      - OPERATOR_ALLOWLIST=${OPERATOR_ALLOWLIST}
+    volumes:
+      - /var/run/dstack.sock:/var/run/dstack.sock
+    restart: unless-stopped

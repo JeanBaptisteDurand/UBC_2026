@@ -1,0 +1,24 @@
+# Prime scellée AU NIVEAU VÉRIFIÉ, pile v2.1 CORRIGÉE (Arc testnet, PRODUIT 7, 11/11/2026) : la même Prime (rejeu RÉEL par
+# arc-anvil dans une VM Intel TDX de PRODUCTION dstack-0.5.12), réglée par la Prime branchée sur le NOUVEAU PolicyEnclaves
+# (une enclave ne compte que si sa MACHINE est déclarée par un vérificateur accepté : l'alliance Proof of Cloud), sur la pile
+# redéployée après la revue de sécurité (PckChip corrigé : MachineRegistry 0xd671…, SealedBountyVerified 0x36a8…).
+# 11/11 : les PREUVES D'ÉTAT sont désactivées tant que notre nœud d'Arc n'a pas de disque assez grand (STATE_PROOF_RPC_URL
+# retiré ; le rejeu passe par FORK_RPC_URL, comme le produit 2). À RÉACTIVER en remettant STATE_PROOF_RPC_URL = un RPC qui
+# sert eth_getProof en historique (notre nœud, ou QuickNode/Chainstack). Tout est mesuré ; seuls OPERATOR_ALLOWLIST et les
+# identifiants du registre d'images sont des variables chiffrées.
+services:
+  sealed-bounty:
+    image: ghcr.io/jeanbaptistedurand/archive-sealed-bounty@sha256:f3bff732179c7f6a6d24a9de4e61b49372e4d2ff178d5aa08630efebd3142c15
+    ports:
+      - "8803:8803"
+    environment:
+      - RPC_URL=https://rpc.testnet.arc.io
+      - FORK_RPC_URL=https://rpc.testnet.arc.io
+      - CHAIN_ID=5042002
+      - PRODUCT_ID=7
+      - REGISTRY=0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d
+      - SEALEDBOUNTY=0x36a8ddf9fcb1308b9e86425bec9b098e933c7348
+      - OPERATOR_ALLOWLIST=${OPERATOR_ALLOWLIST}
+    volumes:
+      - /var/run/dstack.sock:/var/run/dstack.sock
+    restart: unless-stopped

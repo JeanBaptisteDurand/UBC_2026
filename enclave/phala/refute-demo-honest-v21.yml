@@ -1,0 +1,38 @@
+# REFUTATION DEMO, v2.1 stack (Arc testnet, product 5 "Sealed Bounty - refutation demo"): this VM runs the HONEST Sealed
+# Bounty image (no DEMO_FAULT) twice, for two distinct demo operators B (port 8803) and C (port 8813). Both replay a
+# claim of the deliberately lying enclave (refute-demo-liar-v21.yml) at the same block N and sign an EIP-712 Refutation
+# with the loss they measure; SealedBounty.refute needs at least two such operators, none of them a signer of the claim.
+# Same image as the real Sealed Bounty (product 2). Everything below is measured (compose-hash -> image fingerprint);
+# only OPERATOR_ALLOWLIST_B, OPERATOR_ALLOWLIST_C and the image registry credentials are encrypted (not measured).
+services:
+  sealed-bounty-b:
+    image: ghcr.io/jeanbaptistedurand/archive-sealed-bounty@sha256:ca06d9cc2c8f7baeb85bf15fa1592da90719b38581615109852e6fa95625ad36
+    ports:
+      - "8803:8803"
+    environment:
+      - RPC_URL=https://rpc.testnet.arc.io
+      - FORK_RPC_URL=https://rpc.testnet.arc.io
+      - CHAIN_ID=5042002
+      - PRODUCT_ID=5
+      - REGISTRY=0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d
+      - SEALEDBOUNTY=0x182871d34438aB37a7FD4d8689f3e0812E447A9b
+      - OPERATOR_ALLOWLIST=${OPERATOR_ALLOWLIST_B}
+    volumes:
+      - /var/run/dstack.sock:/var/run/dstack.sock
+    restart: unless-stopped
+  sealed-bounty-c:
+    image: ghcr.io/jeanbaptistedurand/archive-sealed-bounty@sha256:ca06d9cc2c8f7baeb85bf15fa1592da90719b38581615109852e6fa95625ad36
+    ports:
+      - "8813:8813"
+    environment:
+      - PORT=8813
+      - RPC_URL=https://rpc.testnet.arc.io
+      - FORK_RPC_URL=https://rpc.testnet.arc.io
+      - CHAIN_ID=5042002
+      - PRODUCT_ID=5
+      - REGISTRY=0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d
+      - SEALEDBOUNTY=0x182871d34438aB37a7FD4d8689f3e0812E447A9b
+      - OPERATOR_ALLOWLIST=${OPERATOR_ALLOWLIST_C}
+    volumes:
+      - /var/run/dstack.sock:/var/run/dstack.sock
+    restart: unless-stopped
