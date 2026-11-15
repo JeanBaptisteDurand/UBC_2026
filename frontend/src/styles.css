@@ -1,0 +1,510 @@
+/* ArcHive landing UI over the real-time server room. Brand font (--brand) for text, Fragment Mono for data only.
+   Deep blacks, bone text. Status colours are the LED colours. Type scale: 96 / 52 / 20 / 17 / 15 / 13 / 11 px.
+   Three durations (180, 280, 600 ms), two easing curves. */
+/* Brand font: Montserrat (SIL OFL 1.1, public/fonts/montserrat-OFL.txt), set once through --brand in index.html. */
+@font-face { font-family: 'Montserrat'; src: url('/fonts/montserrat-wght.woff2') format('woff2'); font-weight: 100 900; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Montserrat'; src: url('/fonts/montserrat-wght-ext.woff2') format('woff2'); font-weight: 100 900; font-display: block; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: 'Fragment Mono'; src: url('/fonts/fragment-mono.woff2') format('woff2'); font-weight: 400; font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Fragment Mono'; src: url('/fonts/fragment-mono-ext.woff2') format('woff2'); font-weight: 400; font-display: swap; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1E00-1E9F, U+20A0-20AB, U+20AD-20C0, U+A720-A7FF; }
+
+:root {
+  /* Palette: graphite and ice (palette.ts).
+     Status LEDs: green running, amber usable but not running (pending or inactive), red invalidated, off for an open slot.
+     The accent marks interaction (cursor, progress, rules, button hover), never a state. Flat fills, no glow. */
+  --bg: #0b0d10; --bg-c: 11 13 16;
+  --panel: #111418; --pan-c: 13 15 19;
+  --ink: #e9edf1; --ink-c: 233 237 241;
+  --ink2: #c5ccd4;
+  --ink3: #96a0ab;
+  --acc: #8fc6ff;
+  --acc-ink: #0b0d10;
+  --acc-hot: #d8ecff;
+  --chip: #1a1e23; --chip2: #252a31; --chip3: #20252b;
+  --led-off: #59616c; --led-off2: #1a1e23;
+  --green: oklch(0.80 0.22 148);
+  --amber: oklch(0.76 0.18 55);
+  --red: oklch(0.66 0.23 27);
+  /* Arc blue for the headline glow, from the kit navy (edge) to an almost white core */
+  --arc-navy: #1B3158; --arc-elec: #4a86ff; --arc-core: #eaf4ff; --arc-halo: #3a6bff; --arc-halo2: #2448d8;
+  --arc-t: #9aa6ff; --arc-light: #9cc0ff; --arc-mid: #8fb4ff;
+  --rule: rgb(var(--ink-c) / 0.10);
+  --rule2: rgb(var(--ink-c) / 0.20);
+  --m: 32px;
+  --gut: calc(var(--m) + 40px);
+  --hd: 86px;
+  --sans: var(--brand, 'Montserrat'), ui-sans-serif, system-ui, sans-serif;
+  /* Weights and tracking tuned for a wide geometric sans: positive tracking in caps, slightly negative in lowercase,
+     medium rather than bold weights on a dark background */
+  --w-display: 500;
+  --w-head: 500;
+  --w-body: 400;
+  --tr-caps: 0.01em;
+  --tr-head: -0.015em;
+  --tr-body: 0.004em;
+  --mono: 'Fragment Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --productive: cubic-bezier(.22, 1, .36, 1);
+  --expressive: cubic-bezier(.65, 0, .35, 1);
+  --ease: var(--productive);
+  --ease-cam: var(--expressive);
+  --t1: 180ms;
+  --t2: 280ms;
+  --t3: 600ms;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+html, body { overflow-x: clip; margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 17px; line-height: 1.55; font-weight: var(--w-body); letter-spacing: var(--tr-body); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; font-kerning: normal; }
+a { color: inherit; text-decoration: none; }
+::selection { background: var(--acc); color: var(--acc-ink); }
+html { scrollbar-color: var(--ink3) var(--bg); caret-color: var(--acc); }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+:focus-visible { outline: 1px solid rgb(143 198 255 / 0.4); outline-offset: 8px; }
+.mono { font-family: var(--mono); font-size: 13px; line-height: 1.45; letter-spacing: 0; font-weight: 400; }
+.lbl { font-family: var(--sans); font-size: 13px; line-height: 1.4; letter-spacing: 0; font-weight: 400; }
+.small { font-size: 13px; }
+.tnum { font-variant-numeric: tabular-nums lining-nums; }
+.nowrap { white-space: nowrap; }
+.muted, .dim { color: var(--ink3); }
+.skip { position: fixed; left: var(--m); top: 8px; z-index: 80; transform: translateY(-200%); background: var(--ink); color: var(--bg); padding: 8px 16px; border-radius: 999px; }
+.skip:focus { transform: none; }
+
+/* ---------- scene ---------- */
+.stage { position: fixed; inset: 0; z-index: 0; background: var(--bg); }
+.veil { display: none; pointer-events: none;  transition: opacity 480ms var(--productive); }
+html[data-pin='1'] .veil { opacity: 0; }
+.stage canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; touch-action: pan-y; }
+/* Poster: only used as the no-WebGL fallback */
+.stage .poster { position: absolute; inset: 0; background: url('/tex/poster.jpg') center / cover no-repeat; }
+.nogl-list { position: fixed; right: var(--gut); top: calc(var(--hd) + 32px); z-index: 5; width: min(420px, 40vw); height: min(46vh, 420px); overflow: auto; background: rgb(var(--pan-c) / 0.9); padding: 16px; }
+.nogl-list ul { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+.nogl-list li { display: grid; grid-template-columns: 16px 1fr auto; gap: 4px 8px; align-items: baseline; }
+.nogl-list li .mono { grid-column: 2 / -1; }
+
+/* ---------- two-row header, opaque ---------- */
+.hd { position: fixed; top: 0; left: 0; right: 0; z-index: 50; background: var(--bg); }
+.hd-row1 { height: 56px; display: flex; align-items: center; gap: 40px; padding: 0 var(--gut); border-bottom: 1px solid var(--rule); }
+.logo { display: inline-flex; align-items: center; gap: 8px; font-weight: var(--w-head); font-size: 17px; letter-spacing: -0.01em; }
+.logo-svg { display: block; height: 30px; width: auto; color: var(--ink); }
+@media (max-width: 640px) { .logo-svg { height: 26px; } }
+/* Logo rectangle (without the arrow) on the axis of the menu links: its centre sits at 52.91 / 83.40 of the drawing
+   height (Logo.tsx), so centred in the row the drawing moves up by (0.6344 - 0.5) h */
+.hd .logo-svg { transform: translateY(calc(-0.1344 * 30px)); }
+@media (max-width: 640px) { .hd .logo-svg { transform: translateY(calc(-0.1344 * 26px)); } }
+.mark { color: var(--ink); flex: none; }
+.mark-hex { fill: var(--green); }
+.hd-nav { display: flex; gap: 28px; font-size: 15px; }
+.hd-nav a { position: relative; color: var(--ink2); transition: color var(--t2) var(--productive); }
+.hd-nav a::after { content: ''; position: absolute; left: 0; right: 0; bottom: -3px; height: 1px; background: var(--acc); transform: scaleX(0); transform-origin: 0 50%; transition: transform var(--t2) var(--productive); }
+.hd-nav a:hover, .hd-nav a:focus-visible { color: var(--ink); }
+.hd-side { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+.hd-console { font-size: 15px; color: var(--ink2); transition: color var(--t2) var(--productive); }
+.hd-console:hover { color: var(--ink); }
+.lang, .menu-btn { font-family: var(--sans); font-size: 13px; height: 32px; min-width: 32px; padding: 0 12px; background: var(--chip); border-radius: 0; transition: background var(--t2) var(--productive), color var(--t2) var(--productive); }
+.lang:hover, .menu-btn:hover, .lang:focus-visible { color: var(--ink); }
+.menu-btn { display: none; }
+.hd-row2 { height: 28px; display: flex; align-items: center; gap: 28px; padding: 0 var(--gut); color: var(--ink3); border-bottom: 1px solid var(--rule); white-space: nowrap; overflow: hidden; }
+.hd-row2 b { font-weight: 400; color: var(--ink); }
+.band-i { display: inline-flex; gap: 8px; }
+.band-i > span:last-child { color: var(--ink2); }
+.band-sec { margin-left: auto; display: inline-flex; align-items: baseline; gap: 8px; color: var(--ink); }
+.prog-pct { color: var(--acc); min-width: 4ch; text-align: right; margin-left: 8px; }
+.prog { position: relative; height: 1px; }
+.prog-bar { position: absolute; inset: 0; background: var(--acc); transform-origin: 0 50%; transform: scaleX(0); }
+.prog-bar[data-load='1'] { background: var(--ink2); transition: transform 400ms var(--productive); }
+.hd-drawer { display: flex; flex-direction: column; padding: 16px var(--gut) 24px; gap: 16px; font-size: 20px; background: var(--bg); }
+
+/* ---------- cursor: an outlined square, axes, locking ---------- */
+@media (pointer: fine) { html.scene-ready[data-cur='1'], html.scene-ready[data-cur='1'] * { cursor: none !important; } }
+.cursor { position: fixed; left: 0; top: 0; z-index: 70; width: 22px; height: 22px; pointer-events: none; color: rgb(var(--ink-c) / 0.9); opacity: 0; transition: opacity var(--t1) var(--productive), box-shadow var(--t2) var(--productive); overflow: hidden; }
+html[data-cur='1'] .cursor { opacity: 1; }
+.cursor[data-s='over'] { color: rgb(var(--ink-c) / 1); }
+.cursor[data-s='arm'] { color: var(--acc); }
+.cursor[data-s='lock'], .cursor[data-s='ui'] { color: var(--acc); }
+.cursor .cur-q { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.cursor .cur-q polygon { fill: none; stroke: currentColor; stroke-width: 1px; vector-effect: non-scaling-stroke; transition: stroke var(--t2) var(--productive); }
+.cursor .cur-load { stroke: var(--acc); stroke-width: 2px; opacity: 0.9; }
+.cursor[data-s='lock'] .cur-load, .cursor[data-s='free'] .cur-load { opacity: 0; }
+.axis { position: fixed; left: 0; top: 0; z-index: 14; pointer-events: none; background: rgb(var(--ink-c) / 0.10); opacity: 0; transition: opacity var(--t1) var(--productive); }
+html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
+.axis-x { width: 100vw; height: 1px; }
+.axis-y { height: 100dvh; width: 1px; }
+.reading { position: fixed; left: 0; top: 0; z-index: 65; pointer-events: none; color: var(--ink); background: rgb(var(--pan-c) / 0.92); padding: 4px 8px; white-space: nowrap; opacity: 0; transition: opacity var(--t1) var(--productive); }
+.reading[data-on='1'] { opacity: 1; }
+
+/* ---------- typography ---------- */
+.h1 { font-size: clamp(48px, 5.3vw, 84px); line-height: 0.92; letter-spacing: var(--tr-caps); font-weight: var(--w-display); margin: 0; text-transform: uppercase; }
+.h2 { font-size: clamp(34px, 3.3vw, 48px); line-height: 1.04; letter-spacing: var(--tr-head); font-weight: var(--w-head); margin: 0; text-wrap: balance; }
+/* Section titles use the headline weight, same size */
+.h2.ttl { font-weight: 600; }
+.support { font-size: 20px; line-height: 1.45; margin: 28px 0 0; max-width: 26em; letter-spacing: -0.005em; text-wrap: pretty; color: var(--ink); }
+.lede { font-size: 17px; line-height: 1.55; color: var(--ink2); margin: 20px 0 0; max-width: 32em; text-wrap: pretty; }
+.body { font-size: 17px; color: var(--ink2); }
+
+/* Reveal gestures: the leading rule, the unfolding row, word by word */
+.ttl { position: relative; }
+.ttl-m { display: block; overflow: hidden; padding-bottom: 8px; margin-bottom: -8px; }
+.ttl-t { display: block; }
+.ttl-rule { position: absolute; left: 0; width: 64px; bottom: -14px; height: 1px; background: var(--acc); transform-origin: 0 50%; }
+/* A single lettering gesture: the rule draws, then the title rises from behind it; in state sections the rule takes
+   the LED colour */
+.js .ttl:not(.in) .ttl-t { transform: translateY(16px); clip-path: inset(0 0 100% 0); }
+.js .ttl .ttl-t { transition: transform 420ms var(--ease) 120ms, clip-path 420ms var(--ease) 120ms; }
+.js .ttl:not(.in) .ttl-rule { transform: scaleX(0); }
+.js .ttl.in .ttl-rule { transition: transform 280ms var(--ease); transform: scaleX(1); }
+.st-use .ttl-rule { background: var(--green); }
+.st-rent .ttl-rule { background: var(--ink3); }
+.st-publish .ttl-rule { background: var(--amber); } /* the rule takes the colour of the targeted slot */
+.st-invalid .ttl-rule { background: var(--red); }
+.js .unfold .row { clip-path: inset(0 0 100% 0); transform: translateY(-4px); transition: clip-path 240ms var(--ease), transform 240ms var(--ease); transition-delay: calc(160ms + var(--j, 0) * 45ms); }
+.js .unfold.in .row { clip-path: inset(-2px -2px -2px -2px); transform: none; }
+.cote-in { position: relative; }
+.cote-l { display: inline-block; vertical-align: middle; width: 28px; height: 1px; background: var(--ink2); margin-right: 12px; transform-origin: 0 50%; }
+.js .cote-in:not(.in) .cote-l { transform: scaleX(0); }
+.js .cote-in .cote-l { transition: transform 260ms var(--ease); }
+.cote-v { display: inline-block; }
+.js .cote-in:not(.in) .cote-v { clip-path: inset(0 100% 0 0); }
+.js .cote-in .cote-v { transition: clip-path 360ms var(--ease) 220ms; }
+
+/* ---------- buttons: a fill that enters from the left, weight that lifts ---------- */
+.ctas { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 36px; }
+.btn, .btn-slot { position: relative; display: inline-flex; align-items: center; height: 48px; padding: 0 16px; border-radius: 0; overflow: visible; font-size: 13px; letter-spacing: 0.01em; font-weight: var(--w-head); isolation: isolate; white-space: nowrap; }
+/* The three hero buttons on a single line on desktop */
+@media (min-width: 1100px) { .hero .ctas { flex-wrap: nowrap; } }
+.btn-slot { visibility: hidden; }
+.btn > span { position: relative; z-index: 1; transition: font-weight var(--t2) var(--productive), color var(--t2) var(--productive); }
+.btn:hover > span, .btn:focus-visible > span { font-weight: 600; }
+.btn-main { background: var(--ink); color: var(--bg); }
+.btn-line { color: var(--ink); background: var(--chip3); }
+.btn-s { height: 40px; padding: 0 16px; font-size: 13px; }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.tlink { position: relative; color: var(--ink); display: inline-flex; align-items: center; gap: 8px; min-height: 24px; transition: color var(--t2) var(--productive); }
+.tlink::after { content: ''; position: absolute; left: 0; right: 0; bottom: -2px; height: 1px; background: var(--acc); transform: scaleX(0); transform-origin: 0 50%; transition: transform var(--t2) var(--productive); }
+.tlink:hover { color: var(--acc); }
+.carrier { position: fixed; inset: 0; z-index: 30; pointer-events: none; }
+.carrier .btn { position: absolute; left: 0; top: 0; pointer-events: auto; will-change: transform; }
+
+/* ---------- sections ---------- */
+.page { position: relative; z-index: 1; }
+.sec { position: relative; padding: 0 var(--gut); }
+.txt { width: min(540px, 38vw); position: relative; }
+/* The text stops before the hero rack, which sits mid-screen */
+.hero .txt { width: min(500px, 36vw); position: static; }
+.pin-proto .txt { width: min(460px, 32vw); }
+.hero { min-height: 100svh; padding-top: calc(var(--hd) + 44px); padding-bottom: 40px; }
+.hero .support { margin-top: 40px; }
+.hero .ctas { margin-top: 52px; }
+/* Headline in opposite corners: "Sealed machines," top left, filling the space before the hero rack; "open market."
+   bottom right, over the racks, larger. The size is tuned so "MACHINES," keeps about 40 px of air before the racks */
+.catch { position: static; font-size: clamp(58px, 5.3vw, 100px); line-height: 0.94; font-weight: 600; letter-spacing: 0; }
+.catch .c1 { display: block; max-width: 6.6em; }
+.catch .c2 { display: block; position: absolute; right: var(--gut); bottom: clamp(20px, 3.4vh, 40px); text-align: right; max-width: 6.4em; font-size: 1.22em; }
+.catch .ttl-rule { display: none; }
+/* Words in glowing Arc blue. The filter (ui/ArcGlow.tsx) draws the filament; the text colour is only a fallback
+   (without the filter, a light Arc blue); the spark canvas overflows the word */
+.catch .ttl-m { overflow: visible; }
+.arc-w { position: relative; display: inline-block; }
+.arc-w-t { color: #8fb4ff; }
+/* Section title glow (ui/ArcGlow.tsx, ArcIgnite). Only words marked {...} ignite; each carries three stacked filtered
+   copies (body, near halo, wide halo) and only their opacity animates. The mask only opens to the glow once ignition
+   has started (data-lit, set by ArcIgnite) */
+.h2.ttl[data-lit='1'] .ttl-m { overflow: visible; }
+.ig-host { position: relative; display: block; }
+.ig { position: relative; display: inline-block; }
+.ig-l { position: absolute; left: calc(-1 * var(--ig-pad, 0.6em)); top: calc(-1 * var(--ig-pad, 0.6em)); padding: var(--ig-pad, 0.6em); white-space: nowrap; opacity: 0; pointer-events: none; will-change: opacity, transform; color: #fff; } /* transform too: the filtered layer is scaled by the compositor instead of being re-filtered every frame */
+.arc-w-c { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; } /* zero size before measuring: no layout shift */
+.js .catch .c2 .ttl-t { transition-delay: 420ms; }
+.hero .txt:has(.mirror :focus-visible) .hint-k { display: inline; }
+/* Wall legend: three dots and their counts, under the verdict line */
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+@media (pointer: coarse) { .cursor, .axis, .reading, .no-touch { display: none; } }
+.mirror { position: absolute; left: 0; top: 0; width: 24px; height: 24px; overflow: hidden; clip-path: inset(50%); }
+.mirror button { position: absolute; left: 0; top: 0; width: 24px; height: 24px; }
+/* With the keyboard, the focused slot is framed to the pixel (the button sits on it) */
+.mirror:focus-within { overflow: visible; clip-path: none; }
+.mirror button:focus-visible { position: fixed; outline: 1px solid rgb(143 198 255 / 0.55); outline-offset: 0; z-index: 40; }
+.led { display: inline-block; width: 18px; height: 5px; border-radius: 1px; margin-right: 12px; vertical-align: middle; background: var(--led-off); }
+.led-green { background: var(--green); }
+.led-amber { background: var(--amber); }
+.led-red { background: var(--red); }
+.st { min-height: 150svh; padding-top: 200px; padding-bottom: 0; }
+/* The text of a state section stays put while the camera frames its slot (the 3D never lags behind the text) */
+.st .txt { position: sticky; top: calc(var(--hd) + 14vh); }
+.key { margin: 28px 0 0; color: var(--ink); display: flex; align-items: center; flex-wrap: wrap; gap: 4px 0; font-size: 15px; }
+.key-n { margin-left: 16px; color: var(--ink2); }
+.replay { margin: 16px 0 0; color: var(--amber); text-wrap: pretty; }
+.kv { margin: 24px 0 0; display: grid; gap: 0; max-width: 30em; }
+.kv .row { display: grid; grid-template-columns: minmax(0, 11em) minmax(0, 1fr); gap: 16px; padding: 8px 0; }
+.kv dt { color: var(--ink2); }
+.kv dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; text-wrap: pretty; }
+.dock { margin-top: 32px; min-height: 52px; }
+.why { margin: 32px 0 0; font-size: 20px; line-height: 1.45; max-width: 24em; color: var(--ink); }
+.leads { position: fixed; inset: 0; z-index: 12; pointer-events: none; }
+/* Leader lines in the headline blue, drawn quickly as you scroll (Leads) */
+.ld { fill: none; stroke: var(--arc-elec); stroke-width: 1.25; stroke-dasharray: 1; stroke-dashoffset: 1; }
+.ld-p { fill: var(--arc-light); stroke: none; opacity: 0; transition: opacity var(--t1) var(--productive); }
+
+/* ---------- pinned pages ---------- */
+.pin { height: 320svh; padding: 0; }
+.pin-in { position: sticky; top: 0; height: 100svh; padding: calc(var(--hd) + 58px) var(--gut) 40px; }
+.steps { position: relative; margin: 32px 0 0; padding-left: 20px; }
+.steps-rail { position: absolute; left: 0; top: 4px; bottom: 4px; width: 1px; background: var(--rule2); }
+.steps-bar { position: absolute; inset: 0; background: var(--acc); transform-origin: 50% 0; transform: scaleY(var(--p, 0)); }
+.steps ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.steps li { display: flex; gap: 12px; align-items: baseline; color: var(--ink3); transition: color var(--t2) var(--productive); font-size: 15px; }
+.steps li.done { color: var(--ink2); }
+.steps li.on { color: var(--ink); }
+.swap { animation: swap 420ms var(--productive) both; min-height: 4.7em; }
+@keyframes swap { from { clip-path: inset(0 0 100% 0); transform: translateY(-6px); } to { clip-path: inset(-4px); transform: none; } }
+.parts-layer { position: fixed; inset: 0; z-index: 12; pointer-events: none; }
+.parts-layer svg { position: absolute; inset: 0; }
+.parts-layer path { fill: none; stroke: rgb(var(--ink-c) / 0.72); stroke-width: 1; }
+.parts-layer path.arc { stroke: var(--arc-t); }
+.plab { position: absolute; left: 0; top: 0; height: 24px; display: inline-flex; align-items: center; padding: 0 8px; color: var(--ink); text-shadow: 0 0 6px rgb(var(--pan-c)), 0 0 2px rgb(var(--pan-c));  white-space: nowrap; opacity: 0; transition: opacity var(--t1) var(--productive); }
+/* A light veil under the labels, faded at its edges (the rack reads through), never a block */
+.plab-bg { position: absolute; left: 0; top: 0; width: 0; height: 0; background: rgb(var(--pan-c) / 0.7); -webkit-mask-image: linear-gradient(to right, transparent, black 28px, black calc(100% - 28px), transparent), linear-gradient(to bottom, transparent, black 18px, black calc(100% - 18px), transparent); -webkit-mask-composite: source-in; mask-image: linear-gradient(to right, transparent, black 28px, black calc(100% - 28px), transparent), linear-gradient(to bottom, transparent, black 18px, black calc(100% - 18px), transparent); mask-composite: intersect; opacity: 0; transition: opacity var(--t1) var(--productive); }
+.parts-layer circle { fill: var(--ink); opacity: 0; transition: opacity var(--t1) var(--productive); }
+.plab-bg[data-on='1'] { opacity: 1; }
+.plab.arc { color: var(--arc-t); }
+.plab[data-on='1'] { opacity: 1; }
+.plab, .vid-tag, .reading { visibility: hidden; }
+.plab[data-on='1'], .vid-tag[data-on='1'], .reading[data-on='1'] { visibility: visible; }
+.gate { margin: 24px 0 0; padding: 16px; background: rgb(var(--pan-c) / 0.88); max-width: 32em; display: grid; gap: 12px; justify-items: start; }
+.gate > .row { justify-self: stretch; }
+.gate .row { display: grid; gap: 8px; }
+.gate .row.two { grid-template-columns: 1fr 1fr; }
+.bytes { display: grid; grid-template-columns: repeat(16, 1fr); gap: 2px; }
+.by { text-align: center; height: 20px; line-height: 20px; font-size: 11px; color: var(--ink3); background: rgb(var(--ink-c) / 0.05); }
+/* Each validated cell lights up with the blue glow of the Arc sheet (same check as the light ring around the sled);
+   only at the verdict do they all turn green */
+.by { transition: background-color var(--t2) var(--productive), box-shadow var(--t2) var(--productive), color var(--t2) var(--productive); }
+.by.on { color: #eef4ff; background-color: #2a43d6; box-shadow: inset 0 0 0 1px rgb(150 178 255 / 0.55), 0 0 10px rgb(74 104 255 / 0.55); }
+.by.diff { color: var(--ink); background: oklch(0.45 0.16 27); box-shadow: inset 0 0 0 1px var(--red); } /* the faulty byte is outlined */
+.gate[data-ph="ok"] .by.on { color: #effff3; background-color: oklch(0.52 0.16 148); box-shadow: inset 0 0 0 1px oklch(0.80 0.22 148 / 0.6), 0 0 10px oklch(0.80 0.22 148 / 0.45); }
+.by.cur { box-shadow: inset 0 0 0 1px var(--acc); }
+.verdict { display: flex; gap: 12px; align-items: flex-start; min-height: 3.2em; }
+.verdict p { margin: 0; font-size: 15px; color: var(--ink2); }
+.seal { display: inline-flex; align-items: center; gap: 8px; flex: none; }
+.seal svg { overflow: visible; }
+.seal-box { fill: none; stroke: currentColor; stroke-width: 1.4; stroke-dasharray: 1; animation: draw 420ms var(--productive) both; }
+.seal-mark { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-dasharray: 1; animation: draw 360ms var(--productive) 300ms both; }
+.seal.ok { color: var(--green); }
+.seal.no { color: var(--red); }
+@keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+.seal-wait { color: var(--ink3); flex: none; }
+.vid-tag { position: fixed; left: 0; top: 0; z-index: 12; margin: 0; color: var(--ink); width: auto !important; padding: 4px 8px; background: rgb(var(--pan-c) / 0.9); opacity: 0; transition: opacity var(--t2) var(--productive); }
+.vid-tag[data-on='1'] { opacity: 1; }
+
+/* ---------- card ---------- */
+.fiche { position: fixed; left: 0; top: 0; z-index: 55; width: 340px; background: rgb(var(--pan-c) / 0.96); box-shadow: 0 24px 48px -24px rgb(0 0 0 / 0.8); padding: 16px; clip-path: inset(0 0 100% 0); transition: clip-path var(--t2) var(--productive); }
+.fiche.on { clip-path: inset(-8px -8px -48px -8px); transition: clip-path var(--t3) var(--productive); }
+/* The card folds towards its leader line (slot side), the line retracts into the slot, same duration */
+.fiche:not(.on) { transition-duration: 240ms; }
+.fiche[data-side='1']:not(.on) { clip-path: inset(0 100% 0 0); }
+.fiche[data-side='-1']:not(.on) { clip-path: inset(0 0 0 100%); }
+.fiche-lead { position: fixed; left: 0; top: 0; z-index: 54; height: 1px; width: 1px; background: var(--acc); opacity: 0; pointer-events: none; }
+.fi-head { display: flex; justify-content: space-between; align-items: center; padding-bottom: 4px; color: var(--ink3); }
+.fi-st { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); }
+.fi-st i { width: 12px; height: 4px; border-radius: 1px; background: var(--led-off2); }
+.fi-st.st-green i { background: var(--green); }
+.fi-st.st-amber i { background: var(--amber); }
+.fi-st.st-red i { background: var(--red); }
+.fi-t { margin: 16px 0 4px; font-size: 20px; font-weight: var(--w-head); letter-spacing: -0.01em; }
+.fi-s { margin: 0 0 12px; color: var(--ink2); font-size: 15px; }
+.fi-dl { margin: 8px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; }
+.fi-dl > div { display: contents; }
+.fi-dl dt { color: var(--ink3); }
+.fi-dl dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+.fi-foot { margin-top: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.fi-esc { font-size: 13px; }
+
+/* ---------- end: back to the hero framing; a column in the room, the wall on the right ---------- */
+.end { padding: 0; margin-top: 24svh; }
+.end-in { position: relative; padding: 72px var(--gut) 96px; display: grid; gap: 36px; width: calc(min(460px, 33vw) + 2 * var(--gut)); } 
+.end-hd .lede { max-width: 30em; }
+.figs { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; }
+.figs > div { display: grid; gap: 8px; align-content: start; padding-top: 12px; box-shadow: inset 0 1px 0 var(--rule2); }
+.figs dt { color: var(--ink3); }
+.figs dd { margin: 0; color: var(--ink); font-size: 15px; }
+.chain-h { margin: 0 0 12px; font-size: 20px; font-weight: var(--w-head); letter-spacing: -0.01em; }
+.chain ol { list-style: none; margin: 0; padding: 0; }
+.chain ol { display: grid; gap: 14px; margin-top: 40px; }
+/* The ending follows the proof chain without a gap */
+.end-hd { display: grid; gap: 20px; }
+/* "Take your place on the wall." is separated from the proof chain like a new section */
+.end-hd { margin-top: calc(60svh - 36px); }
+.end-hd .ctas { margin: 8px 0 0; }
+/* The three end buttons on a single line, like the hero (the line ends at the same x, before the rack) */
+@media (min-width: 1100px) { .end-hd .ctas { flex-wrap: nowrap; width: max-content; } }
+.end-demo { justify-self: start; color: var(--ink2); font-size: 15px; }
+.chain li { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 16px; align-items: start; }
+.chain li .led { margin: 8px 0 0; width: 18px; }
+.c-main { display: grid; gap: 4px; min-width: 0; }
+.c-t { display: flex; gap: 12px; align-items: baseline; }
+.c-v { color: var(--ink); overflow-wrap: anywhere; }
+.c-s { color: var(--ink2); font-size: 15px; }
+.c-tx { justify-self: end; display: inline-flex; align-items: center; min-height: 24px; }
+.chain-note { margin: 12px 0 0; color: var(--ink2); }
+.foot { position: relative; z-index: 2; background: rgb(var(--bg-c) / 0.94); padding: 40px var(--gut) 44px; display: flex; flex-wrap: wrap; gap: 24px 40px; align-items: center; justify-content: space-between; }
+/* Our logo first, then "Powered by" and the Arc kit logo set back (smaller, after a rule), with its clear space
+   (the inner arch height, about 20 px at 50 px tall: 24 px kept on each side) */
+.foot-l { display: flex; align-items: center; gap: 0; flex-wrap: wrap; }
+.foot-l .logo { color: var(--ink); margin-right: 40px; }
+.foot .logo-svg { height: 84px; }
+.foot-arc { display: inline-flex; align-items: center; gap: 0; margin: 0; padding-left: 40px; box-shadow: inset 1px 0 0 var(--rule2); }
+.foot-arc img { display: block; height: 50px; width: auto; margin: 0 24px; }
+.foot-arc .lbl { white-space: nowrap; }
+.foot-r { display: grid; gap: 4px; justify-items: end; text-align: right; }
+.foot-r p { margin: 0; }
+.foot-auth { font-size: 15px; font-weight: var(--w-head); color: var(--ink); }
+
+/* service page */
+.svc-page { min-height: 100svh; }
+.svc-dl { display: grid; gap: 8px; margin: 0; }
+.svc-dl > div { display: grid; grid-template-columns: 12em 1fr; padding-top: 8px; }
+.svc-dl dt { color: var(--ink3); }
+.svc-dl dd { margin: 0; }
+
+/* ---------- medium and narrow screens ---------- */
+@media (max-width: 1100px) {
+  /* Tablet: the headline stays in one block, as on phones */
+  .hd-nav, .hd-console { display: none; }
+  .menu-btn { display: inline-flex; align-items: center; }
+  .band-pay { display: none; }
+  .txt, .pin-proto .txt { width: min(520px, 46vw); }
+  .catch .c2 { position: static; text-align: left; margin-top: 0; max-width: 6.6em; font-size: 1em; }
+  .catch { font-size: 8vw; }
+  /* Between 761 and 1100 px the wall passes under the column: a dark veil with a soft edge covers it */
+  .veil { display: block; position: absolute; top: 0; bottom: 0; left: 0; width: calc(var(--gut) + min(520px, 46vw) + 56px); background: rgb(var(--bg-c) / 0.9); mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent); }
+}
+@media (max-width: 760px) {
+  :root { --m: 16px; --hd: 84px; --gut: 16px; }
+  .veil { display: none; }
+  .h1 { font-size: 11.4vw; }
+  .catch { font-size: 12.6vw; }
+  .h2 { font-size: 34px; }
+  .hd-row1, .hd-row2 { gap: 16px; }
+  /* Phone: the enclave counter stays in the header (first screen), the block is hidden */
+  .hd-row2 .band-i:nth-child(2) { display: none; }
+  .txt, .hero .txt { width: 100%; }
+  .hero { padding-top: calc(var(--hd) + 24svh); }
+  /* Phone first screen: the headline, one sentence, then the action (thumb reach) */
+  .hero .txt { display: flex; flex-direction: column; }
+  .hero .ctas { order: 3; }
+  /* Phone: the checks stay in the step text (the panel fits under the 3D) */
+  .pin .checks { display: none; }
+  .pin .proto-text .swap { margin-top: 8px; }
+  .support { font-size: 17px; margin-top: 16px; }
+  .ctas { margin-top: 20px; }
+  .btn { height: 48px; padding: 0 18px; }
+  /* Phone: the framed slot holds the top of the screen (cam.ts), the panel sits below and never covers it */
+  .st { min-height: 100svh; padding-top: calc(var(--hd) + 26svh); }
+  .st .txt { top: calc(var(--hd) + 26svh); background: rgb(var(--bg-c) / 0.93); margin: 0 -16px; padding: 16px; width: auto; }
+  .kv .row { grid-template-columns: minmax(0, 8em) minmax(0, 1fr); }
+  /* Pinned pages in portrait: the 3D at the top of the screen (cam.ts PIN_SHIFT), the text below as a panel; the
+     progress becomes a line of four steps */
+  .pin-in { display: flex; flex-direction: column; justify-content: flex-end; padding: 0; }
+  .pin .txt { width: 100%; padding: 20px var(--gut) 24px; background: rgb(var(--bg-c) / 0.9); }
+  .pin .h2 { font-size: 28px; }
+  .pin .ttl-rule { display: none; }
+  .steps { margin: 16px 0 0; padding: 0 0 12px; }
+  .steps-rail { left: 0; right: 0; top: auto; bottom: 0; width: auto; height: 1px; }
+  .steps-bar { transform-origin: 0 50%; transform: scaleX(var(--p, 0)); }
+  .steps ol { display: flex; gap: 12px; align-items: baseline; }
+  .steps li { gap: 8px; }
+  .steps li:not(.on) { display: none; }
+  .swap { min-height: 0; margin-top: 12px; }
+  .pin-arc .lede { display: none; }
+  .gate { margin-top: 12px; padding: 12px; gap: 8px; }
+  .gate .row.two { grid-template-columns: 1fr 1fr; }
+  .gate .row.two > span { display: grid; gap: 4px; }
+  .bytes { grid-template-columns: repeat(16, 1fr); gap: 2px; }
+  .by { height: 18px; line-height: 18px; }
+  .fiche { left: 16px; right: 16px; top: auto; bottom: 16px; width: auto; transform: none !important; }
+  .end-in { padding: 48px var(--gut); width: 100%; }
+  .end-in { gap: 24px; }
+  .end-in > * { background: rgb(var(--bg-c) / 0.84); margin: 0 -16px; padding: 16px; }
+  .figs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .chain li { grid-template-columns: 18px minmax(0, 1fr); }
+  .chain li .c-tx { grid-column: 2; justify-self: start; }
+  .foot-r { justify-items: start; text-align: left; }
+  .foot-l .logo { margin-right: 24px; }
+  .foot .logo-svg { height: 72px; }
+  .foot-arc { padding-left: 0; box-shadow: none; margin-top: 16px; }
+  .foot-arc img { margin: 0 0 0 16px; }
+  .end-hd { margin-top: calc(40svh - 24px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 1ms !important; animation-duration: 1ms !important; }
+}
+
+/* ---------- the cursor square also wraps interactive elements (buttons, links); their own hover rule fades
+              when the square frames them (no double outline) ---------- */
+html[data-cur='1'] .hd-nav a::after, html[data-cur='1'] .tlink::after { display: none; }
+html[data-cur='1'] :focus-visible:hover { outline: none; }
+.tlink { padding: 0 2px; margin: 0 -2px; }
+
+/* ---------- service opened in place: a panel sliding in from the right ---------- */
+html.svc-open { overflow: hidden; }
+html { scrollbar-gutter: stable; }
+.svc-panel { position: fixed; top: calc(var(--hd) + 1px); right: 0; bottom: 0; z-index: 60; width: min(520px, 42vw); background: rgb(var(--pan-c) / 0.985); box-shadow: -32px 0 64px -32px rgb(0 0 0 / 0.9); transform: translate3d(104%, 0, 0); transition: transform 640ms var(--expressive); overflow: auto; overscroll-behavior: contain; visibility: hidden; }
+.svc-panel.on { transform: none; visibility: visible; }
+.svc-panel.closing { visibility: visible; }
+.svc-in { padding: 32px 40px 48px; display: grid; gap: 24px; }
+[data-svc-h]:focus { outline: none; }
+/* The page fades under the panel so the approached slot reads alone (the page does not move) */
+.page, .carrier, .leads, .parts-layer { transition: opacity 640ms var(--expressive); }
+html.svc-open .page, html.svc-open .carrier, html.svc-open .leads, html.svc-open .parts-layer { opacity: 0.08; }
+.svc-in .h2 { font-size: clamp(30px, 2.8vw, 40px); }
+.svc-top { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.svc-x { display: inline-flex; align-items: center; height: 40px; padding: 0 16px; background: var(--chip); font-size: 13px; transition: background var(--t2) var(--productive), color var(--t2) var(--productive); }
+.svc-dl > div { box-shadow: inset 0 1px 0 var(--rule); padding-top: 12px; }
+.svc-page .svc-in { padding: 48px 24px; max-width: 720px; margin: 0 auto; }
+@media (max-width: 760px) {
+  .svc-panel { width: 100%; }
+  .svc-in { padding: 16px 16px 32px; }
+  .svc-dl > div { grid-template-columns: 9em 1fr; }
+}
+
+/* ---------- two opposite corners (top left, bottom right) ---------- */
+/* Page: two thin corners in the margins, under the header on the left and at the bottom right */
+.pg-ang { position: fixed; inset: 0; z-index: 45; pointer-events: none; }
+.pg-a { position: absolute; width: 16px; height: 16px; border: 0 solid rgb(var(--ink-c) / 0.5); }
+.pg-tl { left: 16px; top: calc(var(--hd) + 16px); border-left-width: 1px; border-top-width: 1px; }
+.pg-br { right: 16px; bottom: 16px; border-right-width: 1px; border-bottom-width: 1px; }
+@media (max-width: 760px) { .pg-ang { display: none; } }
+/* Selection frame (ui/Sel.tsx): a one-pixel rule and two 12 px corners, 8 px from the target */
+.self { position: fixed; left: 0; top: 0; z-index: 90; pointer-events: none; opacity: 0; transition: opacity var(--t1) var(--productive); }
+.self[data-on='1'] { opacity: 1; }
+.self::before, .self::after { content: ''; position: absolute; width: 12px; height: 12px; border: 0 solid var(--acc); }
+.self::before { left: 0; top: 0; border-left-width: 1px; border-top-width: 1px; }
+.self::after { right: 0; bottom: 0; border-right-width: 1px; border-bottom-width: 1px; }
+.self-hover { box-shadow: inset 0 0 0 1px rgb(143 198 255 / 0.4); }
+/* Landing cursor: on a button, a link or a slot, the outline becomes the rule and the corners light up */
+.cursor .cur-a { fill: none; stroke: currentColor; stroke-width: 1px; vector-effect: non-scaling-stroke; opacity: 0; transition: opacity var(--t1) var(--productive); }
+.cursor[data-s='ui'] .cur-a, .cursor[data-s='arm'] .cur-a, .cursor[data-s='lock'] .cur-a { opacity: 1; }
+.cursor[data-s='ui'] .cur-q polygon, .cursor[data-s='arm'] .cur-q polygon, .cursor[data-s='lock'] .cur-q polygon { stroke-opacity: 0.4; }
+/* Selected or active (pressed, current page, current section button, chosen filter, step): never a fill; the rule
+   and its corners take the neon of the logo dot (light core, electric blue, near halo, very low wide halo) */
+.chip, .dot, .mode, .lang, .menu-btn, .svc-x, .cmd-b, .svc-b { position: relative; }
+.btn { transition: background var(--t1) var(--productive), color var(--t1) var(--productive); }
+.btn::before, .hd-nav a::before, .tlink::before, .chip::after, .dot::after, .mode::after, .lang::after, .menu-btn::after, .svc-x::after, .cmd-b::after, .svc-b::after {
+  content: ''; position: absolute; inset: -8px; z-index: 2; pointer-events: none; opacity: 0;
+  background: linear-gradient(var(--arc-core), var(--arc-core)) left top / 12px 1px no-repeat, linear-gradient(var(--arc-core), var(--arc-core)) left top / 1px 12px no-repeat, linear-gradient(var(--arc-core), var(--arc-core)) right bottom / 12px 1px no-repeat, linear-gradient(var(--arc-core), var(--arc-core)) right bottom / 1px 12px no-repeat;
+  box-shadow: inset 0 0 0 1px rgb(143 180 255 / 0.6);
+  filter: drop-shadow(0 0 1px rgb(74 134 255 / 0.95)) drop-shadow(0 0 4px rgb(58 107 255 / 0.75)) drop-shadow(0 0 12px rgb(36 72 216 / 0.5));
+  transition: opacity var(--t1) var(--productive);
+}
+.btn:active::before, .hd-nav a[aria-current='page']::before, .tlink:active::before, .chip[aria-pressed='true']::after, .dot.is-on::after, .mode[aria-checked='true']::after, .lang:active::after, .menu-btn:active::after, .menu-btn[aria-expanded='true']::after, .svc-x:active::after, .cmd-b:active::after, .svc-b:active::after { opacity: 1; }
+.chip[aria-pressed='true'], .dot.is-on, .mode[aria-checked='true'], .svc-b:active { z-index: 1; }
+.btn-main:active { background: var(--chip3); color: var(--ink); }
+.hd-nav a::after { display: none; }
+/* The logo has no frame: on hover and focus the whole shape lights up with the glow of the "A" dot */
+.logo .logo-svg { transition: color 200ms var(--productive), filter 200ms var(--productive); filter: drop-shadow(0 0 0 rgb(74 134 255 / 0)) drop-shadow(0 0 0 rgb(58 107 255 / 0)) drop-shadow(0 0 0 rgb(36 72 216 / 0)); }
+.logo:hover .logo-svg, .logo:focus-visible .logo-svg { color: var(--arc-core); filter: drop-shadow(0 0 1px rgb(74 134 255 / 0.9)) drop-shadow(0 0 4px rgb(58 107 255 / 0.7)) drop-shadow(0 0 11px rgb(36 72 216 / 0.45)); }
+/* Transparent outline: invisible here, rendered by forced-colors mode; focus shows through the glow */
+.logo:focus-visible { outline: 2px solid transparent; outline-offset: 4px; }
+/* Footer: the centre of the logo rectangle (without the arrow) on the axis of the neighbouring content, like the header */
+.foot .logo-svg { transform: translateY(calc(-0.13437 * 84px)); }
+@media (max-width: 760px) { .foot .logo-svg { transform: translateY(calc(-0.13437 * 72px)); } }
