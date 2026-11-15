@@ -1,0 +1,603 @@
+[
+ {
+  "contract": "SessionPay",
+  "name": "Settled",
+  "args": {
+   "sessionId": "5",
+   "cumulativeUnits": "3041",
+   "paidDelta": "304100"
+  },
+  "block": 71390063,
+  "logIndex": 19,
+  "tx": "0x3e893451c7515ef6ee342cd8f8a136858eaf9dd6340a0c8a81ca180488d2089b"
+ },
+ {
+  "contract": "SessionPay",
+  "name": "SessionOpened",
+  "args": {
+   "sessionId": "5",
+   "owner": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
+   "productId": "1",
+   "deposit": "1000000"
+  },
+  "block": 71389568,
+  "logIndex": 8,
+  "tx": "0x23ff5a139327f0b284cb791ea4305d4af7e32a39fa41ed4aa5b0e02f2ec5b8c7"
+ },
+ {
+  "contract": "SessionPay",
+  "name": "SessionClosed",
+  "args": {
+   "sessionId": "3",
+   "refund": "1000000"
+  },
+  "block": 71388802,
+  "logIndex": 21,
+  "tx": "0xff283c5bcbb6ee1ec9cca0f37ee3f0381e28aa1f1a07fa87805697b4fb9be6c4"
+ },
+ {
+  "contract": "VerdictLog",
+  "name": "Recorded",
+  "args": {
+   "agentId": "897812",
+   "requestHash": "0x833a68e3c21831192f9c82ae679a16f13aed9730d9c5ef96485e221eb744ce6b",
+   "response": 100,
+   "tag": "tdx-dcap/inference"
+  },
+  "block": 71388802,
+  "logIndex": 20,
+  "tx": "0xff283c5bcbb6ee1ec9cca0f37ee3f0381e28aa1f1a07fa87805697b4fb9be6c4"
+ },
+ {
+  "contract": "SessionPay",
+  "name": "SessionClosed",
+  "args": {
+   "sessionId": "2",
+   "refund": "901000"
+  },
+  "block": 71388782,
+  "logIndex": 23,
+  "tx": "0x16bf37154ee5bf52449596579a22a92d898c4e092696afe322054fe448207009"
+ },
+ {
+  "contract": "VerdictLog",
+  "name": "Recorded",
+  "args": {
+   "agentId": "897812",
+   "requestHash": "0x71935280879b1e042ef2b17049c3420ae3a64f30574dc6ced15158160093f1bb",
+   "response": 100,
+   "tag": "tdx-dcap/inference"
+  },
+  "block": 71388782,
+  "logIndex": 22,
+  "tx": "0x16bf37154ee5bf52449596579a22a92d898c4e092696afe322054fe448207009"
+ },
+ {
+  "contract": "EnclaveRegistry",
+  "name": "EnclaveRegistered",
+  "args": {
+   "signer": "0x6AFc62deC6C33DdFff75f95cBf1b8D9d18296DA6",
+   "productId": "1",
+   "operator": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a",
+   "workloadId": "0x9b21399b827e42da3a6753340f938b946bf635d7e96496896dbe9753e67e5d06",
+   "expiresAt": "1794236400"
+  },
+  "block": 71385319,
+  "logIndex": 20,
+  "tx": "0x33186024e3d2649c5f700704b6eeccbf8e46975278e6b332244fc0ffb1901ef3"
+ },
+ {
+  "contract": "EnclaveRegistry",
+  "name": "EnclaveRegistered",
+  "args": {
+   "signer": "0x951cC6556a47acD0B3c9bD6F126B4952AEf48f00",
+   "productId": "2",
+   "operator": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a",
+   "workloadId": "0xf9c1e729864ffc4bd9734d7aa8dd6290fbe93651d73536a53ff1d5a58ecdc0e1",
+   "expiresAt": "1794202050"
+  },
+  "block": 71317764,
+  "logIndex": 1,
+  "tx": "0xf46f7437be58e0680178972f2047a1706ae4ba438124b724f9f91d913c551f6a"
+ },
+ {
+  "contract": "EnclaveRegistry",
+  "name": "EnclaveRegistered",
+  "args": {
+   "signer": "0x6AFc62deC6C33DdFff75f95cBf1b8D9d18296DA6",
+   "productId": "1",
+   "operator": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a",
+   "workloadId": "0x9b21399b827e42da3a6753340f938b946bf635d7e96496896dbe9753e67e5d06",
+   "expiresAt": "1794193090"
+  },
+  "block": 71300147,
+  "logIndex": 7,
+  "tx": "0x555641e1fccc99aa2449b8f2a0a441bd7192136f4289addc25acc9f2f49c7c86"
+ },
+ {
+  "contract": "SessionPay",
+  "name": "Settled",
+  "args": {
+   "sessionId": "2",
+   "cumulativeUnits": "990",
+   "paidDelta": "99000"
+  },
+  "block": 71236266,
+  "logIndex": 17,
+  "tx": "0xed1dbbf1ec325820b5c062924f882dc1d29b24c6688e1721154af97d3606aa98"
+ },
+ {
+  "contract": "SessionPay",
+  "name": "SessionOpened",
+  "args": {
+   "sessionId": "4",
+   "owner": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
+   "productId": "1",
+   "deposit": "1000000"
+  },
+  "block": 71235828,
+  "logIndex": 21,
+  "tx": "0x214917ef9dffdcf21470e58e87c6dd5925caae0feb255749f18ff64c725a10f8"
+ },
+ {
+  "contract": "SessionPay",
+  "name": "SessionOpened",
+  "args": {
+   "sessionId": "3",
+   "owner": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
+   "productId": "1",
+   "deposit": "1000000"
+  },
+  "block": 71235654,
+  "logIndex": 3,
+  "tx": "0xb31b70f6ffe561830577c995e5cc5d7bdfee0643b19c9fd247ac09f24516f705"
+ },
+ {
+  "contract": "SessionPay",
+  "name": "SessionOpened",
+  "args": {
+   "sessionId": "2",
+   "owner": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
+   "productId": "1",
+   "deposit": "1000000"
+  },
+  "block": 71235356,
+  "logIndex": 15,
+  "tx": "0x29937715e242e5ed5f30bd6c90ad305c417ed2fd4c04619bb14b759f00c8a6b9"
+ },
+ {
+  "contract": "EnclaveRegistry",
+  "name": "EnclaveRetired",
+  "args": {
+   "signer": "0x166fc96a2e84EAD6aD95841D776FA6d0eFa4f5CC"
+  },
+  "block": 71232690,
+  "logIndex": 25,
+  "tx": "0xf6cedb4757be0a033b547b2a56db63810a1ab73f3bad783132eaa4fc977b0a8f"
+ },
+ {
+  "contract": "VerdictLog",
+  "name": "Recorded",
+  "args": {
+   "agentId": "897812",
+   "requestHash": "0xeb551e1ea2fb801e1230ab338ffce5ac27cef5460c8542a6f745f6b11ad75d7e",
+   "response": 100,
+   "tag": "tdx-dcap/sealed-bounty"
+  },
+  "block": 71232661,
+  "logIndex": 22,
+  "tx": "0xdbbd2c5de65e3d2e33661f4d1c96f7590c982a887ceec87347d53db9811c5b7e"
+ },
+ {
+  "contract": "SealedBounty",
+  "name": "BountyPaid",
+  "args": {
+   "bountyId": "2",
+   "payee": "0xCc38aCC797d75930bAACEd2978381737650E0d0a",
+   "amount": "500000",
+   "tier": 0
+  },
+  "block": 71232661,
+  "logIndex": 13,
+  "tx": "0xdbbd2c5de65e3d2e33661f4d1c96f7590c982a887ceec87347d53db9811c5b7e"
+ },
+ {
+  "contract": "SealedBounty",
+  "name": "ExploitDelivered",
+  "args": {
+   "bountyId": "2",
+   "cP": "0xf8a01612307a8b53976fe7db6a1a116e2edfdaba4b6ab02212f8f60aeaf0680b03781889177e6b235ca1d7dd6d40de5423f984609e1b27ce26fd9637b07c29be2d84a9b007f61f59993f44ed1042abf75b44148ea4b971c9668345a761a88486703eb052edee3c0e6337e88f3773d2a37429142a781694e940f38e323c4d65051be09150101ef8a74a3099ab4930073046284922cbbf721cea99ee73f4ad489b2d0b3807a836402bd887c483fdbfe275fbef1fc342f751984c6a724031bc3619889ec44bf2674d0cde27e6396ca6c37abdd481a9cb324dd10e159fa47d70822746a13a555bc54d1a58913164588fc470ef27af7cd0c6467fd620bf0a4a6f977442f1bcde5aa6533f031db6dcd89722345c2eadd4858b6054dc91764adcf7a25e439afa7125d95e38ad312564ab63a7c3b776fd651229a890b7cdf671e324eba7095b3a3170f310783c693c35b0a472f62ae5080058fc4b0873468a093fcfdb659326031c0e84132053cd455f0cac449ce86ca17698b5a92733937c8f1de5c95217c2806a60250f6dd57fc875196e8157cb8c89b4d8709e0e463505c153ccc23b59bcc5d047e2fde7266e9c545acce4414cddfa7f4c73051e2b87e116ad15d943e8faea9d2e885430f469021905efac48595c17af57f54602cd377659db62f7f64c33f5e0dc2c623969ce3e9ab88097fc35f12b89424b84323134eabca02773418406a227555d8c9d83beaa53117503f9388dd3c02d6f78df121ca622e1a3255301f82787caf2da28e5202bf3e227921a00b2d6223218c9be52f78421188e6d44c60f582537fe3085d4e2c29543b754c2abf14438730dfa5b98b72cdf4333da6a46bb2f062fa58f51452850ba4b6dddfe2154dabe4f91ab61de9dbc607ca33730efc516e01be5a67c080337eb3d6d4e9cdb6b1bc5bcde602c77b9b83521b91c278b1d156ea2aa1dbc65c8755fe439e4855f09de2eabc197c5b890ccd58997aa69a3bb72448e2054d5c7592a6ab16bdb90e8bbc15c4a96cbdcffdde4d5"
+  },
+  "block": 71232661,
+  "logIndex": 12,
+  "tx": "0xdbbd2c5de65e3d2e33661f4d1c96f7590c982a887ceec87347d53db9811c5b7e"
+ },
+ {
+  "contract": "SealedBounty",
+  "name": "ClaimAccepted",
+  "args": {
+   "bountyId": "2",
+   "claimDigest": "0xd3d984476862c600ed9907638bc562abf8b8418f4dc0d89a539d29b3ff8dfcfb",
+   "claim": {
+    "bountyId": "2",
+    "payee": "0xCc38aCC797d75930bAACEd2978381737650E0d0a",
+    "blockN": "71232632",
+    "blockHashN": "0x968e0b2d6bda73ecf107eafb71309f7e83ae112f0d18f7913a94d5614679dd0f",
+    "predicateHash": "0x6b35c05074961545eea384ba674d4ee7501334deae1e820d1ec8f80106cca01d",
+    "loss": "1000000",
+    "tier": 0,
+    "fingerprint": "0x12509548d002ed864dac8312e00e1cb0f733030d8c075c604733e8f30674410a",
+    "cPHash": "0xdd238085a6be0e4a313725153cc37dd5e5693421912c92b766de006d954721a0",
+    "deadline": "1794072835"
+   },
+   "operators": [
+    "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a"
+   ],
+   "amount": "500000"
+  },
+  "block": 71232648,
+  "logIndex": 9,
+  "tx": "0xe4d91ccb27b097d0c89591a3c0cabacb4e75f56393e7d78145721bdc5cf1294e"
+ },
+ {
+  "contract": "SealedBounty",
+  "name": "BountyCreated",
+  "args": {
+   "bountyId": "2",
+   "protocol": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
+   "productId": "2",
+   "funding": "1000000"
+  },
+  "block": 71231988,
+  "logIndex": 14,
+  "tx": "0x8ccd92edd517f1c13dc218a9095811b421905c6ac1519685dff2921bef640193"
+ },
+ {
+  "contract": "ProductRegistry",
+  "name": "ProductUpdated",
+  "args": {
+   "productId": "2",
+   "version": "2"
+  },
+  "block": 71231726,
+  "logIndex": 2,
+  "tx": "0x5adaa8498bf39f4bef7023b031db5ab1f738cc5be926c8c9b3f31faaacb2853f"
+ },
+ {
+  "contract": "EnclaveRegistry",
+  "name": "EnclaveRegistered",
+  "args": {
+   "signer": "0x951cC6556a47acD0B3c9bD6F126B4952AEf48f00",
+   "productId": "2",
+   "operator": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a",
+   "workloadId": "0xf9c1e729864ffc4bd9734d7aa8dd6290fbe93651d73536a53ff1d5a58ecdc0e1",
+   "expiresAt": "1794158201"
+  },
+  "block": 71231533,
+  "logIndex": 7,
+  "tx": "0xcffecf1c2ea16058d0539e22035ccc33cf8726cb16fe333d6e46b20dae23f980"
+ },
+ {
+  "contract": "ProductRegistry",
+  "name": "WorkloadAdded",
+  "args": {
+   "productId": "2",
+   "workloadId": "0xf9c1e729864ffc4bd9734d7aa8dd6290fbe93651d73536a53ff1d5a58ecdc0e1"
+  },
+  "block": 71231527,
+  "logIndex": 8,
+  "tx": "0xcfa5ba7eaa8e83e6f05e749fc8be7259a89a8e462c34f5c9276e1eee3e4ad9c0"
+ },
+ {
+  "contract": "SessionPay",
+  "name": "SessionClosed",
+  "args": {
+   "sessionId": "1",
+   "refund": "945100"
+  },
+  "block": 71226960,
+  "logIndex": 5,
+  "tx": "0xae894b07fda777f60e001cca12504a394bd3c984f3051a76a5dfe4fe05f1ad19"
+ },
+ {
+  "contract": "VerdictLog",
+  "name": "Recorded",
+  "args": {
+   "agentId": "897812",
+   "requestHash": "0xc70cddbf5184341df5d192f05584287b56e4c120fed56ee36f7201cf6ec842c1",
+   "response": 100,
+   "tag": "tdx-dcap/inference"
+  },
+  "block": 71226960,
+  "logIndex": 4,
+  "tx": "0xae894b07fda777f60e001cca12504a394bd3c984f3051a76a5dfe4fe05f1ad19"
+ },
+ {
+  "contract": "SessionPay",
+  "name": "Settled",
+  "args": {
+   "sessionId": "1",
+   "cumulativeUnits": "549",
+   "paidDelta": "54900"
+  },
+  "block": 71218284,
+  "logIndex": 13,
+  "tx": "0x62f25a7aabadac7914dfdcf1fc56a7eb83969ed97fd825a5c46c5f0829ada8d0"
+ },
+ {
+  "contract": "SessionPay",
+  "name": "SessionOpened",
+  "args": {
+   "sessionId": "1",
+   "owner": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
+   "productId": "1",
+   "deposit": "1000000"
+  },
+  "block": 71218262,
+  "logIndex": 23,
+  "tx": "0xe832d403d93283504e777ba3b79f62224ddca9b036e8fc77d0580f65e4cc2970"
+ },
+ {
+  "contract": "VerdictLog",
+  "name": "Recorded",
+  "args": {
+   "agentId": "897812",
+   "requestHash": "0x4ae09b025f5bb87ab27b8d10972f1374300dd67e45986e6957b8e661a1c1890e",
+   "response": 100,
+   "tag": "tdx-dcap/sealed-bounty"
+  },
+  "block": 71215019,
+  "logIndex": 29,
+  "tx": "0x6567e59abdc96e1e345af5656a9e24e0653ab18b9e047114fb215711f23e3233"
+ },
+ {
+  "contract": "SealedBounty",
+  "name": "BountyPaid",
+  "args": {
+   "bountyId": "1",
+   "payee": "0xCc38aCC797d75930bAACEd2978381737650E0d0a",
+   "amount": "500000",
+   "tier": 0
+  },
+  "block": 71215019,
+  "logIndex": 20,
+  "tx": "0x6567e59abdc96e1e345af5656a9e24e0653ab18b9e047114fb215711f23e3233"
+ },
+ {
+  "contract": "SealedBounty",
+  "name": "ExploitDelivered",
+  "args": {
+   "bountyId": "1",
+   "cP": "0x3927a3006bdf8294c9268d5911bcde27aa1c614fc39182246d6203e897f44c1b475b00e340b501cbf3e83382617028c99b8d38332977c9f5fe6ee9fe4726299fc7859a98d3e831b7ecb8fb46dac66da2cae535bfe8373f9f545ac9cd0a26103a6d7cade9853ecec1b572206587e72c98ed3e97462bcd528c54774a1202c5bfde6e0512723f49a5e6ce49a58152605ad8e8e84d7254fa942488939fd7afc269b04c3cd90901ca94bcb7069e4f3a911937ac6b92e009c22c51d1a8b0ff260e77a1d3e0f0ca6a21ca926ce7b28592c272cc6eb2cb88e4c6568d7d78522f8d9f8b3329d246e01c0785ee7eb1a8e21cdbcba8a41d03c1532da22e66de23e382c0c6bff17d26388d0cc611a1ede38cf6ade9ab9e28d2c435612243161da45459b7c301d4dfc702e6b00df3448fb11d4352a788a7cc1817f8fe696b86efdbc3ca7b6a57800b4617d16b1a2971e6fbd5e1cebe5edd39975e9d6fe9ac3d7a2bbbd4a3199cc3157e608bc2506f6ffd359328ec77b375e343d3f9035f1e8d3b17bad3bd4d38333f0f519719abab6fdefdfe5f1344d45763868f09b2e0ab357aa0299e4eed22c9a85ff95fb396507311538d734e192d37ff2ec768bcf9b841ea5d5704cbe6e4aea0723c45b0ce52b3ffe05f71dd49c4c8d6001a85c41c5000c85661098f5dbe9197f778cb13b6ad9d3143040681f8308a7d57bf890286f8147bdbcfba52ff936b908dcfb7327b1b54df19d1bfa7920410a73d0109451cc73e580f4d4ee91acdcc87e061e68f384f69357d84b0e0a16b6ef6243c40af532b9316dbddf714e59309d606acb2abd05b0edaed887d9876e6c9c19e2b9397c3d700a5758f737652ea63900ea6c6571c35f775a121f370abbd5aa83923e29ff30a3700d9fc623693a4a9121943f6eddf9932e912f9a29770b67269bb7c986071d08a821997ac2a63de656393f53b6e607f62563f21ab623800dc71f198576db4035580d853010d4c494a0a5effd21df4c480172ff134ffeaa26a28d29e21b61c9bdb4348c4"
+  },
+  "block": 71215019,
+  "logIndex": 19,
+  "tx": "0x6567e59abdc96e1e345af5656a9e24e0653ab18b9e047114fb215711f23e3233"
+ },
+ {
+  "contract": "SealedBounty",
+  "name": "ClaimAccepted",
+  "args": {
+   "bountyId": "1",
+   "claimDigest": "0xf61073f77953cf0f8569bd0b7801393b82539c4678800f0e7283a0f39d9b3d48",
+   "claim": {
+    "bountyId": "1",
+    "payee": "0xCc38aCC797d75930bAACEd2978381737650E0d0a",
+    "blockN": "71214992",
+    "blockHashN": "0x894ed10dc3484af05f230ce9d6e04e99c589612a146a49dc0320f349ad625e2e",
+    "predicateHash": "0x6b35c05074961545eea384ba674d4ee7501334deae1e820d1ec8f80106cca01d",
+    "loss": "1000000",
+    "tier": 0,
+    "fingerprint": "0x12509548d002ed864dac8312e00e1cb0f733030d8c075c604733e8f30674410a",
+    "cPHash": "0xea3757ec54206f840af4a8c5fa5731e8370df467c8fe98aafc3066b5ae23b75e",
+    "deadline": "1794063866"
+   },
+   "operators": [
+    "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a"
+   ],
+   "amount": "500000"
+  },
+  "block": 71215007,
+  "logIndex": 18,
+  "tx": "0xcd0f0a7773333c00ac7dd98b310883a65a5b60e2d12dd834e01a2dd6592b58fd"
+ },
+ {
+  "contract": "SealedBounty",
+  "name": "BountyCreated",
+  "args": {
+   "bountyId": "1",
+   "protocol": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
+   "productId": "2",
+   "funding": "1000000"
+  },
+  "block": 71214985,
+  "logIndex": 10,
+  "tx": "0xabfabd0f12c02f55aa0606a6d57ab61d1092ef1409d0c384f47f840df02c8784"
+ },
+ {
+  "contract": "ProductRegistry",
+  "name": "WorkloadRetired",
+  "args": {
+   "productId": "2",
+   "workloadId": "0x398db0586aeda260efc6f88cd2b586d5194229e204ed8e146380a77ca32e81fc"
+  },
+  "block": 71214744,
+  "logIndex": 6,
+  "tx": "0x87eaa13144c63af90e670e13594212d76221b1f836312719bd679cabdfdd2dd6"
+ },
+ {
+  "contract": "EnclaveRegistry",
+  "name": "EnclaveRetired",
+  "args": {
+   "signer": "0x7afCdd68A199D61636Af6f5f137327D3Ca8930cE"
+  },
+  "block": 71214731,
+  "logIndex": 7,
+  "tx": "0xdaea416d1618368da4012420016fa7c0cd01ec584f583d4515f274b3a3ee4c0c"
+ },
+ {
+  "contract": "ProductRegistry",
+  "name": "WorkloadRetired",
+  "args": {
+   "productId": "1",
+   "workloadId": "0x7f6b228dc5883909caf52d4011e376acb565e1f8e1eabc1b53280c766d0e9da8"
+  },
+  "block": 71214727,
+  "logIndex": 8,
+  "tx": "0xa75179eaf99709fc3c99d35dca2ec6ae70796e0e4e8809c977bbe9add2f60b59"
+ },
+ {
+  "contract": "EnclaveRegistry",
+  "name": "EnclaveRetired",
+  "args": {
+   "signer": "0x05a1F10043e8C24aA183BFf31f92FC791F66100B"
+  },
+  "block": 71214717,
+  "logIndex": 43,
+  "tx": "0x0dd86ef7776bd135bb78e80975bcd2c89f58da2766591183c205242cd7a76e1e"
+ },
+ {
+  "contract": "EnclaveRegistry",
+  "name": "EnclaveRegistered",
+  "args": {
+   "signer": "0x166fc96a2e84EAD6aD95841D776FA6d0eFa4f5CC",
+   "productId": "2",
+   "operator": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a",
+   "workloadId": "0x9f642c6ce723e53e6a3d52ac49fe0c9384b5d524a9441c1d24b74a41a98cd41c",
+   "expiresAt": "1794149607"
+  },
+  "block": 71214628,
+  "logIndex": 19,
+  "tx": "0xd5fffcfe39c2895b2f793bec58dc245faf17585bd57b233129e20de40840009b"
+ },
+ {
+  "contract": "ProductRegistry",
+  "name": "WorkloadAdded",
+  "args": {
+   "productId": "2",
+   "workloadId": "0x9f642c6ce723e53e6a3d52ac49fe0c9384b5d524a9441c1d24b74a41a98cd41c"
+  },
+  "block": 71214618,
+  "logIndex": 11,
+  "tx": "0xeff8afb19362fff4f71b25e2e97c890ea5ab77dd60261731b658e668ccc841e7"
+ },
+ {
+  "contract": "EnclaveRegistry",
+  "name": "EnclaveRegistered",
+  "args": {
+   "signer": "0x6AFc62deC6C33DdFff75f95cBf1b8D9d18296DA6",
+   "productId": "1",
+   "operator": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a",
+   "workloadId": "0x9b21399b827e42da3a6753340f938b946bf635d7e96496896dbe9753e67e5d06",
+   "expiresAt": "1794149588"
+  },
+  "block": 71214591,
+  "logIndex": 2,
+  "tx": "0x6f3ed6e8f43168d894edea23201e0293c9eacee4589b221babfff70592dcc545"
+ },
+ {
+  "contract": "ProductRegistry",
+  "name": "WorkloadAdded",
+  "args": {
+   "productId": "1",
+   "workloadId": "0x9b21399b827e42da3a6753340f938b946bf635d7e96496896dbe9753e67e5d06"
+  },
+  "block": 71214588,
+  "logIndex": 23,
+  "tx": "0x5c2c9a8862aba2cdaf49587fe44eb404b6d8a3fc8ce66b4e6ebfa122f7b66375"
+ },
+ {
+  "contract": "EnclaveRegistry",
+  "name": "EnclaveRegistered",
+  "args": {
+   "signer": "0x7afCdd68A199D61636Af6f5f137327D3Ca8930cE",
+   "productId": "2",
+   "operator": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
+   "workloadId": "0x398db0586aeda260efc6f88cd2b586d5194229e204ed8e146380a77ca32e81fc",
+   "expiresAt": "1794146113"
+  },
+  "block": 71207758,
+  "logIndex": 14,
+  "tx": "0x485c9319154f1dbb88c5bffdf0489a4238e0666c9569d67820db7f63e968fda7"
+ },
+ {
+  "contract": "ProductRegistry",
+  "name": "WorkloadAdded",
+  "args": {
+   "productId": "2",
+   "workloadId": "0x398db0586aeda260efc6f88cd2b586d5194229e204ed8e146380a77ca32e81fc"
+  },
+  "block": 71207749,
+  "logIndex": 15,
+  "tx": "0x80c139688d0245d1a16f31059b90fc2c7d08b5d579893edebe3dc5737510f723"
+ },
+ {
+  "contract": "EnclaveRegistry",
+  "name": "EnclaveRegistered",
+  "args": {
+   "signer": "0x05a1F10043e8C24aA183BFf31f92FC791F66100B",
+   "productId": "1",
+   "operator": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
+   "workloadId": "0x7f6b228dc5883909caf52d4011e376acb565e1f8e1eabc1b53280c766d0e9da8",
+   "expiresAt": "1794146088"
+  },
+  "block": 71207708,
+  "logIndex": 10,
+  "tx": "0x976e31b8bf868b5de733ee118d6c538b591418ea425b6ad4b01fd7ec70ce0c88"
+ },
+ {
+  "contract": "ProductRegistry",
+  "name": "WorkloadAdded",
+  "args": {
+   "productId": "1",
+   "workloadId": "0x7f6b228dc5883909caf52d4011e376acb565e1f8e1eabc1b53280c766d0e9da8"
+  },
+  "block": 71207698,
+  "logIndex": 12,
+  "tx": "0x0f00888e4d3ca506292820b44526d214950b44e2bbe2bc7c8a1db6428feae7f9"
+ },
+ {
+  "contract": "ProductRegistry",
+  "name": "ProductActivated",
+  "args": {
+   "productId": "2"
+  },
+  "block": 71207311,
+  "logIndex": 19,
+  "tx": "0x54bf5886d69ff24a32484790347db8a577b8f5e38c854491475dc896d3b8638a"
+ },
+ {
+  "contract": "ProductRegistry",
+  "name": "ProductProposed",
+  "args": {
+   "productId": "2",
+   "author": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
+   "activatesAt": "1794059351"
+  },
+  "block": 71207301,
+  "logIndex": 15,
+  "tx": "0x93a4a8d194c13d15a15a83827247d67065f98b7bb63e583624296341bc2e7372"
+ },
+ {
+  "contract": "ProductRegistry",
+  "name": "ProductActivated",
+  "args": {
+   "productId": "1"
+  },
+  "block": 71207292,
+  "logIndex": 22,
+  "tx": "0xf56a6870dcc80fa0d550f0b243f49f9c2c7e924beca4504e50eb22b5b8a52734"
+ },
+ {
+  "contract": "ProductRegistry",
+  "name": "ProductProposed",
+  "args": {
+   "productId": "1",
+   "author": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
+   "activatesAt": "1794059342"
+  },
+  "block": 71207283,
+  "logIndex": 0,
+  "tx": "0x3ab7c60f068595262cb682d66e051938b3c49586bb8f0746a206004705118c93"
+ }
+]

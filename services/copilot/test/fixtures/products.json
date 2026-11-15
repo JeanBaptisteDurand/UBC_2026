@@ -1,0 +1,42 @@
+[
+ {
+  "id": "1",
+  "author": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
+  "manifestHash": "0xc2e1af8b1b19ef2d46f88514b8923533a95c5912bd155c680fb4fc4297de9651",
+  "deterministic": false,
+  "price": "100",
+  "bpsOperator": 9500,
+  "bpsAuthor": 0,
+  "bpsNetwork": 500,
+  "minBond": "1000000",
+  "exposureCap": "10000000",
+  "settlement": "0x50158CDF4e7A020b198984a1D54CeDE878693193",
+  "param": "0xef1e61108815d160396825dfc53f2d5f45f26f70a6c8de9fcd7795e6a7ffcab6",
+  "version": "1",
+  "activatesAt": "1794059342",
+  "state": "Active",
+  "manifestURI": "https://archive.62-171-153-35.sslip.io/manifests/sealed-chat-v2.json",
+  "unitTokens": 1,
+  "outWeight": 1
+ },
+ {
+  "id": "2",
+  "author": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
+  "manifestHash": "0x385f552ec7d1aff672d6eda07ce68985dce5c7187f43301a682331b4ba9659e2",
+  "deterministic": true,
+  "price": "0",
+  "bpsOperator": 9500,
+  "bpsAuthor": 0,
+  "bpsNetwork": 500,
+  "minBond": "1000000",
+  "exposureCap": "10000000",
+  "settlement": "0xaC8949a108e8288aBe0DdC5b5A4120De4636E4BF",
+  "param": "0x8b2de0e396c8271c884f2b5d0af82b38b663a341e2f9ec971f003527c7389b8c",
+  "version": "2",
+  "activatesAt": "1794059351",
+  "state": "Active",
+  "manifestURI": "https://archive.62-171-153-35.sslip.io/manifests/sealed-bounty-v1.json",
+  "unitTokens": 1,
+  "outWeight": 1
+ }
+]

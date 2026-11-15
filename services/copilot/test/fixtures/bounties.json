@@ -1,0 +1,34 @@
+[
+ {
+  "id": "2",
+  "protocol": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
+  "productId": "2",
+  "predicateHash": "0x6b35c05074961545eea384ba674d4ee7501334deae1e820d1ec8f80106cca01d",
+  "protocolX25519": "0x709c7f040d9f427a5678e080c3e6331dd0c04d2537546f3d83ab205eeb0b831f",
+  "singleCap": "500000",
+  "k": 1,
+  "balance": "425000",
+  "deadline": "1794676694",
+  "paused": false,
+  "targetToPause": "0xD4f4d2Bb6bf662e738cB8917b9Ade152c245F8a1",
+  "paidAmount": "500000",
+  "lastPaidBlock": "71232648",
+  "pausedFromBlock": "0"
+ },
+ {
+  "id": "1",
+  "protocol": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
+  "productId": "2",
+  "predicateHash": "0x6b35c05074961545eea384ba674d4ee7501334deae1e820d1ec8f80106cca01d",
+  "protocolX25519": "0x709c7f040d9f427a5678e080c3e6331dd0c04d2537546f3d83ab205eeb0b831f",
+  "singleCap": "500000",
+  "k": 1,
+  "balance": "425000",
+  "deadline": "1794668055",
+  "paused": false,
+  "targetToPause": "0xD4f4d2Bb6bf662e738cB8917b9Ade152c245F8a1",
+  "paidAmount": "500000",
+  "lastPaidBlock": "71215007",
+  "pausedFromBlock": "0"
+ }
+]
