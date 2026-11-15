@@ -8,7 +8,7 @@ Our team's repo for the **University Blockchain Conference 2026 hackathon** (Aus
 ## Team
 
 - Jean-Baptiste Durand ([@JeanBaptisteDurand](https://github.com/JeanBaptisteDurand))
-- Florent
+- [Florent Belotti](https://github.com/FlorentBelotti)
 
 ## Layout
 
