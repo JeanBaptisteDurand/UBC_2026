@@ -1,0 +1,21 @@
+{
+  "name": "@arcvault/node",
+  "version": "0.1.0",
+  "private": true,
+  "description": "archive-node : l'agent opérateur d'ArcHive (diagnostic, appairage par code, enclave Docker, battements de cœur)",
+  "type": "module",
+  "bin": { "archive-node": "dist/archive-node.mjs" },
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "tsx --test test/*.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "esbuild": "0.23.1",
+    "tsx": "4.19.2",
+    "typescript": "5.7.2"
+  }
+}
