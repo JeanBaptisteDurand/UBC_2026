@@ -1,0 +1,52 @@
+{
+  "product": "ArcHive - Private AI inference (sealed-chat)",
+  "version": "2.1",
+  "summary": "OpenAI-compatible chat completions. The prompt is encrypted to the enclave's X25519 key (HPKE); the enclave calls the model and signs an EIP-712 receipt per answer; the client pays from a prepaid session locked to that enclave.",
+  "model": "openai/gpt-oss-120b",
+  "modelHash": "0xef1e61108815d160396825dfc53f2d5f45f26f70a6c8de9fcd7795e6a7ffcab6",
+  "upstream": "https://tee.redpill.ai/v1",
+  "modelAttestation": {
+    "provider": "RedPill private AI gateway (Attested Confidential Inference), verified by the enclave with @phala/aci-verifier 0.11.0 (Apache-2.0)",
+    "checks": "at start and every 30 min with a fresh nonce: the gateway's Intel TDX quote to Intel's root (dcap-qvl), its workload keyset bound to the quote for our nonce, keys not expired, its docker-compose measured into RTMR3 (event log replayed), and - ArcHive's own check - its OS image is the PRODUCTION dstack image (os-image-hash in RTMR3: 8db40cb23008d6213668b5816702d100b37b859a8a5bfd18d938ae3a1b3715bd)",
+    "channel": "every model call goes over TLS pinned to the gateway's attested key (SPKI in the keyset)",
+    "serving": "every answer must carry a gateway receipt citing a verified upstream session (requireVerified, requireReceipt): gpt-oss-120b is served by Tinfoil in a GPU enclave",
+    "publicStatus": "GET /model-attestation on this enclave",
+    "failClosed": "if the gateway cannot be verified, the enclave does not start; if a call cannot be verified, no receipt is signed"
+  },
+  "billing": {
+    "unit": "1 input or output token",
+    "unitTokens": 1,
+    "outWeight": 1,
+    "priceUsdcPerUnit": "0.0001"
+  },
+  "settlement": "SessionPay 0x8Bf8A8356f53006E9aB359AA6382f783923058a6 (Arc testnet): cumulative receipts, one settle pays everything so far",
+  "build": {
+    "context": "enclave/",
+    "dockerfile": "enclave/Dockerfile",
+    "lockfile": "enclave/package-lock.json",
+    "entry": "enclave/products/sealed-chat/server.ts"
+  },
+  "composeFile": "enclave/phala/sealed-chat-v21.yml",
+  "service": "sealed-chat",
+  "image": "ghcr.io/jeanbaptistedurand/archive-sealed-chat@sha256:3ab9659901154934efa1be120143dbe4fb8f83bf6394af5599db49ed74bff5bd",
+  "measuredEnv": {
+    "RPC_URL": "https://rpc.testnet.arc.io",
+    "CHAIN_ID": "5042002",
+    "PRODUCT_ID": "1",
+    "REGISTRY": "0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d",
+    "SESSIONPAY": "0x8Bf8A8356f53006E9aB359AA6382f783923058a6",
+    "REDPILL_BASE_URL": "https://tee.redpill.ai/v1",
+    "MODEL_ATTESTATION": "aci",
+    "MODEL_GATEWAY_OS_IMAGES": "8db40cb23008d6213668b5816702d100b37b859a8a5bfd18d938ae3a1b3715bd",
+    "REDPILL_MODEL": "openai/gpt-oss-120b",
+    "MODEL_TIMEOUT_MS": "120000"
+  },
+  "encryptedEnv": [
+    "REDPILL_API_KEY",
+    "OPERATOR_ALLOWLIST"
+  ],
+  "tee": "Intel TDX confidential VM (dstack) on Phala Cloud",
+  "verifiedOnArc": "Intel's signature on each TDX quote is checked on-chain by Automata DCAP: TdxAttestationModule 0x26C1803dE523aC896Ba7F1787f1401ec792951ca -> AutomataDcapAttestationFee 0x48640f7d94dE64b13c89686F3d1240A31Aeb4dc9",
+  "imageFingerprint": "v2.1: the registry replays the dstack RTMR3 event log on-chain (SHA-384), requires it to reproduce the quote's RTMR3, and allows the image by keccak256(MRTD | RTMR0 | RTMR1 | RTMR2 | compose-hash | os-image-hash | XFAM | TDATTRIBUTES) - no instance id, so a restart keeps the same fingerprint",
+  "reportData": "REPORTDATA[0:32] binds chain id, registry, product id, operator, enclave signer and X25519 key; REPORTDATA[32:64] is a recent block hash (EIP-2935)"
+}

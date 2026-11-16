@@ -1,0 +1,34 @@
+{
+  "product": "ArcHive - Sealed Bounty (sealed-bounty)",
+  "version": "2.1",
+  "summary": "A protocol funds a bounty with a machine-checkable loss predicate. A hunter's exploit is replayed inside the enclave on a fork of Arc at block N; if the predicate shows a real loss, the hunter is paid in the same flow (acceptClaim then deliver), the target is paused, and the encrypted report goes to the protocol only. Nothing runs on the real chain.",
+  "replay": "arc-anvil from Arc Foundry (circlefin/arc-foundry v0.8.0-4, x86_64 archive sha256 78330505af7dc0d2c9b55fc1aed00d9d063581bb57054949d31ef1c1b4bdbc5e) --network arc: Arc's precompiles (native USDC, blocklist, EIP-7708 logs) without emulation; gas paid at Arc's base fee from a 20 USDC fork-only allowance, subtracted from the measured profit",
+  "exploitTx": "abi.encode(address to, uint256 value, bytes data), sent from the hunter's address",
+  "fingerprint": "keccak256(abi.encode(keccak256(attackCode), keccak256(tx)[]))",
+  "settlement": "SealedBounty 0x182871d34438aB37a7FD4d8689f3e0812E447A9b (Arc testnet): acceptClaim then deliver",
+  "build": {
+    "context": "enclave/",
+    "dockerfile": "enclave/Dockerfile.bounty",
+    "base": "node:22-trixie-slim",
+    "lockfile": "enclave/package-lock.json",
+    "entry": "enclave/products/sealed-bounty/server.ts"
+  },
+  "composeFile": "enclave/phala/sealed-bounty-v21.yml",
+  "service": "sealed-bounty",
+  "image": "ghcr.io/jeanbaptistedurand/archive-sealed-bounty@sha256:ca06d9cc2c8f7baeb85bf15fa1592da90719b38581615109852e6fa95625ad36",
+  "measuredEnv": {
+    "RPC_URL": "https://rpc.testnet.arc.io",
+    "FORK_RPC_URL": "https://rpc.testnet.arc.io",
+    "CHAIN_ID": "5042002",
+    "PRODUCT_ID": "2",
+    "REGISTRY": "0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d",
+    "SEALEDBOUNTY": "0x182871d34438aB37a7FD4d8689f3e0812E447A9b"
+  },
+  "encryptedEnv": [
+    "OPERATOR_ALLOWLIST"
+  ],
+  "tee": "Intel TDX confidential VM (dstack) on Phala Cloud",
+  "verifiedOnArc": "Intel's signature on each TDX quote is checked on-chain by Automata DCAP: TdxAttestationModule 0x26C1803dE523aC896Ba7F1787f1401ec792951ca -> AutomataDcapAttestationFee 0x48640f7d94dE64b13c89686F3d1240A31Aeb4dc9",
+  "imageFingerprint": "v2.1: the registry replays the dstack RTMR3 event log on-chain (SHA-384), requires it to reproduce the quote's RTMR3, and allows the image by keccak256(MRTD | RTMR0 | RTMR1 | RTMR2 | compose-hash | os-image-hash | XFAM | TDATTRIBUTES) - no instance id, so a restart keeps the same fingerprint",
+  "reportData": "REPORTDATA[0:32] binds chain id, registry, product id, operator, enclave signer and X25519 key; REPORTDATA[32:64] is a recent block hash (EIP-2935)"
+}
