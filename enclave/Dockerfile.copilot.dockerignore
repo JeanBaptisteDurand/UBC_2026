@@ -1,0 +1,16 @@
+# Contexte de construction de enclave/Dockerfile.copilot = la RACINE du dépôt. On n'envoie au constructeur QUE ce que
+# l'image utilise (liste blanche) : jamais .secrets/, .git/, contracts/, web/, ni node_modules/ (les dépendances viennent
+# de npm ci et des fichiers de verrouillage).
+*
+!packages/sdk/package.json
+!packages/sdk/package-lock.json
+!packages/sdk/src/**
+!services/copilot/package.json
+!services/copilot/package-lock.json
+!services/copilot/src/**
+!enclave/package.json
+!enclave/package-lock.json
+!enclave/src/**
+!deployments.*.json
+**/node_modules
+**/.DS_Store

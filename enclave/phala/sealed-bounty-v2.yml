@@ -1,0 +1,18 @@
+# Prime scellée, pile v2 (Arc testnet, produit 2) : rejeu RÉEL et FIDÈLE (arc-anvil d'Arc Foundry : précompilés d'Arc natifs). Tout est mesuré ;
+# seuls OPERATOR_ALLOWLIST et les identifiants du registre d'images sont des variables chiffrées.
+services:
+  sealed-bounty:
+    image: ghcr.io/jeanbaptistedurand/archive-sealed-bounty@sha256:db0f1a9d7b4ad13bca703d555581a2e504cd527e70ba6dc13f1ace7283d1267a
+    ports:
+      - "8803:8803"
+    environment:
+      - RPC_URL=https://rpc.testnet.arc.io
+      - FORK_RPC_URL=https://rpc.testnet.arc.io
+      - CHAIN_ID=5042002
+      - PRODUCT_ID=2
+      - REGISTRY=0x54AeCc6500a1CfB33FD5BFB3008ed7A600Ae7d38
+      - SEALEDBOUNTY=0xaC8949a108e8288aBe0DdC5b5A4120De4636E4BF
+      - OPERATOR_ALLOWLIST=${OPERATOR_ALLOWLIST}
+    volumes:
+      - /var/run/dstack.sock:/var/run/dstack.sock
+    restart: unless-stopped

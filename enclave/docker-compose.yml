@@ -1,0 +1,26 @@
+# app-compose dstack pour Phala Cloud. Déploiement :
+#   phala deploy -c docker-compose.yml -t tdx.small --name archive-sealed-chat -e OPERATOR_ALLOWLIST=<adresse>
+# v2 bis : les adresses ci-dessous sont celles du déploiement v2 ; à remplacer par celles de la pile v2 bis une fois
+# redéployée (le lecteur décode Session.enclave, que seul SessionPay v2 bis a).
+# L'image doit être publiée (registre) et référencée par digest pour la prod.
+services:
+  sealed-chat:
+    image: ghcr.io/jeanbaptistedurand/archive-sealed-chat@sha256:f7b9a5b7e6fe3fc1a1519d34920a6d08e645755564234ece16723c18423cc316
+    ports:
+      - "8802:8802"
+    environment:
+      - RPC_URL=https://rpc.testnet.arc.io
+      - CHAIN_ID=5042002
+      - PRODUCT_ID=6
+      - REGISTRY=0x741788700D44dA802D579ECD2Aec27878711aeAA
+      - SESSIONPAY=0xED501a02a14048118F2ecC21f25D6993707641c7
+      # v2 bis : /attest échoue FERMÉ sans cette ligne (personne n'obtient de quote). Variable chiffrée (allowed_envs,
+      # -e OPERATOR_ALLOWLIST=<adresse de l'opérateur>), non mesurée : elle ne protège que l'opérateur lui-même. Ce
+      # sont aussi les seuls opérateurs dont l'enclave sert les sessions.
+      - OPERATOR_ALLOWLIST=${OPERATOR_ALLOWLIST}
+      - REDPILL_API_KEY=${REDPILL_API_KEY}
+      - REDPILL_BASE_URL=${REDPILL_BASE_URL}
+      - REDPILL_MODEL=${REDPILL_MODEL}
+    volumes:
+      - /var/run/dstack.sock:/var/run/dstack.sock   # agent invité dstack (vrai quote TDX)
+    restart: unless-stopped
