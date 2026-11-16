@@ -1,0 +1,13 @@
+{
+  "name": "@arcvault/mcp",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": { "start": "tsx src/server.ts", "typecheck": "tsc --noEmit", "test": "tsx --test test/tools.test.ts", "test:live": "LIVE=1 tsx --test test/live.test.ts" },
+  "dependencies": {
+    "@arcvault/sdk": "file:../../packages/sdk",
+    "@modelcontextprotocol/sdk": "1.0.4",
+    "viem": "2.21.54"
+  },
+  "devDependencies": { "tsx": "4.19.2", "typescript": "5.7.2", "@types/node": "22.10.2" }
+}

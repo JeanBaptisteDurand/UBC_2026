@@ -1,0 +1,24 @@
+{
+  "name": "@arcvault/copilot",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx --env-file=.env src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/secrets.test.ts test/guard.test.ts test/net-guard.test.ts test/enclave-probe.test.ts test/archive-api.test.ts test/app.test.ts test/i18n.test.ts test/enclave.test.ts",
+    "start:enclave": "tsx src/enclave-server.ts",
+    "test:live": "LIVE=1 tsx --test test/live.test.ts"
+  },
+  "dependencies": {
+    "@arcvault/sdk": "file:../../packages/sdk",
+    "@hono/node-server": "1.13.7",
+    "hono": "4.6.14",
+    "viem": "2.21.54",
+    "openai": "4.77.0"
+  },
+  "devDependencies": {
+    "tsx": "4.19.2",
+    "typescript": "5.7.2",
+    "@types/node": "22.10.2"
+  }
+}
