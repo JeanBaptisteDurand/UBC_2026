@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html { -webkit-font-smoothing: antialiased; }
+body { background: #070b16; color: #e6edf7; font-family: Chivo, ui-sans-serif, system-ui, sans-serif; font-size: 14px; }
+::selection { background: #5b8cff55; }
+:focus-visible { outline: 2px solid #5b8cff; outline-offset: 2px; border-radius: 6px; }
+
+/* l'alvéole : la forme de la marque, de la chaîne de preuves et de la ruche */
+.hex { clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%); }
+
+/* Tableaux de données (ui.tsx, Table). Le cadre est un conteneur : sous le seuil de son tableau, chaque ligne devient une
+   carte (la 1re cellule en titre, puis « nom de la colonne · valeur », puis les boutons), sans défilement interne.
+   Seuils : .dt-md (5 ou 6 colonnes) sous 900 px de large, .dt-sm (2 ou 3 colonnes) sous 560 px. Au-dessus, un tableau
+   dont les cellules longues passent à la ligne (Td wrap) et dont les boutons se rangent (Td actions). */
+.dt { container-type: inline-size; }
+
+@container (max-width: 899.98px) {
+  .dt-md > table, .dt-md > table > tbody, .dt-md > table > tbody > tr { display: block; }
+  .dt-md > table > thead { display: none; }
+  .dt-md > table > tbody > tr { padding: 10px 14px 12px; }
+  .dt-md > table > tbody > tr > td { display: block; padding: 3px 0; white-space: normal; overflow-wrap: anywhere; }
+  .dt-md > table > tbody > tr > td[data-label] {
+    display: grid; grid-template-columns: minmax(6rem, 34%) minmax(0, 1fr); column-gap: 12px; align-items: baseline;
+  }
+  .dt-md > table > tbody > tr > td[data-label]::before { content: attr(data-label); color: #8aa0c6; font-size: 12px; line-height: 1.5; }
+  .dt-md > table > tbody > tr > td.dt-main { padding-bottom: 6px; }
+  .dt-md > table > tbody > tr > td.dt-act { padding-top: 8px; }
+  .dt-md > table > tbody > tr > td.dt-act:has(> .dt-v:empty) { display: none; }
+  .dt-md > table > tbody > tr.dt-sub { border-top-width: 0; padding-top: 0; }
+}
+
+@container (max-width: 559.98px) {
+  .dt-sm > table, .dt-sm > table > tbody, .dt-sm > table > tbody > tr { display: block; }
+  .dt-sm > table > thead { display: none; }
+  .dt-sm > table > tbody > tr { padding: 10px 14px 12px; }
+  .dt-sm > table > tbody > tr > td { display: block; padding: 3px 0; white-space: normal; overflow-wrap: anywhere; }
+  .dt-sm > table > tbody > tr > td[data-label] {
+    display: grid; grid-template-columns: minmax(6rem, 34%) minmax(0, 1fr); column-gap: 12px; align-items: baseline;
+  }
+  .dt-sm > table > tbody > tr > td[data-label]::before { content: attr(data-label); color: #8aa0c6; font-size: 12px; line-height: 1.5; }
+  .dt-sm > table > tbody > tr > td.dt-main { padding-bottom: 6px; }
+  .dt-sm > table > tbody > tr > td.dt-act { padding-top: 8px; }
+  .dt-sm > table > tbody > tr > td.dt-act:has(> .dt-v:empty) { display: none; }
+  .dt-sm > table > tbody > tr.dt-sub { border-top-width: 0; padding-top: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
