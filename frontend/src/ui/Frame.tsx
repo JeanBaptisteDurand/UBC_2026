@@ -10,7 +10,8 @@ import { link, networkFor } from '../links'
 import { world, setLock, useLock, useWallVersion, useLoupe } from '../world'
 import { G, SLOTS, NSLOTS, slotLabel, productLabel, priceText, reasonText, stateText, colX, type Sled } from '../data/wall'
 import { onTick, REDUCED, getLenis, step } from '../clock'
-import { openService, svcHref } from './ServicePanel'
+import { openService, slotHref } from './ServicePanel'
+import { MainNav } from './MainNav'
 import { progress, ORDER } from '../story'
 import { Logo } from './Logo'
 import { SelLayer, selBox } from './Sel'
@@ -58,14 +59,7 @@ export function Header({ loaded }: { loaded: number | (() => number) }) {
     // the position is told by the section name (the words carry the order, not a 01 / 08 counter)
     if (sec.current) { const s = t(`sec.${ORDER[Math.min(ORDER.length - 1, Math.floor(world.story))]}` as TKey); if (sec.current.textContent !== s) sec.current.textContent = s }
   }), [])
-  const nav = (
-    <>
-      <a href={link.network}>{t('net.name')}</a>
-      <a href={link.bounty}>{t('nav.bounty')}</a>
-      <a href={link.hive}>{t('nav.hive')}</a>
-      <a href={link.dev}>{t('nav.dev')}</a>
-    </>
-  )
+  const nav = <MainNav page="home" />
   return (
     <header className="hd" data-ui data-front-free>
       <div className="hd-row1">
@@ -437,7 +431,7 @@ export function Fiche() {
         <div className="fi-foot">
           {/* renting out a machine only on a free slot; an occupied slot without a read product has no button */}
           {e && pr
-            ? <a className="btn btn-main btn-s" href={cur >= 0 ? svcHref(cur) : '#'} onClick={open} data-slot="OPEN SERVICE"><span>{t('card.open')}</span></a>
+            ? <a className="btn btn-main btn-s" href={cur >= 0 ? slotHref(cur) : '#'} onClick={open} data-slot="OPEN SERVICE"><span>{t('card.open')}</span></a>
             : !e ? <a className="btn btn-line btn-s" href={link.rent}><span>{t('card.rent')}</span></a> : null}
           <span className="lbl muted fi-esc no-touch">{t('card.esc')}</span>
         </div>

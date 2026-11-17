@@ -9,6 +9,7 @@ import { link } from '../links'
 import { onTick } from '../clock'
 import { Logo } from '../ui/Logo'
 import { SelLayer } from '../ui/Sel'
+import { MainNav } from '../ui/MainNav'
 import { HeaderWallet } from '../network/actions/HeaderWallet'
 import '../network/actions/actions.css'
 
@@ -40,17 +41,7 @@ export function AppHeader({ page, section, replay, wallet }: { page: AppPage; se
     const p = L < 1 ? L : max > 0 ? Math.min(1, Math.max(0, scrollY / max)) : 1
     if (bar.current) { bar.current.style.transform = `scaleX(${p.toFixed(4)})`; bar.current.dataset.load = L < 1 ? '1' : '0' }
   }), [])
-  const cur = (k: AppPage | 'x') => (k === page ? { 'aria-current': 'page' as const } : {})
-  const nav = (
-    <>
-      <a href={link.network} {...cur('network')}>{t('net.name')}</a>
-      <a href={link.bounty} {...cur('bounty')}>{t('nav.bounty')}</a>
-      <a href={link.sessions} {...cur('sessions')}>{t('nav.sessions')}</a>
-      <a href={link.operator} {...cur('operator')}>{t('nav.operator')}</a>
-      <a href={link.hive}>{t('nav.hive')}</a>
-      <a href={link.datacenter}>{t('nav.datacenter')}</a>
-    </>
-  )
+  const nav = <MainNav page={page === 'network' ? 'network' : 'other'} />
   return (
     <header className="hd app-hd-bar" data-front-free>
       <div className="hd-row1">
@@ -82,13 +73,13 @@ export function AppHeader({ page, section, replay, wallet }: { page: AppPage; se
       <div className="prog" aria-hidden="true"><div className="prog-bar" ref={bar} /></div>
       {open ? <nav className="hd-drawer" aria-label={t('nav.main')}>{nav}</nav> : null}
       <SelLayer />
-      {page !== 'network' ? <CopilotMount /> : null}
+      <CopilotMount />
     </header>
   )
 }
 
-/** The site copilot (src/copilot), mounted after the first render on every app page except Network (its scene uses
- *  the corners): a separate React root attached to <body> (copilot/mount.tsx) */
+/** The site copilot (src/copilot), mounted after the first render on every app page, Network included: a separate
+ *  React root attached to <body> (copilot/mount.tsx) */
 function CopilotMount() {
   useEffect(() => {
     const go = () => { void import('../copilot/mount').then((m) => m.mountCopilot()) }

@@ -178,14 +178,17 @@ export function Copilot() {
   const queued = useRef(false)
   const typed = useRef(input)
   typed.current = input
-  const [scrolled, setScrolled] = useState(() => window.scrollY > 40 || document.documentElement.scrollHeight <= innerHeight + 40)
+  // On the landing the floating button stays away while the hero is on screen (the hero carries a copilot bar) and
+  // comes back with it; on every other page it is always there
+  const landing = useRef(!!document.querySelector('[data-sec="hero"]'))
+  const offHero = () => window.scrollY > innerHeight * 0.5
+  const [scrolled, setScrolled] = useState(() => !landing.current || offHero())
   useEffect(() => {
-    if (scrolled) return
-    const on = () => { if (window.scrollY > 40) setScrolled(true) }
-    const short = setTimeout(() => { if (document.documentElement.scrollHeight <= innerHeight + 40) setScrolled(true) }, 1500)
+    if (!landing.current) return
+    const on = () => { const v = offHero(); setScrolled((s) => (s === v ? s : v)) }
     addEventListener('scroll', on, { passive: true })
-    return () => { removeEventListener('scroll', on); clearTimeout(short) }
-  }, [scrolled])
+    return () => removeEventListener('scroll', on)
+  }, [])
   const submit = () => { const v = input; if (!v.trim()) return; if (locked) { queued.current = true; return } setInput(''); void send(v) }
   useEffect(() => {
     if (locked || !queued.current) return
@@ -195,8 +198,8 @@ export function Copilot() {
   }, [locked])
 
   if (!open) {
-    // the floating button shows once the page has scrolled (on the landing, the hero carries a copilot bar instead);
-    // a page too short to scroll shows it at once. Grey, not white: it is not a main action of the page
+    // the floating button: everywhere except over the landing hero (which carries a copilot bar instead). Grey, not
+    // white: it is not a main action of the page
     if (!scrolled) return null
     return (
       <button ref={launch} type="button" className="btn btn-line cp-launch" aria-haspopup="dialog" aria-expanded="false" aria-label={ct('launch.aria')} onClick={() => setState({ open: true })} onKeyDown={(e) => e.stopPropagation()} data-ui data-front-free>
