@@ -99,6 +99,8 @@ export function StateSection({ id }: { id: Id }) {
         <Title k={`${id}.title` as TKey} />
         <p className="key lbl" data-lead={id}>{id !== 'publish' ? <span className={`led led-${LEDK[id]}`} aria-hidden="true" /> : null}{t(key)}{count !== null ? <span className="tnum key-n" data-front-free>{t(id === 'publish' ? 'publish.count' : 'state.count', { n: count })}</span> : null}</p>
         <p className="lede">{t(`${id}.lede` as TKey)}</p>
+        {/* the wall itself is the catalog: a click on a sled opens it in Network's Use part, already picked */}
+        {id === 'use' ? <p className="pick-hint lbl" data-front-free><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2 L4 13 L7 10 L9.4 14.6 L11.2 13.7 L8.8 9.2 L13 9.2 Z" /></svg><span>{t('use.pick')}</span></p> : null}
         {id === 'publish' && w.replayBlock && s ? <p className="replay lbl">{t('publish.replay', { s: productLabel(p, products, bounties), b: num(w.replayBlock, lang)! })}</p> : null}
         {rows.length ? (
           <dl className="kv unfold">

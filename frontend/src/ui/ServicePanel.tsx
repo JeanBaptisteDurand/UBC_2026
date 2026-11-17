@@ -8,7 +8,7 @@ import { useLive } from '../data/live'
 import { productLabel, priceText, stateText, slotLabel, buildWall, NSLOTS, type Sled } from '../data/wall'
 import { short, pct, num } from '../data/fmt'
 import { t, useLang } from '../i18n'
-import { link, serviceHref } from '../links'
+import { link, serviceHref, networkFor } from '../links'
 import { getLenis } from '../clock'
 import { world, setLock } from '../world'
 
@@ -35,8 +35,19 @@ function shut() {
   emit()
   back?.focus?.({ preventScroll: true }); back = null
 }
-/** Opens the service of slot i in place (mouse, touch, keyboard) */
+/** Where a slot leads: its service picked in Network's Use part (catalog open, the service described), a free slot to
+ *  Network's Rent part */
+export const slotHref = (i: number) => {
+  const s = world.wall.sleds[i], p = s?.product
+  return p ? `${link.services}&p=${encodeURIComponent(p.id)}` : s?.enclave ? link.services : networkFor('rent')
+}
+/** A slot (mouse, touch, keyboard) opens its service in Network's Use part; the in-place panel is no longer used */
 export function openService(i: number) {
+  if (i < 0) return
+  location.assign(slotHref(i))
+}
+/** Former in-place opening, kept for service.html links */
+export function openServiceInPlace(i: number) {
   if (i < 0) return
   if (world.svc.open && world.svc.slot === i) return
   back = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null

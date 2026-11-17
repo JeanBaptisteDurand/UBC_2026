@@ -273,9 +273,9 @@ for (const k of ORDER) roomHalo(k)
 const SIGN_GAP = 1.6
 const titleLocal = (k: PartK) => new THREE.Vector3((W.islands[k].size.x0 + W.islands[k].size.x1) / 2, WALL_H[k] + SIGN_GAP, W.islands[k].size.z0 + 0.08)
 // the sign half-follows the camera (45% of the gap towards it), without leaving its wall
-// signs turn towards the overview camera (they half-follow its sway):
-// readable from the front, no letters lying at 30°
-const titleYaw = () => (AZ0 + 0.5 * (rig.user.az + rig.drag.az)) * DEG
+// signs stay parallel to the back wall they stand on (the room yaw IY, 30° off the overview camera):
+// they turn with their room, not with the camera
+const titleYaw = () => IY
 function titles() {
   // placed on their wall, they follow the camera rotation a little (55%) to stay readable
   const sc = rig.h / (2 * Math.tan((rig.cam.fov / 2) * DEG))
@@ -620,8 +620,8 @@ const islandM = (k: PartK) => islandMAt(k, roomPos(k))
 const localBox = (k: PartK) => {
   const i = W.islands[k], b = new THREE.Box3(new THREE.Vector3(i.size.x0, 0, i.size.z0), new THREE.Vector3(i.size.x1, WALL_H[k] + 1.3, i.size.z1))
   const g = W.titles[k].mesh.geometry; if (!g.boundingBox) g.computeBoundingBox()
-  // the sign turns towards the camera: its box turns by the same amount in the room frame
-  return b.union(g.boundingBox!.clone().applyMatrix4(new THREE.Matrix4().makeRotationY(AZ0 * DEG - IY)).translate(titleLocal(k)))
+  // the sign is parallel to the back wall: its box is aligned with the room frame
+  return b.union(g.boundingBox!.clone().translate(titleLocal(k)))
 }
 // Orbit envelope, for the overview frame: each room at 24 places on its orbit, at the farthest and at the
 // two extreme heights; plus Arc and the chain row

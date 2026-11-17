@@ -599,3 +599,7 @@ html.tournage, html.tournage body { cursor: none; }
 .pin-arc .gate > .row { order: 0; }
 .pin-arc .gate > .btn { order: 1; }
 .pin-arc .gate > .verdict { order: 2; }
+
+/* Use section: the wall is the catalog (a click on a sled opens it in Network's Use part) */
+.st .pick-hint { display: flex; align-items: center; gap: 10px; margin: 14px 0 0; color: var(--acc); }
+.st .pick-hint svg { flex: none; width: 14px; height: 14px; fill: currentColor; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--acc) 60%, transparent)); }

@@ -331,7 +331,8 @@ export function makeTitle(label: string, hex: number, coreCss: string): Omit<Tit
 }
 function buildTitles(): Record<PartK, Title> {
   const out = {} as Record<PartK, Title>
-  for (const k of ['use', 'rent', 'publish'] as PartK[]) out[k] = { k, ...makeTitle(PART[k].label.toUpperCase(), PART[k].hex, PART[k].core) }
+  // every room sign in the Arc hologram blue (the logo's uElec body, uCore filament), no room colour
+  for (const k of ['use', 'rent', 'publish'] as PartK[]) out[k] = { k, ...makeTitle(PART[k].label.toUpperCase(), C.arcElec, `#${C.arcCore.toString(16).padStart(6, '0')}`) }
   return out
 }
 
