@@ -32,15 +32,12 @@ function Blade({ r, open, onToggle }: { r: SvcRow; open: boolean; onToggle: () =
   const led = isSupersededRow(r) ? 'off' : r.led
   const lang = useLang()
   return (
-    <article className={`blade ${open ? 'is-open' : ''}`} data-led={led}>
+    <article className={`blade ${open ? 'is-open' : ''}`} data-led={led} data-long={r.name.length > 17 ? '1' : '0'}>
       <button type="button" className="blade-face" aria-expanded={open} onClick={onToggle}>
-        <span className="bl-led" aria-hidden="true" />
-        <span className="bl-plate">
-          <span className="bl-title">{r.name}</span>
-          <span className="bl-word">{plateWord(r)}</span>
-        </span>
-        <span className="bl-u mono">#{r.p.id}</span>
-        <span className="bl-grip" aria-hidden="true" />
+        <span className="bl-led" aria-hidden="true"><i /></span>
+        <span className="bl-title">{r.name}</span>
+        <span className="bl-word">{plateWord(r)}</span>
+        <span className="bl-u">#{r.p.id}</span>
       </button>
       <div className="blade-drawer">
         <div className="bl-in">
