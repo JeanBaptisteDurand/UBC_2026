@@ -11,6 +11,7 @@ import { t, useLang } from '../i18n'
 import { link, serviceHref, networkFor } from '../links'
 import { getLenis } from '../clock'
 import { world, setLock } from '../world'
+import { leaveTo } from './veil'
 
 /** Service page address of a slot: its product, otherwise its slot */
 export const svcHref = (i: number) => { const p = world.wall.sleds[i]?.product; return p ? `/service.html?p=${p.id}` : `/service.html?slot=${i}` }
@@ -44,7 +45,7 @@ export const slotHref = (i: number) => {
 /** A slot (mouse, touch, keyboard) opens its service in Network's Use part; the in-place panel is no longer used */
 export function openService(i: number) {
   if (i < 0) return
-  location.assign(slotHref(i))
+  leaveTo(slotHref(i))
 }
 /** Former in-place opening, kept for service.html links */
 export function openServiceInPlace(i: number) {

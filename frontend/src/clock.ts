@@ -3,6 +3,7 @@
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import Lenis from 'lenis'
+import './ui/veil'
 
 gsap.registerPlugin(ScrollTrigger)
 gsap.ticker.lagSmoothing(0)
