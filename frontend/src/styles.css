@@ -582,3 +582,11 @@ html.tournage, html.tournage body { cursor: none; }
   .pin .verdict { min-height: 0; }
   .pin .lede { margin-top: 8px; }
 }
+
+/* the title rule sits 14 px under the title: the step list (and its vertical rail) keeps clear of it at every height */
+.pin .ttl + .steps { margin-top: 40px; }
+@media (min-width: 761px) and (max-height: 940px) { .pin .ttl + .steps { margin-top: 34px; } }
+@media (min-width: 761px) and (max-height: 760px) { .pin .ttl + .steps { margin-top: 30px; } }
+
+/* 720 px class windows: the Arc intro paragraph goes (as on the phone) so the check and its button stay on screen */
+@media (min-width: 761px) and (max-height: 760px) { .pin-arc .lede { display: none; } }

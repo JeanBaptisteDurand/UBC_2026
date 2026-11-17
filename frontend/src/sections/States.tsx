@@ -11,7 +11,7 @@ import { tx } from '../links'
 import { useIn } from '../ui/gestures'
 import { Slot } from '../ui/Frame'
 import { Title } from './Hero'
-import { onTick, scrollTo } from '../clock'
+import { onTick, scrollTo, getLenis, step } from '../clock'
 import type { SecId } from '../story'
 
 type Id = 'use' | 'rent' | 'publish' | 'invalid'
@@ -188,8 +188,18 @@ export function Leads() {
     }
     const api = { geo, kinds, blocked }
     ;(window as unknown as { __leads: typeof api }).__leads = api
-    return onTick(() => {
+    // the lines are drawn for a page at rest: they vanish at once on the first gesture (before the page moves, so they
+    // never stretch) and fade back in once the page has settled
+    let hideAt = 0, lastMove = 0
+    const hide = () => { hideAt = performance.now(); const el = svg.current; if (el) { el.style.transition = 'none'; el.style.opacity = '0' } }
+    addEventListener('wheel', hide, { passive: true }); addEventListener('touchstart', hide, { passive: true }); addEventListener('keydown', hide)
+    const offTick = onTick(() => {
       const el = svg.current; if (!el) return
+      const lm = getLenis(), now = performance.now()
+      if (step.moving || (!!lm && Math.abs(lm.velocity) > 0.05)) lastMove = now
+      const rest = now - Math.max(lastMove, hideAt) > 260
+      const op = rest ? '1' : '0'
+      if (el.style.opacity !== op) { el.style.transition = rest ? 'opacity 320ms var(--productive)' : 'none'; el.style.opacity = op }
       const paths = el.querySelectorAll('path'), dots = el.querySelectorAll('circle')
       const T = world.toScreen
       const relook = frame++ % 8 === 0
@@ -254,6 +264,7 @@ export function Leads() {
         path.style.opacity = g.d > 0.001 ? '1' : '0'; dot.style.opacity = g.d > 0.97 ? '1' : '0'
       })
     })
+    return () => { offTick(); removeEventListener('wheel', hide); removeEventListener('touchstart', hide); removeEventListener('keydown', hide) }
   }, [])
   return (
     <svg className="leads" ref={svg} aria-hidden="true" width="100%" height="100%">

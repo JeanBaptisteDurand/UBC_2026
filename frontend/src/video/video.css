@@ -59,3 +59,16 @@ html.film-page .stage { background: transparent; overflow: hidden; }
 /* A/B (?wc=0): without will-change, Chrome repaints the plate text at the right scale every frame (with it, Chrome
    stretches a frozen image during motion: blur and aliasing until it stops) */
 html.nowc .lm-plate, html.nowc .lm-led { will-change: auto; }
+
+/* Reading ground behind the left column of the landing (desktop): a deeper, uneven tone (cool at the top, a faint warm
+   floor light low down, neutral in between) and a visible film grain, fading out towards the scene */
+@media (min-width: 761px) {
+  html.film-page .stage::after { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: min(64vw, 940px); pointer-events: none;
+    background:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .92 0 0 0 0 .92 0 0 0 0 .95 0 0 0 .11 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+      radial-gradient(70% 55% at 8% 4%, rgb(34 52 92 / 0.30), transparent 70%),
+      radial-gradient(80% 50% at 0% 100%, rgb(92 64 36 / 0.22), transparent 70%),
+      radial-gradient(60% 40% at 30% 55%, rgb(18 22 30 / 0.35), transparent 75%),
+      linear-gradient(90deg, rgb(5 6 8 / 0.62), rgb(5 6 8 / 0.30) 55%, transparent);
+    -webkit-mask-image: linear-gradient(to right, #000 52%, transparent); mask-image: linear-gradient(to right, #000 52%, transparent); }
+}
