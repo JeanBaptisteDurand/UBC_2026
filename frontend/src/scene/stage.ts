@@ -1184,14 +1184,15 @@ gl_FragColor.rgb = hfog(gl_FragColor.rgb, vWP);`)
   const plateText = (s: Sled, amber: boolean, admitted = false): [string, number, number] => {
     const live = getLive()
     // Once Arc admits it at the verdict, the replayed sled turns green even if its real registration has since expired;
-    // the Arc section labels it as a replay
-    if (admitted) return [productLabel(s.product, live.products, live.bounties), 1, 1.9]
+    // the Arc section labels it as a replay. Its plate says "Admitted (replay)" (word 5), never "Running"
+    if (admitted) return [productLabel(s.product, live.products, live.bounties), 5, 1.9]
     // The replayed sled keeps its service name everywhere (wall, readout, card, fallback); its status word says it is replayed
     if (amber) return [productLabel(s.product, live.products, live.bounties), 2, 1.4]
     if (s.led === 'green') return [productLabel(s.product, live.products, live.bounties), 1, 1.9]
     if (s.led === 'red') return [productLabel(s.product, live.products, live.bounties), 3, 1.4]
-    // Amber: usable but not running (inactive: window closed; or pending)
-    if (s.led === 'amber') return [productLabel(s.product, live.products, live.bounties), s.why === 'expired' ? 4 : 2, 1.1]
+    // Amber: usable but not running (inactive: window closed; or pending); replaced, removed or stopped on Arc also
+    // counts as inactive
+    if (s.led === 'amber') return [productLabel(s.product, live.products, live.bounties), s.why && s.why !== 'idle' ? 4 : 2, 1.1]
     return [t('plate.off'), 0, OPEN_INK]
   }
   function syncData(amberSlot: number, greenSlot = -1) {
@@ -1209,7 +1210,7 @@ gl_FragColor.rgb = hfog(gl_FragColor.rgb, vWP);`)
       if (!texts.includes(r[0])) texts.push(r[0])
       return r
     })
-    if (repaint) atlas.paint(texts, [t('plate.sub.off'), t('plate.sub.green'), t('plate.sub.amber'), t('plate.sub.red'), t('plate.sub.dim'), ''])
+    if (repaint) atlas.paint(texts, [t('plate.sub.off'), t('plate.sub.green'), t('plate.sub.amber'), t('plate.sub.red'), t('plate.sub.dim'), t('plate.sub.admitted')])
     SLOTS.forEach((s, i) => {
       const [title, sub, k] = rows[i]
       const d = sl[s.i]

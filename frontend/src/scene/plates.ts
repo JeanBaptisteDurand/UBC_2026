@@ -17,6 +17,10 @@ export const GAW = 512, GCH = 64, GAH = 1536, GS = 0.4, GX0 = 32
 const PLATE_WM = FACE.PLATE[1] - FACE.PLATE[0] - 0.004, PLATE_HM = FACE.PLATE[3] - FACE.PLATE[2] - 0.003
 export const TITLE_W = Math.floor((0.92 * PLATE_WM / (0.5 * PLATE_HM)) * CH) - 6 - 10
 const DIGIT_Y = (TROWS + SROWS) * CH, GW = 48
+/** A status word sits in the lower band of the plate, 2.3 times shorter than the title band, so at equal atlas width
+ *  it covers 2.3 times less plate. It may use up to 700 atlas px (ending at 75% of the plate, before the U label that
+ *  starts at 82%), so "ADMITTED (REPLAY)" stays legible and longer French words do not shrink */
+const SUB_W = 700
 /** Minimum single-line title size (atlas px, 80 px row); below it, the title wraps onto two lines at 38 px */
 const MIN_PX = 34
 /** Most balanced two-line break, at a word; a break after a comma is preferred */
@@ -31,7 +35,8 @@ function split2(text: string, width: (s: string) => number): [string, string] {
   }
   return best
 }
-export const SUBS = ['off', 'green', 'amber', 'red', 'dim', 'none'] as const
+// The sixth word is "Admitted (replay)" (the sled replayed after Arc's verdict)
+export const SUBS = ['off', 'green', 'amber', 'red', 'dim', 'admitted'] as const
 
 export class PlateAtlas {
   cv = document.createElement('canvas')
@@ -61,7 +66,7 @@ export class PlateAtlas {
     this.tex.minFilter = THREE.LinearMipmapLinearFilter
   }
   private font(px: number) { return `400 ${px}px "Fragment Mono", ui-monospace, monospace` }
-  private line(y: number, text: string) {
+  private line(y: number, text: string, maxW = TITLE_W) {
     const g = this.g
     this.row0 = y
     let w = 0
@@ -69,14 +74,14 @@ export class PlateAtlas {
     // The plate is 7 band heights wide: the title is condensed to fit
     let px = 70
     g.font = this.font(px)
-    while (g.measureText(text).width > TITLE_W && px > MIN_PX) { px -= 2; g.font = this.font(px) }
+    while (g.measureText(text).width > maxW && px > MIN_PX) { px -= 2; g.font = this.font(px) }
     g.textBaseline = 'middle'
     // Never paint an ellipsis on a plate. Too long at the minimum legible size: wrap onto two lines (at a word, after
     // a comma if possible), at the largest size that fits
-    if (g.measureText(text).width > TITLE_W) {
+    if (g.measureText(text).width > maxW) {
       const [l1, l2] = split2(text, (s) => g.measureText(s).width)
       px = 38; g.font = this.font(px)
-      while (Math.max(g.measureText(l1).width, g.measureText(l2).width) > TITLE_W && px > 16) { px -= 1; g.font = this.font(px) }
+      while (Math.max(g.measureText(l1).width, g.measureText(l2).width) > maxW && px > 16) { px -= 1; g.font = this.font(px) }
       this.ink(l1, 6, y + CH * 0.27 + 2, px); this.ink(l2, 6, y + CH * 0.73 + 2, px)
       w = Math.max(g.measureText(l1).width, g.measureText(l2).width)
       return (6 + w) / CH
@@ -115,7 +120,7 @@ export class PlateAtlas {
     this.rows.clear(); this.ends.clear()
     titles.slice(0, TROWS).forEach((s, k) => { this.rows.set(s, k); this.ends.set(s, this.line(k * CH, s.toUpperCase().replace(/\b0X(?=[0-9A-F])/g, '0x'))) })
     this.subWords = subs
-    subs.slice(0, SROWS).forEach((s, k) => this.line((TROWS + k) * CH, s.toUpperCase()))
+    subs.slice(0, SROWS).forEach((s, k) => this.line((TROWS + k) * CH, s.toUpperCase(), SUB_W))
     // Digit strip: U, 0 to 9, one 48 px cell per glyph
     g.font = this.font(70); g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#f00'
     'U0123456789'.split('').forEach((c, k) => g.fillText(c, k * GW + GW / 2, DIGIT_Y + CH / 2 + 3))
