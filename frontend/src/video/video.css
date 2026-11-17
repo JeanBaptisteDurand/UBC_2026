@@ -60,9 +60,7 @@ html.film-page .stage { background: transparent; overflow: hidden; }
    stretches a frozen image during motion: blur and aliasing until it stops) */
 html.nowc .lm-plate, html.nowc .lm-led { will-change: auto; }
 
-/* Behind the left column of the landing (desktop): only a visible film grain, no colour, fading out towards the scene */
+/* A film grain over the whole landing image (desktop), uniform: no column stands out from the scene */
 @media (min-width: 761px) {
-  html.film-page .stage::after { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: min(64vw, 940px); pointer-events: none;
-    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .92 0 0 0 0 .92 0 0 0 0 .95 0 0 0 .11 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    -webkit-mask-image: linear-gradient(to right, #000 52%, transparent); mask-image: linear-gradient(to right, #000 52%, transparent); }
+  html.film-page .stage::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .92 0 0 0 0 .92 0 0 0 0 .95 0 0 0 .11 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
 }
