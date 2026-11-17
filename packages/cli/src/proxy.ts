@@ -50,7 +50,9 @@ export async function startProxy(o: ProxyOpts) {
     }
   });
 
-  serve({ fetch: app.fetch, port });
+  // 17/11 : écoute seulement sur la machine elle-même. Sans hostname, Node écoutait sur toutes les interfaces : n'importe qui
+  // sur le même réseau pouvait dépenser la session (le mandataire n'a pas de mot de passe).
+  serve({ fetch: app.fetch, port, hostname: "127.0.0.1" });
   console.log(`proxy OpenAI local : http://localhost:${port}/v1  (session #${sessionId} → ${o.enclaveUrl})`);
   console.log(`enclave vérifiée on-chain : ${keys.signer} (opérateur ${keys.operator}, clé X25519 inscrite, active au bloc ${keys.checkedAtBlock})`);
   console.log(`Exemple : openai.base_url = "http://localhost:${port}/v1" ; appelle /chat/completions en boucle.`);

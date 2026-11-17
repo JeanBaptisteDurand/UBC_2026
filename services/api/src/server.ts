@@ -18,6 +18,8 @@ import { EventIndexer, type Ev } from "./indexer";
 import { EVENTS, eventLabel, indexStartBlock, proofVerdict, sessionVerdicts, type SessionVerdict } from "./events";
 import { errorBody, registerOperatorRoutes } from "./operators";
 import { registerTestSigner } from "./testSigner";
+import deploymentsV2 from "../../../deployments.v2.testnet.json";
+import deploymentsV21 from "../../../deployments.v21.testnet.json";
 
 const PORT = Number(process.env.PORT ?? "8809");
 const DATA_DIR = process.env.DATA_DIR ?? "./data";
@@ -155,6 +157,25 @@ app.get("/pricing", async (c) => {
 // image de l'enclave d'inférence v2 déployée chez Phala (épinglée par digest : enclave/phala/sealed-chat-v2.yml)
 const IMAGE = process.env.INFERENCE_IMAGE ?? "ghcr.io/jeanbaptistedurand/archive-sealed-chat@sha256:eceb67a5bf985a9672d51db288ef85c9e2cb7908835057ea24888517793173fa";
 
+/** 17/11 : l'image (digest) de chaque empreinte d'enclave connue, d'après nos fichiers de déploiement (images épinglées par
+ *  digest ; l'empreinte est l'imageId inscrit sur Arc). Sans manifeste vérifié, la chaîne de preuves nomme l'image que
+ *  l'enclave choisie a VRAIMENT fait tourner, au lieu de l'image par défaut ci-dessus (celle de la v2, fausse pour toute
+ *  autre enclave : la chaîne du 16/11 montrait eceb67a5… pour une enclave qui faisait tourner 5699da22…). */
+const IMAGE_OF = (() => {
+  const m = new Map<string, string>();
+  const walk = (o: unknown): void => {
+    if (Array.isArray(o)) { o.forEach(walk); return; }
+    if (!o || typeof o !== "object") return;
+    const r = o as Record<string, unknown>;
+    const id = r.imageId ?? r.workloadId;
+    if (typeof r.image === "string" && r.image.startsWith("ghcr.io/") && typeof id === "string") m.set(id.toLowerCase(), r.image);
+    Object.values(r).forEach(walk);
+  };
+  walk(deploymentsV2);
+  walk(deploymentsV21);
+  return m;
+})();
+
 // L'index tient les événements de NOS contrats (fichier par déploiement : un nouveau déploiement repart de zéro). Il part
 // du bloc du déploiement (deployBlock) s'il est connu ; sinon de INDEX_FROM_BLOCK ; sinon de 0 (toute la chaîne : lent).
 const START = indexStartBlock(testnet.deployBlock, process.env.INDEX_FROM_BLOCK);
@@ -283,7 +304,21 @@ async function computeProof() {
   const DEMO_WORKLOAD = "0x595b5067f7b9e6b4153462ea198226ec97dfbc2f5a8200b0c4ce763c983f54e4";
   const real = encs.filter((e) => String(e.workloadId).toLowerCase() !== DEMO_WORKLOAD);
   const inference = String(testnet.products?.inference ?? 1n);
-  const act = real.find((e) => e.active && String(e.productId) === inference) ?? real.find((e) => e.active) ?? real[0] ?? null;
+  let act = real.find((e) => e.active && String(e.productId) === inference) ?? real.find((e) => e.active) ?? null;
+  if (!act) {
+    // 16/11 : sans enclave active (VM en pause), l'enclave d'INFÉRENCE qui a servi la dernière session payée (chaîne
+    // complète : règlement et verdict), sinon la dernière enclave d'inférence ; jamais la première venue (souvent le
+    // copilote, sans règlement ni verdict : 3 maillons vides)
+    const infSessions = new Set(ev.filter((e) => e.name === "SessionOpened" && String(e.args.productId) === inference).map((e) => String(e.args.sessionId)));
+    const served = new Set<string>();
+    for (const e of ev) {
+      if (e.name !== "Settled" || !infSessions.has(String(e.args.sessionId))) continue;
+      const who = await signerOfSettle(e.tx);
+      if (who) served.add(who.toLowerCase());
+    }
+    act = real.find((e) => String(e.productId) === inference && served.has(String(e.signer).toLowerCase()))
+      ?? real.find((e) => String(e.productId) === inference) ?? real[0] ?? null;
+  }
   const signer = act ? String(act.signer).toLowerCase() : "";
   const reg = act ? ev.find((e) => e.name === "EnclaveRegistered" && String(e.args.signer).toLowerCase() === signer) : undefined;
   let settle: Ev | undefined;
@@ -306,8 +341,13 @@ async function computeProof() {
   // v2.1 : l'empreinte d'IMAGE de l'enclave (journal RTMR3 rejoué on-chain à l'inscription), si elle a été émise
   const image = act ? ev.find((e) => e.name === "EnclaveImage" && String(e.args.signer).toLowerCase() === signer) : undefined;
   const pin = act ? await pinnedImage(BigInt(act.productId)) : { image: IMAGE, manifestURI: "", manifestVerified: false };
+  // 17/11 : sans manifeste vérifié, l'image que CETTE enclave a fait tourner (son empreinte, lue sur Arc, est dans nos
+  // déploiements) ; inconnue : vide, jamais l'image par défaut
+  const ran = act ? IMAGE_OF.get(String(image?.args.imageId ?? act.workloadId).toLowerCase()) : undefined;
+  const imageRef = pin.manifestVerified ? pin.image : (ran ?? "");
+  const imageSource = pin.manifestVerified ? "manifest" : ran ? "deployments" : "unknown";
   return {
-    image: pin.image, manifestURI: pin.manifestURI, manifestVerified: pin.manifestVerified, enclave: act ?? null, registerTx: reg?.tx ?? null,
+    image: imageRef, imageSource, manifestURI: pin.manifestURI, manifestVerified: pin.manifestVerified, enclave: act ?? null, registerTx: reg?.tx ?? null,
     settleTx: settle?.tx ?? null, settleUsdc: settle?.args.paidDelta ?? null, settleSession: settle?.args.sessionId ?? null,
     verdictTx: verdict?.tx ?? null, verdictAgentId: verdict?.agentId ?? null, verdictResponse: verdict?.response ?? null,
     // champs ajoutés (9/11) : la session dont parle le maillon « verdict » et l'issue de son verdict

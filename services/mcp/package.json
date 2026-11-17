@@ -3,11 +3,22 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "scripts": { "start": "tsx src/server.ts", "typecheck": "tsc --noEmit", "test": "tsx --test test/tools.test.ts", "test:live": "LIVE=1 tsx --test test/live.test.ts" },
+  "scripts": {
+    "start": "tsx src/server.ts",
+    "start:http": "tsx src/http.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/tools.test.ts test/http.test.ts",
+    "test:live": "LIVE=1 tsx --test test/live.test.ts"
+  },
   "dependencies": {
     "@arcvault/sdk": "file:../../packages/sdk",
-    "@modelcontextprotocol/sdk": "1.0.4",
-    "viem": "2.21.54"
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "viem": "2.21.54",
+    "zod": "3.25.76"
   },
-  "devDependencies": { "tsx": "4.19.2", "typescript": "5.7.2", "@types/node": "22.10.2" }
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "tsx": "4.19.2",
+    "typescript": "5.7.2"
+  }
 }
