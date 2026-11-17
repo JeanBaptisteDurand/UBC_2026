@@ -23,6 +23,9 @@ export interface Manifest {
   ex: Record<string, number>; replay: number; sh?: Sheets; ysFrom?: string
 }
 const Q = new URLSearchParams(location.search)
+// The film manifests are inlined by the build as a JSON data block (not a script: the server's CSP forbids inline
+// scripts); without it, each set's manifest.json is fetched
+try { (window as unknown as { __FILM_MAN?: unknown }).__FILM_MAN = JSON.parse(document.getElementById('film-man')?.textContent || 'null') } catch { /* manifest.json */ }
 export const PHONE = matchMedia('(max-width: 760px)').matches
 const FIREFOX = /Firefox\//.test(navigator.userAgent)
 /** Off-thread mode: the first worker holds the canvas (OffscreenCanvas), keeps the frames and draws them; uploading
