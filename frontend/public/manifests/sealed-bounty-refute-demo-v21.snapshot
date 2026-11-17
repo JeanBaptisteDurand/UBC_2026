@@ -1,0 +1,131 @@
+{
+  "product": "ArcHive - Sealed Bounty - refutation demo (one image deliberately lies)",
+  "version": "2.1",
+  "demonstration": true,
+  "summary": "A separate, labelled demonstration of SealedBounty.refute on Arc testnet. Product 5 is settled by the same SealedBounty contract as the real Sealed Bounty (product 2) and runs the same enclave image, in two Intel TDX VMs for three demo operators. One VM runs the image with DEMO_FAULT=inflate-loss, written in clear in its compose and therefore part of its measured image fingerprint: it signs claims with a DOUBLED loss. The other VM runs the honest image twice. A claim signed by the lying enclave is accepted, then refuted by the honest replays of the two other operators: the liar's operator bond is seized, the reserved payment returns to the bounty pool, and a 'refuted' verdict (0) is written to ERC-8004 for the liar's agent.",
+  "deliberateFault": {
+    "variable": "DEMO_FAULT=inflate-loss (measured: compose-hash -> image fingerprint allowed on-chain for product 5)",
+    "effect": "claims are signed with loss = 2 x the loss measured by the replay; everything else (block N, predicate, tier of the MEASURED loss, fingerprint, cPHash, deadline) is what an honest enclave signs. Refutations signed by this enclave are never altered.",
+    "guards": [
+      "the enclave refuses to start with DEMO_FAULT when PRODUCT_ID is 2 (the real Sealed Bounty) or unset",
+      "the enclave refuses to start with DEMO_FAULT when OPERATOR_ALLOWLIST is '*' or contains the main operator 0x344f2d2fA5AeAe78871F0B882245069F887c2e1a",
+      "/health and /pubkeys announce demoFault",
+      "without DEMO_FAULT nothing changes (same code path as product 2)"
+    ],
+    "why": "with a single operator a refutation cannot happen on-chain (it needs at least two OTHER operators); this demo shows the mechanism with three demo operators whose only stake is a 1 USDC bond each",
+    "transparency": "ALL keys in this demonstration belong to the ArcHive team: the three demo operators (A, B, C), the hunter and the protocol. It demonstrates the on-chain fault-proof and slashing path end to end; it does not demonstrate decentralisation (that needs independent operators)."
+  },
+  "refutationRule": "SealedBounty.refute(claim, ops, refutation, signatures), within REFUTE_WINDOW (3 days) of acceptClaim: an EIP-712 Refutation(bytes32 claimDigest,bool proven,uint256 loss,uint8 tier) signed by enclaves active for the product NOW, from at least REFUTE_QUORUM (2) DISTINCT operators, none of them a signer of the claim, and strictly more operators than signed the claim; the refutation must differ from the claim (not proven, or another loss or tier). Effects: every claim operator's whole bond is seized (half to the reporter, half to the protocol) and the operator is banned; the reserved payment returns to the pool if it was not delivered; verdict 0 'tdx-dcap/refuted' in ERC-8004 for the claim operator's agent.",
+  "flow": [
+    "a NEW DemoVault (deliberately vulnerable migrate()) holds 1 USDC; a bounty on product 5: pool 1 USDC, 0.5 USDC for a loss >= 1 USDC (ERC20_DROP on the vault)",
+    "the hunter submits migrate(hunter) to the lying enclave (A): it replays it on a fork of Arc at block N, measures 1 USDC and signs a claim for 2 USDC; acceptClaim reserves the payment",
+    "before delivery, the protocol asks the three enclaves to replay the claim: A is excluded (claim operator), B and C replay at the same block N and sign Refutation { proven: true, loss: 1 USDC }",
+    "refute(claim, [A], refutation, [sigB, sigC]): A's 1 USDC bond is seized and A banned, the payment returns to the pool, ERC-8004 verdict 0 for A's agent"
+  ],
+  "operators": {
+    "A": {
+      "address": "0x8eEd1D7826A79695e7889F3ff70081d535763b44",
+      "role": "runs the deliberately lying image (DEMO_FAULT=inflate-loss)",
+      "bond": "1 USDC"
+    },
+    "B": {
+      "address": "0xb597aacE43fE507a54fFA96ea7A8CedfC36e08EC",
+      "role": "honest replay (honest VM, port 8803)",
+      "bond": "1 USDC"
+    },
+    "C": {
+      "address": "0xAE763Dd6727d540c4A0203a77495A138EDB3384B",
+      "role": "honest replay (honest VM, port 8813)",
+      "bond": "1 USDC"
+    },
+    "neverUsed": "the main operator 0x344f2d2fA5AeAe78871F0B882245069F887c2e1a (products 1-4) takes no part in this demo"
+  },
+  "productParameters": {
+    "settlement": "SealedBounty 0x182871d34438aB37a7FD4d8689f3e0812E447A9b (Arc testnet), the same contract as product 2",
+    "deterministic": true,
+    "minBondPerEnclaveKey": "0.25 USDC",
+    "exposureCap": "10 USDC per operator per rolling 24 h (and at most half of the bond)",
+    "operatorBond": "OperatorBond 0xe584F7590e4677372eE6259b967672c747eB6850",
+    "verdicts": "VerdictLog 0x2B4AB39B461Ae2bA9ADfb6bC630D34553BAb9779 -> ERC-8004 validation registry 0x8004Cb1BF31DAf7788923b405b754f57acEB4272"
+  },
+  "replay": "arc-anvil from Arc Foundry (circlefin/arc-foundry v0.8.0-4) --network arc: Arc's precompiles (native USDC, blocklist, EIP-7708 logs) without emulation; the exploit runs only in a fork at block N, nothing runs on the real chain",
+  "exploitTx": "abi.encode(address to, uint256 value, bytes data), sent from the hunter's address",
+  "fingerprint": "keccak256(abi.encode(keccak256(attackCode), keccak256(tx)[]))",
+  "build": {
+    "context": "enclave/",
+    "dockerfile": "enclave/Dockerfile.bounty",
+    "base": "node:22-trixie-slim",
+    "lockfile": "enclave/package-lock.json",
+    "entry": "enclave/products/sealed-bounty/server.ts"
+  },
+  "code": {
+    "fault": "enclave/src/services/bounty.ts (BountyServiceConfig.demoFault) and enclave/products/sealed-bounty/demo-fault.ts (guards, announcement)",
+    "script": "enclave/scripts/refute-demo.ts",
+    "localProof": "enclave/test/bounty-demo-fault-chain.test.ts (the same flow on a local chain, with the real contracts and the real replay engine)"
+  },
+  "composes": [
+    {
+      "composeFile": "enclave/phala/refute-demo-liar-v21.yml",
+      "service": "sealed-bounty-liar",
+      "image": "ghcr.io/jeanbaptistedurand/archive-sealed-bounty@sha256:ca06d9cc2c8f7baeb85bf15fa1592da90719b38581615109852e6fa95625ad36",
+      "measuredEnv": {
+        "RPC_URL": "https://rpc.testnet.arc.io",
+        "FORK_RPC_URL": "https://rpc.testnet.arc.io",
+        "CHAIN_ID": "5042002",
+        "PRODUCT_ID": "5",
+        "REGISTRY": "0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d",
+        "SEALEDBOUNTY": "0x182871d34438aB37a7FD4d8689f3e0812E447A9b",
+        "DEMO_FAULT": "inflate-loss"
+      },
+      "encryptedEnv": [
+        "OPERATOR_ALLOWLIST (from the VM's encrypted variable OPERATOR_ALLOWLIST)"
+      ],
+      "ports": [
+        "8803:8803"
+      ]
+    },
+    {
+      "composeFile": "enclave/phala/refute-demo-honest-v21.yml",
+      "service": "sealed-bounty-b",
+      "image": "ghcr.io/jeanbaptistedurand/archive-sealed-bounty@sha256:ca06d9cc2c8f7baeb85bf15fa1592da90719b38581615109852e6fa95625ad36",
+      "measuredEnv": {
+        "RPC_URL": "https://rpc.testnet.arc.io",
+        "FORK_RPC_URL": "https://rpc.testnet.arc.io",
+        "CHAIN_ID": "5042002",
+        "PRODUCT_ID": "5",
+        "REGISTRY": "0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d",
+        "SEALEDBOUNTY": "0x182871d34438aB37a7FD4d8689f3e0812E447A9b"
+      },
+      "encryptedEnv": [
+        "OPERATOR_ALLOWLIST (from the VM's encrypted variable OPERATOR_ALLOWLIST_B)"
+      ],
+      "ports": [
+        "8803:8803"
+      ]
+    },
+    {
+      "composeFile": "enclave/phala/refute-demo-honest-v21.yml",
+      "service": "sealed-bounty-c",
+      "image": "ghcr.io/jeanbaptistedurand/archive-sealed-bounty@sha256:ca06d9cc2c8f7baeb85bf15fa1592da90719b38581615109852e6fa95625ad36",
+      "measuredEnv": {
+        "PORT": "8813",
+        "RPC_URL": "https://rpc.testnet.arc.io",
+        "FORK_RPC_URL": "https://rpc.testnet.arc.io",
+        "CHAIN_ID": "5042002",
+        "PRODUCT_ID": "5",
+        "REGISTRY": "0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d",
+        "SEALEDBOUNTY": "0x182871d34438aB37a7FD4d8689f3e0812E447A9b"
+      },
+      "encryptedEnv": [
+        "OPERATOR_ALLOWLIST (from the VM's encrypted variable OPERATOR_ALLOWLIST_C)"
+      ],
+      "ports": [
+        "8813:8813"
+      ]
+    }
+  ],
+  "tee": "Intel TDX confidential VM (dstack) on Phala Cloud",
+  "verifiedOnArc": "Intel's signature on each TDX quote is checked on-chain by Automata DCAP: TdxAttestationModule 0x26C1803dE523aC896Ba7F1787f1401ec792951ca -> AutomataDcapAttestationFee 0x48640f7d94dE64b13c89686F3d1240A31Aeb4dc9",
+  "imageFingerprint": "v2.1: the registry replays the dstack RTMR3 event log on-chain (SHA-384), requires it to reproduce the quote's RTMR3, and allows the image by keccak256(MRTD | RTMR0 | RTMR1 | RTMR2 | compose-hash | os-image-hash | XFAM | TDATTRIBUTES); the lying VM and the honest VM have different compose-hashes, hence different fingerprints",
+  "reportData": "REPORTDATA[0:32] binds chain id, registry, product id, operator, enclave signer and X25519 key; REPORTDATA[32:64] is a recent block hash (EIP-2935)"
+}
