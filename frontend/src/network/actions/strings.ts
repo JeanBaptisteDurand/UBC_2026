@@ -15,6 +15,7 @@ const EN = {
   'w.menu': 'Wallet', 'w.close': 'Close', 'w.switchToRead': 'switch to Arc to read', 'u.free': 'free', 'u.capWhy': 'signature refused by the page guard (cap {cap})',
   'x.close': 'Close and go back to the overview',
   's1.need': 'Connect your wallet with the button at the top right of the page.', 's1.ok': 'Connected as {addr} on Arc testnet.',
+  'u.runningNow': 'Running now, {n} enclaves', 'u.waitingW': 'Waiting', 'u.retiredW': 'Retired',
   'u.pickBtn': 'Open the catalog', 'u.change': 'Change service', 'u.catTitle': 'Pick a service', 'u.catLede': 'The live catalog. Choosing a service brings the room back and goes to the next step.',
   'u.choose': 'Choose', 'u.chooseAria': 'Choose {name}', 'u.catClose': 'Close the catalog', 'u.none': 'No service chosen yet.',
 
@@ -111,6 +112,7 @@ const FR: Record<keyof typeof EN, string> = {
   'w.menu': 'Wallet', 'w.close': 'Fermer', 'w.switchToRead': 'passez sur Arc pour lire', 'u.free': 'gratuit', 'u.capWhy': 'signature refusée par la garde de la page (plafond {cap})',
   'x.close': 'Fermer et revenir à la vue d’ensemble',
   's1.need': 'Connectez votre wallet avec le bouton en haut à droite de la page.', 's1.ok': 'Connecté avec {addr} sur Arc testnet.',
+  'u.runningNow': 'En marche, {n} enclaves', 'u.waitingW': 'En attente', 'u.retiredW': 'Retiré',
   'u.pickBtn': 'Ouvrir le catalogue', 'u.change': 'Changer de service', 'u.catTitle': 'Choisir un service', 'u.catLede': 'Le catalogue en direct. Choisir un service ramène la salle et passe à l’étape suivante.',
   'u.choose': 'Choisir', 'u.chooseAria': 'Choisir {name}', 'u.catClose': 'Fermer le catalogue', 'u.none': 'Aucun service choisi pour l’instant.',
 

@@ -11,7 +11,7 @@ const PROXY = {
   '/arc-rpc': { target: 'https://rpc.testnet.arc.io', changeOrigin: true, rewrite: () => '/' },
 }
 const PORT = Number(process.env.PORT ?? 5261)
-const PAGES = ['index', 'service', 'use', 'demo', 'rent', 'publish', 'network', 'bounty', 'sessions', 'operator', 'services'] as const
+const PAGES = ['index', 'service', 'use', 'demo', 'rent', 'publish', 'network', 'bounty', 'sessions', 'operator'] as const
 
 /** Public files referenced by an absolute path in the code ("/models/…", "/net/…") get the build base; HTML and CSS
  *  are already rebased by Vite. No file is modified: the rewrite happens at compile time. */

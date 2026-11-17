@@ -9,7 +9,10 @@ html.film-page .stage { background: transparent; overflow: hidden; }
 
 /* The layer adds to the image: it lights the film, it never covers it */
 .film-layer { position: absolute; inset: 0; overflow: hidden; pointer-events: none; mix-blend-mode: plus-lighter; isolation: isolate; }
-.lm-plate, .lm-led { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; backface-visibility: hidden; }
+/* no will-change: with it, Chrome rasterises a plate once and stretches that image while the camera turns, then
+   re-rasterises it sharp at rest (a visible update of the names); without it, each frame draws the text at its true
+   perspective. ?wc=1 brings will-change back for comparison */
+.lm-plate, .lm-led { position: absolute; left: 0; top: 0; transform-origin: 0 0; backface-visibility: hidden; }
 
 /* ---- The plate: backlit smoked glass, the name in Fragment Mono capitals (same marks as plates.ts: title band from
    10% to 60% of the height from the top, status word and unit from 70% to 92%) ---- */
@@ -58,6 +61,6 @@ html.film-page .stage { background: transparent; overflow: hidden; }
 @media (prefers-reduced-motion: reduce) { .lm-plate, .lm-led { will-change: auto; } }
 /* A/B (?wc=0): without will-change, Chrome repaints the plate text at the right scale every frame (with it, Chrome
    stretches a frozen image during motion: blur and aliasing until it stops) */
-html.nowc .lm-plate, html.nowc .lm-led { will-change: auto; }
+html.wc .lm-plate, html.wc .lm-led { will-change: transform; }
 
 

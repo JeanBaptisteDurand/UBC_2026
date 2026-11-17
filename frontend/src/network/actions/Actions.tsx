@@ -4,6 +4,7 @@
 // The pieces are shared with the app pages (kit.tsx, acts.tsx, HeaderWallet.tsx).
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLang } from '../../i18n'
+import '../../ui/blades.css'
 import { short, usdc } from '../../data/fmt'
 import { useCatalog } from '../../app/useCatalog'
 import { RAIL_NAME } from '../../app/catalog'
@@ -51,21 +52,18 @@ export function ServiceCatalog() {
           <button type="button" className="net-x" onClick={close} aria-label={w('u.catClose')} title={w('u.catClose')}><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3 L13 13 M13 3 L3 13" /></svg></button>
         </div>
         <p className="lbl muted net-cat-l">{w('u.catLede')}</p>
-        <ol className="bay">
-          {list.map((r) => {
-            const enc = r.encs.length
-            return (
-              <li key={r.p.id} className={`row svc is-${r.led}`}>
-                <button type="button" className="svc-b" onClick={() => choose(r.p.id)} aria-pressed={r.p.id === pid} aria-label={w('u.chooseAria', { name: `${r.name}, #${r.p.id}` })} data-pid={r.p.id}>
-                  <span className={`${ledCls(r.led)} svc-led`} aria-hidden="true" />
-                  <span className="svc-id"><span className={`plate is-${r.led}`}>{r.name}</span><span className="lbl muted">{/^0x0{40}$/i.test(r.p.settlement) ? `#${r.p.id}` : `#${r.p.id}, ${RAIL_NAME[r.p.settlement.toLowerCase()] ?? short(r.p.settlement, 4)}`}</span></span>
-                  <span className="svc-price mono">{Number(r.p.price) ? usdc(r.p.price, lang) : w('u.free')}</span>
-                  <span className="svc-encs"><span className="diodes" aria-hidden="true">{r.encs.slice(0, 12).map((x) => <i key={x.e.signer} className={`d-${x.led}`} />)}</span><span className="lbl muted">{enc ? `${r.running} / ${enc}` : ''}</span></span>
-                  <span className="svc-go" aria-hidden="true">{w('u.choose')}</span>
-                </button>
-              </li>
-            )
-          })}
+        {/* the catalog as sleds, the same faces as the landing wall: one click picks the service */}
+        <ol className="bay sled-bay">
+          {list.map((r) => (
+            <li key={r.p.id} className="blade" data-led={r.role?.role === 'superseded' ? 'off' : r.led} data-long={r.name.length > 17 ? '1' : '0'}>
+              <button type="button" className="blade-face" onClick={() => choose(r.p.id)} aria-pressed={r.p.id === pid} aria-label={w('u.chooseAria', { name: `${r.name}, #${r.p.id}` })} data-pid={r.p.id}>
+                <span className="bl-led" aria-hidden="true"><i /></span>
+                <span className="bl-title">{r.name}</span>
+                <span className="bl-word">{r.running ? w('u.runningNow', { n: r.running }) : r.led === 'red' ? w('u.retiredW') : w('u.waitingW')}</span>
+                <span className="bl-u">{`#${r.p.id} · ${Number(r.p.price) ? usdc(r.p.price, lang) : w('u.free')}`}</span>
+              </button>
+            </li>
+          ))}
         </ol>
       </div>
     </div>
@@ -82,7 +80,9 @@ export function CloseFocus() {
 export function Actions() {
   useLang()
   const v = useView()
-  useEffect(() => { if (v !== 'use' && getUi().catOpen) setUi({ catOpen: false }) }, [v])
+  // the catalog closes when the visitor leaves the Use part (not while the page is still arriving on it)
+  const wasUse = useRef(false)
+  useEffect(() => { if (v === 'use') wasUse.current = true; else if (wasUse.current && getUi().catOpen) setUi({ catOpen: false }) }, [v])
   // Escape: closes the catalog if open, otherwise leaves the focus
   useEffect(() => {
     const k = (e: KeyboardEvent) => {

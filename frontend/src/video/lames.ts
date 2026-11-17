@@ -174,7 +174,7 @@ function m3d(i: number, x0: number, y1: number, z: number): string | null {
 const PC = new Float64Array(4), FW3 = new Float64Array(3)
 const hide = (e: El) => { if (e.shown) { e.plate.style.visibility = 'hidden'; e.shown = false } if (e.ledShown) { e.led.style.visibility = 'hidden'; e.ledShown = false } }
 
-if (new URLSearchParams(location.search).get('wc') === '0') document.documentElement.classList.add('nowc')
+if (new URLSearchParams(location.search).get('wc') === '1') document.documentElement.classList.add('wc')
 let calEl: HTMLElement[] | null = null
 function cal() {
   if (!calEl) {

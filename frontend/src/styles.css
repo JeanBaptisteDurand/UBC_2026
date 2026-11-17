@@ -593,3 +593,9 @@ html.tournage, html.tournage body { cursor: none; }
 /* the two hero links (demo, catalog) stack, one per line */
 .hero-demo { display: flex; width: max-content; max-width: 100%; }
 .hero-cat { margin-top: 8px; }
+
+/* Arc check: the "change one byte" button sits above the verdict, so a longer verdict (refused) never pushes it off
+   screen; the verdict keeps room for its longest message */
+.pin-arc .gate > .row { order: 0; }
+.pin-arc .gate > .btn { order: 1; }
+.pin-arc .gate > .verdict { order: 2; }

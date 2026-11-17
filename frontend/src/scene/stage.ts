@@ -1654,6 +1654,11 @@ gl_FragColor.rgb = hfog(gl_FragColor.rgb, vWP);`)
         if (st.svcSlot !== world.svc.slot || st.svcW !== W) { st.svcV = svcView(world.svc.slot, W, H); st.svcSlot = world.svc.slot; st.svcW = W }
         target = lerpView(target, st.svcV!, easeIO(st.svcU))
       } else if (!world.svc.open && st.svcU === 0) world.svc.slot = -1 }
+    // Capture only (tournage.html): __faceOv = { slot, d, m } frames one sled face from the front, d metres away, its
+    // height times m filling the image; the service catalog uses that render as the face of its sleds
+    { const fo = (window as unknown as { __faceOv?: { slot: number; d: number; m: number; dx?: number } }).__faceOv
+      if (TOURNAGE && fo) { const sl = SLOTS[fo.slot], cy = sl.base + (G.FT + G.FB) / 2, hh = ((G.FT - G.FB) / 2) * fo.m
+        target = { p: new THREE.Vector3(sl.x + (fo.dx ?? 0), cy, fo.d), t: new THREE.Vector3(sl.x, cy, 0), fov: (2 * Math.atan(hh / fo.d) * 180) / Math.PI, shift: 0 } } }
     if (!st.cam) st.cam = { p: target.p.clone(), t: target.t.clone(), fov: target.fov, shift: target.shift }
     // The camera follows the scroll already smoothed by Lenis; its own smoothing is short (0.06 s) so the scene never lags
     // behind the text

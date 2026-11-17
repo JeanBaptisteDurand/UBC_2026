@@ -1,6 +1,7 @@
 // Frame of the app pages: the landing's two-row header, without the scene. The first row holds the logo, the menu
 // (current page marked) and the language; the second, the live reading of Arc testnet. The bottom rule is first the
 // loading bar (the API, then the Arc block), then the page scroll progress.
+import { Ticker } from '../ui/Ticker'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useLive, blockTime, ago } from '../data/live'
 import { num, usdc } from '../data/fmt'
@@ -12,7 +13,7 @@ import { SelLayer } from '../ui/Sel'
 import { HeaderWallet } from '../network/actions/HeaderWallet'
 import '../network/actions/actions.css'
 
-export type AppPage = 'use' | 'service' | 'demo' | 'rent' | 'publish' | 'network' | 'bounty' | 'sessions' | 'operator' | 'services'
+export type AppPage = 'use' | 'service' | 'demo' | 'rent' | 'publish' | 'network' | 'bounty' | 'sessions' | 'operator'
 
 /** replay: the replayed demo reads nothing live; the second row shows the recording */
 /** wallet: the visitor's wallet button, the same on every app page (the replayed demo has none). The copilot bubble
@@ -43,7 +44,6 @@ export function AppHeader({ page, section, replay, wallet }: { page: AppPage; se
   const cur = (k: AppPage | 'x') => (k === page ? { 'aria-current': 'page' as const } : {})
   const nav = (
     <>
-      <a href={link.services} {...cur('services')}>{t('nav.services')}</a>
       <a href={link.network} {...cur('network')}>{t('net.name')}</a>
       <a href={link.bounty} {...cur('bounty')}>{t('nav.bounty')}</a>
       <a href={link.sessions} {...cur('sessions')}>{t('nav.sessions')}</a>
@@ -53,7 +53,7 @@ export function AppHeader({ page, section, replay, wallet }: { page: AppPage; se
     </>
   )
   return (
-    <header className="hd app-hd-bar" data-front-free>
+    <>{/* the live strip of services, fixed at the bottom of the screen */}<Ticker /><header className="hd app-hd-bar" data-front-free>
       <div className="hd-row1">
         <a className="logo" href={link.home} aria-label="ArcHive"><Logo /></a>
         <nav className="hd-nav" aria-label={t('nav.main')}>{nav}</nav>
@@ -84,7 +84,7 @@ export function AppHeader({ page, section, replay, wallet }: { page: AppPage; se
       {open ? <nav className="hd-drawer" aria-label={t('nav.main')}>{nav}</nav> : null}
       <SelLayer />
       {page !== 'network' ? <CopilotMount /> : null}
-    </header>
+    </header></>
   )
 }
 

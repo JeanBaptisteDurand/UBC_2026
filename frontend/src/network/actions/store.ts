@@ -34,7 +34,11 @@ export function engine(): Promise<Engine> {
 
 // page state around the actions: the catalog open in place of the scene (Use), the chosen service
 export interface UiState { catOpen: boolean; pid: string }
-let ui: UiState = { catOpen: false, pid: '' }
+// Arriving on the Use part (?focus=use): a service given in the address (?p=<id>) is picked; with none, the catalog of
+// sleds opens at once, so the visitor browses and picks in one click
+const Q0 = new URLSearchParams(location.search)
+const P0 = /^\d+$/.test(Q0.get('p') ?? '') ? Q0.get('p')! : ''
+let ui: UiState = { catOpen: Q0.get('focus') === 'use' && !P0, pid: P0 }
 const uiSubs = new Set<() => void>()
 export const getUi = () => ui
 export function setUi(p: Partial<UiState>) { ui = { ...ui, ...p }; uiSubs.forEach((f) => f()) }
