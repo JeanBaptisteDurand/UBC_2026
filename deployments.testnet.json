@@ -1,0 +1,25 @@
+{
+  "network": "Arc testnet",
+  "chainId": 5042002,
+  "rpc": "https://rpc.testnet.arc.io",
+  "explorer": "https://explorer.testnet.arc.io",
+  "deployedAt": "2026-11-03",
+  "deployer": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
+  "external": {
+    "USDC": "0x3600000000000000000000000000000000000000",
+    "ERC8004_Validation": "0x8004Cb1BF31DAf7788923b405b754f57acEB4272",
+    "EIP2935_History": "0x0000F90827F1C53a10cb7A02335B175320002935"
+  },
+  "note": "v1 : le registre en ligne utilise encore un module d'attestation PARAMÉTRABLE (MockAttestationModule), fixé à sa construction. Le vrai DCAP d'Automata est déployé sur Arc testnet depuis le 7/11 et a vérifié le quote réel de notre enclave Phala (deployments.dcap.testnet.json) ; la pile v2 branche le registre dessus. Timelock produits = 0 (démo).",
+  "contracts": {
+    "MockAttestationModule": "0x408035F0E84D1e84BA0582d07968d96128524158",
+    "ProductRegistry": "0x0C1634bE7ba6b9615990BADD53De650A90EBb547",
+    "OperatorBond": "0xb1a198E58dC5706969f80Dd40Cf111e36871de95",
+    "EnclaveRegistry": "0x741788700D44dA802D579ECD2Aec27878711aeAA",
+    "VerdictLog": "0x5BfBd5A4c504732fC4EBA27792D8808E1b7A1A68",
+    "SessionPay": "0xED501a02a14048118F2ecC21f25D6993707641c7",
+    "SealedBounty": "0xAF5055e8559b96f9CE1a09A310a7c7C8dE143310",
+    "X402Settler": "0x1FFf7a34d7a3F8562fD3400f05CCbf7BD575E7B9",
+    "DemoVault": "0xf217A8d61f90B47401216223dab69cfe3cCc1b27"
+  }
+}

@@ -1,0 +1,24 @@
+# Ce qui part sur le serveur (/opt/archive/src) : tout le code source, JAMAIS les secrets ni ce qui se reconstruit.
+# Règles lues dans l'ordre : la première qui correspond gagne.
+- .secrets/
+# fichiers vidés par iCloud, mis de côté le 10/11 (les lire bloque) : jamais envoyés
+- .icloud-evicted/
+- .git/
+- node_modules/
+- dist/
+- /contracts/out/
+- /contracts/cache/
+- broadcast/
+- /deploy/*.mjs
+- /deploy/*.bak
+- /.build/
+- /frontend/tools/copilot/out/
+- .playwright-mcp/
+- .DS_Store
+- *.log
+# web/.env.local ne contient que l'identifiant WalletConnect (public, il finit dans le JavaScript du site)
++ /web/.env.local
+- .env
+- .env.local
+- .env.*.local
+- /frontend/

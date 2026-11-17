@@ -1,0 +1,77 @@
+{
+  "network": "Arc testnet",
+  "chainId": 5042002,
+  "rpc": "https://rpc.testnet.arc.io",
+  "explorer": "https://explorer.testnet.arc.io",
+  "deployedAt": "2026-11-07",
+  "deployBlock": 71206317,
+  "deployer": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
+  "owner": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
+  "treasury": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
+  "note": "Pile v2 (corrections de la revue adverse, 142 tests). Le registre est branché sur le VRAI module : TdxAttestationModule → AutomataDcapAttestationFee (deployments.dcap.testnet.json) : la chaîne vérifie la signature d'Intel sur chaque quote. Aucun module simulé. REQUIRE_SEPT_VE = 1. Timelock produits = 0 (testnet). Déploiement : contracts/script/DeployTestnet.s.sol, 10 tx, 13 530 315 gas, 0,338 USDC (contracts/broadcast/DeployTestnet.s.sol/5042002/run-latest.json).",
+  "external": {
+    "USDC": "0x3600000000000000000000000000000000000000",
+    "ERC8004_Validation": "0x8004Cb1BF31DAf7788923b405b754f57acEB4272",
+    "ERC8004_Identity": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+    "EIP2935_History": "0x0000F90827F1C53a10cb7A02335B175320002935",
+    "AutomataDcapAttestationFee": "0x48640f7d94dE64b13c89686F3d1240A31Aeb4dc9",
+    "Multicall3": "0xcA11bde05977b3631167028862bE2a173976CA11"
+  },
+  "contracts": {
+    "TdxAttestationModule": "0x26C1803dE523aC896Ba7F1787f1401ec792951ca",
+    "ProductRegistry": "0x7795d037C8727D2F2a3D03F22b206EdCA7EdE810",
+    "OperatorBond": "0x0CFD3400736257BB1689C87C42800C2F71e3449D",
+    "EnclaveRegistry": "0x54AeCc6500a1CfB33FD5BFB3008ed7A600Ae7d38",
+    "VerdictLog": "0xE0d333a32128Bc1A830888AE6cd69bF437C7698A",
+    "SessionPay": "0x50158CDF4e7A020b198984a1D54CeDE878693193",
+    "SealedBounty": "0xaC8949a108e8288aBe0DdC5b5A4120De4636E4BF",
+    "X402Settler": "0xBeFdA057670e5efdB6aAfc2b91AcE75673594dFC",
+    "DemoVault": "0xD4f4d2Bb6bf662e738cB8917b9Ade152c245F8a1"
+  },
+  "roles": {
+    "owner_and_productAuthor": "0x5724d89D610c3017b8DC161c025248341556f6Ab (clé du déployeur : reste hors du serveur)",
+    "operator": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a (enclaves + registrar ; caution 3 USDC ; agent ERC-8004 n° 897812)"
+  },
+  "products": {
+    "1": {
+      "name": "Inférence privée",
+      "settlement": "SessionPay",
+      "price": "0.0001 USDC / unité",
+      "unitTokens": 1,
+      "outWeight": 1,
+      "param": "keccak256(\"openai/gpt-oss-120b\")",
+      "manifest": "https://archive.62-171-153-35.sslip.io/manifests/sealed-chat-v2.json"
+    },
+    "2": {
+      "name": "Prime scellée",
+      "settlement": "SealedBounty",
+      "deterministic": true,
+      "param": "keccak256(\"anvil-1.5.1+arc-usdc-shim-v1\")",
+      "manifest": "https://archive.62-171-153-35.sslip.io/manifests/sealed-bounty-v1.json"
+    }
+  },
+  "enclaves": {
+    "1": {
+      "url": "https://d9604a1ae63013a744dff9214780db8090aaac92-8802.dstack-pha1-prod9.phala.network",
+      "phalaApp": "d9604a1ae63013a744dff9214780db8090aaac92",
+      "image": "ghcr.io/jeanbaptistedurand/archive-sealed-chat@sha256:eceb67a5bf985a9672d51db288ef85c9e2cb7908835057ea24888517793173fa",
+      "signer": "0x6AFc62deC6C33DdFff75f95cBf1b8D9d18296DA6",
+      "workloadId": "0x9b21399b827e42da3a6753340f938b946bf635d7e96496896dbe9753e67e5d06",
+      "registerTx": "0x6f3ed6e8f43168d894edea23201e0293c9eacee4589b221babfff70592dcc545",
+      "registerGas": 5626880
+    },
+    "2": {
+      "url": "https://3c61ebf0a96f55b67ffceb8978141f73c2b39dfa-8803.dstack-pha1-prod9.phala.network",
+      "phalaApp": "3c61ebf0a96f55b67ffceb8978141f73c2b39dfa",
+      "image": "ghcr.io/jeanbaptistedurand/archive-sealed-bounty@sha256:cf2b1e36d40025849c07b2e3b2dbadb5cccede61258250cef73fd8e0ddd4a129",
+      "signer": "0x166fc96a2e84EAD6aD95841D776FA6d0eFa4f5CC",
+      "workloadId": "0x9f642c6ce723e53e6a3d52ac49fe0c9384b5d524a9441c1d24b74a41a98cd41c",
+      "registerTx": "0xd5fffcfe39c2895b2f793bec58dc245faf17585bd57b233129e20de40840009b",
+      "registerGas": 5609768
+    }
+  },
+  "knownLimits": [
+    "Le workloadId inclut RTMR3, qui chez Phala/dstack contient des événements propres à l'instance de la VM : un redémarrage (ex. changement de variable chiffrée) change le workloadId ; l'auteur autorise aujourd'hui chaque instance. Correctif : rejouer le journal d'événements de RTMR3 et n'épingler que le hash du compose.",
+    "requestHash des verdicts non lié à l'adresse du contrat : un redéploiement sur la même chaîne pourrait entrer en collision (ERC-8004 répond « exists », verdict sauté sans trace). Correctif v2.1 : inclure chainid + address(this) et émettre un événement en cas d'échec."
+  ]
+}

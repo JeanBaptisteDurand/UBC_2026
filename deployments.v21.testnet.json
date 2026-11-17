@@ -1,0 +1,942 @@
+{
+  "network": "Arc testnet",
+  "chainId": 5042002,
+  "rpc": "https://rpc.testnet.arc.io",
+  "explorer": "https://explorer.testnet.arc.io",
+  "version": "2.1",
+  "deployedAt": "2026-11-09",
+  "deployBlock": 71481927,
+  "deployer": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
+  "owner": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
+  "treasury": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
+  "note": "Pile v2.1 (234 tests ; deux revues adverses + correctifs du 9/11) : empreinte d'IMAGE par rejeu on-chain du journal RTMR3 de dstack (stable d'un red\u00e9marrage \u00e0 l'autre)  verdicts ERC-8004 li\u00e9s \u00e0 la cha\u00eene et au contrat (requestHash sal\u00e9 contre l'occupation d'avance  VerdictSkipped  VerdictNotApplicable pour une session sans paiement  verdict de faute m\u00eame apr\u00e8s fermeture)  manifestURI modifiable sous timelock  primitive onlyAttested (attestedOperator). Registre branch\u00e9 sur le VRAI module TdxAttestationModule \u2192 Automata DCAP (deployments.dcap.testnet.json). REQUIRE_SEPT_VE = 1  timelock produits = 0 (testnet). D\u00e9ploiement : contracts/script/DeployTestnet.s.sol  10 tx  15 257 922 gas  0.3814 USDC (contracts/broadcast/DeployTestnet.s.sol/5042002/run-latest.json).",
+  "external": {
+    "USDC": "0x3600000000000000000000000000000000000000",
+    "ERC8004_Validation": "0x8004Cb1BF31DAf7788923b405b754f57acEB4272",
+    "ERC8004_Identity": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+    "EIP2935_History": "0x0000F90827F1C53a10cb7A02335B175320002935",
+    "AutomataDcapAttestationFee": "0x48640f7d94dE64b13c89686F3d1240A31Aeb4dc9",
+    "Multicall3": "0xcA11bde05977b3631167028862bE2a173976CA11"
+  },
+  "contracts": {
+    "TdxAttestationModule": "0x26C1803dE523aC896Ba7F1787f1401ec792951ca",
+    "ProductRegistry": "0x582a3076cf6A1347907565B57Ce9f548D33805A4",
+    "OperatorBond": "0xe584F7590e4677372eE6259b967672c747eB6850",
+    "EnclaveRegistry": "0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d",
+    "VerdictLog": "0x2B4AB39B461Ae2bA9ADfb6bC630D34553BAb9779",
+    "SealedBounty": "0x182871d34438aB37a7FD4d8689f3e0812E447A9b",
+    "SessionPay": "0x8Bf8A8356f53006E9aB359AA6382f783923058a6",
+    "X402Settler": "0xccDb1a5641F2F3f2Cf2112c8E14669DBb6E11634",
+    "DemoVault": "0x250C64fcbb61Ca4B9278330ae3711DCcADD1AB09"
+  },
+  "deployTxs": {
+    "ProductRegistry": "0xf01f76b89c6ff253dd9e11dc8df6ab50c9bf0205815fac11523b9f87890822c0",
+    "OperatorBond": "0x2c0994ad3c5e69ac9281da568d7a4de7c0ae07b0a227e21ac09af82762ab3715",
+    "EnclaveRegistry": "0x90a27bc3c78834c8a7c2400367dae863bdfea0d0974799b1262735a0ac10c9be",
+    "VerdictLog": "0xaf4cca90a050418e40d6f522f716628bc97a5e4d62b7a0ca613d7053f5ab816e",
+    "SealedBounty": "0xc6c7e2e2248d30c03595e7675da12952f5ef634be8c5d3bef986126a3f1e17e8",
+    "SessionPay": "0x1b1cb0b63248edfaaa959ef8223db1eda52ea0521e172da00775d90b6f1f8618",
+    "X402Settler": "0x5da9d89d9e6c2898095f79ace478d73daff61d6e73553bd906d9ab26c3e58422",
+    "DemoVault": "0xf4fdb6350498cccc294dd59f76e33ddc5e50c8d8f98dfbe905b214e6452bd078",
+    "OperatorBond.initialize": "0x415b205c3520efd51d235f28cda8b3e272398c55e4a6861c718e196c22aaa384",
+    "VerdictLog.initialize": "0xd27db0342b83b694bb2400d3e31815011982375bf26eb6fce535218da2e5b526"
+  },
+  "roles": {
+    "owner_and_productAuthor": "0x5724d89D610c3017b8DC161c025248341556f6Ab (cl\u00e9 du d\u00e9ployeur : reste hors du serveur)",
+    "operator": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a (enclaves + registrar ; agent ERC-8004 n\u00b0 897812)"
+  },
+  "products": {
+    "1": {
+      "name": "Private AI inference (sessions)",
+      "settlement": "SessionPay",
+      "price": "0.0001 USDC / unit",
+      "param": "keccak256(\"openai/gpt-oss-120b\")",
+      "manifest": "https://archive.62-171-153-35.sslip.io/manifests/sealed-chat-v21.json",
+      "manifestHash": "0xc2e3dae02ac8f96ac9c281b3b64daf8b3bf69add947665fc7452efc5b498a713",
+      "proposeTx": "0x26f60e1e77a222ee535c335f7bd9851a857ee47979e39eda3418c6f191812754",
+      "activateTx": "0xdffcd8052469c2df185557abb566de715d1bb76943ca655ef511d0f7b0ad5235"
+    },
+    "2": {
+      "name": "Sealed Bounty",
+      "settlement": "SealedBounty",
+      "deterministic": true,
+      "param": "keccak256(\"arc-foundry v0.8.0-4 arc-anvil --network arc\")",
+      "manifest": "https://archive.62-171-153-35.sslip.io/manifests/sealed-bounty-v21.json",
+      "manifestHash": "0x06cfa3ffebff72a0caa85e4addda4944a6f04a9562cb3b5c94b965f5278c74f3",
+      "proposeTx": "0xceebf0ba7145e737cd6004274312e51fa4d82dd3b7324058c20fa0fa181a3410",
+      "activateTx": "0xa2c25622d9a04dc3148ae5a903aa595a17f70958a6bb5fca1084ca3d18ff0182"
+    },
+    "3": {
+      "name": "Pay-per-call private inference (x402)",
+      "settlement": "X402Settler",
+      "price": "0.01 USDC / call",
+      "param": "keccak256(\"openai/gpt-oss-120b\")",
+      "manifest": "https://archive.62-171-153-35.sslip.io/manifests/sealed-x402-v21.json",
+      "manifestHash": "0xccd9b394b0bbea5be989c138e46d71ee5afce45ad4c9dd9819314b2f7a7901df",
+      "proposeTx": "0xc7bb4c75225388bc52644a760ce5336976377fbf50365cef0aa949073d3dd350",
+      "activateTx": "0x6f875e3da3dcc54783d81f0bb6563d1ae7374f7a224994a83402b6374e2109d4"
+    },
+    "4": {
+      "name": "Attested copilot",
+      "settlement": "none",
+      "price": "free",
+      "param": "keccak256(\"openai/gpt-oss-120b\")",
+      "manifest": "https://archive.62-171-153-35.sslip.io/manifests/copilot-enclave-v21.json",
+      "manifestHash": "0x69e3402158f3250e3f6388804c233004a27a2efa868414d4e75cf1d8cf8077d8",
+      "proposeTx": "0xca4e150b771fa5dd6c6add6b8592d3d7c0ee577672073185b0d3e3c15d7114f3",
+      "activateTx": "0x12224a540677aaec7a7e2045d8354f7420a6c2d835dcdb42f809fa685b778036"
+    },
+    "6": {
+      "settlement": "SealedBountyVerified",
+      "kind": "bounty-verified",
+      "manifest": "sealed-bounty-verified-v21.json",
+      "proposeTx": "0x5c1afdd6147572257c9627b349b9472b548453025e161bcbd5bfc8f30115c545",
+      "activateTx": "0x46b47c08741941d4ed9356192f7761fa4d16ff7f4d9ce7ec91d836d5ce863269",
+      "policy": {
+        "minLevel": 1,
+        "auditors": [
+          "ProofOfCloudAuditor"
+        ],
+        "proposeTx": "0xe5102a3a9841af9454d4ae4d1e590f1bdb1435b25b9c53868793b9b1b72e60fd",
+        "applyTx": "0xbc18aeae4f6d948bf970d42d2b2de98f635f3a13ccff33a8ccbf3d3f5a532e6b"
+      },
+      "workloadTxs": [
+        "0x48608a43817c99ad4d015690752fbc9531339406b4270c3ca247009fa1bdfaba",
+        "0xb1dc250ae7006b7ce4f80c1ceddfa230d0a5e8e4cc6f02c62193425b6751c6d7"
+      ],
+      "superseded": "NEUTRALIS\u00c9 le 11/11 (settlement immuable c\u00e2bl\u00e9 \u00e0 l'ancienne pile vuln\u00e9rable ; politique mise \u00e0 l'auditeur mort). Remplac\u00e9 par le produit 7."
+    },
+    "7": {
+      "name": "Sealed Bounty, verified operator level (corrected stack)",
+      "settlement": "SealedBountyVerified",
+      "kind": "bounty-verified",
+      "manifest": "https://archive.62-171-153-35.sslip.io/manifests/sealed-bounty-verified-v21.json",
+      "manifestHash": "0x327f297e8b10c0246f7ebfed31f7369e7d36df6acd6bfa76c602e1dda0c0e14e",
+      "enclaveSigner": "0x1306d239FfD65DEdbc30214E382F2B11153fb516",
+      "stateProofs": "off (no historical eth_getProof source; code ready + 23 tests; re-enable with a larger-disk node or an archive RPC)",
+      "slashFromUtc": "2026-11-18T23:00:37Z",
+      "proposeTx": "0x9acdd0fe270bc42a3677a8b026aadc9e9123d06c534ba1bcb7fbcd189b559c44",
+      "activateTx": "0xd93ac5a0b73434faf6247410fc5aed0fed59f0e761f4f7d65e75ae3c10543957",
+      "policy": {
+        "minLevel": 1,
+        "auditors": [
+          "ProofOfCloudAuditor"
+        ],
+        "proposeTx": "0xac31065911dd45ba8e1298448e48337b454f193b33d9e23993c70d4d587c3070",
+        "applyTx": "0x125919112a377807014116791c46d256e1346531b0daa87f3b0e9a96d789d079"
+      },
+      "registerTx": "0x467ec4d5db9698ec3e2a40973f65597548ed12c21acd83306ed533a689d7a242",
+      "workloadTxs": [
+        "0xc27b5d102f44e35c0e580a56c8ee4b8cb2e11ce0c82bfa23445751d9aeb7623f",
+        "0x153099b608c2b557c4c8c65d2da9b3a2d0e160bef816f6409a16663a599fe2ef"
+      ]
+    }
+  },
+  "enclaves": {
+    "1": {
+      "product": 1,
+      "url": "https://659d8740a0a8364fc0f805cb48f38a6977749783-8802.dstack-pha1-prod9.phala.network",
+      "phalaApp": "659d8740a0a8364fc0f805cb48f38a6977749783",
+      "vm": "archive-v21-inference",
+      "image": "ghcr.io/jeanbaptistedurand/archive-sealed-chat@sha256:3ab9659901154934efa1be120143dbe4fb8f83bf6394af5599db49ed74bff5bd",
+      "composeHash": "0xdf78ab4eac4283b8ebc115e5dae9f22dbaeda7ddd3ac824e70cff34929c6a13a",
+      "imageId": "0x4819919023babc6deb8202f9556238e91d45e3481f7a842f820cacf73646b9a1",
+      "signer": "0x5E534608bc342dA7A069B1d7636AAE5c5cA55b8A",
+      "registerTx": "0xbd5cb0616dae27f9b614ffa6c6eea28423030932c017f9f910099b0129e19a75",
+      "registerGas": 6849050,
+      "modelAttestation": "aci : passerelle RedPill v\u00e9rifi\u00e9e (quote Intel, cl\u00e9s li\u00e9es, compose mesur\u00e9, OS de production), TLS \u00e9pingl\u00e9, re\u00e7us exig\u00e9s (11/11)"
+    },
+    "2": {
+      "product": 2,
+      "url": "https://8be7a21dab8126efad80cc9a53fe11cea66bea1d-8803.dstack-pha1-prod9.phala.network",
+      "phalaApp": "8be7a21dab8126efad80cc9a53fe11cea66bea1d",
+      "vm": "archive-v21-bounty",
+      "image": "ghcr.io/jeanbaptistedurand/archive-sealed-bounty@sha256:ca06d9cc2c8f7baeb85bf15fa1592da90719b38581615109852e6fa95625ad36",
+      "imageId": "0x9e8c1d505835883488ceeb29ed0ea6020aac3d4fd82499891d00944cd659d534",
+      "signer": "0x43a93a04743737D24b18D7e84aFc3811dA7cC459",
+      "registerTx": "0x3031a211c7d108310c2208d9f8d308cf1f0e00bc09b301575c8f3fe395cc7423",
+      "registerGas": 6849026
+    },
+    "3": {
+      "product": 3,
+      "url": "https://659d8740a0a8364fc0f805cb48f38a6977749783-8804.dstack-pha1-prod9.phala.network",
+      "phalaApp": "659d8740a0a8364fc0f805cb48f38a6977749783",
+      "vm": "archive-v21-inference",
+      "image": "ghcr.io/jeanbaptistedurand/archive-sealed-chat@sha256:3ab9659901154934efa1be120143dbe4fb8f83bf6394af5599db49ed74bff5bd",
+      "composeHash": "0xdf78ab4eac4283b8ebc115e5dae9f22dbaeda7ddd3ac824e70cff34929c6a13a",
+      "imageId": "0x4819919023babc6deb8202f9556238e91d45e3481f7a842f820cacf73646b9a1",
+      "signer": "0x3672cA6FC127bA61a61Be46fE0262f4830Ca7Ff0",
+      "registerTx": "0x11de93a1f95b0382384ade1e09990ebb63fc6116f6891b2bfd19a54977b8734d",
+      "registerGas": 6849026,
+      "modelAttestation": "aci : passerelle RedPill v\u00e9rifi\u00e9e (quote Intel, cl\u00e9s li\u00e9es, compose mesur\u00e9, OS de production), TLS \u00e9pingl\u00e9, re\u00e7us exig\u00e9s (11/11)"
+    },
+    "4": {
+      "product": 4,
+      "url": "https://587736778248fca43e8c09ae83dc6555162cc829-8808.dstack-pha1-prod9.phala.network",
+      "phalaApp": "587736778248fca43e8c09ae83dc6555162cc829",
+      "vm": "archive-v21-copilot",
+      "image": "ghcr.io/jeanbaptistedurand/archive-copilot-enclave@sha256:b4e784a57d9133ce91fb6277240d038b3dc69920ca5a59bbe403c87b686d3a77",
+      "imageId": "0x919e9c97158daf5f6a214523bebddc54dd1a84fe0be3e2482ca2f22e9483f189",
+      "signer": "0xB3c51bDd7C19acFF81261BD09539EE2912F1a2dB",
+      "registerTx": "0xad8b9780689513b1f68b8aba1a99f1b3156b4038a86aff46cad5ff96e294005e",
+      "registerGas": 6849050,
+      "composeHash": "0x254c2e42e9bf7dcc8a55924fa9fb4ef346e9bb4837353960ca5547c05a743bb7",
+      "modelAttestation": "aci : passerelle RedPill v\u00e9rifi\u00e9e (11/11)"
+    },
+    "6": {
+      "product": 6,
+      "url": "https://68182b56bf0b6214bd0ec8bb8edce2b4122343e1-8803.dstack-pha1-prod9.phala.network",
+      "phalaApp": "68182b56bf0b6214bd0ec8bb8edce2b4122343e1",
+      "vm": "archive-v21-bounty-verified",
+      "node": "prod9 (PPID 62d54040cb9dfc08bb13006fa75ece56)",
+      "image": "ghcr.io/jeanbaptistedurand/archive-sealed-bounty@sha256:f3bff732179c7f6a6d24a9de4e61b49372e4d2ff178d5aa08630efebd3142c15",
+      "composeHash": "0x60d61303111779c94635cc534fc2bf326ae60398ed33460806c07fade3c52c5d",
+      "imageId": "0x5e92dba1d6121dbe72e0d09fe79810af6eac1f53929fd77ec552d3cdc8416bd4",
+      "signer": "0xFD050Fc72F4ea5fEEF10D8C0882Ff1506Ae6912a",
+      "registerTx": "0x524eef52938b73eefaa69074a835f1c8494a09326fb8896b66f6226c03237a54",
+      "registerGas": 6849026,
+      "note": "Prime scell\u00e9e au niveau v\u00e9rifi\u00e9 (10/11) : settlement SealedBountyVerified, politique niveau 1 (ProofOfCloudAuditor), preuves d'\u00e9tat (STATE_PROOF_RPC_URL)",
+      "superseded": "red\u00e9ploy\u00e9 en produit 7 le 11/11 (signataire 0xFD05 p\u00e9rim\u00e9)"
+    },
+    "7": {
+      "product": 6,
+      "url": "https://68182b56bf0b6214bd0ec8bb8edce2b4122343e1-8803.dstack-pha1-prod9.phala.network",
+      "phalaApp": "68182b56bf0b6214bd0ec8bb8edce2b4122343e1",
+      "vm": "archive-v21-bounty-verified",
+      "node": "prod9 (PPID 62d54040cb9dfc08bb13006fa75ece56)",
+      "image": "ghcr.io/jeanbaptistedurand/archive-sealed-bounty@sha256:f3bff732179c7f6a6d24a9de4e61b49372e4d2ff178d5aa08630efebd3142c15",
+      "composeHash": "0x60d61303111779c94635cc534fc2bf326ae60398ed33460806c07fade3c52c5d",
+      "imageId": "0x5e92dba1d6121dbe72e0d09fe79810af6eac1f53929fd77ec552d3cdc8416bd4",
+      "signer": "0x1306d239FfD65DEdbc30214E382F2B11153fb516",
+      "registerTx": "0x524eef52938b73eefaa69074a835f1c8494a09326fb8896b66f6226c03237a54",
+      "registerGas": 6849026,
+      "note": "produit 7 (niveau v\u00e9rifi\u00e9, pile corrig\u00e9e 11/11) ; m\u00eame VM que l'ancien produit 6, red\u00e9ploy\u00e9e (SEALEDBOUNTY=0x36a8, preuves d'\u00e9tat off)",
+      "x25519": "0x16ef4a3213c94fd1acd156542365eee24e16eb625bf463cea1e7c66838eef739",
+      "productId": 7
+    }
+  },
+  "previous": "deployments.v2.testnet.json (pile v2 du 7/11, retir\u00e9e apr\u00e8s la bascule)",
+  "os": {
+    "name": "dstack-0.5.12 (production, no SSH)",
+    "osImageHash": "0x8db40cb23008d6213668b5816702d100b37b859a8a5bfd18d938ae3a1b3715bd"
+  },
+  "operatorSetup": {
+    "bond": "8 USDC",
+    "bondTx": "0x4cc68bc8690b3b36f1338f90ceb066a54e7e6cf9e1f6a9c07e43d9c499274c3c",
+    "agentIdTx": "0x75cabacebe018e462e1e7dd00585077666567c6002ef1812e55782523715e1b2",
+    "verdictLogApprovalTx": "0xe4aa8abbc6ee80dfa5f35bc1190ef9f43b6b797f615a5299a750fb745aa28312"
+  },
+  "refuteDemo": {
+    "status": "done",
+    "note": "D\u00e9monstration S\u00c9PAR\u00c9E et \u00e9tiquet\u00e9e de SealedBounty.refute (produit 5, une image volontairement menteuse) : scripts/refute-demo.ts. Op\u00e9rateurs de d\u00e9monstration A, B, C ; jamais l'op\u00e9rateur principal.",
+    "startedAt": "2026-11-10T00:04:44.218Z",
+    "transactions": [
+      {
+        "step": "a",
+        "label": "op\u00e9rateur A dot\u00e9 de 1.6 USDC",
+        "hash": "0x83fac2255d95f60455dc1f7f490bb2f932ef582c743c7b4634219c8f35c3d24d",
+        "status": "success",
+        "block": "71619802",
+        "gasUsed": "21000",
+        "gasCostUsdc": "0.000525"
+      },
+      {
+        "step": "a",
+        "label": "op\u00e9rateur B dot\u00e9 de 1.6 USDC",
+        "hash": "0xc6014d75cec3c27ed0de84fd7998e7e599ecf6ef941a1d1c197ea30749ea3a01",
+        "status": "success",
+        "block": "71619811",
+        "gasUsed": "21000",
+        "gasCostUsdc": "0.000525"
+      },
+      {
+        "step": "a",
+        "label": "op\u00e9rateur C dot\u00e9 de 1.6 USDC",
+        "hash": "0xbf0f84b96276399794bacc6e293211b0d7122668c270b57473aaeda1654bb0b8",
+        "status": "success",
+        "block": "71619819",
+        "gasUsed": "21000",
+        "gasCostUsdc": "0.000525"
+      },
+      {
+        "step": "b",
+        "label": "A : identit\u00e9 ERC-8004 cr\u00e9\u00e9e",
+        "hash": "0xfaabf56bd6d78ede0721e73cacfcf2589c5d7e209f4cc9b08857bc99775d72db",
+        "status": "success",
+        "block": "71619828",
+        "gasUsed": "454322",
+        "gasCostUsdc": "0.01135805"
+      },
+      {
+        "step": "b",
+        "label": "A : VerdictLog autoris\u00e9 \u00e0 \u00e9crire ses verdicts",
+        "hash": "0x14ad25a3c371e679cb3445769b67a7e32121b44a5e66c2e6f98e3f931f470ffb",
+        "status": "success",
+        "block": "71619837",
+        "gasUsed": "51281",
+        "gasCostUsdc": "0.001282025"
+      },
+      {
+        "step": "b",
+        "label": "A : caution +1 USDC",
+        "hash": "0x5014bbd9b569c36ab98c688fe62a9841161628b0717570ed105040ffc91a8e5d",
+        "status": "success",
+        "block": "71619846",
+        "gasUsed": "114270",
+        "gasCostUsdc": "0.00285675"
+      },
+      {
+        "step": "b",
+        "label": "A : agentId 897821 d\u00e9clar\u00e9 dans OperatorBond",
+        "hash": "0xbbbf50a94250993b3ab763919fd23c2f345d20a6e57024a138779e26468c6a01",
+        "status": "success",
+        "block": "71619855",
+        "gasUsed": "78649",
+        "gasCostUsdc": "0.001966225"
+      },
+      {
+        "step": "b",
+        "label": "B : identit\u00e9 ERC-8004 cr\u00e9\u00e9e",
+        "hash": "0x538f1d35693b5bfa738b9b12e01b42395a37c9efdd2718504e2c6b998bca74c5",
+        "status": "success",
+        "block": "71619863",
+        "gasUsed": "431099",
+        "gasCostUsdc": "0.010777475"
+      },
+      {
+        "step": "b",
+        "label": "B : VerdictLog autoris\u00e9 \u00e0 \u00e9crire ses verdicts",
+        "hash": "0x668b80454d49d1be09a1fbec4e7b591677c2b9f71daf134a656f225ab9b7ad11",
+        "status": "success",
+        "block": "71619872",
+        "gasUsed": "51281",
+        "gasCostUsdc": "0.001282025"
+      },
+      {
+        "step": "b",
+        "label": "B : caution +1 USDC",
+        "hash": "0x46813a20e49bfd7eae0f98a0b271952f9aaa90689bff2a94b7812b91c9e507e1",
+        "status": "success",
+        "block": "71619881",
+        "gasUsed": "114270",
+        "gasCostUsdc": "0.00285675"
+      },
+      {
+        "step": "b",
+        "label": "B : agentId 897822 d\u00e9clar\u00e9 dans OperatorBond",
+        "hash": "0x6a8ea730035eeea93ef6b1deb040186a69904a47f0fdccc20e31315574a44724",
+        "status": "success",
+        "block": "71619889",
+        "gasUsed": "78649",
+        "gasCostUsdc": "0.001966225"
+      },
+      {
+        "step": "b",
+        "label": "C : identit\u00e9 ERC-8004 cr\u00e9\u00e9e",
+        "hash": "0xada5e57840843cf114baa6dd0c0985190fcffdca60736e5d4d9b0e8726a74a16",
+        "status": "success",
+        "block": "71619898",
+        "gasUsed": "431099",
+        "gasCostUsdc": "0.010777475"
+      },
+      {
+        "step": "b",
+        "label": "C : VerdictLog autoris\u00e9 \u00e0 \u00e9crire ses verdicts",
+        "hash": "0xd42e542f2f76e4ce3548fc5c917b68b065d01ea2ef528aabbf3f823fa21d45c9",
+        "status": "success",
+        "block": "71619907",
+        "gasUsed": "51281",
+        "gasCostUsdc": "0.001282025"
+      },
+      {
+        "step": "b",
+        "label": "C : caution +1 USDC",
+        "hash": "0xa553c88642c4e2fd6d156714b8fd62fc72bfa2060042186d6bf9424ce0ae59e1",
+        "status": "success",
+        "block": "71619916",
+        "gasUsed": "114282",
+        "gasCostUsdc": "0.00285705"
+      },
+      {
+        "step": "b",
+        "label": "C : agentId 897823 d\u00e9clar\u00e9 dans OperatorBond",
+        "hash": "0xb0d111aedde4babdeb433c6b4abc0225e0d99bf18f24d5fee28eb5ee91da0dd3",
+        "status": "success",
+        "block": "71619925",
+        "gasUsed": "78649",
+        "gasCostUsdc": "0.001966225"
+      },
+      {
+        "step": "c",
+        "label": "produit 5 propos\u00e9 (manifeste 0x418543f4eaae5fdd43ee3e08658e34e4627e0cf747ffae4041748fe405d81981)",
+        "hash": "0xae570d83aadba05100227d26db81daea6c599cd4d9451ba8817a70198ef35d91",
+        "status": "success",
+        "block": "71619933",
+        "gasUsed": "327524",
+        "gasCostUsdc": "0.0081881"
+      },
+      {
+        "step": "c",
+        "label": "produit 5 activ\u00e9",
+        "hash": "0xe0dcbb9d7a8f3ffc56755d2da00e05e811dfe0e68c8db193e0f77ebf21a3bfe8",
+        "status": "success",
+        "block": "71619942",
+        "gasUsed": "28044",
+        "gasCostUsdc": "0.0007011"
+      },
+      {
+        "step": "d",
+        "label": "A : image propos\u00e9e (produit 5, par l'auteur)",
+        "hash": "0x84098c6aa9f633cbe613c994685fcae30e2a5475dcdfbd4bc599655087f7db40",
+        "status": "success",
+        "block": "71619958",
+        "gasUsed": "48485",
+        "gasCostUsdc": "0.001212125"
+      },
+      {
+        "step": "d",
+        "label": "A : image autoris\u00e9e (par l'auteur)",
+        "hash": "0xfffb73def32dc26840098876abb659ed25334fce64ee4f1d9e331412ffdbcad7",
+        "status": "success",
+        "block": "71619967",
+        "gasUsed": "46290",
+        "gasCostUsdc": "0.00115725"
+      },
+      {
+        "step": "d",
+        "label": "A : registerEnclave (v\u00e9rification DCAP on-chain)",
+        "hash": "0xd73094e863eccd11500410b8041ba696b7a63d0628d9ac8d077d89434b98a23e",
+        "status": "success",
+        "block": "71619975",
+        "gasUsed": "6866162",
+        "gasCostUsdc": "0.17165405"
+      },
+      {
+        "step": "d",
+        "label": "B : image propos\u00e9e (produit 5, par l'auteur)",
+        "hash": "0x36d8a6eb322341b5e6728520f12d8f7cd935ab946819bacba624e2e73a5c610a",
+        "status": "success",
+        "block": "71620005",
+        "gasUsed": "48485",
+        "gasCostUsdc": "0.001212125"
+      },
+      {
+        "step": "d",
+        "label": "B : image autoris\u00e9e (par l'auteur)",
+        "hash": "0x0449fd11e81a12f170c9422eae57a60c39948482418532ee0fa60ce5e4110a29",
+        "status": "success",
+        "block": "71620013",
+        "gasUsed": "46290",
+        "gasCostUsdc": "0.00115725"
+      },
+      {
+        "step": "d",
+        "label": "B : registerEnclave (v\u00e9rification DCAP on-chain)",
+        "hash": "0x5be314413963380b55ac95848a55c393ade5790aadc3843a94498c7cad302349",
+        "status": "success",
+        "block": "71620022",
+        "gasUsed": "6866138",
+        "gasCostUsdc": "0.17165345"
+      },
+      {
+        "step": "d",
+        "label": "C : registerEnclave (v\u00e9rification DCAP on-chain)",
+        "hash": "0x0130c0a6160509b823f40d3c6a652787758228f3e66593fa2673c3f19201594c",
+        "status": "success",
+        "block": "71620048",
+        "gasUsed": "6866138",
+        "gasCostUsdc": "0.17165345"
+      },
+      {
+        "step": "e",
+        "label": "DemoVault de d\u00e9monstration d\u00e9ploy\u00e9 (faille volontaire : migrate sans contr\u00f4le d'acc\u00e8s)",
+        "hash": "0x55899c2a13c1cbfd3bf1b28e6a941f87129054a64eb558f84ae145dc22e3b68c",
+        "status": "success",
+        "block": "71620066",
+        "gasUsed": "322569",
+        "gasCostUsdc": "0.008064225"
+      },
+      {
+        "step": "e",
+        "label": "coffre dot\u00e9 de 1 USDC (vrais fonds)",
+        "hash": "0x8d489198f85f259869bf7a1d122b40816ac5f741c8a4c6f0c932f86d951538c8",
+        "status": "success",
+        "block": "71620075",
+        "gasUsed": "48950",
+        "gasCostUsdc": "0.00122375"
+      },
+      {
+        "step": "e",
+        "label": "prime publi\u00e9e sur le produit 5 (cagnotte 1 USDC, palier 0,5 USDC pour une perte \u2265 1 USDC)",
+        "hash": "0x1b8511cc75871cf79e09b011a0598fc333cba4a0900155ce6c7acbaafaa2de99",
+        "status": "success",
+        "block": "71620084",
+        "gasUsed": "380083",
+        "gasCostUsdc": "0.009502075"
+      },
+      {
+        "step": "f",
+        "label": "r\u00e9clamation MENSONG\u00c8RE accept\u00e9e (signature de l'enclave A v\u00e9rifi\u00e9e par le contrat)",
+        "hash": "0x6aee80e974458ba251d75d7d82f8bfe361006fc328fc1416816221a2e76eb0ea",
+        "status": "success",
+        "block": "71620107",
+        "gasUsed": "498132",
+        "gasCostUsdc": "0.0124533"
+      },
+      {
+        "step": "h",
+        "label": "r\u00e9clamation R\u00c9FUT\u00c9E (deux op\u00e9rateurs distincts, ni l'un ni l'autre signataire)",
+        "hash": "0x0ffca5433186735bf5525e525995f3589d842681da8ffcaa82acb5993025051f",
+        "status": "success",
+        "block": "71620138",
+        "gasUsed": "444135",
+        "gasCostUsdc": "0.011103375"
+      }
+    ],
+    "updatedAt": "2026-11-10T00:07:44.222Z",
+    "operators": {
+      "A": {
+        "address": "0x8eEd1D7826A79695e7889F3ff70081d535763b44",
+        "agentId": "897821",
+        "bond": "1 USDC",
+        "role": "lying image (DEMO_FAULT=inflate-loss)"
+      },
+      "B": {
+        "address": "0xb597aacE43fE507a54fFA96ea7A8CedfC36e08EC",
+        "agentId": "897822",
+        "bond": "1 USDC",
+        "role": "honest replay"
+      },
+      "C": {
+        "address": "0xAE763Dd6727d540c4A0203a77495A138EDB3384B",
+        "agentId": "897823",
+        "bond": "1 USDC",
+        "role": "honest replay"
+      }
+    },
+    "product": {
+      "id": "5",
+      "manifest": "web/public/manifests/sealed-bounty-refute-demo-v21.json",
+      "manifestURI": "https://archive.62-171-153-35.sslip.io/manifests/sealed-bounty-refute-demo-v21.json",
+      "manifestHash": "0x418543f4eaae5fdd43ee3e08658e34e4627e0cf747ffae4041748fe405d81981",
+      "image": "ghcr.io/jeanbaptistedurand/archive-sealed-bounty@sha256:ca06d9cc2c8f7baeb85bf15fa1592da90719b38581615109852e6fa95625ad36",
+      "minBondPerKey": "0.25 USDC",
+      "settlement": "0x182871d34438aB37a7FD4d8689f3e0812E447A9b"
+    },
+    "enclaves": {
+      "A": {
+        "imageId": "0xabba9adb8df8541e4c0ebf8eee66923af7e00e2bd94b3e6c23b45a224bc7c361",
+        "url": "https://ae87ffe612e0bebe89bdcfdfbfef3cedb46dc188-8803.dstack-pha1-prod9.phala.network",
+        "service": "sealed-bounty-liar",
+        "compose": "enclave/phala/refute-demo-liar-v21.yml",
+        "signer": "0xEDC7Df91392c40c89955249006C1fA47BC34e497",
+        "x25519": "0xbce2c7999c3136bf0835e9d702c5dc437bc7fd1e7ca430c0faf9c07b32555707",
+        "operator": "0x8eEd1D7826A79695e7889F3ff70081d535763b44",
+        "workloadId": "0xabba9adb8df8541e4c0ebf8eee66923af7e00e2bd94b3e6c23b45a224bc7c361",
+        "fromBlock": "71619975",
+        "untilBlock": "71789974",
+        "demoFault": "inflate-loss"
+      },
+      "B": {
+        "imageId": "0xdbed4b0d2d2310b1663e70a6f44d12f669a9cc487a0b3fe4c320af044874f1a2",
+        "url": "https://e1b49382d82a4d7248ca49897063c069528133dc-8803.dstack-pha1-prod9.phala.network",
+        "service": "sealed-bounty-b",
+        "compose": "enclave/phala/refute-demo-honest-v21.yml",
+        "signer": "0x009e274e5CF5Cd4Bd67Bd14C5b8c8A69f0fC6b66",
+        "x25519": "0x3b4abacf2c3c9808772295183003c58c8e8c946b3b1c0051add64549ea2bc413",
+        "operator": "0xb597aacE43fE507a54fFA96ea7A8CedfC36e08EC",
+        "workloadId": "0xdbed4b0d2d2310b1663e70a6f44d12f669a9cc487a0b3fe4c320af044874f1a2",
+        "fromBlock": "71620022",
+        "untilBlock": "71790021",
+        "demoFault": null
+      },
+      "C": {
+        "imageId": "0xdbed4b0d2d2310b1663e70a6f44d12f669a9cc487a0b3fe4c320af044874f1a2",
+        "url": "https://e1b49382d82a4d7248ca49897063c069528133dc-8813.dstack-pha1-prod9.phala.network",
+        "service": "sealed-bounty-c",
+        "compose": "enclave/phala/refute-demo-honest-v21.yml",
+        "signer": "0x18F9Ed44E517563cbdB7F1A0CAd5625d72b7d632",
+        "x25519": "0x6ad8493a04e62a3850a1290f92f3329f05d630b14a44e405a57efc83ca19f65a",
+        "operator": "0xAE763Dd6727d540c4A0203a77495A138EDB3384B",
+        "workloadId": "0xdbed4b0d2d2310b1663e70a6f44d12f669a9cc487a0b3fe4c320af044874f1a2",
+        "fromBlock": "71620048",
+        "untilBlock": "71790047",
+        "demoFault": null
+      }
+    },
+    "vault": {
+      "address": "0xebb7533585b30932ce231e7efd62b87135933ebe",
+      "deployTx": "0x55899c2a13c1cbfd3bf1b28e6a941f87129054a64eb558f84ae145dc22e3b68c",
+      "fundTx": "0x8d489198f85f259869bf7a1d122b40816ac5f741c8a4c6f0c932f86d951538c8",
+      "fundBlock": "71620075"
+    },
+    "bounty": {
+      "id": "2",
+      "productId": "5",
+      "createTx": "0x1b8511cc75871cf79e09b011a0598fc333cba4a0900155ce6c7acbaafaa2de99",
+      "block": "71620084",
+      "pool": "1 USDC",
+      "tier": "0.5 USDC for a loss >= 1 USDC",
+      "predicate": {
+        "combine": "OR",
+        "clauses": [
+          {
+            "type": "ERC20_DROP",
+            "token": "0x3600000000000000000000000000000000000000",
+            "holder": "0xEbb7533585b30932CE231e7eFd62b87135933EbE",
+            "min": "1000000"
+          }
+        ]
+      },
+      "predicateHash": "0x48d1ba4a68a0d24017e10df2892783609461afe0c42690c929ce3d18fec2953e",
+      "protocolX25519": "0x27048ccd669f6685035a7e524915254662c59b2d5687368591fb2ffa86cad83a",
+      "targetToPause": "0xEbb7533585b30932CE231e7eFd62b87135933EbE"
+    },
+    "claim": {
+      "digest": "0x93fefc7dce0da62190ae793447ccb8d60cdb894847b61cc23ac51483dc310003",
+      "claim": {
+        "bountyId": "2",
+        "payee": "0xCc38aCC797d75930bAACEd2978381737650E0d0a",
+        "blockN": "71620091",
+        "blockHashN": "0x746ab34feddb9f9af8ec8b4e770cd54c7b1c9db0603861158cfd495b2069cf2b",
+        "predicateHash": "0x48d1ba4a68a0d24017e10df2892783609461afe0c42690c929ce3d18fec2953e",
+        "loss": "2000000",
+        "tier": 0,
+        "fingerprint": "0xdbc056692249ed720129e5c2bd79a5cddab16cdb34332f6daf0a8fc0b4dac9c1",
+        "cPHash": "0xb7c04eed22c4a5aa3c4eb6e56e4187fef0fd903b0c15cdbdb1adb5f9a6820630",
+        "deadline": "1794269843"
+      },
+      "signer": "0xEDC7Df91392c40c89955249006C1fA47BC34e497",
+      "operators": [
+        "0x8eEd1D7826A79695e7889F3ff70081d535763b44"
+      ],
+      "amount": "0.5 USDC",
+      "claimedLoss": "2 USDC",
+      "vaultBalanceAtN": "1 USDC",
+      "attempt": 0,
+      "acceptTx": "0x6aee80e974458ba251d75d7d82f8bfe361006fc328fc1416816221a2e76eb0ea",
+      "acceptBlock": "71620107"
+    },
+    "refutation": {
+      "source": "protocol (cP + X25519 shared secret of this report only)",
+      "refutation": {
+        "claimDigest": "0x93fefc7dce0da62190ae793447ccb8d60cdb894847b61cc23ac51483dc310003",
+        "proven": true,
+        "loss": "1000000",
+        "tier": 0
+      },
+      "signatures": [
+        "0x11bc784e93b6b7582e12cfe5b43eceadf7bec8e1eb2fdd9996168aaf55201232791ec5324dddee1be7d381470e648e5a5819e415d035052ca8757e64b480e4f31c",
+        "0x0c0f97016dea524277a804ddad26799b3ce67a1e5aaa259bcbcec0da3e8d269a236aadeec52363a70428adca8ab858a39b2e774d4b0ee31413615859454ad1651c"
+      ],
+      "refuters": [
+        "0xb597aacE43fE507a54fFA96ea7A8CedfC36e08EC",
+        "0xAE763Dd6727d540c4A0203a77495A138EDB3384B"
+      ],
+      "results": [
+        {
+          "enclave": "https://ae87ffe612e0bebe89bdcfdfbfef3cedb46dc188-8803.dstack-pha1-prod9.phala.network",
+          "status": "excluded",
+          "operator": "0x8eEd1D7826A79695e7889F3ff70081d535763b44",
+          "signer": "0xEDC7Df91392c40c89955249006C1fA47BC34e497"
+        },
+        {
+          "enclave": "https://e1b49382d82a4d7248ca49897063c069528133dc-8803.dstack-pha1-prod9.phala.network",
+          "status": "refuted",
+          "operator": "0xb597aacE43fE507a54fFA96ea7A8CedfC36e08EC",
+          "signer": "0x009e274e5CF5Cd4Bd67Bd14C5b8c8A69f0fC6b66",
+          "replayLoss": "1 USDC",
+          "replayTier": 0,
+          "blockN": "71620091"
+        },
+        {
+          "enclave": "https://e1b49382d82a4d7248ca49897063c069528133dc-8813.dstack-pha1-prod9.phala.network",
+          "status": "refuted",
+          "operator": "0xAE763Dd6727d540c4A0203a77495A138EDB3384B",
+          "signer": "0x18F9Ed44E517563cbdB7F1A0CAd5625d72b7d632",
+          "replayLoss": "1 USDC",
+          "replayTier": 0,
+          "blockN": "71620091"
+        }
+      ]
+    },
+    "refute": {
+      "tx": "0x0ffca5433186735bf5525e525995f3589d842681da8ffcaa82acb5993025051f",
+      "block": "71620138",
+      "reporter": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
+      "claimRefuted": {
+        "bountyId": "2",
+        "claimDigest": "0x93fefc7dce0da62190ae793447ccb8d60cdb894847b61cc23ac51483dc310003",
+        "reporter": "0x5724d89D610c3017b8DC161c025248341556f6Ab"
+      },
+      "slash": {
+        "operator": "0x8eEd1D7826A79695e7889F3ff70081d535763b44",
+        "seized": "1 USDC",
+        "bondBefore": "1 USDC",
+        "bondAfter": "0 USDC",
+        "banned": true,
+        "payouts": [
+          {
+            "to": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
+            "amount": "0.5 USDC"
+          },
+          {
+            "to": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
+            "amount": "0.5 USDC"
+          }
+        ],
+        "note": "half to the reporter, half to the protocol (both are the deployer here)"
+      },
+      "pool": {
+        "before": "0.425 USDC",
+        "after": "1 USDC",
+        "returned": "0.575 USDC",
+        "reservedBefore": "0.575 USDC",
+        "pendingCleared": true,
+        "deliverBlocked": true
+      },
+      "verdict": {
+        "agentId": "897821",
+        "requestHash": "0xf432a26ac75f6129ea4d9c723ca25a019b3bf0a33f5384cf876dcd0194123a1e",
+        "written": "0xf432a26ac75f6129ea4d9c723ca25a019b3bf0a33f5384cf876dcd0194123a1e",
+        "recordedAs": "0xf432a26ac75f6129ea4d9c723ca25a019b3bf0a33f5384cf876dcd0194123a1e",
+        "response": 0,
+        "tag": "tdx-dcap/refuted",
+        "operator": "0x8eEd1D7826A79695e7889F3ff70081d535763b44"
+      },
+      "deployerUsdcDelta": "0.988897 (slash payouts minus the refute gas, paid in USDC on Arc)"
+    },
+    "doneAt": "2026-11-10T00:07:44.222Z",
+    "cleanup": {
+      "liarImageRetired": "0xafa3061eda65f87d02ed59a7539aefc40a4a972c030bb580333463f483f956b4",
+      "vaultFundsRecovered": "0x639edc89a2172119b13562c640ad6d63155d831ffb4d54b407149e5fa3d445b3",
+      "demoVmsStopped": "2026-11-10 (archive-v21-refute-liar, archive-v21-refute-honest) : relan\u00e7ables pour rejouer la d\u00e9monstration",
+      "retireB": "0x14672ed55995b33993ad7cb3297ebb9154f31fff1e3b757a1bdaa27576537e14",
+      "unbondB": "0x36d7388521d41b47afa075a85647a97318675483397203b4856f7feccc90ad06",
+      "retireC": "0x1c484069bea5bb8e5afe6af526f451772c00f4218084dd26bcb37d71187866d5",
+      "unbondC": "0xc2ec2a5b891db95cd0ea393eb213212daf53557dd9a8e555bad5e2175c1dc65c",
+      "invalidateLiar": "0xb3a07081e363f3569bd8982abdf8c20a276ebb733cd8062828aae617fd9c355d"
+    }
+  },
+  "history": [
+    {
+      "at": "2026-11-10",
+      "what": "produit 2 : image avec le relais RPC strict (en-t\u00eates li\u00e9s \u00e0 leur hash, \u00e9chec ferm\u00e9) et le mode de d\u00e9monstration DEMO_FAULT \u00e9teint ; ancienne enclave \u00e9teinte, ancienne empreinte retir\u00e9e",
+      "old": {
+        "signer": "0xdc0DF7370b823c63FFc973722cf94Bf706359783",
+        "imageId": "0x8fbf1a1c74c47e8705294549e2e6ec6425d5b4698000a0edd40b71abd5017057",
+        "image": "ghcr.io/jeanbaptistedurand/archive-sealed-bounty@sha256:0e0011b8c7be6235b729ea5735754ab04eb91508ab533ee9d8fd73e16a5e5aa8"
+      },
+      "txs": {
+        "register": "0x3031a211c7d108310c2208d9f8d308cf1f0e00bc09b301575c8f3fe395cc7423",
+        "manifestPropose": "0xe02997ae666b8dccde3c910485598e9199537081d5105db78d4621a954903974",
+        "manifestApply": "0x1bf8170f0e6632a25f5f364f7ca8b19eed0b16a5ca773841cb01e857e1b70d1c",
+        "retireOldImage": "0x5b2234d1ba8c4a9a91136e986337961abb87683687226d9dbd638e5157d73404",
+        "invalidateOldKey": "0xa12d5289c3c9ed26713ceb80c9f2dbcd9e34a784ea464cde2c641c39337288b8"
+      }
+    },
+    {
+      "at": "2026-11-10",
+      "what": "produit 4 : copilote dont la consigne ne pr\u00e9tend plus que seule l'enclave lit la conversation (le fournisseur du mod\u00e8le la lit) ; ancienne enclave \u00e9teinte, ancienne empreinte retir\u00e9e",
+      "old": {
+        "signer": "0xa5B460DbA6188246dbC94BcA8722147BBf17FB33",
+        "imageId": "0x72ff07714a765537771c4eb09146f97bfbb98d3b5faf81d7961ce6a88a9f34eb",
+        "image": "ghcr.io/jeanbaptistedurand/archive-copilot-enclave@sha256:428de8f0b2a055dc7db24d45533eea2d46ab78a485e34f7ad500953e832a9067"
+      },
+      "txs": {
+        "register": "0xcd08c7f0ba065b9149b02dcd10730cf2afefb116d78c6bbf31e27e836e73b83b",
+        "manifestPropose": "0x75d08d96c4fab8de1ee624f76a4b12c2551e923c03591efe32549150d7b9e7dc",
+        "manifestApply": "0x699791a2507b4f4e0df0ecc7149cae71a3cd6ebced55d6413851d9dbce1cca3f",
+        "retireOldImage": "0xb4f3c1cf126b132522487c074ffd2b58b8242f9bc06417dea09075e61fc3ec2e",
+        "invalidateOldKey": "0xbbc4661ecd8ed3a20c40e5d7d35219f509b1e983a900592623848eb5c611ac1f"
+      }
+    },
+    {
+      "date": "2026-11-11",
+      "what": "enclave 1 remplac\u00e9e (attestation du mod\u00e8le)",
+      "previous": {
+        "signer": "0x58a192dE799834259D379a90DD02fC1C87497Be4",
+        "image": "ghcr.io/jeanbaptistedurand/archive-sealed-chat@sha256:5699da226fb3f1e0f09234c8f9330b5a5414eb8d5bc619854953d10dbe7edc3f",
+        "imageId": "0x9f2734b860a697bf66fe107cb76ea0bc082085ca52b8f1c8815fb9b44e1734f8",
+        "registerTx": "0x199c985dee537cfe2948f6c721ad1bdd448d538ff08bc8e93a79036a25f33499"
+      }
+    },
+    {
+      "date": "2026-11-11",
+      "what": "enclave 3 remplac\u00e9e (attestation du mod\u00e8le)",
+      "previous": {
+        "signer": "0x57131D04CDC84A7e23ffBCa63A0d9C0328A979c5",
+        "image": "ghcr.io/jeanbaptistedurand/archive-sealed-chat@sha256:5699da226fb3f1e0f09234c8f9330b5a5414eb8d5bc619854953d10dbe7edc3f",
+        "imageId": "0x9f2734b860a697bf66fe107cb76ea0bc082085ca52b8f1c8815fb9b44e1734f8",
+        "registerTx": "0x5490b4245e2b67347afe55bb85b40053b2d1f082c73415d3d8d1bce46a27ea42"
+      }
+    },
+    {
+      "date": "2026-11-11",
+      "what": "enclave 4 (copilote) remplac\u00e9e (attestation du mod\u00e8le)",
+      "previous": {
+        "signer": "0xC2C6Cb7C2A91ab81BB0Bc68D46A91bD54EeC8310",
+        "image": "ghcr.io/jeanbaptistedurand/archive-copilot-enclave@sha256:5aba8655fdb1204364630aeff1f439f3f327bd438737e8c55fb686f3483afc03",
+        "imageId": "0xb78deb26d7fd7cb75be16cfd4848805676c6ad30883930929ff53ec0cab94aa1",
+        "registerTx": "0xcd08c7f0ba065b9149b02dcd10730cf2afefb116d78c6bbf31e27e836e73b83b"
+      }
+    },
+    {
+      "date": "2026-11-11",
+      "what": "enclave 4 (copilote) remplac\u00e9e (base de connaissances : niveaux, mod\u00e8le v\u00e9rifi\u00e9, preuves d'\u00e9tat)",
+      "previous": {
+        "signer": "0x78639363EAe204fFDFade7491F6d785383bE655A",
+        "image": "ghcr.io/jeanbaptistedurand/archive-copilot-enclave@sha256:0d56042ffd97c081b985610924a470c0215e6d4af889c1ffbbfb29ffe3040430",
+        "imageId": "0x8fe57a399973c2b94243d7aaba4d71b4dfef9c34e1e037a7dffefe38caa8e367",
+        "registerTx": "0xb88821f85980aa1cb5cfc4ec4a4cd4fa3fc29518ad52306a9e9732dfce80cfe5"
+      }
+    }
+  ],
+  "levels": {
+    "txs": {
+      "MachineRegistry": "0xe043c341b4760b7f7fcd251f1fa7a858ae40b1bd75e0dd4c7dacc91f6f9798e4",
+      "ProofOfCloudAuditor": "0xffe0a53fdd34309b06424a9fe0ad751dea070d082f014f849a97fc3264562d94",
+      "PolicyEnclaves": "0x9aba5ae981fb52a2a87345df89416199dbb581daa327608b40fe7468fbabbc9e",
+      "SealedBountyVerified": "0x0f231b67afa1169db980f52f99eb97ce8d9e82d69bb987dfd80655735f38bcd2",
+      "proposeSettlement": "0x7285ba8131e12853ad9d698ebee29e510934a3d4dd3e4bf0a9ac1558ccf33b99",
+      "proposeCaller": "0xb2726a1e0f4c4cceca1f0849c6398ed7a6f0a3b0dd92af0476f65d0aa3a5d425",
+      "bindMachine-1": "0xafd5d7cebfc989cf379f5aa5b70998a3def0d6f09193c663f2bc4358bed50bdf",
+      "bindMachine-2": "0x969dae5e3c3e262c91992b9216936b0528179a0b17deddd80d79733b69fe3b17",
+      "bindMachine-3": "0x8536ca280a43f4ac8d2ae6781e9cf97199897326bdf7fc7fef5acf3b5c3082ff",
+      "bindMachine-4": "0x16bffe604eebf721625368c538539f9c4c72c3209d0b27465c17c4265d81d769",
+      "bindMachine-6": "0xe86443772584c9ef6c42ab6f7ba7305545777d0afa8bd69752c8f45490bc0491",
+      "pocSubmit-62d54040-1794351708": "0x3e2aa32251a7a7cfa7ee69c3fa653cac6dd4272db2ae92d1b4ed760178fdcd35",
+      "bindMachine-7": "0xd6928088d90f8bbc2585d04564c4a574312593f3f19792a1cdbf819437bb5f4f"
+    },
+    "Ed25519Verifier": "0x031579dd04398249feb67852632da4a648d4b5cf",
+    "allianceKey": "0x5ea69fede5bcf71054395b273bad67f67158c242d77945d436374020ece525cb",
+    "note": "Deux niveaux d'op\u00e9rateur (10/11/2026) : MachineRegistry (liaison enclave \u2192 puce PPID, d\u00e9clarations, politiques), ProofOfCloudAuditor (jeton EdDSA de l'alliance Proof of Cloud v\u00e9rifi\u00e9 on-chain), PolicyEnclaves (registre vu \u00e0 travers la politique du produit), SealedBountyVerified (m\u00eame code que SealedBounty, branch\u00e9 sur PolicyEnclaves ; saisies et verdicts apr\u00e8s le d\u00e9lai de 8 jours de OperatorBond / VerdictLog). | 11/11: pile redeployee (PckChip corrige). settlement d'un produit etant IMMUABLE, le produit 6 reste cable a l'ancienne pile -> neutralise (auditeur mort) ; le produit verifie renait en produit 7 sur la pile corrigee apres synchro du noeud.",
+    "superseded": [
+      {
+        "date": "2026-11-11",
+        "reason": "PckChip: faux PPID injectable (Base64 non signe + Base64.decode de solady qui ne rejette pas l'invalide). Corrige dans PckChip.sol (Base64 canonique + un seul certificat sans octet ajoute), prouve par test_chip_rejectsForgedPpid. Contrats immuables -> redeployes. Voir research/plan-reseau-enclaves-arc-2026-11-01/O-revue-securite-niveaux-2026-11-11.md",
+        "settlementApplyAt": 1795036384,
+        "callerApplyAt": 1795036389,
+        "txs": {
+          "MachineRegistry": "0x189e6548c5db8945782c93a6fcbf5ac9825c98e54d0e35c535a655bd29e2c173",
+          "Ed25519Verifier": "0xcb80d2490b2f0748b901e3270f7ba672c0afc4980ba8594ef31b44086e39ab1d",
+          "ProofOfCloudAuditor": "0x280aa4825f94fec26fa3b5417a755c26866f137dfd07794a55b5c03ec048dc98",
+          "PolicyEnclaves": "0xdfb751440934d37add0434cd28484c74f55b18932cb4c42db2e62489cccfb670",
+          "SealedBountyVerified": "0xcfcab54e0f480c7b4cbd5658301f6edefe99b6392fcb2cb9ca6af051ed035625",
+          "proposeSettlement": "0xca3ae3a49a55571706240e6c864096b3a0d4a1ec0adc71842f397f03261ba38b",
+          "proposeCaller": "0x3e72dbc9180e60f40d47d0abbd56ca67580ecc2e4044f62f0a604d30eb42e1be",
+          "bindMachine-1": "0x9d547661fd4889252d057dbd43b37d3eaccee15547dd9cb73fd4f73fa2f2fa1d",
+          "bindMachine-2": "0x67c5569b226dbf9ff370951264df16a939c5399d9466608dcc1fb4922d23eef5",
+          "bindMachine-3": "0xa48d37f04a9cee3a753b3eccc2d692b3f91f8e6ec334a4fc3ab69c5f07da7a5c",
+          "bindMachine-4": "0x2debd06c312f319a7fe0e20a2059628a228828e67c0520cd2ea894b7d7fd9654",
+          "pocSubmit-62d54040-1794345292": "0x5ca34002fca5de1614cfa7a52aef3eb638f7bc3b358a13a5dd86d860e7c5c7a3",
+          "bindMachine-6": "0xe0cabf4f1d9551d3dac4dfa0f2baef38035f9e47d0743a1943ffcb82d6e0d55b"
+        },
+        "machines": {
+          "1": {
+            "signer": "0x5E534608bc342dA7A069B1d7636AAE5c5cA55b8A",
+            "ppid": "0x62d54040cb9dfc08bb13006fa75ece56"
+          },
+          "2": {
+            "signer": "0x43a93a04743737D24b18D7e84aFc3811dA7cC459",
+            "ppid": "0x62d54040cb9dfc08bb13006fa75ece56"
+          },
+          "3": {
+            "signer": "0x3672cA6FC127bA61a61Be46fE0262f4830Ca7Ff0",
+            "ppid": "0x62d54040cb9dfc08bb13006fa75ece56"
+          },
+          "4": {
+            "signer": "0xB3c51bDd7C19acFF81261BD09539EE2912F1a2dB",
+            "ppid": "0x62d54040cb9dfc08bb13006fa75ece56"
+          },
+          "6": {
+            "signer": "0xFD050Fc72F4ea5fEEF10D8C0882Ff1506Ae6912a",
+            "ppid": "0x62d54040cb9dfc08bb13006fa75ece56"
+          }
+        },
+        "MachineRegistry": "0x6c95e1fc59b1d22e4c9e56a1de5d09c157ce6e8a",
+        "ProofOfCloudAuditor": "0xd525a9476f92ff5dad8a55578cd9eb5bb7bd9b41",
+        "PolicyEnclaves": "0x229350179bd19acba440a0f04c7af1a88678572b",
+        "SealedBountyVerified": "0x242ca1c4d0a5a6fe5a806f215ca5f127422364d2",
+        "product6Neutralized": {
+          "date": "2026-11-11",
+          "what": "policyOf(6) sur l'ANCIEN MachineRegistry mis a l'auditeur mort 0x...dEaD (n'atteste personne) -> meetsPolicy(6,*)=false. Le produit 6 est fige a l'ancienne pile immuable (settlement non modifiable) ; son niveau verifie est donc desactive. Le produit verifie renait en produit 7 sur la pile corrigee une fois le noeud synchronise.",
+          "proposePolicy": "0xf91db064e176beafcecfec37f578898919526daed11e1b1fb181b8da86685be3",
+          "applyPolicy": "0x190d464ee073cb9582c303c291c120aa53c48f9b00b127a1487c0dd08484b4cb"
+        }
+      }
+    ],
+    "MachineRegistry": "0xd671013f556b1272b25e3cc17c889d402f4dc26d",
+    "ProofOfCloudAuditor": "0xcdc4c150344f06d506deb5500332737e8dcc8fab",
+    "PolicyEnclaves": "0x665f4bb3c31d23463f45e4092487f6b498490417",
+    "SealedBountyVerified": "0x36a8ddf9fcb1308b9e86425bec9b098e933c7348",
+    "settlementApplyAt": 1795042837,
+    "callerApplyAt": 1795042842,
+    "machines": {
+      "1": {
+        "signer": "0x5E534608bc342dA7A069B1d7636AAE5c5cA55b8A",
+        "ppid": "0x62d54040cb9dfc08bb13006fa75ece56"
+      },
+      "2": {
+        "signer": "0x43a93a04743737D24b18D7e84aFc3811dA7cC459",
+        "ppid": "0x62d54040cb9dfc08bb13006fa75ece56"
+      },
+      "3": {
+        "signer": "0x3672cA6FC127bA61a61Be46fE0262f4830Ca7Ff0",
+        "ppid": "0x62d54040cb9dfc08bb13006fa75ece56"
+      },
+      "4": {
+        "signer": "0xB3c51bDd7C19acFF81261BD09539EE2912F1a2dB",
+        "ppid": "0x62d54040cb9dfc08bb13006fa75ece56"
+      },
+      "6": {
+        "signer": "0xFD050Fc72F4ea5fEEF10D8C0882Ff1506Ae6912a",
+        "ppid": "0x62d54040cb9dfc08bb13006fa75ece56"
+      },
+      "7": {
+        "signer": "0x1306d239FfD65DEdbc30214E382F2B11153fb516",
+        "ppid": "0x62d54040cb9dfc08bb13006fa75ece56"
+      }
+    }
+  },
+  "modelAttestationTxs": {
+    "manifest1": [
+      "0xf9288fab3ee2b9595e61b1834b8d0ca03c084c9ffbd885dad86eaa3655c981a7",
+      "0x32251bb418ce7d4e654ee54ed20eb30b276e0a447cefb215771b7d5062bdd667"
+    ],
+    "manifest3": [
+      "0x09b25565c4dea1f610b2768f880bf54922d3ca80e6f9b1a9faeb883bb023f0ca",
+      "0x76f25de7319a4b1fe79197218711860f705c6b3f35c881aaf69ce85d76c86c0a"
+    ],
+    "retireOldImage": [
+      "0xc7e83ab1ea67cca2791b9d10024279085cc07a6b27d5d75d26de5c3cce603583",
+      "0x886226e19d0b44cc8e900bf45d781da02283122653b9c32d41e1a64a0066195a"
+    ],
+    "killOldKeys": [
+      "0x09dae69a29bc1b5a74ed0395a52ea2aa0d0aaa7f0e777d4efe75661885b4abc6",
+      "0x6e471d4a31e7c36d3cf079c271e1cfd2bd134bb28d445b43434bc22ad4aaf6a8"
+    ],
+    "workloads": [
+      "0x794c8aa98b760c3af8eac29f18b2da09b6579280af6bed9ab730ec80d3b399a2",
+      "0xb4f76208699f9a2a6d47891a356dca8bb2bff0587a73b8f7398ea6a6d46b7ded",
+      "0x17497665a75d27032d747b7e7e660f7d15db9a1c91f87e2aa0db5ac77180ba06",
+      "0xf90cc47914725dfa2c9d63c748a10afa68fd32f47a57b7feca7a85c8e228b6d3"
+    ],
+    "manifest4": [
+      "0x1b8992f6d137ef742e089cc7af6e1021c7754fe5e8f92300629c6ca123384dab",
+      "0x90968d7ca43488a73a4bd3cde9b208613d9dcd9ffd034ea35455d34ce523a666"
+    ],
+    "retireOldCopilotImage": "0xc6019b2fef2deabd4ccd4efe308d32d91c2b2c7ad4ea588d27793527b53caa77",
+    "killOldCopilotKey": "0xc8e40e34fb718e96fd1b10ba963224a57d71f6d5d64d47a3dbd45cf77c05dcc6",
+    "copilotWorkload": [
+      "0xd3724b87c796d5d946581af2c5597221c71b0b5e4736251f4ba2ee479d911eed",
+      "0xba2711cdc2780177f41b78d6b11544e7c68ab16b035220c7036c16b2eb9678de"
+    ],
+    "manifest4b": [
+      "0x96e446de638b05ec974aee7e9599d410ac443bd2de48ccce8c417c55ae5c880e",
+      "0xd4f00051537a7bdc21bfd35618c17efc7e65b55bf38832a7b48ab5cf918150dc"
+    ],
+    "retireCopilotImage2": "0x18eb26d258792e2f605be32152fe90756b3d459d5caaef983196f573058e3905",
+    "killCopilotKey2": "0xb6302e78391d0ef3484f486ab1685d1cd3419dcad9550e8564eff04512ecb925"
+  }
+}
