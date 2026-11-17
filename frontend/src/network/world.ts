@@ -9,6 +9,7 @@ import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js'
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js'
 import fontJson from './montserrat-600-caps.typeface.json'
 import { makeGlow, type Glow } from './glow'
+import { holoMaterial, holoEdges, HOLO_HALO, HOLO_ELEC } from './holo'
 
 export const C = {
   canvas: 0x0b0d10, graphite: 0x353c45, graphite2: 0x272d34, steel: 0x7d8691, steelLight: 0xaab2bb, rubber: 0x121417, void: 0x050607,
@@ -254,27 +255,12 @@ function buildArc(): ArcNode {
   const geo = new THREE.ExtrudeGeometry(shapes, { depth: 26, bevelEnabled: true, bevelThickness: 2, bevelSize: 1.2, bevelSegments: 2, curveSegments: 24 })
   geo.translate(-82, -85.5, -13); geo.scale(ARC_K, -ARC_K, ARC_K) // the SVG has its y axis pointing down
   geo.computeVertexNormals()
-  const mat = new THREE.ShaderMaterial({
-    transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
-    uniforms: { uT: { value: 0 }, uHl: { value: 1 }, uElec: { value: new THREE.Color(C.arcElec) }, uHalo: { value: new THREE.Color(0x3a6bff) }, uCore: { value: new THREE.Color(C.arcCore) } },
-    vertexShader: /* glsl */`varying vec3 vN; varying vec3 vW; varying vec3 vV;
-      void main() { vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; vN = normalize(mat3(modelMatrix) * normal); vV = normalize(cameraPosition - w.xyz);
-        gl_Position = projectionMatrix * viewMatrix * w; }`,
-    fragmentShader: /* glsl */`uniform float uT; uniform float uHl; uniform vec3 uElec; uniform vec3 uHalo; uniform vec3 uCore; varying vec3 vN; varying vec3 vW; varying vec3 vV;
-      void main() {
-        float f = pow(1.0 - abs(dot(normalize(vN), vV)), 2.0);              // brighter edge
-        float scan = 0.55 + 0.45 * smoothstep(0.35, 0.0, abs(fract(vW.y * 6.0 - uT * 0.35) - 0.5)); // scan lines
-        float sweep = smoothstep(0.12, 0.0, abs(fract(uT * 0.12) * 4.0 - 1.0 - (vW.y - ${ARC_Y.toFixed(2)}) / ${(ARC_H / 2).toFixed(2)}));
-        vec3 c = mix(uHalo, uElec, 0.6) * (0.35 + 0.65 * scan) + uCore * (f * 0.55 + sweep * 0.35);
-        float a = (0.3 + 0.55 * f + 0.25 * sweep) * mix(0.45, 1.0, uHl);
-        gl_FragColor = vec4(c * a, a);
-      }`,
-  })
-  mat.toneMapped = false
+  // the shared hologram recipe (holo.ts): the sweep runs over the A's height
+  const mat = holoMaterial(`(vW.y - ${ARC_Y.toFixed(2)}) / ${(ARC_H / 2).toFixed(2)}`)
   holo.add(new THREE.Mesh(geo, mat))
   // volume edges, thin, in light Arc blue
-  const edgeMat = new THREE.LineBasicMaterial({ color: C.arcLight, transparent: true, opacity: 0.55, depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending })
-  holo.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo, 30), edgeMat))
+  const { lines, mat: edgeMat } = holoEdges(geo)
+  holo.add(lines)
   // a soft glow behind, always facing the camera (halo #3a6bff)
   const glowMat = new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
@@ -288,47 +274,31 @@ function buildArc(): ArcNode {
   return { group, holo, mat, edgeMat, glowMat, glow }
 }
 
-// ---------- 3D titles above the islands: extruded Montserrat 600, uppercase, glowing ----------
+// ---------- 3D titles above the islands: extruded Montserrat 600, uppercase, Arc hologram ----------
 // converted typeface (correct counters), large titles
 export const TITLE_SIZE = 0.98
-export interface Title { k: PartK; mesh: THREE.Mesh; mat: THREE.ShaderMaterial; w: number; glow: Glow }
+export interface Title { k: PartK; mesh: THREE.Mesh; mat: THREE.ShaderMaterial; w: number; glow: Glow; edgeMat: THREE.LineBasicMaterial }
 // a sign is also built for the CCTP system (scene.ts), hence the exported factory
 let FONT: ReturnType<FontLoader['parse']> | null = null
-export function makeTitle(label: string, hex: number, coreCss: string): Omit<Title, 'k'> {
+// every sign is the A's hologram (holo.ts, same shader, same edges, same glow colour): translucent Arc-blue
+// volume, bright grazing edges, scan lines, the white sweep running up the letters, thin light-blue volume edges,
+// and a soft glow behind shaped on the letters (glow.ts halo; the landing sparks are not used: the A has none)
+export function makeTitle(label: string, hex: number = HOLO_ELEC, coreCss = '#eaf4ff'): Omit<Title, 'k'> {
   const font = FONT ??= new FontLoader().parse(fontJson as unknown as Parameters<FontLoader['parse']>[0])
-  {
-    const g = new TextGeometry(label, { font, size: TITLE_SIZE, depth: 0.16, curveSegments: 6, bevelEnabled: true, bevelThickness: 0.018, bevelSize: 0.012, bevelSegments: 2 })
-    g.computeBoundingBox(); const bb = g.boundingBox!
-    const dx = -(bb.max.x + bb.min.x) / 2
-    g.translate(dx, 0, -0.06)
-    // the landing filament, computed on the same paths as the volume (glow.ts)
-    const col = new THREE.Color(hex), core = new THREE.Color(coreCss)
-    const glow = makeGlow(font.generateShapes(label, TITLE_SIZE), dx, TITLE_SIZE, col, core)
-    const B = glow.bounds
-    const mat = new THREE.ShaderMaterial({
-      uniforms: { uCol: { value: col }, uCore: { value: core }, uHl: { value: 1 }, uT: { value: 0 }, uTex: { value: glow.tex }, uB: { value: new THREE.Vector4(B.x0, B.y1, B.w, B.h) } },
-      vertexShader: /* glsl */`varying vec3 vN; varying vec3 vP; void main() { vN = normal; vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-      fragmentShader: /* glsl */`uniform vec3 uCol; uniform vec3 uCore; uniform float uHl; uniform float uT; uniform sampler2D uTex; uniform vec4 uB; varying vec3 vN; varying vec3 vP;
-        void main() {
-          vec4 t = texture2D(uTex, vec2((vP.x - uB.x) / uB.z, (uB.y - vP.y) / uB.w));
-          // front face: dark stroke edge, body in the room colour, almost-white core that barely flickers;
-          // sides and bevel in the full, darker colour: the glass around the filament
-          float front = smoothstep(0.6, 1.0, abs(normalize(vN).z));
-          float body = smoothstep(0.42, 0.85, t.g), hot = smoothstep(0.12, 0.8, t.r) * (0.95 + 0.05 * sin(uT * 2.3 + vP.x * 1.9));
-          vec3 face = mix(uCol * 0.5, uCol, body);
-          face = mix(face, uCore, hot * 0.68); // slightly reduced glow
-          vec3 c = mix(uCol * 0.7, face, front);
-          // a sign at rest stays bright (floor 0.6), highlighting only intensifies it
-          gl_FragColor = vec4(c * mix(0.6, 1.0, uHl), 1.0);
-        }`,
-    })
-    mat.toneMapped = false
-    mat.transparent = true // drawn after the links (transparent queue, order 5 > 4): no line crosses them
-    const mesh = new THREE.Mesh(g, mat); mesh.renderOrder = 5
-    mesh.add(glow.halo, glow.sparks)
-    return { mesh, mat, w: bb.max.x - bb.min.x, glow }
-  }
+  const g = new TextGeometry(label, { font, size: TITLE_SIZE, depth: 0.16, curveSegments: 10, bevelEnabled: true, bevelThickness: 0.018, bevelSize: 0.012, bevelSegments: 2 })
+  g.computeBoundingBox(); const bb = g.boundingBox!
+  const dx = -(bb.max.x + bb.min.x) / 2
+  g.translate(dx, 0, -0.06)
+  const glow = makeGlow(font.generateShapes(label, TITLE_SIZE), dx, TITLE_SIZE, new THREE.Color(HOLO_HALO), new THREE.Color(coreCss))
+  // the sweep runs over the letter height (object space: it follows the sign, whatever its scale or place)
+  const mat = holoMaterial(`vL.y / ${(TITLE_SIZE / 2).toFixed(3)} - 1.0`, TITLE_FILL, hex, new THREE.Color(coreCss).getHex())
+  const mesh = new THREE.Mesh(g, mat); mesh.renderOrder = 5
+  const { lines, mat: edgeMat } = holoEdges(g, TITLE_EDGE); lines.renderOrder = 5
+  mesh.add(glow.halo, lines)
+  return { mesh, mat, w: bb.max.x - bb.min.x, glow, edgeMat }
 }
+// the letters are thin next to the A: a slightly fuller resting body and edges keep them readable from the overview
+const TITLE_FILL = 1.4, TITLE_EDGE = 0.6
 function buildTitles(): Record<PartK, Title> {
   const out = {} as Record<PartK, Title>
   // every room sign in the Arc hologram blue (the logo's uElec body, uCore filament), no room colour

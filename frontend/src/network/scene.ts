@@ -283,7 +283,7 @@ function titles() {
     const t = W.titles[k]; t.mesh.position.copy(wv(k, titleLocal(k))); t.mesh.rotation.set(0, titleYaw(), 0)
     t.mesh.rotation.order = 'YXZ'; t.mesh.rotation.x = -mapTilt.x * DEG // on the map, signs tilt towards the plunging camera
     t.mesh.scale.setScalar(SIGN_K * intro.r[ORDER.indexOf(k)] * (1 - 0.42 * demoK.k) * (view === 'demo' ? 1 - outK[k] : 1)) // the sign follows its room out of the frame; larger signs on phones; intro
-    // the filament flickers, sparks rise (scene clock); no sparks in reduced motion
+    // the hologram scan lines and sweep run on the scene clock (like the A: frozen by ?t=)
     t.mat.uniforms.uT.value = clock; t.glow.sparkMat.uniforms.uT.value = clock; t.glow.sparkMat.uniforms.uScale.value = sc
     t.glow.sparkMat.uniforms.uOn.value = reduced ? 0 : 1
   }
@@ -326,7 +326,7 @@ const CHAINS = (() => {
   const g = new THREE.Group()
   const c = buildChains(CC.ring)
   const coin = new THREE.InstancedMesh(W.usdc.mesh.geometry, W.usdc.mat.clone(), 1); coin.frustumCulled = false; coin.renderOrder = 9
-  const t = makeTitle('CCTP', 0x5a9cff, '#eaf4ff')
+  const t = makeTitle('CCTP') // the same Arc hologram as the A and the room signs
   g.add(c.mesh, coin, t.mesh); W.root.add(g)
   // the title above the top of the ring, at the same gap as a sign above its room
   const titleY = CC.ring * Math.sin(CC.tilt) + CHAIN_SIZE / 2 + SIGN_GAP * 0.7
@@ -442,7 +442,7 @@ function computeLinks() {
   for (const k of ORDER) {
     const f = 0.32 + 0.68 * h[k]
     for (const m of W.islands[k].group.userData.mats as THREE.MeshStandardMaterial[]) { const b = m.userData.base as THREE.Color | undefined; if (b) m.color.copy(b).multiplyScalar(f); else m.color.setScalar(f) }
-    W.titles[k].mat.uniforms.uHl.value = h[k]; W.titles[k].glow.haloMat.uniforms.uHl.value = h[k]; W.titles[k].glow.sparkMat.uniforms.uHl.value = h[k]
+    W.titles[k].mat.uniforms.uHl.value = h[k]; W.titles[k].glow.haloMat.uniforms.uHl.value = h[k]; W.titles[k].glow.sparkMat.uniforms.uHl.value = h[k]; W.titles[k].edgeMat.opacity = 0.55 * (0.45 + 0.55 * h[k])
     W.titles[k].mesh.visible = view === 'ensemble' || (view === 'demo' && shotKind === 'map') // in the demo, on the map shot only
   }
   W.arc.mat.uniforms.uHl.value = h.arc; W.arc.glowMat.uniforms.uHl.value = h.arc
@@ -450,7 +450,7 @@ function computeLinks() {
   const cl = h.links.cctp
   CHAINS.mat.uniforms.uHl.value = 0.7 + 0.3 * cl
   const ch = view === 'cctp' || view === 'ensemble' ? 1 : Math.max(0.55, cl)
-  CHAINS.title.mat.uniforms.uHl.value = ch; CHAINS.title.glow.haloMat.uniforms.uHl.value = ch; CHAINS.title.glow.sparkMat.uniforms.uHl.value = ch
+  CHAINS.title.mat.uniforms.uHl.value = ch; CHAINS.title.glow.haloMat.uniforms.uHl.value = ch; CHAINS.title.glow.sparkMat.uniforms.uHl.value = ch; CHAINS.title.edgeMat.opacity = 0.55 * (0.45 + 0.55 * ch)
   CHAINS.title.mesh.visible = view === 'ensemble' || view === 'cctp' || view === 'demo'
   const sel = (hoverStep ?? hoverScene ?? '').startsWith('cctp.') ? CHAIN_DEFS.findIndex((c) => 'cctp.' + c.id === (hoverStep ?? hoverScene)) : -1
   CHAINS.mat.uniforms.uSel.value = sel; CHAINS.mat.uniforms.uT.value = clock; CHAINS.mat.uniforms.uSpin.value = reduced ? 0 : 1
@@ -546,6 +546,23 @@ const stats = { renders: [] as { t: number; h: number }[], ticks: [] as number[]
 let dirty = true, hot = 0, lastRender = 0, lastT = performance.now(), spinT = 0
 const spinOn = () => !reduced && !freeze && view === 'ensemble' && !hoverScene && !hover.api.id() && !(camTween?.isActive()) && dragIdle()
 let dressed = false // nothing is rendered before the dressing (models, baked maps) and its compilation
+// Desk shoulder shots fill the frame with the room: a shade under the text column (a quad written straight
+// in clip space, drawn last, one draw call, only the column side) keeps the column readable, like a film's
+// side vignette. It follows the camera distance, so it fades in and out with the camera move itself.
+const scrim = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
+  transparent: true, depthTest: false, depthWrite: false,
+  uniforms: { uL: { value: 0.4 }, uK: { value: 0 } },
+  vertexShader: /* glsl */`varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
+  fragmentShader: /* glsl */`uniform float uL; uniform float uK; varying vec2 vUv;
+    void main() { float a = uK * 0.88 * (1.0 - smoothstep(uL * 0.7, uL + 0.06, vUv.x)); gl_FragColor = vec4(0.02, 0.025, 0.04, a); }`,
+}))
+scrim.frustumCulled = false; scrim.renderOrder = 1000; scrim.visible = false; scene.add(scrim)
+function scrimFrame() {
+  const cf = colFrac(), on = (view === 'use' || view === 'publish') && cf > 0 && !mobileMQ.matches
+  const k = on ? THREE.MathUtils.smoothstep(4.5 - rig.distance(), 0, 2.2) : 0
+  const U = (scrim.material as THREE.ShaderMaterial).uniforms; U.uK.value = k; U.uL.value = cf
+  scrim.visible = k > 0.002
+}
 function render(now: number) {
   if (!renderer || !dressed) return
   // the demo sets the scene and camera before everything else; its own packets replace the loop's
@@ -553,7 +570,7 @@ function render(now: number) {
   if (!dm) CLIENT.on = false
   W.packets.visible = !dm; W.usdc.mesh.visible = !dm; if (!dm) pkSprite.visible = false
   if (dm) demo.frame()
-  layout(); rig.apply(); titles(); cctpFrame(); computeLinks(); arcFrame()
+  layout(); rig.apply(); titles(); cctpFrame(); computeLinks(); arcFrame(); scrimFrame()
   loop.lite = view === 'ensemble'
   loop.apply(clock, Math.min(0.1, Math.max(0.001, (now - lastRender) / 1000)))
   usdcFrame()
@@ -799,8 +816,41 @@ function clearColumn(k: PartK, p: Pose): Pose {
   if (minX < lim) p.shift = Math.min(0.42, p.shift + (lim - minX) / rig.w)
   return p
 }
+// The two desk rooms (Use: the user's desk; Publish: the author's desk): on desktop the focus is a film shot
+// from behind the seated figure's LEFT shoulder, at seated eye height, looking past the shoulder at the
+// desk screens: the head and shoulder fill the right of the frame, the screens sit in the visible gap between
+// the text column (#col) and, on Use, the catalog panel docked on the right (.net-cat, reserved whether it is
+// open or not, so the shot does not jump when it opens). Local metres, island frame (the figure sits at
+// x 0, z 0.42, facing -z: its left is -x). Phones keep the room pose.
+const DESK_SHOT: Record<'use' | 'publish', Cam & { at: number }> = {
+  // the two monitors (x ±0.33, z -0.38); the target between them, on the screens' centre line
+  use: { cam: [-0.68, 1.42, 1.25], tgt: [0.06, 1.06, -0.4], fov: 54, at: 0.42 },
+  // the three code screens in an arc, the lamp on the left
+  publish: { cam: [-0.6, 1.42, 1.22], tgt: [0.06, 1.12, -0.34], fov: 56, at: 0.44 },
+}
+// Use, the answer step (the drone takes off): the camera stays at the user's seat and turns towards the
+// flight cage, over the user's right shoulder (the figure on the left of the gap, the drone at its centre)
+const DRONE_SHOT: Cam & { at: number } = { cam: [0.05, 1.6, 1.3], tgt: [2.45, 1.0, -0.8], fov: 52, at: 0.55 }
+const isDesk = (k: PartK): k is 'use' | 'publish' => k === 'use' || k === 'publish'
+function catW() { return Math.min(440, Math.max(340, 0.27 * innerWidth)) + 16 }
+function deskPose(k: 'use' | 'publish', S: Cam & { at: number } = DESK_SHOT[k]): Pose {
+  const m = islandM(k)
+  const C = new THREE.Vector3(...S.cam).applyMatrix4(m), T = new THREE.Vector3(...S.tgt).applyMatrix4(m)
+  const d = C.clone().sub(T), dist = d.length()
+  let az = Math.atan2(d.x, d.z) / DEG
+  while (az - AZ0 > 180) az -= 360; while (az - AZ0 < -180) az += 360
+  // the free gap: right of the column, left of the catalog (Use); the target at `at` of its width
+  const left = colFrac() * rig.w + 20, right = rig.w - (k === 'use' ? catW() : 0) - 24
+  const x = left + Math.max(120, right - left) * S.at
+  return { tx: T.x, ty: T.y, tz: T.z, az, el: Math.asin(d.y / dist) / DEG, zoom: D0 / dist, shift: (x - rig.w / 2) / rig.w, lift: 0.03, fov: S.fov }
+}
 function focusPose(k: PartK, el: string | null, mob: boolean, cf: number, sh: number, fr: number): Pose {
   void cf
+  // desk rooms on desktop: the shoulder shot, kept for the steps on the desk; an element elsewhere in the
+  // room (Use: the drone in its cage) gets its own close-up, from the room pose
+  const far = el && picks.has(el) && !el.startsWith('link.') && el !== 'arc' && ISLAND_OF(el) === k && !el.endsWith('.guichet') && !el.endsWith('.poste')
+  if (isDesk(k) && !mob && !far) { colHidden.clear(); return deskPose(k) }
+  if (k === 'use' && !mob && el === 'use.drone') { colHidden.clear(); return deskPose(k, DRONE_SHOT) }
   // the subject in the right 55% of the frame
   const sp = clearColumn(k, roomPose(k, mob ? 0 : cf > 0 ? Math.max(sh, 0.225) : 0, mob, fr))
   if (el && picks.has(el) && !el.startsWith('link.') && el !== 'arc' && ISLAND_OF(el) === k) {
