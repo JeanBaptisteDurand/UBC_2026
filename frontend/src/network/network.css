@@ -313,10 +313,8 @@
       background */
 .s3d .net { --net-bg: linear-gradient(to bottom, rgb(22 27 36) 0%, rgb(20 24 32) 28%, rgb(17 21 28) 60%, rgb(14 17 23) 100%); --net-bg-key: linear-gradient(to bottom, rgb(15 18 25), rgb(14 17 23)); }
 @media (min-width: 1025px) {
-  /* no colour behind the text: only the film grain */
+  /* no ground behind the text */
   .s3d #col, .s3d #col:not([data-col='ensemble']) { background: none; }
-  /* one film grain over the whole Network view (scene and text column alike) */
-  .s3d .net::after { content: ''; position: absolute; inset: 0; z-index: 7; pointer-events: none; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .92 0 0 0 0 .92 0 0 0 0 .95 0 0 0 .11 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
   .s3d .net .stage::before, .s3d .net .stage[data-view]::before { display: none; }
 }
 @media (max-width: 760px) {
