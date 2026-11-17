@@ -141,7 +141,7 @@ const last = { geo: -1, ver: -1, hov: -2, id: -1, gp: -1, amber: false, admit: f
 
 /** CSS matrix (columns): element px (u, v) -> screen, for a facade rectangle with top-left corner (x0, y1) */
 const MU = new Float64Array(3), MV = new Float64Array(3), MO = new Float64Array(3), WO = new Float64Array(3)
-const r4 = (x: number) => Math.round(x * 1e4) / 1e4
+const p7 = (x: number) => (Math.abs(x) < 1e-12 ? 0 : x.toPrecision(7))
 function vp(out: Float64Array, c0: number, c1: number, c2: number, c3: number) {
   const v = film.cur
   out[0] = v[0] * c0 + v[4] * c1 + v[8] * c2 + v[12] * c3
@@ -168,8 +168,11 @@ function m3d(i: number, x0: number, y1: number, z: number): string | null {
   // open service (scaling around (zx, zy), in homogeneous coordinates)
   const W2 = m.filmW / 2, H2 = m.filmH / 2, z0 = zoomNow(), zk = z0 > 0 ? 1 + 0.14 * z0 : 1, [zx, zy] = zoomAt()
   row(MU, W2, H2, zk, zx, zy); row(MV, W2, H2, zk, zx, zy); row(MO, W2, H2, zk, zx, zy)
-  // CSS matrix3d (columns): col0 = u, col1 = v, col2 = z (identity), col3 = origin; rows x, y, z, w
-  return `matrix3d(${r4(MU[0])},${r4(MU[1])},0,${r4(MU[2])},${r4(MV[0])},${r4(MV[1])},0,${r4(MV[2])},0,0,1,0,${r4(MO[0])},${r4(MO[1])},0,${r4(MO[2])})`
+  // CSS matrix3d (columns): col0 = u, col1 = v, col2 = z (identity), col3 = origin; rows x, y, z, w.
+  // Normalised to w = 1 at the origin and written with 7 significant digits: the perspective terms (w per layer px,
+  // about 1e-4) used to be rounded to 1e-4, which made the names wobble by a few px while the camera moved.
+  const q = 1 / MO[2]
+  return `matrix3d(${p7(MU[0] * q)},${p7(MU[1] * q)},0,${p7(MU[2] * q)},${p7(MV[0] * q)},${p7(MV[1] * q)},0,${p7(MV[2] * q)},0,0,1,0,${p7(MO[0] * q)},${p7(MO[1] * q)},0,1)`
 }
 const PC = new Float64Array(4), FW3 = new Float64Array(3)
 const hide = (e: El) => { if (e.shown) { e.plate.style.visibility = 'hidden'; e.shown = false } if (e.ledShown) { e.led.style.visibility = 'hidden'; e.ledShown = false } }
