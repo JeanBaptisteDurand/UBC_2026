@@ -1,6 +1,10 @@
 node_modules/
 dist/
+dist-*/
 .env
 .env.*
+!.env.jb
+!.env.ext
 *.local
 tools/
+.sur-mac/
