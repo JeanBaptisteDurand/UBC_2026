@@ -11,6 +11,11 @@
 import { useEffect, useId, useRef } from 'react'
 import { onTick, scrollY, REDUCED } from '../clock'
 
+/** Sparks are turned off, in the film and in the page alike: particles now move only with the scroll. The filament and
+ *  the title ignition stay; no spark canvas is mounted, no glyph mask is read (getImageData), nothing runs every
+ *  frame. */
+const SPARKS = false
+
 /** The filter of a word: its radii follow the thickness of its stroke (text size and weight), set by tune().
  *  For the headline (full), the stroke stays solid: electric blue covers the whole letter (no erosion
  *  hollowing it), light blue then the almost white core add up in the middle of the stroke, and the kit navy only
@@ -104,7 +109,7 @@ export function ArcWord({ children }: { children: string }) {
   const cv = useRef<HTMLCanvasElement>(null)
   const fid = 'arc-inc-' + useId().replace(/[^a-zA-Z0-9]/g, '')
   useEffect(() => {
-    const el = host.current, c = cv.current; if (!el || !c) return
+    const el = host.current, c = cv.current ?? document.createElement('canvas'); if (!el) return
     const g = c.getContext('2d')!
     let pts: Float32Array = new Float32Array(0) // emission points on the glyphs (x, y in canvas CSS px)
     let W = 0, H = 0, dpr = 1, padX = 0, padY = 0
@@ -113,6 +118,7 @@ export function ArcWord({ children }: { children: string }) {
       const cs = getComputedStyle(el)
       const fs = parseFloat(cs.fontSize) || 60
       tune(fid, fs, parseFloat(cs.fontWeight) || 400)
+      if (!SPARKS) return
       const r = el.getBoundingClientRect(); if (r.width < 1 || r.height < 1) return // hidden title (column removed during the demo): nothing to measure
       padX = Math.round(fs * 0.25); padY = Math.round(fs * 0.9)
       W = Math.ceil(r.width + 2 * padX); H = Math.ceil(r.height + padY + fs * 0.2)
@@ -149,7 +155,7 @@ export function ArcWord({ children }: { children: string }) {
     const ro = new ResizeObserver((es) => { const r = es[0]?.contentRect; const sz = r ? `${Math.round(r.width)}x${Math.round(r.height)}` : ''; if (sz === lastSz) return; const first = !lastSz; lastSz = sz; if (ok && !first) measure() }); ro.observe(el)
     let acc = 0, was = true
     const off = onTick((_t, dt) => {
-      if (!ok || REDUCED || !pts.length) return
+      if (!SPARKS || !ok || REDUCED || !pts.length) return
       const on = scrollY() < innerHeight * 1.05 && !document.hidden
       if (!on) { if (was) { g.clearRect(0, 0, c.width, c.height); sparks.length = 0; was = false } return }
       was = true
@@ -188,7 +194,7 @@ export function ArcWord({ children }: { children: string }) {
     <span className="arc-w" ref={host}>
       <span className="arc-w-t" style={{ filter: `url(#${fid})` }}>{children}</span>
       <Filter id={fid} full />
-      <canvas ref={cv} className="arc-w-c" aria-hidden="true" />
+      {SPARKS ? <canvas ref={cv} className="arc-w-c" aria-hidden="true" /> : null}
     </span>
   )
 }
@@ -315,14 +321,14 @@ export function ArcIgnite({ text }: { text: string }) {
     })
   })
   useEffect(() => {
-    const el = host.current, c = cv.current; if (!el || !c) return
+    const el = host.current, c = cv.current ?? document.createElement('canvas'); if (!el) return
     const g = c.getContext('2d')!
     const ttl = el.closest<HTMLElement>('.ttl')
     const words = [...el.querySelectorAll<HTMLElement>('.ig')].map((w, i) => {
       // a delay of its own for each word (shuffled, never left to right)
       const d = (((i * 7919 + 13) % 11) / 10) * 0.2
       const ls = [...w.querySelectorAll<HTMLElement>('.ig-l')]
-      return { base: w.querySelector<HTMLElement>('.ig-t')!, far: ls[0], near: ls[1], body: ls[2], d, last: [-1, -1, -1, -1], lit: 0 }
+      return { base: w.querySelector<HTMLElement>('.ig-t')!, far: ls[0], near: ls[1], body: ls[2], d, last: [-1, -1, -1, -1], lit: 0, wc: [0, 0, 0], lt: [0, 0, 0] }
     })
     let pts = new Float32Array(0), W = 0, Hc = 0, dpr = 1, padX = 0, padY = 0, ok = false, vis = false
     const sparks: Spark[] = []
@@ -331,6 +337,7 @@ export function ArcIgnite({ text }: { text: string }) {
       const fs = parseFloat(cs.fontSize) || 40, wt = parseFloat(cs.fontWeight) || 600
       for (const s of ['b', 'n', 'f']) tune(`${fid}-${s}`, fs, wt)
       const r = el.getBoundingClientRect(); if (r.width < 1 || r.height < 1) return // hidden title: nothing to measure
+      if (!SPARKS) { ok = true; return }
       padX = Math.round(fs * 0.25); padY = Math.round(fs * 0.9)
       W = Math.ceil(r.width + 2 * padX); Hc = Math.ceil(r.height + padY + fs * 0.2)
       dpr = Math.min(2, devicePixelRatio || 1)
@@ -367,11 +374,16 @@ export function ArcIgnite({ text }: { text: string }) {
     let u = REDUCED ? 1 : 0, tIn = -1, lit = false, acc = 0, drawn = false, first = true
     // the glow blooms (halos open from 90 to 100 %, the body from 99 to 100 %) while it heats up,
 // never a plain opacity
-    const put = (e: HTMLElement, k: number, v: number, w: (typeof words)[number]) => { if (Math.abs(w.last[k] - v) > 0.003 || (v === 0 && w.last[k] !== 0) || (v === 1 && w.last[k] !== 1)) { w.last[k] = v; e.style.opacity = v.toFixed(3); if (k < 3) e.style.transform = `scale(${(k === 0 ? 0.99 + 0.01 * v : 0.9 + 0.1 * v).toFixed(4)})` } }
+    // A filtered copy is a compositor layer (will-change) only while it moves; once settled, it is painted with its
+    // title. Otherwise the 3 copies per word stayed as many render surfaces (up to 53 filters at once on a phone): tile
+    // memory was exceeded and a frame was dropped on every gesture
+    const put = (e: HTMLElement, k: number, v: number, w: (typeof words)[number]) => { if (Math.abs(w.last[k] - v) > 0.003 || (v === 0 && w.last[k] !== 0) || (v === 1 && w.last[k] !== 1)) { w.last[k] = v; if (k < 3) { if (!w.wc[k]) { w.wc[k] = 1; e.style.willChange = 'opacity, transform' } w.lt[k] = performance.now() } e.style.opacity = v.toFixed(3); if (k < 3) e.style.transform = `scale(${(k === 0 ? 0.99 + 0.01 * v : 0.9 + 0.1 * v).toFixed(4)})` } }
+    const settle = (w: (typeof words)[number]) => { const t = performance.now(); for (let k = 0; k < 3; k++) if (w.wc[k] && t - w.lt[k] > 350) { w.wc[k] = 0; (k === 0 ? w.body : k === 1 ? w.near : w.far).style.willChange = 'auto' } }
     const off = onTick((_t, dt) => {
       if (!ok) return
-      if (!vis && !first) { if (drawn) { g.clearRect(0, 0, c.width, c.height); sparks.length = 0; drawn = false } return }
+      if (!vis && !first) { if (drawn) { g.clearRect(0, 0, c.width, c.height); sparks.length = 0; drawn = false } for (const w of words) if (w.wc[0] || w.wc[1] || w.wc[2]) settle(w); return }
       first = false
+      // The titles of the state sections are sticky: their position is read on screen
       const top = el.getBoundingClientRect().top, H = innerHeight
       let f = REDUCED ? 1 : Math.min(1, Math.max(0, (0.86 * H - top) / (0.3 * H)))
       // the title rises white in its lettering mask (rule then title, 120 + 420 ms), then ignites
@@ -388,11 +400,11 @@ export function ArcIgnite({ text }: { text: string }) {
       for (const w of words) {
         const wp = Math.min(1, Math.max(0, (u * 1.2 - w.d) / 1))
         const [b, n, fa] = curves(wp)
-        put(w.body, 0, b, w); put(w.near, 1, n, w); put(w.far, 2, fa, w); put(w.base, 3, 1 - b, w)
+        put(w.body, 0, b, w); put(w.near, 1, n, w); put(w.far, 2, fa, w); put(w.base, 3, 1 - b, w); settle(w)
         w.lit = b; heat += b
       }
       heat /= Math.max(1, words.length)
-      if (REDUCED || document.hidden) return
+      if (!SPARKS || REDUCED || document.hidden) return
       if (heat > 0.5) {
         acc += dt * 11 * heat
         while (acc >= 1) {
@@ -428,7 +440,7 @@ export function ArcIgnite({ text }: { text: string }) {
     <span className="ig-host" ref={host} style={{ ['--ig-pad' as string]: `${IG_PAD}em` }}>
       {nodes}
       <IgniteFilters id={fid} />
-      <canvas ref={cv} className="arc-w-c" aria-hidden="true" />
+      {SPARKS ? <canvas ref={cv} className="arc-w-c" aria-hidden="true" /> : null}
     </span>
   )
 }

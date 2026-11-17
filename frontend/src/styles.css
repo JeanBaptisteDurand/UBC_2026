@@ -227,7 +227,7 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
 .h2.ttl[data-lit='1'] .ttl-m { overflow: visible; }
 .ig-host { position: relative; display: block; }
 .ig { position: relative; display: inline-block; }
-.ig-l { position: absolute; left: calc(-1 * var(--ig-pad, 0.6em)); top: calc(-1 * var(--ig-pad, 0.6em)); padding: var(--ig-pad, 0.6em); white-space: nowrap; opacity: 0; pointer-events: none; will-change: opacity, transform; color: #fff; } /* transform too: the filtered layer is scaled by the compositor instead of being re-filtered every frame */
+.ig-l { position: absolute; left: calc(-1 * var(--ig-pad, 0.6em)); top: calc(-1 * var(--ig-pad, 0.6em)); padding: var(--ig-pad, 0.6em); white-space: nowrap; opacity: 0; pointer-events: none; color: #fff; } /* transform too: the filtered layer is scaled by the compositor instead of being re-filtered every frame; will-change is set by ArcIgnite during the ignition only */
 .arc-w-c { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; } /* zero size before measuring: no layout shift */
 .js .catch .c2 .ttl-t { transition-delay: 420ms; }
 .hero .txt:has(.mirror :focus-visible) .hint-k { display: inline; }
@@ -528,3 +528,9 @@ html.svc-open .page, html.svc-open .carrier, html.svc-open .leads, html.svc-open
 /* Footer: the centre of the logo rectangle (without the arrow) on the axis of the neighbouring content, like the header */
 .foot .logo-svg { transform: translateY(calc(-0.13437 * 84px)); }
 @media (max-width: 760px) { .foot .logo-svg { transform: translateY(calc(-0.13437 * 72px)); } }
+
+/* Video landing: during film capture only the canvas shows (the HTML keeps its place: same measurements, same camera) */
+html.tournage body * { visibility: hidden !important; }
+html.tournage .stage, html.tournage .stage canvas { visibility: visible !important; }
+html.tournage .stage .veil { display: none !important; }
+html.tournage, html.tournage body { cursor: none; }

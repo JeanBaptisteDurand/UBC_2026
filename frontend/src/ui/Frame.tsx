@@ -9,7 +9,7 @@ import { t, useLang, setLang, getLang, type TKey } from '../i18n'
 import { link, networkFor } from '../links'
 import { world, setLock, useLock, useWallVersion, useLoupe } from '../world'
 import { G, SLOTS, NSLOTS, slotLabel, productLabel, priceText, reasonText, stateText, colX, type Sled } from '../data/wall'
-import { onTick, REDUCED } from '../clock'
+import { onTick, REDUCED, getLenis, step } from '../clock'
 import { openService, svcHref } from './ServicePanel'
 import { progress, ORDER } from '../story'
 import { Logo } from './Logo'
@@ -28,7 +28,11 @@ export function Mark({ size = 22 }: { size?: number }) {
   )
 }
 
-export function Header({ loaded }: { loaded: number }) {
+/** Amber state of the replayed sled: on <html> (real-time scene) or on .stage (video landing) */
+let stageEl: HTMLElement | null = null
+const amberNow = () => document.documentElement.dataset.amber === '1' || (stageEl ??= document.querySelector<HTMLElement>('.stage'))?.dataset.amber === '1'
+
+export function Header({ loaded }: { loaded: number | (() => number) }) {
   const lang = useLang()
   const [open, setOpen] = useState(false)
   const block = useLive((s) => s.block)
@@ -47,7 +51,7 @@ export function Header({ loaded }: { loaded: number }) {
   loadedR.current = loaded
   useEffect(() => onTick(() => {
     // first the loading bar (scene steps), then the progress through the page
-    const L = loadedR.current
+    const L = typeof loadedR.current === 'function' ? loadedR.current() : loadedR.current
     const p = L < 1 ? L : progress()
     if (bar.current) { bar.current.style.transform = `scaleX(${p.toFixed(4)})`; bar.current.dataset.load = L < 1 ? '1' : '0' }
     // the percentage only speaks during loading; afterwards the bar and the section number are enough
@@ -242,8 +246,8 @@ export function Cursor() {
       if (!b || !a || !c || !g || !pg || !ld) return
       const P = world.pointer
       const show = P.inside && !P.touch && P.moved
-      document.documentElement.dataset.cur = show ? '1' : '0'
-      if (!show) { g.dataset.on = '0'; return }
+      { const v = show ? '1' : '0'; if (document.documentElement.dataset.cur !== v) document.documentElement.dataset.cur = v }
+      if (!show) { if (g.dataset.on !== '0') g.dataset.on = '0'; return }
       // target: the square under the tip (22 px, magnifier or not: the magnifier acts within the square); framing is
 // reserved for slots: on a slot, it stretches with the lock loading, then hugs it
       const S = 22
@@ -303,9 +307,12 @@ export function Cursor() {
       // the reading: rack, unit and state, only on an unlocked slot
       if (world.lock >= 0) heldOnce = true
       const i = world.hover
-      if (i >= 0 && state !== 'lock' && !world.svc.open) {
+      // Video landing: while the page moves, the sleds scroll under a still pointer; the readout waits until the page has
+      // settled (it no longer passes over the large titles during a trip)
+      const lm = getLenis(), pageMoving = step.moving || (!!lm && Math.abs(lm.velocity) > 0.3)
+      if (i >= 0 && state !== 'lock' && !world.svc.open && !pageMoving) {
         const s = world.wall.sleds[i]
-        const amber = i === world.wall.replay && document.documentElement.dataset.amber === '1'
+        const amber = i === world.wall.replay && amberNow()
         // the reading sits above the slot (it never covers its plate); face on, it tells the gesture
         const txt = `${slotLabel(i)}, ${s?.led === 'green' || s?.led === 'red' || s?.led === 'amber' || (amber && s?.enclave) ? productLabel(s!.product) + ', ' : ''}${stateText(s, amber).toLowerCase()}${world.frontal && !heldOnce ? `, ${t('read.hold')}` : ''}`
         // width re-read only when the text changes (no forced layout every frame)
@@ -318,8 +325,8 @@ export function Cursor() {
         const below = ORDER[Math.min(ORDER.length - 1, Math.floor(world.story))] === 'arc' && i === world.wall.replay
         const gy = hr ? (below && hr.y + hr.h + 34 < innerHeight ? hr.y + hr.h + 6 : Math.max(92, hr.y - 30)) : P.y + 20
         g.style.transform = `translate3d(${gx.toFixed(0)}px, ${gy.toFixed(0)}px, 0)`
-        g.dataset.on = '1'
-      } else g.dataset.on = '0'
+        if (g.dataset.on !== '1') g.dataset.on = '1'
+      } else if (g.dataset.on !== '0') g.dataset.on = '0'
     })
   }, [loupe])
   return (
@@ -405,7 +412,7 @@ export function Fiche() {
   }, [])
   const cur = lock >= 0 ? lock : shown
   const sl: Sled | undefined = cur >= 0 ? world.wall.sleds[cur] : undefined
-  const amber = cur >= 0 && cur === world.wall.replay && document.documentElement.dataset.amber === '1'
+  const amber = cur >= 0 && cur === world.wall.replay && amberNow()
   const e = sl?.enclave, pr = sl?.product
   // a registered enclave without a read product shows "Registered enclave", never an empty title
   const name = !sl || !e ? t('plate.off') : productLabel(pr, products, bounties) || t('svc.enclave')
