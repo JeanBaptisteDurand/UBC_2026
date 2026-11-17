@@ -13,10 +13,17 @@ export const FROZEN_S: number | null = q.has('s') ? Math.min(1, Math.max(0, Numb
 export const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches
 export const MOBILE = matchMedia('(max-width: 760px)').matches
 export const NOGL = q.get('gl') === '0'
+/** Video landing: film capture (tournage.html?tournage) shoots the scene frame by frame; scene time is set by the
+ *  capture (setFilmT), never by the clock */
+export const TOURNAGE = q.has('tournage')
+// During capture, scene time is FROZEN for every frame (?t, 0 by default); setFilmT has no effect. Everything that
+// varied with time (beam noise, threads, ripple) is a still image, placed in the world like the rest.
+const filmT = FROZEN_T ?? 0
+export const setFilmT = (ms: number) => { void ms }
 
 let t0 = performance.now()
 /** Scene time in seconds: real, or frozen by ?t (ms). */
-export const sceneTime = () => (FROZEN_T !== null ? FROZEN_T / 1000 : (performance.now() - t0) / 1000)
+export const sceneTime = () => (TOURNAGE ? filmT / 1000 : FROZEN_T !== null ? FROZEN_T / 1000 : (performance.now() - t0) / 1000)
 export const resetSceneClock = () => { t0 = performance.now() }
 
 export let lenis: Lenis | null = null
@@ -72,10 +79,10 @@ let stopsFn: (() => Stop[]) | null = null
 export const setStops = (f: () => Stop[]) => { stopsFn = f }
 const DWELL = 0.75
 const STEPQ = q.get('step') !== '0'
-export const step = { idx: -1, moving: false, to: null as Stop | null, arrivedAt: 0, settledAt: 1, queue: 0, lastEv: 0, lastMag: 0, gDir: 0, gPeak: 0, gStart: 0, sustain: 0, log: [] as { k: string; y: number; arrive: number; settle: number; leave: number }[] }
+export const step = { trip: null as null | { y0: number; y1: number; t0: number; dur: number; ease: (x: number) => number }, idx: -1, moving: false, to: null as Stop | null, arrivedAt: 0, settledAt: 1, queue: 0, lastEv: 0, lastMag: 0, gDir: 0, gPeak: 0, gStart: 0, sustain: 0, log: [] as { k: string; y: number; arrive: number; settle: number; leave: number }[] }
 ;(window as unknown as { __step: typeof step }).__step = step
 const stepOn = () => STEPQ && !!stopsFn && !!lenis && !REDUCED && !MOBILE && !lenis.isStopped
-const stepEase = (x: number) => 0.5 - 0.5 * Math.cos(Math.PI * Math.pow(x, 0.78))
+export const stepEase = (x: number) => 0.5 - 0.5 * Math.cos(Math.PI * Math.pow(x, 0.78))
 const busy = () => step.moving || !step.settledAt || (performance.now() - step.settledAt) / 1000 < DWELL
 /** Go to the next stop in direction dir (1 or -1) from the current page position */
 function stepGo(dir: number) {
@@ -92,7 +99,13 @@ function stepGo(dir: number) {
   step.moving = true; step.to = to; step.settledAt = 0; step.arrivedAt = 0
   step.log.push({ k: to.k, y: Math.round(to.y), arrive: 0, settle: 0, leave: 0 })
   if (step.log.length > 200) step.log.shift()
-  lenis.scrollTo(to.y, { duration: Math.min(1.15, 0.55 + 0.25 * dist), easing: stepEase, force: true, onComplete: () => { step.moving = false; step.arrivedAt = performance.now() } })
+  // Video landing: the trip is known from the start (the player decodes ahead the frames it is about to show).
+  // Longer trips (before: 0.55 + 0.25 per screen, 1.15 s at most), also tuned to the camera motion (film frames
+  // traversed, 8 px each: about 100 per second on average)
+  const span = (window as unknown as { __filmSpan?: (a: number, b: number) => number }).__filmSpan?.(lenis.animatedScroll, to.y) ?? 0
+  const dur = Math.min(2.8, Math.max(0.8 + 0.4 * dist, 0.6 + span / 100))
+  step.trip = { y0: lenis.animatedScroll, y1: to.y, t0: now, dur, ease: stepEase }
+  lenis.scrollTo(to.y, { duration: dur, easing: stepEase, force: true, onComplete: () => { step.moving = false; step.arrivedAt = performance.now(); step.trip = null } })
 }
 function stepAsk(dir: number) {
   if (busy()) { step.queue = dir; return }
@@ -105,7 +118,7 @@ function stepTick() {
   const now = performance.now()
   if (step.moving) {
     // Move interrupted (scrollbar grabbed, jump): Lenis does not call back, treat the stop as reached
-    if (lenis && !lenis.isScrolling && step.to && Math.abs(lenis.animatedScroll - step.to.y) > 2) { step.moving = false; step.to = null; step.settledAt = now }
+    if (lenis && !lenis.isScrolling && step.to && Math.abs(lenis.animatedScroll - step.to.y) > 2) { step.moving = false; step.to = null; step.settledAt = now; step.trip = null }
     return
   }
   const cur = step.to
@@ -177,6 +190,8 @@ const keyNorm = (e: KeyboardEvent) => {
   const f = push(d)
   if (f) lenis.scrollTo(lenis.targetScroll + f, { programmatic: false, lerp: 0.1 })
 }
+/** Duration of the clock's work per frame (measurement, read by the film log) */
+export const tick = { start: 0, cost: 0, prev: 0 }
 export const getLenis = () => lenis
 type Tick = (time: number, dt: number) => void
 const ticks = new Set<Tick>()
@@ -187,7 +202,9 @@ let started = false
 export function startClock({ smooth = true }: { smooth?: boolean } = {}) {
   if (started) return
   started = true
-  if (!REDUCED && smooth) {
+  // ?lenis=0 removes Lenis (measurement only; on touch, removing it changed nothing about dropped frames)
+  const lenisOn = q.get('lenis') !== '0'
+  if (!REDUCED && smooth && lenisOn) {
     // Smooth scrolling with inertia; native inertia on touch
     lenis = new Lenis({ lerp: 0.1, wheelMultiplier: 1, touchMultiplier: 1, autoRaf: false, smoothWheel: true, syncTouch: false, virtualScroll: wheelNorm })
     lenis.on('scroll', ScrollTrigger.update)
@@ -198,6 +215,7 @@ export function startClock({ smooth = true }: { smooth?: boolean } = {}) {
   let last = performance.now()
   gsap.ticker.add((time) => {
     const now = performance.now()
+    tick.start = now; tick.prev = tick.cost
     const dt = Math.min(0.1, (now - last) / 1000)
     last = now
     // The reserve is released frame by frame, under the top speed and the pinned page bound
@@ -205,6 +223,7 @@ export function startClock({ smooth = true }: { smooth?: boolean } = {}) {
     stepTick()
     lenis?.raf(time * 1000)
     ticks.forEach((f) => f(time, dt))
+    tick.cost = performance.now() - now
   })
   if (FROZEN_S !== null) {
     const go = () => {
@@ -231,7 +250,9 @@ export function scrollTo(sel: string) {
     const last = step.log[step.log.length - 1]; if (last && !last.leave) last.leave = performance.now()
     step.queue = 0; step.moving = true; step.to = st; step.settledAt = 0; step.arrivedAt = 0
     step.log.push({ k: st.k, y: Math.round(st.y), arrive: 0, settle: 0, leave: 0 })
-    lenis.scrollTo(st.y, { duration: 1.6, easing: (x: number) => 1 - Math.pow(1 - x, 4), force: true, onComplete: () => { step.moving = false; step.arrivedAt = performance.now() } })
+    const ease = (x: number) => 1 - Math.pow(1 - x, 4)
+    step.trip = { y0: lenis.animatedScroll, y1: st.y, t0: performance.now(), dur: 1.6, ease }
+    lenis.scrollTo(st.y, { duration: 1.6, easing: ease, force: true, onComplete: () => { step.moving = false; step.arrivedAt = performance.now(); step.trip = null } })
   } else if (lenis) lenis.scrollTo(el, { offset: -40, duration: 1.6, easing: (x: number) => 1 - Math.pow(1 - x, 4) })
   else el.scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth' })
 }
