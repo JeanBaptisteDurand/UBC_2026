@@ -31,7 +31,8 @@
   --rule2: rgb(var(--ink-c) / 0.20);
   --m: 32px;
   --gut: calc(var(--m) + 40px);
-  --hd: 86px;
+  /* The network-paused banner (ui/PauseBand.tsx) sets its height in --pause-h; the page accounts for it */
+  --hd: calc(86px + var(--pause-h, 0px));
   --sans: var(--brand, 'Montserrat'), ui-sans-serif, system-ui, sans-serif;
   /* Weights and tracking tuned for a wide geometric sans: positive tracking in caps, slightly negative in lowercase,
      medium rather than bold weights on a dark background */
@@ -77,6 +78,8 @@ html[data-pin='1'] .veil { opacity: 0; }
 .stage canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; touch-action: pan-y; }
 /* Poster: only used as the no-WebGL fallback */
 .stage .poster { position: absolute; inset: 0; background: url('/tex/poster.jpg') center / cover no-repeat; }
+/* Loading bar at mid-height, centred on the wall area (the same centre as the stage.ts entry slot: halfway between
+   the column fade edge and the right edge) */
 .nogl-list { position: fixed; right: var(--gut); top: calc(var(--hd) + 32px); z-index: 5; width: min(420px, 40vw); height: min(46vh, 420px); overflow: auto; background: rgb(var(--pan-c) / 0.9); padding: 16px; }
 .nogl-list ul { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
 .nogl-list li { display: grid; grid-template-columns: 16px 1fr auto; gap: 4px 8px; align-items: baseline; }
@@ -86,10 +89,11 @@ html[data-pin='1'] .veil { opacity: 0; }
 .hd { position: fixed; top: 0; left: 0; right: 0; z-index: 50; background: var(--bg); }
 .hd-row1 { height: 56px; display: flex; align-items: center; gap: 40px; padding: 0 var(--gut); border-bottom: 1px solid var(--rule); }
 .logo { display: inline-flex; align-items: center; gap: 8px; font-weight: var(--w-head); font-size: 17px; letter-spacing: -0.01em; }
-.logo-svg { display: block; height: 30px; width: auto; color: var(--ink); }
+.logo-svg { display: block; height: 30px; width: auto; color: var(--ink); } /* ArcHive logo */
 @media (max-width: 640px) { .logo-svg { height: 26px; } }
 /* Logo rectangle (without the arrow) on the axis of the menu links: its centre sits at 52.91 / 83.40 of the drawing
-   height (Logo.tsx), so centred in the row the drawing moves up by (0.6344 - 0.5) h */
+   height (Logo.tsx), so centred in the row the drawing moves up by (0.6344 - 0.5) h; the arrow overhangs above
+   (still 9 px below the top of the header at 30 px) */
 .hd .logo-svg { transform: translateY(calc(-0.1344 * 30px)); }
 @media (max-width: 640px) { .hd .logo-svg { transform: translateY(calc(-0.1344 * 26px)); } }
 .mark { color: var(--ink); flex: none; }
@@ -114,6 +118,13 @@ html[data-pin='1'] .veil { opacity: 0; }
 .prog-bar { position: absolute; inset: 0; background: var(--acc); transform-origin: 0 50%; transform: scaleX(0); }
 .prog-bar[data-load='1'] { background: var(--ink2); transition: transform 400ms var(--productive); }
 .hd-drawer { display: flex; flex-direction: column; padding: 16px var(--gut) 24px; gap: 16px; font-size: 20px; background: var(--bg); }
+/* Network-paused banner, third header row, calm: an amber LED, a sentence, the link to the replayed demo; the long
+   sentence on desktop, the short one under 1100 px */
+.pause { display: flex; align-items: flex-start; min-height: 30px; padding: 5px var(--gut); color: var(--ink2); border-bottom: 1px solid var(--rule); background: var(--bg); }
+.pause .led { flex: none; width: 12px; height: 4px; margin: 8px 12px 0 0; }
+.pause-t { margin: 0; }
+.pause-a { color: var(--ink); white-space: nowrap; }
+.pause-short { display: none; }
 
 /* ---------- cursor: an outlined square, axes, locking ---------- */
 @media (pointer: fine) { html.scene-ready[data-cur='1'], html.scene-ready[data-cur='1'] * { cursor: none !important; } }
@@ -155,7 +166,7 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
 .js .ttl.in .ttl-rule { transition: transform 280ms var(--ease); transform: scaleX(1); }
 .st-use .ttl-rule { background: var(--green); }
 .st-rent .ttl-rule { background: var(--ink3); }
-.st-publish .ttl-rule { background: var(--amber); } /* the rule takes the colour of the targeted slot */
+.st-publish .ttl-rule { background: var(--amber); } /* The rule takes the colour of the targeted slot (Publish targets an amber slot) */
 .st-invalid .ttl-rule { background: var(--red); }
 .js .unfold .row { clip-path: inset(0 0 100% 0); transform: translateY(-4px); transition: clip-path 240ms var(--ease), transform 240ms var(--ease); transition-delay: calc(160ms + var(--j, 0) * 45ms); }
 .js .unfold.in .row { clip-path: inset(-2px -2px -2px -2px); transform: none; }
@@ -193,10 +204,14 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
 .hero .txt { width: min(500px, 36vw); position: static; }
 .pin-proto .txt { width: min(460px, 32vw); }
 .hero { min-height: 100svh; padding-top: calc(var(--hd) + 44px); padding-bottom: 40px; }
+/* The lighter column breathes: more air under the headline and before the buttons */
 .hero .support { margin-top: 40px; }
 .hero .ctas { margin-top: 52px; }
 /* Headline in opposite corners: "Sealed machines," top left, filling the space before the hero rack; "open market."
-   bottom right, over the racks, larger. The size is tuned so "MACHINES," keeps about 40 px of air before the racks */
+   bottom right, over the racks */
+/* Weight 600, larger. The rack bounds the width of "MACHINES," (at 1440 px its left edge is at 565 px): tracking is 0
+   and the size keeps about 40 px of air before the servers. "OPEN MARKET.", over the racks, has room and grows more
+   (x 1.22) */
 .catch { position: static; font-size: clamp(58px, 5.3vw, 100px); line-height: 0.94; font-weight: 600; letter-spacing: 0; }
 .catch .c1 { display: block; max-width: 6.6em; }
 .catch .c2 { display: block; position: absolute; right: var(--gut); bottom: clamp(20px, 3.4vh, 40px); text-align: right; max-width: 6.4em; font-size: 1.22em; }
@@ -223,7 +238,7 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
 .mirror button { position: absolute; left: 0; top: 0; width: 24px; height: 24px; }
 /* With the keyboard, the focused slot is framed to the pixel (the button sits on it) */
 .mirror:focus-within { overflow: visible; clip-path: none; }
-.mirror button:focus-visible { position: fixed; outline: 1px solid rgb(143 198 255 / 0.55); outline-offset: 0; z-index: 40; }
+.mirror button:focus-visible { position: fixed; outline: 1px solid rgb(143 198 255 / 0.55); outline-offset: 0; z-index: 40; } /* On a slot, the frame hugs it to the pixel */
 .led { display: inline-block; width: 18px; height: 5px; border-radius: 1px; margin-right: 12px; vertical-align: middle; background: var(--led-off); }
 .led-green { background: var(--green); }
 .led-amber { background: var(--amber); }
@@ -261,7 +276,7 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
 .parts-layer svg { position: absolute; inset: 0; }
 .parts-layer path { fill: none; stroke: rgb(var(--ink-c) / 0.72); stroke-width: 1; }
 .parts-layer path.arc { stroke: var(--arc-t); }
-.plab { position: absolute; left: 0; top: 0; height: 24px; display: inline-flex; align-items: center; padding: 0 8px; color: var(--ink); text-shadow: 0 0 6px rgb(var(--pan-c)), 0 0 2px rgb(var(--pan-c));  white-space: nowrap; opacity: 0; transition: opacity var(--t1) var(--productive); }
+.plab { position: absolute; left: 0; top: 0; height: 24px; display: inline-flex; align-items: center; padding: 0 8px; color: var(--ink); text-shadow: 0 0 6px rgb(var(--pan-c)), 0 0 2px rgb(var(--pan-c)); white-space: nowrap; opacity: 0; transition: opacity var(--t1) var(--productive); }
 /* A light veil under the labels, faded at its edges (the rack reads through), never a block */
 .plab-bg { position: absolute; left: 0; top: 0; width: 0; height: 0; background: rgb(var(--pan-c) / 0.7); -webkit-mask-image: linear-gradient(to right, transparent, black 28px, black calc(100% - 28px), transparent), linear-gradient(to bottom, transparent, black 18px, black calc(100% - 18px), transparent); -webkit-mask-composite: source-in; mask-image: linear-gradient(to right, transparent, black 28px, black calc(100% - 28px), transparent), linear-gradient(to bottom, transparent, black 18px, black calc(100% - 18px), transparent); mask-composite: intersect; opacity: 0; transition: opacity var(--t1) var(--productive); }
 .parts-layer circle { fill: var(--ink); opacity: 0; transition: opacity var(--t1) var(--productive); }
@@ -321,7 +336,7 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
 
 /* ---------- end: back to the hero framing; a column in the room, the wall on the right ---------- */
 .end { padding: 0; margin-top: 24svh; }
-.end-in { position: relative; padding: 72px var(--gut) 96px; display: grid; gap: 36px; width: calc(min(460px, 33vw) + 2 * var(--gut)); } 
+.end-in { position: relative; padding: 72px var(--gut) 96px; display: grid; gap: 36px; width: calc(min(460px, 33vw) + 2 * var(--gut)); }
 .end-hd .lede { max-width: 30em; }
 .figs { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; }
 .figs > div { display: grid; gap: 8px; align-content: start; padding-top: 12px; box-shadow: inset 0 1px 0 var(--rule2); }
@@ -372,14 +387,18 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
   .hd-nav, .hd-console { display: none; }
   .menu-btn { display: inline-flex; align-items: center; }
   .band-pay { display: none; }
+  /* Under 1100 px the banner shows the short sentence (one or two lines, never three) */
+  .pause-long { display: none; }
+  .pause-short { display: inline; }
   .txt, .pin-proto .txt { width: min(520px, 46vw); }
+  /* Tablet and phone: the headline stays in one block in the column (over the veil) */
   .catch .c2 { position: static; text-align: left; margin-top: 0; max-width: 6.6em; font-size: 1em; }
   .catch { font-size: 8vw; }
   /* Between 761 and 1100 px the wall passes under the column: a dark veil with a soft edge covers it */
   .veil { display: block; position: absolute; top: 0; bottom: 0; left: 0; width: calc(var(--gut) + min(520px, 46vw) + 56px); background: rgb(var(--bg-c) / 0.9); mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent); }
 }
 @media (max-width: 760px) {
-  :root { --m: 16px; --hd: 84px; --gut: 16px; }
+  :root { --m: 16px; --hd: calc(84px + var(--pause-h, 0px)); --gut: 16px; }
   .veil { display: none; }
   .h1 { font-size: 11.4vw; }
   .catch { font-size: 12.6vw; }
@@ -438,6 +457,7 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 1ms !important; animation-duration: 1ms !important; }
 }
+
 
 /* ---------- the cursor square also wraps interactive elements (buttons, links); their own hover rule fades
               when the square frames them (no double outline) ---------- */
