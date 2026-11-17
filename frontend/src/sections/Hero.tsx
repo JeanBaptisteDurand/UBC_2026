@@ -54,6 +54,8 @@ export function Hero() {
         <p className="support">{t('hero.support')}</p>
         {/* the replayed demo, reachable from the first screen (the same link as in the last section) */}
         <a className="tlink hero-demo" href={link.demo}><span className="hero-demo-r" aria-hidden="true" />{t('end.demo')}</a>
+        {/* the wall is the catalog: every lit sled is a service; the full list, in the same sled faces, is one click away */}
+        <a className="tlink hero-demo hero-cat" href={link.services}><span className="hero-demo-r" aria-hidden="true" />{t('hero.cat')}</a>
         <p className="sr-only" id="wall-keys">{t('hero.hint.keys')}</p>
         {/* the buttons close the column: moving down, they never pass over any hero text. Under them, the copilot
             bar, as wide as the three buttons together: on the first screen it replaces the floating copilot button,

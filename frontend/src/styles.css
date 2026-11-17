@@ -590,3 +590,6 @@ html.tournage, html.tournage body { cursor: none; }
 
 /* 720 px class windows: the Arc intro paragraph goes (as on the phone) so the check and its button stay on screen */
 @media (min-width: 761px) and (max-height: 760px) { .pin-arc .lede { display: none; } }
+/* the two hero links (demo, catalog) stack, one per line */
+.hero-demo { display: flex; width: max-content; max-width: 100%; }
+.hero-cat { margin-top: 8px; }

@@ -60,6 +60,7 @@ export function Header({ loaded }: { loaded: number | (() => number) }) {
   }), [])
   const nav = (
     <>
+      <a href={link.services}>{t('nav.services')}</a>
       <a href={link.network}>{t('net.name')}</a>
       <a href={link.bounty}>{t('nav.bounty')}</a>
       <a href={link.hive}>{t('nav.hive')}</a>

@@ -12,7 +12,7 @@ import { SelLayer } from '../ui/Sel'
 import { HeaderWallet } from '../network/actions/HeaderWallet'
 import '../network/actions/actions.css'
 
-export type AppPage = 'use' | 'service' | 'demo' | 'rent' | 'publish' | 'network' | 'bounty' | 'sessions' | 'operator'
+export type AppPage = 'use' | 'service' | 'demo' | 'rent' | 'publish' | 'network' | 'bounty' | 'sessions' | 'operator' | 'services'
 
 /** replay: the replayed demo reads nothing live; the second row shows the recording */
 /** wallet: the visitor's wallet button, the same on every app page (the replayed demo has none). The copilot bubble
@@ -43,6 +43,7 @@ export function AppHeader({ page, section, replay, wallet }: { page: AppPage; se
   const cur = (k: AppPage | 'x') => (k === page ? { 'aria-current': 'page' as const } : {})
   const nav = (
     <>
+      <a href={link.services} {...cur('services')}>{t('nav.services')}</a>
       <a href={link.network} {...cur('network')}>{t('net.name')}</a>
       <a href={link.bounty} {...cur('bounty')}>{t('nav.bounty')}</a>
       <a href={link.sessions} {...cur('sessions')}>{t('nav.sessions')}</a>
