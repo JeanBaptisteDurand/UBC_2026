@@ -1,11 +1,11 @@
 #!/bin/sh
-# front-update.sh — sur le serveur, après chaque « git push » sur la branche GitHub « front » : récupère la branche,
+# front-update.sh — sur le serveur, après chaque « git push » sur la branche GitHub « beta » (BRANCH=front pour l'ancienne) : récupère la branche,
 # la fusionne dans /opt/archive/src/frontend (seul son dossier frontend/ compte), puis reconstruit le site seul
 # (build.sh web : front, console, salle 3D ; les services ne sont pas touchés). S'arrête sans rien construire si le
 # dossier a des changements non commités ou si la fusion a un conflit (un changement fait sur le serveur).
 set -eu
 REPO="${REPO:-https://github.com/JeanBaptisteDurand/UBC_2026.git}"
-BRANCH="${BRANCH:-front}"
+BRANCH="${BRANCH:-beta}"
 FRONT="${FRONT:-/opt/archive/src/frontend}"
 cd "$FRONT"
 if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
