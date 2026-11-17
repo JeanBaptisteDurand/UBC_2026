@@ -1,7 +1,6 @@
 // Frame of the app pages: the landing's two-row header, without the scene. The first row holds the logo, the menu
 // (current page marked) and the language; the second, the live reading of Arc testnet. The bottom rule is first the
 // loading bar (the API, then the Arc block), then the page scroll progress.
-import { Ticker } from '../ui/Ticker'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useLive, blockTime, ago } from '../data/live'
 import { num, usdc } from '../data/fmt'
@@ -53,7 +52,7 @@ export function AppHeader({ page, section, replay, wallet }: { page: AppPage; se
     </>
   )
   return (
-    <>{/* the live strip of services, fixed at the bottom of the screen */}<Ticker /><header className="hd app-hd-bar" data-front-free>
+    <header className="hd app-hd-bar" data-front-free>
       <div className="hd-row1">
         <a className="logo" href={link.home} aria-label="ArcHive"><Logo /></a>
         <nav className="hd-nav" aria-label={t('nav.main')}>{nav}</nav>
@@ -84,7 +83,7 @@ export function AppHeader({ page, section, replay, wallet }: { page: AppPage; se
       {open ? <nav className="hd-drawer" aria-label={t('nav.main')}>{nav}</nav> : null}
       <SelLayer />
       {page !== 'network' ? <CopilotMount /> : null}
-    </header></>
+    </header>
   )
 }
 

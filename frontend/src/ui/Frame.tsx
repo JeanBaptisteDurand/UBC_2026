@@ -2,7 +2,6 @@
 // over the server room. The cursor is a square seen only as an outline; resting on a slot, it stretches until it
 // hugs it to the pixel (this stretch is the lock loading), then the card stays open and "Open Service" can be
 // clicked. Touch: a tap locks. Keyboard: focusing a slot locks it.
-import { Ticker } from './Ticker'
 import { useEffect, useRef, useState } from 'react'
 import { useLive, blockTime, ago } from '../data/live'
 import { num, short, usdc } from '../data/fmt'
@@ -68,7 +67,7 @@ export function Header({ loaded }: { loaded: number | (() => number) }) {
     </>
   )
   return (
-    <>{/* the live strip of services, fixed at the bottom of the screen */}<Ticker /><header className="hd" data-ui data-front-free>
+    <header className="hd" data-ui data-front-free>
       <div className="hd-row1">
         <a className="logo" href={link.home} aria-label="ArcHive"><Logo /></a>
         <nav className="hd-nav" aria-label={t('nav.main')}>{nav}</nav>
@@ -88,7 +87,7 @@ export function Header({ loaded }: { loaded: number | (() => number) }) {
       <div className="prog" aria-hidden="true"><div className="prog-bar" ref={bar} /></div>
       {open ? <nav className="hd-drawer" aria-label={t('nav.main')}>{nav}</nav> : null}
       <SelLayer />
-    </header></>
+    </header>
   )
 }
 
