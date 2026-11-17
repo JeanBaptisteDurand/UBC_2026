@@ -5,6 +5,7 @@ import { t, useLang, type TKey } from '../i18n'
 import { useIn } from '../ui/gestures'
 import { Slot, WallMirror } from '../ui/Frame'
 import { withArcWords, ArcIgnite, plainAcc } from '../ui/ArcGlow'
+import { link } from '../links'
 
 /** A single lettering gesture across the page: the rule draws, then the title rises from behind it; in state
  *  sections the rule takes the colour of the section LED */
@@ -51,10 +52,21 @@ export function Hero() {
       <div className="txt">
         <Catch />
         <p className="support">{t('hero.support')}</p>
+        {/* the replayed demo, reachable from the first screen (the same link as in the last section) */}
+        <a className="tlink hero-demo" href={link.demo}><span className="hero-demo-r" aria-hidden="true" />{t('end.demo')}</a>
         <p className="sr-only" id="wall-keys">{t('hero.hint.keys')}</p>
-        {/* the buttons close the column: moving down, they never pass over any hero text */}
-        <div className="ctas">
-          <Slot k="use" home /><Slot k="rent" home /><Slot k="publish" home />
+        {/* the buttons close the column: moving down, they never pass over any hero text. Under them, the copilot
+            bar, as wide as the three buttons together: on the first screen it replaces the floating copilot button,
+            which only appears once the page has scrolled */}
+        <div className="hero-acts">
+          <div className="ctas">
+            <Slot k="use" home /><Slot k="rent" home /><Slot k="publish" home />
+          </div>
+          <a className="btn btn-line hero-cp" href="#copilot" data-slot="COPILOT">
+            <span className="hero-cp-mk" aria-hidden="true"><i /></span>
+            <span className="hero-cp-t">{t('hero.copilot')}</span>
+            <span className="hero-cp-k">{t('hero.copilot.k')}</span>
+          </a>
         </div>
         <WallMirror />
       </div>

@@ -203,10 +203,24 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
 /* The text stops before the hero rack, which sits mid-screen */
 .hero .txt { width: min(500px, 36vw); position: static; }
 .pin-proto .txt { width: min(460px, 32vw); }
-.hero { min-height: 100svh; padding-top: calc(var(--hd) + 44px); padding-bottom: 40px; }
+.hero { min-height: 100svh; padding-top: calc(var(--hd) + 58px); padding-bottom: 40px; }
 /* The lighter column breathes: more air under the headline and before the buttons */
 .hero .support { margin-top: 40px; }
-.hero .ctas { margin-top: 52px; }
+.hero .ctas { margin-top: 0; }
+/* the hero actions: the three buttons, then the copilot bar as wide as the three together */
+.hero-acts { display: inline-grid; gap: 8px; margin-top: 52px; max-width: 100%; }
+.hero-cp { width: 0; min-width: 100%; gap: 12px; justify-content: flex-start; } /* as wide as the buttons, never wider */
+/* the copilot bar takes the chat panel's grammar: no fill, a one-pixel rule, data in mono; it lights up like the panel on
+   hover */
+.hero-cp.btn-line { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1px var(--rule2); transition: background var(--t2) var(--productive), box-shadow var(--t2) var(--productive); }
+.hero-cp.btn-line:hover, .hero-cp.btn-line:focus-visible { background: rgb(var(--pan-c) / 0.72); box-shadow: inset 0 0 0 1px var(--ink3); }
+.hero-cp .hero-cp-k { font-family: var(--mono); font-size: 12px; letter-spacing: 0; }
+.hero-cp-t { flex: none; }
+.hero-cp-mk { position: relative; display: inline-block; flex: none; width: 14px; height: 14px; box-shadow: inset 0 0 0 1px currentColor; }
+.hero-cp-mk i { position: absolute; left: 4px; top: 4px; width: 6px; height: 6px; background: var(--arc-elec); }
+.hero-cp-k { min-width: 0; margin-left: auto; padding-left: 16px; color: var(--ink3); font-weight: 400; overflow: hidden; text-overflow: ellipsis; }
+.hero-demo { margin-top: 20px; font-size: 14px; color: var(--ink2); }
+.hero-demo-r { width: 12px; height: 1px; background: currentColor; }
 /* Headline in opposite corners: "Sealed machines," top left, filling the space before the hero rack; "open market."
    bottom right, over the racks */
 /* Weight 600, larger. The rack bounds the width of "MACHINES," (at 1440 px its left edge is at 565 px): tracking is 0
@@ -245,7 +259,9 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
 .led-red { background: var(--red); }
 .st { min-height: 150svh; padding-top: 200px; padding-bottom: 0; }
 /* The text of a state section stays put while the camera frames its slot (the 3D never lags behind the text) */
-.st .txt { position: sticky; top: calc(var(--hd) + 14vh); }
+/* every title lands at the same height, the highest one (header + 58 px, as in the pinned pages); each state stop is
+   placed exactly where its block sticks, so the next scroll moves the page, never the block first */
+.st .txt { position: sticky; top: calc(var(--hd) + 58px); }
 .key { margin: 28px 0 0; color: var(--ink); display: flex; align-items: center; flex-wrap: wrap; gap: 4px 0; font-size: 15px; }
 .key-n { margin-left: 16px; color: var(--ink2); }
 .replay { margin: 16px 0 0; color: var(--amber); text-wrap: pretty; }
@@ -410,7 +426,9 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
   .hero { padding-top: calc(var(--hd) + 24svh); }
   /* Phone first screen: the headline, one sentence, then the action (thumb reach) */
   .hero .txt { display: flex; flex-direction: column; }
-  .hero .ctas { order: 3; }
+  .hero .hero-acts { order: 3; display: grid; width: 100%; margin-top: 20px; }
+  .hero .hero-acts .ctas { margin-top: 0; }
+  .hero-cp-k { display: none; }
   /* Phone: the checks stay in the step text (the panel fits under the 3D) */
   .pin .checks { display: none; }
   .pin .proto-text .swap { margin-top: 8px; }
@@ -534,3 +552,33 @@ html.tournage body * { visibility: hidden !important; }
 html.tournage .stage, html.tournage .stage canvas { visibility: visible !important; }
 html.tournage .stage .veil { display: none !important; }
 html.tournage, html.tournage body { cursor: none; }
+
+/* Pinned pages on shorter windows (laptops with the browser toolbar): everything of a stop stays on screen, down to the
+   last button of the Arc check. Spacing tightens first, then text sizes, never content. */
+@media (min-width: 761px) and (max-height: 940px) {
+  .pin .steps { margin-top: 18px; }
+  .pin .steps ol { gap: 6px; }
+  .pin .lede { margin-top: 12px; font-size: 16px; line-height: 1.5; }
+  .pin .gate { margin-top: 14px; padding: 12px 14px; gap: 8px; }
+  .pin .verdict { min-height: 2.6em; }
+}
+@media (min-width: 761px) and (max-height: 820px) {
+  .pin-in { padding-bottom: 16px; }
+  .pin .steps li { font-size: 14px; }
+  .pin .lede { font-size: 15px; line-height: 1.45; }
+  .pin .gate .row { gap: 4px; }
+  .pin .verdict p { font-size: 14px; }
+}
+/* very short windows (720 px class): the step list becomes one line showing the current step, as on the phone */
+@media (min-width: 761px) and (max-height: 760px) {
+  .pin .steps { margin: 12px 0 0; padding: 0 0 10px; }
+  .pin .steps-rail { left: 0; right: 0; top: auto; bottom: 0; width: auto; height: 1px; }
+  .pin .steps-bar { transform-origin: 0 50%; transform: scaleX(var(--p, 0)); }
+  .pin .steps ol { display: flex; gap: 12px; align-items: baseline; }
+  .pin .steps li:not(.on) { display: none; }
+}
+@media (min-width: 761px) and (max-height: 760px) {
+  .pin .gate { padding: 10px 12px; gap: 6px; margin-top: 10px; }
+  .pin .verdict { min-height: 0; }
+  .pin .lede { margin-top: 8px; }
+}

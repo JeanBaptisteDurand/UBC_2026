@@ -14,7 +14,6 @@ import { openService, svcHref } from './ServicePanel'
 import { progress, ORDER } from '../story'
 import { Logo } from './Logo'
 import { SelLayer, selBox } from './Sel'
-import { PauseBand } from './PauseBand'
 
 // ---------------- logo: the rack reduced to two slots, a hexagon in place of the LED ----------------
 export function Mark({ size = 22 }: { size?: number }) {
@@ -85,8 +84,6 @@ export function Header({ loaded }: { loaded: number | (() => number) }) {
         <span className="band-i band-pay">{t('band.paid')} <span className="mono tnum nowrap">{pay ? `${usdc(pay.args.amount ?? pay.args.paidDelta, lang)}, ${t('word.block')} ${num(pay.block, lang)}${payAt ? `, ${ago(payAt, lang)}` : ''}` : activity ? t('end.none') : t('band.reading')}</span></span>
         <span className="band-sec"><span ref={sec} className="sec-n">{t('sec.hero')}</span><span className="prog-pct mono tnum" ref={pct} aria-hidden="true">{lang === 'fr' ? '0\u00a0%' : '0%'}</span></span>
       </div>
-      {/* 0 active enclaves: the page says so (ui/PauseBand.tsx) */}
-      <PauseBand />
       <div className="prog" aria-hidden="true"><div className="prog-bar" ref={bar} /></div>
       {open ? <nav className="hd-drawer" aria-label={t('nav.main')}>{nav}</nav> : null}
       <SelLayer />
@@ -542,6 +539,15 @@ export function Carrier() {
 // transport line keeps the next ones to its right; once it has left, they return to the column with a shutter
 // (closing in place, opening at the new place), never sliding. Scrolling back up replays everything in reverse.
       const x0 = homes[0].left
+      // The carried buttons ride on the row of the last docked button while that button is on screen: at every stop
+      // they sit aligned with the button of the section, to its right. Once it has scrolled away (above the header
+      // zone), they go back to the transport line at the bottom of the screen (with a shutter).
+      const MINY = 150
+      let rowY = carryY
+      for (let j = CTAS.length - 1; j >= 0; j--) {
+        const d = docks[j]
+        if (d && d.top <= carryY) { if (d.top >= MINY) rowY = d.top; break }
+      }
       let rowX = x0, carried = 0, carriedY = Infinity
       const docked: { j: number; top: number }[] = []
       CTAS.forEach((c, j) => {
@@ -559,8 +565,8 @@ export function Carrier() {
           tx = d.left; y = d.top; docked.push({ j, top: d.top })
           // docked, it still holds the transport line (or will take it back when scrolling up: 140 px margin, so that
 // the next one has finished its shutter before it arrives): buttons in transit stay to its right
-          if (d.top > carryY - 140) rowX = Math.max(rowX, d.left + bw + 8)
-        } else { tx = rowX; y = carryY; rowX += bw + 8; carried++; carriedY = Math.min(carriedY, y) }
+          if (d.top > carryY - 140 || Math.abs(d.top - rowY) < 1) rowX = Math.max(rowX, d.left + bw + 8)
+        } else { tx = rowX; y = rowY; rowX += bw + 8; carried++; carriedY = Math.min(carriedY, y) }
         const st = vs[j], key = atHome ? 'h' : isDock ? 'd' : 'c'
         // a change of place from afar (a button in transit back to the column, or a state jump): shutter, never a slide
         const jump = (key !== st.key && Math.hypot(st.x - tx, st.y - y) > 40) || (key === 'c' && st.key === 'c' && Math.abs(st.x - tx) > 40)
@@ -580,6 +586,10 @@ export function Carrier() {
         const cp = e >= 0.999 ? '' : `inset(0 0 ${((1 - e) * 100).toFixed(1)}% 0)`
         if (el.dataset.cp !== cp) { el.dataset.cp = cp; el.style.clipPath = cp }
         el.dataset.state = atHome ? 'home' : isDock ? 'dock' : 'carry'
+        // colour by role: in the hero each button keeps its own style; docked on its section it is the main action
+        // (white), carried along it stays secondary (grey)
+        const cls = `btn ${atHome ? CTAS[j].kind : isDock ? 'btn-main' : 'btn-line'}`
+        if (el.className !== cls) el.className = cls
         // no active state on the button of the current section (the frame only appears on hover, press or
 // keyboard focus)
       })

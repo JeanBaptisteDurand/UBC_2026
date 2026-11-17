@@ -10,7 +10,7 @@ export type SecId = (typeof ORDER)[number]
 export const PINNED: SecId[] = ['protocol', 'arc']
 
 let tops: number[] = [], hs: number[] = [], txts: number[] = []
-let total = 1, hdH = 96
+let total = 1, hdH = 96, endTtl = 0
 function measure() {
   const y = scrollY()
   tops = []; hs = []; txts = []
@@ -22,6 +22,7 @@ function measure() {
     const tr = el?.querySelector<HTMLElement>(id === 'end' ? '.chain' : '.txt')?.getBoundingClientRect()
     txts.push(r && tr ? tr.top - r.top : 0)
   }
+  { const e = document.querySelector<HTMLElement>('[data-sec="end"]'), t = e?.querySelector<HTMLElement>('.ttl, h2'); endTtl = e && t ? t.getBoundingClientRect().top - e.getBoundingClientRect().top : 0 }
   total = document.documentElement.scrollHeight
   hdH = document.querySelector<HTMLElement>('.hd')?.getBoundingClientRect().bottom ?? 96
 }
@@ -34,23 +35,28 @@ function measure() {
 // - Arc, at each step: read (0.08), replay (0.2), recomputed hash (0.64), verdict (0.8);
 // - the end: the proof chain under the header, then the bottom of the page.
 export const STATE_STOP = 0.32
+/** every title lands at the header bottom + 58 px (the sticky top of the state blocks, the padding of the pinned pages) */
+const TITLE_GAP = 58
 // One stop per text of the pinned page (0.24 / 0.525 / 0.76), so the motion takes less scrolling; the pull-out and the
 // lid closing play during the trips
 const PROTO_STOPS: [number, string][] = [[0.235, 'decalage'], [0.45, 'strates'], [0.72, 'feuille'], [0.97, 'rentree']]
-const ARC_STOPS: [number, string][] = [[0.08, 'lecture'], [0.2, 'rejeu'], [0.64, 'empreinte'], [0.8, 'verdict']]
+// One stop on arrival, one on the verdict: the replay and the fingerprint check play during the single move between
+// them (the 32 cells fill from 0.25 to 0.62, the LED turns green at 0.70)
+const ARC_STOPS: [number, string][] = [[0.08, 'lecture'], [0.8, 'verdict']]
 function stops(): Stop[] {
   const H = innerHeight, l = getLenis(), lim = l ? l.limit : total - H
   const out: Stop[] = [{ y: 0, id: 'hero', k: 'hero' }]
   ORDER.forEach((id, i) => {
     const a = tops[i], h = hs[i]
     if (id === 'use' || id === 'rent' || id === 'publish' || id === 'invalid') {
-      out.push({ y: Math.min(a + STATE_STOP * h - H / 2, a + txts[i] - hdH - 24), id, k: id })
+      // the title at TITLE_Y, the block exactly at its sticky point (styles.css, .st .txt)
+      out.push({ y: a + txts[i] - (hdH + TITLE_GAP), id, k: id })
     } else if (id === 'protocol' || id === 'arc') {
       const len = Math.max(1, h - H)
       for (const [p, k] of id === 'protocol' ? PROTO_STOPS : ARC_STOPS)
         out.push({ y: a + p * len, id, k: `${id}.${k}`, ready: id === 'protocol' ? () => Math.abs(world.protoQ - p) < 0.004 : undefined })
     } else if (id === 'end') {
-      out.push({ y: a + txts[i] - hdH - 24, id, k: 'end.preuves' }, { y: lim, id, k: 'end.fin' })
+      out.push({ y: a + endTtl - (hdH + TITLE_GAP), id, k: 'end.preuves' }, { y: lim, id, k: 'end.fin' })
     }
   })
   // In order, in the page, no duplicates
@@ -70,7 +76,8 @@ export const secH = (id: SecId) => hs[ORDER.indexOf(id)] ?? 0
 // A jump (menu, anchor, Home, End) out of the pinned page sets protoQ to its end.
 const LAG = 0.08
 // About a third slower, so the motion does not run too fast
-const rateAt = (q: number) => (q > 0.27 && q < 0.56 ? 0.12 : q > 0.1 && q < 0.72 ? 0.16 : 0.5)
+// the sled leaving the rack (q < 0.1) and the return (q > 0.72) are slowed as well
+const rateAt = (q: number) => (q > 0.27 && q < 0.56 ? 0.12 : q > 0.1 && q < 0.72 ? 0.16 : 0.2)
 let qLast = performance.now(), pPrev = 0
 // The state queue starts and stops smoothly (before: constant bounded speed, with an abrupt start and stop over 1 to 2
 // film frames). Target speed: the gap divided by QTAU, bounded by rateAt; the speed reaches it over QACC.

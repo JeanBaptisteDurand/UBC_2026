@@ -11,7 +11,6 @@ import { Logo } from '../ui/Logo'
 import { SelLayer } from '../ui/Sel'
 import { HeaderWallet } from '../network/actions/HeaderWallet'
 import '../network/actions/actions.css'
-import { PauseBand } from '../ui/PauseBand'
 
 export type AppPage = 'use' | 'service' | 'demo' | 'rent' | 'publish' | 'network' | 'bounty' | 'sessions' | 'operator'
 
@@ -80,8 +79,6 @@ export function AppHeader({ page, section, replay, wallet }: { page: AppPage; se
         <span className="band-sec"><span className="sec-n">{t(section)}</span></span>
       </div>
       )}
-      {/* no active enclave: the page says so (ui/PauseBand.tsx) */}
-      {replay ? null : <PauseBand />}
       <div className="prog" aria-hidden="true"><div className="prog-bar" ref={bar} /></div>
       {open ? <nav className="hd-drawer" aria-label={t('nav.main')}>{nav}</nav> : null}
       <SelLayer />
