@@ -492,8 +492,13 @@ let pickK = -1, pickD = 0
 // catching up), the film advanced in 8 px jumps every 70 to 100 ms. In slow motion, the next frame is blended on top at
 // the fraction of the position (pickB, pickA); at rest, the displayed position glides in 0.1 s to the nearest whole
 // frame: a single sharp frame.
-let pickB = -1, pickA = 0, shownB = -1, shownA = 0, dpos = 0
-const BLEND_V = Q.get('blend') === '0' ? 0 : 40
+let pickB = -1, pickA = 0, shownB = -1, shownA = 0, dpos = 0, restK = -1
+// Firefox: no blend (two new frames per refresh doubles the upload, and a blend over a lagging frame reads as a
+// ghost); ?blend=1 forces it, ?blend=0 turns it off everywhere
+const BLEND_V = Q.get('blend') === '0' || (FIREFOX && Q.get('blend') !== '1') ? 0 : 40
+// thumbnails only for big jumps (scrollbar, anchors): during a normal scroll, the sharp frame on screen is held for a
+// refresh rather than replaced by a blurry 12x upscale
+const SHEET_GAP = 12
 function choose(p: number) {
   const m = film.man!
   pickB = -1; pickA = 0
@@ -512,14 +517,16 @@ function choose(p: number) {
   const sh = m.sh
   if (sh) {
     const j = Math.min(Math.floor((m.n - 1) / sh.every), Math.max(0, Math.round(t / sh.every)))
-    if (sheets[Math.floor(j / (sh.cols * sh.rows))]) {
+    if (sheets[Math.floor(j / (sh.cols * sh.rows))] && !(film.shown >= 0 && film.def === 0 && Math.abs(film.shown - t) <= SHEET_GAP)) {
       // The shadow track only has one frame in 4; if it would give back the frame already shown during a motion, a full
       // frame 3 frames from the target goes first (scrollbar at CPU x4: frame held for 3 refreshes)
       if (moving && j * sh.every === film.shown) for (const a of [t + 3 * dir, t - 3 * dir]) if (a !== film.shown && bm.has(a)) { pickK = a; pickD = 0; return true }
       pickK = j * sh.every; pickD = 2; return true
     }
   }
-  for (let d = 3; d < 60; d++) { const a = t + d * dir, b = t - d * dir; if (bm.has(a)) { pickK = a; pickD = 0; return true } if (bm.has(b)) { pickK = b; pickD = 0; return true } }
+  // never a frame from further away: in the protocol, 10 frames apart can be a closed sled and an open one; better to
+  // hold the frame on screen for a refresh than to flash another moment of the film
+  for (let d = 3; d < 4; d++) { const a = t + d * dir, b = t - d * dir; if (bm.has(a)) { pickK = a; pickD = 0; return true } if (bm.has(b)) { pickK = b; pickD = 0; return true } }
   return false
 }
 const NODRAW = Q.get('dessin') === '0'
@@ -710,13 +717,20 @@ export async function mountFilm(canvas: HTMLCanvasElement, onFirst: () => void) 
     const p = posAt(scrollY(), world.protoQ)
     // Direction only flips beyond half a frame
     if (p - lastPos > 0.5) { dir = 1; lastPos = p } else if (lastPos - p > 0.5) { dir = -1; lastPos = p }
-    const changed = p !== film.pos
+    const changed = p !== film.pos, dp = Math.abs(p - film.pos)
     // Speed in the film (frames per second), to predict native scrolling
     if (dt > 0) vel = vel * 0.6 + 0.4 * (p - film.pos) / Math.max(1 / 240, dt)
     film.pos = p
     // Displayed position: follows the film; at rest, glides to the nearest whole frame
-    if (changed || Math.abs(dpos - p) > 1.5) dpos = p
-    else { const r = Math.round(p); dpos += (r - dpos) * (1 - Math.exp(-Math.max(dt, 1 / 240) / 0.05)); if (Math.abs(r - dpos) < 1 / 64) dpos = r }
+    // a target that only creeps (the protocol state queue converging, a few thousandths of a frame per refresh) counts
+    // as at rest: otherwise two frames stayed blended at a stop and the image flickered
+    if (dp > 0.02 || Math.abs(dpos - p) > 1.5) dpos = p
+    else {
+      // the whole frame to rest on, with hysteresis: a target hovering around a half frame no longer alternates two frames
+      if (restK < 0 || Math.abs(p - restK) > 0.6) restK = Math.round(p)
+      const r = restK; dpos += (r - dpos) * (1 - Math.exp(-Math.max(dt, 1 / 240) / 0.05)); if (Math.abs(r - dpos) < 1 / 64) dpos = r
+    }
+    if (dp > 0.02) restK = -1
     schedule()
     // Fallback: the decode throughput measured during the first 3 seconds
     if (!t3 && decN >= 6) t3 = now
