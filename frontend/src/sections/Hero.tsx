@@ -53,9 +53,9 @@ export function Hero() {
         <Catch />
         <p className="support">{t('hero.support')}</p>
         {/* the replayed demo, reachable from the first screen (the same link as in the last section) */}
-        <a className="tlink hero-demo" href={link.demo}><span className="hero-demo-r" aria-hidden="true" />{t('end.demo')}</a>
+        <a className="tlink hero-demo hero-live" href={link.demo}><svg className="hero-ic" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8.6" /><path d="M8.2 6.6 L13.8 10 L8.2 13.4 Z" /></svg><span>{t('end.demo')}</span></a>
         {/* the wall is the catalog: every lit sled is a service; the full list, in the same sled faces, is one click away */}
-        <a className="tlink hero-demo hero-cat" href={link.services}><span className="hero-demo-r" aria-hidden="true" />{t('hero.cat')}</a>
+        <a className="tlink hero-demo hero-cat hero-live" href={link.services}><svg className="hero-ic" viewBox="0 0 20 20" aria-hidden="true"><rect x="2.4" y="3" width="15.2" height="4" rx="0.6" /><rect x="2.4" y="8" width="15.2" height="4" rx="0.6" /><rect x="2.4" y="13" width="15.2" height="4" rx="0.6" /><path d="M4.6 4.2 V5.8 M4.6 9.2 V10.8 M4.6 14.2 V15.8" className="hero-ic-led" /></svg><span>{t('hero.cat')}</span></a>
         <p className="sr-only" id="wall-keys">{t('hero.hint.keys')}</p>
         {/* the buttons close the column: moving down, they never pass over any hero text. Under them, the copilot
             bar, as wide as the three buttons together: on the first screen it replaces the floating copilot button,

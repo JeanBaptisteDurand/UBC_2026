@@ -10,7 +10,7 @@ export type SecId = (typeof ORDER)[number]
 export const PINNED: SecId[] = ['protocol', 'arc']
 
 let tops: number[] = [], hs: number[] = [], txts: number[] = []
-let total = 1, hdH = 96, endTtl = 0
+let total = 1, hdH = 96, endTtl = 0, endTtl2 = 0
 function measure() {
   const y = scrollY()
   tops = []; hs = []; txts = []
@@ -23,6 +23,8 @@ function measure() {
     txts.push(r && tr ? tr.top - r.top : 0)
   }
   { const e = document.querySelector<HTMLElement>('[data-sec="end"]'), t = e?.querySelector<HTMLElement>('.ttl, h2'); endTtl = e && t ? t.getBoundingClientRect().top - e.getBoundingClientRect().top : 0 }
+  // the closing title (call and buttons) lands at the top too, on the last stop
+  { const e = document.querySelector<HTMLElement>('[data-sec="end"]'), t = e?.querySelector<HTMLElement>('.end-hd .ttl'); endTtl2 = e && t ? t.getBoundingClientRect().top - e.getBoundingClientRect().top : 0 }
   total = document.documentElement.scrollHeight
   hdH = document.querySelector<HTMLElement>('.hd')?.getBoundingClientRect().bottom ?? 96
 }
@@ -33,7 +35,8 @@ function measure() {
 // - the protocol, at each played step of the exploded view (cam.ts, PT); dwell only counts once the queue (protoQ)
 //   has reached the step;
 // - Arc, at each step: read (0.08), replay (0.2), recomputed hash (0.64), verdict (0.8);
-// - the end: the proof chain under the header, then the bottom of the page.
+// - the end: the proof chain title under the header, then the closing title under the header (the page is long
+//   enough below it, styles.css .end-hd min-height).
 export const STATE_STOP = 0.32
 /** every title lands at the header bottom + 58 px (the sticky top of the state blocks, the padding of the pinned pages) */
 const TITLE_GAP = 58
@@ -56,7 +59,7 @@ function stops(): Stop[] {
       for (const [p, k] of id === 'protocol' ? PROTO_STOPS : ARC_STOPS)
         out.push({ y: a + p * len, id, k: `${id}.${k}`, ready: id === 'protocol' ? () => Math.abs(world.protoQ - p) < 0.004 : undefined })
     } else if (id === 'end') {
-      out.push({ y: a + endTtl - (hdH + TITLE_GAP), id, k: 'end.preuves' }, { y: lim, id, k: 'end.fin' })
+      out.push({ y: a + endTtl - (hdH + TITLE_GAP), id, k: 'end.preuves' }, { y: endTtl2 ? Math.min(lim, a + endTtl2 - (hdH + TITLE_GAP)) : lim, id, k: 'end.fin' })
     }
   })
   // In order, in the page, no duplicates

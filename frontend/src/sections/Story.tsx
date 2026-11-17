@@ -255,8 +255,10 @@ export function ArcGate() {
             </div>
             <div className={`verdict ph-${shown}`} aria-live="polite">
               {shown === 'ok' ? <Seal ok label={g?.block ?? world.wall.replayBlock ? t('s5.atOk', { n: num((g?.block ?? world.wall.replayBlock)!, lang) ?? '' }) : t('s5.admitted')} key={`ok${flip}`} /> : shown === 'refused' ? <Seal ok={false} label={t('s5.atNo')} key={`no${flip}`} /> : (phase === 'calling' ? <span className="seal-wait">{t('s5.calling')}</span> : null)}
-              {/* "its service can run" only if the replayed enclave is still active */}
-              <p>{shown === 'idle' || shown === 'calling' ? t('s5.idle') : shown === 'ok' ? (world.wall.sleds[world.wall.replay]?.enclave?.active === false ? t('s5.okPast') : t('s5.ok')) : shown === 'refused' ? (diff === 1 ? t('s5.refused1') : t('s5.refused', { n: diff })) : t('s5.unavailable')}</p>
+              {/* "its service can run" only if the replayed enclave is still active; an expired registration gets no line
+                  (the seal already says Arc admitted it) */}
+              {shown === 'ok' && world.wall.sleds[world.wall.replay]?.enclave?.active === false ? null
+                : <p>{shown === 'idle' || shown === 'calling' ? t('s5.idle') : shown === 'ok' ? t('s5.ok') : shown === 'refused' ? (diff === 1 ? t('s5.refused1') : t('s5.refused', { n: diff })) : t('s5.unavailable')}</p>}
             </div>
             {phase === 'error'
               ? <button className="btn btn-line btn-s" onClick={retry} data-slot="CALL ARC AGAIN"><span>{t('s5.retry')}</span></button>
