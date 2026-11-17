@@ -260,6 +260,7 @@ a { color: inherit; }
   .toast { top: calc(env(safe-area-inset-top, 0px) + 118px); bottom: auto; transform: translate(-50%, -8px); }
   .ticker .tick:nth-of-type(n+3) { display: none; }
   .tour { bottom: calc(env(safe-area-inset-bottom, 0px) + 122px); padding: 15px 16px 14px; }
+  body:has(#tour.on) .ticker { visibility: hidden; }
   .tour h2 { font-size: 18px; }
   .tour p { font-size: 14.5px; }
   .panel { top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); max-height: 62vh; left: 12px; right: 12px; width: auto; }
