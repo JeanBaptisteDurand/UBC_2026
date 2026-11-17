@@ -2,18 +2,23 @@
 // been read yet is "unknown", never zero. /activity is read over its last 100 events: the 25 most recent drive the
 // wall, the rest are used to find the last real payment.
 import { useSyncExternalStore } from 'react'
+import type { ChainState } from './onchain'
 
-const env = import.meta.env as Record<string, string | undefined>
-const DIRECT_API = (env.VITE_API_URL ?? 'https://archive.62-171-153-35.sslip.io/api').replace(/\/+$/, '')
-const DIRECT_RPC = env.VITE_ARC_RPC ?? 'https://rpc.testnet.arc.io'
-// The dev and preview servers proxy the API and the Arc RPC on the same origin. A static host without that proxy
-// answers 404 or index.html on the first read, and each read then falls back to the direct URL on its own
-// (see json() and rpc() below).
-export let API = '/jb-api'
-export let RPC = '/arc-rpc'
-const direct = () => { API = DIRECT_API; RPC = DIRECT_RPC }
-export const EXPLORER = 'https://explorer.testnet.arc.io'
-export const CONSOLE = env.VITE_CONSOLE_URL ?? 'https://archive.62-171-153-35.sslip.io'
+import { API_DIRECT, RPC_DIRECT, PROFILE, CONSOLE as CONSOLE_URL, EXPLORER as EXPLORER_URL, setRelay } from './endpoints'
+
+// Addresses come from data/endpoints.ts (one configuration, several build profiles). "relay" profile (dev, previews):
+// the app server proxy first (/jb-api, /arc-rpc), then the direct URL if the host has no proxy (json() and rpc() fall
+// back on their own). "jb" and "ext" profiles: direct URLs from the start.
+const DIRECT_API = API_DIRECT
+const DIRECT_RPC = RPC_DIRECT
+export let API = PROFILE === 'relay' ? '/jb-api' : DIRECT_API
+export let RPC = PROFILE === 'relay' ? '/arc-rpc' : DIRECT_RPC
+const direct = () => { API = DIRECT_API; RPC = DIRECT_RPC; setRelay(false) }
+export const EXPLORER = EXPLORER_URL
+export const CONSOLE = CONSOLE_URL
+/** Operator agent install script: a full URL, even when the console is served under a relative path
+ *  (VITE_CONSOLE_URL=/console); install.sh then downloads archive-node.mjs from the site root */
+export const INSTALL_URL = (import.meta.env as Record<string, string | undefined>).VITE_INSTALL_URL ?? 'https://archive.62-171-153-35.sslip.io/install.sh'
 
 export interface Stats {
   refundedUsdc?: string
@@ -40,15 +45,37 @@ export interface Proof {
   verdictTx: string | null; verdictAgentId: string | null; verdictResponse: number | null; verdictStatus: string | null
   enclaveImage: { imageId: string; composeHash: string; osImageHash: string; tx: string } | null
 }
-export interface Bounty { id: string; productId: string; balance: string; paidAmount: string; singleCap: string; deadline: string; paused: boolean }
+export interface Bounty {
+  id: string; productId: string; balance: string; paidAmount: string; singleCap: string; deadline: string; paused: boolean
+  /** From /api/bounties (SDK BountyRow) */
+  protocol?: string; predicateHash?: string; k?: number; lastPaidBlock?: string; pausedFromBlock?: string; targetToPause?: string
+}
+/** GET /levels: the two operator levels */
+export interface LevelEnclave {
+  signer: string; productId: string; operator: string; ppid: string | null; bindingCurrent: boolean; level: 'verified' | 'open'
+  proofOfCloud: { expiresAt: number; revoked: boolean; lastTokenAt: number } | null; productRequires: 'verified' | 'open'; meetsProduct: boolean
+}
+export interface Levels {
+  enabled: boolean
+  contracts?: { machineRegistry: string; proofOfCloudAuditor: string; ed25519Verifier: string; policyEnclaves: string; sealedBountyVerified: string }
+  alliance?: { name: string; key: string; peers: string[]; source: string; auditor: string }
+  verifiedBounty?: { address: string; canSlash: boolean; slashFrom: number | null }
+  enclaves?: LevelEnclave[]
+  products?: { productId: number; requires: 'verified' | 'open'; auditors: string[]; pending: unknown }[]
+}
+export type { ChainState } from './onchain'
 
 export type Status = 'loading' | 'ok' | 'error'
 export interface LiveState {
   status: Status
   stats?: Stats; enclaves?: Enclave[]; products?: Product[]; activity?: Activity[]; proof?: Proof; bounties?: Bounty[]
+  /** /levels: undefined until read, null if the API does not provide it (missing route, error) */
+  levels?: Levels | null
+  /** Actual state of enclaves and operators, read on Arc (onchain.ts); absent until read */
+  chain?: ChainState
   block?: number; blockAt?: number
   error?: string
-  /** Count of new events since load */
+  /** New events since load */
   fresh: Activity[]
 }
 
@@ -96,9 +123,26 @@ async function poll() {
     first = false
     set({ status: 'ok', stats, enclaves, products, activity, bounties, error: undefined, fresh: fresh.length ? fresh : state.fresh })
     if (!state.block) set({ block: Number(stats.head), blockAt: Date.now() })
+    pollChain(enclaves)
   } catch (e) {
     set({ status: state.stats ? 'ok' : 'error', error: String((e as Error).message || e) })
   } finally { busy &= ~1 }
+}
+
+// Actual state of enclaves and operators in a single eth_call (Multicall3): on the first read, then every 60 s, or 10 s
+// after the enclave list changes (or a failure); never on every 4 s read, as the public Arc RPC answers bursts with 429
+let chainKey = '', chainAt = 0
+function pollChain(enclaves: Enclave[]) {
+  if (busy & 8 || !enclaves.length) return
+  const key = enclaves.map((e) => `${e.signer}:${e.operator}:${e.active}`).join()
+  if (Date.now() - chainAt < (key === chainKey ? 60000 : 10000)) return
+  busy |= 8
+  chainAt = Date.now()
+  import('./onchain')
+    .then(({ readChainState }) => readChainState(enclaves.map((e) => e.signer), enclaves.map((e) => e.operator)))
+    .then((chain) => { chainKey = key; set({ chain }) })
+    .catch(() => { /* the previous read stays */ })
+    .finally(() => { busy &= ~8 })
 }
 
 async function pollProof() {
@@ -116,29 +160,40 @@ async function pollBlock() {
   } catch { /* the API block stays on screen */ } finally { busy &= ~4 }
 }
 
+async function pollLevels() {
+  if (busy & 8) return
+  busy |= 8
+  try { set({ levels: await json<Levels>('/levels') }) } catch { if (state.levels === undefined) set({ levels: null }) } finally { busy &= ~8 }
+}
+
 let started = false
-export function startLive() {
+/** levels: also read /levels (app pages; the landing does not use it) */
+export function startLive(o: { levels?: boolean } = {}) {
   if (started) return
   started = true
+  const lv = !!o.levels
   // The block waits for the first API read: it tells whether the proxy exists (otherwise, direct URLs)
-  poll().then(() => { if (API === DIRECT_API) RPC = DIRECT_RPC; pollBlock() }); pollProof()
+  poll().then(() => { if (API === DIRECT_API) RPC = DIRECT_RPC; pollBlock(); if (lv) pollLevels() }); pollProof()
+  if (lv) setInterval(() => { if (!document.hidden) pollLevels() }, 30000)
   setInterval(() => { if (!document.hidden) poll() }, 4000)
   setInterval(() => { if (!document.hidden) pollProof() }, 20000)
   setInterval(() => { if (!document.hidden) pollBlock() }, 1000)
 }
 
-/** A JSON-RPC call to Arc testnet (proxied in dev, direct when static). */
+/** A JSON-RPC call to Arc testnet (proxied in dev, direct in production). 8 s timeout, so a hanging request does not
+ *  block the following reads. */
 export async function rpc<T = unknown>(method: string, params: unknown[]): Promise<T> {
   const body = JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })
   const base = RPC
   for (const url of base === DIRECT_RPC ? [base] : [base, DIRECT_RPC]) {
+    const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 8000)
     try {
-      const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body })
-      if (!r.ok || !/json/.test(r.headers.get('content-type') ?? '')) { if (url !== DIRECT_RPC) RPC = DIRECT_RPC; continue }
+      const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body, signal: ctl.signal })
+      if (!r.ok || !/json/.test(r.headers.get('content-type') ?? '')) { if (url !== DIRECT_RPC) { RPC = DIRECT_RPC; continue } throw new Error(`HTTP ${r.status}`) }
       const j = await r.json()
       if (j.error) throw new Error(j.error.message ?? 'rpc error')
       return j.result as T
-    } catch (e) { if (url === DIRECT_RPC) throw e }
+    } catch (e) { if (url === DIRECT_RPC) throw e } finally { clearTimeout(to) }
   }
   throw new Error('rpc unreachable')
 }
