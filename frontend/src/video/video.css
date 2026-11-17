@@ -1,0 +1,61 @@
+/* Video landing: the film and its light layer.
+   The page background already carries the first frame (index.html): the first screen is there before any script. */
+/* The first frame is an <img> in the HTML (#poster, high priority), visible under the canvas until the first draw. The
+   canvas has the size of the set's frames; its framing (cover) and the zoom toward the open service are CSS (film.ts,
+   place and applyZoom): drawing happens without scaling. */
+html.film-page .stage { background: transparent; overflow: hidden; }
+.stage canvas.film { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; will-change: transform; }
+.stage[data-pin='1'] .veil { opacity: 0; }
+
+/* The layer adds to the image: it lights the film, it never covers it */
+.film-layer { position: absolute; inset: 0; overflow: hidden; pointer-events: none; mix-blend-mode: plus-lighter; isolation: isolate; }
+.lm-plate, .lm-led { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; backface-visibility: hidden; }
+
+/* ---- The plate: backlit smoked glass, the name in Fragment Mono capitals (same marks as plates.ts: title band from
+   10% to 60% of the height from the top, status word and unit from 70% to 92%) ---- */
+.lm-plate { --c: 170 180 196; font-family: var(--mono); font-weight: 400; text-transform: uppercase; white-space: nowrap; contain: layout style; }
+.lm-plate > span { position: absolute; display: block; }
+.lm-t { left: 4.5%; top: 10%; height: 50%; display: flex !important; flex-direction: column; justify-content: center; letter-spacing: 0; }
+.lm-t > span { display: block; }
+.lm-s, .lm-u { top: 70%; height: 22%; font-size: calc(var(--ph) * 0.22 * 0.875); line-height: calc(var(--ph) * 0.22); }
+.lm-s { left: 4.5%; }
+.lm-u { right: 4.5%; }
+/* Lit: the core of the stroke leans toward white, the light takes the LED colour and spills onto the facade */
+.lm-plate:not([data-st='off']) .lm-t {
+  color: color-mix(in srgb, rgb(var(--c)) 76%, #fff);
+  text-shadow: 0 0 1.5px rgb(var(--c) / 1), 0 0 5px rgb(var(--c) / 0.85), 0 0 12px rgb(var(--c) / 0.55), 0 0 30px rgb(var(--c) / 0.3);
+}
+.lm-plate:not([data-st='off']) .lm-s, .lm-plate:not([data-st='off']) .lm-u {
+  color: color-mix(in srgb, rgb(var(--c)) 88%, #fff);
+  text-shadow: 0 0 1px rgb(var(--c) / 0.9), 0 0 5px rgb(var(--c) / 0.5), 0 0 12px rgb(var(--c) / 0.2);
+}
+/* The light of the name spilling into the smoked glass and onto the surrounding facade (plates.ts light atlas, wide radius) */
+.lm-plate:not([data-st='off'])::before { content: ''; position: absolute; inset: -18% -6% -18% -4%; pointer-events: none;
+  background: radial-gradient(ellipse 52% 46% at 34% 38%, rgb(var(--c) / 0.16), rgb(var(--c) / 0.05) 55%, transparent 80%); }
+/* Open slot: an engraving in the glass, light on the top edge of the stroke, with no light of its own */
+.lm-plate[data-st='off'] .lm-t, .lm-plate[data-st='off'] .lm-s, .lm-plate[data-st='off'] .lm-u {
+  color: rgb(var(--c) / 0.13);
+  text-shadow: 0 -0.6px 0 rgb(220 228 240 / 0.12);
+}
+.lm-plate[data-st='off'] .lm-s, .lm-plate[data-st='off'] .lm-u { color: rgb(var(--c) / 0.065); }
+/* Hover: the plate lights up */
+/* No frame or coloured background on the hovered or selected sled */
+.lm-plate.hov[data-st='off'] .lm-t { color: rgb(var(--c) / 0.42); }
+
+/* ---- The LED: the slit (sharp core, almost white filament) and the light leaking into the surrounding lacquer, in
+   three radii as in the scene (2, 6 and 16 mm, tighter in width than in height: the slit is vertical) ---- */
+/* The intensity is the opacity of .lm-led itself (film.ts writes only that); the children are fixed */
+.lm-led { --c: 84 255 146; }
+.lm-led > i { position: absolute; display: block; }
+.lm-spill { inset: 0;
+  background:
+    radial-gradient(ellipse 12% 30% at 50% 50%, rgb(var(--c) / 0.62), rgb(var(--c) / 0.16) 50%, transparent 100%),
+    radial-gradient(ellipse 36% 50% at 50% 50%, rgb(var(--c) / 0.18), rgb(var(--c) / 0.05) 50%, transparent 100%); }
+.lm-core { left: 50%; top: 50%; transform: translate(-50%, -50%); border-radius: 999px;
+  background: linear-gradient(90deg, rgb(var(--c) / 0.85), color-mix(in srgb, rgb(var(--c)) 55%, #fff) 50%, rgb(var(--c) / 0.85));
+  box-shadow: 0 0 2px rgb(var(--c) / 1), 0 0 6px rgb(var(--c) / 0.7), 0 0 14px rgb(var(--c) / 0.3); }
+
+@media (prefers-reduced-motion: reduce) { .lm-plate, .lm-led { will-change: auto; } }
+/* A/B (?wc=0): without will-change, Chrome repaints the plate text at the right scale every frame (with it, Chrome
+   stretches a frozen image during motion: blur and aliasing until it stops) */
+html.nowc .lm-plate, html.nowc .lm-led { will-change: auto; }
