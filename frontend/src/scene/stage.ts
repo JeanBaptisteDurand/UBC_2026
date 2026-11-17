@@ -16,7 +16,7 @@ import * as THREE from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js'
-import { onTick, sceneTime, REDUCED, FROZEN_T, getLenis, TOURNAGE } from '../clock'
+import { onTick, sceneTime, REDUCED, FROZEN_T, getLenis, TOURNAGE, scrollY } from '../clock'
 import { wallLot, heroLot, progress as loadP, mark, WALL_GLB, WALL_TEX, HERO_TEX } from '../assets'
 import { world } from '../world'
 import { G, K, FACE, SLOTS, NSLOTS, plateOf, ledOf3, productLabel, oklchToLinear, type Sled } from '../data/wall'
@@ -1632,7 +1632,7 @@ gl_FragColor.rgb = hfog(gl_FragColor.rgb, vWP);`)
       // Video landing: blend out of the protocol page. Once the pinned page ended, the camera stayed still until the Arc
       // section and then jumped (29°, 1.9 m); it now glides toward the Arc framing over that range
       const pa = secTop('protocol'), pEnd = pa + Math.max(1, secH('protocol') - H), aIn = secTop('arc') - H * 0.5
-      const y0 = getLenis()?.animatedScroll ?? window.scrollY
+      const y0 = scrollY()
       if (aIn > pEnd + 1 && y0 > pEnd) target = lerpView(target, cached('arc'), easeIO(sm((y0 - pEnd) / (aIn - pEnd))))
     }
     // Video landing: arc -> end spread over f 0.75-1 (instead of 0.9-1)
@@ -1666,7 +1666,7 @@ gl_FragColor.rgb = hfog(gl_FragColor.rgb, vWP);`)
       // Video landing: on phones the image offset (top band, pinned-page panels) changed abruptly at the edges of the
       // pinned pages (up to 257 px); the real-time scene smooths it over time, the film smooths it over scroll (frames
       // are captured in order, top to bottom)
-      const y = getLenis()?.animatedScroll ?? window.scrollY
+      const y = scrollY()
       if (Number.isNaN(shY) || Math.abs(y - shY) > 400) st.shift = shiftT
       else st.shift += (shiftT - st.shift) * (1 - Math.exp(-Math.abs(y - shY) / 140))
       shY = y
@@ -1852,7 +1852,9 @@ gl_FragColor.rgb = hfog(gl_FragColor.rgb, vWP);`)
       { let y = 0; parts.forEach((p, j) => { y += p.d * exOf(j); p.y = y; p.o.position.y = p.base + y }) }
       // The lid rises straight and leaves the frame at the top (never in front of the sled)
       const lidUp = st.lid * 1.4
-      if (lid) { lid.position.y = lidBase + lidUp; lid.visible = st.lid < 0.6 }
+      // (film-qualite: hidden only once fully up, out of frame; at 0.6 it could still show at the top edge and vanish in
+      // place between two film frames)
+      if (lid) { lid.position.y = lidBase + lidUp; lid.visible = st.lid < 0.98 }
       // The sheet sits exactly on the lid (top of the ribs, 0.0791); it comes down from 1.3 m and never goes under the lid:
       // while the lid is up, it waits above it
       const shUp = Math.max(st.sheetY * 1.3, st.lid > 0.001 ? lidUp + 0.03 : 0)
@@ -1973,7 +1975,7 @@ gl_FragColor.rgb = hfog(gl_FragColor.rgb, vWP);`)
   // out (facade frame -> world), the pull of Rent's free drawer, the column overlay, the explode anchors, and per sled
   // the visibility (rays toward the plate and the LED, against the pulled sled, its rails and the sheet) and the air
   // transmission (height fog, same formula as GLSL_FOG)
-  const fmRay = new THREE.Raycaster(), fmV = new THREE.Vector3(), fmD = new THREE.Vector3(), fmVP = new THREE.Matrix4()
+  const fmRay = new THREE.Raycaster(), fmBox = new THREE.Box3(), fmV = new THREE.Vector3(), fmD = new THREE.Vector3(), fmVP = new THREE.Matrix4()
   function fogT(x: number, y: number, z: number) {
     const cp = cam.position, dx = x - cp.x, dy = y - cp.y, dz = z - cp.z
     const dist = Math.max(Math.hypot(dx, dy, dz) - shared.uFogN.value, 0), k = shared.uFogK.value, y0 = Math.max(cp.y, 0)
@@ -2004,11 +2006,25 @@ gl_FragColor.rgb = hfog(gl_FragColor.rgb, vWP);`)
       fmV.set((p.x0 + p.x1) / 2 - s.x, p.y - s.base, pz); if (M) fmV.applyMatrix4(M); else fmV.add(tmpV.set(s.x, s.base, 0))
       fog.push(Math.round(fogT(fmV.x, fmV.y, fmV.z) * 255))
     }
+    // Moving objects of the pinned protocol page (seven layers, lid, Arc sheet): the eight corners of each box on screen
+    // (CSS px), with the object's visibility. The sampling plan (plan.mjs) bounds their motion between two frames; the
+    // player does not read them
+    const movers: number[] = []
+    if (heroG.visible) heroG.updateMatrixWorld(true)
+    for (const o of [...parts.map((p) => p.o), lid, sheet]) {
+      const on = !!o && heroG.visible && o.visible
+      if (on) fmBox.setFromObject(o!)
+      for (let c = 0; c < 8; c++) {
+        if (!on || fmBox.isEmpty()) { movers.push(0, 0, 0); continue }
+        fmV.set(c & 1 ? fmBox.max.x : fmBox.min.x, c & 2 ? fmBox.max.y : fmBox.min.y, c & 4 ? fmBox.max.z : fmBox.min.z).project(cam)
+        movers.push((fmV.x + 1) / 2 * W, (1 - fmV.y) / 2 * H, fmV.z < 1 ? 1 : 0)
+      }
+    }
     const anchors: number[] = []
     for (const k of ['part.0', 'part.1', 'part.2', 'part.3', 'part.4', 'part.5', 'part.6', 'sheet']) { const a = world.anchors.get(k); anchors.push(a ? a.x : 0, a ? a.y : 0, a ? a.vis : 0) }
     ;(window as unknown as { __filmMeta: unknown }).__filmMeta = {
       vp: fmVP.toArray(), cam: cam.position.toArray(), rep: out, rentPull: W_.ex.rent >= 0 ? faceAttr.pull[W_.ex.rent] : 0,
-      ov: compU.uOv.value.toArray(), anchors, frontal: world.frontal ? 1 : 0, wallX: world.wallX, vis, fog,
+      ov: compU.uOv.value.toArray(), anchors, movers, frontal: world.frontal ? 1 : 0, wallX: world.wallX, vis, fog,
       W, H, story: world.story, protoQ: world.protoQ, ex: W_.ex, replay: W_.replay,
     }
   }

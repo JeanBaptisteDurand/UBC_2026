@@ -237,7 +237,12 @@ export function startClock({ smooth = true }: { smooth?: boolean } = {}) {
   }
 }
 
-export const scrollY = () => (lenis ? lenis.animatedScroll : window.scrollY)
+// Film capture: the page itself scrolls by whole pixels, but the scene state may need a finer position (the pinned
+// protocol page moves the lid and the layers several screen pixels per page pixel). The capture sets the exact
+// fractional position here; the scene and the story read it instead of the rounded scroll.
+let filmY: number | null = null
+export const setFilmY = (y: number | null) => { filmY = TOURNAGE ? y : null }
+export const scrollY = () => (filmY !== null ? filmY : lenis ? lenis.animatedScroll : window.scrollY)
 
 /** Smooth scroll to an element */
 export function scrollTo(sel: string) {

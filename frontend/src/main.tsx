@@ -5,7 +5,7 @@ import { startClock } from './clock'
 import { startLive } from './data/live'
 import { world } from './world'
 import { startAssets } from './assets'
-import { TOURNAGE, setFilmT, getLenis } from './clock'
+import { TOURNAGE, setFilmT, setFilmY, getLenis } from './clock'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { SLOTS } from './data/wall'
 
@@ -30,6 +30,8 @@ if (TOURNAGE) {
   const raf = () => new Promise<void>((r) => requestAnimationFrame(() => r()))
   ;(window as unknown as { __filmGo: unknown }).__filmGo = async (y: number, tMs: number) => {
     setFilmT(tMs)
+    // the page scrolls by whole pixels; the scene reads the exact (fractional) position
+    setFilmY(y)
     world.gate.phase = 'ok'
     const l = getLenis()
     if (l) l.scrollTo(y, { immediate: true, force: true }); else window.scrollTo(0, y)
