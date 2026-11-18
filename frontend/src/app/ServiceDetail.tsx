@@ -267,7 +267,9 @@ function UseIt({ r, inPanel }: { r: SvcRow; inPanel: boolean }) {
 }
 
 /** a service body: header, status, cost, enclaves, proofs, activity, action */
-export function ServiceDetail({ pid, inPanel = false, headingId, wide = false }: { pid: string; inPanel?: boolean; headingId?: string; wide?: boolean }) {
+/** bare: only the live sections (cost, enclaves, proofs, activity), for the Services page column that already shows
+ *  the product's name, state and action */
+export function ServiceDetail({ pid, inPanel = false, headingId, wide = false, bare = false }: { pid: string; inPanel?: boolean; headingId?: string; wide?: boolean; bare?: boolean }) {
   const lang = useLang()
   const rows = useCatalog()
   const status = useLive((s) => s.status)
@@ -293,9 +295,11 @@ export function ServiceDetail({ pid, inPanel = false, headingId, wide = false }:
   const rail = RAIL_NAME[r.p.settlement.toLowerCase()]
   return (
     <div className="detail" ref={box} data-led={r.led}>
+      {bare ? <p className="lbl muted">{t('d.kind', { k: t(railKey(r.p) as TKey), id: r.p.id })}</p> : <>
       <p className="lbl muted">{t('d.kind', { k: t(railKey(r.p) as TKey), id: r.p.id })}</p>
       <h2 className={`d-name plate is-${r.led}`} id={headingId} tabIndex={-1} data-svc-h>{r.name}</h2>
       <p className="d-state"><span className={ledClass(r.led)} aria-hidden="true" />{stateLine(r)}</p>
+      </>}
       <SvcLevel pid={r.p.id} />
       <RoleNote r={r} />
       {r.lastPay ? <p className="lbl d-pay">{t('end.last')} <a className="tlink mono" href={tx(r.lastPay.a.tx)} target="_blank" rel="noreferrer">{`${usdc(r.lastPay.amount) ?? ''}, ${t('word.block')} ${num(r.lastPay.a.block, lang)}`}</a></p> : null}
@@ -393,10 +397,10 @@ export function ServiceDetail({ pid, inPanel = false, headingId, wide = false }:
         <Events r={r} />
       </section>
 
-      <section className="d-sec d-use">
+      {bare ? null : <section className="d-sec d-use">
         <h3 className="d-h">{t('d.use')}</h3>
         <UseIt r={r} inPanel={inPanel} />
-      </section>
+      </section>}
         </>
       )}
     </div>

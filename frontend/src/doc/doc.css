@@ -1,0 +1,129 @@
+/* Doc page. A stage the height of the window under the header: the reading column on the left (scrolls inside itself,
+   reading blur, accent titles like Network's focus titles), the server and the chapter index on the right. JB's chapter
+   styles are in doc-jb.css (scoped to .doc-r); the overrides that fit them into the column are at the end. */
+.doc { --docw: clamp(560px, 50vw, 860px); }
+.doc-stage { position: relative; height: calc(100svh - var(--hd)); min-height: 600px; display: grid; grid-template-columns: var(--docw) minmax(0, 1fr); overflow: hidden;
+  background: radial-gradient(90% 80% at 78% 40%, rgb(30 44 78 / 0.35), transparent 70%), linear-gradient(to bottom, rgb(14 17 23), rgb(10 12 16)); }
+
+/* ---- the reading column */
+.doc-col { position: relative; z-index: 2; min-height: 0; isolation: isolate; }
+.doc-col::before { content: ''; position: absolute; z-index: -1; inset: 0 -160px 0 0; pointer-events: none;
+  -webkit-backdrop-filter: blur(9px); backdrop-filter: blur(9px);
+  -webkit-mask-image: linear-gradient(to right, #000 0, #000 70%, rgb(0 0 0 / 0.55) 86%, transparent 100%); mask-image: linear-gradient(to right, #000 0, #000 70%, rgb(0 0 0 / 0.55) 86%, transparent 100%);
+  animation: read-blur 11s ease-in-out infinite alternate; }
+.doc-col::after { content: ''; position: absolute; z-index: -2; inset: 0; pointer-events: none; background: linear-gradient(to right, rgb(11 13 16 / 0.72), rgb(11 13 16 / 0.5) 80%, transparent); }
+.doc-r { container: doc / inline-size; height: 100%; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgb(var(--ink-c) / 0.18) transparent;
+  padding: 48px 48px 72px var(--gut, 72px); box-sizing: border-box;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 20px, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to bottom, transparent 0, #000 20px, #000 calc(100% - 32px), transparent); }
+.doc-r:focus-visible { outline: none; }
+@media (prefers-reduced-motion: reduce) { .doc-col::before { animation: none; } }
+
+/* titles: the hologram blue of Network's focus titles, the accent words lit */
+.doc-h { position: relative; margin: 0; padding-bottom: 20px; font-size: clamp(30px, 2.6vw, 42px); line-height: 1.08; letter-spacing: var(--tr-head); font-weight: var(--w-head); color: var(--ink); text-wrap: balance; max-width: 18em; }
+.doc-h:focus { outline: none; }
+.doc-h .ttl-rule { position: absolute; left: 0; bottom: 0; width: 64px; height: 1px; background: var(--arc-elec); box-shadow: 0 0 8px rgb(74 134 255 / 0.6); }
+.doc-r .tc-acc, .doc-h .tc-acc { color: #9cc0ff; text-shadow: 0 0 1px rgb(234 244 255 / 0.9), 0 0 10px rgb(74 134 255 / 0.55), 0 0 26px rgb(58 107 255 / 0.32); }
+.doc-h1 { font-size: clamp(40px, 3.6vw, 60px); line-height: 1.02; }
+
+/* introduction */
+.doc-intro { padding-top: 24px; }
+.doc-lede { margin: 32px 0 0; max-width: 32em; font-size: 18px; line-height: 1.55; color: var(--ink2); text-wrap: pretty; }
+.doc-verdict { margin: 40px 0 0; padding-left: 20px; box-shadow: inset 1px 0 0 var(--arc-elec); display: grid; gap: 8px; max-width: 30em; }
+.doc-v { margin: 0; font-size: 20px; line-height: 1.45; color: var(--ink); }
+.doc-verdict .lbl { margin: 0; }
+.doc-intro .tc-roots { margin-top: 32px; }
+.doc-st { margin-top: 20px; }
+.doc-start { margin: 40px 0 0; }
+.doc .btn { height: 44px; padding: 0 18px; }
+.doc .btn-main { background: var(--ink); color: var(--bg); }
+
+/* chapter bar: back to the start, previous / next */
+.doc-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 0 40px; }
+.doc-back { font-size: 15px; background: none; border: 0; color: var(--ink2); cursor: pointer; font: inherit; }
+.doc-back-i { margin-right: 10px; color: var(--arc-light); }
+.doc-back:hover { color: var(--ink); }
+.doc-step { display: inline-flex; align-items: center; gap: 4px; }
+.doc-of { min-width: 64px; text-align: center; font-size: 13px; color: var(--ink2); }
+.doc-nb { width: 40px; height: 40px; border: 0; background: var(--chip3); color: var(--ink); cursor: pointer; position: relative; transition: background var(--t2) var(--productive); }
+.doc-nb::before { content: ''; position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; border: solid currentColor; border-width: 0 0 1.5px 1.5px; transform: translate(-30%, -50%) rotate(45deg); }
+.doc-nb-n::before { transform: translate(-70%, -50%) rotate(-135deg); }
+.doc-nb:hover:not(:disabled) { background: var(--chip2); }
+.doc-nb:disabled { opacity: 0.35; cursor: default; }
+.doc-nextch { display: grid; gap: 6px; width: 100%; margin: 64px 0 0; padding: 20px 0 0; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; box-shadow: inset 0 1px 0 var(--rule2); }
+.doc-nextch-t { font-size: 20px; font-weight: var(--w-head); transition: color var(--t2) var(--productive); }
+.doc-nextch-t .mono { color: var(--arc-light); font-size: 15px; margin-right: 8px; }
+.doc-nextch:hover .doc-nextch-t { color: #9cc0ff; }
+.doc-check { margin: 16px 0 0; }
+
+/* ---- the server and the index */
+.doc-side { position: relative; z-index: 1; min-height: 0; display: grid; align-items: center; padding: 32px var(--gut, 72px) 32px 56px; }
+.doc-srv { position: absolute; inset: 0; pointer-events: none; background: url('/tex/chassis.webp') 62% 50% / auto 84% no-repeat; opacity: 0.22; filter: blur(1.5px) saturate(0.8);
+  -webkit-mask-image: radial-gradient(70% 70% at 62% 50%, #000 40%, transparent 100%); mask-image: radial-gradient(70% 70% at 62% 50%, #000 40%, transparent 100%); }
+.doc-idx { position: relative; max-width: 560px; justify-self: end; width: 100%; }
+.doc-idx-h { margin: 0 0 16px; color: var(--ink3); letter-spacing: 0.06em; text-transform: uppercase; }
+.doc-idx-l { list-style: none; margin: 0; padding: 0; display: grid; }
+.doc-idx-l a { display: grid; grid-template-columns: 40px minmax(0, 1fr); column-gap: 12px; padding: 10px 0 10px 16px; color: var(--ink2); box-shadow: inset 1px 0 0 var(--rule2); transition: color var(--t2) var(--productive), box-shadow var(--t2) var(--productive), background var(--t2) var(--productive); }
+.doc-idx-n { grid-row: span 2; padding-top: 4px; font-size: 13px; color: var(--ink3); transition: color var(--t2) var(--productive); }
+.doc-idx-t { font-size: clamp(17px, 1.4vw, 21px); line-height: 1.25; font-weight: var(--w-head); color: var(--ink); }
+.doc-idx-p { font-size: 13px; line-height: 1.4; color: var(--ink3); margin-top: 2px; }
+.doc-idx-l a:hover, .doc-idx-l a:focus-visible { background: rgb(var(--ink-c) / 0.03); box-shadow: inset 1px 0 0 var(--ink3); }
+.doc-idx-l a:hover .doc-idx-n { color: var(--ink2); }
+.doc-idx-l a[aria-current='true'] { box-shadow: inset 2px 0 0 var(--arc-elec); background: rgb(58 107 255 / 0.07); }
+.doc-idx-l a[aria-current='true'] .doc-idx-n, .doc-idx-l a[aria-current='true'] .doc-idx-t { color: #9cc0ff; text-shadow: 0 0 10px rgb(74 134 255 / 0.45); }
+@media (max-height: 820px) and (min-width: 1025px) { .doc-idx-p { display: none; } .doc-idx-l a { padding: 7px 0 7px 16px; } }
+
+/* ---- JB's chapters in the column: fewer margins, our tokens */
+.doc-r .tc-ch { padding: 0; box-shadow: none; }
+.doc-r .tc-ch.tc-band { margin: 0 -24px; padding: 32px 24px 32px; }
+.doc-r .tc-ch.tc-band .doc-bar { margin-top: -8px; }
+.doc-r .tc-kick { margin: 0 0 16px; font-size: 13px; }
+.doc-r .doc-h.tc-h { max-width: 20em; }
+.doc-r .doc-b > .tc-lede:first-child { margin-top: 28px; }
+.doc-r .tc-lede { font-size: 17px; }
+.doc-r .tc-ex { padding: 32px 0; }
+.doc-r .tbl-w { overflow-x: auto; }
+.doc-r .tc-ct-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin: 24px 0 16px; }
+.doc-r .tc-ct-st { margin: 0; color: var(--ink2); }
+.doc-r .doc-code-ok { color: var(--green); }
+.doc-r .tc-gate .bytes { display: flex; flex-wrap: wrap; gap: 3px; }
+.doc-r summary { cursor: pointer; }
+
+/* the diagram beside its steps while the column allows it (JB's narrow figure, at a reading size) */
+@container doc (min-width: 521px) {
+  .doc-r .dg { grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 24px 28px; align-items: start; }
+  .doc-r .dg-fig { padding: 12px; }
+}
+.doc-r .tc-nb-cols, .doc-r .tc-nb > .tc-nb-g + * { margin-top: 40px; }
+
+/* the contracts table reads as cards in the column (our app.css does it by the window width) */
+@container doc (max-width: 700px) {
+  .doc-r .tbl-w { overflow: visible; }
+  .doc-r .tbl, .doc-r .tbl tbody, .doc-r .tbl tr, .doc-r .tbl td { display: block; width: 100%; }
+  .doc-r .tbl thead { display: none; }
+  .doc-r .tbl tr { padding: 12px 0; box-shadow: inset 0 1px 0 var(--rule); }
+  .doc-r .tbl tr.tc-grp { padding: 24px 0 4px; box-shadow: none; }
+  .doc-r .tbl tr.tc-grp th { display: block; padding: 0; }
+  .doc-r .tbl td { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; padding: 4px 0; box-shadow: none; white-space: normal; overflow-wrap: anywhere; }
+  .doc-r .tbl td::before { content: attr(data-l); color: var(--ink2); font-family: var(--sans); font-size: 13px; }
+}
+
+/* ---- below the desktop: no stage; the column, then the index, in the page flow */
+@media (max-width: 1024px) {
+  .doc-stage { display: flex; flex-direction: column; height: auto; min-height: 0; overflow: visible; }
+  .doc-col::before, .doc-col::after { display: none; }
+  .doc-r { height: auto; overflow: visible; padding: 40px var(--gut, 32px) 48px; -webkit-mask-image: none; mask-image: none; }
+  .doc-side { padding: 24px var(--gut, 32px) 64px; box-shadow: inset 0 1px 0 var(--rule); }
+  .doc-idx { justify-self: stretch; max-width: none; }
+  .doc-srv { background-size: auto 70%; opacity: 0.14; }
+  .doc-col { scroll-margin-top: var(--hd); }
+}
+@media (max-width: 760px) {
+  .doc-r { padding: 32px 16px 40px; }
+  .doc-side { padding: 24px 16px 56px; }
+  .doc-h1 { font-size: 36px; }
+  .doc-h { font-size: 28px; }
+  .doc-lede { font-size: 17px; }
+  .doc-v { font-size: 18px; }
+  .doc-r .tc-ch.tc-band { margin: 0 -16px; padding: 24px 16px; }
+  .doc-idx-p { display: none; }
+}

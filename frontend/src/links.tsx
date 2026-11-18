@@ -10,7 +10,7 @@ import type { Service } from './data/wall'
 const B = import.meta.env.BASE_URL
 export const link = {
   home: B, use: `${B}use.html`, demo: `${B}network.html?focus=demo`, rent: `${B}rent.html`, publish: `${B}publish.html`, network: `${B}network.html`,
-  bounty: `${B}bounty.html`, sessions: `${B}sessions.html`, operator: `${B}operator.html`, services: `${B}network.html?focus=use`, catalog: `${B}service.html`,
+  bounty: `${B}bounty.html`, sessions: `${B}sessions.html`, operator: `${B}operator.html`, services: `${B}network.html?focus=use`, catalog: `${B}service.html`, doc: `${B}doc.html`,
   hive: `${CONSOLE}/#/ruche`, dev: `${CONSOLE}/#/developpeurs`, console: `${CONSOLE}/#/vue`, datacenter: DATACENTER,
 }
 /** The page that gathers Use, Rent and Publish, opened on one part */

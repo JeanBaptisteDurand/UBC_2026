@@ -13,12 +13,13 @@ import { MainNav } from '../ui/MainNav'
 import { HeaderWallet } from '../network/actions/HeaderWallet'
 import '../network/actions/actions.css'
 
-export type AppPage = 'use' | 'service' | 'demo' | 'rent' | 'publish' | 'network' | 'bounty' | 'sessions' | 'operator'
+export type AppPage = 'use' | 'service' | 'demo' | 'rent' | 'publish' | 'network' | 'bounty' | 'sessions' | 'operator' | 'doc'
 
 /** replay: the replayed demo reads nothing live; the second row shows the recording */
 /** wallet: the visitor's wallet button, the same on every app page (the replayed demo has none). The copilot bubble
  *  follows, except on the demo and on the Network page, whose scene uses the corners. */
-export function AppHeader({ page, section, replay, wallet }: { page: AppPage; section: TKey; replay?: { block: number; date: string }; wallet?: ReactNode }) {
+/** sectionText: a section name the page holds itself (the doc page keeps its strings apart from i18n.ts) */
+export function AppHeader({ page, section, sectionText, replay, wallet }: { page: AppPage; section: TKey; sectionText?: string; replay?: { block: number; date: string }; wallet?: ReactNode }) {
   const walletEl = wallet ?? (replay ? null : <HeaderWallet />)
   const lang = useLang()
   const [open, setOpen] = useState(false)
@@ -41,7 +42,7 @@ export function AppHeader({ page, section, replay, wallet }: { page: AppPage; se
     const p = L < 1 ? L : max > 0 ? Math.min(1, Math.max(0, scrollY / max)) : 1
     if (bar.current) { bar.current.style.transform = `scaleX(${p.toFixed(4)})`; bar.current.dataset.load = L < 1 ? '1' : '0' }
   }), [])
-  const nav = <MainNav page={page === 'network' ? 'network' : page === 'service' ? 'catalog' : 'other'} />
+  const nav = <MainNav page={page === 'network' ? 'network' : page === 'service' ? 'catalog' : page === 'doc' ? 'doc' : 'other'} />
   return (
     <header className="hd app-hd-bar" data-front-free>
       <div className="hd-row1">
@@ -59,7 +60,7 @@ export function AppHeader({ page, section, replay, wallet }: { page: AppPage; se
           <span className="band-i"><b>{t('band.net')}</b></span>
           <span className="band-i">{t('demo.band')} <span className="nowrap">{replay.date}</span></span>
           <span className="band-i">{t('demo.band.block')} <span className="mono tnum nowrap">{num(replay.block, lang)}</span></span>
-          <span className="band-sec"><span className="sec-n">{t(section)}</span></span>
+          <span className="band-sec"><span className="sec-n">{sectionText ?? t(section)}</span></span>
         </div>
       ) : (
       <div className="hd-row2 lbl" aria-live="off">
@@ -67,7 +68,7 @@ export function AppHeader({ page, section, replay, wallet }: { page: AppPage; se
         <span className="band-i">{t('band.block')} <span className="mono tnum nowrap">{block ? num(block, lang) : t('band.reading')}</span></span>
         <span className="band-i">{t('band.active')} <span className="mono tnum nowrap">{stats ? `${stats.enclavesActive} / ${stats.enclaves}` : t('band.reading')}</span></span>
         <span className="band-i band-pay">{t('band.paid')} <span className="mono tnum nowrap">{pay ? `${usdc(pay.args.amount ?? pay.args.paidDelta, lang)}, ${t('word.block')} ${num(pay.block, lang)}${payAt ? `, ${ago(payAt, lang)}` : ''}` : activity ? t('end.none') : t('band.reading')}</span></span>
-        <span className="band-sec"><span className="sec-n">{t(section)}</span></span>
+        <span className="band-sec"><span className="sec-n">{sectionText ?? t(section)}</span></span>
       </div>
       )}
       <div className="prog" aria-hidden="true"><div className="prog-bar" ref={bar} /></div>
