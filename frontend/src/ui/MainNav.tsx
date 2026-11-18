@@ -34,8 +34,9 @@ export function MainNav({ page }: { page: 'home' | 'network' | 'catalog' | 'doc'
       {PARTS.map((k) => (
         <a key={k} href={networkFor(k)} {...at(k)} onClick={inPlace(k)} title={t(`nav.${k}.t`)}>{t(`nav.${k}.n`)}</a>
       ))}
-      {/* the documentation: how Arc checks every machine (JB's technology page, chapter by chapter) */}
-      <a href={link.doc} {...at('doc')}>Doc</a>
+      {/* the documentation: how Arc checks every machine (JB's technology page, chapter by chapter); the landing's
+          header stays as it was (owner, 18/11) */}
+      {page !== 'home' && <a href={link.doc} {...at('doc')}>Doc</a>}
     </>
   )
 }

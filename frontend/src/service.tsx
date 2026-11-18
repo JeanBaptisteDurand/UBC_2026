@@ -16,7 +16,7 @@ import { Footer } from './ui/Footer'
 import { link } from './links'
 import './ui/blades.css'
 import { NSLOTS } from './data/wall'
-import { ServicesStage } from './services/ServicesStage'
+import { Vitrine } from './services/Vitrine'
 
 const q = new URLSearchParams(location.search)
 const pid0 = q.get('p')
@@ -36,9 +36,9 @@ function Service() {
     <>
       <a className="skip" href="#svc" data-front-free>{t('d.skip')}</a>
       <AppHeader page="service" section="svc.page" />
-      {/* the services server (JB's presentation, 18/11): every product, its sheet opens in the left column;
-          a ?slot= without a product keeps the wall card */}
-      {slot < 0 || pid0 ? <main className="app svs-main" id="svc"><ServicesStage pid0={pid0} /></main> : (
+      {/* what ArcHive sells (JB's product1 presentation, 18/11): the server's sleds, each family's chapter opens in the
+          left column; a ?slot= without a product keeps the wall card */}
+      {slot < 0 || pid0 ? <main className="app vt-main" id="svc"><Vitrine /></main> : (
       <main className="app svc-full" id="svc">
         <div className="svc-full-in">
           <a className="tlink svc-back" href={link.catalog}>{t('svx.back')}</a>

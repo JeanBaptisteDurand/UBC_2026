@@ -1,0 +1,152 @@
+/* Services page (Vitrine.tsx). A stage the height of the window under the header: the reading column on the left
+   (scrolls inside itself, reading blur, lit accent words like the Doc page), the server on the right (the Blender rack
+   still with the sled faces laid over it). JB's chapter styles are in vit-jb.css (scoped to .vt-r); the overrides that
+   fit them into the column follow. */
+.vt { --vtw: clamp(560px, 52vw, 860px); position: relative; height: calc(100svh - var(--hd, 118px)); min-height: 600px; display: grid; grid-template-columns: var(--vtw) minmax(0, 1fr); overflow: hidden;
+  background: radial-gradient(80% 80% at 74% 46%, rgb(30 44 78 / 0.32), transparent 70%), linear-gradient(to bottom, rgb(14 17 23), rgb(10 12 16)); }
+
+/* ---- the reading column */
+.vt-col { position: relative; z-index: 2; min-height: 0; isolation: isolate; }
+.vt-col::before { content: ''; position: absolute; z-index: -1; inset: 0 -160px 0 0; pointer-events: none;
+  -webkit-backdrop-filter: blur(9px); backdrop-filter: blur(9px);
+  -webkit-mask-image: linear-gradient(to right, #000 0, #000 70%, rgb(0 0 0 / 0.55) 86%, transparent 100%); mask-image: linear-gradient(to right, #000 0, #000 70%, rgb(0 0 0 / 0.55) 86%, transparent 100%); }
+.vt-col::after { content: ''; position: absolute; z-index: -2; inset: 0; pointer-events: none; background: linear-gradient(to right, rgb(11 13 16 / 0.78), rgb(11 13 16 / 0.55) 80%, transparent); }
+.vt-r { container: vt / inline-size; height: 100%; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgb(var(--ink-c) / 0.18) transparent;
+  padding: 44px 48px 72px var(--gut, 72px); box-sizing: border-box;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 20px, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to bottom, transparent 0, #000 20px, #000 calc(100% - 32px), transparent); }
+
+/* titles: the hologram blue of the site's focus titles, the accent words lit */
+.vt-r .vt-h { position: relative; margin: 0; padding-bottom: 20px; font-size: clamp(30px, 2.6vw, 42px); line-height: 1.08; letter-spacing: var(--tr-head); font-weight: var(--w-head); color: var(--ink); text-wrap: balance; max-width: 18em; }
+.vt-r .vt-h:focus { outline: none; }
+.vt-r .vt-h .ttl-rule { position: absolute; left: 0; bottom: 0; width: 64px; height: 1px; background: var(--arc-elec); box-shadow: 0 0 8px rgb(74 134 255 / 0.6); }
+.vt-r .vit-fam.is-red .vt-h .ttl-rule { background: var(--red, #ff5448); box-shadow: 0 0 8px rgb(255 84 72 / 0.5); }
+.vt-r .vit-fam.is-off .vt-h .ttl-rule { background: var(--ink3); box-shadow: none; }
+.vt-acc { color: #9cc0ff; text-shadow: 0 0 1px rgb(234 244 255 / 0.9), 0 0 10px rgb(74 134 255 / 0.55), 0 0 26px rgb(58 107 255 / 0.32); }
+.vt-r .vt-h1 { font-size: clamp(40px, 3.6vw, 60px); line-height: 1.02; }
+.vt-lede { margin: 28px 0 0; max-width: 34em; font-size: 18px; line-height: 1.55; color: var(--ink2); text-wrap: pretty; }
+
+/* introduction: JB's shop window and live figures, sized for the column */
+.vt-intro { padding-top: 16px; }
+.vt-r .vt-shop { width: auto; max-width: 600px; margin: 40px 0 0; padding: 0; }
+.vt-r .vt-shop .rk-row { cursor: pointer; }
+.vt-r .vt-live { margin: 48px 0 0; padding: 0; max-width: none; }
+.vt-r .vt-live .vit-figs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 32px; }
+.vt-r .vt-live .vit-live-f { padding: 0; grid-template-columns: 1fr; gap: 12px; margin-top: 24px; }
+.vt-more { margin: 56px 0 0; max-width: 600px; }
+.vt-more-h { margin: 0 0 12px; color: var(--ink3); letter-spacing: 0.06em; text-transform: uppercase; }
+.vt-more ol { list-style: none; margin: 0; padding: 0; display: grid; }
+.vt-more a { display: grid; gap: 2px; padding: 11px 0 11px 16px; color: var(--ink2); box-shadow: inset 1px 0 0 var(--rule2); transition: background var(--t2) var(--productive), box-shadow var(--t2) var(--productive); }
+.vt-more-t { font-size: 19px; line-height: 1.25; font-weight: var(--w-head); color: var(--ink); }
+.vt-more-p { font-size: 13px; line-height: 1.4; color: var(--ink3); }
+.vt-more a:hover, .vt-more a:focus-visible { background: rgb(var(--ink-c) / 0.03); box-shadow: inset 2px 0 0 var(--arc-elec); }
+.vt-more a:hover .vt-more-t { color: #9cc0ff; }
+
+/* chapter bar: back to the shop window, previous / next */
+.vt-bar { display: flex; align-items: center; gap: 16px; margin: 0 0 32px; }
+.vt-back { font-size: 15px; background: none; border: 0; color: var(--ink2); cursor: pointer; font: inherit; padding: 0; }
+.vt-back span { color: var(--arc-light); }
+.vt-back:hover { color: var(--ink); }
+.vt-step { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; }
+.vt-of { min-width: 64px; text-align: center; font-size: 13px; color: var(--ink2); }
+.vt-nb { width: 40px; height: 40px; border: 0; background: var(--chip3); color: var(--ink); cursor: pointer; font-size: 20px; line-height: 1; transition: background var(--t2) var(--productive); }
+.vt-nb:hover:not(:disabled) { background: var(--chip2); }
+.vt-nb:disabled { opacity: 0.35; cursor: default; }
+.vt-kick { margin: 0 0 14px; font-size: 13px; color: var(--ink3); }
+.vt-nextch { display: grid; gap: 6px; width: 100%; margin: 64px 0 0; padding: 20px 0 0; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; box-shadow: inset 0 1px 0 var(--rule2); }
+.vt-nextch-t { font-size: 20px; font-weight: var(--w-head); transition: color var(--t2) var(--productive); }
+.vt-nextch:hover .vt-nextch-t { color: #9cc0ff; }
+.vt-acts { display: flex; flex-wrap: wrap; gap: 12px; margin: 32px 0 0; }
+.vt .btn { height: 44px; padding: 0 18px; }
+.vt .btn-main { background: var(--ink); color: var(--bg); }
+.vt-slot-l { margin: 24px 0 0; font-size: 20px; color: var(--ink); }
+
+/* our live block after a family's chapter */
+.vt-livesec { margin: 56px 0 0; padding-top: 24px; box-shadow: inset 0 1px 0 var(--rule2); }
+.vt-live-h { display: flex; align-items: center; gap: 10px; margin: 0 0 16px; font-size: 13px; font-weight: 400; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink2); }
+.vt-r .vt-livesec .vit-dot { flex: none; }
+.vt .unfold .row, .js .vt .unfold .row { opacity: 1; transform: none; }
+
+/* ---- JB's chapters in the column: his page gutters off, our sizes */
+.vt-r .vt-body { --gut: 0px; padding: 0; margin: 0; min-height: 0; }
+.vt-r .vt-body > :first-child { margin-top: 0; }
+.vt-r .vit-fam-hd { padding: 0; margin: 0; }
+.vt-r .vit-fam-name { font-size: clamp(34px, 3vw, 48px); }
+.vt-r .vit-fam-head { font-size: 22px; margin-top: 24px; }
+.vt-r .vit-fam-sub { font-size: 17px; max-width: 34em; }
+.vt-r .vit-shop-h { margin: 0; font-size: clamp(26px, 2.2vw, 34px); line-height: 1.15; }
+.vt-r .mk-h { font-size: clamp(34px, 3vw, 48px); }
+.vt-r .mk-head-g { grid-template-columns: 1fr; }
+.vt-r .tbl-w { overflow-x: auto; }
+.vt-r summary { cursor: pointer; }
+.vt-r [hidden] { display: none !important; }
+.vt-r .cmd { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.vt-r .cmd-t { min-width: 0; overflow-wrap: anywhere; }
+
+/* ---- the server */
+.vt-srv { position: relative; z-index: 1; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; justify-items: center; align-items: center; padding: 28px 48px 20px 24px; }
+.vt-rack { position: relative; width: min(100%, calc((100svh - var(--hd, 118px) - 104px) * 0.8549)); aspect-ratio: 1720 / 2012; }
+.vt-img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; user-select: none; filter: drop-shadow(0 40px 60px rgb(0 0 0 / 0.6)); }
+.vt-bays { list-style: none; margin: 0; padding: 0; }
+.vt-rack.has-img .vt-bays { position: absolute; inset: 0; }
+.vt-hint { margin: 12px 0 0; font-size: 12px; color: var(--ink3); text-align: center; }
+
+@media (min-width: 761px) {
+  .vt-rack.has-img .vt-bay { position: absolute; }
+  /* the render carries the glass, the slit and the handle: the HTML adds the light and the lettering only */
+  .vt-rack.has-img .blade-face { width: 100%; height: 100%; min-height: 0; aspect-ratio: auto; border: 0; border-radius: 0; font: inherit;
+    background: radial-gradient(ellipse 40% 90% at 22% 50%, rgb(var(--c) / 0.07), transparent 72%); box-shadow: none;
+    transition: transform 280ms var(--productive), box-shadow 280ms var(--productive), background 280ms var(--productive), filter 280ms var(--productive); }
+  .vt-rack.has-img .bl-led { min-width: 2px; }
+  .vt-rack.has-img .bl-led i { inset: 12% 20%; }
+  .vt-rack.has-img .bl-title { left: 5.6%; right: 18%; top: 14%; font-size: 4.9cqw; white-space: nowrap; overflow: hidden; text-overflow: clip; }
+  .vt-rack.has-img .bl-word, .vt-rack.has-img .bl-u { bottom: 13%; font-size: 2.15cqw; }
+  .vt-rack.has-img .bl-word { left: 5.6%; }
+  .vt-rack.has-img .bl-u { right: 6%; }
+  /* pulled out on hover: the sled comes forward, its light spills */
+  .vt-rack.has-img .vt-sled:hover, .vt-rack.has-img .vt-sled:focus-visible { transform: translateY(-1.5%) scale(1.018); outline: none;
+    background: linear-gradient(180deg, rgb(200 220 255 / 0.05), transparent 30%), radial-gradient(ellipse 50% 100% at 24% 50%, rgb(var(--c) / 0.13), transparent 72%), rgb(4 5 8 / 0.6);
+    box-shadow: inset 0 1px 0 rgb(220 232 255 / 0.3), inset 0 0 0 1px rgb(200 220 255 / 0.1), 0 14px 28px -10px rgb(0 0 0 / 0.95); }
+  .vt-bay[data-on='1'] .vt-sled { background: radial-gradient(ellipse 55% 100% at 24% 50%, rgb(var(--c) / 0.16), transparent 72%), rgb(4 5 8 / 0.35);
+    box-shadow: inset 0 0 0 1px rgb(var(--c) / 0.35), 0 0 24px -6px rgb(var(--c) / 0.4); }
+  .vt-bay[data-dim='1'] .vt-sled { filter: brightness(0.5) saturate(0.6); }
+  .vt-bay[data-dim='1'] .vt-sled:hover { filter: none; }
+  /* the open slot, an empty recess: the lettering engraved on its back plate */
+  /* to the right of the backplane connector */
+  .vt-rack.has-img .is-slot .bl-title { left: 44%; right: 8%; top: 30%; font-size: 3.6cqw; }
+  .vt-rack.has-img .is-slot .bl-word { left: 44%; bottom: 29%; }
+}
+.vt-bay.is-slot .bl-title, .vt-bay.is-slot .bl-word { color: rgb(170 180 196 / 0.55); text-shadow: 0 -0.6px 0 rgb(220 228 240 / 0.14); }
+.vt-bay[data-on='1'].is-slot .bl-title, .vt-bay.is-slot .vt-sled:hover .bl-title { color: rgb(200 210 226 / 0.85); }
+.vt-sled:focus-visible { outline: 2px solid var(--arc-elec); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) { .vt-rack .blade-face { transition: none; } .vt-rack.has-img .vt-sled:hover { transform: none; } }
+
+/* ---- below the desktop: no stage; the column, then the server, in the page flow */
+@media (max-width: 1024px) {
+  .vt { display: flex; flex-direction: column; height: auto; min-height: 0; overflow: visible; }
+  .vt-col::before, .vt-col::after { display: none; }
+  .vt-r { height: auto; overflow: visible; padding: 36px var(--gut, 32px) 48px; -webkit-mask-image: none; mask-image: none; }
+  .vt-col { scroll-margin-top: var(--hd, 64px); }
+  .vt-srv { padding: 24px var(--gut, 32px) 56px; box-shadow: inset 0 1px 0 var(--rule); }
+  .vt-srv { grid-template-rows: auto auto; }
+  .vt-rack { width: min(100%, 560px); }
+}
+@media (max-width: 760px) {
+  .vt-r { padding: 28px 16px 40px; }
+  .vt-r .vt-h1 { font-size: 36px; }
+  .vt-r .vt-h { font-size: 28px; }
+  .vt-lede { font-size: 17px; }
+  .vt-srv { padding: 20px 16px 48px; }
+  .vt-img { display: none; }
+  .vt-rack { width: 100%; aspect-ratio: auto; }
+  .vt-rack.has-img .vt-bays, .vt-bays { position: static; display: grid; gap: 8px; }
+  .vt-hint { display: none; }
+  .vt-bay { position: relative; left: auto !important; top: auto !important; width: auto !important; height: auto !important; }
+  .vt-r .vt-live .vit-figs { grid-template-columns: 1fr; }
+  .vt-bar .no-touch { display: none; }
+  .vt-bay.is-slot .blade-face { background: rgb(4 5 8); box-shadow: inset 0 0 0 1px rgb(200 220 255 / 0.1); }
+}
+
+/* JB's dimension marks (cote) are drawn by the scroll reveal on his page; in the column they are simply shown */
+.js .vt-r .cote-in .cote-l { transform: none; }
+.js .vt-r .cote-in .cote-v { clip-path: none; }
