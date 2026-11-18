@@ -9,7 +9,7 @@
 import { world } from '../world'
 import { REDUCED } from '../clock'
 import { ORDER, type SecId } from '../story'
-import { SLOTS, NSLOTS, FACE, productLabel, type Sled } from '../data/wall'
+import { SLOTS, NSLOTS, FACE, G, productLabel, type Sled } from '../data/wall'
 import { getLive } from '../data/live'
 import { t, getLang } from '../i18n'
 import { film, onFilm, projInto, faceInto, zoomNow, zoomAt, CAL } from './film'
@@ -62,6 +62,7 @@ function fitTitle(text: string): { lines: string[]; px: number } {
   return res
 }
 const titleText = (s: string) => s.toUpperCase().replace(/\b0X(?=[0-9A-F])/g, '0x')
+const idleOnce = (f: () => void) => ('requestIdleCallback' in window ? requestIdleCallback(() => f(), { timeout: 2000 }) : setTimeout(f, 50))
 /** Wall titles computed ahead, in slices during idle time (never during a frame) */
 let warmV = -1
 function warmTitles() {
@@ -73,6 +74,83 @@ function warmTitles() {
   let i = 0
   const run = (d: { timeRemaining: () => number }) => { while (i < list.length && d.timeRemaining() > 2) fitTitle(list[i++]); if (i < list.length) idle(run) }
   idle(run)
+}
+
+// ---- The Arc ring: the light round the replayed sled's facade at the verdict ----
+// The Blender film used to bake it green (frames.json "joint", ok = 1) on frames 2212 to 2232 of the desktop plan;
+// those frames were re-rendered without it (film_scene.py, flag noring) and the ring is drawn here, in the colour of
+// the actual verdict: green (admitted), red (one byte changed: refused), Arc blue (no verdict yet, as on the frames
+// before 2212). Same geometry as the scene (stage.ts jointMat: a quad 40 mm larger than the facade on each side, the
+// light centred 1.5 mm outside the facade edge) and the same look: the profiles below are the film's own pixels,
+// measured across the bottom edge of frame 2219 (rendered with the ring minus rendered without it, display sRGB,
+// from 14 mm inside the edge to 40 mm outside, every 0.5 mm), for each colour. The top and right of the ring are cut
+// where the rack's top rail and upright stand in front of it (replayed slot: top row, right column), as in the film.
+// One canvas, painted once per colour change; per frame only its transform and opacity change.
+const RING_N = 2475                   // the desktop plan (Retina and desktop sets); the phone plan keeps its own film
+const RING_F0 = 2212                  // first re-rendered frame; then the ring's power per frame (stage.ts jOn)
+const RING_ON = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.99, 0.861, 0.631, 0.369, 0.14, 0.01]
+const RM = 0.04, HFX = G.FW / 2, HFY = (G.FT - G.FB) / 2
+const RW = G.FW + 2 * RM, RH = G.FT - G.FB + 2 * RM, RCY = (G.FT + G.FB) / 2
+const CUT = { top: HFY + 0.006, right: HFX + 0.0015 }
+const RING_P = {
+  green: '0,6,0,0,6,0,0,7,0,0,8,0,0,10,0,0,12,0,0,13,0,0,15,0,0,17,0,0,18,0,0,21,0,0,25,0,0,28,0,0,32,0,0,35,0,0,39,0,0,44,0,0,48,0,0,55,0,0,61,0,0,68,0,0,75,0,0,82,0,0,91,0,0,101,0,0,113,0,0,126,10,5,146,35,53,174,76,90,189,108,106,193,121,112,194,127,110,194,125,100,192,117,81,184,97,49,166,63,18,155,40,0,148,24,0,140,9,0,134,1,0,129,0,0,125,0,0,120,0,0,117,0,0,113,0,0,109,0,0,106,0,0,102,0,0,99,0,0,96,0,0,93,0,0,90,0,0,87,0,0,84,0,0,81,0,0,80,0,0,77,0,0,74,0,0,72,0,0,69,0,0,66,0,0,64,0,0,61,0,0,58,0,0,56,0,0,53,0,0,50,0,0,48,0,0,46,0,0,43,0,0,41,0,0,39,0,0,37,0,0,35,0,0,32,0,0,30,0,0,27,0,0,26,0,0,24,0,0,23,0,0,21,0,0,19,0,0,17,0,0,16,0,0,15,0,0,14,0,0,12,0,0,10,0,0,9,0,0,9,0,0,8,0,0,7,0,0,6,0,0,5,0,0,4,0,0,4,0,0,3,0,0,2,0,0,2,0,0,2,0,0,1,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0',
+  red: '11,0,0,12,0,0,13,0,0,14,0,0,17,0,0,19,0,0,22,0,0,25,0,0,27,0,0,30,0,0,34,0,0,38,0,0,42,0,0,47,0,0,52,0,0,58,0,0,64,1,0,70,1,0,77,2,0,85,4,0,93,5,0,101,6,0,110,8,0,119,12,1,130,18,6,142,26,13,154,40,26,172,62,49,195,95,88,207,121,117,209,132,129,210,136,134,210,135,133,209,129,126,204,113,108,191,87,76,181,68,53,176,55,40,169,45,29,163,38,22,158,33,17,154,29,14,149,26,11,146,24,10,142,22,8,138,20,6,135,18,5,131,17,4,127,15,2,124,13,1,121,12,1,118,11,0,114,10,0,112,9,0,109,8,0,106,8,0,103,7,0,100,7,0,97,5,0,94,5,0,91,4,0,88,4,0,85,3,0,82,2,0,78,2,0,75,2,0,72,1,0,69,1,0,66,1,0,63,0,0,60,0,0,57,0,0,54,0,0,52,0,0,48,0,0,46,0,0,42,0,0,40,0,0,37,0,0,36,0,0,34,0,0,31,0,0,29,0,0,27,0,0,25,0,0,23,0,0,20,0,0,18,0,0,16,0,0,14,0,0,13,0,0,12,0,0,10,0,0,9,0,0,8,0,0,7,0,0,6,0,0,5,0,0,4,0,0,3,0,0,3,0,0,2,0,0,1,0,0,1,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0',
+  blue: '0,1,7,0,1,8,0,1,9,0,1,9,0,2,11,0,2,14,0,3,16,0,3,16,0,3,18,0,3,21,0,4,24,0,5,28,1,5,31,1,6,35,1,7,39,2,9,44,2,10,49,2,11,54,3,14,61,5,16,67,6,18,73,8,22,81,9,25,89,12,30,99,17,37,110,25,47,123,39,61,135,62,84,159,97,119,189,124,144,205,136,154,207,142,159,208,141,157,208,133,151,207,116,136,199,90,109,177,67,91,165,51,77,160,37,65,152,29,58,146,24,53,141,22,50,136,19,46,131,18,44,127,16,42,123,15,39,119,14,37,115,13,35,111,11,33,107,11,31,104,10,30,101,10,29,98,9,27,95,9,25,92,8,24,90,8,24,86,7,23,83,7,22,80,6,20,78,6,19,75,5,18,72,5,17,70,5,16,67,4,14,64,3,14,61,3,13,59,3,12,56,2,11,55,2,10,52,2,10,49,2,9,46,1,8,43,1,7,41,1,7,40,1,6,37,1,6,35,1,5,32,0,5,30,0,5,28,1,5,26,1,4,24,1,4,22,1,3,20,1,3,18,1,3,17,1,3,16,1,2,14,1,2,12,1,2,11,0,2,9,0,1,9,0,1,8,0,1,6,0,1,6,0,1,6,0,1,5,0,1,4,0,0,3,0,0,3,0,0,2,0,0,2,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0',
+} as const
+type RingCol = keyof typeof RING_P
+let ring: HTMLCanvasElement | null = null, ringCtx: CanvasRenderingContext2D | null = null
+const ringImg: Partial<Record<RingCol, ImageData>> = {}
+const RS = { col: '' as RingCol | '', shown: false, geo: -1, m: null as string | null, t: '', o: '' }
+function ringImage(col: RingCol): ImageData {
+  const c = ringImg[col]; if (c) return c
+  const P = RING_P[col].split(',').map(Number), N = P.length / 3
+  const w = ring!.width, h = ring!.height, img = new ImageData(w, h), px = img.data
+  const wc = (q: number) => sm(-q / 0.028)
+  for (let j = 0; j < h; j++) {
+    const Y = RH / 2 - (j + 0.5) * RH / h
+    for (let i = 0; i < w; i++) {
+      const X = (i + 0.5) * RW / w - RW / 2
+      const qx = Math.abs(X) - HFX, qy = Math.abs(Y) - HFY
+      const d = Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0)
+      const f = (d * 1000 + 14) * 2
+      if (f <= 0 || f >= N - 1) continue
+      // the measured profile carries the window across the edge; at the corners, the window along the other axis too
+      const w1 = wc(d - RM)
+      let k = w1 > 1e-3 ? wc(Math.max(qx - RM, qy - RM)) / w1 : 0
+      k *= 1 - sm((Y - CUT.top) / 0.0005)
+      k *= 1 - sm((X - CUT.right) / 0.0005)
+      if (k <= 0) continue
+      const f0 = Math.floor(f), u = f - f0, o = f0 * 3
+      const r = k * (P[o] + (P[o + 3] - P[o]) * u), g = k * (P[o + 1] + (P[o + 4] - P[o + 1]) * u), b = k * (P[o + 2] + (P[o + 5] - P[o + 2]) * u)
+      // light over black: alpha is the brightest channel, so normal compositing inside the layer adds the same light
+      const a = Math.max(r, g, b); if (a < 0.5) continue
+      const q = (j * w + i) * 4
+      px[q] = r * 255 / a; px[q + 1] = g * 255 / a; px[q + 2] = b * 255 / a; px[q + 3] = a
+    }
+  }
+  ringImg[col] = img
+  return img
+}
+const ringHide = () => { if (RS.shown && ring) { ring.style.visibility = 'hidden'; RS.shown = false } }
+function ringFrame(rep: number) {
+  const m = film.man!
+  const k = film.shown - RING_F0
+  const on = ring && rep >= 0 && m.n === RING_N && k >= 0 && k < RING_ON.length ? RING_ON[k] : 0
+  if (on <= 0.002) { ringHide(); return }
+  if (RS.geo !== film.geo) { RS.geo = film.geo; RS.m = m3d(rep, -RW / 2, RCY + RH / 2, 0.0009) }
+  if (!RS.m) { ringHide(); return }
+  const ph = world.gate.phase
+  const col: RingCol = ph === 'ok' ? 'green' : ph === 'refused' ? 'red' : 'blue'
+  if (RS.col !== col) { RS.col = col; ringCtx!.putImageData(ringImage(col), 0, 0) }
+  if (RS.t !== RS.m) { RS.t = RS.m; ring!.style.transform = RS.m }
+  // the text column overlay baked into the film covers the ring as it covers the plates
+  const ov = film.cur
+  faceInto(FW3, rep, 0, RCY, 0); projInto(PC, FW3[0], FW3[1], FW3[2])
+  let veil = ov[21] > 0.5 ? ss(ov[19] - 0.2, ov[19] + 0.05, PC[1] / m.filmH) : 1 - ss(ov[19] - 0.085, ov[19] + 0.004, PC[0] / m.filmW)
+  veil *= ov[20]
+  const o = (on * (1 - veil)).toFixed(3)
+  if (RS.o !== o) { RS.o = o; ring!.style.opacity = o }
+  if (!RS.shown) { ring!.style.visibility = 'visible'; RS.shown = true }
 }
 
 export function mountLames(root: HTMLDivElement) {
@@ -95,6 +173,15 @@ export function mountLames(root: HTMLDivElement) {
     layer.append(led, plate)
     els.push({ plate, tl, sub, u, led, key: '', shown: false, ledShown: false, pm: null, lm: null, geo: -1, pT: '', pC: '', pO: '', lT: '', lC: '', lO: '', hov: false })
   }
+  // The Arc ring, under the plates and LEDs; its three images are prepared in idle time
+  ring = document.createElement('canvas'); ring.className = 'lm-ring'
+  ring.width = Math.round(mm(RW)); ring.height = Math.round(mm(RH))
+  ring.style.width = `${mm(RW)}px`; ring.style.height = `${mm(RH)}px`; ring.style.visibility = 'hidden'
+  ringCtx = ring.getContext('2d')
+  layer.prepend(ring)
+  { const cols: RingCol[] = ['green', 'red', 'blue']
+    const run = () => { const c = cols.shift(); if (!c) return; ringImage(c); if (cols.length) idleOnce(run) }
+    idleOnce(run) }
   measureCatch()
   addEventListener('resize', measureCatch)
   new ResizeObserver(measureCatch).observe(document.body)
@@ -102,12 +189,14 @@ export function mountLames(root: HTMLDivElement) {
 }
 
 // ---- State of a sled (stage.ts: plateText, syncData and the per-section gestures) ----
-const SUBK = ['plate.sub.off', 'plate.sub.green', 'plate.sub.amber', 'plate.sub.red', 'plate.sub.dim'] as const
+const SUBK = ['plate.sub.off', 'plate.sub.green', 'plate.sub.amber', 'plate.sub.red', 'plate.sub.dim', 'plate.sub.refused'] as const
 const ST = { title: '', sub: 0, k: 0, led: 'off' as keyof typeof COL | 'off' }
-function plateOf(s: Sled | undefined, amber: boolean, admitted: boolean) {
+function plateOf(s: Sled | undefined, amber: boolean, admitted: boolean, refused = false) {
   const live = getLive()
   const name = () => productLabel(s!.product, live.products, live.bounties)
-  if (s && admitted) { ST.title = name(); ST.sub = 1; ST.k = 1.9; ST.led = 'green' }
+  // Arc check, one byte changed: Arc refuses the enclave, its plate turns red at once (the LED follows, below)
+  if (s && refused) { ST.title = name(); ST.sub = 5; ST.k = 1.6; ST.led = 'red' }
+  else if (s && admitted) { ST.title = name(); ST.sub = 1; ST.k = 1.9; ST.led = 'green' }
   else if (s && amber) { ST.title = name(); ST.sub = 2; ST.k = 1.4; ST.led = 'amber' }
   else if (s?.led === 'green') { ST.title = name(); ST.sub = 1; ST.k = 1.9; ST.led = 'green' }
   else if (s?.led === 'red') { ST.title = name(); ST.sub = 3; ST.k = 1.4; ST.led = 'red' }
@@ -253,7 +342,7 @@ function frame() {
     const fade = Math.max(0, 1 - dim * 0.7) * air * (1 - veil) * (vis >= 6 ? 1 : 0.6)
     if (!on || fade < 0.01) { hide(e); continue }
     const amber = amberOn && i === rep
-    const st = plateOf(s?.led !== 'off' || amber || (admitOn && i === rep) ? s : undefined, amber, admitOn && i === rep)
+    const st = plateOf(s?.led !== 'off' || amber || (admitOn && i === rep) || (refused && i === rep) ? s : undefined, amber, admitOn && i === rep, refused && i === rep)
     // ---- The LED: colour and intensity (w, the scene scale: 5.2 for full green) ----
     let col: Rgb | null = null, w = 0
     if (amber || (s && s.led !== 'off')) {
@@ -316,4 +405,5 @@ function frame() {
     }
     if (e.ledShown) { e.led.style.visibility = 'hidden'; e.ledShown = false }
   }
+  ringFrame(rep)
 }

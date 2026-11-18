@@ -13,6 +13,9 @@ html.film-page .stage { background: transparent; overflow: hidden; }
    re-rasterises it sharp at rest (a visible update of the names); without it, each frame draws the text at its true
    perspective. ?wc=1 brings will-change back for comparison */
 .lm-plate, .lm-led { position: absolute; left: 0; top: 0; transform-origin: 0 0; backface-visibility: hidden; }
+/* The Arc ring (lames.ts): one canvas under the plates, painted once per verdict colour; it holds no text, so it keeps
+   its own composited layer and only its transform and opacity change */
+.lm-ring { position: absolute; left: 0; top: 0; transform-origin: 0 0; backface-visibility: hidden; will-change: transform, opacity; }
 
 /* ---- The plate: backlit smoked glass, the name in Fragment Mono capitals (same marks as plates.ts: title band from
    10% to 60% of the height from the top, status word and unit from 70% to 92%) ---- */
