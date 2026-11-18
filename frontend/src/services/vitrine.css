@@ -82,44 +82,36 @@
 .vt-r .cmd { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .vt-r .cmd-t { min-width: 0; overflow-wrap: anywhere; }
 
-/* ---- the server */
-.vt-srv { position: relative; z-index: 1; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; justify-items: center; align-items: center; padding: 28px 48px 20px 24px; }
-.vt-rack { position: relative; width: min(100%, calc((100svh - var(--hd, 118px) - 104px) * 0.8549)); aspect-ratio: 1720 / 2012; }
-.vt-img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; user-select: none; filter: drop-shadow(0 40px 60px rgb(0 0 0 / 0.6)); }
+/* ---- the room (RoomStage.tsx): the still covers the whole stage, under the column (its blur frosts the room as the
+   landing's text column frosts the film); the sleds' plates and LEDs are laid in the plane of each facade */
+.vt-room { position: absolute; inset: 0; z-index: 0; overflow: hidden; background: rgb(10 12 16); }
+.vt-room-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; user-select: none; }
+.vt-room-leds { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: plus-lighter; }
+.vt-facs { position: absolute; inset: 0; pointer-events: none; }
+.vt-fac { position: absolute; left: 0; top: 0; transform-origin: 0 0; backface-visibility: hidden; pointer-events: auto; padding: 0; margin: 0; border: 0; background: none; cursor: pointer; color: inherit; font: inherit; }
+.vt-fac .lm-plate, .vt-fac .lm-led { transform: none; mix-blend-mode: plus-lighter; transition: opacity 240ms var(--productive); }
+.vt-fac .lm-plate { opacity: 0.92; }
+.vt-fac .lm-plate[data-st='off'] { opacity: 0.55; }
+.vt-fac .lm-led { opacity: 0.85; }
+.vt-fac:hover .lm-plate, .vt-fac:focus-visible .lm-plate, .vt-fac[data-on='1'] .lm-plate { opacity: 1; }
+.vt-fac:hover .lm-plate[data-st='off'] .lm-t, .vt-fac[data-on='1'] .lm-plate[data-st='off'] .lm-t { color: rgb(var(--c) / 0.45); }
+.vt-fac:hover .lm-plate:not([data-st='off'])::before, .vt-fac[data-on='1'] .lm-plate:not([data-st='off'])::before { background: radial-gradient(ellipse 60% 56% at 34% 40%, rgb(var(--c) / 0.3), rgb(var(--c) / 0.08) 55%, transparent 80%); }
+/* hover: the sled's edge catches the light, as if pulled a few millimetres */
+.vt-fac::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 240ms var(--productive);
+  box-shadow: inset 0 3px 0 rgb(220 232 255 / 0.22), inset 0 0 0 2px rgb(200 220 255 / 0.08); background: linear-gradient(180deg, rgb(200 220 255 / 0.06), transparent 40%); }
+.vt-fac:hover::after, .vt-fac:focus-visible::after { opacity: 1; }
+.vt-fac[data-on='1']::after { opacity: 1; box-shadow: inset 0 0 0 3px rgb(var(--c, 156 192 255) / 0.35); }
+.vt-fac[data-dim='1'] .lm-plate, .vt-fac[data-dim='1'] .lm-led { opacity: 0.32; }
+.vt-fac[data-dim='1']:hover .lm-plate { opacity: 0.9; }
+.vt-fac:focus-visible { outline: 4px solid var(--arc-elec); outline-offset: 4px; }
+.vt-hint { position: absolute; right: 48px; bottom: 16px; margin: 0; font-size: 12px; color: var(--ink3); text-shadow: 0 1px 8px rgb(0 0 0 / 0.8); }
+/* the column's blur stays on its side of the rack */
+.vt .vt-col::before { inset: 0 -40px 0 0; }
+.vt-list { display: none; }
 .vt-bays { list-style: none; margin: 0; padding: 0; }
-.vt-rack.has-img .vt-bays { position: absolute; inset: 0; }
-.vt-hint { margin: 12px 0 0; font-size: 12px; color: var(--ink3); text-align: center; }
-
-@media (min-width: 761px) {
-  .vt-rack.has-img .vt-bay { position: absolute; }
-  /* the render carries the glass, the slit and the handle: the HTML adds the light and the lettering only */
-  .vt-rack.has-img .blade-face { width: 100%; height: 100%; min-height: 0; aspect-ratio: auto; border: 0; border-radius: 0; font: inherit;
-    background: radial-gradient(ellipse 40% 90% at 22% 50%, rgb(var(--c) / 0.07), transparent 72%); box-shadow: none;
-    transition: transform 280ms var(--productive), box-shadow 280ms var(--productive), background 280ms var(--productive), filter 280ms var(--productive); }
-  .vt-rack.has-img .bl-led { min-width: 2px; }
-  .vt-rack.has-img .bl-led i { inset: 12% 20%; }
-  .vt-rack.has-img .bl-title { left: 5.6%; right: 18%; top: 14%; font-size: 4.9cqw; white-space: nowrap; overflow: hidden; text-overflow: clip; }
-  .vt-rack.has-img .bl-word, .vt-rack.has-img .bl-u { bottom: 13%; font-size: 2.15cqw; }
-  .vt-rack.has-img .bl-word { left: 5.6%; }
-  .vt-rack.has-img .bl-u { right: 6%; }
-  /* pulled out on hover: the sled comes forward, its light spills */
-  .vt-rack.has-img .vt-sled:hover, .vt-rack.has-img .vt-sled:focus-visible { transform: translateY(-1.5%) scale(1.018); outline: none;
-    background: linear-gradient(180deg, rgb(200 220 255 / 0.05), transparent 30%), radial-gradient(ellipse 50% 100% at 24% 50%, rgb(var(--c) / 0.13), transparent 72%), rgb(4 5 8 / 0.6);
-    box-shadow: inset 0 1px 0 rgb(220 232 255 / 0.3), inset 0 0 0 1px rgb(200 220 255 / 0.1), 0 14px 28px -10px rgb(0 0 0 / 0.95); }
-  .vt-bay[data-on='1'] .vt-sled { background: radial-gradient(ellipse 55% 100% at 24% 50%, rgb(var(--c) / 0.16), transparent 72%), rgb(4 5 8 / 0.35);
-    box-shadow: inset 0 0 0 1px rgb(var(--c) / 0.35), 0 0 24px -6px rgb(var(--c) / 0.4); }
-  .vt-bay[data-dim='1'] .vt-sled { filter: brightness(0.5) saturate(0.6); }
-  .vt-bay[data-dim='1'] .vt-sled:hover { filter: none; }
-  /* the open slot, an empty recess: the lettering engraved on its back plate */
-  /* to the right of the backplane connector */
-  .vt-rack.has-img .is-slot .bl-title { left: 44%; right: 8%; top: 30%; font-size: 3.6cqw; }
-  .vt-rack.has-img .is-slot .bl-word { left: 44%; bottom: 29%; }
-}
 .vt-bay.is-slot .bl-title, .vt-bay.is-slot .bl-word { color: rgb(170 180 196 / 0.55); text-shadow: 0 -0.6px 0 rgb(220 228 240 / 0.14); }
-.vt-bay[data-on='1'].is-slot .bl-title, .vt-bay.is-slot .vt-sled:hover .bl-title { color: rgb(200 210 226 / 0.85); }
 .vt-sled:focus-visible { outline: 2px solid var(--arc-elec); outline-offset: 2px; }
-
-@media (prefers-reduced-motion: reduce) { .vt-rack .blade-face { transition: none; } .vt-rack.has-img .vt-sled:hover { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .vt-fac .lm-plate, .vt-fac .lm-led, .vt-fac::after { transition: none; } }
 
 /* ---- below the desktop: no stage; the column, then the server, in the page flow */
 @media (max-width: 1024px) {
@@ -127,20 +119,19 @@
   .vt-col::before, .vt-col::after { display: none; }
   .vt-r { height: auto; overflow: visible; padding: 36px var(--gut, 32px) 48px; -webkit-mask-image: none; mask-image: none; }
   .vt-col { scroll-margin-top: var(--hd, 64px); }
-  .vt-srv { padding: 24px var(--gut, 32px) 56px; box-shadow: inset 0 1px 0 var(--rule); }
-  .vt-srv { grid-template-rows: auto auto; }
-  .vt-rack { width: min(100%, 560px); }
+  .vt-room { position: relative; order: 2; height: min(78svh, 860px); box-shadow: inset 0 1px 0 var(--rule); }
+  .vt-col { order: 1; }
 }
 @media (max-width: 760px) {
   .vt-r { padding: 28px 16px 40px; }
   .vt-r .vt-h1 { font-size: 36px; }
   .vt-r .vt-h { font-size: 28px; }
   .vt-lede { font-size: 17px; }
-  .vt-srv { padding: 20px 16px 48px; }
-  .vt-img { display: none; }
-  .vt-rack { width: 100%; aspect-ratio: auto; }
-  .vt-rack.has-img .vt-bays, .vt-bays { position: static; display: grid; gap: 8px; }
-  .vt-hint { display: none; }
+  /* the plates are too small at this width: the room is a picture, the sleds a list under it */
+  .vt-room { height: 56svh; }
+  .vt-facs, .vt-hint { display: none; }
+  .vt-list { display: block; order: 3; padding: 20px 16px 48px; }
+  .vt-bays { display: grid; gap: 8px; }
   .vt-bay { position: relative; left: auto !important; top: auto !important; width: auto !important; height: auto !important; }
   .vt-r .vt-live .vit-figs { grid-template-columns: 1fr; }
   .vt-bar .no-touch { display: none; }

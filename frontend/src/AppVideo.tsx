@@ -18,6 +18,7 @@ import { t, useLang } from './i18n'
 
 import { mountFilm, film } from './video/film'
 import { mountLames } from './video/lames'
+import { mountRoomLeds } from './video/roomleds-film'
 import type { Wall } from './data/wall'
 
 /** The staging is filmed on specific sleds (replayed sled, section examples): the live sleds are permuted so that each
@@ -129,6 +130,8 @@ export default function App() {
     const off = subscribeLive(() => { if (getLive().status !== 'loading') { data = true; go() } })
     if (canvas.current && layer.current) {
       if (new URLSearchParams(location.search).get('couche') !== '0') mountLames(layer.current)
+      // the distant racks' LEDs, live over the film (the film was rendered with them off)
+      mountRoomLeds(layer.current)
       mountFilm(canvas.current, () => { drawn = true; go() }).catch((e) => { console.error(e); drawn = true; go() })
     }
     const to = setTimeout(() => { data = true; drawn = true; go() }, 8000)

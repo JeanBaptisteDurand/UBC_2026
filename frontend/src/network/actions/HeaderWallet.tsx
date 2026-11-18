@@ -7,6 +7,7 @@ import { addr } from '../../links'
 import { useWallet, engine, ARC_ID } from './store'
 import { w } from './strings'
 import { useEngine } from './kit'
+import { spText } from '../../space/strings'
 
 // ---------- the wallet, in the header (top right, next to Console and the language) ----------
 export function HeaderWallet() {
@@ -56,6 +57,7 @@ export function HeaderWallet() {
           {s.note ? <p className="na-note" data-tone={s.note.tone} role="status">{s.note.text}</p> : null}
           <div className="wb-acts">
             {wrong ? <button type="button" className="btn btn-main btn-s" onClick={() => E?.switchToArc()} disabled={s.switching}><span>{s.switching ? w('w.switching') : w('w.switch')}</span></button> : null}
+            {connected && !wrong ? <a className="btn btn-line btn-s wb-space" href={`${import.meta.env.BASE_URL}space.html`}><span>{spText(lang, 'sp.nav')}</span></a> : null}
             {connected ? <button type="button" className="tlink wb-off" onClick={() => { E?.disconnect(); setOpen(false) }}>{w('w.disconnect')}</button> : null}
             {!connected && s.phase !== 'pick' ? <button type="button" className="btn btn-main btn-s" onClick={() => { setOpen(false); engine().then((e) => e.start()) }}><span>{w('w.connect')}</span></button> : null}
           </div>

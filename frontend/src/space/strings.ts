@@ -1,0 +1,96 @@
+// My space strings (EN, FR). Kept apart from i18n.ts; the tabs reuse the strings of the pages they hold (strings-x.ts).
+import { useLang } from '../i18n'
+
+const EN = {
+  'sp.title': 'ArcHive. My space',
+  'sp.sec': 'My space',
+  'sp.nav': 'My space',
+  'sp.skip': 'Skip to my space',
+  'sp.h.a': 'My ', 'sp.h.b': 'space', 'sp.h.c': '.',
+  'sp.lede': 'Everything tied to your wallet on Arc: the bounties you posted or hunt, your prepaid sessions, the machines you rent out and the services you published. No account: your address is your profile.',
+  'sp.connect': 'Connect a wallet to see what is yours on Arc.',
+  'sp.connect.b': 'Connect wallet',
+  'sp.wrong': 'Switch the wallet to Arc testnet to read what is yours.',
+  'sp.reading': 'Reading what {a} holds on Arc',
+  'sp.as': 'Signed in as {a}',
+  'sp.tabs': 'My space',
+  'sp.t.bounties': 'My bounties',
+  'sp.t.sessions': 'My sessions',
+  'sp.t.machines': 'My machines',
+  'sp.t.services': 'My services',
+  'sp.empty.h': 'Nothing on Arc for this address yet.',
+  'sp.empty.d': 'Use a service, rent out a machine or publish your own: it will show here.',
+  'sp.empty.use': 'Use a service',
+  'sp.empty.rent': 'Rent out your machine',
+  'sp.empty.pub': 'Publish your service',
+  // My services
+  'sp.s.lede': 'The products this address proposed on ProductRegistry, read live.',
+  'sp.s.none': 'This address has not published a service.',
+  'sp.s.h.p': 'Product',
+  'sp.s.h.state': 'State',
+  'sp.s.h.price': 'Price',
+  'sp.s.h.share': 'Your share',
+  'sp.s.row': 'Product #{id}',
+  'sp.s.st.Proposed': 'Proposed',
+  'sp.s.st.Active': 'Active',
+  'sp.s.st.Retired': 'Retired',
+  'sp.s.on': 'activates {when}',
+  'sp.s.activate': 'Activate',
+  'sp.s.activating': 'Sign the activation in your wallet',
+  'sp.s.activated': 'Activated on Arc.',
+  'sp.s.open': 'Open its sheet',
+  'sp.s.paid': 'What you received is in your address’s transfers on the explorer.',
+  'sp.s.paid.a': 'See the transfers',
+  'sp.s.publish': 'Publish another service',
+}
+type K = keyof typeof EN
+const FR: Record<K, string> = {
+  'sp.title': 'ArcHive. Mon espace',
+  'sp.sec': 'Mon espace',
+  'sp.nav': 'Mon espace',
+  'sp.skip': 'Aller à mon espace',
+  'sp.h.a': 'Mon ', 'sp.h.b': 'espace', 'sp.h.c': '.',
+  'sp.lede': 'Tout ce qui est lié à votre wallet sur Arc : les bounties que vous avez publiées ou que vous chassez, vos sessions prépayées, les machines que vous louez et les services que vous avez publiés. Pas de compte : votre adresse est votre profil.',
+  'sp.connect': 'Connectez un wallet pour voir ce qui est à vous sur Arc.',
+  'sp.connect.b': 'Connecter un wallet',
+  'sp.wrong': 'Passez le wallet sur Arc testnet pour lire ce qui est à vous.',
+  'sp.reading': 'Lecture de ce que {a} détient sur Arc',
+  'sp.as': 'Connecté avec {a}',
+  'sp.tabs': 'Mon espace',
+  'sp.t.bounties': 'Mes bounties',
+  'sp.t.sessions': 'Mes sessions',
+  'sp.t.machines': 'Mes machines',
+  'sp.t.services': 'Mes services',
+  'sp.empty.h': 'Rien sur Arc pour cette adresse pour l’instant.',
+  'sp.empty.d': 'Utilisez un service, louez une machine ou publiez le vôtre : il apparaîtra ici.',
+  'sp.empty.use': 'Utiliser un service',
+  'sp.empty.rent': 'Louer votre machine',
+  'sp.empty.pub': 'Publier votre service',
+  'sp.s.lede': 'Les produits que cette adresse a proposés sur ProductRegistry, lus en direct.',
+  'sp.s.none': 'Cette adresse n’a pas publié de service.',
+  'sp.s.h.p': 'Produit',
+  'sp.s.h.state': 'État',
+  'sp.s.h.price': 'Prix',
+  'sp.s.h.share': 'Votre part',
+  'sp.s.row': 'Produit n° {id}',
+  'sp.s.st.Proposed': 'Proposé',
+  'sp.s.st.Active': 'Actif',
+  'sp.s.st.Retired': 'Retiré',
+  'sp.s.on': 'actif le {when}',
+  'sp.s.activate': 'Activer',
+  'sp.s.activating': 'Signez l’activation dans votre wallet',
+  'sp.s.activated': 'Activé sur Arc.',
+  'sp.s.open': 'Ouvrir sa fiche',
+  'sp.s.paid': 'Ce que vous avez reçu figure dans les transferts de votre adresse, sur l’explorateur.',
+  'sp.s.paid.a': 'Voir les transferts',
+  'sp.s.publish': 'Publier un autre service',
+}
+
+export type SpKey = K
+export function useSt() {
+  const lang = useLang()
+  const S = lang === 'fr' ? FR : EN
+  return { lang, s: (k: K, v?: Record<string, string | number>) => S[k].replace(/\{(\w+)\}/g, (_, x) => String(v?.[x] ?? '')) }
+}
+/** outside React (the header link) */
+export const spText = (lang: string, k: K) => (lang === 'fr' ? FR : EN)[k]

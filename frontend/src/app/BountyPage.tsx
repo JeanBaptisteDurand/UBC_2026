@@ -56,7 +56,10 @@ function useRows(level: Level, E: Engine | null, tick: number): { rows: Row[] | 
   return { rows: live.map((b) => ({ id: b.id, productId: b.productId, protocol: b.protocol ?? '', balance: big(b.balance), paid: big(b.paidAmount), deadline: big(b.deadline), paused: b.paused, predicateHash: b.predicateHash })) }
 }
 
-export function BountyPage() {
+/** embed: inside My space (space.html), without the page frame; the title becomes a section title */
+export function BountyPage({ embed = false }: { embed?: boolean } = {}) {
+  const Tag = (embed ? 'div' : 'main') as 'main'
+  const H = (embed ? 'h2' : 'h1') as 'h1'
   const lang = useLang()
   const s = useWallet()
   const E = useEngine()
@@ -77,16 +80,15 @@ export function BountyPage() {
     if (best) setPick(best.id)
   }, [rows]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setPick('') }, [level])
-  useEffect(() => { document.title = xTitle('b.doc') }, [lang])
+  useEffect(() => { if (!embed) document.title = xTitle('b.doc') }, [lang, embed])
   const slashFrom = levels?.verifiedBounty?.slashFrom
   return (
     <>
-      <a className="skip" href="#list" data-front-free>{x('b.skip')}</a>
-      <AppHeader page="bounty" section="nav.bounty" />
-      <main className="app work" ref={main}>
+      {embed ? null : <><a className="skip" href="#list" data-front-free>{x('b.skip')}</a><AppHeader page="bounty" section="nav.bounty" /></>}
+      <Tag className={embed ? 'work sp-work' : 'app work'} ref={main}>
         <section className="app-top st-publish">
           <div className="app-top-in">
-            <h1 className="h2 ttl app-h1"><span className="ttl-m"><span className="ttl-t">{x('b.title')}</span></span><span className="ttl-rule" aria-hidden="true" /></h1>
+            <H className="h2 ttl app-h1"><span className="ttl-m"><span className="ttl-t">{x('b.title')}</span></span><span className="ttl-rule" aria-hidden="true" /></H>
             <p className="lede">{x('b.lede')}</p>
             <LevelSwitch level={level} set={setLevel} />
             <ServiceState p={probe} name={x(level === 'open' ? 'b.enc.open' : 'b.enc.verified')} url={abs(url)} />
@@ -125,8 +127,8 @@ export function BountyPage() {
         <Hunter level={level} E={E} pick={pick} setPick={setPick} url={url} onDone={() => setTick((n) => n + 1)} />
         <Create level={level} E={E} onDone={() => setTick((n) => n + 1)} />
         <Mine level={level} E={E} rows={rows} address={s.address} onDone={() => setTick((n) => n + 1)} />
-      </main>
-      <Footer />
+      </Tag>
+      {embed ? null : <Footer />}
     </>
   )
 }

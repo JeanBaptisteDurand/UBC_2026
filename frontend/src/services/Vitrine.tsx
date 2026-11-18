@@ -1,6 +1,6 @@
 // The Services page (service.html), after JB's product presentation (produits/product1.html): what ArcHive sells, in
-// five families, shown as the sleds of one server (a Blender still, public/tex/rack.webp, its sled faces placed from
-// rack-bays.json). Nothing scrolls the page to an anchor: a sled, a shop-window row or an index entry opens its chapter
+// five families, next to the landing's room with one rack alone in the aisle (RoomStage.tsx: a Cycles still, its sleds
+// lit live, one per product read on Arc, the rest open slots). Nothing scrolls the page to an anchor: a sled, a shop-window row or an index entry opens its chapter
 // in the left column, which scrolls by itself (as on Network and the Doc page). ?c=<chapter> follows the open chapter
 // (replaceState); ?p=<product> from the landing wall, the Use catalog or the copilot opens that product's family.
 // Copy and chapters from JB (vit-content.ts, generated), numbers read live on Arc.
@@ -13,11 +13,10 @@ import { API_DIRECT } from '../data/endpoints'
 import { num, usdc, pct } from '../data/fmt'
 import { link, networkFor } from '../links'
 import { VIT, type VitChapter } from './vit-content'
+import { RoomStage, RACK_SLOTS, type Plate } from './RoomStage'
 import './vit-jb.css'
 import './vitrine.css'
 
-type Rect = { x: number; y: number; w: number; h: number }
-type Bay = { face?: Rect; led?: Rect; recess?: Rect; vent?: boolean }
 const SLOT = 'slot'
 const FAM = ['bounty', 'private-ai', 'attested-copilot', 'refutation', 'retired'] as const
 /** the products of each family, in JB's order */
@@ -29,21 +28,11 @@ const IDS = VIT.en.chapters.map((c) => c.id)
 function initial(): string | null {
   const q = new URLSearchParams(location.search)
   const c = q.get('c')
-  if (c && (IDS.includes(c) || c === SLOT)) return c
+  if (c && (IDS.includes(c) || c === SLOT || /^p-\d+$/.test(c))) return c
   const p = q.get('p')
-  return p && FAM_OF[p] ? FAM_OF[p] : null
+  return p ? (FAM_OF[p] ?? `p-${p}`) : null
 }
 
-/** the sled faces of the rack render; without them the sleds are a plain list */
-function useBays() {
-  const [b, setB] = useState<Bay[] | null>(null)
-  useEffect(() => {
-    let on = true
-    fetch('/tex/rack-bays.json').then((r) => (r.ok ? r.json() : null)).then((j) => { if (on && j?.bays?.length) setB(j.bays) }).catch(() => {})
-    return () => { on = false }
-  }, [])
-  return b
-}
 
 /** links the converter left as tokens: the console, the 3D room, the read API */
 const fixHtml = (h: string) => h.replaceAll('href="@hive"', `href="${link.hive}" target="_blank" rel="noreferrer"`).replaceAll('href="@dev"', `href="${link.dev}" target="_blank" rel="noreferrer"`)
@@ -208,15 +197,29 @@ function SlotView({ close }: { close: () => void }) {
   )
 }
 
-/** one sled face over the render: JB's lit lettering (name, state word, product numbers) */
-function Sled({ id, title, word, lamp, units, bay, on, dim, open }: { id: string; title: string; word: string; lamp: string; units: string; bay?: Bay; on: boolean; dim: boolean; open: () => void }) {
-  const f = bay?.face ?? bay?.recess
-  const style = f ? { left: `${f.x * 100}%`, top: `${f.y * 100}%`, width: `${f.w * 100}%`, height: `${f.h * 100}%` } : undefined
-  const led = f && bay?.led ? { left: `${((bay.led.x - f.x) / f.w) * 100}%`, top: `${((bay.led.y - f.y) / f.h) * 100}%`, width: `${(bay.led.w / f.w) * 100}%`, height: `${(bay.led.h / f.h) * 100}%` } : undefined
+/** a product with no family chapter yet (a service published after JB's page): its live sheet in the column */
+function ProductView({ pid, name, close }: { pid: string; name: string; close: () => void }) {
+  useLang()
   return (
-    <li className={`vt-bay blade${id === SLOT ? ' is-slot' : ''}`} style={style} data-led={lamp} data-on={on ? '1' : '0'} data-dim={dim ? '1' : '0'}>
-      <button type="button" className="blade-face vt-sled" aria-pressed={on} onClick={open} aria-label={`${title}, ${word}${units ? `, ${units}` : ''}`}>
-        {id === SLOT ? null : <span className="bl-led" style={led} aria-hidden="true"><i /></span>}
+    <article className="vt-ch is-product">
+      <div className="vt-bar"><button type="button" className="tlink vt-back" onClick={close}><span aria-hidden="true">← </span>{t('vit.back')}</button><span className="lbl muted no-touch">Esc</span></div>
+      <h2 className="vt-h" tabIndex={-1} data-vt-h>{name}<span className="ttl-rule" aria-hidden="true" /></h2>
+      <section className="vt-livesec" aria-labelledby={`vt-live-${pid}`}>
+        <h3 className="vt-live-h" id={`vt-live-${pid}`}><span className="vit-dot is-live" aria-hidden="true" />{t('vit.live', { id: pid })}</h3>
+        <ServiceDetail pid={pid} bare />
+      </section>
+    </article>
+  )
+}
+
+/** a sled of the phone list (the room's plates are too small there): the same plate, as a row */
+function Sled({ p }: { p: Plate }) {
+  const slot = p.key.startsWith('slot')
+  const { title, sub: word, led: lamp, unit: units, on, dim, open } = p
+  return (
+    <li className={`vt-bay blade${slot ? ' is-slot' : ''}`} data-led={lamp} data-on={on ? '1' : '0'} data-dim={dim ? '1' : '0'}>
+      <button type="button" className="blade-face vt-sled" aria-pressed={on} onClick={open} aria-label={p.label}>
+        {slot ? null : <span className="bl-led" aria-hidden="true"><i /></span>}
         <span className="bl-title" aria-hidden="true">{title}</span>
         <span className="bl-word" aria-hidden="true">{word}</span>
         {units ? <span className="bl-u" aria-hidden="true">{units}</span> : null}
@@ -228,8 +231,7 @@ function Sled({ id, title, word, lamp, units, bay, on, dim, open }: { id: string
 export function Vitrine() {
   const lang = useLang()
   const L = VIT[lang === 'fr' ? 'fr' : 'en']
-  const bays = useBays()
-  const fam = useFamState()
+  const rows = useCatalog()
   const [cur, setCur] = useState<string | null>(initial)
   const col = useRef<HTMLDivElement>(null)
   const all = L.chapters
@@ -278,30 +280,40 @@ export function Vitrine() {
     else if (a.dataset.vtIn) col.current?.querySelector(`[id="${a.dataset.vtIn}"]`)?.scrollIntoView({ block: 'start', behavior: 'smooth' })
     else document.querySelector<HTMLButtonElement>('.cp-launch')?.click()
   }
-  const faceBays = bays?.filter((b) => b.face) ?? []
-  const slotBay = bays?.find((b) => b.recess)
-  const famOpen = cur && (FAM as readonly string[]).includes(cur) ? cur : cur === SLOT ? SLOT : null
+  // the rack: one sled per product read on Arc (by id), its family's chapter on click; the other sleds are open slots.
+  // More products than sleds: the last sled counts the rest and leads to the Use catalog, which lists them all.
+  const pOpen = cur?.startsWith('p-') ? cur.slice(2) : null
+  const list = (rows ?? []).slice().sort((a, b) => Number(a.p.id) - Number(b.p.id))
+  const over = list.length > RACK_SLOTS - 1 ? list.length - (RACK_SLOTS - 2) : 0
+  const shown = over ? list.slice(0, RACK_SLOTS - 2) : list
+  const plates: Plate[] = shown.map((r) => {
+    const target = FAM_OF[r.p.id] ?? `p-${r.p.id}`
+    const expired = r.led === 'amber' && r.encs.length > 0 && r.encs.every((x) => x.why === 'expired')
+    const sub = r.led === 'green' ? 'plate.sub.green' : r.led === 'red' ? 'plate.sub.red' : r.led === 'off' || expired ? 'plate.sub.dim' : 'plate.sub.amber'
+    const isOn = cur === target
+    return { key: `p${r.p.id}`, title: r.name, sub: t(sub), unit: '', led: r.led === 'off' ? 'off' : r.led, on: isOn, dim: !!cur && !isOn, label: `${r.name}, ${t(sub)}`, open: () => open(isOn ? null : target) }
+  })
+  if (over) plates.push({ key: 'more', title: `+${over}`, sub: t('vit.more.s'), unit: '', led: 'off', on: false, dim: !!cur, label: t('vit.more.s'), open: () => { location.href = link.use } })
+  while (plates.length < RACK_SLOTS) {
+    const k = plates.length
+    plates.push({ key: `slot${k}`, title: t('plate.off'), sub: t('plate.sub.off'), unit: '', led: 'off', on: cur === SLOT, dim: !!cur && cur !== SLOT, label: `${t('plate.off')}, ${t('plate.sub.off')}`, open: () => open(cur === SLOT ? null : SLOT) })
+  }
+  const pRow = pOpen ? list.find((r) => r.p.id === pOpen) : undefined
   return (
     <div className="vt" data-open={cur ? '1' : '0'}>
+      <RoomStage plates={plates} hint={L.hint} />
       <aside className="vt-col" aria-live="polite">
         <div className="vt-r" ref={col} onClick={onClick}>
           {cur === SLOT ? <SlotView close={() => open(null)} />
-            : i >= 0 ? <ChapterView c={all[i]} i={i} n={all.length} go={open} close={() => open(null)} root={col} />
-              : <Intro open={open} />}
+            : pOpen ? <ProductView pid={pOpen} name={pRow?.name ?? `#${pOpen}`} close={() => open(null)} />
+              : i >= 0 ? <ChapterView c={all[i]} i={i} n={all.length} go={open} close={() => open(null)} root={col} />
+                : <Intro open={open} />}
         </div>
       </aside>
-      <section className="vt-srv" aria-label={t('vit.servers')}>
-        <div className={`vt-rack ${bays ? 'has-img' : 'no-img'}`}>
-          {bays ? <img className="vt-img" src="/tex/rack.webp" srcSet="/tex/rack-s.webp 860w, /tex/rack.webp 1720w" sizes="(max-width: 760px) 100vw, 46vw" alt="" draggable={false} /> : null}
-          <ol className="vt-bays">
-            {L.faces.map((f, k) => {
-              const s = fam(f.id, f.lamp, f.word)
-              return <Sled key={f.id} {...f} {...s} bay={faceBays[k]} on={cur === f.id} dim={!!famOpen && famOpen !== f.id} open={() => open(cur === f.id ? null : f.id)} />
-            })}
-            <Sled id={SLOT} title={t('vit.slot')} word={t('vit.slot.w')} lamp="off" units="" bay={slotBay} on={cur === SLOT} dim={!!famOpen && famOpen !== SLOT} open={() => open(cur === SLOT ? null : SLOT)} />
-          </ol>
-        </div>
-        <p className="vt-hint mono">{L.hint}</p>
+      <section className="vt-list" aria-label={t('vit.servers')}>
+        <ol className="vt-bays">
+          {plates.filter((p, k) => !p.key.startsWith('slot') || k === shown.length + (over ? 1 : 0)).map((p) => <Sled key={p.key} p={p} />)}
+        </ol>
       </section>
     </div>
   )

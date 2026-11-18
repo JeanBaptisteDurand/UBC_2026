@@ -8,6 +8,8 @@ html.film-page .stage { background: transparent; overflow: hidden; }
 .stage[data-pin='1'] .veil { opacity: 0; }
 
 /* The layer adds to the image: it lights the film, it never covers it */
+/* The distant racks' LEDs (roomleds-film.ts), under the plates */
+.room-leds { position: absolute; left: 0; top: 0; pointer-events: none; }
 .film-layer { position: absolute; inset: 0; overflow: hidden; pointer-events: none; mix-blend-mode: plus-lighter; isolation: isolate; }
 /* no will-change: with it, Chrome rasterises a plate once and stretches that image while the camera turns, then
    re-rasterises it sharp at rest (a visible update of the names); without it, each frame draws the text at its true

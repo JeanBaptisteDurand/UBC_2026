@@ -24,7 +24,10 @@ interface Msg { role: 'user' | 'assistant'; content: string; units?: string; ver
 
 const q0 = new URLSearchParams(location.search)
 
-export function SessionsPage() {
+/** embed: inside My space (space.html), without the page frame; the title becomes a section title */
+export function SessionsPage({ embed = false }: { embed?: boolean } = {}) {
+  const Tag = (embed ? 'div' : 'main') as 'main'
+  const H = (embed ? 'h2' : 'h1') as 'h1'
   const lang = useLang()
   const main = useRef<HTMLElement>(null)
   useIn(main, 0.94)
@@ -32,23 +35,22 @@ export function SessionsPage() {
   const url = abs(ENCLAVE.inference)
   const probe = useProbe(url)
   const [reload, setReload] = useState(0)
-  useEffect(() => { document.title = xTitle('s.doc') }, [lang])
+  useEffect(() => { if (!embed) document.title = xTitle('s.doc') }, [lang, embed])
   return (
     <>
-      <a className="skip" href="#open" data-front-free>{x('s.skip')}</a>
-      <AppHeader page="sessions" section="nav.sessions" />
-      <main className="app work" ref={main}>
+      {embed ? null : <><a className="skip" href="#open" data-front-free>{x('s.skip')}</a><AppHeader page="sessions" section="nav.sessions" /></>}
+      <Tag className={embed ? 'work sp-work' : 'app work'} ref={main}>
         <section className="app-top st-use">
           <div className="app-top-in">
-            <h1 className="h2 ttl app-h1"><span className="ttl-m"><span className="ttl-t">{x('s.title')}</span></span><span className="ttl-rule" aria-hidden="true" /></h1>
+            <H className="h2 ttl app-h1"><span className="ttl-m"><span className="ttl-t">{x('s.title')}</span></span><span className="ttl-rule" aria-hidden="true" /></H>
             <p className="lede">{x('s.lede')}</p>
             <ServiceState p={probe} name={x('s.enc')} url={url} />
           </div>
         </section>
         <Chat url={url} onOpened={() => setReload((n) => n + 1)} />
         <Mine reload={reload} />
-      </main>
-      <Footer />
+      </Tag>
+      {embed ? null : <Footer />}
     </>
   )
 }

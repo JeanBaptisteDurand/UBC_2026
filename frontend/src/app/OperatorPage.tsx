@@ -19,19 +19,21 @@ import { x, xTitle } from '../network/actions/strings-x'
 import { WalletLine, ActSec } from './opsui'
 import { LevelsCard } from './levels'
 
-export function OperatorPage() {
+/** embed: inside My space (space.html), without the page frame; the title becomes a section title */
+export function OperatorPage({ embed = false }: { embed?: boolean } = {}) {
+  const Tag = (embed ? 'div' : 'main') as 'main'
+  const H = (embed ? 'h2' : 'h1') as 'h1'
   const lang = useLang()
   const main = useRef<HTMLElement>(null)
   useIn(main, 0.94)
-  useEffect(() => { document.title = xTitle('o.doc') }, [lang])
+  useEffect(() => { if (!embed) document.title = xTitle('o.doc') }, [lang, embed])
   return (
     <>
-      <a className="skip" href="#machines" data-front-free>{x('o.skip')}</a>
-      <AppHeader page="operator" section="nav.operator" />
-      <main className="app work" ref={main}>
+      {embed ? null : <><a className="skip" href="#machines" data-front-free>{x('o.skip')}</a><AppHeader page="operator" section="nav.operator" /></>}
+      <Tag className={embed ? 'work sp-work' : 'app work'} ref={main}>
         <section className="app-top st-rent">
           <div className="app-top-in">
-            <h1 className="h2 ttl app-h1"><span className="ttl-m"><span className="ttl-t">{x('o.title')}</span></span><span className="ttl-rule" aria-hidden="true" /></h1>
+            <H className="h2 ttl app-h1"><span className="ttl-m"><span className="ttl-t">{x('o.title')}</span></span><span className="ttl-rule" aria-hidden="true" /></H>
             <p className="lede">{x('o.lede')}</p>
             <WalletLine />
           </div>
@@ -41,8 +43,8 @@ export function OperatorPage() {
         <Register />
         <Keys />
         <LevelsCard />
-      </main>
-      <Footer />
+      </Tag>
+      {embed ? null : <Footer />}
     </>
   )
 }
