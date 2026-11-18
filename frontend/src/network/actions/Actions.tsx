@@ -8,6 +8,7 @@ import '../../ui/blades.css'
 import { short, usdc, pct, num } from '../../data/fmt'
 import { useCatalog } from '../../app/useCatalog'
 import { RAIL_NAME, type SvcRow } from '../../app/catalog'
+import { serviceHref } from '../../links'
 import { parts, type Part } from '../data'
 import { useUi, setUi, getUi } from './store'
 import { w } from './strings'
@@ -109,6 +110,8 @@ function SvcSheet({ r }: { r: SvcRow }) {
       <h3 className="net-cat-sheet-t">{r.name}</h3>
       <p className="net-cat-sheet-d">{t(`sv.k.${r.svc}` as TKey)}</p>
       <dl className="net-cat-dl">{rows.map(([k, v]) => <div key={k}><dt className="lbl">{k}</dt><dd className="mono tnum">{v}</dd></div>)}</dl>
+      {/* the service's own page: what it does, who runs it, what Arc checked */}
+      <a className="btn btn-line btn-s net-cat-more" href={serviceHref(r.p.id)}><span>{t('svx.more')}</span><span aria-hidden="true">→</span></a>
     </section>
   )
 }

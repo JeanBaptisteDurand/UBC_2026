@@ -61,7 +61,8 @@ function PartLabels() {
     if (innerWidth < 760) { els.forEach((e) => { e.dataset.on = '0' }); paths.forEach((e) => { e.style.opacity = '0' }); dots.forEach((e) => { e.style.opacity = '0' }); pb.dataset.on = '0'; return }
     const p = world.sec.protocol ?? 0
     const items = LAYERS.map((_, j) => ({ j, a: world.anchors.get(`part.${j}`) }))
-    const shown = items.filter((x) => !!x.a && x.a.vis > 0.6 && p > 0.29 && p < 0.515).sort((u, v) => u.a!.y - v.a!.y)
+    // the first layer (the rear coupling of the tray) carries no label: the exploded view names the six that matter
+    const shown = items.filter((x) => x.j !== 0 && !!x.a && x.a.vis > 0.6 && p > 0.29 && p < 0.515).sort((u, v) => u.a!.y - v.a!.y)
     // The labels sit just right of the layers, each at the height of its own (no overlap), linked by a
 // short line; the column aligns on the right margin if the slot leaves it too little room
     const lw = shown.reduce((m, x) => Math.max(m, els[x.j]?.offsetWidth ?? 0), 0)

@@ -2,6 +2,7 @@
 // enclave/, deployments.v21.testnet.json, app-3d/src/demo/replay.json): no fact added. Function, event and error
 // names are those of the code. Real values: only those with their transaction; everything else is marked 'example'.
 import { lg } from './lang'
+import R from '../demo/replay.json'
 
 type Bi = { en: string; fr: string }
 export const tr = (b: Bi) => b[lg()]
@@ -225,4 +226,46 @@ export function clientAt(i: number, u: number): { phase: number; k: number } {
   if (i < ans) return { phase: 2, k: 0 }
   if (i === ans) return { phase: 3, k: c(u / 0.6) }
   return { phase: 3, k: 1 }
+}
+
+// ---------- What the landing demo explains, brought into the beats (src/demo, replay.json) ----------
+// why: one plain sentence the landing page says better (its steps s1 to s9, i18n 'demo.s*'); rec: the values recorded
+// on Arc testnet that the beat refers to, read from src/demo/replay.json (block 72318453) or, for the publish and bond
+// transactions, from DEMO_STEPS[].real above. Nothing here is computed or invented: product numbers say which product a
+// value belongs to (the recorded enclave serves product 1, the recorded payment is for product 3).
+export interface Rec { k: Bi; v: string | Bi; tx?: string }
+const sh = (h: string) => `${h.slice(0, 10)}…${h.slice(-6)}`
+const u6 = (n: number | string) => String(Number(n) / 1e6)
+const bps = (p: { bpsOperator: number; bpsAuthor: number; bpsNetwork: number }) => `${p.bpsOperator} / ${p.bpsAuthor} / ${p.bpsNetwork}`
+const P1 = R.product, P3 = R.payProduct, E = R.enclave, G = R.registration, OK = R.replay.ok, NO = R.replay.refused, PAY = R.payment
+const AMT = Number(PAY?.args.amount ?? 0)
+const split = (amt: number, b: number) => String((amt * b) / 10000 / 1e6)
+export const REC_HEAD: Bi = { en: `Recorded on Arc testnet, block ${R.head}`, fr: `Enregistré sur Arc testnet, bloc ${R.head}` }
+export const BEAT_MORE: Record<number, { why?: Bi; rec?: Rec[] }> = {
+  0: { why: ex('Four parties and two registries on Arc: an author publishes a service, an operator runs it in a sealed Intel TDX machine, Arc checks the machine, a user pays each call in USDC.', 'Quatre acteurs et deux registres sur Arc : un auteur publie un service, un opérateur le fait tourner dans une machine Intel TDX scellée, Arc vérifie la machine, un utilisateur paie chaque appel en USDC.'),
+    rec: [{ k: ex('On Arc at that block', 'Sur Arc à ce bloc'), v: { en: `${R.stats.enclaves} enclaves (${R.stats.enclavesActive} active), ${R.stats.products} products, ${R.stats.x402Calls} x402 calls`, fr: `${R.stats.enclaves} enclaves (${R.stats.enclavesActive} actives), ${R.stats.products} produits, ${R.stats.x402Calls} appels x402` } }] },
+  1: { rec: [{ k: ex('manifestHash, product #3', 'manifestHash, produit n° 3'), v: sh(P3.manifestHash) }] },
+  2: { why: ex('The fingerprint is the hash of the exact image an enclave must run. The author needs no machine.', 'L’empreinte est le hash de l’image exacte qu’une enclave doit exécuter. L’auteur n’a besoin d’aucune machine.'),
+    rec: [{ k: ex('Allowed image fingerprint, product #1', 'Empreinte d’image autorisée, produit n° 1'), v: sh(G.allowedId) }] },
+  3: { rec: [{ k: ex('Product #3: price, shares operator / author / network (bps)', 'Produit n° 3 : prix, parts opérateur / auteur / réseau (bps)'), v: `${u6(P3.price)} USDC · ${bps(P3)}`, tx: DEMO_STEPS[1].real?.tx }] },
+  4: { rec: [{ k: ex('activate(3)', 'activate(3)'), v: { en: `product #3 ${P3.state}`, fr: `produit n° 3 ${P3.state === 'Active' ? 'actif' : P3.state}` }, tx: DEMO_STEPS[2].real?.tx }] },
+  5: { rec: [{ k: ex('Recorded enclave: signing key, operator', 'Enclave enregistrée : clé de signature, opérateur'), v: `${sh(E.signer)} · ${sh(E.operator)}` }] },
+  6: { rec: [{ k: ex('Minimum bond asked by product #1', 'Caution minimale demandée par le produit n° 1'), v: `${u6(P1.minBond)} USDC` }] },
+  7: { rec: [{ k: ex('Bond locked', 'Caution posée'), v: '8 USDC', tx: DEMO_STEPS[3].real?.tx }] },
+  8: { why: ex('The enclave’s memory is encrypted: even the machine’s owner cannot read it. Intel measures what booted and signs a quote.', 'La mémoire de l’enclave est chiffrée : même le propriétaire de la machine ne la lit pas. Intel mesure ce qui a démarré et signe un quote.'),
+    rec: [{ k: ex('MRTD, quote, boot log', 'MRTD, quote, journal de démarrage'), v: { en: `${sh(G.measures.mrtd)} · ${G.quoteBytes} bytes · ${G.eventLogBytes} bytes, ${G.events.length} events`, fr: `${sh(G.measures.mrtd)} · ${G.quoteBytes} octets · ${G.eventLogBytes} octets, ${G.events.length} événements` } }] },
+  9: { why: ex('Arc replays the boot log in Solidity and recomputes RTMR3: it matches what Intel signed, byte for byte. Change one byte and the image no longer matches the author’s: Arc refuses.', 'Arc rejoue le journal de démarrage en Solidity et recalcule RTMR3 : il correspond, octet pour octet, à ce qu’Intel a signé. Un octet changé, et l’image ne correspond plus à celle de l’auteur : Arc refuse.'),
+    rec: [{ k: ex('RTMR3 signed by Intel = replayed by Arc, 48 of 48 bytes', 'RTMR3 signé par Intel = rejoué par Arc, 48 octets sur 48'), v: sh(OK.rtmr3) },
+      { k: { en: `Byte ${NO.flip} of compose-hash, ${NO.byteBefore} becomes ${NO.byteAfter}: refused`, fr: `Octet ${NO.flip} de compose-hash, ${NO.byteBefore} devient ${NO.byteAfter} : refusé` }, v: `RTMR3 ${sh(NO.rtmr3)} · image ${sh(NO.imageId)}` }] },
+  10: { why: ex('From the measurements, Arc recomputes the image fingerprint and compares it with the one the author allowed. They match: the enclave can serve the product.', 'À partir des mesures, Arc recalcule l’empreinte de l’image et la compare à celle que l’auteur a autorisée. Elles concordent : l’enclave peut servir le produit.'),
+    rec: [{ k: ex('Image fingerprint recomputed by Arc, allowed', 'Empreinte recalculée par Arc, autorisée'), v: sh(OK.imageId) }] },
+  11: { why: ex('One transaction carries the Intel quote and the boot log. The quote is anchored to a recent Arc block and binds the enclave’s signing key.', 'Une transaction porte le quote signé par Intel et le journal de démarrage. Le quote est ancré à un bloc récent d’Arc et lie la clé de signature de l’enclave.'),
+    rec: [{ k: { en: `registerEnclave, block ${G.block}, quote anchored at block ${G.anchorR}`, fr: `registerEnclave, bloc ${G.block}, quote ancré au bloc ${G.anchorR}` }, v: `gas ${G.costUsdc.toFixed(4)} USDC`, tx: G.tx }] },
+  12: { rec: [{ k: ex('Price per call, product #3', 'Prix par appel, produit n° 3'), v: { en: `${u6(P3.price)} USDC (${P3.price} units)`, fr: `${u6(P3.price)} USDC (${P3.price} unités)` } }] },
+  13: { rec: [{ k: { en: `Enclave key, product #${E.productId}, blocks ${E.fromBlock} to ${E.untilBlock}`, fr: `Clé de l’enclave, produit n° ${E.productId}, blocs ${E.fromBlock} à ${E.untilBlock}` }, v: `${sh(E.signer)} · X25519 ${sh(E.x25519)}` }] },
+  14: { rec: [{ k: ex('Sealed to the registered X25519 key', 'Scellée pour la clé X25519 inscrite'), v: sh(E.x25519) }] },
+  17: { rec: [{ k: ex('Receipt signed by the enclave key', 'Reçu signé par la clé de l’enclave'), v: sh(E.signer) }] },
+  20: { rec: [{ k: { en: `CallSettled, product #${PAY?.args.productId}, block ${PAY?.block}`, fr: `CallSettled, produit n° ${PAY?.args.productId}, bloc ${PAY?.block}` }, v: { en: `${u6(PAY?.args.amount ?? 0)} USDC · payer ${sh(PAY?.args.payer ?? '')} · nonce ${sh(PAY?.args.nonce ?? '')}`, fr: `${u6(PAY?.args.amount ?? 0)} USDC · payeur ${sh(PAY?.args.payer ?? '')} · nonce ${sh(PAY?.args.nonce ?? '')}` }, tx: PAY?.tx }] },
+  21: { why: ex('The split follows the product’s shares, read on Arc, in the same transaction. Both the registration and the paid call are public on the Arc testnet explorer.', 'Le partage suit les parts du produit, lues sur Arc, dans la même transaction. L’inscription et l’appel payé sont publics dans l’explorateur d’Arc testnet.'),
+    rec: [{ k: { en: `Split of ${u6(PAY?.args.amount ?? 0)} USDC, product #3 (${bps(P3)} bps)`, fr: `Partage de ${u6(PAY?.args.amount ?? 0)} USDC, produit n° 3 (${bps(P3)} bps)` }, v: { en: `operator ${split(AMT, P3.bpsOperator)} · author ${split(AMT, P3.bpsAuthor)} · network ${split(AMT, P3.bpsNetwork)} USDC`, fr: `opérateur ${split(AMT, P3.bpsOperator)} · auteur ${split(AMT, P3.bpsAuthor)} · réseau ${split(AMT, P3.bpsNetwork)} USDC` }, tx: PAY?.tx }] },
 }

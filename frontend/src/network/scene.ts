@@ -40,6 +40,7 @@ import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js'
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js'
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js'
 import { makeHoverModal, type Box } from './modals'
+import { setDemo } from './actions/store'
 import { onLang, lg } from './lang'
 import { dress } from './dressing'
 import { siteReady, CLIENT } from './screens'
@@ -104,8 +105,8 @@ const dust = (() => {
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1)); g.setAttribute('aSize', new THREE.BufferAttribute(sz, 1)); g.setAttribute('aLay', new THREE.BufferAttribute(lay, 1))
   const m = new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-    uniforms: { uT: { value: 0 }, uDpr: { value: 1 }, uRef: { value: 34 }, uElec: { value: new THREE.Color(C.arcElec) }, uHalo: { value: new THREE.Color(0x3a6bff) } },
-    vertexShader: /* glsl */`attribute float aSeed; attribute float aSize; attribute float aLay; uniform float uT; uniform float uDpr; uniform float uRef; varying float vB; varying float vBig; varying float vSoft;
+    uniforms: { uT: { value: 0 }, uDpr: { value: 1 }, uRef: { value: 34 }, uCut: { value: -2 }, uElec: { value: new THREE.Color(C.arcElec) }, uHalo: { value: new THREE.Color(0x3a6bff) } },
+    vertexShader: /* glsl */`attribute float aSeed; attribute float aSize; attribute float aLay; uniform float uT; uniform float uDpr; uniform float uRef; varying float vB; varying float vBig; varying float vSoft; varying float vX;
       void main() {
         vec3 p = position;
         float sp = aLay == 2.0 ? 1.6 : 1.0;
@@ -115,10 +116,10 @@ const dust = (() => {
         vBig = step(4.4, aSize) * step(aLay, 1.5);
         vSoft = aLay == 2.0 ? 1.0 : 0.0;
         vB = (0.35 + 0.65 * (0.5 + 0.5 * sin(uT * 0.6 + aSeed * 3.0))) * (aLay == 0.0 ? 0.8 : aLay == 2.0 ? 0.4 : 1.25);
-        gl_PointSize = clamp(aSize * uDpr * uRef / d, 1.0, 64.0 * uDpr); gl_Position = projectionMatrix * mv;
+        gl_PointSize = clamp(aSize * uDpr * uRef / d, 1.0, 64.0 * uDpr); gl_Position = projectionMatrix * mv; vX = gl_Position.x / gl_Position.w;
       }`,
-    fragmentShader: /* glsl */`uniform vec3 uElec; uniform vec3 uHalo; varying float vB; varying float vBig; varying float vSoft;
-      void main() { float r = length(gl_PointCoord - 0.5) * 2.0; if (r > 1.0) discard; float a = pow(1.0 - r, mix(1.6, 0.9, vSoft)) * mix(0.42, 0.95, vBig) * vB; gl_FragColor = vec4(mix(uHalo, uElec, max(vBig, vSoft * 0.5)) * a, a); }`,
+    fragmentShader: /* glsl */`uniform vec3 uElec; uniform vec3 uHalo; uniform float uCut; varying float vB; varying float vBig; varying float vSoft; varying float vX;
+      void main() { float r = length(gl_PointCoord - 0.5) * 2.0; if (r > 1.0) discard; float a = pow(1.0 - r, mix(1.6, 0.9, vSoft)) * mix(0.42, 0.95, vBig) * vB * mix(0.12, 1.0, smoothstep(uCut - 0.04, uCut + 0.2, vX)); gl_FragColor = vec4(mix(uHalo, uElec, max(vBig, vSoft * 0.5)) * a, a); }`,
   })
   m.toneMapped = false
   const p = new THREE.Points(g, m); p.frustumCulled = false; p.renderOrder = -2; scene.add(p)
@@ -147,15 +148,15 @@ const galaxy = (() => {
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('aCol', new THREE.BufferAttribute(col, 3)); geo.setAttribute('aSize', new THREE.BufferAttribute(sz, 1)); geo.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1))
   const m = new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-    uniforms: { uT: { value: 0 }, uRot: { value: 0 }, uDpr: { value: 1 }, uRef: { value: 110 }, uK: { value: 1 } },
-    vertexShader: /* glsl */`attribute vec3 aCol; attribute float aSize; attribute float aSeed; uniform float uT; uniform float uRot; uniform float uDpr; uniform float uRef; varying vec3 vC; varying float vA;
+    uniforms: { uT: { value: 0 }, uRot: { value: 0 }, uDpr: { value: 1 }, uRef: { value: 110 }, uK: { value: 1 }, uCut: { value: -2 } },
+    vertexShader: /* glsl */`attribute vec3 aCol; attribute float aSize; attribute float aSeed; uniform float uT; uniform float uRot; uniform float uDpr; uniform float uRef; varying vec3 vC; varying float vA; varying float vX;
       void main() {
         float c = cos(uRot), s = sin(uRot); vec3 p = vec3(c * position.x + s * position.z, position.y, -s * position.x + c * position.z);
         vec4 mv = modelViewMatrix * vec4(p, 1.0); float d = max(1.0, -mv.z);
         vC = aCol; vA = 0.55 + 0.45 * sin(uT * 0.8 + aSeed * 3.0);
-        gl_PointSize = clamp(aSize * uDpr * uRef / d, 1.0, 9.0 * uDpr); gl_Position = projectionMatrix * mv; }`,
-    fragmentShader: /* glsl */`uniform float uK; varying vec3 vC; varying float vA;
-      void main() { float r = length(gl_PointCoord - 0.5) * 2.0; if (r > 1.0) discard; float a = pow(1.0 - r, 1.6) * 0.75 * vA * uK; gl_FragColor = vec4(vC * a, a); }`,
+        gl_PointSize = clamp(aSize * uDpr * uRef / d, 1.0, 9.0 * uDpr); gl_Position = projectionMatrix * mv; vX = gl_Position.x / gl_Position.w; }`,
+    fragmentShader: /* glsl */`uniform float uK; uniform float uCut; varying vec3 vC; varying float vA; varying float vX;
+      void main() { float r = length(gl_PointCoord - 0.5) * 2.0; if (r > 1.0) discard; float a = pow(1.0 - r, 1.6) * 0.75 * vA * uK * mix(0.1, 1.0, smoothstep(uCut - 0.04, uCut + 0.2, vX)); gl_FragColor = vec4(vC * a, a); }`,
   })
   m.toneMapped = false
   const pts = new THREE.Points(geo, m); pts.frustumCulled = false; pts.renderOrder = -1; scene.add(pts)
@@ -416,9 +417,17 @@ function computeLinks() {
   // direct exchanges (the sealed request does not go through the chain): higher, anchor to anchor
   resample(bez(aU, aR, 2.2, 40), linkPts.useRent)
   resample(bez(aP, aR, 2.2, 40), linkPts.publishRent)
-  // CCTP: from other chains to the Arc anchor, then from Arc to the Use anchor (an arc higher than useArc)
+  // CCTP: from other chains to the Arc anchor, then from Arc to the Use anchor. Its second leg retraces
+  // useArc exactly (same curve, reversed): a second, higher curve between Use and the A read as an accidental
+  // double line. The packets still travel the whole path; the shared leg is drawn only when CCTP is the
+  // brighter of the two (otherwise useArc alone shows it), see ccJoin below
   const c0 = ccOut.o > 0.3 ? aA.clone().add(new THREE.Vector3(0, 0.01, 0)) : chainsAnchor() // system out: the link no longer starts in the void
-  resample([...bez(c0, aA, 0.6, 30), ...bez(aA, aU, 1.25, 30).slice(1)], linkPts.cctp)
+  const leg1 = bez(c0, aA, 0.6, 30), leg2 = bez(aU, aA, 0.5, 30).reverse()
+  let l1 = 0, l2 = 0
+  for (let i = 1; i < leg1.length; i++) l1 += leg1[i].distanceTo(leg1[i - 1])
+  for (let i = 1; i < leg2.length; i++) l2 += leg2[i].distanceTo(leg2[i - 1])
+  const ccJoin = Math.round((NSEG * l1) / Math.max(1e-6, l1 + l2))
+  resample([...leg1, ...leg2.slice(1)], linkPts.cctp)
   ;[aU, aR, aP, aA, c0].forEach((p, i) => ANCH.setMatrixAt(i, new THREE.Matrix4().makeTranslation(p.x, p.y, p.z)))
   ANCH.instanceMatrix.needsUpdate = true
   const a = fat.pos.array as Float32Array, ca = fat.col.array as Float32Array
@@ -428,8 +437,9 @@ function computeLinks() {
     // intro: links to Arc draw from Arc (their end), the others from their start
     const toArc = k === 'useArc' || k === 'publishArc' || k === 'rentArc', nShow = intro.links >= 1 ? NSEG : Math.floor(NSEG * intro.links)
     cc.setHex(PART[LINK_PART[k]].hex).multiplyScalar(0.12 + 0.88 * on).lerp(wh, 0.28 * on * on)
+    const shared = k === 'cctp' && on <= h.links.useArc && !(view === 'demo' && !shotLinks.has('useArc')) // the leg shared with useArc: useArc draws it
     for (let i = 0; i < NSEG; i++) {
-      const off = toArc ? i < NSEG - nShow : i >= nShow
+      const off = (toArc ? i < NSEG - nShow : i >= nShow) || (shared && i >= ccJoin)
       const o = (li * NSEG + i) * 6, p0 = hidden || off ? pts[toArc ? NSEG : 0] : pts[i], p1 = hidden || off ? pts[toArc ? NSEG : 0] : pts[i + 1]
       a[o] = p0.x; a[o + 1] = p0.y; a[o + 2] = p0.z; a[o + 3] = p1.x; a[o + 4] = p1.y; a[o + 5] = p1.z
       ca[o] = ca[o + 3] = cc.r; ca[o + 1] = ca[o + 4] = cc.g; ca[o + 2] = ca[o + 5] = cc.b
@@ -593,6 +603,11 @@ gsap.ticker.add(() => {
   // the slow camera oscillation around Arc (±25°, 75 s): in the overview only, paused on hover,
   // stopped in reduced motion or frozen by ?t=
   if (spinOn()) { spinT += dt * SPIN_K; rig.user.az = SPIN * Math.sin((spinT / 75) * Math.PI * 2) }
+  // in the overview, the galaxy and dust dim under the column (the text reads on a calm ground)
+  { const cr = view === 'ensemble' ? colR : 0, tgt = cr > 0 ? (cr / rig.w) * 2 - 1 : -2, u = dust.uniforms.uCut
+    const nv = freeze || reduced || !cutSet ? tgt : u.value + (tgt - u.value) * Math.min(1, dt * 3)
+    if (cr > 0) cutSet = true
+    if (Math.abs(nv - u.value) > 1e-4) { u.value = nv; galaxy.uniforms.uCut.value = nv; dirty = true } }
   // the room orbit advances with the oscillation, and slows to a stop (smoothly) when it stops
   orbV += ((spinOn() ? 1 : 0) - orbV) * Math.min(1, dt * 1.5)
   if (!freeze && !reduced && orbV > 1e-4) { orbT += dt * orbV * SPIN_K; ccT += dt * orbV * SPIN_K; dirty = true }
@@ -615,6 +630,7 @@ function resize() {
   CHAINS.title.glow.sparkMat.uniforms.uDpr.value = Math.min(devicePixelRatio, 2)
   fat.m.resolution.set(r.width, r.height)
   SIGN_K = mobileMQ.matches ? 1.7 : 1
+  colR = colRight()
   if (view !== 'demo') setPose(poseFor(view, stepEl), 0) // in the demo, the director sets the camera
   dirty = true
 }
@@ -643,25 +659,32 @@ const localBox = (k: PartK) => {
 // Orbit envelope, for the overview frame: each room at 24 places on its orbit, at the farthest and at the
 // two extreme heights; plus Arc and the chain row
 // (the corners of the oriented boxes, not their aligned boxes: the frame is no wider than the scene)
-let envCache: THREE.Vector3[][] | null = null
+const envCache: Record<string, THREE.Vector3[][]> = {}
 // a slightly tight overview, with the signs at the edge not cut;
 // ?poster=1 (the still image without WebGL): the full overview shot
 const FIT_K = Q.has('poster') ? 0.95 : 0.56
 const corners = (b: THREE.Box3, m?: THREE.Matrix4) => Array.from({ length: 8 }, (_, i) => { const v = new THREE.Vector3(i & 1 ? b.max.x : b.min.x, i & 2 ? b.max.y : b.min.y, i & 4 ? b.max.z : b.min.z); return m ? v.applyMatrix4(m) : v })
-function envelope() {
-  if (envCache) return envCache
+// fk: the share of each orbit radius the envelope holds (1 = every place a room can reach)
+function envelope(fk = FIT_K, cc = false) {
+  const ck = `${fk}x${KX}x${cc}`
+  if (envCache[ck]) return envCache[ck]
   const out: THREE.Vector3[][] = [], v = new THREE.Vector3()
   for (const k of ORDER) {
     const o = ORB[k], lb = localBox(k)
-    for (let i = 0; i < 16; i++) {
-      // the frame holds the orbits up to 62% of their radius; beyond that, the rotation brings rooms in and
+    for (let i = 0; i < 24; i++) {
+      // the frame holds the orbits up to fk of their radius; beyond that, the rotation brings rooms in and
       // out of frame (not everything has to fit in one image)
-      const a = (i / 16) * Math.PI * 2, r = (o.r + o.e) * FIT_K
+      const a = (i / 24) * Math.PI * 2, r = (o.r + o.e) * fk
       for (const y of [o.h - o.inc, o.h + o.inc]) out.push(corners(lb, islandMAt(k, orbXYZ(a, r, y, v).clone())))
     }
   }
   out.push(corners(new THREE.Box3(new THREE.Vector3(-ARC_H / 2, ARC_Y - ARC_H / 2, -ARC_H / 2), new THREE.Vector3(ARC_H / 2, ARC_Y + ARC_H / 2 + 0.4, ARC_H / 2))))
-  return (envCache = out)
+  // the CCTP system over its whole drift (ring, token, title and anchor)
+  if (cc) for (let i = 0; i <= 8; i++) {
+    const a = (CC.a0 + CC.drift * (i / 4 - 1)) * DEG, c = new THREE.Vector3(CC.r * Math.sin(a), CC.h, CC.r * Math.cos(a)), R = CC.ring + CHAIN_SIZE
+    out.push(corners(new THREE.Box3(new THREE.Vector3(c.x - R, c.y - R * 0.4, c.z - R), new THREE.Vector3(c.x + R, c.y + 6.5, c.z + R))))
+  }
+  return (envCache[ck] = out)
 }
 // the column only shifts the scene if it lies over it (not when it goes below, on phone or tablet)
 const SPIN = 20
@@ -677,9 +700,11 @@ function fitCentered(p: Pose): Pose {
   rig.drag.az = rig.drag.el = 0; rig.drag.zoom = 1
   const keyEl = document.querySelector<HTMLElement>('#key'), keyH = keyEl && getComputedStyle(keyEl).position === 'absolute' ? keyEl.offsetHeight : 0
   const mob = mobileMQ.matches, M = mob ? 12 : 24
-  const left = colFrac() * rig.w + M, right = rig.w - M, top = M, bottom = rig.h - keyH - M
-  const cx = (left + right) / 2, cy = (top + bottom) / 2
-  p.shift = (cx - rig.w / 2) / rig.w; p.lift = (rig.h / 2 - cy) / rig.h
+  const cr = colRight(), left = cr > 0 ? cr + COL_GAP : M, right = rig.w - M, top = M, bottom = rig.h - keyH - M
+  let cx = (left + right) / 2
+  const cy = (top + bottom) / 2
+  const place = () => { p.shift = (cx - rig.w / 2) / rig.w; p.lift = (rig.h / 2 - cy) / rig.h }
+  place()
   const boxes = envelope()
   // fewer samples (keeps the return to the overview cheap)
   for (let it = 0; it < 6; it++) {
@@ -695,15 +720,45 @@ function fitCentered(p: Pose): Pose {
     const k = Math.min((right - left) / 2 / hw, (bottom - top) / 2 / hh)
     p.zoom *= THREE.MathUtils.clamp(Number.isFinite(k) && k > 0 ? Math.pow(k, 0.85) : 0.6, 0.6, 1.6)
   }
+  // Beside the column: the camera comes closer (OV.zk, the layout itself never changes), then the A moves right
+  // (at most OV.dx of the free area) for the near orbits to clear the column; with the rotation, the far places of
+  // the orbits leave the frame and come back, as before
+  if (cr > 0) {
+    p.zoom *= OV.zk
+    const near = envelope(FIT_K)
+    let hl = 0
+    for (const d of [-SPIN / 2, 0, SPIN / 2]) {
+      Object.assign(rig.pose, p); rig.user.az = d; rig.user.el = 0; rig.user.zoom = 1; rig.apply()
+      for (const pts of near) for (const q of pts) {
+        bv.copy(q).applyMatrix4(rig.cam.matrixWorldInverse); if (bv.z > -rig.cam.near) continue
+        rig.project(vp.copy(q), o2); hl = Math.max(hl, cx - o2.x)
+      }
+    }
+    cx = Math.min(Math.max(cx, left + hl), cx + (right - left) * OV.dx); place()
+  }
   Object.assign(rig.pose, keepP); Object.assign(rig.user, keepU); Object.assign(rig.drag, keepD); rig.apply()
   return p
+}
+// The overview beside the column (camera only: the rooms, the A and the CCTP system keep their places and distances).
+// ax: where the A sits across the free area right of the column (0.5 = its centre); fkl: the share of each orbit radius
+// that must stay right of the column over the whole sway (the CCTP system over its whole drift too): rooms beyond it
+// pass under the column's reading blur, never near the text; over: how far past the right edge the rest may reach
+// (rooms there leave the frame and come back with the rotation)
+const OV = { zk: Number(Q.get('ovzk') ?? 1.12), dx: Number(Q.get('ovdx') ?? 0.07) } // TMPQ
+const COL_GAP = 40 // px between the column's right edge and anything in the scene
+let colR = 0, cutSet = false // the column edge (measured on resize); the dimming has been placed once
+// the column's right edge in stage pixels (0 when the column is not laid over the scene: phone, tablet)
+function colRight() {
+  const c = document.querySelector<HTMLElement>('#col')
+  if (mobileMQ.matches || !c || getComputedStyle(c).position !== 'absolute') return 0
+  return Math.min(0.5 * rig.w, c.getBoundingClientRect().right - stage.getBoundingClientRect().left)
 }
 function colFrac() { const c = document.querySelector<HTMLElement>('#col'); return mobileMQ.matches || !c || getComputedStyle(c).position !== 'absolute' ? 0 : Math.min(0.45, c.getBoundingClientRect().width / Math.max(1, rig.w)) }
 function poseFor(v: View, el: string | null): Pose {
   const mob = mobileMQ.matches, cf = colFrac(), sh = cf / 2, fr = 1 - cf
   if (v === 'ensemble') {
     // the overview frame is computed once per screen and column size (it covers all orbit places)
-    const key = `${rig.w}x${rig.h}x${cf.toFixed(2)}x${mob}`
+    const key = `${rig.w}x${rig.h}x${cf.toFixed(2)}x${Math.round(colRight())}x${mob}`
     if (ensCache?.key === key) return { ...ensCache.pose }
     const pose = fitCentered({ tx: 0, ty: ARC_Y, tz: 0, az: AZ0, el: mob ? EL_MOB : EL, zoom: 0.3, shift: sh, lift: 0, fov: FOV })
     ensCache = { key, pose: { ...pose } }
@@ -1126,6 +1181,7 @@ const demo = makeDemo({
 let autoT = 0, stepCalled = false
 function go(v: View, opts: { el?: string | null; instant?: boolean } = {}) {
   const prev = view
+  if (show && v !== show.part) stopShow()
   view = v; stepEl = opts.el ?? null
   hover.close(); setHover(null, 'scene')
   if (v === 'ensemble') spinT = 0
@@ -1468,6 +1524,7 @@ const rangesOf = (part: Part, k: number) => STAGES[part][k].map((r) => [...r] as
 // the page gives the actual state of the active step (todo, doing, done, fail…); on focus, the scene never shows a
 // result the page does not have: until the step is done, its animation stops before the result (PEND)
 export function playStep(part: Part, i: number, st?: string) {
+  if (show?.on && show.part === part) return // the part's demo is playing: the page state waits for its end
   if (view !== part) go(part)
   clearTimeout(autoT); stepCalled = true
   const S = STAGES[part], k = THREE.MathUtils.clamp(Math.round(i), 0, S.length - 1)
@@ -1489,11 +1546,62 @@ export function playStep(part: Part, i: number, st?: string) {
   if (chain) list = [...list, ...EXTRA[part].flatMap((e) => rangesOf(part, e))]
   runRanges(part, list, k)
 }
+// ---------- The part's demo (the "Play the demo" button at the top of a focus) ----------
+// A show, not the visitor's flow: no wallet, no form, no transaction. The scene plays the whole flow of the part,
+// stage after stage (STAGES, as the page steps would), the camera follows each stage, and the matching step of the
+// left list is marked (data-demo). Use: choice, key, sealed request and payment, answer, settlement. Rent: bond,
+// boot and attestation, pairing, admission on Arc, racking. Publish: manifest, fingerprint, proposal, review
+// (activation), the image sent to the machine. Reduced motion: each stage is set at once, then held 2.6 s.
+// Events: 'net:show' on window, detail { part, st: 'idle' | 'on' | 'done', k }.
+const SHOW_LAST: Record<Part, number> = { use: 5, rent: 5, publish: 5 }
+let show: { part: Part; k: number; on: boolean } | null = null
+let showCall: gsap.core.Tween | null = null, showTw: gsap.core.Animation | null = null
+const showEmit = (st: 'idle' | 'on' | 'done') => dispatchEvent(new CustomEvent('net:show', { detail: { part: show?.part ?? null, st, k: show?.k ?? -1 } }))
+function showMark(k: number) {
+  const li = Array.from(document.querySelectorAll<HTMLElement>('.net-acts .na')), j = k < 0 ? -1 : Math.min(k, li.length - 1)
+  li.forEach((e, i) => { e.dataset.demo = i === j ? '1' : '0' })
+  if (j >= 0) li[j]?.scrollIntoView?.({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' })
+}
+function showChain(list: Range[], done: () => void) {
+  const r = list[0]
+  if (!r) { showCall = gsap.delayedCall(0.5, done); return }
+  const tw = loop.playRange(r[0], r[1], false); dirty = true
+  if (tw) { showTw = tw; tw.eventCallback('onComplete', () => showChain(list.slice(1), done)) } else showChain(list.slice(1), done)
+}
+function showStage(part: Part, k: number) {
+  if (!show?.on || show.part !== part || view !== part) return
+  if (k > SHOW_LAST[part]) { show.on = false; setDemo({ part, k, end: true }); showEmit('done'); return }
+  show.k = k; showMark(k); setDemo({ part, k, end: false }); showEmit('on')
+  stageCam(part, k); loop.setReal(null)
+  const list = rangesOf(part, k), next = () => showStage(part, k + 1)
+  if (reduced || freeze) { for (const r of list) loop.playRange(r[0], r[1], true); dirty = true; showCall = gsap.delayedCall(2.6, next); return }
+  showChain(list, next)
+}
+/** Plays the whole flow of the part in the scene (a replay, nothing signed or sent). */
+export function playShow(part: Part) {
+  if (view !== part) go(part)
+  stopShow(false)
+  clearTimeout(autoT); stepCalled = true; lastStep = ''; extraFor = ''; activeStep = null
+  show = { part, k: 0, on: true }
+  showStage(part, 1)
+}
+/** Stops the part's demo where it is; the step marks are cleared. */
+export function stopShow(emit = true) {
+  if (!show) return
+  showCall?.kill(); showCall = null; showTw?.kill(); showTw = null
+  show.on = false; showMark(-1); setDemo(null) // the steps get the visitor's own values back
+  if (emit) showEmit('idle')
+  show = null; lastStep = ''
+}
+// the visitor's own step click ends the show
+document.addEventListener('click', (e) => { if (show && (e.target as HTMLElement).closest?.('.net-acts .na-h, #steps .step')) stopShow() }, true)
+
 /** Back to the overview. */
 export function overview() { activeStep = null; go('ensemble') }
 
 window.__s3d = {
-  focusCamera, overview, playStep, people,
+  focusCamera, overview, playStep, people, playShow, stopShow,
+  showState: () => (show ? { part: show.part, on: show.on, k: show.k } : null),
   usdcPx: (px: number) => { UPX = px; render(performance.now()) },
   // probes: a free camera (target, azimuth, elevation in degrees, distance, field of view), the position of a figure
   // (0 Use, 1 Rent, 2 Publish; at chest height) and of the first USDC token in flight
@@ -1509,6 +1617,27 @@ window.__s3d = {
   demoSeek: (t: number) => demo.seek(t), demoT: () => demo.t,
   orbit: (t?: number) => { if (t !== undefined) { orbT = t; ccT = t; render(performance.now()) } return orbT },
   renderNow: () => render(performance.now()),
+  // the probe for the overview frame: over n orbit times and the whole sway, the leftmost screen x reached by a
+  // room (oriented box, sign included), a link point or the CCTP system, against the column's right edge
+  sweep: (n = 160, span = 1400) => {
+    const keep = { t: orbT, c: ccT, az: rig.user.az }, res = { col: colRight(), minX: Infinity, what: '', t: 0, d: 0, maxR: -Infinity, w: rig.w }
+    const see = (q: THREE.Vector3, what: string, t: number, d: number) => {
+      bv.copy(q).applyMatrix4(rig.cam.matrixWorldInverse); if (bv.z > -rig.cam.near) return
+      rig.project(vp.copy(q), o2); if (o2.y < 0 || o2.y > rig.h) return
+      if (o2.x < res.minX) Object.assign(res, { minX: o2.x, what, t, d }); res.maxR = Math.max(res.maxR, o2.x)
+    }
+    for (let i = 0; i < n; i++) {
+      const t = (i / n) * span; orbT = ccT = t; layout(); titles(); cctpFrame()
+      for (const d of [-SPIN, -SPIN / 2, 0, SPIN / 2, SPIN]) {
+        rig.user.az = d; rig.apply(); computeLinks()
+        for (const k of ORDER) { for (const q of corners(localBox(k), W.islands[k].group.matrixWorld)) see(q, k, t, d) }
+        for (const k of LINKS) for (const q of linkPts[k]) see(q, 'link.' + k, t, d)
+        for (const q of corners(new THREE.Box3().setFromObject(CHAINS.group))) see(q, 'cctp', t, d)
+      }
+    }
+    orbT = keep.t; ccT = keep.c; rig.user.az = keep.az; rig.apply(); layout(); titles(); cctpFrame(); computeLinks(); render(performance.now())
+    return res
+  },
   play: () => loop.restart(false),
   // the probe: sign rectangles on screen, for a given azimuth offset
   titleRects: (dAz: number) => { const keep = rig.user.az; rig.user.az = dAz; rig.apply(); const r = ORDER.map((k) => ({ k, ...rig.rect(titleBox(k)) })); rig.user.az = keep; rig.apply(); const st = stage.getBoundingClientRect(); return { w: rig.w, h: rig.h, left: colFrac() * rig.w, stage: { x: st.left, y: st.top }, r } },

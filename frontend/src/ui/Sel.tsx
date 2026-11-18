@@ -23,6 +23,9 @@ export const padOf = (el: Element) => (el.closest('.mirror') ? 0 : SEL_PAD)
 const LOGO_Y0 = 22.412462 / 83.40358
 /** Selection frame rectangle of a target (CSS px, on screen) */
 export function selBox(el: Element): { x: number; y: number; w: number; h: number } | null {
+  // a field inside a framed control (the catalog search: icon, input, count) is framed as the whole control
+  const box = el.closest('.net-cat-q')
+  if (box) { const r = box.getBoundingClientRect(), m = SEL_PAD; return r.width ? { x: r.x - m, y: r.y - m, w: r.width + 2 * m, h: r.height + 2 * m } : null }
   if (el.closest('.logo')) {
     const svg = el.closest('.logo')!.querySelector('svg.logo-svg') ?? el.querySelector('svg.logo-svg')
     const r = svg?.getBoundingClientRect(); if (!r || !r.width) return null

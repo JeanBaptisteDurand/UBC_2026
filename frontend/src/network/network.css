@@ -190,7 +190,7 @@
 .s3d .na-pick-n { color: var(--ink); font-weight: 600; }
 .s3d .net .stage, .s3d .net .key { transition: opacity 280ms var(--productive); }
 /* the catalog no longer hides the scene: it docks on the right, the room stays visible beside it */
-.s3d .net-cat { position: absolute; top: 16px; bottom: 88px; right: 16px; width: clamp(340px, 27vw, 440px); z-index: 7; display: flex; opacity: 0; visibility: hidden; transform: translateX(16px); transition: opacity 280ms var(--productive), transform 280ms var(--productive), visibility 0s linear 280ms;
+.s3d .net-cat { position: absolute; top: 16px; bottom: 112px; right: 16px; width: clamp(340px, 27vw, 440px); z-index: 7; display: flex; opacity: 0; visibility: hidden; transform: translateX(16px); transition: opacity 280ms var(--productive), transform 280ms var(--productive), visibility 0s linear 280ms;
   background: linear-gradient(180deg, rgb(10 12 17 / 0.74), rgb(4 5 8 / 0.82)); -webkit-backdrop-filter: blur(14px) saturate(1.1); backdrop-filter: blur(14px) saturate(1.1); box-shadow: inset 0 1px 0 rgb(200 220 255 / 0.1), inset 0 0 0 1px rgb(200 220 255 / 0.06), 0 30px 60px -30px rgb(0 0 0 / 0.9); }
 .s3d .net-cat[data-on='1'] { opacity: 1; visibility: visible; transform: none; transition: opacity 280ms var(--productive) 120ms, transform 280ms var(--productive) 120ms, visibility 0s; }
 .s3d .net-cat-in { display: flex; flex-direction: column; min-height: 0; width: 100%; padding: 20px 20px 0; }
@@ -390,3 +390,47 @@
 .s3d .net-cat .bl-title { font-size: max(6.4cqw, 12px); }
 .s3d .net-cat .blade[data-long='1'] .bl-title { font-size: max(4.6cqw, 10px); }
 .s3d .net-cat .bl-word, .s3d .net-cat .bl-u { font-size: max(3.1cqw, 8.5px); letter-spacing: 0.02em; }
+
+/* "What runs on Arc" and "Pay from other chains": animated icons (the A draws itself, a packet crosses the bridge)
+   and the hero links' soft breathing halo (styles.css .hero-ic, hero-live, live-text) */
+.s3d .net-live { position: relative; isolation: isolate; display: inline-flex; align-items: center; gap: 10px; color: var(--ink); }
+.s3d .net-live::before { content: ''; position: absolute; left: -11px; top: 50%; width: 40px; height: 40px; margin-top: -20px; z-index: -1; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, color-mix(in srgb, var(--arc-elec) 55%, transparent) 0, color-mix(in srgb, var(--arc-elec) 18%, transparent) 38%, transparent 70%);
+  filter: blur(3px); animation: hero-live 3.2s ease-in-out infinite; }
+.s3d .net-cctp.net-live::before { animation-delay: -1.6s; }
+.s3d .net-live > span { text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--ink) 30%, transparent); text-underline-offset: 4px; animation: live-text 3.2s ease-in-out infinite; }
+.s3d .net-cctp.net-live > span { animation-delay: -1.6s; }
+.s3d .net-live:hover > span { text-decoration-color: currentColor; }
+.net-ic-arc .ic-a { fill: none; stroke: var(--arc-light, #9cc0ff); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 30; animation: ic-draw 3.2s ease-in-out infinite; }
+.net-ic-arc .ic-a2 { stroke-dasharray: 7; animation-name: ic-draw2; }
+.net-ic-arc .ic-dot { fill: #fff; stroke: none; filter: drop-shadow(0 0 3px var(--arc-elec)); }
+.net-ic-cctp .ic-node { fill: none; stroke: var(--arc-light, #9cc0ff); stroke-width: 1.4; }
+.net-ic-cctp .ic-arc { fill: none; stroke: var(--arc-light, #9cc0ff); stroke-width: 1.2; stroke-dasharray: 2 2; opacity: 0.8; }
+.net-ic-cctp .ic-pkt { fill: #fff; stroke: none; filter: drop-shadow(0 0 3px var(--arc-elec)); }
+@keyframes ic-draw { 0% { stroke-dashoffset: 30; } 45%, 80% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -30; } }
+@keyframes ic-draw2 { 0%, 30% { stroke-dashoffset: 7; } 55%, 80% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -7; } }
+@media (prefers-reduced-motion: reduce) { .s3d .net-live::before, .s3d .net-live > span, .net-ic-arc .ic-a { animation: none; } .net-ic-arc .ic-a { stroke-dashoffset: 0; } }
+
+/* Focus titles in the landing's accent: the glowing Arc blue of the section titles' marked words (styles.css .arc-w-t,
+   ui/ArcGlow.tsx), here as a light core and a soft blue halo; the rule under them in the same blue for every part */
+.s3d .p-title-w .p-title, .s3d #p-title { color: #9cc0ff; text-shadow: 0 0 1px rgb(234 244 255 / 0.9), 0 0 10px rgb(74 134 255 / 0.55), 0 0 26px rgb(58 107 255 / 0.32); }
+.s3d #col[data-col] .p-title-w .ttl-rule { background: var(--arc-elec, #4a86ff); box-shadow: 0 0 8px rgb(74 134 255 / 0.6); }
+/* with their icons the two entries no longer fit beside the demo button: they may go to a second line */
+@media (min-width: 1025px) { .s3d .net-more { flex-wrap: wrap; row-gap: 16px; column-gap: 28px; } }
+
+/* Network: the same reading blur behind the text column (styles.css, read-blur), between the scene and the column */
+@media (min-width: 1025px) {
+  .s3d .net::before { content: ''; position: absolute; z-index: 7; left: 0; top: 0; bottom: 0; width: calc(var(--colw) + 160px); pointer-events: none;
+    -webkit-backdrop-filter: blur(9px); backdrop-filter: blur(9px);
+    -webkit-mask-image: linear-gradient(to right, #000 0, #000 58%, rgb(0 0 0 / 0.55) 78%, transparent 100%); mask-image: linear-gradient(to right, #000 0, #000 58%, rgb(0 0 0 / 0.55) 78%, transparent 100%);
+    animation: read-blur 11s ease-in-out infinite alternate; }
+}
+@media (prefers-reduced-motion: reduce) { .s3d .net::before { animation: none; } }
+/* the search field shows focus through its own accent rule, not the site's outline */
+.s3d .net-cat-q input:focus, .s3d .net-cat-q input:focus-visible { outline: none; }
+/* overview: the two live links sit like the hero's, between the text and the buttons */
+.s3d .net-links { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 36px 0 0; }
+.s3d .net-links .tlink { padding: 6px 0; background: none; border: 0; font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
+.s3d #col .net-links + .net-ctas { margin-top: 28px; }
+.s3d .net-more { margin-top: 16px; }
+.s3d .net-cat-more { display: inline-flex; gap: 10px; align-items: center; margin-top: 14px; }

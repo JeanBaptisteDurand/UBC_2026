@@ -252,6 +252,13 @@ export function Leads() {
           geo[k] = { ...cands[best], d, kind: best, hits: bh }
           // no clean path (tablet: the targeted slot passes under the text column): no line rather than a line
 // crossing the text or another slot; the label keeps its LED
+          // Fallback (a target in the right column, whose every path touches a neighbouring sled): the path that runs in
+          // the gap between two rows (Cu, Cd), or else any path, as long as it crosses no text. Only a path through
+          // the text is refused (no line rather than a line over the words)
+          if (bh > 0) {
+            const fb2 = ['Cu', 'Cd', ...order.filter((x) => x !== 'Cu' && x !== 'Cd')].find((kk) => hitsAny(cands[kk].pts, tb!) === 0)
+            if (fb2) { best = fb2; bh = 0; kinds[k] = best; geo[k] = { ...cands[best], d, kind: best, hits: 0 } }
+          }
           if (bh > 0) { kinds[k] = ''; geo[k] = null; blocked[k] = true } else blocked[k] = false
         } else geo[k] = blocked[k] ? null : { ...cands[kinds[k]], d, kind: kinds[k], hits: geo[k]?.hits ?? 0 }
       })

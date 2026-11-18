@@ -7,7 +7,8 @@
 import './demo.css'
 import gsap from 'gsap'
 import { txUrl } from '../data/fmt'
-import { DEMO_STEPS, BEATS, CHAPTERS, DEMO_LABEL, UI, UI15, clientAt, tr, type Beat, type Sfx } from './demo-strings'
+import { DEMO_STEPS, BEATS, CHAPTERS, DEMO_LABEL, UI, UI15, BEAT_MORE, REC_HEAD, clientAt, tr, type Beat, type Sfx, type Rec } from './demo-strings'
+import { lg } from './lang'
 import { makeSound } from './sound'
 
 export interface DemoApi {
@@ -56,7 +57,7 @@ export function makeDemo(api: DemoApi) {
       <button type="button" class="dm-b dm-snd" data-a="sound"><svg viewBox="0 0 16 16" aria-hidden="true"><path class="dm-i-spk" d="M2 6h3l4-3v10l-4-3H2z" /><path class="dm-i-on" d="M11 5.5c1 .8 1 4.2 0 5M12.8 4c1.8 1.6 1.8 6.4 0 8" /><path class="dm-i-off" d="m11 6 4 4M15 6l-4 4" /></svg></button>
       <button type="button" class="dm-b dm-det" data-a="details"></button>
     </div>
-    <aside class="dm-side" aria-live="polite"><p class="dm-side-ch mono"></p><h3 class="dm-side-t"></h3><p class="dm-side-sub"></p><p class="dm-side-tech mono"></p><p class="dm-side-real"></p></aside>`
+    <aside class="dm-side" aria-live="polite"><p class="dm-side-ch mono"></p><h3 class="dm-side-t"></h3><p class="dm-side-sub"></p><p class="dm-side-why"></p><p class="dm-side-tech mono"></p><div class="dm-side-real"></div></aside>`
   api.stage.appendChild(root)
   const $ = <T extends Element>(s: string) => root.querySelector(s) as T
   const sub = $<HTMLElement>('.dm-sub'), tag = $<HTMLElement>('.dm-tag'), dr = $<HTMLElement>('.dm-drawer'), side = $<HTMLElement>('.dm-side')
@@ -72,12 +73,20 @@ export function makeDemo(api: DemoApi) {
     const sb = $<HTMLElement>('.dm-snd'); sb.setAttribute('aria-label', tr(snd.muted ? UI15.soundOn : UI15.mute)); sb.setAttribute('aria-pressed', String(snd.muted)); sb.dataset.off = snd.muted ? '1' : '0'
     root.querySelectorAll<HTMLElement>('.dm-seg').forEach((b, c) => { (b.querySelector('.dm-seg-n') as HTMLElement).textContent = `${c + 1}. ${tr(CHAPTERS[c])}`; b.setAttribute('aria-label', `${tr(UI15.chapter)} ${c + 1}: ${tr(CHAPTERS[c])}`) })
   }
+  // the values recorded on Arc testnet for the beat (replay.json): a heading, then one mono line per value with its
+  // explorer link; FR numbers take a decimal comma
+  const recV = (r: Rec) => { const v = typeof r.v === 'string' ? r.v : tr(r.v); return lg() === 'fr' ? v.replace(/(\d)\.(\d)/g, '$1,$2') : v }
+  function recHtml(i: number) {
+    const rs = BEAT_MORE[i]?.rec; if (!rs?.length) return ''
+    return `<p class="dm-rec-h">${esc(tr(REC_HEAD))}</p>` + rs.map((r) => `<p class="dm-rec"><span class="dm-rec-k">${esc(tr(r.k))}</span><span class="dm-rec-v mono">${esc(recV(r))}</span>${r.tx ? `<a class="tlink mono dm-rec-tx" href="${txUrl(r.tx)}" target="_blank" rel="noreferrer">${esc(tr(UI.tx))} ${r.tx.slice(0, 10)}…</a>` : ''}</p>`).join('')
+  }
   function drawerHtml(b: Beat) {
     const s = DEMO_STEPS[b.step]
     const row = (k: string, v: string, mono = false) => `<div class="dm-row"><dt>${esc(k)}</dt><dd${mono ? ' class="mono"' : ''}>${v}</dd></div>`
     return `<h3 class="dm-c-t">${esc(tr(s.title))}</h3><dl>` + row(tr(UI.who), esc(tr(s.who))) + (s.fn ? row(tr(UI.fn), esc(s.fn), true) : '') +
       (s.checks ? row(tr(UI.checks), esc(tr(s.checks))) : '') + row(tr(UI.writes), esc(tr(s.writes))) +
-      (s.real ? row(tr(UI.real), esc(tr(s.real.text)) + (s.real.tx ? ` <a class="tlink mono" href="${txUrl(s.real.tx)}" target="_blank" rel="noreferrer">${tr(UI.tx)} ${s.real.tx.slice(0, 10)}…</a>` : '')) : '') + '</dl>'
+      (s.real ? row(tr(UI.real), esc(tr(s.real.text)) + (s.real.tx ? ` <a class="tlink mono" href="${txUrl(s.real.tx)}" target="_blank" rel="noreferrer">${tr(UI.tx)} ${s.real.tx.slice(0, 10)}…</a>` : '')) : '') + '</dl>' +
+      (BEAT_MORE[cur]?.why ? `<p class="dm-c-why">${esc(tr(BEAT_MORE[cur].why!))}</p>` : '') + `<div class="dm-c-rec">${recHtml(cur)}</div>`
   }
   function beatChanged(i: number) {
     cur = i
@@ -88,8 +97,11 @@ export function makeDemo(api: DemoApi) {
     $<HTMLElement>('.dm-side-t').textContent = tr(CHAPTERS[b.ch])
     $<HTMLElement>('.dm-side-sub').textContent = tr(b.sub)
     $<HTMLElement>('.dm-side-tech').textContent = b.tech ? tr(b.tech) : ''
-    $<HTMLElement>('.dm-side-real').innerHTML = s.real?.tx ? `<a class="tlink" href="${txUrl(s.real.tx)}" target="_blank" rel="noreferrer">${esc(tr(UI15.onArc))}</a>` : ''
-    if (!api.reduced()) gsap.fromTo(side.querySelectorAll('.dm-side-sub, .dm-side-tech, .dm-side-real'), { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: 0.35, stagger: 0.06, ease: 'power2.out' })
+    const more = BEAT_MORE[i]
+    $<HTMLElement>('.dm-side-why').textContent = more?.why ? tr(more.why) : ''
+    // the recorded values of the beat; without any, the step's real transaction as before
+    $<HTMLElement>('.dm-side-real').innerHTML = more?.rec?.length ? recHtml(i) : s.real?.tx ? `<a class="tlink" href="${txUrl(s.real.tx)}" target="_blank" rel="noreferrer">${esc(tr(UI15.onArc))}</a>` : ''
+    if (!api.reduced()) gsap.fromTo(side.querySelectorAll('.dm-side-sub, .dm-side-why, .dm-side-tech, .dm-side-real'), { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: 0.35, stagger: 0.06, ease: 'power2.out' })
     $<HTMLElement>('.dm-count').textContent = `${tr(DEMO_LABEL)}, ${tr(UI15.chapter).toLowerCase()} ${b.ch + 1} / 3`
     if (drawer) dr.innerHTML = drawerHtml(b)
     if (!api.reduced()) gsap.fromTo(sub, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out' })

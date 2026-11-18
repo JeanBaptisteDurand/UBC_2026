@@ -43,3 +43,13 @@ const uiSubs = new Set<() => void>()
 export const getUi = () => ui
 export function setUi(p: Partial<UiState>) { ui = { ...ui, ...p }; uiSubs.forEach((f) => f()) }
 export const useUi = () => useSyncExternalStore((f) => { uiSubs.add(f); return () => { uiSubs.delete(f) } }, () => ui)
+
+// The part's demo (the "Play the demo" button of a focus, scene.ts playShow): the scene writes the stage it plays (k,
+// the same index as the page steps) and end once the flow is over; the steps then show simulated values (showfill.ts)
+// instead of the visitor's, without touching the visitor's own state: clearing it (null) restores everything as it was.
+export interface DemoState { part: 'use' | 'rent' | 'publish'; k: number; end: boolean }
+let demo: DemoState | null = null
+const demoSubs = new Set<() => void>()
+export const getDemo = () => demo
+export function setDemo(d: DemoState | null) { demo = d; demoSubs.forEach((f) => f()) }
+export const useDemo = () => useSyncExternalStore((f) => { demoSubs.add(f); return () => { demoSubs.delete(f) } }, () => demo)
