@@ -665,8 +665,8 @@ const envCache: Record<string, THREE.Vector3[][]> = {}
 const FIT_K = Q.has('poster') ? 0.95 : 0.56
 const corners = (b: THREE.Box3, m?: THREE.Matrix4) => Array.from({ length: 8 }, (_, i) => { const v = new THREE.Vector3(i & 1 ? b.max.x : b.min.x, i & 2 ? b.max.y : b.min.y, i & 4 ? b.max.z : b.min.z); return m ? v.applyMatrix4(m) : v })
 // fk: the share of each orbit radius the envelope holds (1 = every place a room can reach)
-function envelope(fk = FIT_K, cc = false) {
-  const ck = `${fk}x${KX}x${cc}`
+function envelope(fk = FIT_K) {
+  const ck = `${fk}x${KX}`
   if (envCache[ck]) return envCache[ck]
   const out: THREE.Vector3[][] = [], v = new THREE.Vector3()
   for (const k of ORDER) {
@@ -679,11 +679,6 @@ function envelope(fk = FIT_K, cc = false) {
     }
   }
   out.push(corners(new THREE.Box3(new THREE.Vector3(-ARC_H / 2, ARC_Y - ARC_H / 2, -ARC_H / 2), new THREE.Vector3(ARC_H / 2, ARC_Y + ARC_H / 2 + 0.4, ARC_H / 2))))
-  // the CCTP system over its whole drift (ring, token, title and anchor)
-  if (cc) for (let i = 0; i <= 8; i++) {
-    const a = (CC.a0 + CC.drift * (i / 4 - 1)) * DEG, c = new THREE.Vector3(CC.r * Math.sin(a), CC.h, CC.r * Math.cos(a)), R = CC.ring + CHAIN_SIZE
-    out.push(corners(new THREE.Box3(new THREE.Vector3(c.x - R, c.y - R * 0.4, c.z - R), new THREE.Vector3(c.x + R, c.y + 6.5, c.z + R))))
-  }
   return (envCache[ck] = out)
 }
 // the column only shifts the scene if it lies over it (not when it goes below, on phone or tablet)
@@ -735,16 +730,29 @@ function fitCentered(p: Pose): Pose {
       }
     }
     cx = Math.min(Math.max(cx, left + hl), cx + (right - left) * OV.dx); place()
+    // the closer camera would crop the front room at the bottom: the frame centres, vertically, every place the
+    // rooms can reach (with the column, the scene has room above it)
+    // and on wide screens, where the height binds, the camera comes only as close as that whole height allows
+    // (the CCTP sign included), never less close than the plain fit
+    const cc = corners(new THREE.Box3().setFromObject(CHAINS.group)), zmin = p.zoom / OV.zk
+    for (let it = 0; it < 3; it++) {
+      Object.assign(rig.pose, p); rig.user.az = 0; rig.user.el = 0; rig.user.zoom = 1; rig.apply()
+      let y0 = Infinity, y1 = -Infinity
+      for (const pts of [...envelope(1), cc]) for (const q of pts) { bv.copy(q).applyMatrix4(rig.cam.matrixWorldInverse); if (bv.z > -rig.cam.near) continue; rig.project(vp.copy(q), o2); y0 = Math.min(y0, o2.y); y1 = Math.max(y1, o2.y) }
+      if (!Number.isFinite(y0)) break
+      p.lift += THREE.MathUtils.clamp(((y0 + y1) / 2 - cy) / rig.h, -0.1, 0.12)
+      const k = (bottom - top) / (y1 - y0)
+      if (k >= 1) break
+      p.zoom = Math.max(zmin, p.zoom * k)
+    }
   }
   Object.assign(rig.pose, keepP); Object.assign(rig.user, keepU); Object.assign(rig.drag, keepD); rig.apply()
   return p
 }
-// The overview beside the column (camera only: the rooms, the A and the CCTP system keep their places and distances).
-// ax: where the A sits across the free area right of the column (0.5 = its centre); fkl: the share of each orbit radius
-// that must stay right of the column over the whole sway (the CCTP system over its whole drift too): rooms beyond it
-// pass under the column's reading blur, never near the text; over: how far past the right edge the rest may reach
-// (rooms there leave the frame and come back with the rotation)
-const OV = { zk: Number(Q.get('ovzk') ?? 1.12), dx: Number(Q.get('ovdx') ?? 0.07) } // TMPQ
+// The overview beside the column: camera only, the rooms, the A and the CCTP system keep their places and distances.
+// zk: how much closer the camera comes than the plain fit of the free area (1.12 = 12 % larger on screen); dx: how far
+// right (share of the free area) the A may move for the near orbits to clear the column
+const OV = { zk: 1.12, dx: 0.07 }
 const COL_GAP = 40 // px between the column's right edge and anything in the scene
 let colR = 0, cutSet = false // the column edge (measured on resize); the dimming has been placed once
 // the column's right edge in stage pixels (0 when the column is not laid over the scene: phone, tablet)
