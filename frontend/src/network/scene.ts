@@ -882,8 +882,7 @@ function clearColumn(k: PartK, p: Pose): Pose {
 // The two desk rooms (Use: the user's desk; Publish: the author's desk): on desktop the focus is a film shot
 // from behind the seated figure's LEFT shoulder, at seated eye height, looking past the shoulder at the
 // desk screens: the head and shoulder fill the right of the frame, the screens sit in the visible gap between
-// the text column (#col) and, on Use, the catalog panel docked on the right (.net-cat, reserved whether it is
-// open or not, so the shot does not jump when it opens). Local metres, island frame (the figure sits at
+// the text column (#col) and the right edge (the Use catalog moved to the Services page). Local metres, island frame (the figure sits at
 // x 0, z 0.42, facing -z: its left is -x). Phones keep the room pose.
 const DESK_SHOT: Record<'use' | 'publish', Cam & { at: number }> = {
   // the two monitors (x ±0.33, z -0.38); the target between them, on the screens' centre line
@@ -895,7 +894,6 @@ const DESK_SHOT: Record<'use' | 'publish', Cam & { at: number }> = {
 // flight cage, over the user's right shoulder (the figure on the left of the gap, the drone at its centre)
 const DRONE_SHOT: Cam & { at: number } = { cam: [0.05, 1.6, 1.3], tgt: [2.45, 1.0, -0.8], fov: 52, at: 0.55 }
 const isDesk = (k: PartK): k is 'use' | 'publish' => k === 'use' || k === 'publish'
-function catW() { return Math.min(440, Math.max(340, 0.27 * innerWidth)) + 16 }
 function deskPose(k: 'use' | 'publish', S: Cam & { at: number } = DESK_SHOT[k]): Pose {
   const m = islandM(k)
   const C = new THREE.Vector3(...S.cam).applyMatrix4(m), T = new THREE.Vector3(...S.tgt).applyMatrix4(m)
@@ -903,7 +901,7 @@ function deskPose(k: 'use' | 'publish', S: Cam & { at: number } = DESK_SHOT[k]):
   let az = Math.atan2(d.x, d.z) / DEG
   while (az - AZ0 > 180) az -= 360; while (az - AZ0 < -180) az += 360
   // the free gap: right of the column, left of the catalog (Use); the target at `at` of its width
-  const left = colFrac() * rig.w + 20, right = rig.w - (k === 'use' ? catW() : 0) - 24
+  const left = colFrac() * rig.w + 20, right = rig.w - 24
   const x = left + Math.max(120, right - left) * S.at
   return { tx: T.x, ty: T.y, tz: T.z, az, el: Math.asin(d.y / dist) / DEG, zoom: D0 / dist, shift: (x - rig.w / 2) / rig.w, lift: 0.03, fov: S.fov }
 }
@@ -1270,7 +1268,7 @@ function renderPanel(anim = true) {
     stepsEl.appendChild(li)
   })
   $('#refus').hidden = view !== 'rent'
-  const br = document.querySelector<HTMLElement>('#browse'); if (br) br.hidden = view !== 'use' // the service catalogue, from the Use focus
+  const br = document.querySelector<HTMLElement>('#browse'); if (br) br.hidden = true // the Use actions carry the way to the Services page
   ckKey = ''
   if (anim && !reduced) gsap.fromTo([$('#p-kick'), $('#p-title'), $('#p-actor'), ...Array.from(stepsEl.children) as HTMLElement[]], { clipPath: 'inset(0 0 100% 0)', y: 4 }, { clipPath: 'inset(0 0 0% 0)', y: 0, duration: 0.24, ease: 'power3.out', stagger: 0.045, clearProps: 'clipPath,transform' })
 }

@@ -10,7 +10,7 @@ import { AppHeader } from '../app/AppFrame'
 import { link } from '../links'
 import { withArcWords, plainAcc, splitAcc } from '../ui/ArcGlow'
 import { useIn } from '../ui/gestures'
-import { Actions, HeaderWallet, ServiceCatalog, CloseFocus } from './actions/Actions'
+import { Actions, HeaderWallet, CloseFocus } from './actions/Actions'
 import { w } from './actions/strings'
 import { setUi } from './actions/store'
 
@@ -145,7 +145,6 @@ export function NetworkPage() {
                   <figcaption>{t('net.nogl')}</figcaption>
                 </figure>
               </div>
-              <ServiceCatalog />
             </div>
           </div>
         </section>

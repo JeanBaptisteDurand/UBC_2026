@@ -38,7 +38,7 @@ export interface UiState { catOpen: boolean; pid: string }
 // service given in the address (?p=<id>, a sled clicked on the landing) is already picked and described
 const Q0 = new URLSearchParams(location.search)
 const P0 = /^\d+$/.test(Q0.get('p') ?? '') ? Q0.get('p')! : ''
-let ui: UiState = { catOpen: Q0.get('focus') === 'use', pid: P0 }
+let ui: UiState = { catOpen: false, pid: P0 } // the catalog lives on the Services page now
 const uiSubs = new Set<() => void>()
 export const getUi = () => ui
 export function setUi(p: Partial<UiState>) { ui = { ...ui, ...p }; uiSubs.forEach((f) => f()) }

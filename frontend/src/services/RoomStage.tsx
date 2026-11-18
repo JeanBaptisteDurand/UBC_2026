@@ -102,15 +102,39 @@ function PlateEl({ p, slot, m }: { p: Plate; slot: number; m: string }) {
 }
 
 /** the room still, the live sleds of its rack and the distant LEDs. plates: one per sled, top to bottom, left then right */
-export function RoomStage({ plates, hint }: { plates: Plate[]; hint: string }) {
+/** the slots whose facade is whole on the stage and clear of the reading column, in the file's order (top to bottom) */
+function inView(room: RoomFile, m: Map2, W: number, H: number, left: number): number[] {
+  const C = [0, 0, 0, 0], out: number[] = []
+  for (const slot of room.slots) {
+    const S = SLOTS[slot]
+    let ok = true
+    for (const [dx, dy] of [[-FW / 2, G.FT], [FW / 2, G.FT], [FW / 2, G.FB], [-FW / 2, G.FB]]) {
+      clip(room.vp, S.x + dx, S.base + dy, 0, 1, C)
+      if (C[3] <= 0) { ok = false; break }
+      const x = (m.A * C[0] + m.Ox * C[3]) / C[3], y = (-m.B * C[1] + m.Oy * C[3]) / C[3]
+      if (x < left || x > W - 4 || y < 4 || y > H - 4) { ok = false; break }
+    }
+    if (ok) out.push(slot)
+  }
+  return out
+}
+
+export function RoomStage({ plates, hint, onCap }: { plates: Plate[]; hint: string; onCap?: (n: number) => void }) {
   const room = useRoom()
   const box = useRef<HTMLDivElement>(null)
   const ledsBox = useRef<HTMLDivElement>(null)
   const [map, setMap] = useState<Map2 | null>(null)
+  const [vis, setVis] = useState<number[]>([])
   useLayoutEffect(() => {
     const el = box.current
     if (!el || !room) return
-    const up = () => setMap(cover(el.clientWidth, el.clientHeight, room.w, room.h))
+    const up = () => {
+      const W = el.clientWidth, H = el.clientHeight, m = cover(W, H, room.w, room.h)
+      // the reading column's right edge (side by side only; stacked, the room is under it and every sled counts)
+      const c = el.parentElement?.querySelector('.vt-col')?.getBoundingClientRect(), b = el.getBoundingClientRect()
+      const left = c && c.right < b.right - 200 && c.top < b.top + 40 ? c.right - b.left + 8 : 4
+      setMap(m); setVis(inView(room, m, W, H, left))
+    }
     up()
     const ro = new ResizeObserver(up); ro.observe(el)
     return () => ro.disconnect()
@@ -140,19 +164,19 @@ export function RoomStage({ plates, hint }: { plates: Plate[]; hint: string }) {
     raf = requestAnimationFrame(loop)
     return () => { cancelAnimationFrame(raf); io.disconnect(); rl.cv.remove() }
   }, [room, map])
-  const n = room ? Math.min(room.slots.length, plates.length) : 0
+  useEffect(() => { if (vis.length >= 3) onCap?.(vis.length) }, [vis.length, onCap])
+  const n = Math.min(vis.length, plates.length)
   return (
     <div className="vt-room" ref={box}>
       <img className="vt-room-img" src={IMG.src} srcSet={`${IMG.srcM} 1440w, ${IMG.src} 2880w`} sizes="100vw" alt="" draggable={false} style={{ objectPosition: `${FX * 100}% ${FY * 100}%` }} />
       <div className="vt-room-leds" ref={ledsBox} aria-hidden="true" />
       {room && map ? (
         <div className="vt-facs">
-          {plates.slice(0, n).map((p, k) => { const m = facadeM(room.vp, map, room.slots[k]); return m ? <PlateEl key={p.key} p={p} slot={room.slots[k]} m={m} /> : null })}
+          {plates.slice(0, n).map((p, k) => { const m = facadeM(room.vp, map, vis[k]); return m ? <PlateEl key={p.key} p={p} slot={vis[k]} m={m} /> : null })}
         </div>
       ) : null}
       <p className="vt-hint mono">{hint}</p>
     </div>
   )
 }
-/** the rack's capacity (sleds), known once the room file is read; 32 for the landing rack */
-export const RACK_SLOTS = 32
+

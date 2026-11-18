@@ -141,3 +141,28 @@
 /* JB's dimension marks (cote) are drawn by the scroll reveal on his page; in the column they are simply shown */
 .js .vt-r .cote-in .cote-l { transform: none; }
 .js .vt-r .cote-in .cote-v { clip-path: none; }
+
+/* ---- a family's sheet: what it is, its action, the technical details folded */
+.vt-r .vt-head .vit-fam-hd { margin: 0; padding: 0; }
+.vt-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 20px 28px; margin: 28px 0 0; padding: 20px 0 0; box-shadow: inset 0 1px 0 var(--rule2); }
+.vt-facts > div { display: grid; gap: 6px; align-content: start; }
+.vt-facts dt { margin: 0; }
+.vt-facts dd { margin: 0; color: var(--ink); font-size: 16px; line-height: 1.5; text-wrap: pretty; }
+.vt-facts-p { display: block; font-size: 22px; line-height: 1.2; }
+.vt-facts-s { display: block; margin-top: 6px; font-size: 14px; color: var(--ink2); }
+.vt-facts-st { display: flex; align-items: center; gap: 10px; }
+.vt-use { margin: 40px 0 0; padding: 24px 24px 28px; background: rgb(var(--ink-c) / 0.035); box-shadow: inset 0 0 0 1px var(--rule2), inset 3px 0 0 var(--arc-elec); scroll-margin-top: 16px; }
+.vt-sec-h { margin: 0 0 12px; font-size: 22px; line-height: 1.2; font-weight: var(--w-head); letter-spacing: var(--tr-head); color: var(--ink); }
+.vt-use-d { margin: 0 0 20px; max-width: 36em; font-size: 16px; line-height: 1.55; color: var(--ink2); text-wrap: pretty; }
+.vt-use-w { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 0 0 20px; }
+.vt-use-alt { margin: 20px 0 0; }
+.vt-use .act-sec, .vt-use .work-sec { margin: 0; padding: 0; box-shadow: none; }
+.vt-use .act-sec > h2, .vt-use .act-sec-h { font-size: 17px; }
+.vt-tech { margin: 40px 0 0; box-shadow: inset 0 1px 0 var(--rule2), inset 0 -1px 0 var(--rule2); }
+.vt-tech-s { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; padding: 20px 32px 20px 0; cursor: pointer; list-style: none; position: relative; font-size: 18px; color: var(--ink); }
+.vt-tech-s::-webkit-details-marker { display: none; }
+.vt-tech-s::after { content: '+'; position: absolute; right: 4px; top: 16px; font-size: 22px; color: var(--ink2); }
+.vt-tech[open] > .vt-tech-s::after { content: '−'; }
+.vt-tech-s:focus-visible { outline: 1px solid var(--arc-elec); outline-offset: 2px; }
+.vt-tech > .vt-body { padding: 8px 0 32px; }
+.vt-tech > .vt-livesec { margin-top: 32px; }

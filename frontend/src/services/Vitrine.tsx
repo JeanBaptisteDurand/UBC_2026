@@ -4,7 +4,7 @@
 // in the left column, which scrolls by itself (as on Network and the Doc page). ?c=<chapter> follows the open chapter
 // (replaceState); ?p=<product> from the landing wall, the Use catalog or the copilot opens that product's family.
 // Copy and chapters from JB (vit-content.ts, generated), numbers read live on Arc.
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { t, useLang } from '../i18n'
 import { useLive } from '../data/live'
 import { useCatalog } from '../app/useCatalog'
@@ -13,7 +13,9 @@ import { API_DIRECT } from '../data/endpoints'
 import { num, usdc, pct } from '../data/fmt'
 import { link, networkFor } from '../links'
 import { VIT, type VitChapter } from './vit-content'
-import { RoomStage, RACK_SLOTS, type Plate } from './RoomStage'
+import { RoomStage, type Plate } from './RoomStage'
+// the action of a sheet: the signed flows (wallet engine, SDK) load with the sheet, not with the page
+const UseBlock = lazy(() => import('./UseBlock'))
 import './vit-jb.css'
 import './vitrine.css'
 
@@ -24,6 +26,13 @@ const PIDS: Record<string, string[]> = { bounty: ['2', '7'], 'private-ai': ['1',
 /** a product (landing wall, catalog, copilot links: ?p=<id>) opens its family */
 const FAM_OF: Record<string, string> = Object.fromEntries(Object.entries(PIDS).flatMap(([f, ps]) => ps.map((p) => [p, f])))
 const IDS = VIT.en.chapters.map((c) => c.id)
+/** brings a section of the sheet to the top of the reading column (the column scrolls, never the page) */
+function toTop(el: HTMLElement | null) {
+  const r = el?.closest<HTMLElement>('.vt-r'); if (!el || !r) return
+  r.scrollTop += el.getBoundingClientRect().top - r.getBoundingClientRect().top - 16
+}
+/** ?act=1: the sheet opens on its action */
+const ACT0 = new URLSearchParams(location.search).get('act') === '1'
 
 function initial(): string | null {
   const q = new URLSearchParams(location.search)
@@ -146,7 +155,64 @@ function useLiveFill(root: React.RefObject<HTMLDivElement | null>, key: string) 
   }, [root, key, lang, stats, products])
 }
 
-function ChapterView({ c, i, n, go, close, root }: { c: VitChapter; i: number; n: number; go: (id: string) => void; close: () => void; root: React.RefObject<HTMLDivElement | null> }) {
+/** a family's sheet cut in three: what it is (JB's header, who it is for, price, live state), its action, then the rest
+ *  of JB's section and the live blocks of its products, folded under "Technical details" */
+function splitFam(html: string, id: string) {
+  const tpl = document.createElement('template'); tpl.innerHTML = html
+  const hd = tpl.content.querySelector('.vit-fam-hd'); hd?.remove()
+  // the recorded event is the "use" of the two families nothing can be bought from
+  const pr = id === 'refutation' ? tpl.content.querySelector('.vit-refute') : id === 'retired' ? tpl.content.querySelector('.vit-proofs') : null
+  pr?.remove()
+  return { head: hd?.outerHTML ?? '', proof: pr?.outerHTML ?? '', rest: tpl.innerHTML }
+}
+/** JB's offer card of a family (the "Three products" board): who it is for, the price and its line */
+function offerOf(all: VitChapter[], id: string) {
+  const o = all.find((c) => c.id === 'offers'); if (!o) return null
+  const tpl = document.createElement('template'); tpl.innerHTML = o.body
+  const li = [...tpl.content.querySelectorAll('li.vit-offer')].find((x) => x.querySelector(`a[data-vt-ch="${id}"]`))
+  if (!li) return null
+  const rows = [...li.querySelectorAll('.vit-offer-r')]
+  return { who: rows[0]?.querySelector('.vit-v')?.textContent ?? '', price: li.querySelector('.vit-price')?.textContent ?? '', priceS: li.querySelector('.vit-price-s')?.textContent ?? '' }
+}
+
+function FamSheet({ c, act, back }: { c: VitChapter; act: boolean; back: () => void }) {
+  const lang = useLang()
+  const L = VIT[lang === 'fr' ? 'fr' : 'en']
+  const fam = useFamState()
+  const parts = useMemo(() => { const p = splitFam(fixHtml(c.body), c.id); return { ...p, offer: offerOf(L.chapters, c.id) } }, [c, L])
+  const row = L.rows.find((x) => x.id === c.id)
+  const st = row ? fam(c.id, row.lamp, row.word) : null
+  const buy = c.id !== 'refutation' && c.id !== 'retired'
+  const useRef_ = useRef<HTMLElement>(null)
+  useEffect(() => { if (act) toTop(useRef_.current) }, [act, c.id])
+  return (
+    <>
+      <div className={`vt-body ${c.cls} vt-head`} dangerouslySetInnerHTML={{ __html: parts.head }} />
+      <dl className="vt-facts">
+        {parts.offer?.who ? <div><dt className="lbl">{t('vit.for')}</dt><dd>{parts.offer.who}</dd></div> : null}
+        {buy && (parts.offer?.price || row?.price) ? <div><dt className="lbl">{t('vit.price')}</dt><dd><span className="mono tnum vt-facts-p">{parts.offer?.price || row?.price}</span>{parts.offer?.priceS ? <span className="vt-facts-s">{parts.offer.priceS}</span> : null}</dd></div> : null}
+        {st ? <div><dt className="lbl">{t('vit.now')}</dt><dd className="vt-facts-st"><span className={`led${st.lamp === 'off' ? '' : ` led-${st.lamp}`}`} aria-hidden="true" />{st.word}</dd></div> : null}
+      </dl>
+      <section className="vt-use" id="vt-use" ref={useRef_} aria-labelledby="vt-use-h">
+        <h3 className="vt-sec-h" id="vt-use-h">{buy ? t('vit.use') : t('vit.proof')}</h3>
+        {buy ? <Suspense fallback={<p className="lbl muted">{t('vit.reading')}</p>}><UseBlock fam={c.id} pid={null} back={back} /></Suspense>
+          : <><p className="vt-use-d">{t(c.id === 'refutation' ? 'vit.proof.r' : 'vit.proof.o')}</p><div className={`vt-body ${c.cls}`} dangerouslySetInnerHTML={{ __html: parts.proof }} /></>}
+      </section>
+      <details className="vt-tech">
+        <summary className="vt-tech-s"><span>{t('vit.tech')}</span><span className="lbl muted">{t('vit.tech.d')}</span></summary>
+        <div className={`vt-body ${c.cls}`} dangerouslySetInnerHTML={{ __html: parts.rest }} />
+        {PIDS[c.id].map((pid) => (
+          <section className="vt-livesec" key={pid} aria-labelledby={`vt-live-${pid}`}>
+            <h3 className="vt-live-h" id={`vt-live-${pid}`}><span className="vit-dot is-live" aria-hidden="true" />{t('vit.live', { id: pid })}</h3>
+            <ServiceDetail pid={pid} bare />
+          </section>
+        ))}
+      </details>
+    </>
+  )
+}
+
+function ChapterView({ c, i, n, go, close, root, act }: { c: VitChapter; i: number; n: number; go: (id: string) => void; close: () => void; root: React.RefObject<HTMLDivElement | null>; act: boolean }) {
   const lang = useLang()
   const all = VIT[lang === 'fr' ? 'fr' : 'en'].chapters
   const body = useMemo(() => fixHtml(c.body), [c])
@@ -164,13 +230,7 @@ function ChapterView({ c, i, n, go, close, root }: { c: VitChapter; i: number; n
         </span>
       </div>
       {c.k ? <p className="mono vt-kick">{c.k}</p> : null}
-      <div className={`vt-body ${c.cls}`} dangerouslySetInnerHTML={{ __html: body }} />
-      {fam ? PIDS[c.id].map((pid) => (
-        <section className="vt-livesec" key={pid} aria-labelledby={`vt-live-${pid}`}>
-          <h3 className="vt-live-h" id={`vt-live-${pid}`}><span className="vit-dot is-live" aria-hidden="true" />{t('vit.live', { id: pid })}</h3>
-          <ServiceDetail pid={pid} bare />
-        </section>
-      )) : null}
+      {fam ? <FamSheet c={c} act={act} back={close} /> : <div className={`vt-body ${c.cls}`} dangerouslySetInnerHTML={{ __html: body }} />}
       {i < n - 1 ? (
         <button type="button" className="vt-nextch" onClick={() => go(all[i + 1].id)}>
           <span className="lbl muted">{t('vit.next')}</span>
@@ -198,16 +258,25 @@ function SlotView({ close }: { close: () => void }) {
 }
 
 /** a product with no family chapter yet (a service published after JB's page): its live sheet in the column */
-function ProductView({ pid, name, close }: { pid: string; name: string; close: () => void }) {
+function ProductView({ pid, name, close, act }: { pid: string; name: string; close: () => void; act: boolean }) {
   useLang()
+  const ref = useRef<HTMLElement>(null)
+  useEffect(() => { if (act) toTop(ref.current) }, [act, pid])
   return (
     <article className="vt-ch is-product">
       <div className="vt-bar"><button type="button" className="tlink vt-back" onClick={close}><span aria-hidden="true">← </span>{t('vit.back')}</button><span className="lbl muted no-touch">Esc</span></div>
       <h2 className="vt-h" tabIndex={-1} data-vt-h>{name}<span className="ttl-rule" aria-hidden="true" /></h2>
-      <section className="vt-livesec" aria-labelledby={`vt-live-${pid}`}>
-        <h3 className="vt-live-h" id={`vt-live-${pid}`}><span className="vit-dot is-live" aria-hidden="true" />{t('vit.live', { id: pid })}</h3>
-        <ServiceDetail pid={pid} bare />
+      <section className="vt-use" id="vt-use" ref={ref} aria-labelledby="vt-use-h">
+        <h3 className="vt-sec-h" id="vt-use-h">{t('vit.use')}</h3>
+        <Suspense fallback={<p className="lbl muted">{t('vit.reading')}</p>}><UseBlock fam={null} pid={pid} back={close} /></Suspense>
       </section>
+      <details className="vt-tech">
+        <summary className="vt-tech-s"><span>{t('vit.tech')}</span><span className="lbl muted">{t('vit.tech.d')}</span></summary>
+        <section className="vt-livesec" aria-labelledby={`vt-live-${pid}`}>
+          <h3 className="vt-live-h" id={`vt-live-${pid}`}><span className="vit-dot is-live" aria-hidden="true" />{t('vit.live', { id: pid })}</h3>
+          <ServiceDetail pid={pid} bare />
+        </section>
+      </details>
     </article>
   )
 }
@@ -233,14 +302,17 @@ export function Vitrine() {
   const L = VIT[lang === 'fr' ? 'fr' : 'en']
   const rows = useCatalog()
   const [cur, setCur] = useState<string | null>(initial)
+  const [act, setAct] = useState(ACT0)
+  // sleds in view (the still frames the top of the rack; RoomStage counts those clear of the column)
+  const [cap, setCap] = useState(12)
   const col = useRef<HTMLDivElement>(null)
   const all = L.chapters
   const i = cur && cur !== SLOT ? all.findIndex((c) => c.id === cur) : -1
   useEffect(() => { document.title = cur === SLOT ? `ArcHive. ${t('vit.slot')}` : i >= 0 ? `ArcHive. ${all[i].t}` : `ArcHive. ${t('vit.k')}` }, [cur, i, lang]) // eslint-disable-line react-hooks/exhaustive-deps
   const open = useCallback((id: string | null) => {
-    setCur(id)
+    setCur(id); setAct(false)
     const u = new URL(location.href)
-    u.searchParams.delete('p')
+    u.searchParams.delete('p'); u.searchParams.delete('act')
     if (id) u.searchParams.set('c', id); else u.searchParams.delete('c')
     history.replaceState(history.state, '', u)
   }, [])
@@ -249,8 +321,9 @@ export function Vitrine() {
   useEffect(() => {
     const el = col.current
     if (!el) return
-    el.scrollTop = 0
+    // ?act=1: the sheet has already brought its action into view (child effects run first)
     if (first.current) { first.current = false; return }
+    el.scrollTop = 0
     const h = el.querySelector<HTMLElement>('[data-vt-h], .vt-h')
     h?.setAttribute('tabindex', '-1'); h?.focus({ preventScroll: true })
     if (matchMedia('(max-width: 760px)').matches) el.closest('.vt-col')?.scrollIntoView({ block: 'start', behavior: 'smooth' })
@@ -284,8 +357,8 @@ export function Vitrine() {
   // More products than sleds: the last sled counts the rest and leads to the Use catalog, which lists them all.
   const pOpen = cur?.startsWith('p-') ? cur.slice(2) : null
   const list = (rows ?? []).slice().sort((a, b) => Number(a.p.id) - Number(b.p.id))
-  const over = list.length > RACK_SLOTS - 1 ? list.length - (RACK_SLOTS - 2) : 0
-  const shown = over ? list.slice(0, RACK_SLOTS - 2) : list
+  const over = list.length > cap - 1 ? list.length - (cap - 2) : 0
+  const shown = over ? list.slice(0, cap - 2) : list
   const plates: Plate[] = shown.map((r) => {
     const target = FAM_OF[r.p.id] ?? `p-${r.p.id}`
     const expired = r.led === 'amber' && r.encs.length > 0 && r.encs.every((x) => x.why === 'expired')
@@ -294,19 +367,19 @@ export function Vitrine() {
     return { key: `p${r.p.id}`, title: r.name, sub: t(sub), unit: '', led: r.led === 'off' ? 'off' : r.led, on: isOn, dim: !!cur && !isOn, label: `${r.name}, ${t(sub)}`, open: () => open(isOn ? null : target) }
   })
   if (over) plates.push({ key: 'more', title: `+${over}`, sub: t('vit.more.s'), unit: '', led: 'off', on: false, dim: !!cur, label: t('vit.more.s'), open: () => { location.href = link.use } })
-  while (plates.length < RACK_SLOTS) {
+  while (plates.length < cap) {
     const k = plates.length
     plates.push({ key: `slot${k}`, title: t('plate.off'), sub: t('plate.sub.off'), unit: '', led: 'off', on: cur === SLOT, dim: !!cur && cur !== SLOT, label: `${t('plate.off')}, ${t('plate.sub.off')}`, open: () => open(cur === SLOT ? null : SLOT) })
   }
   const pRow = pOpen ? list.find((r) => r.p.id === pOpen) : undefined
   return (
     <div className="vt" data-open={cur ? '1' : '0'}>
-      <RoomStage plates={plates} hint={L.hint} />
+      <RoomStage plates={plates} hint={t('vit.hint')} onCap={setCap} />
       <aside className="vt-col" aria-live="polite">
         <div className="vt-r" ref={col} onClick={onClick}>
           {cur === SLOT ? <SlotView close={() => open(null)} />
-            : pOpen ? <ProductView pid={pOpen} name={pRow?.name ?? `#${pOpen}`} close={() => open(null)} />
-              : i >= 0 ? <ChapterView c={all[i]} i={i} n={all.length} go={open} close={() => open(null)} root={col} />
+            : pOpen ? <ProductView pid={pOpen} name={pRow?.name ?? `#${pOpen}`} close={() => open(null)} act={act} />
+              : i >= 0 ? <ChapterView c={all[i]} i={i} n={all.length} go={open} close={() => open(null)} root={col} act={act} />
                 : <Intro open={open} />}
         </div>
       </aside>

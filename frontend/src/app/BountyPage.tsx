@@ -237,6 +237,12 @@ function huntErr(E: Engine, e: unknown): Note {
 }
 
 /** create a bounty (the console's ProtocolPanel); the protocol key is downloaded once */
+/** posting a bounty, alone: the Services page's Sealed Bounty sheet uses it as its action */
+export function BountyCreate({ onDone }: { onDone?: () => void }) {
+  const E = useEngine()
+  return <Create level="open" E={E} onDone={onDone ?? (() => {})} />
+}
+
 function Create({ level, E, onDone }: { level: Level; E: Engine | null; onDone: () => void }) {
   const lang = useLang()
   const s = useWallet()
