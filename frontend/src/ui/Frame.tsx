@@ -12,6 +12,8 @@ import { G, SLOTS, NSLOTS, slotLabel, productLabel, priceText, reasonText, state
 import { onTick, REDUCED, getLenis, step } from '../clock'
 import { openService, slotHref } from './ServicePanel'
 import { MainNav } from './MainNav'
+import { HeaderWallet } from '../network/actions/HeaderWallet'
+import '../network/actions/actions.css'
 import { progress, ORDER } from '../story'
 import { Logo } from './Logo'
 import { SelLayer, selBox } from './Sel'
@@ -68,6 +70,8 @@ export function Header({ loaded }: { loaded: number | (() => number) }) {
         <div className="hd-side">
           <a className="hd-console" href={link.console}>{t('nav.console')}</a>
           <button className="lang" onClick={() => setLang(lang === 'fr' ? 'en' : 'fr')} lang={lang === 'fr' ? 'en' : 'fr'} aria-label={t('lang.to')}>{lang === 'fr' ? 'EN' : 'FR'}</button>
+          {/* the visitor's wallet, as on the app pages */}
+          <HeaderWallet />
           <button className="menu-btn" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? t('nav.close') : t('nav.menu')}</button>
         </div>
       </div>

@@ -36,13 +36,13 @@ function shut() {
   emit()
   back?.focus?.({ preventScroll: true }); back = null
 }
-/** Where a slot leads: its service picked in Network's Use part (catalog open, the service described), a free slot to
- *  Network's Rent part */
+/** Where a slot leads: its service's page (description, and a button to use it), an enclave without a read product to
+ *  the catalog of services, a free slot to Network's Rent part */
 export const slotHref = (i: number) => {
   const s = world.wall.sleds[i], p = s?.product
-  return p ? `${link.services}&p=${encodeURIComponent(p.id)}` : s?.enclave ? link.services : networkFor('rent')
+  return p ? serviceHref(p.id) : s?.enclave ? link.catalog : networkFor('rent')
 }
-/** A slot (mouse, touch, keyboard) opens its service in Network's Use part; the in-place panel is no longer used */
+/** A slot (mouse, touch, keyboard) opens its service's page; the in-place panel is no longer used */
 export function openService(i: number) {
   if (i < 0) return
   leaveTo(slotHref(i))

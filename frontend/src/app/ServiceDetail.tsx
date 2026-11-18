@@ -7,7 +7,7 @@ import { useLive, ago } from '../data/live'
 import { short, usdc, pct, num } from '../data/fmt'
 import { t, useLang, type TKey } from '../i18n'
 import { priceText, whyText, type Led } from '../data/wall'
-import { actFor, consoleFor, link, tx, addr, serviceHref } from '../links'
+import { consoleFor, link, tx, addr, serviceHref, useHref } from '../links'
 import { LevelBadge, useServiceLevel } from './levels'
 import { x as xs } from '../network/actions/strings-x'
 import { useCatalog } from './useCatalog'
@@ -258,7 +258,7 @@ function UseIt({ r, inPanel }: { r: SvcRow; inPanel: boolean }) {
       <div className="d-acts">
         {r.role?.role === 'superseded'
           ? <a className="btn btn-main" href={serviceHref(r.role.by)}><span>{t('d.role.open', { id: r.role.by })}</span></a>
-          : <a className="btn btn-main" href={actFor(r.svc, r.p.id)}><span>{t('d.use.btn')}</span></a>}
+          : <a className="btn btn-main" href={useHref(r.p.id)}><span>{t('d.use.btn')}</span></a>}
         <a className="tlink" href={link.dev}>{t('d.dev')}</a>
         {inPanel ? <a className="tlink" href={serviceHref(r.p.id)}>{t('d.page')}</a> : null}
       </div>

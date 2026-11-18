@@ -41,7 +41,7 @@ export function AppHeader({ page, section, replay, wallet }: { page: AppPage; se
     const p = L < 1 ? L : max > 0 ? Math.min(1, Math.max(0, scrollY / max)) : 1
     if (bar.current) { bar.current.style.transform = `scaleX(${p.toFixed(4)})`; bar.current.dataset.load = L < 1 ? '1' : '0' }
   }), [])
-  const nav = <MainNav page={page === 'network' ? 'network' : 'other'} />
+  const nav = <MainNav page={page === 'network' ? 'network' : page === 'service' ? 'catalog' : 'other'} />
   return (
     <header className="hd app-hd-bar" data-front-free>
       <div className="hd-row1">

@@ -13,6 +13,8 @@ import { useCopilot, getState, setState, setCard, newId, logStep, saveQueue, typ
 import { ask, stripCitations, MCP_URL, type UiStep, type ChatTurn } from './api'
 import { drive, type DriveHooks } from './driver'
 import { pageOf } from './page'
+import { useCatalog } from '../app/useCatalog'
+import { serviceHref } from '../links'
 import { useWallet, getWallet, connect, toArc, forget, clearError, addrUrl, ARC } from './wallet'
 
 const FOCUSABLE = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
@@ -119,6 +121,8 @@ export function Copilot() {
   const open = useCopilot((s) => s.open)
   const view = useCopilot((s) => s.view)
   const msgs = useCopilot((s) => s.msgs)
+  const cpRows = useCatalog()
+  const cpSvc = cpRows?.find((r) => r.svc === 'copilot' && r.role?.role !== 'superseded' && r.p.state !== 'Retired')?.p.id
   const busy = useCopilot((s) => s.busy)
   const driving = useCopilot((s) => s.driving)
   const showing = useCopilot((s) => s.showing)
@@ -224,6 +228,8 @@ export function Copilot() {
         </div>
         </div>
         <p className="cp-sub">{driving ? ct('driving') : ct('sub')}</p>
+        {/* the copilot's own service page (product read live: the active copilot product, not a replaced one) */}
+        {!driving && cpSvc ? <p className="cp-svc">{ct('svc')} <a className="cp-svc-a" href={serviceHref(cpSvc)}>{ct('svcL')}<span aria-hidden="true"> →</span></a></p> : null}
       </header>
       {driving ? null : (
         <>

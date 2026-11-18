@@ -1,15 +1,15 @@
-// The main navigation, the same on every page: the landing, Network, then its three parts (Service = use a service,
+// The main navigation, the same on every page (the logo leads to the landing): Network, then its three parts (Service = use a service,
 // Rent = rent a machine, Publish = publish a service). On the Network page the parts switch in place (the scene's own
 // buttons), elsewhere they open network.html?focus=<part>. The current entry follows the open part (#col data-col).
 import { useEffect, useState } from 'react'
 import { t } from '../i18n'
 import { link, networkFor } from '../links'
 
-type Cur = 'home' | 'network' | 'use' | 'rent' | 'publish' | ''
+type Cur = 'home' | 'network' | 'catalog' | 'use' | 'rent' | 'publish' | ''
 const PARTS = ['use', 'rent', 'publish'] as const
 
-export function MainNav({ page }: { page: 'home' | 'network' | 'other' }) {
-  const [cur, setCur] = useState<Cur>(page === 'home' ? 'home' : '')
+export function MainNav({ page }: { page: 'home' | 'network' | 'catalog' | 'other' }) {
+  const [cur, setCur] = useState<Cur>(page === 'home' ? 'home' : page === 'catalog' ? 'catalog' : '')
   useEffect(() => {
     if (page !== 'network') return
     const col = document.getElementById('col')
@@ -29,8 +29,8 @@ export function MainNav({ page }: { page: 'home' | 'network' | 'other' }) {
   }
   return (
     <>
-      <a href={link.home} {...at('home')}>{t('nav.home')}</a>
       <a href={link.network} {...at('network')} onClick={inPlace('ensemble')}>{t('net.name')}</a>
+      <a href={link.catalog} {...at('catalog')}>{t('nav.catalog')}</a>
       {PARTS.map((k) => (
         <a key={k} href={networkFor(k)} {...at(k)} onClick={inPlace(k)} title={t(`nav.${k}.t`)}>{t(`nav.${k}.n`)}</a>
       ))}

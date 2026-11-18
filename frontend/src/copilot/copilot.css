@@ -165,3 +165,7 @@
   .cp-panel, .cp-note, .cp-ring { animation: none; }
   .cp-typing i, .cp-spin { animation: none; opacity: 0.8; }
 }
+/* the copilot's own service page, under the subtitle */
+.cp-svc { margin: 6px 0 0; font-size: 12px; line-height: 1.45; color: var(--ink3, #96a0ab); }
+.cp-svc-a { white-space: nowrap; color: var(--arc-light, #9cc0ff); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, currentColor 40%, transparent); }
+.cp-svc-a:hover { text-decoration-color: currentColor; }

@@ -9,14 +9,16 @@ import type { Service } from './data/wall'
 // Developers and Console pages live in the console. Every page sits under the build base (BASE_URL: "/" or a sub-path).
 const B = import.meta.env.BASE_URL
 export const link = {
-  home: B, use: `${B}use.html`, demo: `${B}demo.html`, rent: `${B}rent.html`, publish: `${B}publish.html`, network: `${B}network.html`,
-  bounty: `${B}bounty.html`, sessions: `${B}sessions.html`, operator: `${B}operator.html`, services: `${B}network.html?focus=use`,
+  home: B, use: `${B}use.html`, demo: `${B}network.html?focus=demo`, rent: `${B}rent.html`, publish: `${B}publish.html`, network: `${B}network.html`,
+  bounty: `${B}bounty.html`, sessions: `${B}sessions.html`, operator: `${B}operator.html`, services: `${B}network.html?focus=use`, catalog: `${B}service.html`,
   hive: `${CONSOLE}/#/ruche`, dev: `${CONSOLE}/#/developpeurs`, console: `${CONSOLE}/#/vue`, datacenter: DATACENTER,
 }
 /** The page that gathers Use, Rent and Publish, opened on one part */
 export const networkFor = (k: 'use' | 'rent' | 'publish') => `${B}network.html?focus=${k}`
-/** A service page in the app */
+/** A service page in the app: its description, with a button to use it */
 export const serviceHref = (productId: string) => `${B}service.html?p=${encodeURIComponent(productId)}`
+/** Using a service: Network's Use part with that service picked (catalog open, service described) */
+export const useHref = (productId: string) => `${B}network.html?focus=use&p=${encodeURIComponent(productId)}`
 /** Where a service is used on this site: a bounty on the bounties page, session inference on the sessions page,
  *  pay-per-call in the Use action panel, the copilot in its bubble. */
 export const actFor = (s?: Service, productId?: string) =>
