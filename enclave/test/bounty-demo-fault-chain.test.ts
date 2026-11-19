@@ -1,19 +1,19 @@
 /**
- * Prime scellée v2.1 quater — la démonstration de la réfutation de BOUT EN BOUT sur une chaîne LOCALE (anvil), avec les VRAIS
- * contrats (contracts/out : ProductRegistry, OperatorBond, EnclaveRegistry, VerdictLog, SealedBounty, DemoVault ; seuls l'USDC,
- * le module d'attestation, le registre ERC-8004 et l'historique EIP-2935 sont des doublures) et le VRAI rejeu (AnvilForkRunner,
- * moteur « anvil », fork de cette chaîne au bloc N). C'est le chemin de scripts/refute-demo.ts :
- *  1. trois opérateurs (identité ERC-8004, VerdictLog autorisé, caution 1 USDC, agentId) et trois enclaves inscrites : A sert
- *     DEMO_FAULT=inflate-loss, B et C sont honnêtes ;
- *  2. un coffre DemoVault doté de 1 USDC, une prime (cagnotte 1 USDC, palier 0,5 USDC pour une perte ≥ 1 USDC, ERC20_DROP) ;
- *  3. le chasseur (SDK : clé vérifiée on-chain, exploit scellé) soumet à A : réclamation signée avec une perte de 2 USDC ;
- *     acceptClaim ;
- *  4. AVANT la livraison, le protocole demande la réfutation (SDK requestRefutations, source « protocole ») : A est écartée
- *     (opérateur de la réclamation), B et C rejouent au bloc N et signent Refutation { prouvée, perte 1 USDC, palier 0 } ;
- *  5. le contrat refuse une réfutation d'un seul opérateur, ou signée par l'opérateur de la réclamation ; refute(claim, [A],
- *     f, [sigB, sigC]) passe : ClaimRefuted, caution de A saisie (moitié au dénonciateur, moitié au protocole) et A radié,
- *     paiement réservé rendu à la cagnotte, verdict ERC-8004 « refuted » (0) pour l'agent de A ; plus rien à livrer.
- * Ignoré si aucun anvil n'est installé (ANVIL_BIN, sinon ~/.foundry/bin/anvil).
+ * Sealed Bounty v2.1 — the refutation demo end to end on a local chain (anvil), with the real contracts
+ * (contracts/out: ProductRegistry, OperatorBond, EnclaveRegistry, VerdictLog, SealedBounty, DemoVault; only USDC, the
+ * attestation module, the ERC-8004 registry and the EIP-2935 history are test doubles) and the real replay (AnvilForkRunner,
+ * "anvil" engine, a fork of this chain at block N). This is the path of scripts/refute-demo.ts:
+ *  1. three operators (ERC-8004 identity, VerdictLog allowed, 1 USDC bond, agentId) and three registered enclaves: A runs
+ *     DEMO_FAULT=inflate-loss, B and C are honest;
+ *  2. a DemoVault funded with 1 USDC, a bounty (pool 1 USDC, tier 0.5 USDC for a loss ≥ 1 USDC, ERC20_DROP);
+ *  3. the hunter (SDK: key verified on-chain, sealed exploit) submits to A: a claim signed with a loss of 2 USDC;
+ *     acceptClaim;
+ *  4. before delivery, the protocol requests the refutation (SDK requestRefutations, source "protocol"): A is left out
+ *     (the claim's operator), B and C replay at block N and sign Refutation { proven, loss 1 USDC, tier 0 };
+ *  5. the contract refuses a refutation from a single operator, or one signed by the claim's operator; refute(claim, [A],
+ *     f, [sigB, sigC]) passes: ClaimRefuted, A's bond seized (half to the reporter, half to the protocol) and A banned,
+ *     the reserved payment returned to the pool, ERC-8004 verdict "refuted" (0) for A's agent; nothing left to deliver.
+ * Skipped if no anvil is installed (ANVIL_BIN, otherwise ~/.foundry/bin/anvil).
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
@@ -43,7 +43,7 @@ const ANVIL = [process.env.ANVIL_BIN, join(homedir(), ".foundry", "bin", "anvil"
 
 const CHAIN_ID = 5042002;
 const HISTORY: Address = "0x0000F90827F1C53a10cb7A02335B175320002935";
-/** Historique EIP-2935 de la chaîne locale : rend BLOCKHASH(n) (les 256 derniers blocs), donc le VRAI hash, comme sur Arc. */
+/** EIP-2935 history of the local chain: returns BLOCKHASH(n) (the last 256 blocks), hence the real hash, as on Arc. */
 const HISTORY_SHIM: Hex = "0x6000354060005260206000f3";
 const USDC6 = 1_000_000n;
 const OUT = new URL("../../contracts/out/", import.meta.url);
@@ -60,7 +60,7 @@ function freePort(): Promise<number> {
   });
 }
 
-/** Mesures TDX déclarées au module d'attestation de test (les mêmes pour les trois enclaves : une seule image). */
+/** TDX measurements declared to the test attestation module (the same for the three enclaves: one image). */
 const M = {
   ok: true, version: 4, bodyType: 2, tcbStatus: 0, fmspc: "0x112233445566" as Hex,
   mrtd: ("0x" + "11".repeat(48)) as Hex, rtmr0: ("0x" + "22".repeat(48)) as Hex, rtmr1: ("0x" + "33".repeat(48)) as Hex,
@@ -69,7 +69,7 @@ const M = {
 };
 const WORKLOAD = computeWorkloadId(M);
 
-describe.skipIf(!ANVIL)(`démonstration de la réfutation sur une chaîne locale (vrais contrats, rejeu par ${ANVIL ?? "anvil absent"})`, () => {
+describe.skipIf(!ANVIL)(`refutation demo on a local chain (real contracts, replay by ${ANVIL ?? "anvil, absent"})`, () => {
   let base: ChildProcess | undefined;
   let url = "";
 
@@ -92,7 +92,7 @@ describe.skipIf(!ANVIL)(`démonstration de la réfutation sur une chaîne locale
     base?.kill("SIGKILL");
   });
 
-  it("A ment (perte doublée), B et C réfutent : caution de A saisie, paiement rendu à la cagnotte, verdict « refuted » (0)", async () => {
+  it("A lies (doubled loss), B and C refute: A's bond seized, payment returned to the pool, verdict \"refuted\" (0)", async () => {
     const chain = defineChain({ id: CHAIN_ID, name: "local", nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 }, rpcUrls: { default: { http: [url] } } });
     const pub = createPublicClient({ chain, transport: http(url) });
     const rpc = async (method: string, params: unknown[]) => (pub as any).request({ method, params });
@@ -119,7 +119,7 @@ describe.skipIf(!ANVIL)(`démonstration de la réfutation sur une chaîne locale
     };
     const read = (c: C, functionName: string, args: unknown[] = []) => pub.readContract({ address: c.address, abi: c.abi, functionName, args } as any) as Promise<any>;
 
-    // ---- la pile v2.1, déployée comme DeployTestnet (doublures : USDC, module d'attestation, ERC-8004, historique) ----
+    // ---- the v2.1 stack, deployed as DeployTestnet does (doubles: USDC, attestation module, ERC-8004, history) ----
     const usdc = await deploy("MockUSDC3009", "MockUSDC3009");
     const mod = await deploy("MockAttestationModule", "MockAttestationModule");
     const identity = await deploy("MockERC8004", "MockIdentityRegistry");
@@ -133,7 +133,7 @@ describe.skipIf(!ANVIL)(`démonstration de la réfutation sur une chaîne locale
     await send("deployer", verdict, "initialize", [[sealed.address]]);
     await rpc("anvil_setCode", [HISTORY, HISTORY_SHIM]);
 
-    // ---- le produit de démonstration, réglé par SealedBounty ----
+    // ---- the demo product, settled by SealedBounty ----
     await send("deployer", products, "propose", [{
       manifestHash: keccak256(toBytes("refute demo manifest")), manifestURI: "https://example.org/manifests/sealed-bounty-refute-demo-v21.json",
       workloadIds: [WORKLOAD], deterministic: true, price: 0n, bpsOperator: 9500, bpsAuthor: 0, bpsNetwork: 500, minBond: 250_000n,
@@ -142,7 +142,7 @@ describe.skipIf(!ANVIL)(`démonstration de la réfutation sur une chaîne locale
     const PRODUCT = (await read(products, "productCount")) as bigint;
     await send("deployer", products, "activate", [PRODUCT]);
 
-    // ---- trois opérateurs : identité ERC-8004, VerdictLog autorisé, caution 1 USDC, agentId ----
+    // ---- three operators: ERC-8004 identity, VerdictLog allowed, 1 USDC bond, agentId ----
     const agentId: Record<string, bigint> = {};
     for (const op of ["A", "B", "C"] as const) {
       await send(op, identity, "register", [`data:,refute-demo-operator-${op}`]);
@@ -154,7 +154,7 @@ describe.skipIf(!ANVIL)(`démonstration de la réfutation sur une chaîne locale
       await send(op, bond, "setAgentId", [agentId[op]]);
     }
 
-    // ---- trois enclaves : A (DEMO_FAULT=inflate-loss), B et C (honnêtes), chacune inscrite par SON opérateur ----
+    // ---- three enclaves: A (DEMO_FAULT=inflate-loss), B and C (honest), each registered by its own operator ----
     const quorum = new RpcQuorum([url]);
     const blocks: BlockSource = { current: () => quorum.commonHead(), blockHash: (n) => quorum.blockHash(n) };
     const runner = () => new AnvilForkRunner({ forkUrl: url, anvilBin: ANVIL, engine: "anvil", log: () => {}, timeoutMs: 60_000 });
@@ -174,14 +174,14 @@ describe.skipIf(!ANVIL)(`démonstration de la réfutation sur une chaîne locale
     for (const n of nodes) {
       const anchorR = (await pub.getBlockNumber()) - 1n;
       const a = await n.kit.attest({ operator: acct[n.op].address, anchorR });
-      const reportData = toHex(toBytes(a.quote).slice(12, 76)); // le quote simulé embarque REPORTDATA après son marqueur
+      const reportData = toHex(toBytes(a.quote).slice(12, 76)); // the simulated quote carries REPORTDATA after its marker
       await send("deployer", mod, "setMeasurements", [a.quote, { ...M, reportData }]);
       await send(n.op, registry, "registerEnclave", [PRODUCT, a.quote, anchorR, a.signer, a.x25519, "0x"]);
     }
     const fetchFn = (async (u: any, init?: any) => {
       const href = String(u);
       const n = nodes.find((x) => href.startsWith(x.url));
-      if (!n) throw new Error(`hôte inconnu ${href}`);
+      if (!n) throw new Error(`unknown host ${href}`);
       return n.app.request(href.slice(n.url.length), init);
     }) as typeof fetch;
     const health = (await (await fetchFn(`${nodes[0]!.url}/health`)).json()) as any;
@@ -194,7 +194,7 @@ describe.skipIf(!ANVIL)(`démonstration de la réfutation sur une chaîne locale
       verdictLog: verdict.address, sessionPay: zeroAddress, sealedBounty: sealed.address, x402Settler: zeroAddress, demoVault: zeroAddress, attestation: "dev",
     };
 
-    // ---- le protocole : un coffre DemoVault doté de 1 USDC, une prime (cagnotte 1 USDC, palier 0,5 USDC pour une perte ≥ 1 USDC) ----
+    // ---- the protocol: a DemoVault funded with 1 USDC, a bounty (pool 1 USDC, tier 0.5 USDC for a loss ≥ 1 USDC) ----
     const vault = await deploy("DemoVault", "DemoVault", [usdc.address]);
     await send("deployer", usdc, "mint", [vault.address, USDC6]);
     await send("deployer", usdc, "mint", [acct.deployer.address, 10n * USDC6]);
@@ -214,16 +214,16 @@ describe.skipIf(!ANVIL)(`démonstration de la réfutation sur une chaîne locale
       auth: { validAfter: 0n, validBefore, nonce, signature: authSig },
     }]);
     const bountyId = (parseEventLogs({ abi: sealed.abi, logs: created.logs, eventName: "BountyCreated" })[0] as any).args.bountyId as bigint;
-    for (let i = 0; i < 3; i++) await rpc("evm_mine", []); // le bloc N (tête − 2) voit le coffre doté et les enclaves inscrites
+    for (let i = 0; i < 3; i++) await rpc("evm_mine", []); // block N (head − 2) sees the funded vault and the registered enclaves
 
-    // ---- le chasseur : clé de A vérifiée on-chain, exploit scellé (DemoVault.migrate(chasseur)), réclamation de A ----
+    // ---- the hunter: A's key verified on-chain, sealed exploit (DemoVault.migrate(hunter)), A's claim ----
     const liarKeys = await sdk.verifyEnclaveKeys(nodes[0]!.url, PRODUCT, { publicClient: pub as any, deployment: dep, fetch: fetchFn });
     expect(liarKeys.operator).toBe(acct.A.address);
     const exploit = { predicate, txs: [encodeExploitTx({ to: vault.address, data: encodeFunctionData({ abi: parseAbi(["function migrate(address to)"]), functionName: "migrate", args: [acct.hunter.address] }) })], capital: 0n };
     const r = crypto.getRandomValues(new Uint8Array(32));
     const sealedExploit = await sdk.sealExploitForEnclave({ bountyId, payee: acct.hunter.address, exploit, protocolX25519: protoPub, enclave: liarKeys, r });
     const proven = await sdk.submitSealedExploit(sealedExploit, { sealedBounty: sealed.address, chainId: CHAIN_ID, fetch: fetchFn });
-    expect(proven.claim.loss).toBe(2n * USDC6); // le coffre ne contient que 1 USDC : la perte est DOUBLÉE
+    expect(proven.claim.loss).toBe(2n * USDC6); // the vault holds only 1 USDC: the loss is doubled
     expect(proven.claim.tier).toBe(0);
     const accepted0 = await send("hunter", sealed, "acceptClaim", [proven.claim, [proven.signature]]);
     const ev = parseEventLogs({ abi: sealed.abi, logs: accepted0.logs, eventName: "ClaimAccepted" })[0] as any;
@@ -231,7 +231,7 @@ describe.skipIf(!ANVIL)(`démonstration de la réfutation sur une chaîne locale
     expect(ev.args.amount).toBe(USDC6 / 2n);
     const digest = ev.args.claimDigest as Hex;
 
-    // ---- AVANT la livraison : le protocole demande la réfutation (source « protocole » : cP + secret de ce rapport) ----
+    // ---- before delivery: the protocol requests the refutation (source "protocol": cP + this report's secret) ----
     let fresh = await pub.getBlockNumber({ cacheTime: 0 });
     while (fresh < accepted0.blockNumber) { await new Promise((r) => setTimeout(r, 100)); fresh = await pub.getBlockNumber({ cacheTime: 0 }); }
     const accepted = await sdk.readAcceptedClaim(pub as any, { claimDigest: digest, deployment: dep, fromBlock: accepted0.blockNumber, toBlock: fresh } as any);
@@ -242,11 +242,11 @@ describe.skipIf(!ANVIL)(`démonstration de la réfutation sur une chaîne locale
     expect(round.results.map((x) => x.status)).toEqual(["excluded", "refuted", "refuted"]);
     expect(round.status).toBe("ready");
     const f = round.refutation!;
-    expect(f).toEqual({ claimDigest: digest, proven: true, loss: USDC6, tier: 0 }); // la VRAIE perte, mesurée par B et C
+    expect(f).toEqual({ claimDigest: digest, proven: true, loss: USDC6, tier: 0 }); // the real loss, measured by B and C
     expect(round.refuters).toEqual([acct.B.address, acct.C.address]);
     expect(round.results[1]!.replay).toMatchObject({ replayed: true, satisfied: true, loss: USDC6, tier: 0, blockN: proven.claim.blockN });
 
-    // ---- le contrat lui-même : un seul opérateur, ou l'opérateur de la réclamation → refus ; B + C → réfutée ----
+    // ---- the contract itself: a single operator, or the claim's operator → refused; B + C → refuted ----
     const [sigB, sigC] = round.signatures!;
     const asDeployer = (args: unknown[]) => pub.simulateContract({ account: acct.deployer, address: sealed.address, abi: sealed.abi, functionName: "refute", args } as any);
     await expect(asDeployer([proven.claim, [acct.A.address], f, [sigB]])).rejects.toThrow(/NeedMoreRefuters/);
@@ -264,7 +264,7 @@ describe.skipIf(!ANVIL)(`démonstration de la réfutation sur une chaîne locale
       pending: ((await read(sealed, "pendingOf", [bountyId, proven.claim.fingerprint])) as any).payee as Address,
     };
     expect(before.bondA).toBe(USDC6);
-    expect(before.pool).toBe(USDC6 - (USDC6 / 2n) * 115n / 100n); // 0,5 USDC + 10 % réseau + 5 % opérateurs réservés
+    expect(before.pool).toBe(USDC6 - (USDC6 / 2n) * 115n / 100n); // 0.5 USDC + 10 % network + 5 % operators reserved
     expect(before.pending).toBe(acct.hunter.address);
 
     const call = sdk.prepareRefuteCall(accepted, round, dep);
@@ -283,15 +283,15 @@ describe.skipIf(!ANVIL)(`démonstration de la réfutation sur une chaîne locale
 
     expect(await read(bond, "bondOf", [acct.A.address])).toBe(0n);
     expect(await read(bond, "banned", [acct.A.address])).toBe(true);
-    expect(await read(bond, "bondOf", [acct.B.address])).toBe(USDC6); // les réfutants gardent leur caution
-    expect(((await read(sealed, "getBounty", [bountyId])) as any).balance).toBe(USDC6); // paiement rendu à la cagnotte
+    expect(await read(bond, "bondOf", [acct.B.address])).toBe(USDC6); // the refuters keep their bond
+    expect(((await read(sealed, "getBounty", [bountyId])) as any).balance).toBe(USDC6); // payment returned to the pool
     expect(((await read(sealed, "pendingOf", [bountyId, proven.claim.fingerprint])) as any).payee).toBe(zeroAddress);
-    expect((await read(usdc, "balanceOf", [acct.deployer.address])) - before.deployerUsdc).toBe(USDC6); // ½ dénonciateur + ½ protocole
+    expect((await read(usdc, "balanceOf", [acct.deployer.address])) - before.deployerUsdc).toBe(USDC6); // ½ reporter + ½ protocol
     expect(((await read(sealed, "claimRecords", [digest])) as any)[1]).toBe(true);
-    // plus rien à livrer ni à réfuter
+    // nothing left to deliver or refute
     await expect(pub.simulateContract({ account: acct.hunter, address: sealed.address, abi: sealed.abi, functionName: "deliver", args: [bountyId, proven.claim.fingerprint, proven.cP] } as any)).rejects.toThrow(/NothingToDeliver/);
     await expect(asDeployer([...call.args])).rejects.toThrow(/AlreadyRefuted/);
-    // les signatures sont bien celles des enclaves B et C (sur le digest que recouvre le contrat)
+    // the signatures are indeed enclaves B's and C's (over the digest the contract recovers)
     const d = sdk.refutationDigestOf(sealed.address, f, CHAIN_ID);
     expect((await recoverAddress({ hash: d, signature: sigB! })).toLowerCase()).toBe(nodes[1]!.kit.keys.signer.toLowerCase());
     expect((await recoverAddress({ hash: d, signature: sigC! })).toLowerCase()).toBe(nodes[2]!.kit.keys.signer.toLowerCase());
