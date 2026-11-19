@@ -441,7 +441,7 @@ export function PublishActs({ label }: { label?: string } = {}) {
       <Step n={3} part="publish" el="publish.poste" st={stOf(2, fpSt)} t={w('p.s3')} d={w('p.s3d')} active={active === 2} copilot="fingerprint">
         <Field label={w('p.image')} wide><input spellCheck={false} value={S.on ? dImg : d.image} readOnly={off} onChange={set('image')} placeholder="0x" /></Field>
         <div className="na-grid">
-          <Field label={w('p.price')}><input inputMode="decimal" value={S.on ? dv.price : d.price} readOnly={off} onChange={set('price')} /></Field>
+          <Field label={w((S.on ? 'x402' : d.rail) === 'session' ? 'p.price.tok' : 'p.price')}><input inputMode="decimal" value={S.on ? dv.price : d.price} readOnly={off} onChange={set('price')} /></Field>
           <Field label={w('p.minBond')}><input inputMode="decimal" value={S.on ? dv.minBond : d.minBond} readOnly={off} onChange={set('minBond')} /></Field>
           <Field label={w('p.rail')}><span className="na-sel"><select value={S.on ? 'x402' : d.rail} disabled={off} onChange={set('rail')}><option value="x402">{w('p.rail.x402')}</option><option value="session">{w('p.rail.session')}</option></select></span></Field>
           <Field label={w('p.op')}><input inputMode="decimal" value={S.on ? dv.op : d.bpsOperator / 100} readOnly={off} onChange={set('bpsOperator')} /></Field>
