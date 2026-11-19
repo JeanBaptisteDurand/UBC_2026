@@ -1,6 +1,6 @@
-# Contexte de construction de enclave/Dockerfile.copilot = la RACINE du dépôt. On n'envoie au constructeur QUE ce que
-# l'image utilise (liste blanche) : jamais .secrets/, .git/, contracts/, web/, ni node_modules/ (les dépendances viennent
-# de npm ci et des fichiers de verrouillage).
+# The build context of enclave/Dockerfile.copilot is the repository root. Only what the image uses is sent to the
+# builder (an allowlist): never .secrets/, .git/, contracts/, web/ or node_modules/ (dependencies come from npm ci and
+# the lockfiles).
 *
 !packages/sdk/package.json
 !packages/sdk/package-lock.json

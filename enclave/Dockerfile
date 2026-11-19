@@ -1,21 +1,21 @@
-# Image de l'enclave ArcHive, produits sealed-chat et sealed-x402. Déployable sur Phala Cloud (dstack TDX).
-# Une seule image, deux commandes : node dist/sealed-chat.mjs (sessions, port 8802) ou node dist/sealed-x402.mjs
-# (paiement à l'appel x402, port 8804 par défaut). Chaque service a ses propres clés et son propre PRODUCT_ID.
-# La Prime scellée a SA propre image (Dockerfile.bounty) : elle n'est ni construite ni copiée ici.
+# ArcHive enclave image for the sealed-chat and sealed-x402 products. Deployable on Phala Cloud (dstack TDX).
+# One image, two entry points: node dist/sealed-chat.mjs (sessions, port 8802) or node dist/sealed-x402.mjs
+# (x402 pay-per-call, port 8804 by default). Each service has its own keys and its own PRODUCT_ID.
+# The Sealed Bounty has its own image (Dockerfile.bounty): it is neither built nor copied here.
 #
-# Reproductible (9/11 au soir, remarque du vérificateur) :
-#  - base épinglée par condensat (la même que Dockerfile.copilot et les services du VPS) ;
-#  - aucun paquet système, plus d'apt-get : Node embarque ses autorités de certification (fetch HTTPS vers le RPC d'Arc
-#    et vers RedPill vérifié dans cette base le 9/11, sans /etc/ssl/certs ni paquet ca-certificates) ;
-#  - dépendances figées par le fichier de verrouillage (npm ci), sans les caches de npm (/root/.npm : index horodaté,
-#    journaux ; /tmp/node-compile-cache : cache de code de V8), qui différaient d'une construction à l'autre ;
-#  - seules les sources des deux produits sont copiées (leurs imports, relevés par esbuild) : un changement de la Prime
-#    scellée (bounty.ts, predicate.ts, anvil-fork.ts, products/sealed-bounty) ne change plus cette image. Un nouvel
-#    import hors de cette liste fait échouer la construction (esbuild), jamais en silence.
-# Construction, depuis enclave/ :
-#   docker build --platform linux/amd64 -t ghcr.io/<compte>/archive-sealed-chat:<version> .
-# Même empreinte d'une construction à l'autre (vérifié le 9/11 en linux/arm64 : deux constructions sans cache, même
-# manifeste, même config ; à refaire en linux/amd64 avant de publier), à condition de fixer aussi les dates des fichiers :
+# Reproducible build:
+#  - the base image is pinned by digest (the same one as Dockerfile.copilot and the services behind the site);
+#  - no system package and no apt-get: Node ships its own certificate authorities (HTTPS calls to Arc's RPC and to
+#    RedPill were checked in this base image, without /etc/ssl/certs or the ca-certificates package);
+#  - dependencies are pinned by the lockfile (npm ci), and npm's and V8's caches are removed (/root/.npm: a timestamped
+#    index and logs; /tmp/node-compile-cache: V8's code cache), because they differed from one build to the next;
+#  - only the two products' sources are copied (their imports, as listed by esbuild): a change to the Sealed Bounty
+#    (bounty.ts, predicate.ts, anvil-fork.ts, products/sealed-bounty) does not change this image. A new import outside
+#    this list makes the build fail (esbuild), never silently.
+# Build, from enclave/:
+#   docker build --platform linux/amd64 -t ghcr.io/<account>/archive-sealed-chat:<version> .
+# Two no-cache builds give the same manifest and config (checked on linux/arm64). To check the deployed platform, run
+# the same two builds with --platform linux/amd64. File timestamps must be fixed too:
 #   docker buildx build --platform linux/amd64 --no-cache --provenance=false --sbom=false --build-arg SOURCE_DATE_EPOCH=0 \
 #     --output type=oci,dest=archive-sealed-chat.oci.tar,rewrite-timestamp=true .
 FROM node:22-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d
