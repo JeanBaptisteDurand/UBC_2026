@@ -881,3 +881,6 @@ html.veil-none body::after { display: none; }
   .hd-drawer { gap: 0; padding-top: 0; padding-bottom: 8px; font-size: 17px; }
   .hd-drawer-x { margin-top: 0; }
 }
+/* Phones: a chapter link inside the Doc's text (Tokenomics' "The numbers"...) gets a 44 px tall hit area; padding on an
+   inline link leaves the lines where they are */
+@media (max-width: 760px) { .doc-b a.tlink[data-doc-ch] { padding-block: 11px; } }
