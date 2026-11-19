@@ -37,18 +37,18 @@ test("les outils de liste existent et disent leur source", () => {
 
 test("chaque liste vient de l'index de l'API, jamais de l'explorateur", async () => {
   const p = await run("arc_products");
-  assert.equal(p.json.produits.length, 2);
+  assert.equal(p.json.products.length, 2);
   const e = await run("arc_enclaves");
   assert.equal(e.json.total, 5);
-  assert.match(e.json.liste.source, /index d'événements de l'API ArcHive/);
+  assert.match(e.json.index.source, /index d'événements de l'API ArcHive/);
   assert.ok((await run("arc_enclaves", { onlyActive: true })).json.enclaves.every((x: any) => x.active));
   const b = await run("arc_bounties");
   assert.equal(b.json.total, 2);
-  assert.equal(b.json.primes[0].id, "2");
+  assert.equal(b.json.bounties[0].id, "2");
   const s = await run("arc_sessions", { owner: OWNER });
   assert.equal(s.json.total, 2);
   const a = await run("arc_activity", { limit: 4 });
-  assert.equal(a.json.nombre, 4);
+  assert.equal(a.json.count, 4);
   for (const path of ["/products", "/enclaves", "/bounties", `/sessions/${OWNER.toLowerCase()}`, "/activity"]) assert.ok(api.hits(path) >= 1, path);
   assert.ok(api.urls.every((u) => !/explorer|blockscout/i.test(u)));
 });
@@ -59,9 +59,9 @@ test("API en panne : isError et « liste momentanément indisponible », jamais 
     api.set(path, { status: 524, body: {} });
     const r = await run(tool, args);
     assert.equal(r.out.isError, true, tool);
-    assert.match(r.text, /liste momentanément indisponible/, tool);
+    assert.match(r.text, /list temporarily unavailable/, tool);
   }
-  assert.equal((await run("arc_sessions", {})).json.disponible, false, "owner requis");
+  assert.equal((await run("arc_sessions", {})).json.available, false, "owner requis");
 });
 
 test("sorties filtrées : un journal de machine qui contient une clé privée part masqué vers l'agent", async () => {

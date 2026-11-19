@@ -20,7 +20,7 @@ function withTimeout(p: Promise<ToolOutput>, ms: number, name: string): Promise<
   let t: NodeJS.Timeout | undefined;
   const late = new Promise<ToolOutput>((ok) => {
     t = setTimeout(() => ok({
-      content: [{ type: "text", text: `Erreur / Error: ${String(name).slice(0, 64)} n'a pas répondu en ${Math.round(ms / 1000)} s (did not answer in time) : réessayez dans un instant (try again shortly).` }],
+      content: [{ type: "text", text: `Error: ${String(name).slice(0, 64)} did not answer in time (${Math.round(ms / 1000)} s): try again shortly.` }],
       isError: true,
     }), ms);
   });

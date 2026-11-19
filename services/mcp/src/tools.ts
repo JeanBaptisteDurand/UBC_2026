@@ -38,11 +38,22 @@ const SUPERSEDED_SBV = new Set(["0x242ca1c4d0a5a6fe5a806f215ca5f127422364d2"]);
 export function productRail(arc: ArcClient, id: string, settlement: string): string {
   const s = String(settlement).toLowerCase();
   if (arc.d.levels && s === arc.d.levels.sealedBountyVerified.toLowerCase()) return "SealedBountyVerified (Sealed Bounty, verified operator level)";
-  if (SUPERSEDED_SBV.has(s)) return "neutralized, replaced by #7 (ancien SealedBountyVerified remplacé le 11/11 : ne règle plus rien ; la Prime vérifiée est le produit 7)";
-  if (id === "5" && s === arc.d.sealedBounty.toLowerCase()) return "SealedBounty (Sealed Bounty, open level) : refutation demo (démo de réfutation : une enclave menteuse réfutée, caution saisie, 10/11)";
+  if (SUPERSEDED_SBV.has(s)) return "neutralized, replaced by #7 (the former SealedBountyVerified, replaced on 11/11: it settles nothing; the verified Sealed Bounty is product 7)";
+  if (id === "5" && s === arc.d.sealedBounty.toLowerCase()) return "SealedBounty (Sealed Bounty, open level): refutation demo (a lying enclave refuted, its bond slashed, 10/11)";
   if (s === arc.d.sealedBounty.toLowerCase()) return "SealedBounty (Sealed Bounty, open level)";
-  return railOf(arc, settlement);
+  const r = railOf(arc, settlement);
+  return RAIL_EN[r] ?? r;
 }
+
+/** 20/11 : the copilot's French rail labels (services/copilot/src/arc-actions.ts, railOf), as this MCP server says them. */
+const RAIL_EN: Record<string, string> = {
+  "SessionPay (session prépayée, reçus cumulatifs)": "SessionPay (prepaid session, cumulative receipts)",
+  "X402Settler (paiement à l'appel, x402)": "X402Settler (pay per call, x402)",
+  "SealedBounty (Prime scellée)": "SealedBounty (Sealed Bounty)",
+  "SealedBountyVerified (Prime scellée au niveau vérifié : puce déclarée par un auditeur, via PolicyEnclaves)": "SealedBountyVerified (Sealed Bounty, verified level: chip declared by an auditor, via PolicyEnclaves)",
+  "aucun (service gratuit, attesté : ex. le copilote en enclave)": "none (free attested service, e.g. the copilot in an enclave)",
+  "contrat de règlement inconnu": "unknown settlement contract",
+};
 
 /** 19/11 : les primes des DEUX niveaux, lues dans l'index de l'API (/bounties?level=all) : niveau ouvert (SealedBounty,
  *  produits 2 et 5) et niveau vérifié (SealedBountyVerified, produit 7). Un numéro seul ne désigne pas une prime (chaque
@@ -55,16 +66,16 @@ async function bountiesAllLevels(arc: ArcClient, actx: ActionCtx, onlyOpen: bool
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     j = await res.json();
   } catch (e: any) {
-    throw new ListUnavailableError("primes", e?.name === "TimeoutError" ? "l'API ArcHive n'a pas répondu à temps" : `l'API ArcHive ne répond pas (${String(e?.message ?? e).slice(0, 80)})`);
+    throw new ListUnavailableError("primes", e?.name === "TimeoutError" ? "the ArcHive API did not answer in time" : `the ArcHive API is not answering (${String(e?.message ?? e).slice(0, 80)})`);
   }
-  if (!Array.isArray(j)) throw new ListUnavailableError("primes", "réponse inattendue de l'API ArcHive (tableau attendu)");
+  if (!Array.isArray(j)) throw new ListUnavailableError("primes", "unexpected ArcHive API response (array expected)");
   const now = BigInt(Math.floor(Date.now() / 1000));
   const rows = j.map((x: any, i: number) => {
     const big = (v: unknown, f: string): bigint => {
       try { if (v === undefined || v === null || v === "") throw new Error(); return BigInt(String(v)); }
-      catch { throw new ListUnavailableError("primes", `réponse illisible de l'API ArcHive (prime ${i}, ${f})`); }
+      catch { throw new ListUnavailableError("primes", `unreadable ArcHive API response (bounty ${i}, ${f})`); }
     };
-    if (!x || typeof x !== "object") throw new ListUnavailableError("primes", `réponse illisible de l'API ArcHive (prime ${i})`);
+    if (!x || typeof x !== "object") throw new ListUnavailableError("primes", `unreadable ArcHive API response (bounty ${i})`);
     const level = x.level === "verified" ? "verified" : "open";
     const contract = typeof x.contract === "string" ? x.contract : level === "verified" ? "SealedBountyVerified" : "SealedBounty";
     const address = typeof x.address === "string" ? x.address : level === "verified" ? (arc.d.levels?.sealedBountyVerified ?? null) : arc.d.sealedBounty;
@@ -85,10 +96,10 @@ async function bountiesAllLevels(arc: ArcClient, actx: ActionCtx, onlyOpen: bool
       verified: { contrat: "SealedBountyVerified", adresse: arc.d.levels?.sealedBountyVerified ?? null, total: rows.filter((r) => r.level === "verified").length, ouvertes: rows.filter((r) => r.level === "verified" && r.open).length },
     },
     luA: new Date(Number(now) * 1000).toISOString(),
-    lecture: "Deux niveaux : open = SealedBounty (produits 2 et 5), verified = SealedBountyVerified (produit 7). Un numéro seul ne désigne pas une prime : lire contract + id (ref).",
+    lecture: "Two levels: open = SealedBounty (products 2 and 5), verified = SealedBountyVerified (product 7). A number alone does not name a bounty: read contract + id (ref).",
     liste: await freshness({ base: actx.apiBase }),
     primes: onlyOpen ? rows.filter((r) => r.open) : rows,
-    source: `API ArcHive ${base}/bounties?level=all (index des événements BountyCreated des deux contrats + getBounty)`,
+    source: `ArcHive API ${base}/bounties?level=all (index of the BountyCreated events of both contracts + getBounty)`,
   };
 }
 
@@ -97,10 +108,10 @@ const RECEIPT_UINTS = ["productId", "sessionId", "seq", "tokensIn", "tokensOut",
 const RECEIPT_HASHES = ["modelHash", "paramsHash", "requestHash", "responseHash"] as const;
 const RECEIPT_SCHEMA = {
   type: "object",
-  description: "le reçu signé par l'enclave, tel qu'elle le rend (champs en chaînes décimales et hex)",
+  description: "the receipt signed by the enclave, as it returns it (fields as decimal and hex strings)",
   properties: {
-    ...Object.fromEntries(RECEIPT_UINTS.map((k) => [k, { type: "string", description: "entier décimal ≥ 0 (uint256), ex. \"12\"" }])),
-    ...Object.fromEntries(RECEIPT_HASHES.map((k) => [k, { type: "string", description: "bytes32 : 0x + 64 caractères hex" }])),
+    ...Object.fromEntries(RECEIPT_UINTS.map((k) => [k, { type: "string", description: "decimal integer ≥ 0 (uint256), e.g. \"12\"" }])),
+    ...Object.fromEntries(RECEIPT_HASHES.map((k) => [k, { type: "string", description: "bytes32: 0x + 64 hex characters" }])),
   },
   required: [...RECEIPT_UINTS, ...RECEIPT_HASHES],
 };
@@ -108,22 +119,22 @@ const RECEIPT_SCHEMA = {
 /** Vérifie la forme d'un reçu avant tout calcul : une erreur par champ (au lieu de « Cannot convert undefined to a BigInt »). */
 export function receiptErrors(r: unknown, sig: unknown): string[] {
   const errs: string[] = [];
-  if (!r || typeof r !== "object" || Array.isArray(r)) errs.push("receipt : objet attendu (object expected)");
+  if (!r || typeof r !== "object" || Array.isArray(r)) errs.push("receipt: object expected");
   else {
     const o = r as Record<string, unknown>;
     for (const k of RECEIPT_UINTS) {
       const v = o[k];
-      if (v === undefined || v === null || v === "") errs.push(`receipt.${k} : manquant (missing)`);
+      if (v === undefined || v === null || v === "") errs.push(`receipt.${k}: missing`);
       else if (!((typeof v === "string" && /^\d{1,78}$/.test(v)) || (typeof v === "number" && Number.isSafeInteger(v) && v >= 0)))
-        errs.push(`receipt.${k} : entier décimal ≥ 0 attendu (unsigned integer expected)`);
+        errs.push(`receipt.${k}: unsigned decimal integer expected`);
     }
     for (const k of RECEIPT_HASHES) {
       const v = o[k];
-      if (v === undefined || v === null || v === "") errs.push(`receipt.${k} : manquant (missing)`);
-      else if (!(typeof v === "string" && /^0x[0-9a-fA-F]{64}$/.test(v))) errs.push(`receipt.${k} : bytes32 attendu, 0x + 64 hex (bytes32 expected)`);
+      if (v === undefined || v === null || v === "") errs.push(`receipt.${k}: missing`);
+      else if (!(typeof v === "string" && /^0x[0-9a-fA-F]{64}$/.test(v))) errs.push(`receipt.${k}: bytes32 expected (0x + 64 hex)`);
     }
   }
-  if (!(typeof sig === "string" && /^0x([0-9a-fA-F]{128}|[0-9a-fA-F]{130})$/.test(sig))) errs.push("signature : 0x + 130 hex attendu (65-byte signature expected)");
+  if (!(typeof sig === "string" && /^0x([0-9a-fA-F]{128}|[0-9a-fA-F]{130})$/.test(sig))) errs.push("signature: 65-byte signature expected (0x + 130 hex)");
   return errs;
 }
 
@@ -131,36 +142,36 @@ const PREP = "PREPARES only: signs and sends nothing, returns the data the user 
 const LIST = "Read from the ArcHive API index; if the list is briefly unavailable, the tool says so (never a partial list).";
 
 export const TOOLS = [
-  { name: "arc_products", description: `Lists the products of Arc's enclave network (price with its unit, shares, settlement, minimum bond, state). ${LIST}`, inputSchema: { type: "object", properties: { onlyActive: { type: "boolean", description: "true = seulement les produits actifs" } } } },
-  { name: "arc_enclaves", description: `Lists the enclaves (the hive): operator, product, TCB, active or not at the head block, validity window in blocks, registered X25519 key. ${LIST}`, inputSchema: { type: "object", properties: { onlyActive: { type: "boolean", description: "true = seulement les enclaves actives" } } } },
-  { name: "arc_bounties", description: `Lists the sealed bounties of BOTH levels (open: SealedBounty, products 2 and 5; verified: SealedBountyVerified, product 7): level, contract, protocol, product, balance, deadline, pause, open or not. ${LIST}`, inputSchema: { type: "object", properties: { onlyOpen: { type: "boolean", description: "true = seulement les primes ouvertes" } } } },
-  { name: "arc_sessions", description: `Lists the SessionPay sessions opened by an account: product, deposit, already settled, remainder, closed, expiry. ${LIST}`, inputSchema: { type: "object", properties: { owner: { type: "string", description: "adresse 0x… du compte" } }, required: ["owner"] } },
-  { name: "arc_activity", description: `Recent on-chain activity of the network's contracts (enclave registrations, sessions, settlements, bounties, verdicts), newest first. ${LIST}`, inputSchema: { type: "object", properties: { limit: { type: "number", description: "nombre d'événements (1 à 50, défaut 10)" } } } },
+  { name: "arc_products", description: `Lists the products of Arc's enclave network (price with its unit, shares, settlement, minimum bond, state). ${LIST}`, inputSchema: { type: "object", properties: { onlyActive: { type: "boolean", description: "true = only the active products" } } } },
+  { name: "arc_enclaves", description: `Lists the enclaves (the hive): operator, product, TCB, active or not at the head block, validity window in blocks, registered X25519 key. ${LIST}`, inputSchema: { type: "object", properties: { onlyActive: { type: "boolean", description: "true = only the active enclaves" } } } },
+  { name: "arc_bounties", description: `Lists the sealed bounties of BOTH levels (open: SealedBounty, products 2 and 5; verified: SealedBountyVerified, product 7): level, contract, protocol, product, balance, deadline, pause, open or not. ${LIST}`, inputSchema: { type: "object", properties: { onlyOpen: { type: "boolean", description: "true = only the open bounties" } } } },
+  { name: "arc_sessions", description: `Lists the SessionPay sessions opened by an account: product, deposit, already settled, remainder, closed, expiry. ${LIST}`, inputSchema: { type: "object", properties: { owner: { type: "string", description: "0x… address of the account" } }, required: ["owner"] } },
+  { name: "arc_activity", description: `Recent on-chain activity of the network's contracts (enclave registrations, sessions, settlements, bounties, verdicts), newest first. ${LIST}`, inputSchema: { type: "object", properties: { limit: { type: "number", description: "number of events (1 to 50, default 10)" } } } },
   { name: "arc_pricing", description: "Cost of a use: units × the product's price, with a readable line giving the unit (per token for a prepaid session, per call for x402, free, or paid by a bounty's pool).", inputSchema: { type: "object", properties: { productId: { type: "string" }, units: { type: "string" } }, required: ["productId", "units"] } },
-  { name: "arc_verify_receipt", description: "Checks an inference receipt the way SessionPay.settle does: the session's locked enclave, active at the anchor block under its operator, locked model, growing cumulative total; and what the settlement would pay.", inputSchema: { type: "object", properties: { receipt: RECEIPT_SCHEMA, signature: { type: "string", description: "signature EIP-712 de l'enclave : 0x + 130 hex (65 octets)" } }, required: ["receipt", "signature"] } },
-  { name: "arc_enclave_status", description: "State of ONE enclave by its signer: operator, product, TCB, expiry, active or not, the operator's bond (total, available, 24 h exposure on this product).", inputSchema: { type: "object", properties: { signer: { type: "string", description: "adresse 0x… du signataire de l'enclave" } }, required: ["signer"] } },
+  { name: "arc_verify_receipt", description: "Checks an inference receipt the way SessionPay.settle does: the session's locked enclave, active at the anchor block under its operator, locked model, growing cumulative total; and what the settlement would pay.", inputSchema: { type: "object", properties: { receipt: RECEIPT_SCHEMA, signature: { type: "string", description: "the enclave's EIP-712 signature: 0x + 130 hex (65 bytes)" } }, required: ["receipt", "signature"] } },
+  { name: "arc_enclave_status", description: "State of ONE enclave by its signer: operator, product, TCB, expiry, active or not, the operator's bond (total, available, 24 h exposure on this product).", inputSchema: { type: "object", properties: { signer: { type: "string", description: "0x… address of the enclave's signer" } }, required: ["signer"] } },
   { name: "arc_session_status", description: "State of a SessionPay session: owner, product, operator, deposit, already paid, remainder, expiry, closed.", inputSchema: { type: "object", properties: { sessionId: { type: "string" } }, required: ["sessionId"] } },
   { name: "arc_bounty_prepare_create", description: `Creates a sealed bounty, with a predicate helper ("the USDC balance of the target contract drops by at least minDrop" → ERC20_DROP clause), tiers, fees read on-chain, createBounty parameters and an EIP-3009 authorization. ${PREP}`, inputSchema: { type: "object", properties: {
-    from: { type: "string", description: "wallet du protocole, qui finance et signe" },
-    target: { type: "string", description: "contrat surveillé (ex. le coffre du protocole)" },
-    minDrop: { type: "string", description: "baisse minimale qui prouve l'exploit, en USDC" },
-    reward: { type: "string", description: "récompense du chasseur en USDC (un palier)" },
-    tiers: { type: "array", description: "plusieurs paliers [{ minLoss, amount }] en USDC", items: { type: "object", properties: { minLoss: { type: "string" }, amount: { type: "string" } } } },
-    funding: { type: "string", description: "financement initial en USDC (défaut : un paiement du plus haut palier, frais compris)" },
+    from: { type: "string", description: "the protocol's wallet, which funds and signs" },
+    target: { type: "string", description: "watched contract (e.g. the protocol's vault)" },
+    minDrop: { type: "string", description: "minimum drop that proves the exploit, in USDC" },
+    reward: { type: "string", description: "the hunter's reward in USDC (one tier)" },
+    tiers: { type: "array", description: "several tiers [{ minLoss, amount }] in USDC", items: { type: "object", properties: { minLoss: { type: "string" }, amount: { type: "string" } } } },
+    funding: { type: "string", description: "initial funding in USDC (default: one payment of the highest tier, fees included)" },
     clauseType: { type: "string", enum: ["ERC20_DROP", "NATIVE_DROP", "ATTACKER_PROFIT"] },
-    token: { type: "string" }, predicate: { type: "object", description: "prédicat complet { combine, clauses } (avancé)" },
+    token: { type: "string" }, predicate: { type: "object", description: "full predicate { combine, clauses } (advanced)" },
     deadlineDays: { type: "number" }, k: { type: "number" }, singleCap: { type: "string" }, targetToPause: { type: "string" },
-    protocolX25519: { type: "string", description: "clé PUBLIQUE X25519 du protocole (jamais la privée)" }, productId: { type: "string" },
+    protocolX25519: { type: "string", description: "the protocol's PUBLIC X25519 key (never the private one)" }, productId: { type: "string" },
   } } },
   { name: "arc_operator_plan", description: "Step-by-step plan to become an operator: Intel TDX VM (Phala), app-compose, /attest, bond, registerEnclave, renewal; the bond rules with the figures read on-chain.", inputSchema: { type: "object", properties: { operator: { type: "string" }, productId: { type: "string" } } } },
-  { name: "arc_operator_prepare_bond", description: `Operator bond deposit: EIP-3009 authorization for bond(), or encoded approve + bondFrom; checks balance, ban and minimum bond. ${PREP}`, inputSchema: { type: "object", properties: { operator: { type: "string" }, amount: { type: "string", description: "montant en USDC" }, productId: { type: "string" } } } },
-  { name: "arc_operator_prepare_register", description: `Enclave registration: anchor block, reading the VM's /attest (if enclaveUrl and operator are given), encoded registerEnclave transaction. ${PREP}`, inputSchema: { type: "object", properties: { productId: { type: "string" }, operator: { type: "string" }, enclaveUrl: { type: "string" }, includeCalldata: { type: "boolean", description: "calldata complète (défaut : oui)" } }, required: ["productId"] } },
+  { name: "arc_operator_prepare_bond", description: `Operator bond deposit: EIP-3009 authorization for bond(), or encoded approve + bondFrom; checks balance, ban and minimum bond. ${PREP}`, inputSchema: { type: "object", properties: { operator: { type: "string" }, amount: { type: "string", description: "amount in USDC" }, productId: { type: "string" } } } },
+  { name: "arc_operator_prepare_register", description: `Enclave registration: anchor block, reading the VM's /attest (if enclaveUrl and operator are given), encoded registerEnclave transaction. ${PREP}`, inputSchema: { type: "object", properties: { productId: { type: "string" }, operator: { type: "string" }, enclaveUrl: { type: "string" }, includeCalldata: { type: "boolean", description: "full calldata (default: yes)" } }, required: ["productId"] } },
   { name: "arc_product_scaffold", description: "Skeleton of a third-party product: container + enclave kit, app-compose, manifest, propose() parameters, then timelock and activate (bpsOperator + bpsAuthor + bpsNetwork = 10,000).", inputSchema: { type: "object", properties: {
     name: { type: "string" }, description: { type: "string" }, rail: { type: "string", enum: ["session", "x402"] }, deterministic: { type: "boolean" },
-    price: { type: "string", description: "prix par unité en USDC" }, bpsOperator: { type: "number" }, bpsAuthor: { type: "number" }, bpsNetwork: { type: "number" },
+    price: { type: "string", description: "price per unit in USDC" }, bpsOperator: { type: "number" }, bpsAuthor: { type: "number" }, bpsNetwork: { type: "number" },
     minBond: { type: "string" }, exposureCap: { type: "string" }, modelId: { type: "string" }, image: { type: "string" },
   } } },
-  { name: "arc_machines_list", description: "An operator's machines (nodes) from the ArcHive API: mode (tdx, dstack, demo), online, last heartbeat, product, enclave URL and signer, diagnostics OK, registered. Read only.", inputSchema: { type: "object", properties: { operator: { type: "string", description: "adresse 0x… de l'opérateur" } }, required: ["operator"] } },
+  { name: "arc_machines_list", description: "An operator's machines (nodes) from the ArcHive API: mode (tdx, dstack, demo), online, last heartbeat, product, enclave URL and signer, diagnostics OK, registered. Read only.", inputSchema: { type: "object", properties: { operator: { type: "string", description: "0x… address of the operator" } }, required: ["operator"] } },
   { name: "arc_machine_diagnostics", description: "Diagnostics of an operator's machine (ArcHive API): failed checks with the fix to apply, normal failures for the mode, recent log, attestation, on-chain registration. Read only.", inputSchema: { type: "object", properties: { machineId: { type: "string" } }, required: ["machineId"] } },
 ];
 
@@ -234,6 +245,34 @@ function readableOfListed(arc: ArcClient, p: any): string | undefined {
   try { return readablePrice(arc, String(p.id), parseUnits(String(p.pricePerUnit).replace(/\s*USDC\s*$/, ""), 6), String(p.settlement), Number(p.unitTokens ?? 1), Number(p.outWeight ?? 1)); } catch { return undefined; }
 }
 
+/** 20/11 : the price as a person reads it, first and plain ("0.10 USDC per 1,000 tokens (100 USDC per million tokens)",
+ *  "0.01 USDC per call", "free", "paid from the poster's pool"); the on-chain value goes in pricePerUnitRaw, with its unit. */
+export function plainPrice(arc: ArcClient, id: string, price: bigint, settlement: string, unitTokens = 1): string {
+  const s = String(settlement).toLowerCase();
+  if (/^0x0{40}$/.test(s)) return price === 0n ? "free" : `${usdc2(price)} USDC per use`;
+  const rail = productRail(arc, id, settlement);
+  if (/neutralized/i.test(rail)) return "none (neutralized, replaced by product 7)";
+  if (/x402/i.test(rail)) return `${usdc2(price)} USDC per call`;
+  if (/sessionpay/i.test(rail)) {
+    const ut = BigInt(Math.max(1, Math.floor(Number(unitTokens) || 1)));
+    return `${usdc2((price * 1000n) / ut)} USDC per 1,000 tokens (${usdc2((price * 1_000_000n) / ut)} USDC per million tokens)`;
+  }
+  if (price === 0n) return "paid from the poster's pool";
+  return `${usdc2(price)} USDC per unit`;
+}
+export function rawPrice(arc: ArcClient, id: string, price: bigint, settlement: string, unitTokens = 1): string {
+  const rail = productRail(arc, id, settlement);
+  const ut = Math.max(1, Math.floor(Number(unitTokens) || 1));
+  const unit = /x402/i.test(rail) ? "1 unit = 1 call" : /sessionpay/i.test(rail) ? `1 unit = ${ut === 1 ? "1 token" : `${ut} tokens`}` : "";
+  return `${formatUnits(price, 6)} USDC per unit${unit ? ` (${unit})` : ""}: the product's on-chain price`;
+}
+function listedPrice(arc: ArcClient, p: any): { price?: string; pricePerUnitRaw?: string } {
+  try {
+    const v = parseUnits(String(p.pricePerUnit).replace(/\s*USDC\s*$/, ""), 6);
+    return { price: plainPrice(arc, String(p.id), v, String(p.settlement), Number(p.unitTokens ?? 1)), pricePerUnitRaw: rawPrice(arc, String(p.id), v, String(p.settlement), Number(p.unitTokens ?? 1)) };
+  } catch { return { pricePerUnitRaw: p.pricePerUnit === undefined ? undefined : `${p.pricePerUnit} per unit: the product's on-chain price` }; }
+}
+
 async function pricing(arc: ArcClient, a: any) {
   const rawId = String(a.productId ?? "").trim(), rawUnits = String(a.units ?? "1").trim();
   if (!/^\d{1,12}$/.test(rawId)) throw new Error("bad_param: productId must be a product number (e.g. \"1\")");
@@ -242,14 +281,19 @@ async function pricing(arc: ArcClient, a: any) {
   let p: Awaited<ReturnType<ArcClient["getProduct"]>> | null = null;
   try { p = id >= 1n ? await arc.getProduct(id) : null; } catch { p = null; }
   if (!p || p.state === "None" || /^0x0{40}$/i.test(String(p.author))) throw new Error(`unknown_product: no product #${rawId}`);
-  return { productId: id.toString(), pricePerUnit: formatUnits(p.price, 6) + " USDC", units: u.toString(), total: formatUnits(p.price * u, 6) + " USDC", readable: readablePrice(arc, id.toString(), p.price, String(p.settlement), Number((p as any).unitTokens ?? 1), Number((p as any).outWeight ?? 1)) };
+  const ut = Number((p as any).unitTokens ?? 1);
+  return {
+    price: plainPrice(arc, id.toString(), p.price, String(p.settlement), ut), productId: id.toString(), units: u.toString(), total: formatUnits(p.price * u, 6) + " USDC",
+    pricePerUnitRaw: rawPrice(arc, id.toString(), p.price, String(p.settlement), ut),
+    priceDetails: readablePrice(arc, id.toString(), p.price, String(p.settlement), ut, Number((p as any).outWeight ?? 1)),
+  };
 }
 
 async function run(arc: ArcClient, actx: ActionCtx, name: string, a: any): Promise<unknown> {
   switch (name) {
     case "arc_products": {
       const v = await productsList(arc, { all: a.onlyActive !== true }, actx);
-      return { ...v, produits: v.produits.map((p) => ({ ...p, rail: productRail(arc, p.id, p.settlement), readablePrice: readableOfListed(arc, p) })) };
+      return { ...v, produits: v.produits.map((p) => { const { pricePerUnit: _raw, ...rest } = p as any; return { id: p.id, ...listedPrice(arc, p), ...rest, rail: productRail(arc, p.id, p.settlement), priceDetails: readableOfListed(arc, p) }; }) };
     }
     case "arc_enclaves": return enclavesList(arc, { onlyActive: a.onlyActive }, actx);
     case "arc_bounties": return bountiesAllLevels(arc, actx, a.onlyOpen === true || String(a.onlyOpen) === "true");
@@ -260,7 +304,7 @@ async function run(arc: ArcClient, actx: ActionCtx, name: string, a: any): Promi
       let receipt: unknown = a.receipt;
       if (typeof receipt === "string") { try { receipt = JSON.parse(receipt); } catch { /* signalé ci-dessous */ } }
       const errs = receiptErrors(receipt, a.signature);
-      if (errs.length) throw new Error(`reçu invalide (invalid receipt) : ${errs.join(" ; ")}`);
+      if (errs.length) throw new Error(`invalid receipt: ${errs.join("; ")}`);
       const v = await arc.verifyReceipt(normalizeReceipt(receipt), a.signature);
       return { signer: v.signer, settleable: v.settleable, payableNow: formatUnits(v.payableNow, 6) + " USDC", activeOperatorAtAnchor: v.activeOperatorAtAnchor, checks: v.checks.map((c) => ({ ok: c.ok, quoi: c.fr })) };
     }
@@ -273,8 +317,54 @@ async function run(arc: ArcClient, actx: ActionCtx, name: string, a: any): Promi
     case "arc_product_scaffold": return productScaffold(arc, a);
     case "arc_machines_list": return machinesList(a, actx);
     case "arc_machine_diagnostics": return machineDiagnostics(arc, a, actx);
-    default: throw new Error(`outil inconnu: ${name}`);
+    default: throw new Error(`unknown tool: ${name}`);
   }
+}
+
+/** 20/11 : the output keys in English. The shared copilot code (arc-actions.ts) names them in French; values (and the
+ *  keys of EIP-712 typed data, files and contract parameters, already English) are kept as they are. A key whose English
+ *  name is already taken in the same object stays as it was. Known French rail labels become English too. */
+const KEYS_EN: Record<string, string> = {
+  aBloc: "atBlock", aCompleter: "toFill", aEnvoyerAvantLeBloc: "sendBeforeBlock", aRegarder: "toCheck", accepte: "accepted",
+  actifs: "activeCount", actives: "activeCount", activeMaintenant: "activeNow", adresse: "address", appelSdk: "sdkCall", apres: "after",
+  autorisationEIP3009: "eip3009Authorization", avant: "before", avertissements: "warnings", banni: "banned", bloc: "block",
+  blocDAncrage: "anchorBlock", caution: "bond", cautionDeLOperateur: "operatorBond", cautionMinimale: "minimumBond", chasseur: "hunter",
+  cleDuProtocole: "protocolKey", clePubliqueDeSession: "sessionPublicKey", clePubliqueX25519: "x25519PublicKey", commande: "command",
+  compte: "account", conseil: "advice", contrat: "contract", couvreLaCautionMinimale: "coversMinimumBond", deBloc: "fromBlock",
+  dejaRegle: "alreadySettled", depot: "deposit", deterministe: "deterministic", diagnosticOk: "diagnosticsOk", disponible: "available",
+  echeance: "deadlineAt", economie: "economics", enCoursDeRetrait: "withdrawing", enLigne: "online", etape: "step", etapes: "steps",
+  etat: "state", evenement: "event", evenements: "events", expireLe: "expiresAt", exposition: "exposure",
+  expositionSur24hPourCeProduit: "exposure24hThisProduct", fenetreDeValidite: "validityWindow", fermee: "closed", fermeture: "closing",
+  fichiers: "files", financement: "fundingPlan", fonction: "function", gazEstime: "estimatedGas", indexAJourAuBloc: "indexUpToBlock",
+  inscriteLe: "registeredAt", inscrites: "registered", laChaineVerifie: "chainChecks", lecture: "howToRead", libre: "free",
+  liste: "index", luA: "readAt", lueAuBloc: "readAtBlock", manifestHashBrouillon: "draftManifestHash", manifeste: "manifest",
+  margeRestante: "remainingMargin", modele: "model", niveau: "level", montant: "amountUsdc", nom: "label", nombre: "count", noteImages: "imagesNote",
+  noteManifeste: "manifestNote", operateur: "operator", operateurs: "operators", origine: "origin", ouSigner: "whereToSign",
+  outil: "tool", ouvertes: "openCount", paiementsDuPlusHautPalierCouverts: "topTierPaymentsCovered", palier: "tier", paliers: "tiers",
+  parNiveau: "byLevel", partOperateur: "operatorShare", perteMinimale: "minimumLoss", plafond: "cap", plafondDExposition: "exposureCapUsdc",
+  plafondDExpositionSur24hParProduit: "exposureCap24hPerProduct", plafondSur24hParProduit: "cap24hPerProduct", poidsSortie: "outputWeight",
+  pourquoi: "why", pourquoiCeDelai: "whyThisDelay", predicat: "predicate", predicatCanonique: "canonicalPredicate", pret: "ready",
+  primes: "bounties", prixDuProduitAujourdHui: "productPriceToday", prixParUnite: "unitPrice", produit: "product", produits: "products",
+  proprietaire: "owner", publierLePredicat: "publishPredicate", quoi: "what", reglableJusquAuBloc: "settleableUntilBlock", regle: "rule",
+  reglesDeLaCaution: "bondRules", rembourseALaFermeture: "refundedAtClosing", remboursableALaFermeture: "refundableAtClosing",
+  repartitionDeLaSaisie: "slashSplit", reseau: "network", restant: "remaining", reste: "remaining", resteUtilisable: "usableRemainder",
+  retardDeLIndexEnBlocs: "indexLagBlocks", retrait: "withdrawal", signataire: "signer", signatureRequise: "signatureRequired",
+  somme: "sum", statut: "status", titre: "title", totalPrisDuPool: "totalTakenFromPool", totale: "total", trouvee: "found",
+  uniteJetons: "unitTokens", unitesReglees: "unitsSettled", unitesRestantes: "unitsRemaining", verdictEcrit: "verdictWritten",
+  verifications: "checks", verrouilleALOuverture: "lockedAtOpening", voieA_uneTransaction: "pathA_oneTransaction",
+  voieB_deuxTransactions: "pathB_twoTransactions",
+};
+const KEEP_KEYS = new Set(["types", "message", "domain", "files", "fichiers", "createBountyParams", "proposeParams", "args"]);
+export function englishKeys(v: any, depth = 0): any {
+  if (typeof v === "string") return RAIL_EN[v] ?? v;
+  if (Array.isArray(v)) return v.map((x) => englishKeys(x, depth + 1));
+  if (!v || typeof v !== "object" || depth > 40) return v;
+  const o: any = {};
+  for (const [k, x] of Object.entries(v)) {
+    const nk = KEYS_EN[k] && !(KEYS_EN[k] in v) && !(KEYS_EN[k] in o) ? KEYS_EN[k] : k;
+    o[nk] = KEEP_KEYS.has(k) ? x : englishKeys(x, depth + 1);
+  }
+  return o;
 }
 
 export type ToolOutput = { content: Array<{ type: "text"; text: string }>; isError?: boolean };
@@ -284,10 +374,11 @@ export type ToolOutput = { content: Array<{ type: "text"; text: string }>; isErr
 export async function callTool(arc: ArcClient, actx: ActionCtx, name: string, args: unknown): Promise<ToolOutput> {
   const a = (args && typeof args === "object" ? args : {}) as any;
   try {
-    const result = closedSessions(await run(arc, actx, name, a));
+    const result = englishKeys(closedSessions(await run(arc, actx, name, a)));
     const text = JSON.stringify(result, (_k, v) => (typeof v === "bigint" ? v.toString() : v), 2) ?? "null";
     return { content: [{ type: "text", text: publicText(scrubSecrets(text)) }] };
   } catch (e: any) {
-    return { content: [{ type: "text", text: publicText(scrubSecrets(`Erreur : ${e?.shortMessage ?? e?.message ?? String(e)}`)) }], isError: true };
+    const msg = String(e?.shortMessage ?? e?.message ?? String(e)).replace(/liste momentanément indisponible/g, "list temporarily unavailable");
+    return { content: [{ type: "text", text: publicText(scrubSecrets(`Error: ${msg}`)) }], isError: true };
   }
 }

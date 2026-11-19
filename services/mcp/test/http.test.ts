@@ -72,14 +72,14 @@ test("initialize, notifications/initialized, tools/list et tools/call en HTTP, s
   // tools/call : une liste lue dans la fausse API, puis un outil qui échoue proprement sans réseau
   const products = await rpc(base, "tools/call", { name: "arc_products", arguments: {} });
   assert.equal(products.json.result.isError, undefined);
-  assert.equal(JSON.parse(products.json.result.content[0].text).produits.length, 2);
+  assert.equal(JSON.parse(products.json.result.content[0].text).products.length, 2);
   assert.ok(api.hits("/products") >= 1);
   const pricing = await rpc(base, "tools/call", { name: "arc_pricing", arguments: { productId: "1", units: "10" } });
   assert.equal(pricing.json.result.isError, true);
-  assert.match(pricing.json.result.content[0].text, /^Erreur : /);
+  assert.match(pricing.json.result.content[0].text, /^Error: /);
   const unknown = await rpc(base, "tools/call", { name: "arc_nope", arguments: {} });
   assert.equal(unknown.json.result.isError, true);
-  assert.match(unknown.json.result.content[0].text, /outil inconnu: arc_nope/);
+  assert.match(unknown.json.result.content[0].text, /unknown tool: arc_nope/);
   // deux requêtes simultanées, chacune son serveur
   const [a, b] = await Promise.all([rpc(base, "tools/list"), rpc(base, "tools/list")]);
   assert.equal(a.status, 200);
