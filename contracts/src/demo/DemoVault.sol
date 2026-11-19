@@ -3,13 +3,12 @@ pragma solidity ^0.8.28;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-/// @title DemoVault — CIBLE DE DÉMONSTRATION, VOLONTAIREMENT FAILLIBLE
-/// @notice Bac à sable pour la démo de la Prime scellée : un petit coffre d'USDC avec UNE faille
-///         simple et volontaire (un retrait sans contrôle d'accès). Ce contrat n'a aucune valeur
-///         réelle et ne représente aucun vrai protocole ; il existe uniquement pour que l'enclave
-///         (O3) puisse prouver un exploit contre une cible jetable, sur un fork, sans jamais toucher
-///         un protocole en production.
-/// @dev NE PAS réutiliser : la faille ci-dessous est intentionnelle et documentée.
+/// @title DemoVault — DEMONSTRATION TARGET, DELIBERATELY VULNERABLE
+/// @notice A sandbox for the Sealed Bounty demo: a small USDC vault with ONE simple, deliberate flaw (a withdrawal
+///         without access control). This contract holds no real value and stands for no real protocol; it exists
+///         only so that the enclave can prove an exploit against a disposable target, on a fork, without ever
+///         touching a protocol in production.
+/// @dev DO NOT reuse: the flaw below is intentional and documented.
 contract DemoVault {
     IERC20 public immutable token;
     address public owner;
@@ -30,15 +29,15 @@ contract DemoVault {
         emit Deposited(msg.sender, amount);
     }
 
-    /// @notice Permet au réseau (via SealedBounty) de geler le coffre après une preuve d'exploit.
+    /// @notice Lets the network (through SealedBounty) freeze the vault after a proof of exploit.
     function pause() external {
         paused = true;
         emit Paused();
     }
 
-    /// @notice FAILLE VOLONTAIRE DE DÉMONSTRATION : aucun contrôle d'accès.
-    ///         N'importe qui peut « migrer » (vider) le solde vers une adresse de son choix.
-    ///         C'est le bug que l'exploit de démo déclenche ; il est ici exprès.
+    /// @notice DELIBERATE DEMONSTRATION FLAW: no access control.
+    ///         Anyone can "migrate" (drain) the balance to an address of their choice.
+    ///         It is the bug that the demo exploit triggers; it is here on purpose.
     function migrate(address to) external {
         uint256 bal = token.balanceOf(address(this));
         require(token.transfer(to, bal), "transfer");

@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-/// @title ArcUsdcShim — l'USDC d'Arc tel qu'il se comporte, pour un fork anvil (rejeu de la Prime scellée)
-/// @notice Sur Arc, l'ERC-20 USDC (0x3600…) est le reflet du solde NATIF (18 décimales) : balanceOf = solde natif / 1e12,
-///         et ses transferts passent par un précompilé système (0x1800…00 transfer, 0x1800…01 isBlocklisted) qu'un
-///         anvil ordinaire n'a pas : sur un fork, tout transfert d'USDC échoue. Ce code remplace celui de 0x3600 DANS LE
-///         FORK SEULEMENT (anvil_setCode), jamais sur la chaîne. Il garde la sémantique d'Arc :
-///         - balanceOf(x) = solde natif de x / 1e12 + delta[x] : les transferts natifs (CALL avec valeur) restent visibles,
-///           les transferts ERC-20 s'ajoutent au delta ;
-///         - transfer / transferFrom exigent le solde (vue ERC-20) et l'allocation, comme l'USDC réel ;
-///         - les allocations existantes au bloc N sont lues dans le stockage réel par l'implémentation d'origine
-///           (delegatecall, même stockage), puis surchargées localement par approve / transferFrom ;
-///         - tout le reste (name, symbol, totalSupply, nonces…) est délégué à l'implémentation d'origine.
-///         Le stockage propre du shim vit à des emplacements hachés : aucune collision avec celui de l'USDC.
-/// @dev L'adresse de l'implémentation d'origine est posée par le rejeu à l'emplacement IMPL_SLOT.
+/// @title ArcUsdcShim — Arc's USDC as it behaves, for an anvil fork (the Sealed Bounty replay)
+/// @notice On Arc, the USDC ERC-20 (0x3600…) mirrors the NATIVE balance (18 decimals): balanceOf = native
+///         balance / 1e12, and its transfers go through a system precompile (0x1800…00 transfer, 0x1800…01
+///         isBlocklisted) that a plain anvil does not have: on a fork, every USDC transfer fails. This code replaces
+///         the code at 0x3600 IN THE FORK ONLY (anvil_setCode), never on the chain. It keeps Arc's semantics:
+///         - balanceOf(x) = native balance of x / 1e12 + delta[x]: native transfers (CALL with value) stay
+///           visible, ERC-20 transfers add to the delta;
+///         - transfer / transferFrom require the balance (ERC-20 view) and the allowance, like the real USDC;
+///         - the allowances existing at block N are read from the real storage by the original implementation
+///           (delegatecall, same storage), then overridden locally by approve / transferFrom;
+///         - everything else (name, symbol, totalSupply, nonces...) is delegated to the original implementation.
+///         The shim's own storage lives at hashed slots: no collision with the USDC's.
+/// @dev The address of the original implementation is set by the replay at the IMPL_SLOT slot.
 contract ArcUsdcShim {
     bytes32 internal constant IMPL_SLOT = keccak256("archive.fork.usdc.impl");
     bytes32 internal constant DELTA_TAG = keccak256("archive.fork.usdc.delta");
@@ -57,7 +57,7 @@ contract ArcUsdcShim {
         return true;
     }
 
-    /// @dev Tout le reste part à l'implémentation d'origine (lecture du même stockage).
+    /// @dev Everything else goes to the original implementation (a read of the same storage).
     fallback() external payable {
         address impl = _impl();
         assembly {
@@ -72,7 +72,7 @@ contract ArcUsdcShim {
 
     receive() external payable {}
 
-    // ---------- interne ----------
+    // ---------- internal ----------
 
     function _move(address from, address to, uint256 value) internal {
         require(to != address(0), "ERC20: transfer to the zero address");
