@@ -65,7 +65,7 @@ const EN = {
 
   'c.title': 'Your USDC on other chains', 'c.lede': 'Read on the Circle CCTP chains listed in the SDK, once your wallet is connected. Arc is CCTP domain 26.',
   'c.read': 'Read my balances', 'c.reading': 'reading', 'c.err': 'not read ({why})', 'c.bring': 'Bring to Arc',
-  'c.how': 'The Bridge page does it from Ethereum Sepolia or Base Sepolia: your wallet burns the USDC there, Circle attests the burn, and your wallet receives it on Arc. Standard transfers, free: 1 USDC sent = 1 USDC received. You sign each step yourself.',
+  'c.how': 'The Bridge page does it from Ethereum Sepolia or Base Sepolia: your wallet burns the USDC there, Circle attests the burn, and your wallet receives it on Arc. Standard transfers, with no Circle fee: 1 USDC sent = 1 USDC received, you pay only the gas. You sign each step yourself.',
   'c.howOff': 'The Bridge page brings USDC from Ethereum Sepolia or Base Sepolia to Arc: the burn, Circle’s attestation, then the mint on Arc, signed by your wallet. Standard transfers, free. Connect a wallet to open it.',
 
   // Rent
@@ -191,7 +191,7 @@ const FR: Record<keyof typeof EN, string> = {
 
   'c.title': 'Vos USDC sur les autres chaînes', 'c.lede': 'Lus sur les chaînes CCTP de Circle que liste le SDK, une fois le wallet connecté. Arc est le domaine CCTP 26.',
   'c.read': 'Lire mes soldes', 'c.reading': 'lecture', 'c.err': 'non lu ({why})', 'c.bring': 'Ramener sur Arc',
-  'c.how': 'La page Pont le fait depuis Ethereum Sepolia ou Base Sepolia : votre wallet y brûle les USDC, Circle atteste la combustion, et votre wallet les reçoit sur Arc. Transferts standard, gratuits : 1 USDC envoyé = 1 USDC reçu. Vous signez vous-même chaque étape.',
+  'c.how': 'La page Pont le fait depuis Ethereum Sepolia ou Base Sepolia : votre wallet y brûle les USDC, Circle atteste la combustion, et votre wallet les reçoit sur Arc. Transferts standard, sans frais de Circle : 1 USDC envoyé = 1 USDC reçu, vous ne payez que le gaz. Vous signez vous-même chaque étape.',
   'c.howOff': 'La page Pont apporte des USDC d’Ethereum Sepolia ou de Base Sepolia sur Arc : la combustion, l’attestation de Circle, puis l’émission sur Arc, signées par votre wallet. Transferts standard, gratuits. Connectez un wallet pour l’ouvrir.',
 
   'r.s1': 'Se connecter sur Arc', 'r.s1d': 'Le wallet de l’opérateur, sur Arc testnet.',

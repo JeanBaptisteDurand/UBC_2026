@@ -268,7 +268,11 @@ export function priceText(p?: Product, bounties?: Bounty[]) {
   // A zero-price sealed bounty is not free: it pays from its pool
   if (!Number(p.price)) return s === 'bounty' ? t('app.pool') : t('card.free')
   if (s === 'x402') return `${usdc(p.price)} ${t('card.per.call')}`
-  if (s === 'ai' && Number(p.unitTokens) === 1) return `${usdc(p.price)} ${t('card.per.token')}`
+  // Per 1,000 tokens: a per-token price is dust (0.0001 USDC) and reads as nothing
+  if (s === 'ai' && Number(p.unitTokens) > 0) {
+    const k = (Number(p.price) * 1000) / Number(p.unitTokens) / 1e6
+    return `${k.toLocaleString(getLang() === 'fr' ? 'fr-FR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })} USDC ${t('card.per.ktok')}`
+  }
   return usdc(p.price)
 }
 export const reasonText = (r?: string) => (r === 'collateral-or-policy' ? t('reason.policy') : r === 'workload-retired' ? t('reason.workload') : r === 'slashed' ? t('reason.slashed') : r)

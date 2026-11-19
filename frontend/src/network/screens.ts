@@ -63,7 +63,7 @@ export function drawCatalog(s: Scr, chosen: boolean) {
   const g = frame(s)
   text(g, tx('Services', 'Services'), 28, 50, 30, INK, SANS, 600)
   text(g, tx('paid per use in USDC', 'payés à l’usage en USDC'), 28, 82, 17, INK3)
-  const rows: [string, string, string][] = [[tx('Private AI inference', 'Inférence IA privée'), tx('0.0001 / unit', '0.0001 / unité'), GREEN], [tx('Pay-per-call inference (x402)', 'Inférence à l’appel (x402)'), tx('0.01 / call', '0.01 / appel'), GREEN], [tx('Attested copilot', 'Copilote attesté'), '0', GREEN], [tx('Sealed bounty', 'Prime scellée'), '0', GREEN]]
+  const rows: [string, string, string][] = [[tx('Private AI inference', 'Inférence IA privée'), tx('0.10 / 1k tokens', '0,10 / 1 000 jetons'), GREEN], [tx('Pay-per-call inference (x402)', 'Inférence à l’appel (x402)'), tx('0.01 / call', '0.01 / appel'), GREEN], [tx('Attested copilot', 'Copilote attesté'), tx('free', 'gratuit'), GREEN], [tx('Sealed bounty', 'Prime scellée'), tx('paid from pool', 'payée par la réserve'), GREEN]]
   rows.forEach(([n, p, c], i) => {
     const y = 120 + i * 44
     rule(g, 28, y, s.w - 56)
