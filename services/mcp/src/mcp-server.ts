@@ -8,7 +8,7 @@ import type { ArcClient } from "@arcvault/sdk";
 import type { ActionCtx } from "../../copilot/src/arc-actions";
 import { TOOLS, callTool, type ToolOutput } from "./tools";
 
-export const SERVER_INFO = { name: "arc-enclave-network", version: "0.0.4" };
+export const SERVER_INFO = { name: "archive", version: "0.0.5" };
 
 /** Ce que l'agent lit à l'initialisation (anglais, puis français). */
 export const SERVER_INSTRUCTIONS =

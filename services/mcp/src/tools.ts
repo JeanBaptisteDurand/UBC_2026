@@ -182,6 +182,49 @@ export function createMcpContext(env: NodeJS.ProcessEnv = process.env): { arc: A
   return { arc, actx };
 }
 
+/** 20/11 : the action texts shared with the copilot (services/copilot/src/arc-actions.ts) name the copilot's own tools,
+ *  the site's old page names and the API's address inside the server: on this MCP server the tools are the arc_* ones,
+ *  the pages are the site's current ones and the API is the public one. */
+const PUBLIC_API = (process.env.PUBLIC_API_URL || "https://archive.62-171-153-35.sslip.io/api").replace(/\/+$/, "");
+const TOOL_RENAMES: Record<string, string> = {
+  operator_prepare_bond: "arc_operator_prepare_bond", operator_prepare_register: "arc_operator_prepare_register",
+  operator_plan: "arc_operator_plan", session_status: "arc_session_status", enclaves_list: "arc_enclaves",
+};
+export function publicText(s: string): string {
+  return s
+    .replace(/(?<![\w-])(operator_prepare_bond|operator_prepare_register|operator_plan|session_status|enclaves_list)(?![\w-])/g, (m) => TOOL_RENAMES[m] ?? m)
+    .split("la page Primes du site (« Publier une prime »)").join("My space › Bounties (space.html?tab=bounties)")
+    .split("« Louer sa puissance »").join("Network › Rent (network.html?focus=rent)")
+    .split("On-ramp").join("Bridge (bridge.html)")
+    .replace(/http:\/\/api:8809\/?/g, (m) => (m.endsWith("/") ? PUBLIC_API + "/" : PUBLIC_API));
+}
+
+/** 20/11 : a closed session has nothing left to use: its remainder is 0, and what it refunded at closing is shown as paid. */
+function closedSessions(v: any): any {
+  if (Array.isArray(v)) return v.map(closedSessions);
+  if (!v || typeof v !== "object") return v;
+  const o: any = {};
+  for (const [k, x] of Object.entries(v)) o[k] = closedSessions(x);
+  if (o.fermee === true) {
+    if ("resteUtilisable" in o) o.resteUtilisable = "0 USDC";
+    if ("unitesRestantes" in o) o.unitesRestantes = "0";
+    if ("remboursableALaFermeture" in o) { o.rembourseALaFermeture = o.remboursableALaFermeture; delete o.remboursableALaFermeture; }
+    if ("reste" in o && "dejaRegle" in o) { o.rembourseALaFermeture = o.reste; o.reste = "0 USDC"; }
+  }
+  return o;
+}
+
+async function pricing(arc: ArcClient, a: any) {
+  const rawId = String(a.productId ?? "").trim(), rawUnits = String(a.units ?? "1").trim();
+  if (!/^\d{1,12}$/.test(rawId)) throw new Error("bad_param: productId must be a product number (e.g. \"1\")");
+  if (!/^\d{1,18}$/.test(rawUnits)) throw new Error("bad_param: units must be a whole number of units (e.g. \"1000\")");
+  const id = BigInt(rawId), u = BigInt(rawUnits);
+  let p: Awaited<ReturnType<ArcClient["getProduct"]>> | null = null;
+  try { p = id >= 1n ? await arc.getProduct(id) : null; } catch { p = null; }
+  if (!p || p.state === "None" || /^0x0{40}$/i.test(String(p.author))) throw new Error(`unknown_product: no product #${rawId}`);
+  return { productId: id.toString(), pricePerUnit: formatUnits(p.price, 6) + " USDC", units: u.toString(), total: formatUnits(p.price * u, 6) + " USDC" };
+}
+
 async function run(arc: ArcClient, actx: ActionCtx, name: string, a: any): Promise<unknown> {
   switch (name) {
     case "arc_products": {
@@ -192,7 +235,7 @@ async function run(arc: ArcClient, actx: ActionCtx, name: string, a: any): Promi
     case "arc_bounties": return bountiesAllLevels(arc, actx, a.onlyOpen === true || String(a.onlyOpen) === "true");
     case "arc_sessions": return sessionsList(arc, { owner: a.owner }, { ...actx, user: undefined });
     case "arc_activity": return activityList(arc, { limit: a.limit }, actx);
-    case "arc_pricing": { const p = await arc.getProduct(BigInt(a.productId)); const u = BigInt(a.units); return { pricePerUnit: formatUnits(p.price, 6) + " USDC", units: u.toString(), total: formatUnits(p.price * u, 6) + " USDC" }; }
+    case "arc_pricing": return pricing(arc, a);
     case "arc_verify_receipt": {
       let receipt: unknown = a.receipt;
       if (typeof receipt === "string") { try { receipt = JSON.parse(receipt); } catch { /* signalé ci-dessous */ } }
@@ -221,10 +264,10 @@ export type ToolOutput = { content: Array<{ type: "text"; text: string }>; isErr
 export async function callTool(arc: ArcClient, actx: ActionCtx, name: string, args: unknown): Promise<ToolOutput> {
   const a = (args && typeof args === "object" ? args : {}) as any;
   try {
-    const result = await run(arc, actx, name, a);
+    const result = closedSessions(await run(arc, actx, name, a));
     const text = JSON.stringify(result, (_k, v) => (typeof v === "bigint" ? v.toString() : v), 2) ?? "null";
-    return { content: [{ type: "text", text: scrubSecrets(text) }] };
+    return { content: [{ type: "text", text: publicText(scrubSecrets(text)) }] };
   } catch (e: any) {
-    return { content: [{ type: "text", text: scrubSecrets(`Erreur : ${e?.shortMessage ?? e?.message ?? String(e)}`) }], isError: true };
+    return { content: [{ type: "text", text: publicText(scrubSecrets(`Erreur : ${e?.shortMessage ?? e?.message ?? String(e)}`)) }], isError: true };
   }
 }

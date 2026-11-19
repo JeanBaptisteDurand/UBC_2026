@@ -58,7 +58,7 @@ test("initialize, notifications/initialized, tools/list et tools/call en HTTP, s
   assert.equal(init.res.headers.get("mcp-session-id"), null, "sans état : aucun identifiant de session");
   assert.equal(init.res.headers.get("access-control-allow-origin"), "*");
   assert.equal(init.json.result.protocolVersion, "2025-03-26");
-  assert.deepEqual(init.json.result.serverInfo, { name: "arc-enclave-network", version: "0.0.4" });
+  assert.deepEqual(init.json.result.serverInfo, { name: "archive", version: "0.0.5" });
   assert.ok(init.json.result.capabilities.tools);
   assert.match(init.json.result.instructions, /PREPARE actions only/);
   // une notification seule : 202, sans corps
@@ -212,7 +212,7 @@ test("le client MCP officiel (StreamableHTTPClientTransport) : connexion, liste 
   const client = new Client({ name: "archive-test", version: "1.0.0" });
   await client.connect(new StreamableHTTPClientTransport(new URL(`${base}/mcp`)));
   try {
-    assert.equal(client.getServerVersion()?.name, "arc-enclave-network");
+    assert.equal(client.getServerVersion()?.name, "archive");
     const { tools } = await client.listTools();
     assert.deepEqual(tools.map((t) => t.name), TOOLS.map((t) => t.name));
     const out = await client.callTool({ name: "arc_bounties", arguments: { onlyOpen: false } }) as any;
@@ -228,7 +228,7 @@ test("le serveur stdio marche toujours avec le SDK mis à jour (mêmes outils)",
   const transport = new StdioClientTransport({ command: process.execPath, args: ["--import", "tsx", "src/server.ts"], cwd: join(here, ".."), stderr: "pipe" });
   await client.connect(transport);
   try {
-    assert.deepEqual(client.getServerVersion(), { name: "arc-enclave-network", version: "0.0.4" });
+    assert.deepEqual(client.getServerVersion(), { name: "archive", version: "0.0.5" });
     const { tools } = await client.listTools();
     assert.deepEqual(tools.map((t) => t.name), TOOLS.map((t) => t.name));
   } finally {
