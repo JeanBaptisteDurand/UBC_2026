@@ -357,6 +357,12 @@ docs/               operator levels; AskHive and MCP contract
 deployments.*.json  every deployed address and transaction: v2, v2.1 (live), v3, Intel's DCAP verifier
 ```
 
+Package guides: [`contracts`](contracts/README.md), [`dcap-integration`](dcap-integration/README.md),
+[`enclave`](enclave/README.md) (and its [compose files](enclave/phala/README.md)), [`packages/sdk`](packages/sdk/README.md),
+[`packages/cli`](packages/cli/README.md), [`packages/node`](packages/node/README.md),
+[`services/api`](services/api/README.md), [`services/registrar`](services/registrar/README.md), [`web`](web/README.md),
+[`deploy`](deploy/README.md).
+
 ## Trust assumptions and scope
 
 - **Roots of trust**: Intel's hardware and signing keys; Automata's DCAP contracts and Intel's collateral (refreshed
