@@ -88,7 +88,7 @@ function PlateEl({ p, slot, m }: { p: Plate; slot: number; m: string }) {
   const lit = p.led !== 'off'
   const S = SLOTS[slot]
   return (
-    <button type="button" className="vt-fac" data-own-frame style={{ width: `${mm(FW)}px`, height: `${mm(FH)}px`, transform: m }} data-on={p.on ? '1' : '0'} data-dim={p.dim ? '1' : '0'} aria-pressed={p.on} aria-label={p.label} onClick={p.open}>
+    <button type="button" className="vt-fac" data-own-frame data-cur-arm style={{ width: `${mm(FW)}px`, height: `${mm(FH)}px`, transform: m }} data-on={p.on ? '1' : '0'} data-dim={p.dim ? '1' : '0'} aria-pressed={p.on} aria-label={p.label} onClick={p.open}>
       {lit ? <span className="lm-led" aria-hidden="true" style={{ '--c': c, left: `${mm(LD.x - GLOW.w / 2 + FW / 2)}px`, top: `${mm(G.FT - (LD.y + GLOW.h / 2))}px`, width: `${mm(GLOW.w)}px`, height: `${mm(GLOW.h)}px` } as React.CSSProperties}>
         <i className="lm-spill" /><i className="lm-core" style={{ width: `${mm(LD.w - 0.0008)}px`, height: `${mm(LD.h - 0.0008)}px` }} />
       </span> : null}
@@ -167,7 +167,7 @@ export function RoomStage({ plates, hint, onCap }: { plates: Plate[]; hint: stri
   useEffect(() => { if (vis.length >= 3) onCap?.(vis.length) }, [vis.length, onCap])
   const n = Math.min(vis.length, plates.length)
   return (
-    <div className="vt-room" ref={box}>
+    <div className="vt-room" ref={box} data-cur-wall>
       <img className="vt-room-img" src={IMG.src} srcSet={`${IMG.srcM} 1440w, ${IMG.src} 2880w`} sizes="100vw" alt="" draggable={false} style={{ objectPosition: `${FX * 100}% ${FY * 100}%` }} />
       <div className="vt-room-leds" ref={ledsBox} aria-hidden="true" />
       {room && map ? (

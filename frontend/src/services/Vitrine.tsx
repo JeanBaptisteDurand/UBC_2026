@@ -86,8 +86,15 @@ function Intro({ root, to }: { root: React.RefObject<HTMLDivElement | null>; to:
   const L = VIT[lang === 'fr' ? 'fr' : 'en']
   useLiveFill(root, 'intro')
   // a link to a section (?c=market, or from a sheet) brings it to the top of the column
-  useEffect(() => { if (to && to !== 'offers') toTop(document.getElementById(`vt-s-${to}`)) }, [to])
+  // the sections are a table of contents: each title opens its section in place (owner, 19/11: the reader sees what
+  // is there and opens what interests them). A link to a section (?c=market, or from a sheet) opens it and brings it
+  // to the top of the column. Closed bodies stay in the DOM (hidden) so the live figures are filled in them too.
+  const [openId, setOpenId] = useState<string | null>(to && to !== 'offers' ? to : null)
+  useEffect(() => { if (to && to !== 'offers') { setOpenId(to); requestAnimationFrame(() => toTop(document.getElementById(`vt-s-${to}`))) } }, [to])
   const secs = SECS.map((id) => L.chapters.find((c) => c.id === id)).filter(Boolean) as VitChapter[]
+  const name = (c: VitChapter) => (c.id === 'build' ? 'MCP' : c.t)
+  // the section's own heading (its h2), shown in the row so the reader knows what is inside before opening it
+  const head = (c: VitChapter) => { const h = /<h2 aria-label="([^"]*)"/.exec(c.body)?.[1] ?? ''; return c.id === 'build' || h.replace(/[.\s]+$/, '') === c.t ? '' : h }
   return (
     <section className="vt-intro" aria-labelledby="vt-h1">
       <Title text={L.hero.title} acc={L.hero.acc} />
@@ -97,12 +104,24 @@ function Intro({ root, to }: { root: React.RefObject<HTMLDivElement | null>; to:
         <svg className="hero-ic" viewBox="0 0 20 20" aria-hidden="true"><rect x="2.4" y="3" width="15.2" height="4" rx="0.6" /><rect x="2.4" y="8" width="15.2" height="4" rx="0.6" /><rect x="2.4" y="13" width="15.2" height="4" rx="0.6" /><path d="M4.6 4.2 V5.8" className="hero-ic-led l1" /><path d="M4.6 9.2 V10.8" className="hero-ic-led l2" /><path d="M4.6 14.2 V15.8" className="hero-ic-led l3" /></svg>
         <span>{t('vit.cta')}</span>
       </p>
-      {secs.map((c, k) => (
-        <section className={`vt-sec is-${c.id}`} id={`vt-s-${c.id}`} key={c.id} aria-label={c.id === 'build' ? 'MCP' : c.t}>
-          <p className="mono vt-sec-k"><span>{String(k + 1).padStart(2, '0')}</span>{c.id === 'build' ? 'MCP' : c.t}</p>
-          <div className={`vt-body ${c.cls}`} dangerouslySetInnerHTML={{ __html: secHtml(c) }} />
-        </section>
-      ))}
+      <div className="vt-toc">
+        <p className="mono vt-toc-k">{t('vit.toc')}</p>
+        {secs.map((c, k) => {
+          const isOpen = openId === c.id
+          return (
+            <section className={`vt-sec is-${c.id}`} id={`vt-s-${c.id}`} key={c.id} data-open={isOpen ? '1' : '0'}>
+              <h2 className="vt-sec-t">
+                <button type="button" className="vt-sec-b" aria-expanded={isOpen} aria-controls={`vt-sb-${c.id}`} onClick={() => setOpenId(isOpen ? null : c.id)}>
+                  <span className="mono vt-sec-n">{String(k + 1).padStart(2, '0')}</span>
+                  <span className="vt-sec-tx">{head(c) ? <><span className="mono vt-sec-l">{name(c)}</span><span className="vt-sec-h2">{head(c)}</span></> : <span className="vt-sec-h2">{name(c)}</span>}</span>
+                  <span className="vt-sec-i" aria-hidden="true" />
+                </button>
+              </h2>
+              <div id={`vt-sb-${c.id}`} className={`vt-body ${c.cls}`} hidden={!isOpen} dangerouslySetInnerHTML={{ __html: secHtml(c) }} />
+            </section>
+          )
+        })}
+      </div>
     </section>
   )
 }
@@ -356,7 +375,7 @@ export function Vitrine() {
   return (
     <div className="vt" data-open={cur ? '1' : '0'}>
       <RoomStage plates={plates} hint={t('vit.hint')} onCap={setCap} />
-      <aside className="vt-col" aria-live="polite">
+      <aside className="vt-col" aria-live="polite" data-cur-text>
         <div className="vt-r" ref={col} onClick={onClick}>
           {cur === SLOT ? <SlotView close={() => open(null)} />
             : pOpen ? <ProductView pid={pOpen} name={pRow?.name ?? `#${pOpen}`} close={() => open(null)} act={act} />

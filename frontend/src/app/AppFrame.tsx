@@ -9,6 +9,7 @@ import { link } from '../links'
 import { onTick } from '../clock'
 import { Logo } from '../ui/Logo'
 import { SelLayer } from '../ui/Sel'
+import { PageCursor } from '../ui/PageCursor'
 import { MainNav } from '../ui/MainNav'
 import { HeaderWallet } from '../network/actions/HeaderWallet'
 import '../network/actions/actions.css'
@@ -74,6 +75,7 @@ export function AppHeader({ page, section, sectionText, replay, wallet }: { page
       <div className="prog" aria-hidden="true"><div className="prog-bar" ref={bar} /></div>
       {open ? <nav className="hd-drawer" aria-label={t('nav.main')}>{nav}</nav> : null}
       <SelLayer />
+      <PageCursor />
       <CopilotMount />
     </header>
   )

@@ -103,7 +103,10 @@
 .vt-fac::before { --a: 34px; --l: 4px; z-index: 1;
   background: linear-gradient(var(--acc), var(--acc)) 0 0 / var(--a) var(--l) no-repeat, linear-gradient(var(--acc), var(--acc)) 0 0 / var(--l) var(--a) no-repeat,
     linear-gradient(var(--acc), var(--acc)) 100% 100% / var(--a) var(--l) no-repeat, linear-gradient(var(--acc), var(--acc)) 100% 100% / var(--l) var(--a) no-repeat; }
-.vt-fac:hover::after, .vt-fac:hover::before, .vt-fac:focus-visible::after, .vt-fac:focus-visible::before, .vt-fac[data-on='1']::before { opacity: 1; }
+/* with the drawn cursor (ui/PageCursor.tsx) the cursor itself frames the sled; the in-plane frame stays for the
+   keyboard, the open sled and pages without it */
+html:not([data-cur='1']) .vt-fac:hover::after, html:not([data-cur='1']) .vt-fac:hover::before, .vt-fac:focus-visible::after, .vt-fac:focus-visible::before, .vt-fac[data-on='1']::before { opacity: 1; }
+.vt-fac[data-sel='1'] .lm-plate { opacity: 1; }
 .vt-fac[data-on='1']::after { opacity: 1; box-shadow: inset 0 0 0 3px rgb(var(--c, 156 192 255) / 0.35); }
 .vt-fac[data-dim='1'] .lm-plate, .vt-fac[data-dim='1'] .lm-led { opacity: 0.32; }
 .vt-fac[data-dim='1']:hover .lm-plate { opacity: 0.9; }
@@ -172,6 +175,26 @@
 .vt-cta > span { animation: live-text 3.2s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .vt-cta::before, .vt-cta > span { animation: none; } .vt-cta::before { opacity: 0.7; } }
 .vt-sec { margin: 120px 0 0; scroll-margin-top: 16px; }
+/* the table of contents (owner, 19/11): one row per section, a click opens it in place */
+.vt-toc { margin: 72px 0 0; }
+.vt-toc-k { margin: 0 0 8px; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink3); }
+.vt-toc .vt-sec { margin: 0; scroll-margin-top: 16px; }
+.vt-sec-t { margin: 0; font: inherit; }
+.vt-sec-b { display: grid; grid-template-columns: 40px 1fr 20px; align-items: center; gap: 16px; width: 100%; padding: 20px 0; background: none; border: 0; border-top: 1px solid rgb(var(--ink-c) / 0.08); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.vt-sec:first-of-type .vt-sec-b { border-top: 0; }
+.vt-sec-n { font-size: 13px; color: var(--arc-light, #9cc0ff); }
+.vt-sec-tx { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.vt-sec-l { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink3); }
+.vt-sec-h2 { font-size: 21px; line-height: 1.25; font-weight: var(--w-head); letter-spacing: var(--tr-head); color: var(--ink); }
+.vt-sec-b:hover .vt-sec-h2, .vt-sec[data-open='1'] .vt-sec-h2 { color: var(--arc-light, #9cc0ff); }
+.vt-sec-i { position: relative; width: 14px; height: 14px; justify-self: end; }
+.vt-sec-i::before, .vt-sec-i::after { content: ''; position: absolute; left: 0; top: 6.5px; width: 14px; height: 1px; background: currentColor; transition: transform 200ms var(--productive); }
+.vt-sec-i::after { transform: rotate(90deg); }
+.vt-sec[data-open='1'] .vt-sec-i::after { transform: rotate(0deg); }
+.vt-toc .vt-body { padding: 8px 0 56px 56px; }
+/* the row already carries the section's heading */
+.vt-toc .vt-body .vit-h2, .vt-toc .vt-body .mk-h { display: none; }
+@media (max-width: 760px) { .vt-toc .vt-body { padding-left: 0; } .vt-sec-b { grid-template-columns: 32px 1fr 16px; gap: 12px; } }
 .vt-sec-k { display: flex; gap: 12px; margin: 0 0 20px; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink3); }
 .vt-sec-k span { color: var(--arc-light, #9cc0ff); }
 .vt-r .vt-sec .mk-kick { display: none; }
