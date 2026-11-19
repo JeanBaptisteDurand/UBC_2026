@@ -41,7 +41,7 @@ export const KB: Array<{ source: string; text: string; tags?: string }> = [
     text: "Deux rails de paiement. SessionPay : session prépayée en USDC (dépôt par EIP-3009), VERROUILLÉE à l'ouverture sur une enclave (seuls ses reçus paient), avec le prix, le modèle et l'unité du produit à ce moment, servie contre une clé de session ; l'enclave signe des reçus cumulatifs et un seul règlement (settle, sans permission) paie le delta depuis le précédent, borné par le dépôt et le plafond : une transaction par règlement, jamais une par message ; closeSession rembourse le reste après l'échéance + 1 h. X402Settler : paiement à l'appel (x402 « exact »), une autorisation EIP-3009 dont le nonce lie le paiement au reçu d'appel signé par l'enclave ; encaissement, partage et exposition dans la même transaction." },
   { source: "enclave/services/inference.ts#unites", tags: "unite unites jeton jetons token tokens prix requete cout combien",
     text: "Inférence : unités = ceil((jetons de la question + outWeight × jetons de la réponse) / unitTokens), sur le cumul de la session ; sur le produit d'inférence actuel (unitTokens = outWeight = 1), chaque jeton compte pour 1 unité. Coût d'une requête ≈ (jetons de la question + jetons de la réponse) × prix par unité (pricing_quote ; produit 1 : 1 unité = 1 jeton, au prix lu sur Arc, aujourd'hui 0,0001 USDC par jeton, soit 0,10 USDC les 1 000 jetons ; produit 3 : 0,01 USDC par appel). Si le cumul dépasse le dépôt, l'enclave répond 402 insufficient_session_balance avec le solde ; une réponse déjà calculée est gardée jusqu'à la recharge. Avant tout envoi, le client vérifie que la clé de chiffrement de l'enclave est celle inscrite on-chain." },
-  { source: "PLAN-BUILD§4.1#cles", tags: "cle cles aek session acces api privee revocation rotation rotatekey fuite volee",
+  { source: "SessionPay.sol#cles", tags: "cle cles aek session acces api privee revocation rotation rotatekey fuite volee",
     text: "Clé d'accès = clé de session : générée dans le navigateur (ou le SDK) à l'ouverture de la session, sa clé publique est inscrite on-chain ; la clé privée (format aek_<réseau>_<sessionId>_<secret>) reste chez le développeur, jamais chez nous ni chez l'opérateur. Elle ne peut pas dépenser plus que le solde de sa session. Révocation : closeSession (rembourse le reste) ou rotateKey(nouvelle clé publique)." },
   { source: "EnclaveRegistry.sol#politique", tags: "debug refus refuse refusee politique tcb workload workloadid reportdata ancrage attestation quote echoue ferme inscription",
     text: "Politique d'inscription « on échoue fermé » (EnclaveRegistry) : quote Intel TDX valide (v4/v5) ; TCB à jour (ou SW_HARDENING_NEEDED si tous les avis sont tolérés par le produit) ; bit DEBUG de tdAttributes à 0 — en mode DEBUG, l'hôte peut lire la mémoire de l'enclave, la confidentialité tombe, donc revert DebugEnclave ; workloadId autorisé par le produit ; REPORTDATA liant chaîne, registre, produit, opérateur et clés ; ancrage sur un bloc récent (EIP-2935) ; un quote ne sert qu'une fois ; inscription valable VALIDITY_BLOCKS blocs (≈ 24 h), prolongée par une réattestation sans trou ; une clé est liée à vie à son opérateur et à son produit, et chaque clé réserve la caution minimale du produit." },
@@ -171,7 +171,7 @@ export async function executeTool(name: string, input: any, ctx: ToolCtx): Promi
       return { result: out };
     }
     case "session_prepare_open": {
-      return { result: await prepareSessionOpen(ctx.arc, input, actx(ctx)), citations: ["SessionPay.sol+X402Settler.sol#rails", "PLAN-BUILD§4.1#cles"] };
+      return { result: await prepareSessionOpen(ctx.arc, input, actx(ctx)), citations: ["SessionPay.sol+X402Settler.sol#rails", "SessionPay.sol#cles"] };
     }
     case "snippet_generate": {
       return { result: { language: "typescript", code:
@@ -216,7 +216,7 @@ for (const q of questions) {
     case "product_scaffold":
       return { result: await productScaffold(ctx.arc, input ?? {}), citations: ["ProductRegistry.sol#auteur", "SessionPay.sol#_split"] };
     case "inference_test":
-      return { result: await inferenceTest(ctx.arc, input ?? {}, actx(ctx)), citations: ["PLAN-BUILD§4.1#cles", "enclave/services/inference.ts#unites"] };
+      return { result: await inferenceTest(ctx.arc, input ?? {}, actx(ctx)), citations: ["SessionPay.sol#cles", "enclave/services/inference.ts#unites"] };
     case "machines_list":
       return { result: await machinesList(input ?? {}, actx(ctx)), citations: ["API ArcHive /machines"] };
     case "machine_diagnostics":
