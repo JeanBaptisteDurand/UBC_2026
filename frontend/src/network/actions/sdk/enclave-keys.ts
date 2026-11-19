@@ -1,37 +1,37 @@
-/** enclave-keys.ts — on ne chiffre JAMAIS vers une clé lue sur /pubkeys sans la confronter à la chaîne.
+/** enclave-keys.ts — nothing is EVER encrypted to a key read from /pubkeys without checking it against the chain.
  *
- *  Pourquoi : /pubkeys passe par un mandataire (le proxy de même origine du VPS, un CDN, un tunnel…). Celui qui le
- *  contrôle peut y servir SA clé X25519 et lire chaque invite ou chaque bundle d'exploit. La seule clé digne de
- *  confiance est celle que l'EnclaveRegistry a acceptée : elle est liée par le REPORTDATA d'un quote Intel TDX vérifié
- *  on-chain (DCAP) au signataire de l'enclave, à son produit et à son opérateur.
+ *  Why: /pubkeys goes through a proxy (the server's same-origin proxy, a CDN, a tunnel…). Whoever controls it can
+ *  serve THEIR OWN X25519 key there and read every prompt or every exploit bundle. The only trustworthy key is the one
+ *  EnclaveRegistry accepted: the REPORTDATA of an Intel TDX quote verified on-chain (DCAP) binds it to the enclave's
+ *  signer, its product and its operator.
  *
- *  verifyEnclaveKeys(enclaveUrl, productId, …) lit /pubkeys, puis EnclaveRegistry.enclaveOf(signer) et
- *  activeOperatorAt(signer, productId, tête) AU MÊME BLOC, et exige :
- *   1. une enclave inscrite pour ce signataire, sur ce produit ;
- *   2. enclaveOf(signer).x25519 == la clé X25519 annoncée par /pubkeys ;
- *   3. l'enclave active pour ce produit au bloc de tête (activeOperatorAt ≠ 0) ;
- *   4. pour une session : signer == l'enclave verrouillée à l'ouverture (Session.enclave), même produit, même opérateur.
- *  Sinon : EnclaveKeyMismatchError (« la clé de l'enclave ne correspond pas à celle inscrite sur Arc : envoi refusé »).
- *  Le résultat (VerifiedEnclaveKeys) est le SEUL type accepté par les fonctions qui chiffrent (inférence, Prime scellée). */
+ *  verifyEnclaveKeys(enclaveUrl, productId, …) reads /pubkeys, then EnclaveRegistry.enclaveOf(signer) and
+ *  activeOperatorAt(signer, productId, head) AT THE SAME BLOCK, and requires:
+ *   1. an enclave registered for this signer, on this product;
+ *   2. enclaveOf(signer).x25519 == the X25519 key announced by /pubkeys;
+ *   3. the enclave active for this product at the head block (activeOperatorAt ≠ 0);
+ *   4. for a session: signer == the enclave locked at opening (Session.enclave), same product, same operator.
+ *  Otherwise: EnclaveKeyMismatchError (the enclave's key does not match the one registered on Arc: nothing is sent).
+ *  The result (VerifiedEnclaveKeys) is the ONLY type the encrypting functions accept (inference, Sealed Bounty). */
 import { type Address, type Hex, type PublicClient, getAddress, isAddress, isHex, size, zeroAddress } from "viem";
 import { enclaveRegistryAbi, sessionPayAbi } from "./abis";
 import { testnet, type Deployment } from "./network";
 
-/** Le message exigé : affiché tel quel à l'utilisateur, suivi du détail. */
+/** The required message (French): shown as is to the user, followed by the detail. */
 export const ENCLAVE_KEY_MISMATCH_FR = "la clé de l'enclave ne correspond pas à celle inscrite sur Arc : envoi refusé";
-/** L'enclave ne répond pas (ou mal) : rien n'est envoyé, faute de pouvoir vérifier sa clé. */
+/** The enclave does not answer (or answers badly): nothing is sent, since its key cannot be checked. */
 export const ENCLAVE_UNREACHABLE_FR = "l'enclave ne répond pas, sa clé n'a pas pu être vérifiée sur Arc : envoi refusé, réessayez dans un instant";
 
 export type EnclaveKeyMismatchReason =
-  | "pubkeys_unreachable" // /pubkeys injoignable (réseau, délai, HTTP) : on échoue fermé, message « ne répond pas »
-  | "pubkeys_unreadable" // réponse de /pubkeys invalide, ou clés passées sans vérification on-chain
-  | "not_registered" // aucune enclave inscrite pour ce signataire
-  | "wrong_product" // inscrite pour un autre produit
-  | "x25519_mismatch" // la clé X25519 de /pubkeys n'est pas celle inscrite
-  | "inactive" // pas active pour ce produit au bloc de tête (expirée, retirée, invalidée)
-  | "session_unknown" // la session n'existe pas
-  | "wrong_session_enclave" // la session est verrouillée sur une autre enclave
-  | "wrong_operator"; // l'opérateur actif n'est pas celui attendu (session)
+  | "pubkeys_unreachable" // /pubkeys unreachable (network, timeout, HTTP): fail closed, "does not answer" message
+  | "pubkeys_unreadable" // invalid /pubkeys answer, or keys passed without an on-chain check
+  | "not_registered" // no enclave registered for this signer
+  | "wrong_product" // registered for another product
+  | "x25519_mismatch" // the X25519 key from /pubkeys is not the registered one
+  | "inactive" // not active for this product at the head block (expired, removed, invalidated)
+  | "session_unknown" // the session does not exist
+  | "wrong_session_enclave" // the session is locked to another enclave
+  | "wrong_operator"; // the active operator is not the expected one (session)
 
 export class EnclaveKeyMismatchError extends Error {
   readonly code = "ENCLAVE_KEY_MISMATCH" as const;
@@ -40,53 +40,53 @@ export class EnclaveKeyMismatchError extends Error {
     readonly detail: string,
     readonly facts: { enclaveUrl: string; productId: bigint; signer?: Address; announcedX25519?: Hex; registeredX25519?: Hex; block?: bigint } ,
   ) {
-    // une enclave injoignable n'est pas une « clé qui ne correspond pas » : même refus (on échoue fermé), message exact
+    // an unreachable enclave is not a "key that does not match": same refusal (fail closed), with the exact message
     super(reason === "pubkeys_unreachable" ? `${ENCLAVE_UNREACHABLE_FR} (${detail})` : `${ENCLAVE_KEY_MISMATCH_FR} (${detail})`);
     this.name = "EnclaveKeyMismatchError";
   }
 }
 
-/** Clés d'une enclave CONFRONTÉES à la chaîne : la seule forme acceptée pour chiffrer vers une enclave. */
+/** An enclave's keys CHECKED against the chain: the only form accepted for encrypting to an enclave. */
 export interface VerifiedEnclaveKeys {
   readonly verified: true;
   enclaveUrl: string;
   productId: bigint;
-  /** Clé de signature de l'enclave (signe les reçus et les réclamations). */
+  /** The enclave's signing key (it signs receipts and claims). */
   signer: Address;
-  /** Clé X25519 INSCRITE on-chain (= celle de /pubkeys) : chiffrer vers elle seulement. */
+  /** The X25519 key REGISTERED on-chain (= the one from /pubkeys): encrypt to it only. */
   x25519: Hex;
-  /** Opérateur actif de cette enclave pour ce produit au bloc de la vérification. */
+  /** Active operator of this enclave for this product at the block of the check. */
   operator: Address;
   workloadId: Hex;
   tcbStatus: number;
-  /** Fenêtre de validité en cours (blocs) : les reçus ancrés dedans sont réglables jusqu'à la fin de la grâce. */
+  /** Current validity window (blocks): receipts anchored in it can be settled until the end of the grace period. */
   fromBlock: bigint;
   untilBlock: bigint;
-  /** Bloc de tête auquel la chaîne a été lue. */
+  /** Head block at which the chain was read. */
   checkedAtBlock: bigint;
-  /** Horloge locale (ms) de la vérification : pour la refaire de temps en temps. */
+  /** Local clock (ms) of the check: to run it again from time to time. */
   checkedAtMs: number;
 }
 
 export interface VerifyEnclaveKeysOptions {
   publicClient: PublicClient;
   deployment?: Deployment;
-  /** Pour une session : son enclave verrouillée (Session.enclave). Le signataire de /pubkeys doit être celui-ci. */
+  /** For a session: its locked enclave (Session.enclave). The signer from /pubkeys must be this one. */
   expectedSigner?: Address;
-  /** Pour une session : son opérateur (Session.operator). */
+  /** For a session: its operator (Session.operator). */
   expectedOperator?: Address;
-  /** Raccourci : lit SessionPay.getSession(sessionId) et applique expectedSigner, expectedOperator et le produit. */
+  /** Shortcut: reads SessionPay.getSession(sessionId) and applies expectedSigner, expectedOperator and the product. */
   sessionId?: bigint;
-  /** fetch à utiliser (tests, environnements sans fetch global). */
+  /** fetch to use (tests, environments without a global fetch). */
   fetch?: typeof fetch;
-  /** Délai de /pubkeys (ms, défaut 15 000). */
+  /** Timeout of /pubkeys (ms, default 15,000). */
   timeoutMs?: number;
 }
 
 const lower = (x: string) => x.toLowerCase();
 const base = (u: string) => u.replace(/\/+$/, "");
 
-/** GET {enclaveUrl}/pubkeys, sans aucune confiance : { signer, x25519 } bien formés, sinon EnclaveKeyMismatchError. */
+/** GET {enclaveUrl}/pubkeys, with no trust at all: a well-formed { signer, x25519 }, or EnclaveKeyMismatchError. */
 export async function fetchEnclavePubkeys(
   enclaveUrl: string,
   productId: bigint,
@@ -112,8 +112,8 @@ export async function fetchEnclavePubkeys(
 }
 
 /**
- * Lit /pubkeys et le confronte à l'EnclaveRegistry (voir l'en-tête). Rend des clés vérifiées, ou lève
- * EnclaveKeyMismatchError avec le message « la clé de l'enclave ne correspond pas à celle inscrite sur Arc : envoi refusé ».
+ * Reads /pubkeys and checks it against EnclaveRegistry (see the header). Returns verified keys, or throws
+ * EnclaveKeyMismatchError with the key-mismatch message (ENCLAVE_KEY_MISMATCH_FR).
  */
 export async function verifyEnclaveKeys(
   enclaveUrl: string,
@@ -125,7 +125,7 @@ export async function verifyEnclaveKeys(
   const pk = await fetchEnclavePubkeys(enclaveUrl, productId, o);
   const facts = { enclaveUrl, productId, signer: pk.signer, announcedX25519: pk.x25519 };
 
-  // Tout est lu AU MÊME BLOC (tête), pour qu'aucune réponse ne mélange deux états de la chaîne.
+  // Everything is read AT THE SAME BLOCK (the head), so that no answer mixes two states of the chain.
   const block = await pub.getBlockNumber();
   let expectedSigner = o.expectedSigner;
   let expectedOperator = o.expectedOperator;
@@ -201,7 +201,7 @@ export async function verifyEnclaveKeys(
   };
 }
 
-/** Garde de type : refuse tout objet qui n'est pas sorti de verifyEnclaveKeys (ex. une réponse brute de /pubkeys). */
+/** Type guard: refuses any object that did not come out of verifyEnclaveKeys (e.g. a raw /pubkeys answer). */
 export function assertVerifiedEnclaveKeys(k: unknown): asserts k is VerifiedEnclaveKeys {
   const v = k as Partial<VerifiedEnclaveKeys> | undefined;
   if (!v || v.verified !== true || !v.signer || !v.x25519 || v.checkedAtBlock === undefined) {
