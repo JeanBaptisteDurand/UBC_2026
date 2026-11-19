@@ -7,13 +7,13 @@ import {SealedBounty} from "../src/SealedBounty.sol";
 import {X402Settler} from "../src/X402Settler.sol";
 import {UsdcPayer} from "../src/lib/UsdcPayer.sol";
 
-/// @notice Tout le système dans UN scénario : trois produits, trois rails de paiement, un opérateur.
-///         Inscription d'enclave -> session prépayée (règlements + fermeture + verdict ERC-8004) ;
-///         prime scellée (preuve -> paiement) ; x402 (paiement à l'appel). Prouve que tout est câblé.
+/// @notice The whole system in ONE scenario: three products, three payment rails, one operator.
+///         Enclave registration -> prepaid session (settlements + close + ERC-8004 verdict);
+///         sealed bounty (proof -> payment); x402 (pay per call). Proves that everything is wired.
 contract IntegrationTest is Base {
-    uint256 constant sAPk = 0x5151; // enclave du produit inférence
-    uint256 constant sBPk = 0x5252; // enclave du produit prime
-    uint256 constant sCPk = 0x5353; // enclave du produit x402
+    uint256 constant sAPk = 0x5151; // enclave of the inference product
+    uint256 constant sBPk = 0x5252; // enclave of the bounty product
+    uint256 constant sCPk = 0x5353; // enclave of the x402 product
 
     bytes32 constant MODEL = keccak256("Qwen2.5-1.5B");
     bytes32 constant PREDICATE = keccak256("predicate-v0");
@@ -37,7 +37,7 @@ contract IntegrationTest is Base {
         (sB,) = _registerEnclave(bountyPid, opPk, sBPk, "B");
         (sC,) = _registerEnclave(x402Pid, opPk, sCPk, "C");
 
-        vm.roll(1002); // pour l'ancrage de bloc des réclamations de prime
+        vm.roll(1002); // for the block anchoring of bounty claims
     }
 
     function test_fullLifecycle() public {
@@ -46,7 +46,7 @@ contract IntegrationTest is Base {
         _x402Rail();
     }
 
-    // ---------- rail 1 : session prépayée ----------
+    // ---------- rail 1: prepaid session ----------
 
     function _inferenceRail() internal {
         UsdcPayer.Auth memory auth = _usdcAuth(userPk, address(sessionPay), 100e6, keccak256("open-int"));
@@ -63,7 +63,7 @@ contract IntegrationTest is Base {
         vm.prank(user);
         uint256 sid = sessionPay.openSession(q);
 
-        // 10 appels, 10 reçus cumulatifs, réglés au fil de l'eau
+        // 10 calls, 10 cumulative receipts, settled as they come
         for (uint64 i = 1; i <= 10; i++) {
             SessionPay.Receipt memory r = SessionPay.Receipt({
                 productId: inferencePid,
@@ -75,7 +75,7 @@ contract IntegrationTest is Base {
                 responseHash: keccak256(abi.encodePacked("resp", i)),
                 tokensIn: 5,
                 tokensOut: 5,
-                cumulativeUnits: i, // 1 unité cumulée par appel
+                cumulativeUnits: i, // 1 cumulative unit per call
                 anchorBlock: uint64(block.number)
             });
             sessionPay.settle(r, _signReceipt(r, sAPk));
@@ -87,10 +87,10 @@ contract IntegrationTest is Base {
         vm.prank(user);
         sessionPay.closeSession(sid);
         assertEq(usdc.balanceOf(user) - userBefore, 90e6); // 100 - 10
-        assertGt(validation.responses(), 0); // verdict écrit
+        assertGt(validation.responses(), 0); // verdict written
     }
 
-    // ---------- rail 2 : prime scellée ----------
+    // ---------- rail 2: sealed bounty ----------
 
     function _bountyRail() internal {
         uint256[] memory minLoss = new uint256[](1);
@@ -107,7 +107,7 @@ contract IntegrationTest is Base {
             singleCap: 200e6,
             k: 2,
             targetToPause: address(0),
-            deadline: uint64(vm.getBlockTimestamp() + 1 days), // après le vm.warp du rail 1 (via_ir replie block.timestamp)
+            deadline: uint64(vm.getBlockTimestamp() + 1 days), // after the vm.warp of rail 1 (via_ir folds block.timestamp)
             funding: 10_000e6,
             auth: auth
         });
@@ -136,7 +136,7 @@ contract IntegrationTest is Base {
         assertTrue(sealedBounty.fingerprintPaid(bid, keccak256("fp-int")));
     }
 
-    // ---------- rail 3 : x402 à l'appel ----------
+    // ---------- rail 3: x402 pay per call ----------
 
     function _x402Rail() internal {
         bytes32 nonce = keccak256("x402-call-int");

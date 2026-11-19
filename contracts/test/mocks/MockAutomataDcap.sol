@@ -3,9 +3,9 @@ pragma solidity ^0.8.28;
 
 import {IAutomataDcap} from "../../src/interfaces/IAutomataDcap.sol";
 
-/// @notice Remplace le vérificateur DCAP d'Automata dans les tests (la vérification de la signature d'Intel ne tourne
-///         pas en local) : rend, pour un quote donné, la sortie qu'Automata produirait — en-tête (version, type de
-///         corps, TCB, FMSPC) + corps du quote — fixée par le test. Le vrai TdxAttestationModule la découpe ensuite.
+/// @notice Stands in for Automata's DCAP verifier in tests (Intel's signature check does not run
+///         locally): returns, for a given quote, the output Automata would produce (header: version, body
+///         type, TCB, FMSPC; then the quote body), set by the test. The real TdxAttestationModule then parses it.
 contract MockAutomataDcap is IAutomataDcap {
     mapping(bytes32 => bytes) private _out;
 

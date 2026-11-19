@@ -45,7 +45,7 @@ contract X402SettlerTest is Base {
         return _sign(pk, _typed(address(x402), structHash));
     }
 
-    /// @dev Autorisation EIP-3009 signée par le payeur, pour le montant exact et le nonce du reçu.
+    /// @dev EIP-3009 authorization signed by the payer, for the exact amount and the receipt's nonce.
     function _payerAuth(uint256 value, bytes32 nonce) internal view returns (UsdcPayer.Auth memory a) {
         uint256 validAfter = 0;
         uint256 validBefore = block.timestamp + 1 hours;
@@ -55,7 +55,7 @@ contract X402SettlerTest is Base {
 
     function test_perCallSettle() public {
         bytes32 nonce = keccak256("call-1");
-        X402Settler.CallReceipt memory cr = _callReceipt(nonce, 10); // 10 unités * 1e6 = 10e6
+        X402Settler.CallReceipt memory cr = _callReceipt(nonce, 10); // 10 units * 1e6 = 10e6
         bytes memory sig = _sigCallReceipt(cr, signerPk);
         UsdcPayer.Auth memory auth = _payerAuth(10e6, nonce);
 
@@ -73,7 +73,7 @@ contract X402SettlerTest is Base {
     function test_revertForgedEnclaveSig() public {
         bytes32 nonce = keccak256("call-2");
         X402Settler.CallReceipt memory cr = _callReceipt(nonce, 10);
-        bytes memory sig = _sigCallReceipt(cr, userPk); // pas une enclave active
+        bytes memory sig = _sigCallReceipt(cr, userPk); // not an active enclave
         UsdcPayer.Auth memory auth = _payerAuth(10e6, nonce);
         vm.expectRevert(X402Settler.InactiveEnclave.selector);
         x402.settle(cr, sig, auth);
@@ -86,15 +86,15 @@ contract X402SettlerTest is Base {
         UsdcPayer.Auth memory auth = _payerAuth(10e6, nonce);
         x402.settle(cr, sig, auth);
 
-        // rejouer le même nonce EIP-3009 : l'autorisation est déjà consommée
+        // replay the same EIP-3009 nonce: the authorization is already used
         bytes memory sig2 = _sigCallReceipt(cr, signerPk);
         vm.expectRevert(); // MockUSDC3009.AuthUsed
         x402.settle(cr, sig2, auth);
     }
 
-    /// « enclave expirée » (v2, en blocs) : fenêtre [1000, 5999], grâce jusqu'au bloc 9999.
-    /// Un reçu d'appel ancré APRÈS la fenêtre n'est jamais payé ; ancré DANS la fenêtre, il se règle pendant
-    /// la grâce, plus après.
+    /// "expired enclave" (in blocks): window [1000, 5999], grace until block 9999.
+    /// A call receipt anchored AFTER the window is never paid; anchored INSIDE the window, it settles during
+    /// the grace period, not after.
     function test_revertExpiredEnclave() public {
         bytes32 nonceAfter = keccak256("call-after-expiry");
         bytes32 nonceIn = keccak256("call-in-window");
@@ -107,7 +107,7 @@ contract X402SettlerTest is Base {
         UsdcPayer.Auth memory authAfter = _payerAuth(10e6, nonceAfter);
         UsdcPayer.Auth memory authIn = _payerAuth(10e6, nonceIn);
 
-        vm.roll(9999); // dernier bloc de la grâce
+        vm.roll(9999); // last block of the grace period
         vm.expectRevert(X402Settler.InactiveEnclave.selector);
         x402.settle(afterExpiry, sigAfter, authAfter);
 
@@ -117,16 +117,16 @@ contract X402SettlerTest is Base {
         assertEq(usdc.balanceOf(operator) - opBefore, 8e6);
         vm.revertToState(snap);
 
-        vm.roll(10_000); // grâce écoulée
+        vm.roll(10_000); // grace period over
         vm.expectRevert(X402Settler.InactiveEnclave.selector);
         x402.settle(inWindow, sigIn, authIn);
     }
 
-    /// Correction 10 : le plafond d'exposition du produit (15 USDC par opérateur et par 24 h) s'applique en
-    /// plus de « ½ caution disponible » ; l'appel refusé n'encaisse rien (autorisation EIP-3009 intacte).
+    /// The product's exposure cap (15 USDC per operator per 24 h) applies on
+    /// top of "½ of the available bond"; the refused call collects nothing (EIP-3009 authorization intact).
     function test_settleRespectsProductExposureCap() public {
         productId = _proposeAndActivate(address(x402), false, bytes32("model"), 1e6, 100e6, 15e6);
-        _registerEnclave(productId, opPk, 0x6161, "cap"); // enclave dédiée, bloc 1000
+        _registerEnclave(productId, opPk, 0x6161, "cap"); // dedicated enclave, block 1000
         X402Settler.CallReceipt memory c1 = _callReceipt(keccak256("cap-1"), 10);
         X402Settler.CallReceipt memory c2 = _callReceipt(keccak256("cap-2"), 10);
         bytes memory sig1 = _sigCallReceipt(c1, 0x6161);
@@ -145,14 +145,14 @@ contract X402SettlerTest is Base {
 
     function test_revertWrongAmountSigned() public {
         bytes32 nonce = keccak256("call-4");
-        X402Settler.CallReceipt memory cr = _callReceipt(nonce, 10); // dû = 10e6
+        X402Settler.CallReceipt memory cr = _callReceipt(nonce, 10); // due = 10e6
         bytes memory sig = _sigCallReceipt(cr, signerPk);
-        // le payeur signe pour un AUTRE montant : la signature ne couvre pas le montant encaissé
+        // the payer signs for ANOTHER amount: the signature does not cover the amount collected
         UsdcPayer.Auth memory auth = _payerAuth(9e6, nonce);
         vm.expectRevert(); // MockUSDC3009.BadSignature
         x402.settle(cr, sig, auth);
     }
-    /// FIXED v2 (revue adverse) : X402Settler ne règle que les produits dont il est le contrat de règlement.
+    /// FIXED v2 (adversarial review): X402Settler settles only the products whose settlement contract it is.
     function test_FIXED_revertWrongSettlement() public {
         uint256 sessionProduct = _proposeAndActivate(address(sessionPay), false, bytes32("model"), 1e6, 100e6, 0);
         X402Settler.CallReceipt memory cr = _callReceipt(keccak256("ws"), 10);

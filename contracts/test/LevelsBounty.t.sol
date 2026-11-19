@@ -9,10 +9,10 @@ import {UsdcPayer} from "../src/lib/UsdcPayer.sol";
 import {MachineRegistry} from "../src/levels/MachineRegistry.sol";
 import {PolicyEnclaves} from "../src/levels/PolicyEnclaves.sol";
 
-/// @notice La Prime scellée AU NIVEAU VÉRIFIÉ (10/11/2026) : le MÊME contrat SealedBounty, déployé avec PolicyEnclaves à la
-///         place du registre. Trois opérateurs distincts, trois VRAIS quotes d'inscription (même machine Phala) : une
-///         enclave dont la machine n'est pas déclarée ne signe ni réclamation ni réfutation qui compte ; déclarée, elle
-///         compte. Le nouveau contrat de règlement attend le délai de la caution (8 jours) avant de pouvoir saisir.
+/// @notice The Sealed Bounty at the VERIFIED level: the SAME SealedBounty contract, deployed with PolicyEnclaves in
+///         place of the registry. Three distinct operators, three REAL registration quotes (same Phala machine): an
+///         enclave whose machine is not declared signs no claim or refutation that counts; once declared, it
+///         counts. The new settlement contract waits for the bond delay (8 days) before it can slash.
 contract LevelsBountyTest is Base {
     using stdJson for string;
 
@@ -45,8 +45,8 @@ contract LevelsBountyTest is Base {
         verifiedBounty =
             new SealedBounty(address(usdc), address(products), address(view_), address(bond), address(verdict), treasury, 1000, 500);
 
-        // un NOUVEAU contrat de règlement : proposé par le propriétaire, autorisé après le délai (8 jours, la caution et le
-        // journal des verdicts) ; chaque opérateur a le temps de partir avant
+        // a NEW settlement contract: proposed by the owner, authorized after the delay (8 days, for the bond and the
+        // verdict log); every operator has time to leave first
         bond.proposeSettlement(address(verifiedBounty));
         verdict.proposeCaller(address(verifiedBounty));
         vm.expectRevert();
@@ -71,7 +71,7 @@ contract LevelsBountyTest is Base {
         s3 = _registerWith(OP3_PK, SIGNER3_PK, q3);
         vm.roll(1002);
 
-        // politique : niveau vérifié, un vérificateur accepté
+        // policy: verified level, one accepted verifier
         address[] memory a = new address[](1);
         a[0] = auditor;
         machines.proposePolicy(productId, 1, a);
@@ -195,15 +195,15 @@ contract LevelsBountyTest is Base {
         SealedBounty.Refutation memory f = SealedBounty.Refutation({claimDigest: digest, proven: false, loss: 0, tier: 0});
         bytes[] memory good = _two(_sigRef(f, signer2Pk), _sigRef(f, SIGNER3_PK));
 
-        // deux enclaves d'opérateurs distincts, mais leurs machines ne sont pas déclarées : la réfutation est refusée
-        // (une signature d'enclave qui n'est pas active au regard de la politique fait tout refuser)
+        // two enclaves of distinct operators, but their machines are not declared: the refutation is refused
+        // (one enclave signature that is not active under the policy makes everything fail)
         vm.expectRevert(SealedBounty.NoValidSigner.selector);
         verifiedBounty.refute(r, ops, f, good);
-        // une seule liée à une machine déclarée : toujours refusée
+        // only one bound to a declared machine: still refused
         machines.bindMachine(s2, q2);
         vm.expectRevert(SealedBounty.NoValidSigner.selector);
         verifiedBounty.refute(r, ops, f, good);
-        // les deux liées à une machine déclarée : la réfutation passe, l'opérateur de la réclamation est saisi
+        // both bound to a declared machine: the refutation passes, the claim's operator is slashed
         machines.bindMachine(s3, q3);
         verifiedBounty.refute(r, ops, f, good);
         assertTrue(bond.banned(operator));
@@ -213,7 +213,7 @@ contract LevelsBountyTest is Base {
         _verify(s1, q1);
         bytes memory cP = bytes("sealed-2");
         SealedBounty.Claim memory r = _claim(keccak256("fp2"), keccak256(cP));
-        bytes[] memory sigs = _one(_sigClaim(r, signerPk)); // avant expectRevert (CLAIM_TYPEHASH est un appel)
+        bytes[] memory sigs = _one(_sigClaim(r, signerPk)); // before expectRevert (CLAIM_TYPEHASH is a call)
         vm.prank(auditor);
         machines.revokeMachine(ppid, "machine sortie du datacenter");
         vm.expectRevert(SealedBounty.NoValidSigner.selector);

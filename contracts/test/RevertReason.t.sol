@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 import {Test} from "forge-std/Test.sol";
 import {RevertReason} from "../src/lib/RevertReason.sol";
 
-/// @dev Revert avec `n` octets 0x00, 0x01, … (motif modulo 256).
+/// @dev Reverts with `n` bytes 0x00, 0x01, … (pattern modulo 256).
 contract PatternReverter {
     function boom(uint256 n) external pure {
         assembly {
@@ -15,7 +15,7 @@ contract PatternReverter {
     }
 }
 
-/// @dev Attrape le revert comme SessionPay / SealedBounty (catch {} puis RevertReason.bounded()).
+/// @dev Catches the revert like SessionPay / SealedBounty (catch {} then RevertReason.bounded()).
 contract BoundedCatcher {
     function run(PatternReverter t, uint256 n)
         external
@@ -37,8 +37,8 @@ contract BoundedCatcher {
     }
 }
 
-/// @notice v2.1 bis — RevertReason.bounded() : le préfixe de 132 octets au plus du revert, à coût constant (la parade à la
-///         « return bomb » de la revue adverse du 9/11).
+/// @notice RevertReason.bounded(): at most the 132-byte prefix of the revert, at constant cost (the defence against the
+///         "return bomb" found in the adversarial review).
 contract RevertReasonTest is Test {
     PatternReverter reverter;
     BoundedCatcher catcher;
@@ -55,7 +55,7 @@ contract RevertReasonTest is Test {
         for (uint256 i = 0; i < r.length; i++) {
             assertEq(uint8(r[i]), uint8(i & 0xff), "prefixe exact");
         }
-        // allocation propre : le tableau rendu est sous le nouveau pointeur de mémoire libre
+        // clean allocation: the returned array sits below the new free memory pointer
         assertEq(freeAfter, freeBefore + 0x20 + ((expected + 31) / 32) * 32, "pointeur de memoire libre avance");
         return g;
     }
@@ -74,7 +74,7 @@ contract RevertReasonTest is Test {
         _check(10_000);
     }
 
-    /// Coût constant : recopier le préfixe d'un revert de 200 000 octets coûte autant que celui d'un revert de 133 octets.
+    /// Constant cost: copying the prefix of a 200,000-byte revert costs as much as that of a 133-byte revert.
     function test_constantCostWhateverTheRevertSize() public view {
         uint256 small = _check(133);
         uint256 huge = _check(200_000);

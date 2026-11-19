@@ -6,7 +6,7 @@ import {AttestedBatchVerifier} from "../src/demo/AttestedBatchVerifier.sol";
 import {AttestedSigners, AttestedSignersLib} from "../src/attested/AttestedSigners.sol";
 import {IEnclaveRegistry} from "../src/interfaces/IEnclaveRegistry.sol";
 
-/// @dev Le cas le plus simple : un contrat qui reçoit un message signé, protégé par le modificateur onlyAttested.
+/// @dev The simplest case: a contract that receives a signed message, guarded by the onlyAttested modifier.
 contract AttestedInbox is AttestedSigners {
     uint256 public immutable productId;
     mapping(bytes32 => address) public signerOf;
@@ -27,9 +27,9 @@ contract AttestedInbox is AttestedSigners {
     }
 }
 
-/// @notice v2.1 — la primitive onlyAttested (AttestedSigners) et sa démonstration « façon Gateway »
-///         (AttestedBatchVerifier) : une clé d'enclave attestée est acceptée ; une clé hors enclave, une enclave d'un
-///         autre produit, retirée, expirée, invalidée, ou d'un opérateur radié, est refusée.
+/// @notice The onlyAttested primitive (AttestedSigners) and its Gateway-style demo
+///         (AttestedBatchVerifier): an attested enclave key is accepted; a key outside any enclave, an enclave of
+///         another product, or a retired, expired or invalidated enclave, or one whose operator was banned, is rejected.
 contract AttestedSignersTest is Base {
     uint256 productId;
     address signer;
@@ -40,7 +40,7 @@ contract AttestedSignersTest is Base {
         super.setUp();
         _bondOperator(opPk, 1000e6);
         productId = _proposeAndActivate(address(sessionPay), false, bytes32("model"), 1e6, 100e6, 100_000e6);
-        (signer,) = _registerEnclave(productId, opPk, signerPk, "att"); // fenêtre [1000, 5999]
+        (signer,) = _registerEnclave(productId, opPk, signerPk, "att"); // window [1000, 5999]
         verifier = new AttestedBatchVerifier(registry, productId);
         inbox = new AttestedInbox(registry, productId);
     }
@@ -66,9 +66,9 @@ contract AttestedSignersTest is Base {
         return uint64(vm.getBlockTimestamp() + 1 hours);
     }
 
-    // ---- accepté ----
+    // ---- accepted ----
 
-    /// Clé attestée (enclave active du produit) : le lot est accepté, numéroté, et l'événement nomme l'enclave.
+    /// Attested key (active enclave of the product): the batch is accepted, numbered, and the event names the enclave.
     function test_attestedKey_batchAccepted() public {
         bytes32[] memory items = _items(3, "lot-0");
         uint64 dl = _deadline();
@@ -84,23 +84,23 @@ contract AttestedSignersTest is Base {
         assertEq(verifier.batchOf(0), keccak256(abi.encodePacked(items)));
         emit log_named_uint("AttestedBatchVerifier.submitBatch (3 elements), gaz", used);
 
-        // la primitive seule rend le signataire
+        // the primitive alone returns the signer
         bytes32 d = verifier.batchDigest(7, bytes32("x"), dl);
         g = gasleft();
         assertEq(verifier.requireAttestedSig(productId, d, _sign(signerPk, d)), signer);
         emit log_named_uint("requireAttestedSig (appel externe), gaz", g - gasleft());
     }
 
-    /// Le modificateur seul (AttestedInbox) : le corps lit l'enclave signataire.
+    /// The modifier alone (AttestedInbox): the body reads the signing enclave.
     function test_modifier_bodySeesSigner() public {
         bytes32 msg_ = keccak256("bonjour");
         inbox.post(msg_, _sign(signerPk, inbox.digestOf(msg_)));
         assertEq(inbox.signerOf(msg_), signer);
     }
 
-    // ---- refusé ----
+    // ---- rejected ----
 
-    /// Clé HORS enclave (jamais inscrite) : refusée, avec son adresse.
+    /// Key OUTSIDE any enclave (never registered): rejected, with its address.
     function test_nonEnclaveKey_refused() public {
         bytes32[] memory items = _items(2, "lot-x");
         uint64 dl = _deadline();
@@ -114,7 +114,7 @@ contract AttestedSignersTest is Base {
         inbox.post(msg_, s2);
     }
 
-    /// Enclave RETIRÉE par son opérateur : refusée dès le bloc du retrait.
+    /// Enclave RETIRED by its operator: rejected from the block of the retirement.
     function test_retiredEnclave_refused() public {
         vm.prank(operator);
         registry.retire(signer);
@@ -125,9 +125,9 @@ contract AttestedSignersTest is Base {
         verifier.submitBatch(0, dl, items, sig);
     }
 
-    /// Enclave EXPIRÉE (fenêtre de validité dépassée, même pendant la grâce de règlement) : refusée.
+    /// EXPIRED enclave (validity window passed, even during the settlement grace period): rejected.
     function test_expiredEnclave_refused() public {
-        vm.roll(6000); // fenêtre [1000, 5999] ; grâce jusqu'au bloc 9999 pour les reçus ANCRÉS avant, pas pour un message neuf
+        vm.roll(6000); // window [1000, 5999]; grace until block 9999 for receipts ANCHORED before, not for a new message
         bytes32[] memory items = _items(1, "lot-e");
         uint64 dl = _deadline();
         bytes memory sig = _sigBatch(signerPk, 0, items, dl);
@@ -135,7 +135,7 @@ contract AttestedSignersTest is Base {
         verifier.submitBatch(0, dl, items, sig);
     }
 
-    /// Image retirée par l'auteur → enclave invalidée sans grâce : refusée.
+    /// Image retired by the author → enclave invalidated without grace: rejected.
     function test_killedEnclave_refused() public {
         products.retireWorkload(productId, _workloadId());
         registry.invalidateRetiredWorkload(signer);
@@ -146,7 +146,7 @@ contract AttestedSignersTest is Base {
         verifier.submitBatch(0, dl, items, sig);
     }
 
-    /// Enclave attestée, mais pour un AUTRE produit : refusée.
+    /// Attested enclave, but for ANOTHER product: rejected.
     function test_otherProductEnclave_refused() public {
         _bondOperator(op2Pk, 1000e6);
         uint256 other = _proposeAndActivate(address(sessionPay), false, bytes32("model-2"), 1e6, 100e6, 100_000e6);
@@ -159,9 +159,9 @@ contract AttestedSignersTest is Base {
         verifier.submitBatch(0, dl, items, sig);
     }
 
-    /// Opérateur RADIÉ (faute prouvée, caution saisie) : ses enclaves encore « actives » ne signent plus rien.
+    /// BANNED operator (proven fault, bond seized): its still "active" enclaves no longer sign anything.
     function test_bannedOperator_refused() public {
-        vm.prank(address(sessionPay)); // un contrat de règlement autorisé qui a prouvé une faute
+        vm.prank(address(sessionPay)); // an authorized settlement contract that proved a fault
         bond.slash(operator, address(this), user);
         assertTrue(bond.banned(operator));
         assertTrue(registry.isActiveAt(signer, productId, vm.getBlockNumber()), "toujours inscrite");
@@ -172,7 +172,7 @@ contract AttestedSignersTest is Base {
         verifier.submitBatch(0, dl, items, sig);
     }
 
-    /// Lot modifié après signature : la signature ne désigne plus l'enclave.
+    /// Batch modified after signing: the signature no longer names the enclave.
     function test_tamperedBatch_refused() public {
         bytes32[] memory items = _items(2, "lot-t");
         uint64 dl = _deadline();
@@ -190,7 +190,7 @@ contract AttestedSignersTest is Base {
         verifier.submitBatch(0, dl, items, new bytes(64));
     }
 
-    /// Anti-rejeu et ordre : un lot ne passe qu'une fois, au numéro attendu ; un lot échu est refusé.
+    /// Anti-replay and ordering: a batch passes only once, at the expected number; an expired batch is rejected.
     function test_replayAndDeadline() public {
         bytes32[] memory items = _items(2, "lot-0");
         uint64 dl = _deadline();
@@ -202,7 +202,7 @@ contract AttestedSignersTest is Base {
         bytes32[] memory items2 = _items(1, "lot-2");
         bytes memory sig2 = _sigBatch(signerPk, 2, items2, dl);
         vm.expectRevert(abi.encodeWithSelector(AttestedBatchVerifier.BadSeq.selector, 1));
-        verifier.submitBatch(2, dl, items2, sig2); // trou : refusé
+        verifier.submitBatch(2, dl, items2, sig2); // gap: rejected
 
         uint64 past = uint64(vm.getBlockTimestamp() - 1);
         bytes memory sig3 = _sigBatch(signerPk, 1, items2, past);

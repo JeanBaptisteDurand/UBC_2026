@@ -5,7 +5,7 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 
-/// @notice USDC de test : 6 décimales + EIP-3009 `receiveWithAuthorization` (version `bytes`).
+/// @notice Test USDC: 6 decimals + EIP-3009 `receiveWithAuthorization` (`bytes` version).
 contract MockUSDC3009 is ERC20, EIP712 {
     bytes32 public constant RECEIVE_WITH_AUTHORIZATION_TYPEHASH = keccak256(
         "ReceiveWithAuthorization(address from,address to,uint256 value,uint256 validAfter,uint256 validBefore,bytes32 nonce)"
@@ -42,7 +42,7 @@ contract MockUSDC3009 is ERC20, EIP712 {
         bytes32 nonce,
         bytes calldata signature
     ) external {
-        if (to != msg.sender) revert WrongCaller(); // condition d'Arc
+        if (to != msg.sender) revert WrongCaller(); // Arc's condition
         if (block.timestamp <= validAfter) revert AuthNotYetValid();
         if (block.timestamp >= validBefore) revert AuthExpired();
         if (_authState[from][nonce]) revert AuthUsed();
@@ -56,7 +56,7 @@ contract MockUSDC3009 is ERC20, EIP712 {
         _transfer(from, to, value);
     }
 
-    /// @dev Exposé pour que les tests fabriquent le digest à signer.
+    /// @dev Exposed so that tests can build the digest to sign.
     function hashReceive(address from, address to, uint256 value, uint256 validAfter, uint256 validBefore, bytes32 nonce)
         external
         view

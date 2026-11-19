@@ -4,8 +4,8 @@ pragma solidity ^0.8.28;
 import {Test} from "forge-std/Test.sol";
 import {Sha384} from "../src/lib/Sha384.sol";
 
-/// @notice Référence VOLONTAIREMENT naïve (Solidity pur, uint64, sans assembleur, une variable par registre), écrite
-///         d'après FIPS 180-4 §6.4, pour le test différentiel de Sha384 (assembleur). Lente, sans importance ici.
+/// @notice DELIBERATELY naive reference (pure Solidity, uint64, no assembly, one variable per register), written
+///         following FIPS 180-4 §6.4, as the reference for the differential test of Sha384 (assembly). Slow, which does not matter here.
 library Sha384Ref {
     function rotr(uint64 x, uint64 n) internal pure returns (uint64) {
         return (x >> n) | (x << (64 - n));
@@ -22,10 +22,10 @@ library Sha384Ref {
             0xdb0c2e0d64f98fa7,
             0x47b5481dbefa4fa4
         ];
-        // bourrage (§5.1.2) : message ‖ 0x80 ‖ zéros ‖ longueur en bits sur 128 bits, total multiple de 128 octets
+        // padding (§5.1.2): message ‖ 0x80 ‖ zeros ‖ 128-bit length in bits, total a multiple of 128 bytes
         uint256 len = m.length;
         // forge-lint: disable-next-line(divide-before-multiply)
-        uint256 total = ((len + 17 + 127) / 128) * 128; // arrondi au multiple de 128 supérieur (voulu)
+        uint256 total = ((len + 17 + 127) / 128) * 128; // rounded up to the next multiple of 128 (intended)
         bytes memory p = new bytes(total);
         for (uint256 i = 0; i < len; i++) {
             p[i] = m[i];
@@ -95,17 +95,17 @@ library Sha384Ref {
     }
 }
 
-/// @notice v2.1 — SHA-384 en EVM (src/lib/Sha384.sol) : vecteurs officiels de FIPS 180-4, balayage de TOUTES les
-///         longueurs de 0 à 300 octets contre hashlib de Python, frontières du bourrage, test différentiel contre une
-///         référence naïve, extension de registre de mesure, sûreté mémoire, gaz.
+/// @notice SHA-384 in EVM (src/lib/Sha384.sol): official FIPS 180-4 vectors, a sweep of ALL
+///         lengths from 0 to 300 bytes against Python's hashlib, padding boundaries, a differential test against a naive
+///         reference, measurement-register extension, memory safety, gas.
 contract Sha384Test is Test {
     function _h(bytes memory data) internal pure returns (bytes memory) {
         (bytes32 hi, bytes16 lo) = Sha384.hash(data);
         return abi.encodePacked(hi, lo);
     }
 
-    /// @dev flux déterministe des vecteurs Python : octet i = (31·i + 17) mod 256 ; un message de longueur L = ses L
-    ///      premiers octets (même générateur que le script hors chaîne, cf. commentaire du balayage).
+    /// @dev deterministic stream of the Python vectors: byte i = (31·i + 17) mod 256; a message of length L = its first
+    ///      L bytes (same generator as the off-chain script, see the comment of the sweep).
     function _stream(uint256 len) internal pure returns (bytes memory s) {
         s = new bytes(len);
         for (uint256 i = 0; i < len; i++) {
@@ -113,7 +113,7 @@ contract Sha384Test is Test {
         }
     }
 
-    // ---- vecteurs officiels de FIPS 180-4 (exemples du NIST, SHA-384) ----
+    // ---- official FIPS 180-4 vectors (NIST examples, SHA-384) ----
 
     function test_fips_empty() public pure {
         assertEq(
@@ -129,7 +129,7 @@ contract Sha384Test is Test {
         );
     }
 
-    /// @dev 448 bits (56 octets) : un seul bloc final.
+    /// @dev 448 bits (56 bytes): a single final block.
     function test_fips_448bits() public pure {
         assertEq(
             _h("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"),
@@ -137,7 +137,7 @@ contract Sha384Test is Test {
         );
     }
 
-    /// @dev 896 bits (112 octets) : le bourrage déborde sur un 2e bloc.
+    /// @dev 896 bits (112 bytes): the padding spills into a 2nd block.
     function test_fips_896bits() public pure {
         assertEq(
             _h(
@@ -147,7 +147,7 @@ contract Sha384Test is Test {
         );
     }
 
-    /// @dev Un million de « a » (7 813 blocs) : le long message de FIPS 180-4.
+    /// @dev One million "a" (7,813 blocks): the long message of FIPS 180-4.
     function test_fips_millionA() public pure {
         bytes memory m = new bytes(1_000_000);
         assembly ("memory-safe") {
@@ -161,12 +161,12 @@ contract Sha384Test is Test {
         );
     }
 
-    // ---- toutes les longueurs de 0 à 300 octets, contre hashlib (Python 3) ----
+    // ---- every length from 0 to 300 bytes, against hashlib (Python 3) ----
 
-    /// @dev Attendu calculé hors chaîne (Python 3, hashlib) :
+    /// @dev Expected values computed off chain (Python 3, hashlib):
     ///        s = bytes((31*i + 17) & 0xff for i in range(301)); acc = bytes(32)
     ///        for L in range(301): acc = sha256(acc + sha384(s[:L]).digest()).digest()
-    ///      Couvre chaque cas de bourrage : reste de 0 à 127 octets, 1 ou 2 blocs finaux, 0 à 2 blocs entiers.
+    ///      Covers every padding case: a remainder of 0 to 127 bytes, 1 or 2 final blocks, 0 to 2 full blocks.
     function test_allLengths0to300_matchHashlib() public pure {
         bytes memory s = _stream(300);
         bytes32 acc;
@@ -180,7 +180,7 @@ contract Sha384Test is Test {
         assertEq(acc, 0xdf79c66c0664a1cb469d1ed0bfca051099b1ecea5d72a6d856218407548a59f1);
     }
 
-    /// @dev Frontières du bourrage, une par une (hashlib) : 111 = dernier reste à un bloc final, 112 = premier à deux.
+    /// @dev Padding boundaries, one by one (hashlib): 111 = last remainder with one final block, 112 = first with two.
     function test_paddingBoundaries_matchHashlib() public pure {
         assertEq(
             _h(_stream(111)),
@@ -224,7 +224,7 @@ contract Sha384Test is Test {
         );
     }
 
-    // ---- différentiel : l'assembleur contre la référence naïve ----
+    // ---- differential: the assembly against the naive reference ----
 
     function testFuzz_matchesNaiveReference(bytes memory data) public pure {
         assertEq(_h(data), Sha384Ref.hash(data));
@@ -242,7 +242,7 @@ contract Sha384Test is Test {
         assertEq(_h(m), Sha384Ref.hash(m));
     }
 
-    // ---- extension d'un registre de mesure : SHA384(mr ‖ d) ----
+    // ---- extension of a measurement register: SHA384(mr ‖ d) ----
 
     function test_extend_isHashOfConcatenation() public pure {
         bytes memory k = Sha384.K;
@@ -254,7 +254,7 @@ contract Sha384Test is Test {
             abi.encodePacked(hi, lo),
             hex"93732e3733514a841c982cfa75ea76ab55fe011acb9cd980ef4523913c65be1b0998e04d77f8c174f81a82151619ca40"
         );
-        // et pour un registre quelconque : la même chose que hash(mr ‖ d)
+        // and for any register: the same as hash(mr ‖ d)
         (bytes32 h2, bytes16 l2) = Sha384.extend(k, buf, hi, lo, dHi, dLo);
         assertEq(abi.encodePacked(h2, l2), _h(abi.encodePacked(hi, lo, dHi, dLo)));
     }
@@ -265,10 +265,10 @@ contract Sha384Test is Test {
         hh.extendShort();
     }
 
-    // ---- sûreté mémoire : la zone de travail (au-delà du pointeur libre) n'écrase rien d'alloué ----
+    // ---- memory safety: the scratch area (beyond the free memory pointer) overwrites nothing allocated ----
 
     function test_memorySafety_allocatedMemoryUntouched() public pure {
-        bytes memory before = _stream(500); // alloué AVANT le hachage
+        bytes memory before = _stream(500); // allocated BEFORE hashing
         bytes32 tag = keccak256(before);
         bytes memory data = _stream(333);
         uint256 fmpBefore;
@@ -280,16 +280,16 @@ contract Sha384Test is Test {
         assembly ("memory-safe") {
             fmpAfter := mload(0x40)
         }
-        bytes memory after_ = _stream(500); // alloué APRÈS : contenu attendu, malgré la zone de travail réutilisée
+        bytes memory after_ = _stream(500); // allocated AFTER: expected content, despite the reused scratch area
         assertEq(keccak256(before), tag, "memoire allouee avant : intacte");
         assertEq(keccak256(data), keccak256(_stream(333)), "message intact");
         assertEq(keccak256(after_), tag, "allocation suivante correcte");
         assertEq(got, Sha384Ref.hash(_stream(333)));
-        // seules allocations : la table K (640 + 32 octets) et le résultat de abi.encodePacked (48 + 32 → 96)
+        // only allocations: the K table (640 + 32 bytes) and the result of abi.encodePacked (48 + 32 → 96)
         assertLe(fmpAfter - fmpBefore, 640 + 32 + 96 + 64, "aucune fuite de memoire");
     }
 
-    /// @dev hashAt sur un pointeur non aligné au milieu d'un tampon (lecture en place des blocs entiers).
+    /// @dev hashAt on an unaligned pointer in the middle of a buffer (full blocks read in place).
     function test_hashAt_unalignedPointer() public pure {
         bytes memory buf = _stream(400);
         bytes memory k = Sha384.K;
@@ -305,16 +305,16 @@ contract Sha384Test is Test {
         assertEq(abi.encodePacked(hi, lo), Sha384Ref.hash(slice));
     }
 
-    // ---- gaz ----
+    // ---- gas ----
 
-    /// @dev Coût d'une compression (un bloc de 128 octets) et d'une extension de registre (96 octets = 1 bloc).
-    ///      Garde-fou de régression : la première version (8 variables, 8 tours déroulés) coûtait ≈ 700 k gaz par bloc
-    ///      sous via_ir (variables déplacées en mémoire, expressions recalculées) ; l'état empaqueté ≈ 55 k.
+    /// @dev Cost of one compression (one 128-byte block) and of one register extension (96 bytes = 1 block).
+    ///      Regression guard: the first version (8 variables, 8 unrolled rounds) cost ≈ 700k gas per block
+    ///      under via_ir (variables moved to memory, expressions recomputed); the packed state costs ≈ 55k.
     function test_gas_perBlock() public {
         Harness hh = new Harness();
-        uint256 g1 = hh.gasOf(_stream(100)); // 1 bloc
-        uint256 g2 = hh.gasOf(_stream(228)); // 2 blocs
-        uint256 g9 = hh.gasOf(_stream(1100)); // 9 blocs
+        uint256 g1 = hh.gasOf(_stream(100)); // 1 block
+        uint256 g2 = hh.gasOf(_stream(228)); // 2 blocks
+        uint256 g9 = hh.gasOf(_stream(1100)); // 9 blocks
         uint256 ge = hh.gasOfExtend();
         emit log_named_uint("SHA-384, 1 bloc (100 octets), gaz", g1);
         emit log_named_uint("SHA-384, 2 blocs (228 octets), gaz", g2);
@@ -325,7 +325,7 @@ contract Sha384Test is Test {
     }
 }
 
-/// @dev Appels externes : mesure de gaz isolée, et revert attendu.
+/// @dev External calls: isolated gas measurement, and expected revert.
 contract Harness {
     function gasOf(bytes memory data) external view returns (uint256 used) {
         uint256 g = gasleft();

@@ -30,9 +30,9 @@ contract MockValidationRegistry is IValidationRegistry {
     bool public shouldRevert;
     uint256 public requests;
     uint256 public responses;
-    /// @notice Tests de gaz (v2 bis) : emplacements de stockage NEUFS écrits par réponse, pour que le verdict coûte ce
-    ///         qu'il coûte sur Arc avec le vrai registre de Circle. Sans : VerdictLog.record ≈ 56 k ; avec 8 : ≈ 233 k
-    ///         (Arc testnet, 7/11 : ≈ 238 k entre closeSession(3) et closeSession(13)).
+    /// @notice Gas tests: FRESH storage slots written per response, so that a verdict costs what
+    ///         it costs on Arc with Circle's real registry. Without them: VerdictLog.record ≈ 56k; with 8: ≈ 233k
+    ///         (measured on Arc testnet: ≈ 238k between closeSession(3) and closeSession(13)).
     uint256 public burnSlots;
     mapping(bytes32 => mapping(uint256 => uint256)) private _burn;
 

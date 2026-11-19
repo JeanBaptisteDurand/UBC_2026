@@ -3,9 +3,9 @@ pragma solidity ^0.8.28;
 
 import {IAttestationModule} from "../../src/interfaces/IAttestationModule.sol";
 
-/// @notice Module d'attestation paramétrable pour les tests unitaires : on lui dit, par quote,
-///         quelles mesures renvoyer. Le vrai module (TdxAttestationModule) et un vrai quote Phala
-///         sont du ressort de l'intégration (spike S1/S2), hors tests unitaires.
+/// @notice Configurable attestation module for unit tests: told, per quote,
+///         which measurements to return. The real module (TdxAttestationModule) and a real Phala quote
+///         are covered by DstackImage.t.sol, Levels.t.sol and the on-chain registrations, not by these unit tests.
 contract MockAttestationModule is IAttestationModule {
     mapping(bytes32 => Measurements) private _byQuote;
     mapping(bytes32 => bool) private _set;

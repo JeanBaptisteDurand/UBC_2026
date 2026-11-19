@@ -3,13 +3,13 @@ pragma solidity ^0.8.28;
 
 import {IIdentityRegistry} from "../../src/interfaces/IERC8004.sol";
 
-/// @notice Modèle FIDÈLE du registre de validation ERC-8004 de Circle (ValidationRegistryUpgradeable 2.0.0, code de
-///         référence d'erc-8004-contracts ; « exists » confirmé sur le registre d'Arc testnet par la revue du 9/11) :
-///         - un SEUL espace de requestHash pour tout le monde : « exists » quel que soit l'agent ou l'appelant ;
-///         - la demande est réservée au propriétaire de l'agent ou à un approuvé (ownerOf d'un agent inconnu revert, comme
-///           ERC-721) ; la réponse au validateur nommé (plusieurs réponses possibles) ; réponse ≤ 100.
-///         MockValidationRegistry n'a ni l'un ni l'autre : il ne pouvait pas voir la préemption d'un requestHash.
-///         Installé par vm.etch à l'adresse du registre de test (l'immuable `identity` est dans le code).
+/// @notice FAITHFUL model of Circle's ERC-8004 validation registry (ValidationRegistryUpgradeable 2.0.0, reference
+///         code of erc-8004-contracts; "exists" confirmed on the Arc testnet registry during the adversarial review):
+///         - ONE requestHash space for everyone: "exists" whatever the agent or the caller;
+///         - the request is reserved to the agent's owner or an approved address (ownerOf of an unknown agent reverts, as in
+///           ERC-721); the response to the named validator (several responses possible); response ≤ 100.
+///         MockValidationRegistry has neither: it could not see a requestHash being preempted.
+///         Installed by vm.etch at the address of the test registry (the immutable `identity` is in the code).
 contract StrictValidationRegistry {
     struct Status {
         address validatorAddress;
@@ -73,7 +73,7 @@ contract StrictValidationRegistry {
         return (s.validatorAddress, s.agentId, s.response, s.responseHash, s.tag, s.lastUpdate);
     }
 
-    /// @dev Lecture de test, sans revert pour un hash libre.
+    /// @dev Test read, with no revert for a free hash.
     function statusOf(bytes32 requestHash)
         external
         view
@@ -92,10 +92,10 @@ contract StrictValidationRegistry {
     }
 }
 
-/// @notice Registre ERC-8004 hostile ou bogué (proxy UUPS mis à jour, clé compromise, bogue) : chaque appel revert avec des
-///         données dont la copie en mémoire coûte ≈ 40 % du gaz reçu (w mots : 3w + w²/512 ≈ c, donc w ≈ √(512·c)).
-///         Un appelant qui recopie TOUT le revert (catch (bytes memory reason)) manque alors de gaz, quel que soit le gaz
-///         envoyé (le coût suit le gaz donné).
+/// @notice Hostile or buggy ERC-8004 registry (upgraded UUPS proxy, compromised key, bug): every call reverts with
+///         data whose copy into memory costs ≈ 40 % of the gas received (w words: 3w + w²/512 ≈ c, so w ≈ √(512·c)).
+///         A caller that copies the WHOLE revert (catch (bytes memory reason)) then runs out of gas, whatever gas is
+///         sent (the cost follows the gas given).
 contract ReturnBombRegistry {
     fallback() external {
         assembly {
@@ -112,8 +112,8 @@ contract ReturnBombRegistry {
     }
 }
 
-/// @notice Registre qui refuse tout avec un message Error(string) LONG (300 caractères) : la raison émise par
-///         VerdictSkipped doit être tronquée à 132 octets.
+/// @notice Registry that refuses everything with a LONG Error(string) message (300 characters): the reason emitted by
+///         VerdictSkipped must be truncated to 132 bytes.
 contract LongReasonRegistry {
     fallback() external {
         bytes memory m = new bytes(300);
