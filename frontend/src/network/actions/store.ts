@@ -13,7 +13,7 @@ export interface WalletState {
   balance?: bigint | null
   switching?: boolean
   /** The last message to show below the wallet (refusal, error), already in the current language. */
-  note?: { tone: 'bad' | 'muted'; text: string }
+  note?: { tone: 'bad' | 'muted'; text: string; pending?: boolean }
 }
 
 export const ARC_ID = 5042002

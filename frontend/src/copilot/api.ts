@@ -9,7 +9,7 @@ import { pageContext, isId, isAnchor, oneOf, TARGETS, STATES, KINDS, CONSOLE_ROU
 import { getLang } from '../i18n'
 import { ct } from './strings'
 import { COPILOT_SITE, MCP } from '../data/endpoints'
-import { askSealed, checkEnclave } from './enclave'
+import { askSealed, checkEnclave, setLeg } from './enclave'
 
 // URLs come from data/endpoints.ts (jb profile: /copilot-site on the API origin)
 export const COPILOT_URL = COPILOT_SITE
@@ -147,8 +147,10 @@ export function chatBody(history: ChatTurn[], user: string | null): string {
   return body
 }
 
-/** sealed: the answer came from the enclave, sealed to its key (the turn may never go anywhere else in clear) */
-export type Answer = { ok: true; parsed: Parsed; sealed?: boolean } | { ok: false; text: string }
+/** route: who answered. 'enclave': sealed to its key (the turn may never go anywhere else in clear); 'server': the
+ *  ArcHive server copilot, not sealed. down: the enclave was tried and could not be used, so the server answered */
+export type Route = 'enclave' | 'server'
+export type Answer = { ok: true; parsed: Parsed; route: Route; down?: boolean } | { ok: false; text: string }
 
 const isNetwork = (e: unknown) => /^(Failed to fetch|Load failed|NetworkError|fetch failed|Network request failed)/i.test(String((e as Error)?.message ?? ''))
 const isTimeout = (e: unknown) => (e as Error)?.name === 'TimeoutError' || (e as Error)?.name === 'AbortError'
@@ -157,13 +159,19 @@ export async function ask(history: ChatTurn[], user: string | null, sealedBefore
   // AskHive in its enclave first (copilot/enclave.ts): sealed, its key checked on Arc. Where this page cannot seal
   // (HTTP, another origin), or if the enclave does not answer, the ArcHive server copilot answers and the badge says so.
   // A conversation already sealed to the enclave is never sent to the server in clear: the visitor is told instead
+  setLeg('enclave')
+  let down = false
   try {
     const s = await askSealed(history.slice(-MAX_MESSAGES), user, getLang() === 'fr' ? 'fr' : 'en')
-    if (s) return s.ok ? { ok: true, parsed: parseReply(s.reply), sealed: true } : { ok: false, text: s.text }
+    if (s?.ok) return { ok: true, parsed: parseReply(s.reply), route: 'enclave' }
+    if (s && !s.down) return { ok: false, text: s.text }
+    down = !!s
   } catch {
     void checkEnclave(true) // the enclave is unreachable: the badge says so
-    if (sealedBefore) return { ok: false, text: ct('enc.held') }
+    down = true
   }
+  if (down && sealedBefore) return { ok: false, text: ct('enc.held') }
+  setLeg('server')
   let res: Response
   try {
     res = await fetch(`${COPILOT_URL}/chat`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: chatBody(history, user), signal: AbortSignal.timeout(180_000) })
@@ -177,5 +185,5 @@ export async function ask(history: ChatTurn[], user: string | null, sealedBefore
     const said = typeof j?.text === 'string' && j.text.trim() ? j.text : typeof j?.error === 'string' && j.error.trim() ? j.error : ''
     return { ok: false, text: said || (res.ok ? ct('err.unreadable', { status: res.status }) : ct('err.refused', { status: res.status })) }
   }
-  return { ok: true, parsed: parseReply(j) }
+  return { ok: true, parsed: parseReply(j), route: 'server', ...(down ? { down } : {}) }
 }

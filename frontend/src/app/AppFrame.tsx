@@ -97,10 +97,8 @@ export function AppHeader({ page, section, sectionText, replay, wallet }: { page
 /** The site copilot (src/copilot), mounted after the first render on every app page, Network included: a separate
  *  React root attached to <body> (copilot/mount.tsx) */
 function CopilotMount() {
-  useEffect(() => {
-    const go = () => { void import('../copilot/mount').then((m) => m.mountCopilot()) }
-    const ric = (window as unknown as { requestIdleCallback?: (f: () => void, o?: { timeout: number }) => number }).requestIdleCallback
-    if (ric) ric(go, { timeout: 1500 }); else setTimeout(go, 300)
-  }, [])
+  // at once, not on an idle callback: the 3D room of the Network pages keeps the browser busy for seconds, and the
+  // launcher was missing all that time; its module is fetched before the room's assets
+  useEffect(() => { void import('../copilot/mount').then((m) => m.mountCopilot()) }, [])
   return null
 }

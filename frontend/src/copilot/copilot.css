@@ -238,3 +238,22 @@ button.cp-enc:disabled .cp-enc-x { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .cp-m.is-fresh .cp-md > *, .cp-m.is-fresh > .cp-steps, .cp-m.is-fresh > .cp-src { animation: none; }
 }
+/* an answer from the ArcHive server because the enclave could not be used: one plain line, never a raw error */
+.cp-route { margin: 0 0 6px; font-size: 12px; line-height: 1.45; color: var(--ink3); }
+/* phones: every control of the sheet is at least 44 px tall (close, MCP, Start over, Connect wallet, Disconnect, the
+   enclave line, the suggestions, Send) */
+@media (max-width: 640px) {
+  .cp-panel[data-sheet="1"] .cp-ib, .cp-panel[data-sheet="1"] .cp-wal button, .cp-panel[data-sheet="1"] .cp-enc,
+  .cp-panel[data-sheet="1"] .cp-sug button, .cp-panel[data-sheet="1"] .cp-send, .cp-panel[data-sheet="1"] .cp-intro-mcp { min-height: 44px; }
+  .cp-panel[data-sheet="1"] .cp-close { min-width: 44px; }
+}
+/* phone in landscape with the keyboard open: the wallet row and the enclave line fold, the log keeps its room */
+@media (max-height: 260px) {
+  .cp-panel[data-sheet="1"] .cp-wal, .cp-panel[data-sheet="1"] .cp-enc-w { display: none; }
+  .cp-panel[data-sheet="1"] .cp-log { min-height: 80px; }
+}
+/* touch screens: while a field of the page has the focus (the keyboard is up), the AskHive button steps aside, so it
+   never covers the page's own controls (the Bridge page's Max) */
+@media (hover: none) and (pointer: coarse) {
+  body:has(:is(input, textarea, select):focus:not(.cp-panel *)) .cp-launch { visibility: hidden; }
+}

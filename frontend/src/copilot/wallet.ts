@@ -29,7 +29,8 @@ function view(s: SiteState): WalletState {
     // search says there is none, Connect is offered
     has: s.phase !== 'none' || injected(),
     status, address: s.address, chainId: s.chainId,
-    error: s.note?.tone === 'bad' ? s.note.text : undefined,
+    // a request already open in the wallet is a note, not a failure: shown as it is
+    error: s.note && (s.note.tone === 'bad' || s.note.pending) ? s.note.text : undefined,
     pick: s.phase === 'pick' ? s.wallets : undefined,
   }
 }

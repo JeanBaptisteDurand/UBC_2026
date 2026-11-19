@@ -52,12 +52,21 @@ export function checkEnclave(force = false): Promise<void> {
   set({ status: 'checking', keys: st.keys })
   inflight = attested().verifiedKeys(force)
     .then((keys) => set({ status: canSeal() ? 'on' : 'clear', keys }))
-    .catch((e) => set({ status: 'off', why: e instanceof EnclaveKeyMismatchError ? 'mismatch' : 'unreachable' }))
+    .catch((e) => set({ status: 'off', why: e instanceof EnclaveKeyMismatchError && e.reason !== 'pubkeys_unreachable' ? 'mismatch' : 'unreachable' }))
     .finally(() => { inflight = null })
   return inflight
 }
 
-export type SealedAnswer = { ok: true; reply: Record<string, unknown> } | { ok: false; text: string }
+/** down: the enclave could not be used (unreachable, or its key not on Arc or not matching): nothing was sent to it, and
+ *  the caller answers through the ArcHive server, saying so. Never a raw SDK error on screen. */
+export type SealedAnswer = { ok: true; reply: Record<string, unknown> } | { ok: false; text: string; down?: boolean }
+
+/** which way the question in flight goes (the Thinking line): sealed to the enclave, or to the ArcHive server */
+export type Leg = 'enclave' | 'server'
+let leg: Leg = 'enclave'
+const legSubs = new Set<() => void>()
+export function setLeg(v: Leg) { if (v !== leg) { leg = v; legSubs.forEach((f) => f()) } }
+export function useLeg(): Leg { return useSyncExternalStore((f) => { legSubs.add(f); return () => { legSubs.delete(f) } }, () => leg) }
 /** one exchange with the enclave, sealed; null when this page cannot seal (the caller then uses the server copilot) */
 export async function askSealed(messages: CopilotMessage[], user: string | null, lang: 'en' | 'fr'): Promise<SealedAnswer | null> {
   if (!canSeal()) return null
@@ -66,8 +75,12 @@ export async function askSealed(messages: CopilotMessage[], user: string | null,
     if (r.authenticated) set({ status: 'on', keys: r.enclave })
     return r.ok ? { ok: true, reply: r.reply as unknown as Record<string, unknown> } : { ok: false, text: r.reply.text }
   } catch (e) {
-    // a key that does not match Arc: nothing was sent, and nothing is sent elsewhere either
-    if (e instanceof EnclaveKeyMismatchError) { set({ status: 'off', why: 'mismatch' }); return { ok: false, text: e.message } }
+    // the key could not be checked on Arc (enclave unreachable, key not registered yet, or not the registered one):
+    // nothing was sent to the enclave; the caller answers through the server and says so (never the SDK's message)
+    if (e instanceof EnclaveKeyMismatchError) {
+      set({ status: 'off', why: e.reason === 'pubkeys_unreachable' ? 'unreachable' : 'mismatch' })
+      return { ok: false, text: '', down: true }
+    }
     throw e
   }
 }

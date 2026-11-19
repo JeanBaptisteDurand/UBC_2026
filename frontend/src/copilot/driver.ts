@@ -169,13 +169,16 @@ function placeNote(n: HTMLDivElement, b: Box) {
   const W = n.offsetWidth || 280, H = n.offsetHeight || 64, M = 16, top = HD() + 8
   const panel = document.querySelector('.cp-panel:not([data-sheet="1"])')?.getBoundingClientRect()
   const right = panel && panel.width ? panel.left - M : innerWidth - M
+  // on phones the folded sheet covers the bottom of the screen: the bubble stays above it
+  const sheet = document.querySelector('.cp-panel[data-sheet="1"]')?.getBoundingClientRect()
+  const bottom = sheet && sheet.height && sheet.top > top + H ? sheet.top : innerHeight
   let x: number, y: number
   if (b.x + b.w + M + W <= right) { x = b.x + b.w + M; y = b.y }
   else if (b.x - M - W >= M) { x = b.x - M - W; y = b.y }
   else if (b.w > innerWidth * 0.5 && b.h > 3 * H) { x = Math.min(b.x + b.w, right + M) - M - W; y = b.y + M }
-  else if (b.y + b.h + M + H <= innerHeight - M) { x = b.x; y = b.y + b.h + M }
+  else if (b.y + b.h + M + H <= bottom - M) { x = b.x; y = b.y + b.h + M }
   else { x = b.x; y = b.y - M - H }
-  x = Math.max(M, Math.min(right - W, x)); y = Math.max(top, Math.min(innerHeight - M - H, y))
+  x = Math.max(M, Math.min(right - W, x)); y = Math.max(top, Math.min(bottom - M - H, y))
   n.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`
 }
 
@@ -242,10 +245,14 @@ function anchorEl(id: string): HTMLElement | null {
     ?? (onNetworkPage() && NET_ALIAS[id] ? document.querySelector<HTMLElement>(NET_ALIAS[id]) : null)
 }
 /** A section's name for the log: its title (the text read by screen readers), otherwise its anchor. */
+/** An anchor id as words (install-cmd: install cmd): never shown as a raw id in the log */
+const words = (id: string) => id.replace(/[-_]+/g, ' ').trim()
 function labelOf(el: HTMLElement, id: string): string {
-  const h = el.matches('h1, h2, h3') ? el : el.querySelector<HTMLElement>('h1, h2, h3') ?? document.getElementById(`${id}-h`)
-  const t = (h?.getAttribute('aria-label') ?? h?.textContent ?? '').replace(/\s+/g, ' ').trim().replace(/[.:]$/, '')
-  if (!t || t.length > 60) return id
+  // a heading, else a Network part's step title (li.na .na-t), else the element's own short text
+  const h = el.matches('h1, h2, h3') ? el : el.querySelector<HTMLElement>('h1, h2, h3') ?? (el.closest<HTMLElement>('li.na') ?? el).querySelector<HTMLElement>('.na-t') ?? document.getElementById(`${id}-h`)
+  let t = (h?.getAttribute('aria-label') ?? h?.textContent ?? '').replace(/\s+/g, ' ').trim().replace(/[.:]$/, '')
+  if (!t || t.length > 60) t = (el.getAttribute('aria-label') ?? el.textContent ?? '').replace(/\s+/g, ' ').trim().replace(/[.:]$/, '')
+  if (!t || t.length > 60) t = words(id)
   return getLang() === 'fr' ? `« ${t} »` : `“${t}”`
 }
 /** A very large element (pinned section, whole page) is pointed at through its readable part: text column, title. */
@@ -371,7 +378,7 @@ async function applyUse(a: NavArgs, hooks: DriveHooks) {
 
 async function scrollToSection(id: string, hooks: DriveHooks) {
   const el = anchorEl(id)
-  if (!el) { hooks.log(ct('step.missing', { t: id })); return }
+  if (!el) { hooks.log(ct('step.missing', { t: words(id) })); return }
   await toSection(el)
   await glideTo(boxOf(visiblePart(el)))
   hooks.log(ct('step.section', { s: labelOf(el, id) }))
@@ -427,14 +434,17 @@ async function navigate(asked: NavArgs, rest: UiStep[], hooks: DriveHooks): Prom
     location.assign(href)
     return true
   }
-  if (a.section) await scrollToSection(a.section, hooks)
+  // on the Doc page the section is the chapter open (urlOf: doc.html?c=<chapter>): it is already on screen
+  if (a.section && !(target === 'doc' && q.get('c') === a.section)) await scrollToSection(a.section, hooks)
   else if (here === 'home' && a.productId) await highlight({ target: `product:${a.productId}`, note: a.reason }, hooks)
   return false
 }
 
 async function highlight(a: HlArgs, hooks: DriveHooks) {
   const s = resolve(a.target)
-  if (!s) { hooks.log(ct('step.missing', { t: a.target })); return }
+  // the Doc chapter open is the page itself (doc.html?c=<chapter>): nothing to point at, nothing missing
+  if (!s && pageOf() === 'doc' && new URLSearchParams(location.search).get('c') === a.target) return
+  if (!s) { hooks.log(ct('step.missing', { t: words(a.target) })); return }
   if (s.before) await s.before()
   if (s.el) await reveal(s.el, true)
   const b = s.rect()
@@ -467,7 +477,8 @@ async function netDemo(a: DemoArgs, hooks: DriveHooks) {
     : a.action === 'goto' ? r.querySelector<HTMLElement>(`.dm-seg[data-c="${Math.min(2, Math.max(0, Math.floor(((a.step ?? 1) - 1) / 3)))}"]`)
     : btn(a.action)
   if (el) await click(el)
-  hooks.log(a.action === 'goto' ? ct('step.demo.goto', { n: a.step ?? 1 }) : ct(`step.demo.${a.action}` as 'step.demo.play'))
+  // the demo's own moves (a step, the next, the previous) are not logged: only play and pause
+  if (a.action === 'play' || a.action === 'pause') hooks.log(ct(`step.demo.${a.action}`))
   // the demo takes the whole scene (its story on the left, its controls along the bottom): the panel steps aside once
   // the demo starts, the AskHive button brings it back with this log
   if (started || a.action === 'play') hooks.hide?.()

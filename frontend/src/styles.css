@@ -872,3 +872,17 @@ html.veil-none body::after { display: none; }
 /* The footer's last line scrolls clear of the floating AskHive button (copilot.css: 48 px tall at 40 px from the edge,
    44 px at 16 px on phones), which otherwise covered the credits at the end of every page */
 .foot { padding-bottom: calc(var(--launch-clear) + 16px + env(safe-area-inset-bottom)); }
+/* AskHive's panel keeps the wheel and the touch scroll: its log and the panel itself never hand them to the page */
+.cp-panel, .cp-panel .cp-log { overscroll-behavior: contain; }
+/* Phone menu: each entry is a full-width row, 44 px tall for the thumb; on a phone held sideways the list is tighter,
+   and what does not fit scrolls inside the menu (the last entry, Bridge, stays reachable) */
+.hd-drawer > a, .hd-drawer > button { display: flex; align-self: stretch; width: 100%; }
+@media (max-height: 500px) {
+  .hd-drawer { gap: 0; padding-top: 0; padding-bottom: 8px; font-size: 17px; }
+  .hd-drawer-x { margin-top: 0; }
+}
+/* Phones: a chapter link inside the Doc's text (Tokenomics' "The numbers"...) gets a 44 px tall hit area; padding on an
+   inline link leaves the lines where they are */
+@media (max-width: 760px) { .doc-b a.tlink[data-doc-ch] { padding-block: 11px; } }
+/* Phones: the bounty sheet's "Hunt a bounty, or follow yours, in My space" is 44 px tall to the thumb */
+@media (max-width: 760px) { .vt-use-alt .tlink { display: inline-flex; align-items: center; min-height: 44px; } }

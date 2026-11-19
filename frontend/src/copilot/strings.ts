@@ -7,18 +7,21 @@ const EN = {
   'enc.checking': 'Checking its enclave on Arc', 'enc.on.a': 'Sealed in its own enclave', 'enc.on.b': 'verified on Arc',
   'enc.clear.a': 'Enclave verified on Arc', 'enc.clear.b': 'not sealed here',
   'enc.off.a': 'Enclave not verified', 'enc.off.b': 'server answers',
+  'enc.srv.a': 'Enclave verified on Arc', 'enc.srv.b': 'last answer: ArcHive server, not sealed',
+  'enc.conv.srv': 'the last answer came from the ArcHive server, not sealed and not signed by the enclave: the enclave did not answer',
+  'route.down': 'The enclave is not reachable right now: this answer comes from ArcHive’s server, not sealed.',
   'enc.aria': 'Show the proof read on Arc', 'enc.h': 'Proof, read on Arc',
   'enc.key': 'Enclave key', 'enc.op': 'Operator', 'enc.prod': 'Product', 'enc.prod.v': '#{n}, AskHive', 'enc.reg': 'Registered from', 'enc.blk': 'block {n}',
   'enc.img': 'Image fingerprint', 'enc.quote': 'Intel quote', 'enc.quote.v': 'DCAP verified on Arc, {tcb}', 'enc.tcb.0': 'TCB up to date', 'enc.tcb.n': 'TCB status {n}',
   'enc.conv': 'Conversation', 'enc.conv.on': 'sealed to the enclave (HPKE), key {k}', 'enc.conv.clear': 'not sealed here: sealing needs the site over HTTPS (archive.62-171-153-35.sslip.io); on this page the ArcHive server answers',
   'enc.model': 'Model', 'enc.model.v': 'runs at RedPill, behind an attested gateway (Intel TDX) the enclave checks before every call: that gateway and the model also read the conversation.',
   'enc.checked': 'Key checked', 'enc.checked.v': 'at block {n}, {t}', 'enc.again': 'Check again',
-  'enc.off.p': 'Its key could not be checked on Arc ({why}): nothing is sealed, the ArcHive server copilot answers.', 'enc.why.mismatch': 'the key does not match the one registered', 'enc.why.unreachable': 'the enclave does not answer',
+  'enc.off.p': 'Its key could not be checked on Arc ({why}): nothing is sealed, the ArcHive server answers.', 'enc.why.mismatch': 'the key does not match the one registered', 'enc.why.unreachable': 'the enclave does not answer',
   'launch': 'AskHive',
   'launch.aria': 'Open AskHive, the ArcHive assistant',
   'title': 'AskHive',
   'sub': 'Shows you the site, prepares what you sign',
-  'close': 'Close the copilot',
+  'close': 'Close AskHive',
   'new': 'Start over',
   'mcp.btn': 'MCP',
   'mcp.btn.aria': 'Use these tools from your own agent (MCP)',
@@ -27,23 +30,23 @@ const EN = {
   'intro.mcp': 'Use these tools from your own agent',
   'suggest': 'Suggestions',
   'placeholder': 'Ask AskHive',
-  'input.label': 'Your message to the copilot',
+  'input.label': 'Your message to AskHive',
   'send': 'Send',
-  'thinking': 'The copilot is thinking',
+  'thinking': 'AskHive is thinking',
   'think.seal': 'Sealing your question for the enclave…',
   'think.enclave': 'The enclave is answering…',
   'think.server': 'AskHive is thinking…',
   'you': 'You',
-  'copilot': 'Copilot',
+  'copilot': 'AskHive',
   'sources': 'Sources: {list}',
   'tools': 'Tools: {list}',
-  'driving': 'The copilot is showing you the site',
+  'driving': 'AskHive is showing you the site',
   'driving.back': 'Back to the chat',
-  'err.unreachable': 'I can’t reach the copilot ({url}). Check your connection, then try again.',
-  'err.slow': 'The copilot took too long to answer. Try again in a moment.',
-  'err.refused': 'The copilot refused the request (HTTP {status}).',
-  'err.unreadable': 'The copilot’s answer could not be read (HTTP {status}).',
-  'err.empty': 'The copilot sent an empty answer.',
+  'err.unreachable': 'I can’t reach AskHive ({url}). Check your connection, then try again.',
+  'err.slow': 'AskHive took too long to answer. Try again in a moment.',
+  'err.refused': 'AskHive refused the request (HTTP {status}).',
+  'err.unreadable': 'AskHive’s answer could not be read (HTTP {status}).',
+  'err.empty': 'AskHive sent an empty answer.',
   // pages and steps played on the site
   'page.home': 'the home page', 'page.use': 'Network, Use', 'page.service': 'Services', 'page.rent': 'Network, Rent',
   'page.publish': 'Network, Publish', 'page.network': 'the Network page', 'page.doc': 'the Doc', 'page.space': 'My space', 'page.bounty': 'My space, My bounties', 'page.sessions': 'My space, My sessions', 'page.operator': 'My space, My machines', 'page.demo': 'the demo', 'page.datacenter': 'the 3D server room', 'page.console': 'the console',
@@ -60,13 +63,13 @@ const EN = {
   'step.demo.prev': 'Previous demo step', 'step.demo.goto': 'Demo step {n}',
   'target.product': 'product #{id}',
   'target.bounty': 'bounty #{id} (product #{p})',
-  'note.from': 'Copilot',
+  'note.from': 'AskHive',
   // wallet
   'wal.none': 'No wallet in this browser',
   'wal.pick': 'Several wallets here. Choose one',
   'enc.held': 'The enclave did not answer. This conversation was sealed to it, so it is not sent anywhere else in clear. Try again in a moment, or start over to ask the ArcHive server.',
   'wal.how': 'How to get one',
-  'wal.howText': 'Install a browser wallet such as MetaMask or Rabby, then reload this page. On a phone, open this page in your wallet’s own browser. The copilot adds Arc testnet to it for you.',
+  'wal.howText': 'Install a browser wallet such as MetaMask or Rabby, then reload this page. On a phone, open this page in your wallet’s own browser. AskHive adds Arc testnet to it for you.',
   'wal.faucet': 'Get test USDC from Circle’s faucet',
   'wal.connect': 'Connect wallet',
   'wal.connecting': 'Check your wallet',
@@ -83,7 +86,7 @@ const EN = {
   'wal.dismiss': 'Dismiss this message',
   // prepared actions (the console's CopilotActions.tsx)
   'card.prepared': 'Prepared for your signature',
-  'card.info': 'Prepared by the copilot',
+  'card.info': 'Prepared by AskHive',
   'card.session': 'Open a session and get your access key',
   'card.bond': 'Post your operator bond',
   'card.register': 'Register an enclave on Arc',
@@ -109,10 +112,10 @@ const EN = {
   'todo.incomplete': 'incomplete parameters',
   'todo.amount': 'the amount is missing',
   'todo.bounty': 'incomplete parameters (the protocol’s X25519 key?)',
-  'session.none': 'No enclave is active for this product right now, so no session can be opened. The copilot can open one as soon as an operator registers an enclave.',
+  'session.none': 'No enclave is active for this product right now, so no session can be opened. AskHive can open one as soon as an operator registers an enclave.',
   'register.why': 'Registering an enclave runs on your operator machine: its agent asks the enclave for a fresh Intel quote, then your wallet signs. Open the operator console to do it.',
   'register.open': 'Open the operator console',
-  'other.addr': 'Prepared for {a}, but your wallet is {b}. Ask the copilot again with this wallet.',
+  'other.addr': 'Prepared for {a}, but your wallet is {b}. Ask AskHive again with this wallet.',
   'ph.sign': 'Sign in your wallet',
   'ph.switch': 'Switching your wallet to Arc testnet',
   'ph.sent': 'Sent, waiting for Arc',
@@ -140,7 +143,7 @@ const EN = {
   'open.publish': 'Open the Publish page',
   // MCP
   'mcp.title': 'Use these tools from your own agent',
-  'mcp.lede': 'Claude, Cursor or any MCP client can call the same tools as this copilot. They read the network and prepare operations. They never sign.',
+  'mcp.lede': 'Claude, Cursor or any MCP client can call the same tools as AskHive. They read the network and prepare operations. They never sign.',
   'mcp.server': 'MCP server',
   'mcp.json': 'JSON config, for Cursor and any client that takes a remote server URL',
   'mcp.claude': 'In Claude, desktop or web, add a custom connector with the server URL. In Claude Code:',
@@ -152,18 +155,21 @@ const FR: Record<Key, string> = {
   'enc.checking': 'Vérification de son enclave sur Arc', 'enc.on.a': 'Scellé dans sa propre enclave', 'enc.on.b': 'vérifiée sur Arc',
   'enc.clear.a': 'Enclave vérifiée sur Arc', 'enc.clear.b': 'non scellé ici',
   'enc.off.a': 'Enclave non vérifiée', 'enc.off.b': 'le serveur répond',
+  'enc.srv.a': 'Enclave vérifiée sur Arc', 'enc.srv.b': 'dernière réponse : serveur d’ArcHive, non scellée',
+  'enc.conv.srv': 'la dernière réponse vient du serveur d’ArcHive, non scellée et non signée par l’enclave : l’enclave n’a pas répondu',
+  'route.down': 'L’enclave ne répond pas pour l’instant : cette réponse vient du serveur d’ArcHive, non scellée.',
   'enc.aria': 'Afficher la preuve lue sur Arc', 'enc.h': 'Preuve, lue sur Arc',
   'enc.key': 'Clé de l’enclave', 'enc.op': 'Opérateur', 'enc.prod': 'Produit', 'enc.prod.v': '#{n}, AskHive', 'enc.reg': 'Inscrite depuis', 'enc.blk': 'bloc {n}',
   'enc.img': 'Empreinte de l’image', 'enc.quote': 'Quote Intel', 'enc.quote.v': 'DCAP vérifié sur Arc, {tcb}', 'enc.tcb.0': 'TCB à jour', 'enc.tcb.n': 'TCB statut {n}',
   'enc.conv': 'Conversation', 'enc.conv.on': 'scellée pour l’enclave (HPKE), clé {k}', 'enc.conv.clear': 'pas scellée ici : il faut le site en HTTPS (archive.62-171-153-35.sslip.io) ; sur cette page, c’est le serveur d’ArcHive qui répond',
   'enc.model': 'Modèle', 'enc.model.v': 'tourne chez RedPill, derrière une passerelle attestée (Intel TDX) que l’enclave vérifie avant chaque appel : cette passerelle et le modèle lisent aussi la conversation.',
   'enc.checked': 'Clé vérifiée', 'enc.checked.v': 'au bloc {n}, {t}', 'enc.again': 'Vérifier à nouveau',
-  'enc.off.p': 'Sa clé n’a pas pu être vérifiée sur Arc ({why}) : rien n’est scellé, c’est le copilote du serveur d’ArcHive qui répond.', 'enc.why.mismatch': 'la clé ne correspond pas à celle inscrite', 'enc.why.unreachable': 'l’enclave ne répond pas',
+  'enc.off.p': 'Sa clé n’a pas pu être vérifiée sur Arc ({why}) : rien n’est scellé, c’est le serveur d’ArcHive qui répond.', 'enc.why.mismatch': 'la clé ne correspond pas à celle inscrite', 'enc.why.unreachable': 'l’enclave ne répond pas',
   'launch': 'AskHive',
   'launch.aria': 'Ouvrir AskHive, l’assistant d’ArcHive',
   'title': 'AskHive',
   'sub': 'Vous montre le site, prépare ce que vous signez',
-  'close': 'Fermer le copilote',
+  'close': 'Fermer AskHive',
   'new': 'Recommencer',
   'mcp.btn': 'MCP',
   'mcp.btn.aria': 'Utiliser ces outils depuis votre propre agent (MCP)',
@@ -172,23 +178,23 @@ const FR: Record<Key, string> = {
   'intro.mcp': 'Utiliser ces outils depuis votre propre agent',
   'suggest': 'Suggestions',
   'placeholder': 'Posez votre question',
-  'input.label': 'Votre message au copilote',
+  'input.label': 'Votre message à AskHive',
   'send': 'Envoyer',
-  'thinking': 'Le copilote réfléchit',
+  'thinking': 'AskHive réfléchit',
   'think.seal': 'Chiffrement de votre question pour l’enclave…',
   'think.enclave': 'L’enclave répond…',
   'think.server': 'AskHive réfléchit…',
   'you': 'Vous',
-  'copilot': 'Copilote',
+  'copilot': 'AskHive',
   'sources': 'Sources : {list}',
   'tools': 'Outils : {list}',
-  'driving': 'Le copilote vous montre le site',
+  'driving': 'AskHive vous montre le site',
   'driving.back': 'Revenir à la conversation',
-  'err.unreachable': 'Je n’arrive pas à joindre le copilote ({url}). Vérifiez votre connexion, puis réessayez.',
-  'err.slow': 'Le copilote a mis trop de temps à répondre. Réessayez dans un instant.',
-  'err.refused': 'Le copilote a refusé la requête (HTTP {status}).',
-  'err.unreadable': 'La réponse du copilote est illisible (HTTP {status}).',
-  'err.empty': 'Le copilote a envoyé une réponse vide.',
+  'err.unreachable': 'Je n’arrive pas à joindre AskHive ({url}). Vérifiez votre connexion, puis réessayez.',
+  'err.slow': 'AskHive a mis trop de temps à répondre. Réessayez dans un instant.',
+  'err.refused': 'AskHive a refusé la requête (HTTP {status}).',
+  'err.unreadable': 'La réponse d’AskHive est illisible (HTTP {status}).',
+  'err.empty': 'AskHive a envoyé une réponse vide.',
   'page.home': 'l’accueil', 'page.use': 'Network, Utiliser', 'page.service': 'Services', 'page.rent': 'Network, Louer',
   'page.publish': 'Network, Publier', 'page.network': 'la page Network', 'page.doc': 'la Doc', 'page.space': 'Mon espace', 'page.bounty': 'Mon espace, Mes primes', 'page.sessions': 'Mon espace, Mes sessions', 'page.operator': 'Mon espace, Mes machines', 'page.demo': 'la démo', 'page.datacenter': 'la salle des serveurs en 3D', 'page.console': 'la console',
   'step.open': 'Ouvert : {page}',
@@ -204,12 +210,12 @@ const FR: Record<Key, string> = {
   'step.demo.prev': 'Étape précédente de la démo', 'step.demo.goto': 'Étape {n} de la démo',
   'target.product': 'le produit n° {id}',
   'target.bounty': 'la prime n° {id} (produit n° {p})',
-  'note.from': 'Copilote',
+  'note.from': 'AskHive',
   'wal.none': 'Aucun wallet dans ce navigateur',
   'wal.pick': 'Plusieurs wallets ici. Choisissez-en un',
   'enc.held': 'L’enclave n’a pas répondu. Cette conversation lui était scellée : elle n’est envoyée nulle part ailleurs en clair. Réessayez dans un instant, ou recommencez pour interroger le serveur ArcHive.',
   'wal.how': 'Comment en avoir un',
-  'wal.howText': 'Installez un wallet de navigateur comme MetaMask ou Rabby, puis rechargez cette page. Sur un téléphone, ouvrez cette page dans le navigateur de votre wallet. Le copilote y ajoute Arc testnet pour vous.',
+  'wal.howText': 'Installez un wallet de navigateur comme MetaMask ou Rabby, puis rechargez cette page. Sur un téléphone, ouvrez cette page dans le navigateur de votre wallet. AskHive y ajoute Arc testnet pour vous.',
   'wal.faucet': 'Obtenir des USDC de test au robinet de Circle',
   'wal.connect': 'Connecter un wallet',
   'wal.connecting': 'Regardez votre wallet',
@@ -225,7 +231,7 @@ const FR: Record<Key, string> = {
   'wal.off': 'Non connecté, Arc testnet',
   'wal.dismiss': 'Fermer ce message',
   'card.prepared': 'Préparé pour votre signature',
-  'card.info': 'Préparé par le copilote',
+  'card.info': 'Préparé par AskHive',
   'card.session': 'Ouvrir une session et recevoir votre clé d’accès',
   'card.bond': 'Déposer votre caution d’opérateur',
   'card.register': 'Inscrire une enclave sur Arc',
@@ -251,10 +257,10 @@ const FR: Record<Key, string> = {
   'todo.incomplete': 'paramètres incomplets',
   'todo.amount': 'le montant manque',
   'todo.bounty': 'paramètres incomplets (la clé X25519 du protocole ?)',
-  'session.none': 'Aucune enclave n’est active pour ce produit en ce moment : aucune session ne peut s’ouvrir. Le copilote pourra en ouvrir une dès qu’un opérateur inscrira une enclave.',
+  'session.none': 'Aucune enclave n’est active pour ce produit en ce moment : aucune session ne peut s’ouvrir. AskHive pourra en ouvrir une dès qu’un opérateur inscrira une enclave.',
   'register.why': 'L’inscription d’une enclave se fait depuis votre machine d’opérateur : son agent demande à l’enclave un quote d’Intel tout neuf, puis votre wallet signe. Ouvrez la console opérateur pour la faire.',
   'register.open': 'Ouvrir la console opérateur',
-  'other.addr': 'Préparé pour {a}, mais votre wallet est {b}. Redemandez au copilote avec ce wallet.',
+  'other.addr': 'Préparé pour {a}, mais votre wallet est {b}. Redemandez à AskHive avec ce wallet.',
   'ph.sign': 'Signez dans votre wallet',
   'ph.switch': 'Passage de votre wallet sur Arc testnet',
   'ph.sent': 'Envoyée, en attente d’Arc',
@@ -281,7 +287,7 @@ const FR: Record<Key, string> = {
   'code': 'Code',
   'open.publish': 'Ouvrir la page Publier',
   'mcp.title': 'Utiliser ces outils depuis votre propre agent',
-  'mcp.lede': 'Claude, Cursor ou tout client MCP peut appeler les mêmes outils que ce copilote. Ils lisent le réseau et préparent les opérations. Ils ne signent jamais.',
+  'mcp.lede': 'Claude, Cursor ou tout client MCP peut appeler les mêmes outils qu’AskHive. Ils lisent le réseau et préparent les opérations. Ils ne signent jamais.',
   'mcp.server': 'Serveur MCP',
   'mcp.json': 'Configuration JSON, pour Cursor et tout client qui prend l’URL d’un serveur distant',
   'mcp.claude': 'Dans Claude, sur ordinateur ou sur le web, ajoutez un connecteur personnalisé avec l’URL du serveur. Dans Claude Code :',
@@ -319,6 +325,11 @@ const SUGGEST: Record<string, { en: string[]; fr: string[] }> = {
     en: ['Play the demo', 'Explain this step', 'Pause the demo'],
     fr: ['Lancez la démo', 'Expliquez-moi cette étape', 'Mettez la démo en pause'],
   },
+  // Services without a sheet open (the catalog): AskHive picks the services itself
+  catalog: {
+    en: ['Which services run right now?', 'What does each service do?', 'How do I pay for a service?'],
+    fr: ['Quels services tournent en ce moment ?', 'Que fait chacun des services ?', 'Comment payer un service ?'],
+  },
 }
 const EVERY = {
   en: ['How do I rent out my machine?', 'How do I set up ArcHive with my Claude Code (inference and enclaves)?', 'How do I set up the ArcHive MCP?'],
@@ -331,8 +342,33 @@ export function ct(k: Key, vars?: Record<string, string | number>): string {
   if (vars) for (const [a, b] of Object.entries(vars)) s = s.split(`{${a}}`).join(String(b))
   return s
 }
-export function suggestions(page: string | null): string[] {
-  const s = SUGGEST[page ?? 'home'] ?? SUGGEST.home
+/** The page's own name, read from its title ("ArcHive. Doc. Tokenomics", "ArcHive. Attested Copilot"): the Doc
+ *  chapter open, or the service whose sheet is open. The questions name it, since the enclave is not told the page. */
+export function pageName(page: string | null, title = document.title): string | undefined {
+  const parts = title.split('. ').map((x) => x.trim()).filter(Boolean)
+  const n = page === 'doc' ? parts.slice(2).join('. ') : parts.slice(1).join('. ')
+  return n && n.length <= 60 ? n : undefined
+}
+/** The questions offered on a page. page: pageOf(), or 'demo' while the Network page's 3D demo is open, or 'catalog'
+ *  on Services without a sheet open; name: pageName() */
+export function suggestions(page: string | null, name?: string): string[] {
   const l = getLang() === 'fr' ? 'fr' : 'en'
-  return [...s[l], ...EVERY[l]]
+  const fr = l === 'fr'
+  const own: Record<string, string[]> = {
+    home: fr ? ['Expliquez la page d’accueil d’ArcHive'] : ['Explain the ArcHive home page'],
+    network: fr ? ['Expliquez la page Réseau'] : ['Explain the Network page'],
+    bridge: fr ? ['Expliquez la page Bridge'] : ['Explain the Bridge page'],
+    doc: name ? (fr ? [`Expliquez ce chapitre : ${name}`] : [`Explain this chapter: ${name}`]) : (fr ? ['Expliquez la page Doc'] : ['Explain the Doc page']),
+  }
+  if (page === 'service' && name) {
+    const s = fr
+      ? [`Expliquez ce service : ${name}`, `Comment utiliser ${name} ?`, `Quel opérateur fait tourner ${name}, et qu’a vérifié Arc ?`]
+      : [`Explain this service: ${name}`, `How do I use ${name}?`, `Which operator runs ${name}, and what did Arc check?`]
+    return [...s, ...EVERY[l]]
+  }
+  const base = (SUGGEST[page ?? 'home'] ?? SUGGEST.home)[l]
+  const first = own[page ?? 'home'] ?? (name && !SUGGEST[page ?? 'home'] ? [fr ? `Expliquez cette page : ${name}` : `Explain this page: ${name}`] : [])
+  // the home set's "What am I looking at?" does not say where the visitor is: the page's own question replaces it
+  const rest = base.filter((q) => q !== SUGGEST.home![l][0])
+  return [...new Set([...first, ...rest])].slice(0, 3).concat(EVERY[l])
 }
