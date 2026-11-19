@@ -3,32 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>ArcHive. Sealed bounties</title>
-    <meta name="description" content="Post a sealed bounty on Arc, or hunt one: the exploit is sealed for a verified enclave, replayed there, and paid in USDC on Arc." />
-    <meta name="robots" content="index, follow" />
+    <title>ArcHive. My space</title>
+    <meta name="description" content="Sealed bounties now live in My space: post a bounty on Arc, or hunt one." />
+    <meta name="robots" content="noindex, follow" />
     <meta name="theme-color" content="#0b0d10" />
-    <meta property="og:title" content="ArcHive. Sealed bounties" />
-    <meta property="og:description" content="Post a sealed bounty on Arc, or hunt one: the exploit is sealed for a verified enclave, replayed there, and paid in USDC on Arc." />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="/og.jpg" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="canonical" href="https://archive.62-171-153-35.sslip.io/space.html?tab=bounties" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="preload" href="/fonts/montserrat-wght.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href="/fonts/fragment-mono.woff2" as="font" type="font/woff2" crossorigin />
+    <noscript><meta http-equiv="refresh" content="0; url=space.html?tab=bounties" /></noscript>
     <style>
-      @font-face { font-family: 'Montserrat'; src: url('/fonts/montserrat-wght.woff2') format('woff2'); font-weight: 100 900; font-display: block; }
-      :root { --brand: 'Montserrat'; }
-      html, body { background: #0b0d10; color: #e9edf1; margin: 0; }
-      .pre { padding: calc(86px + 72px) 72px 0; font-family: var(--brand), ui-sans-serif, system-ui, sans-serif; }
-      .pre h1 { font-size: clamp(34px, 3.3vw, 48px); line-height: 1.04; font-weight: 600; letter-spacing: -0.015em; margin: 0; }
-      .pre p { font-size: 17px; line-height: 1.55; color: #c5ccd4; max-width: 34em; margin: 32px 0 0; }
-      @media (max-width: 760px) { .pre { padding: calc(84px + 40px) 16px 0; } .pre h1 { font-size: 34px; } .pre p { margin-top: 20px; } }
+      html, body { background: #0b0d10; color: #e9edf1; margin: 0; font: 16px/1.5 ui-sans-serif, system-ui, sans-serif; }
+      p { margin: 0; padding: 120px 16px 0; text-align: center; }
+      a { color: #9cc0ff; }
     </style>
+    <script type="module" src="/src/app/bounty.tsx"></script>
   </head>
   <body>
-    <div id="root"><main class="pre"><h1>Sealed bounties.</h1><p>A protocol funds a bounty on Arc. A hunter seals an exploit for a verified enclave, the enclave replays it, and Arc pays the hunter in USDC. The protocol alone can read the report.</p></main></div>
-    <script type="module" src="/src/app/bounty.tsx"></script>
+    <p><a href="space.html?tab=bounties">Sealed bounties, in My space</a></p>
   </body>
 </html>
