@@ -208,6 +208,15 @@ exposure.
 The site keeps the full proof chain of a live enclave (image, Intel measurement, Arc admission, signed answer, USDC
 payment, ERC-8004 verdict): `curl -s https://arc-hive.xyz/api/proof`.
 
+## Timeline
+
+The core of ArcHive (the Solidity contracts, the enclave kit and the Intel DCAP integration) was written between 1 and
+12 Nov 2026 and deployed on Arc testnet before the hackathon week; the explorer shows those dates (the first runs
+above). During the hackathon week (13 to 20 Nov) we built the marketplace site (the services rack, a page per service,
+the Network page to use, rent and publish, the Doc with its Tokenomics chapter, My space), the 3D server room, AskHive
+(the site's assistant, now running in its own Arc-verified enclave as product 4), the MCP server online for AI agents
+and the Bridge page (CCTP transfers to Arc), and relaunched five Arc-verified enclaves (products 1, 2, 3, 4 and 7).
+
 ## Contracts on Arc testnet (chainId 5042002)
 
 **Live stack, v2.1 (13 contracts in service).** Every address and deployment transaction:
