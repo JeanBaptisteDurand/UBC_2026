@@ -11,7 +11,7 @@ import {MachineRegistry} from "../src/levels/MachineRegistry.sol";
 import {PolicyEnclaves} from "../src/levels/PolicyEnclaves.sol";
 import {ProofOfCloudAuditor} from "../src/levels/ProofOfCloudAuditor.sol";
 
-/// @dev Ed25519Verifier se compile à part (sans via_ir) : déployé depuis son artefact, appelé par cette interface.
+/// @dev Ed25519Verifier is compiled separately (without via_ir): deployed from its artifact, called through this interface.
 interface IEd {
     function weierstrass(uint256 x, uint256 y) external view returns (uint256 wx, uint256 wy);
     function verify(string calldata m, uint256 r, uint256 s, uint256[5] calldata extKpub) external view returns (bool);
@@ -23,9 +23,9 @@ contract PckChipHarness {
     }
 }
 
-/// @notice Les deux niveaux d'opérateur (10/11/2026) sur des données RÉELLES : le quote d'inscription de notre enclave
-///         d'inférence (Phala prod9, TDX v4, certificat « Intel SGX PCK Platform CA ») et le jeton de l'alliance Proof of
-///         Cloud obtenu le 10/11 pour ce quote (cosigné par Secret, Nillion et iExec ; test/vectors/proof-of-cloud-token.json).
+/// @notice The two operator levels on REAL data: the registration quote of our inference enclave
+///         (Phala prod9, TDX v4, "Intel SGX PCK Platform CA" certificate) and the Proof of Cloud alliance token
+///         issued for this quote (co-signed by Secret, Nillion and iExec; test/vectors/proof-of-cloud-token.json).
 contract LevelsTest is Base {
     using stdJson for string;
 
@@ -76,7 +76,7 @@ contract LevelsTest is Base {
         id = _proposeAndActivate(address(sealedBounty), true, bytes32(0), 1e6, 10e6, 0);
     }
 
-    /// @dev Inscrit `signerPk` avec un quote donné ; le module simulé rend les mesures (FMSPC au choix).
+    /// @dev Registers `signerPk` with a given quote; the simulated module returns the measurements (FMSPC of choice).
     function _registerWith(uint256 productId, uint256 operatorPk, uint256 signerPk, bytes memory quote, bytes6 fmspc)
         internal
         returns (address signer)
@@ -108,7 +108,7 @@ contract LevelsTest is Base {
         c[at] = bytes1(v);
     }
 
-    // ------------------------------------------------------------------ 1. la puce lue dans le certificat d'Intel
+    // ------------------------------------------------------------------ 1. the chip read from Intel's certificate
 
     function test_chip_realQuote_ppidAndFmspc() public view {
         uint256 g = gasleft();
@@ -119,7 +119,7 @@ contract LevelsTest is Base {
     }
 
     function test_chip_rejectsOtherFormats() public {
-        // version 3 (SGX), type de TEE SGX, certification autre que 6 puis 5, quote tronqué
+        // version 3 (SGX), SGX TEE type, certification type other than 6 then 5, truncated quote
         vm.expectRevert(PckChip.QuoteUnsupported.selector);
         harness.chip(_mutate(realQuote, 0, 3));
         vm.expectRevert(PckChip.QuoteUnsupported.selector);
@@ -131,13 +131,13 @@ contract LevelsTest is Base {
         for (uint256 i = 0; i < 700; i++) cut[i] = realQuote[i];
         vm.expectRevert(PckChip.QuoteFormat.selector);
         harness.chip(cut);
-        // taille de certification incohérente (le même contrôle qu'Automata)
+        // inconsistent certification size (the same check as Automata's)
         vm.expectRevert(PckChip.QuoteFormat.selector);
         harness.chip(_mutate(realQuote, auth + 130, uint8(realQuote[auth + 130]) ^ 1));
     }
 
     function test_chip_rejectsMissingPem() public {
-        // « -----BEGIN » cassé : plus de certificat lisible
+        // broken "-----BEGIN": no readable certificate any more
         bytes memory q = bytes.concat(realQuote);
         bytes memory pat = bytes("-----BEGIN CERTIFICATE-----");
         for (uint256 i = 0; i + pat.length <= q.length; i++) {
@@ -154,17 +154,17 @@ contract LevelsTest is Base {
         harness.chip(q);
     }
 
-    /// @notice DURCISSEMENT (11/11) : un faux PPID ne peut plus être injecté. Le corps Base64 du certificat n'est
-    ///         signé par personne, et Base64.decode de solady ne rejette pas les octets hors alphabet (il lit la
-    ///         mémoire) ; avant ce correctif, un opérateur pouvait faire lire au contrat le PPID d'une machine de
-    ///         datacenter connu (une puce whitelistée par l'alliance) et faire passer une machine ordinaire pour
-    ///         « vérifiée ». Vecteurs issus de la revue de sécurité adverse (test/vectors/pck-forged-quotes.json).
+    /// @notice HARDENING: a forged PPID can no longer be injected. The certificate's Base64 body is
+    ///         signed by nobody, and solady's Base64.decode does not reject bytes outside the alphabet (it reads
+    ///         memory); before this fix, an operator could make the contract read the PPID of a known
+    ///         datacenter machine (a chip allowlisted by the alliance) and pass an ordinary machine off as
+    ///         "verified". Vectors from the adversarial security review (test/vectors/pck-forged-quotes.json).
     function test_chip_rejectsForgedPpid() public {
         string memory j = vm.readFile("test/vectors/pck-forged-quotes.json");
-        // le VRAI quote décode toujours vers le VRAI PPID après durcissement (non-régression)
+        // the REAL quote still decodes to the REAL PPID after hardening (non-regression)
         (bytes16 p,) = harness.chip(j.readBytes(".genuine"));
         assertEq(p, bytes16(j.readBytes(".genuinePpid")), "le vrai certificat decode toujours vers le vrai PPID");
-        // chaque forgerie est refusée : Base64 non canonique, octets ajoutés après le certificat, ou deux OID PPID
+        // every forgery is refused: non-canonical Base64, bytes appended after the certificate, or two PPID OIDs
         string[3] memory keys = [".forged_validTrailer", ".forged_memByte_0x8c", ".forged_memByte_0x90"];
         for (uint256 i = 0; i < keys.length; i++) {
             bytes memory forged = j.readBytes(keys[i]);
@@ -173,7 +173,7 @@ contract LevelsTest is Base {
         }
     }
 
-    // ------------------------------------------------------------------ 2. liaison enclave → machine
+    // ------------------------------------------------------------------ 2. binding enclave → machine
 
     function test_bind_realQuote() public {
         uint256 id = _product();
@@ -194,14 +194,14 @@ contract LevelsTest is Base {
         uint256 id = _product();
         _bondOperator(opPk, 100e6);
         _bondOperator(op2Pk, 100e6);
-        // clé inconnue
+        // unknown key
         vm.expectRevert(MachineRegistry.NotActiveEnclave.selector);
         machines.bindMachine(makeAddr("inconnue"), realQuote);
-        // un autre quote que celui de l'inscription
+        // a quote other than the registration quote
         address s = _registerWith(id, opPk, signerPk, abi.encodePacked("synthetique"), bytes6(uint48(0x112233445566)));
         vm.expectRevert(MachineRegistry.NotRegisteredQuote.selector);
         machines.bindMachine(s, realQuote);
-        // le bon quote, mais Automata aurait lu un autre FMSPC : refus
+        // the right quote, but Automata would have read another FMSPC: refused
         address s2 = _registerWith(id, op2Pk, signer2Pk, realQuote, bytes6(uint48(0x112233445566)));
         vm.expectRevert(MachineRegistry.FmspcMismatch.selector);
         machines.bindMachine(s2, realQuote);
@@ -215,7 +215,7 @@ contract LevelsTest is Base {
         vm.prank(auditorA);
         machines.attestMachine(ppid, uint64(block.timestamp + 30 days), "dc", "rapport");
         assertTrue(machines.isVerified(s, auditorA));
-        // renouvellement avec un autre quote (peut-être une autre machine) : la liaison n'est plus à jour
+        // renewal with another quote (maybe another machine): the binding is no longer current
         vm.roll(block.number + 10);
         _registerWith(id, opPk, signerPk, abi.encodePacked("renouvellement"), REAL_FMSPC);
         (, bool current,) = machines.machineOf(s);
@@ -223,7 +223,7 @@ contract LevelsTest is Base {
         assertFalse(machines.isVerified(s, auditorA));
     }
 
-    // ------------------------------------------------------------------ 3. déclarations des vérificateurs
+    // ------------------------------------------------------------------ 3. verifier declarations
 
     function test_audit_lifecycle() public {
         uint256 id = _product();
@@ -234,7 +234,7 @@ contract LevelsTest is Base {
         vm.prank(auditorA);
         machines.attestMachine(ppid, uint64(block.timestamp + 1 days), "OVH Roubaix", "https://exemple/rapport");
         assertTrue(machines.isVerified(s, auditorA));
-        assertFalse(machines.isVerified(s, auditorB), unicode"chaque vérificateur ne parle qu'en son nom");
+        assertFalse(machines.isVerified(s, auditorB), "each verifier speaks only for itself");
         vm.prank(auditorA);
         machines.revokeMachine(ppid, "retrait");
         assertFalse(machines.isVerified(s, auditorA));
@@ -242,14 +242,14 @@ contract LevelsTest is Base {
         machines.attestMachine(ppid, uint64(block.timestamp + 1 days), "OVH Roubaix", "nouvelle visite");
         assertTrue(machines.isVerified(s, auditorA));
         vm.warp(block.timestamp + 1 days + 1);
-        assertFalse(machines.isVerified(s, auditorA), unicode"expirée");
+        assertFalse(machines.isVerified(s, auditorA), "expired");
         vm.expectRevert(MachineRegistry.BadAudit.selector);
         machines.attestMachine(ppid, uint64(block.timestamp), "", "");
         vm.expectRevert(MachineRegistry.BadAudit.selector);
         machines.attestMachine(bytes16(0), uint64(block.timestamp + 1), "", "");
     }
 
-    // ------------------------------------------------------------------ 4. politique des produits
+    // ------------------------------------------------------------------ 4. product policies
 
     function test_policy_authorTimelockAndValidation() public {
         uint256 id = _product();
@@ -285,18 +285,18 @@ contract LevelsTest is Base {
         uint256 id = _product();
         _bondOperator(opPk, 100e6);
         address s = _registerWith(id, opPk, signerPk, realQuote, REAL_FMSPC);
-        assertTrue(machines.meetsPolicy(id, s), unicode"niveau ouvert par défaut");
+        assertTrue(machines.meetsPolicy(id, s), "open level by default");
         assertEq(machines.levelOf(id, s), 0);
         address[] memory two = new address[](2);
         two[0] = auditorA;
         two[1] = auditorB;
         _setPolicy(id, 1, two);
-        assertFalse(machines.meetsPolicy(id, s), unicode"pas encore liée ni déclarée");
+        assertFalse(machines.meetsPolicy(id, s), "not yet bound nor declared");
         machines.bindMachine(s, realQuote);
-        assertFalse(machines.meetsPolicy(id, s), unicode"liée mais non déclarée");
+        assertFalse(machines.meetsPolicy(id, s), "bound but not declared");
         vm.prank(makeAddr("autre-verificateur"));
         machines.attestMachine(ppid, uint64(block.timestamp + 1 days), "", "");
-        assertFalse(machines.meetsPolicy(id, s), unicode"déclarée par un vérificateur que le produit n'accepte pas");
+        assertFalse(machines.meetsPolicy(id, s), "declared by a verifier the product does not accept");
         vm.prank(auditorB);
         machines.attestMachine(ppid, uint64(block.timestamp + 1 days), "dc", "");
         assertTrue(machines.meetsPolicy(id, s));
@@ -304,7 +304,7 @@ contract LevelsTest is Base {
         assertEq(machines.verifiedBy(id, s), auditorB);
     }
 
-    // ------------------------------------------------------------------ 5. l'adaptateur des contrats de règlement
+    // ------------------------------------------------------------------ 5. the settlement contracts' adapter
 
     function test_policyEnclaves_appliesPolicyOnlyForVerifiedProducts() public {
         uint256 id = _product();
@@ -314,7 +314,7 @@ contract LevelsTest is Base {
         assertEq(view_.activeOperatorAt(s, id, n), operator, "produit ouvert : comme le registre");
         assertEq(view_.attestedOperator(s, id), registry.attestedOperator(s, id));
         _setPolicy(id, 1, _one(auditorA));
-        assertEq(view_.activeOperatorAt(s, id, n), address(0), unicode"produit vérifié, machine non déclarée");
+        assertEq(view_.activeOperatorAt(s, id, n), address(0), "verified product, machine not declared");
         assertFalse(view_.isActiveAt(s, id, n));
         assertEq(view_.attestedOperator(s, id), address(0));
         machines.bindMachine(s, realQuote);
@@ -323,7 +323,7 @@ contract LevelsTest is Base {
         assertEq(view_.activeOperatorAt(s, id, n), operator);
         assertTrue(view_.isActiveAt(s, id, n));
         assertEq(view_.attestedOperator(s, id), operator);
-        // lectures relayées telles quelles ; écritures refusées
+        // reads relayed as is; writes refused
         assertEq(view_.enclaveOf(s).quoteHash, keccak256(realQuote));
         assertEq(view_.settleableUntilBlock(s), registry.settleableUntilBlock(s));
         assertEq(address(view_.bond()), address(registry.bond()));
@@ -331,7 +331,7 @@ contract LevelsTest is Base {
         view_.retire(s);
     }
 
-    // ------------------------------------------------------------------ Ed25519 (RFC 8032) : vrais et faux
+    // ------------------------------------------------------------------ Ed25519 (RFC 8032): genuine and forged
 
     function test_ed25519_vectors() public view {
         string memory j = vm.readFile("test/vectors/ed25519-vectors.json");
@@ -346,7 +346,7 @@ contract LevelsTest is Base {
             uint256 r = uint256(j.readBytes32(string.concat(b, ".r")));
             uint256 s_ = uint256(j.readBytes32(string.concat(b, ".s")));
             assertTrue(ed.verify(string(m), r, s_, ext), j.readString(string.concat(b, ".name")));
-            // message, R, S ou clé modifiés : refusé
+            // message, R, S or key modified: refused
             if (m.length > 0) {
                 bytes memory m2 = bytes.concat(m);
                 m2[m.length / 2] = bytes1(uint8(m2[m.length / 2]) ^ 0x01);
@@ -365,7 +365,7 @@ contract LevelsTest is Base {
     }
 
     function test_ed25519_rejectsMalleableS() public view {
-        // s + L (même signature « décalée » de l'ordre du groupe) : refusée (s doit être < L)
+        // s + L (the same signature "shifted" by the group order): refused (s must be < L)
         string memory j = vm.readFile("test/vectors/ed25519-vectors.json");
         uint256[5] memory ext;
         (ext[0], ext[1]) = ed.weierstrass(j.readUint(".vectors[1].x"), j.readUint(".vectors[1].y"));
@@ -387,13 +387,13 @@ contract LevelsTest is Base {
         }
     }
 
-    // ------------------------------------------------------------------ 6. le vérificateur Proof of Cloud, sur la chaîne
+    // ------------------------------------------------------------------ 6. the Proof of Cloud verifier, on chain
 
     function test_poc_constructorChecksTheKey() public {
         vm.expectRevert(ProofOfCloudAuditor.BadKey.selector);
-        new ProofOfCloudAuditor(address(machines), address(ed), key, kx + 1, ky); // hors de la courbe
+        new ProofOfCloudAuditor(address(machines), address(ed), key, kx + 1, ky); // off the curve
         vm.expectRevert(ProofOfCloudAuditor.BadKey.selector);
-        new ProofOfCloudAuditor(address(machines), address(ed), bytes32(uint256(key) ^ 1), kx, ky); // autre clé
+        new ProofOfCloudAuditor(address(machines), address(ed), bytes32(uint256(key) ^ 1), kx, ky); // another key
         vm.expectRevert(ProofOfCloudAuditor.BadKey.selector);
         new ProofOfCloudAuditor(address(machines), address(ed), key, kx, ky + 0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffed);
     }
@@ -410,7 +410,7 @@ contract LevelsTest is Base {
         assertFalse(revoked);
         assertEq(poc.lastTimestamp(ppid), uint64(tokTs));
 
-        // de bout en bout : produit au niveau vérifié, vérificateur = l'alliance
+        // end to end: product at the verified level, verifier = the alliance
         uint256 id = _product();
         _bondOperator(opPk, 100e6);
         address s = _registerWith(id, opPk, signerPk, realQuote, REAL_FMSPC);
@@ -423,12 +423,12 @@ contract LevelsTest is Base {
 
     function test_poc_rejectsForgeriesAndStaleTokens() public {
         vm.warp(tokTs + 60);
-        // contenu modifié d'un caractère : la signature ne tient plus
+        // content changed by one character: the signature no longer holds
         bytes memory pl = bytes(tokPayload);
         pl[10] = pl[10] == bytes1("A") ? bytes1("B") : bytes1("A");
         vm.expectRevert(ProofOfCloudAuditor.BadSignature.selector);
         poc.submit(tokHeader, string(pl), tokSig);
-        // signature modifiée
+        // signature modified
         bytes memory sg = bytes.concat(tokSig);
         sg[3] = bytes1(uint8(sg[3]) ^ 1);
         vm.expectRevert(ProofOfCloudAuditor.BadSignature.selector);
@@ -441,12 +441,12 @@ contract LevelsTest is Base {
         bytes memory short_ = new bytes(63);
         vm.expectRevert(ProofOfCloudAuditor.BadToken.selector);
         poc.submit(tokHeader, tokPayload, short_);
-        // en-tête changé (la signature couvre en-tête ET contenu)
+        // header changed (the signature covers header AND content)
         vm.expectRevert(ProofOfCloudAuditor.BadSignature.selector);
         poc.submit(string.concat(tokHeader, "x"), tokPayload, tokSig);
-        // une clé d'alliance différente ne valide pas ce jeton
+        // a different alliance key does not validate this token
         uint256 snap = vm.snapshotState();
-        poc.submit(tokHeader, tokPayload, tokSig); // le vrai passe
+        poc.submit(tokHeader, tokPayload, tokSig); // the real one passes
         vm.expectRevert(ProofOfCloudAuditor.StaleToken.selector);
         poc.submit(tokHeader, tokPayload, tokSig); // rejeu
         vm.revertToState(snap);
@@ -455,6 +455,6 @@ contract LevelsTest is Base {
         poc.submit(tokHeader, tokPayload, tokSig); // trop vieux
         vm.warp(tokTs - 10 minutes);
         vm.expectRevert(ProofOfCloudAuditor.StaleToken.selector);
-        poc.submit(tokHeader, tokPayload, tokSig); // dans le futur
+        poc.submit(tokHeader, tokPayload, tokSig); // in the future
     }
 }

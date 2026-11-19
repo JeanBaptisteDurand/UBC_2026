@@ -46,7 +46,7 @@ contract ProductRegistryTest is Base {
         products.propose(_params(8000, 1000, 500)); // somme = 9500
     }
 
-    /// Correction 9 : la redevance d'auteur est bornée à 30 % (3 000 bps) ; 30 % pile passe.
+    /// The author's royalty is capped at 30 % (3,000 bps); exactly 30 % passes.
     function test_authorShareCappedAt30Percent() public {
         assertEq(products.MAX_AUTHOR_BPS(), 3000);
         vm.expectRevert(ProductRegistry.AuthorShareTooHigh.selector);
@@ -56,21 +56,21 @@ contract ProductRegistryTest is Base {
 
         uint256 pid = products.propose(_params(6500, 3000, 500));
         assertEq(products.getProduct(pid).bpsAuthor, 3000);
-        uint256 own = products.propose(_params(9500, 0, 500)); // produit maison (F-économie §0.2)
+        uint256 own = products.propose(_params(9500, 0, 500)); // first-party product (mainnet economics)
         assertEq(products.getProduct(own).bpsOperator, 9500);
     }
 
-    /// FIXED v2 (revue adverse, basse (a)) : la part du réseau est d'au moins 5 %, même sur un produit tiers.
+    /// FIXED v2 (adversarial review, low): the network share is at least 5 %, even on a third-party product.
     function test_FIXED_networkShareAtLeast5Percent() public {
         assertEq(products.MIN_NETWORK_BPS(), 500);
         vm.expectRevert(ProductRegistry.NetworkShareTooLow.selector);
-        products.propose(_params(7000, 3000, 0)); // un auteur tiers voudrait 0 % au réseau
+        products.propose(_params(7000, 3000, 0)); // a third-party author would like 0 % for the network
         vm.expectRevert(ProductRegistry.NetworkShareTooLow.selector);
         products.propose(_params(7501, 2000, 499));
-        products.propose(_params(7000, 2500, 500)); // 5 % pile : accepté
+        products.propose(_params(7000, 2500, 500)); // exactly 5 %: accepted
     }
 
-    /// v2 : l'unité facturée est un champ du produit (fixé à la proposition) ; 0 = 1 (comportement v1).
+    /// The billed unit is a field of the product (set at proposal); 0 = 1 (the original behaviour).
     function test_unitFieldsStoredOnProduct() public {
         uint256 pid = products.propose(_params(8000, 1000, 1000));
         IProductRegistry.Product memory p = products.getProduct(pid);
@@ -93,8 +93,8 @@ contract ProductRegistryTest is Base {
         assertFalse(products.isWorkloadAllowed(pid, _workloadId()));
     }
 
-    /// FIXED v2 (revue adverse, moyenne) : une image ajoutée après coup passe par le timelock (proposeWorkload →
-    /// applyWorkload), seul l'auteur la propose, et retireWorkload annule une proposition en attente.
+    /// FIXED v2 (adversarial review, medium): an image added later goes through the timelock (proposeWorkload →
+    /// applyWorkload), only the author proposes it, and retireWorkload cancels a pending proposal.
     function test_FIXED_addWorkloadGoesThroughTimelock() public {
         uint256 pid = products.propose(_params(8000, 1000, 1000));
         vm.warp(block.timestamp + TIMELOCK + 1);
@@ -111,12 +111,12 @@ contract ProductRegistryTest is Base {
         products.applyWorkload(pid, w2);
 
         vm.warp(block.timestamp + TIMELOCK);
-        products.applyWorkload(pid, w2); // n'importe qui, une fois le délai écoulé
+        products.applyWorkload(pid, w2); // anyone, once the delay has passed
         assertTrue(products.isWorkloadAllowed(pid, w2));
 
         bytes32 w3 = keccak256("image 3");
         products.proposeWorkload(pid, w3);
-        products.retireWorkload(pid, w3); // annule la proposition
+        products.retireWorkload(pid, w3); // cancels the proposal
         vm.warp(block.timestamp + TIMELOCK + 1);
         vm.expectRevert(ProductRegistry.NoPendingWorkload.selector);
         products.applyWorkload(pid, w3);
@@ -137,8 +137,8 @@ contract ProductRegistryTest is Base {
         assertEq(p.version, 2);
     }
 
-    /// v2.1 : une mise à jour peut AUSSI changer manifestURI, derrière le MÊME timelock ; l'URI proposé est public
-    /// pendant l'attente ; seul l'auteur propose ; n'importe qui applique.
+    /// v2.1: an update can ALSO change manifestURI, behind the SAME timelock; the proposed URI is public
+    /// during the wait; only the author proposes; anyone applies.
     function test_v21_proposeUpdateWithURI_timelocked() public {
         uint256 pid = products.propose(_params(8000, 1000, 1000));
         vm.warp(vm.getBlockTimestamp() + TIMELOCK + 1);
@@ -163,7 +163,7 @@ contract ProductRegistryTest is Base {
         vm.warp(vm.getBlockTimestamp() + TIMELOCK + 1);
         vm.expectEmit(true, false, false, true, address(products));
         emit ProductRegistry.ManifestURIUpdated(pid, "ipfs://m2");
-        vm.prank(user); // n'importe qui applique, une fois le délai écoulé
+        vm.prank(user); // anyone applies, once the delay has passed
         products.applyUpdate(pid);
 
         assertEq(products.manifestURI(pid), "ipfs://m2");
@@ -176,8 +176,8 @@ contract ProductRegistryTest is Base {
         assertFalse(set, "plus rien en attente");
     }
 
-    /// v2.1 : une nouvelle proposition SANS URI remplace la précédente en entier : l'URI proposé avant n'est pas appliqué
-    /// (rien ne passe sans avoir été visible pendant tout le timelock).
+    /// v2.1: a new proposal WITHOUT a URI replaces the previous one entirely: the URI proposed before is not applied
+    /// (nothing passes without having been visible for the whole timelock).
     function test_v21_proposeUpdateWithoutURI_dropsPendingURI() public {
         uint256 pid = products.propose(_params(8000, 1000, 1000));
         vm.warp(vm.getBlockTimestamp() + TIMELOCK + 1);
@@ -224,13 +224,13 @@ contract OperatorBondTest is Base {
 
     function test_exposureHalfBondCap() public {
         _bondWithSelfAsSettlement();
-        _bondOperator(opPk, 1000e6); // moitié = 500e6
+        _bondOperator(opPk, 1000e6); // half = 500e6
 
-        bond.consumeExposure(operator, 1, 300e6, 0); // plafond produit 0 = seule la règle de la caution
+        bond.consumeExposure(operator, 1, 300e6, 0); // product cap 0 = only the bond rule
         vm.expectRevert(OperatorBond.TooMuchExposure.selector);
         bond.consumeExposure(operator, 1, 201e6, 0); // 501 > 500
 
-        // v2 : fenêtre GLISSANTE (trois seaux de 12 h) : l'exposition compte encore à + 24 h, plus à + 36 h
+        // ROLLING window (three 12 h buckets): the exposure still counts at + 24 h, no longer at + 36 h
         vm.warp(block.timestamp + 24 hours + 1);
         vm.expectRevert(OperatorBond.TooMuchExposure.selector);
         bond.consumeExposure(operator, 1, 400e6, 0);
@@ -239,39 +239,39 @@ contract OperatorBondTest is Base {
         assertEq(bond.exposureOf(operator, 1), 400e6);
     }
 
-    /// Correction 10 : le plafond du produit s'ajoute à « ½ caution » ; il compte par (opérateur, produit) ;
-    /// v2 : la règle « ½ caution » est GLOBALE (tous produits confondus) ; le plus strict des deux s'applique.
+    /// The product cap adds to "½ bond"; it counts per (operator, product);
+    /// the "½ bond" rule is GLOBAL (all products together); the stricter of the two applies.
     function test_exposureProductCapOnTopOfHalfBond() public {
         _bondWithSelfAsSettlement();
-        _bondOperator(opPk, 1000e6); // ½ caution = 500
+        _bondOperator(opPk, 1000e6); // ½ bond = 500
 
         bond.consumeExposure(operator, 1, 80e6, 100e6);
         vm.expectRevert(OperatorBond.ExposureCapExceeded.selector);
-        bond.consumeExposure(operator, 1, 21e6, 100e6); // 101 > plafond 100 (alors que ½ caution = 500)
+        bond.consumeExposure(operator, 1, 21e6, 100e6); // 101 > cap 100 (while ½ bond = 500)
         bond.consumeExposure(operator, 1, 20e6, 100e6); // 100 pile
-        bond.consumeExposure(operator, 2, 100e6, 100e6); // autre produit : son propre plafond
+        bond.consumeExposure(operator, 2, 100e6, 100e6); // another product: its own cap
         assertEq(bond.totalExposureOf(operator), 200e6);
 
-        // ½ caution GLOBALE : 200 déjà pris, 301 de plus dépasserait 500
+        // GLOBAL ½ bond: 200 already taken, 301 more would exceed 500
         vm.expectRevert(OperatorBond.TooMuchExposure.selector);
         bond.consumeExposure(operator, 3, 301e6, 1_000e6);
         bond.consumeExposure(operator, 3, 300e6, 1_000e6);
 
-        // 36 h plus tard : plus rien ne compte
+        // 36 h later: nothing counts any more
         vm.warp(block.timestamp + 36 hours + 1);
         bond.consumeExposure(operator, 1, 100e6, 100e6);
         assertEq(bond.exposureOf(operator, 1), 100e6);
         assertEq(bond.totalExposureOf(operator), 100e6);
     }
 
-    /// FIXED v2 (revue adverse, moyenne) : ½ caution sur TOUTE période de 24 h, quel que soit le découpage — y compris
-    /// à cheval sur une limite de seau, et en répartissant sur plusieurs produits.
+    /// FIXED v2 (adversarial review, medium): ½ bond over ANY 24 h period, however it is split, including
+    /// across a bucket boundary, and when spread over several products.
     function test_FIXED_noMoreThanHalfBondOverAny24h() public {
         _bondWithSelfAsSettlement();
         _bondOperator(opPk, 1000e6);
         uint256 t0 = vm.getBlockTimestamp();
         uint256 taken;
-        // 50 prises de 10 USDC, une toutes les 30 min, réparties sur 5 produits, puis tout ce qui passe encore
+        // 50 draws of 10 USDC, one every 30 min, spread over 5 products, then everything that still passes
         for (uint256 i = 0; i < 48; i++) {
             vm.warp(t0 + i * 30 minutes);
             try bond.consumeExposure(operator, 1 + (i % 5), 30e6, 0) {
@@ -309,8 +309,8 @@ contract OperatorBondTest is Base {
         assertEq(usdc.balanceOf(treasury) - tBefore, 500e6);
     }
 
-    /// FIXED v2 (revue adverse, haute) : plus de clé qui saisit les cautions. Câblage UNE fois par le déployeur ;
-    /// ensuite un nouveau contrat de règlement n'est autorisé qu'après 8 jours : l'opérateur part avant.
+    /// FIXED v2 (adversarial review, high): no key can seize bonds any more. Wiring happens ONCE by the deployer;
+    /// after that, a new settlement contract is allowed only after 8 days: the operator leaves first.
     function test_FIXED_newSettlementOnlyAfterDelay() public {
         _bondOperator(opPk, 1000e6);
         address[] memory none = new address[](0);
@@ -327,12 +327,12 @@ contract OperatorBondTest is Base {
         vm.expectRevert(OperatorBond.NotOwner.selector);
         bond.proposeSettlement(thief);
 
-        bond.proposeSettlement(thief); // ce contrat de test est le propriétaire
+        bond.proposeSettlement(thief); // this test contract is the owner
         assertFalse(bond.isSettlement(thief));
         vm.expectRevert(OperatorBond.TooEarly.selector);
         bond.applySettlement(thief);
 
-        // l'opérateur voit la proposition et retire sa caution avant qu'elle prenne effet
+        // the operator sees the proposal and withdraws its bond before it takes effect
         vm.prank(operator);
         bond.requestUnbond(1000e6);
         vm.warp(block.timestamp + bond.UNBOND_DELAY());
@@ -344,20 +344,20 @@ contract OperatorBondTest is Base {
         bond.applySettlement(thief);
         assertTrue(bond.isSettlement(thief));
 
-        // frein d'urgence : retrait immédiat
+        // emergency brake: immediate removal
         bond.removeSettlement(thief);
         assertFalse(bond.isSettlement(thief));
     }
 
-    /// FIXED v2 (revue adverse, haute) : aucun retrait moins de 7 jours après la dernière exposition.
+    /// FIXED v2 (adversarial review, high): no withdrawal less than 7 days after the last exposure.
     function test_FIXED_withdrawLockedSevenDaysAfterExposure() public {
         _bondWithSelfAsSettlement();
         _bondOperator(opPk, 1000e6);
         vm.prank(operator);
         bond.requestUnbond(100e6);
         vm.warp(block.timestamp + 6 days);
-        bond.consumeExposure(operator, 1, 10e6, 0); // exposition au 6e jour
-        vm.warp(vm.getBlockTimestamp() + 1 days + 1); // la demande a plus de 7 jours, l'exposition 1 jour
+        bond.consumeExposure(operator, 1, 10e6, 0); // exposure on day 6
+        vm.warp(vm.getBlockTimestamp() + 1 days + 1); // the request is more than 7 days old, the exposure 1 day
         vm.prank(operator);
         vm.expectRevert(OperatorBond.UnbondLocked.selector);
         bond.withdraw();
@@ -368,8 +368,8 @@ contract OperatorBondTest is Base {
         assertEq(bond.bondOf(operator), 900e6);
     }
 
-    /// FIXED v2 (revue adverse, basse (d)) : la caution minimale est réservée par clé d'enclave ; seule la caution
-    /// libre se retire ou couvre une nouvelle enclave.
+    /// FIXED v2 (adversarial review, low): the minimum bond is reserved per enclave key; only the free bond
+    /// can be withdrawn or cover a new enclave.
     function test_FIXED_minBondReservedPerEnclave() public {
         _bondOperator(opPk, 250e6);
         uint256 pid = _proposeAndActivate(address(sessionPay), false, bytes32("m"), 1e6, 100e6, 0);
@@ -378,7 +378,7 @@ contract OperatorBondTest is Base {
         assertEq(bond.freeBond(operator), 50e6);
         assertEq(bond.reservedFor(vm.addr(0x7001)), 100e6);
 
-        // une 3e enclave ne tient plus sur 50 USDC libres
+        // a 3rd enclave no longer fits in 50 free USDC
         bytes32 x = keccak256(abi.encodePacked("x25519", bytes32("r3")));
         bytes memory q = abi.encodePacked("quote", bytes32("r3"));
         module.setMeasurements(q, _measurements(pid, operator, vm.addr(0x7003), x, 999, false));
@@ -390,19 +390,19 @@ contract OperatorBondTest is Base {
         vm.expectRevert(OperatorBond.InsufficientBond.selector);
         bond.requestUnbond(51e6);
 
-        // retirer une enclave libère sa réservation
+        // retiring an enclave releases its reservation
         vm.prank(operator);
         registry.retire(vm.addr(0x7001));
         assertEq(bond.freeBond(operator), 150e6);
         vm.prank(operator);
         bond.requestUnbond(150e6);
 
-        // seul le registre réserve ou libère
+        // only the registry reserves or releases
         vm.expectRevert(OperatorBond.NotRegistry.selector);
         bond.release(vm.addr(0x7002));
     }
 
-    /// v2 (revue adverse, plausible) : on ne se lie qu'à un agent ERC-8004 dont on est propriétaire (ou approuvé).
+    /// Adversarial review (plausible): one can only link to an ERC-8004 agent one owns (or is approved for).
     function test_setAgentIdRequiresOwnership() public {
         vm.prank(operator);
         uint256 agent = identity.register("ipfs://agent-operateur");
@@ -414,7 +414,7 @@ contract OperatorBondTest is Base {
         vm.expectRevert(OperatorBond.NotAgentOwner.selector);
         bond.setAgentId(agent);
 
-        vm.prank(operator); // le propriétaire approuve operator2 : il peut s'y lier, operator perd le lien
+        vm.prank(operator); // the owner approves operator2: it can link to it, operator loses the link
         identity.setApprovalForAll(operator2, true);
         vm.prank(operator2);
         bond.setAgentId(agent);
@@ -424,8 +424,8 @@ contract OperatorBondTest is Base {
 }
 
 contract VerdictLogTest is Base {
-    /// FIXED v2 (revue adverse, haute) : VerdictLog — câblage une fois par le déployeur, nouvel appelant après 8 jours,
-    /// retrait immédiat ; une clé seule n'écrit plus de faux verdict.
+    /// FIXED v2 (adversarial review, high): VerdictLog: wiring once by the deployer, a new caller after 8 days,
+    /// immediate removal; a key alone can no longer write a false verdict.
     function test_FIXED_newCallerOnlyAfterDelay() public {
         address[] memory none = new address[](0);
         vm.expectRevert(VerdictLog.AlreadyInitialized.selector);
