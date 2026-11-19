@@ -1092,6 +1092,19 @@ function gotBmp(k: number, bmp: ImageBitmap) {
 // ---- The gate: what it waits for, then open ----
 let gateT0 = 0, gateUiAt = 0, copDone = false, gateResolve: ((ok: boolean) => void) | null = null
 let restAt = 0, dK = -2, dB = -2, dA = -1, lastMetaPos = NaN, tripWas = false, tripEnd = 0
+/** The scroll stops (story.ts) as the film last mapped them: they appear as the sections mount, and they move when
+ *  Lenis updates its limit (250 ms after a change of page height). The mapping follows every change, and the gate
+ *  opens only on stops that have held for 3 refreshes (a return visit opened before they existed: its first trip ran
+ *  ahead on the linear page, then jumped back 27 to 45 frames when the mapping came) */
+let stSig = 0, stN = 0, stSame = 0, gateOkAt = 0
+function stopsCheck() {
+  const st = (window as unknown as { __stops?: () => { y: number }[] }).__stops?.()
+  let h = st ? st.length : 0
+  if (st) for (const x of st) h = (Math.imul(h, 31) + x.y) | 0
+  if (h === stSig) { stSame++; return }
+  stSig = h; stN = st ? st.length : 0; stSame = 0
+  if (stN >= 2) measure()
+}
 /** The first motion frames: every frame wanted at the position decoded (the ring and the way to the next stop), or
  *  the first 48 of them one second after the pack */
 function ringDecoded(now: number): boolean {
@@ -1142,12 +1155,16 @@ function gateTick(now: number, rest: boolean) {
   // the first rest sharp, if it comes soon (motion.bin's odd frames are still streaming and share the link)
   const sharpOk = ringOk && ((sharpOn && sharpK === k) || now - M.tRing > 800)
   const copOk = copDone || (M.tPack > 0 && now - M.tPack > 2000)
-  if (ringOk && sharpOk && copOk) openGate()
+  // and the stops held (at most 2 s more: the page then opens on what it has, the mapping follows later changes)
+  if (!(ringOk && sharpOk && copOk)) { gateOkAt = 0; return }
+  if (!gateOkAt) gateOkAt = now
+  if ((stN >= 2 && stSame >= 3) || now - gateOkAt > 2000) openGate()
 }
 function tickM(dt: number, firstDraw: () => void) {
   if (!film.man) return
   tickN++
   const now = performance.now()
+  stopsCheck()
   if (SY.length < 2 && UNI > 0 && (++segTry & 31) === 1) segs()
   const p = posAt(scrollY(), world.protoQ)
   if (p - lastPos > 0.5) { dir = 1; lastPos = p } else if (lastPos - p > 0.5) { dir = -1; lastPos = p }
