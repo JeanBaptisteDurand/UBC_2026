@@ -1,9 +1,10 @@
 /**
- * Relais strict + PREUVES D'ÉTAT (10/11/2026) : devant un RPC scripté qui sert un VRAI bloc d'Arc testnet et ses vraies
- * preuves (test/fixtures/arc-testnet-state-proofs.json), le relais rend au moteur les valeurs PROUVÉES ; chaque mensonge
- * sur l'état (solde, nonce, case, code, stateRoot) devient une violation « state_proof » ou « header » (rien n'est signé),
- * et une preuve indisponible (nœud hors fenêtre) un échec passager (rejeu en échec fermé). Témoin : sans l'option, le même
- * mensonge sur un solde passe (c'est la limite que l'option ferme).
+ * Strict relay + state proofs (10 Nov 2026): in front of a scripted RPC that serves a real Arc testnet block and its real
+ * proofs (test/fixtures/arc-testnet-state-proofs.json), the relay gives the engine the proven values; every lie about
+ * the state (balance, nonce, slot, code, stateRoot) becomes a "state_proof" or "header" violation (nothing is signed),
+ * and an unavailable proof (node outside its window) a transient failure (the replay fails closed). Control case:
+ * without the option, the same lie about a balance goes through (the limit that the option closes).
+ * Messages that the enclave code prints are matched as it prints them.
  */
 import { readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
@@ -32,7 +33,7 @@ const nzSlot = usdc.storageProof.find((s) => BigInt(s.value) !== 0n)!;
 
 type Lie = "none" | "balance" | "node" | "storage" | "code" | "stateRoot" | "window" | "plain-balance";
 
-/** RPC scripté : le vrai bloc N et les vraies preuves, avec un mensonge au choix. */
+/** Scripted RPC: the real block N and the real proofs, with a chosen lie. */
 async function fakeRpc(lie: Lie): Promise<{ url: string; server: Server; calls: string[] }> {
   const calls: string[] = [];
   const answer = (q: { id: unknown; method: string; params: unknown[] }) => {
@@ -42,7 +43,7 @@ async function fakeRpc(lie: Lie): Promise<{ url: string; server: Server; calls: 
       case "eth_getBlockByNumber": {
         if (q.params[0] !== TAG) return ok(null);
         const b = clone(fx.block);
-        if (lie === "stateRoot") b.stateRoot = usdc.storageHash; // autre racine, même hash annoncé
+        if (lie === "stateRoot") b.stateRoot = usdc.storageHash; // another root, same announced hash
         return ok(b);
       }
       case "eth_getProof": {
@@ -70,7 +71,7 @@ async function fakeRpc(lie: Lie): Promise<{ url: string; server: Server; calls: 
         return ok(lie === "plain-balance" ? `0x${(BigInt(p.balance) + 10n ** 18n).toString(16)}` : p.balance);
       }
       default:
-        return { jsonrpc: "2.0", id: q.id, error: { code: -32601, message: "méthode inconnue du banc" } };
+        return { jsonrpc: "2.0", id: q.id, error: { code: -32601, message: "method unknown to the test bench" } };
     }
   };
   const server = createServer((rq, rs) => {
@@ -102,8 +103,8 @@ async function setup(lie: Lie, proofs = true) {
   return { relay, calls: up.calls };
 }
 
-describe("relais strict avec preuves d'état (vrai bloc d'Arc testnet)", () => {
-  it("rend les valeurs PROUVÉES : solde, nonce, case non nulle, code, compte absent, eth_getAccountInfo", async () => {
+describe("strict relay with state proofs (real Arc testnet block)", () => {
+  it("returns the proven values: balance, nonce, non-zero slot, code, absent account, eth_getAccountInfo", async () => {
     const { relay, calls } = await setup("none");
     expect(await relay.call("eth_getBalance", [usdc.address, TAG])).toBe(`0x${BigInt(usdc.balance).toString(16)}`);
     expect(await relay.call("eth_getTransactionCount", [registry.address, TAG])).toBe(`0x${BigInt(registry.nonce).toString(16)}`);
@@ -116,59 +117,59 @@ describe("relais strict avec preuves d'état (vrai bloc d'Arc testnet)", () => {
     expect(info.code).toBe(fx.code.code.toLowerCase());
     expect(relay.violation).toBeUndefined();
     expect(calls).toContain("eth_getProof");
-    expect(calls).not.toContain("eth_getBalance"); // la valeur ne vient jamais d'une lecture non prouvée
+    expect(calls).not.toContain("eth_getBalance"); // the value never comes from an unproven read
   });
 
-  it("un solde annoncé autrement que prouvé → violation « state_proof » (verrou)", async () => {
+  it("a balance announced differently from the proof → \"state_proof\" violation (latched)", async () => {
     const { relay } = await setup("balance");
     await expect(relay.call("eth_getBalance", [usdc.address, TAG])).rejects.toBeInstanceOf(RelayViolation);
     expect(relay.violation?.kind).toBe("state_proof");
   });
 
-  it("un nœud de preuve substitué → « state_proof »", async () => {
+  it("a substituted proof node → \"state_proof\"", async () => {
     const { relay } = await setup("node");
     await expect(relay.call("eth_getTransactionCount", [usdc.address, TAG])).rejects.toBeInstanceOf(RelayViolation);
     expect(relay.violation?.kind).toBe("state_proof");
   });
 
-  it("une case de stockage gonflée → « state_proof »", async () => {
+  it("an inflated storage slot → \"state_proof\"", async () => {
     const { relay } = await setup("storage");
     await expect(relay.call("eth_getStorageAt", [usdc.address, nzSlot.key, TAG])).rejects.toBeInstanceOf(RelayViolation);
     expect(relay.violation?.kind).toBe("state_proof");
   });
 
-  it("un code qui ne redonne pas le hash prouvé → « state_proof »", async () => {
+  it("code that does not reproduce the proven hash → \"state_proof\"", async () => {
     const { relay } = await setup("code");
     await expect(relay.call("eth_getCode", [registry.address, TAG])).rejects.toBeInstanceOf(RelayViolation);
     expect(relay.violation?.kind).toBe("state_proof");
   });
 
-  it("un en-tête N au stateRoot changé (même hash annoncé) → « header » : la racine des preuves est celle de l'ancre", async () => {
+  it("a header N with a changed stateRoot (same announced hash) → \"header\": the proofs' root is the anchor's", async () => {
     const { relay } = await setup("stateRoot");
     await expect(relay.call("eth_getBalance", [usdc.address, TAG])).rejects.toBeInstanceOf(RelayViolation);
     expect(relay.violation?.kind).toBe("header");
   });
 
-  it("preuve indisponible (nœud hors fenêtre) → échec passager, aucune valeur rendue", async () => {
+  it("unavailable proof (node outside its window) → transient failure, no value returned", async () => {
     const { relay } = await setup("window");
     await expect(relay.call("eth_getBalance", [usdc.address, TAG])).rejects.toBeInstanceOf(UpstreamFailure);
     expect(relay.violation).toBeUndefined();
   });
 
-  it("TÉMOIN : sans l'option, le même mensonge sur un solde passe (la limite que les preuves ferment)", async () => {
+  it("control: without the option, the same lie about a balance goes through (the limit that proofs close)", async () => {
     const { relay } = await setup("plain-balance", false);
     const lied = await relay.call("eth_getBalance", [usdc.address, TAG]);
     expect(BigInt(lied as string)).toBe(BigInt(usdc.balance) + 10n ** 18n);
     expect(relay.violation).toBeUndefined();
   });
 
-  it("les preuves exigent la politique d'en-tête « arc » et une ancre (sinon en-tête et preuves pourraient être fabriqués ensemble)", async () => {
+  it("proofs require the \"arc\" header policy and an anchor (otherwise the header and the proofs could be forged together)", async () => {
     await expect(startStrictRelay({ upstream: "http://127.0.0.1:9", blockN: N, anchorHash: fx.block.hash, stateProofs: {}, headerPolicy: "shape" })).rejects.toThrow(/arc/);
     await expect(startStrictRelay({ upstream: "http://127.0.0.1:9", blockN: N, stateProofs: {} })).rejects.toThrow(/ancre/);
   });
 });
 
-describe("DURCISSEMENT #4 : le chainId du rejeu est exigé (pas celui d'un RPC menteur)", () => {
+describe("hardening #4: the replay's chainId is required (not the one a lying RPC reports)", () => {
   async function relayChainId(served: string, expected?: number): Promise<StrictRelay> {
     const server = createServer((rq, rs) => {
       let body = "";
@@ -178,7 +179,7 @@ describe("DURCISSEMENT #4 : le chainId du rejeu est exigé (pas celui d'un RPC m
         const one = (q: any) =>
           q.method === "eth_chainId"
             ? { jsonrpc: "2.0", id: q.id, result: served }
-            : { jsonrpc: "2.0", id: q.id, error: { code: -32601, message: "hors sujet" } };
+            : { jsonrpc: "2.0", id: q.id, error: { code: -32601, message: "off topic" } };
         rs.writeHead(200, { "content-type": "application/json" });
         rs.end(JSON.stringify(Array.isArray(j) ? j.map(one) : one(j)));
       });
@@ -190,11 +191,11 @@ describe("DURCISSEMENT #4 : le chainId du rejeu est exigé (pas celui d'un RPC m
     return relay;
   }
 
-  it("la bonne valeur passe ; une autre valeur est une violation « chain » (rien n'est signé)", async () => {
+  it("the right value passes; another value is a \"chain\" violation (nothing is signed)", async () => {
     const good = `0x${(5042002).toString(16)}`;
     expect(await (await relayChainId(good, 5042002)).call("eth_chainId", [])).toBe(good);
     await expect((await relayChainId("0x1", 5042002)).call("eth_chainId", [])).rejects.toBeInstanceOf(RelayViolation);
-    // sans expectedChainId : n'importe quelle valeur passe (compatibilité)
+    // without expectedChainId: any value passes (compatibility)
     expect(await (await relayChainId("0x1")).call("eth_chainId", [])).toBe("0x1");
   });
 });
