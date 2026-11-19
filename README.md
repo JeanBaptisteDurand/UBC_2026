@@ -360,6 +360,11 @@ deployments.*.json  every deployed address and transaction: v2, v2.1 (live), v3,
 - Two asks: an Arc RPC that serves historical `eth_getProof`, and Intel's DCAP verifier on Arc mainnet as a shared
   public good.
 
+## License
+
+MIT, see [LICENSE](LICENSE). Vendored third-party code keeps its own license and records its exact upstream commit:
+[solady](contracts/lib/solady-0.0.160/VENDORED.md) and [Smooth CryptoLib](contracts/lib/smooth-crypto-lib/VENDORED.md).
+
 ## Team
 
 - Jean-Baptiste Durand ([@JeanBaptisteDurand](https://github.com/JeanBaptisteDurand))
