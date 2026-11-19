@@ -5,7 +5,7 @@
  *
  *  Garde-fous (audit du 7/11, failles n° 3, 5 et 9 ; vérification du 8/11) :
  *  - débit par IP (celle du client, posée par Caddy dans X-Forwarded-For), assez haut pour une salle entière derrière un
- *    même Wi-Fi (démo d'Austin). La défense contre les abus tient au coût, pas à l'adresse : une signature INVALIDE se
+ *    même Wi-Fi (une démo en salle). La défense contre les abus tient au coût, pas à l'adresse : une signature INVALIDE se
  *    compte par IP (30 par minute, puis plus aucune vérification pour cette IP pendant la minute) ; une signature
  *    VALIDE se compte par compte (30 actions, 10 lectures ouvertes, 300 lectures par minute), et personne ne peut
  *    épuiser le budget d'un autre compte ; les codes faux se comptent par réseau (/24 en IPv4, /48 en IPv6), sans
@@ -83,7 +83,7 @@ const LIMITS = {
    *  vérification d'un processeur (≈ 500 par seconde), 10 minutes de lectures en remplissent 300 000. */
   consumedTotal: 500_000,
 };
-/** Débit par IP et par minute : assez pour une salle entière derrière un même Wi-Fi (démo d'Austin : des dizaines
+/** Débit par IP et par minute : assez pour une salle entière derrière un même Wi-Fi (une démo en salle : des dizaines
  *  d'opérateurs, une seule adresse ; le site lit la liste toutes les 10 s et un détail toutes les 15 s). */
 const RATE = { pairStart: 30, pairLookup: 30, pairPoll: 600, signed: 120, signedRead: 600, nonce: 240, keyList: 300, heartbeatIp: 600, heartbeatKey: 30 };
 /** Signatures INVALIDES par IP et par minute : au-delà, plus aucune vérification pour cette IP jusqu'à la fin de la
@@ -482,7 +482,7 @@ const ORIGINS: Array<{ domain: string; uri: string }> = (() => {
 /** le réseau des signatures : Arc testnet (5042002) */
 const CHAIN_ID: number = arcTestnet.id;
 
-/** La phrase de chaque signature (ligne « statement » d'EIP-4361), en anglais : le jury d'Austin la lit dans son wallet.
+/** La phrase de chaque signature (ligne « statement » d'EIP-4361), en anglais : on la lit dans son wallet.
  *  En ASCII : c'est la grammaire d'EIP-4361, et un wallet ne contrôle le domaine que d'un message qu'il sait lire. Le
  *  site écrit exactement les mêmes (web/src/signin.ts ; services/api/test/security.test.ts vérifie qu'elles concordent).
  *  Toutes commencent par STATEMENT_PREFIX (le mode test ne signe que ces messages-là). */

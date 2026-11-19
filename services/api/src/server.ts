@@ -278,10 +278,14 @@ const IMAGE_OF = (() => {
   // condensat) : le copilote du site en enclave (produit 4), image r2, inscrit le 19/11 (tx 0xbe9deb65…), clé 0xfD0F…305a
   m.set("0x7c4e666755be9d9443913f07e3f6265e6b12b5d3af73da6f5f889c1e70e39d63",
     "ghcr.io/jeanbaptistedurand/archive-copilot-enclave@sha256:eeb889b054e021ff17ee933873080403965623f4f36693986f2d780b269bf5dd");
+  // 19/11 (r3) : the same site copilot, image v22-site-r3 (ghcr.io/jeanbaptistedurand/archive-copilot-enclave:v22-site-r3),
+  // enclave 0x09061F21A5b938cD941ea9eDfa481f89DEb716Ac
+  m.set("0x5771d334e0566b3b6126c630be055e9be6b94dd8eedd66fb076955b8b8bcebe0",
+    "ghcr.io/jeanbaptistedurand/archive-copilot-enclave@sha256:22a18ce87d4ec47a37b526f431e208dab057f4db7170ff8d4fdb2983e95327ec");
   return m;
 })();
 /** 19/11 (r2) : les SealedBountyVerified remplacés (deployments.v21.testnet.json, levels.superseded : celui de l'ancien
- *  produit 6, neutralisé le 12/11 et remplacé par le 7). Hors de l'index (aucune prime n'y a été payée), mais leur produit
+ *  produit 6, désactivé le 10/11 et remplacé par le 7). Hors de l'index (aucune prime n'y a été payée), mais leur produit
  *  reste une PRIME : la chaîne de preuves dit « aucune prime payée », jamais « appel payé ou gratuit, pas de verdict ». */
 const SUPERSEDED_BOUNTIES: ReadonlySet<string> = new Set(
   (((deploymentsV21 as any).levels?.superseded ?? []) as any[]).map((x) => lc(x?.SealedBountyVerified)).filter((x) => ADDR_RE.test(x)),
