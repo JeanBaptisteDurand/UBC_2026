@@ -984,7 +984,7 @@ function drawM(): number {
 const sharpC = new Map<number, ImageBitmap>()
 let sharpMax = 6, sharpK = -1, sharpOn = false, sharpWant = -1, sharpUpTick = -1, tickN = 0, sId = 0, fadeK = -1, fadeT0 = 0, fadeU = 0
 const sFetch = new Set<number>(), sDec = new Set<number>(), sJobs = new Map<number, number>()
-let stopKs: number[] = [], stopKsOf: number[] | null = null
+let stopKs: number[] = [], stopKsOf: number[] | null = null, stopKsLim = -1
 const sInflight = () => (film.rate >= 8 ? 4 : 2)
 function sharpGet(k: number, dec: boolean) {
   const m = film.man!
@@ -1065,7 +1065,15 @@ function sharpTick(rest: boolean, now: number, onFirstDraw: () => void) {
   }
   // once the pack is in: the stops' sharp frames (desktop, the stop trips land there), then 2 frames around the rest
   if ((M.done || M.gate === 'stops') && sFetch.size < sInflight()) {
-    if (stopKsOf !== stopF) { stopKsOf = stopF; stopKs = PHONE ? [] : [...new Set(stopF.map((x) => Math.round(x)))] }
+    // with the top (Home) and the end of the page (End lands at Lenis's limit, 76 px below the last stop)
+    const lim = getLenis()?.limit ?? -1
+    if (stopKsOf !== stopF || lim !== stopKsLim) {
+      stopKsOf = stopF; stopKsLim = lim
+      const ks = stopF.map((x) => Math.round(x))
+      ks.push(Math.round(posAtQ(0)))
+      if (lim > 0) ks.push(Math.round(posAtQ(lim)))
+      stopKs = PHONE ? [] : [...new Set(ks)]
+    }
     for (const s of stopKs) { if (sFetch.size >= sInflight()) break; if (!blobs[s]) sharpGet(s, false) }
     if (rest && k >= 0) for (const d of [1, -1, 2, -2]) { if (sFetch.size >= sInflight()) break; if (!blobs[k + d]) sharpGet(k + d, false) }
   }
