@@ -24,7 +24,7 @@ import {IValidationRegistry} from "./interfaces/IERC8004.sol";
 ///         v2.1b (after a second adversarial review): Circle's registry has only ONE requestHash space for everyone
 ///         ("exists" whatever the agent), and our requestHashes can be computed in advance (a session is known from
 ///         its opening, a bounty from its acceptance...). A third party, with a freely created agent, could therefore
-///         take the one of a future verdict, and the verdict was skipped forever. Now, if the request under
+///         take the requestHash of a future verdict, which was then skipped forever. Now, if the request under
 ///         `requestHash` fails, VerdictLog makes it again under a hash SALTED with the previous block's hash
 ///         (saltedHash), unknown before this block, so it cannot be taken in advance. RequestHashSalted(requestHash,
 ///         salted) says so; Recorded carries the hash ACTUALLY written (indexers read Recorded, they do not recompute

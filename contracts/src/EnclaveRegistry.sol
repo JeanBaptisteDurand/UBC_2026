@@ -28,7 +28,7 @@ import {DstackEventLog} from "./lib/DstackEventLog.sol";
 ///           taking it back after the grace period, is refused (SignerBoundElsewhere). A proof of equivocation
 ///           therefore still reaches the right operator (honest keys are ephemeral, so nothing is lost);
 ///         - an image retired from the product invalidates its enclaves WITHOUT grace (invalidate or
-///           invalidateRetiredWorkload): the emergency brake brakes;
+///           invalidateRetiredWorkload), so the emergency brake really stops them;
 ///         - the product's minimum bond is RESERVED for each registered key (OperatorBond.reserve), and released on
 ///           retirement or invalidation.
 ///
@@ -60,7 +60,7 @@ contract EnclaveRegistry is IEnclaveRegistry {
     ///         renewal planning): the rule itself is in blocks.
     uint64 public immutable BLOCK_TIME_MS;
 
-    /// @dev Domain preimage of REPORTDATA[0:32]. The enclave computes the same.
+    /// @dev Domain tag of the REPORTDATA[0:32] preimage; the enclave builds the same preimage.
     string private constant RD_TAG = "ARC-ENCLAVE-v1";
 
     mapping(address signer => Enclave) private _enclaves;

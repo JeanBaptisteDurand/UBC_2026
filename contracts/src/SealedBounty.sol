@@ -518,8 +518,8 @@ contract SealedBounty is EIP712, UsdcPayer {
         uint256 total = po.amount + po.netFee + po.opFee;
         if (bnty.balance < total) revert PoolTooSmall();
 
-        // signatures of enclaves active at block N; above the single-enclave cap (the TIER amount): k distinct
-        // operators
+        // signatures of enclaves active at block N; above the single-enclave cap (compared with the TIER amount),
+        // k distinct operators
         po.claimDigest = _hashTypedDataV4(_claimHash(r));
         uint256 nOps;
         (po.ops, nOps) = _checkSigners(po.claimDigest, bnty.productId, r.blockN, signatures);

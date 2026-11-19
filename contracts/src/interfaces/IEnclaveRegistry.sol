@@ -84,7 +84,7 @@ interface IEnclaveRegistry {
     function isActiveAt(address signer, uint256 productId, uint256 blockNumber) external view returns (bool);
 
     /// @notice Like isActiveAt, but returns the operator responsible for the window (address(0) if inactive).
-    ///         This is what the settlement contracts read: a single call, and the operator of that time.
+    ///         This is what the settlement contracts read: one call, and the operator in charge at that block.
     function activeOperatorAt(address signer, uint256 productId, uint256 blockNumber)
         external
         view
