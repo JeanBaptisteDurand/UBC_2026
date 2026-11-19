@@ -117,13 +117,13 @@ const installScript: Turn = (_req, n) => {
   if (n === 1) {
     return { content: "", tool_calls: [
       call("c1", "docs_search", { query: "install the archive-node agent" }),
-      call("c2", "ui_navigate", { page: "rent", section: "act", reason: "Here is where you install the agent" }),
+      call("c2", "ui_navigate", { page: "rent", section: "install", reason: "Here is where you install the agent" }),
     ] };
   }
   if (n === 2) {
     return { content: "", tool_calls: [
       call("c3", "operator_prepare_bond", { amount: "1", productId: "1" }),
-      call("c4", "ui_highlight", { target: "act", note: "The install command is in this step" }),
+      call("c4", "ui_highlight", { target: "install", note: "The install command is in this step" }),
     ] };
   }
   return { content: FINAL };
@@ -193,7 +193,7 @@ async function panelProof(signer: Address, enc: Uint8Array, reqCt: Uint8Array, i
 }
 
 const ask = (content: string, extra: Record<string, unknown> = {}) => ({
-  messages: [{ role: "user", content }], lang: "en", user: OWNER, page: { name: "rent", section: "act" }, ...extra,
+  messages: [{ role: "user", content }], lang: "en", user: OWNER, page: { name: "rent", section: "install" }, ...extra,
 });
 const sysOf = (h: H, i = 0) => String(h.m.calls[i]!.messages[0]!.content);
 
@@ -212,7 +212,7 @@ test("site en enclave : la même boucle que le serveur (outils d'interface rendu
   const nav = body.tools[1];
   assert.equal(nav.result.ok, true);
   assert.equal(nav.result.page, "rent");
-  assert.equal(nav.result.section, "act");
+  assert.equal(nav.result.section, "install");
   assert.equal(body.tools[3].result.ok, true, "ui_highlight d'une ancre de la page atteinte");
   assert.equal(body.actions.length, 1);
   assert.equal(body.actions[0].tool, "operator_prepare_bond");
@@ -241,7 +241,7 @@ test("site en enclave : l'invite est celle du site, avec la page affichée, la n
   const sys = sysOf(h);
   assert.ok(sys.startsWith(SITE_SYSTEM), "l'invite du site, telle que le serveur la sert");
   assert.match(sys, /The user is looking at: page=rent \(/);
-  assert.match(sys, /section=act/);
+  assert.match(sys, /section=install/);
   assert.ok(sys.includes(OWNER), "wallet connecté");
   assert.match(sys, /WHERE YOU RUN/);
   assert.match(sys, /DEVELOPMENT instance/, "quote simulé : il le dit");
