@@ -15,7 +15,7 @@ before(async () => { api = await startFakeApi(); process.env.ARCHIVE_API = api.b
 after(() => api.close());
 beforeEach(() => { clearListCache(); for (const [p, r] of Object.entries(defaultRoutes())) api.set(p, r); });
 
-test("les listes lisent l'index de l'API : lignes typées, adresses normalisées", async () => {
+test("lists read the API's index: typed rows, normalized addresses", async () => {
   const es = await apiEnclaves({ base: api.base });
   assert.equal(es.length, fixture("enclaves.json").length);
   assert.equal(typeof es[0]!.productId, "bigint");
@@ -35,7 +35,7 @@ test("les listes lisent l'index de l'API : lignes typées, adresses normalisées
   assert.ok(api.urls.includes("/activity?limit=1") && api.urls.includes("/activity?limit=100"), "limite bornée de 1 à 100");
 });
 
-test("API muette : délai de 8 s par défaut (ici 200 ms), puis « liste momentanément indisponible »", async () => {
+test("silent API: 8 s timeout by default (200 ms here), then \"list temporarily unavailable\"", async () => {
   api.set("/enclaves", { body: [], delayMs: 2_000 });
   const t0 = Date.now();
   await assert.rejects(apiEnclaves({ base: api.base, timeoutMs: 200 }), (e: unknown) => {
@@ -47,7 +47,7 @@ test("API muette : délai de 8 s par défaut (ici 200 ms), puis « liste momenta
   assert.ok(Date.now() - t0 < 1_500, "le délai est tenu");
 });
 
-test("erreur HTTP, JSON illisible, forme inattendue, API injoignable : indisponible, jamais une liste vide", async () => {
+test("HTTP error, unreadable JSON, unexpected shape, unreachable API: unavailable, never an empty list", async () => {
   api.set("/bounties", { status: 503, body: { error: "rpc" } });
   await assert.rejects(apiBounties({ base: api.base }), /HTTP 503/);
   api.set("/products", { raw: "<html>524</html>" });
@@ -57,7 +57,7 @@ test("erreur HTTP, JSON illisible, forme inattendue, API injoignable : indisponi
   await assert.rejects(apiEnclaves({ base: "http://127.0.0.1:9" }), /injoignable|n'a pas répondu/);
 });
 
-test("une seule ligne illisible rend TOUTE la liste indisponible (jamais une liste partielle)", async () => {
+test("a single unreadable row makes the WHOLE list unavailable (never a partial list)", async () => {
   const rows = fixture("enclaves.json");
   rows[3].operator = "pas-une-adresse";
   api.set("/enclaves", { body: rows });
@@ -68,7 +68,7 @@ test("une seule ligne illisible rend TOUTE la liste indisponible (jamais une lis
   await assert.rejects(apiBounties({ base: api.base }), /balance/);
 });
 
-test("cache de 15 s des seules réponses réussies", async () => {
+test("15 s cache of successful answers only", async () => {
   const before = api.hits("/products");
   await apiProducts({ base: api.base });
   await apiProducts({ base: api.base });
@@ -79,7 +79,7 @@ test("cache de 15 s des seules réponses réussies", async () => {
   assert.equal((await apiBounties({ base: api.base })).length, 2, "un échec n'est jamais gardé");
 });
 
-test("fraîcheur : bloc jusqu'auquel l'index est complet, avertissement s'il traîne", async () => {
+test("freshness: the block up to which the index is complete, a warning when it lags", async () => {
   const ok = await freshness({ base: api.base });
   assert.equal(ok.indexAJourAuBloc, 71389302);
   assert.equal(ok.avertissement, undefined);
@@ -92,7 +92,7 @@ test("fraîcheur : bloc jusqu'auquel l'index est complet, avertissement s'il tra
   assert.match(String((await freshness({ base: api.base })).indexAJourAuBloc), /inconnu/);
 });
 
-test("outils de liste (copilote et MCP) : l'API seulement, jamais l'explorateur, et la source est dite", async () => {
+test("list tools (copilot and MCP): the API only, never the explorer, and the source is stated", async () => {
   const arc = fakeArc();
   const cx = { apiBase: api.base };
   const e = await enclavesList(arc, {}, cx);
@@ -112,7 +112,7 @@ test("outils de liste (copilote et MCP) : l'API seulement, jamais l'explorateur,
   assert.ok(api.urls.every((u) => !/explorer|blockscout/i.test(u)));
 });
 
-test("API en panne : outils de liste en erreur explicite ; outils où la liste n'est qu'un complément : avertissement", async () => {
+test("API down: list tools return an explicit error; tools where the list is only an extra: a warning", async () => {
   const arc = fakeArc();
   const cx = { apiBase: api.base };
   api.set("/enclaves", { status: 524, body: {} });

@@ -45,14 +45,14 @@ function fromEnv(v: string | undefined) {
   }
 }
 
-test("console : l'invite système est celle du 15/11, octet pour octet", () => {
+test("console: the system prompt is the deployed one, byte for byte", () => {
   assert.equal(COPILOT_SYSTEM.length, PIN.systemLength);
   assert.equal(sha(COPILOT_SYSTEM), PIN.system);
   // le paragraphe qui pilote les pages de la console y est toujours
   assert.match(COPILOT_SYSTEM, /Tu PILOTES l'interface : tu vis dans une bulle en bas à droite du site/);
 });
 
-test("console : noms, définitions et libellés des outils, base de connaissances et consignes de langue épinglés", () => {
+test("console: tool names, definitions and labels, knowledge base and language directives pinned", () => {
   assert.deepEqual(TOOL_DEFS.map((t) => t.name), PIN.toolNames);
   assert.equal(sha(JSON.stringify(TOOL_DEFS)), PIN.toolDefs);
   assert.equal(sha(JSON.stringify(DISPLAY)), PIN.display);
@@ -61,7 +61,7 @@ test("console : noms, définitions et libellés des outils, base de connaissance
   assert.equal(sha(languageDirective("fr")), PIN.langFr);
 });
 
-test("COPILOT_SURFACE absent, vide ou « console » : la même invite, les mêmes outils, les mêmes libellés, aucune surface site", () => {
+test("COPILOT_SURFACE absent, empty or \"console\": the same prompt, the same tools, the same labels, no site surface", () => {
   for (const v of [undefined, "", "console", " Console "]) {
     const c = fromEnv(v);
     assert.equal(sha(c.options.system), PIN.system, String(v));
@@ -85,7 +85,7 @@ const post = (app: ReturnType<typeof createCopilotApp>, body: unknown) => app.re
   method: "POST", headers: { "content-type": "application/json", origin: SITE, "x-forwarded-for": "198.51.100.7" }, body: JSON.stringify(body),
 });
 
-test("console : tools = libellés, navigate = page de la console, actions ; le champ `page` du site est ignoré", async () => {
+test("console: tools = labels, navigate = a console page, actions; the site's `page` field is ignored", async () => {
   const run = async (body: Record<string, unknown>) => {
     const m = scriptedLlm((n) => (n === 1
       ? { content: null, tool_calls: [

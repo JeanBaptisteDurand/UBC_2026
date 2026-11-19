@@ -85,7 +85,7 @@ const fresh = () => { clearListCache(); clearLiveCaches(); };
 /** L'adresse telle que l'outil la rend (somme de contrôle EIP-55). */
 const addrOf = (n: number) => getAddress(addr(n));
 
-test("LIVE STATUS : enclaves actives par produit, niveau vérifié, produits sans enclave, règlement du 7, primes des deux niveaux", async () => {
+test("LIVE STATUS: active enclaves per product, verified level, products with no enclave, product 7's settlement, bounties of both levels", async () => {
   fresh();
   const api = await startFakeApi(routes());
   try {
@@ -102,7 +102,7 @@ test("LIVE STATUS : enclaves actives par produit, niveau vérifié, produits san
   } finally { await api.close(); }
 });
 
-test("LIVE STATUS : une prime fraîche du niveau vérifié est comptée ; aucune enclave active est dit tel quel", async () => {
+test("LIVE STATUS: a fresh verified-level bounty is counted; no active enclave is stated as it is", async () => {
   fresh();
   const api = await startFakeApi(routes());
   try {
@@ -122,7 +122,7 @@ test("LIVE STATUS : une prime fraîche du niveau vérifié est comptée ; aucune
   } finally { await none.close(); }
 });
 
-test("LIVE STATUS : API muette ou en erreur → la ligne de repli (jamais un état deviné) ; succès gardé 30 s ; /levels absent n'empêche rien", async () => {
+test("LIVE STATUS: silent or failing API → the fallback line (never a guessed status); success kept 30 s; a missing /levels blocks nothing", async () => {
   fresh();
   const down = await startFakeApi(routes({ "/enclaves": { status: 503, body: { error: "down" } } }));
   try {
@@ -149,7 +149,7 @@ test("LIVE STATUS : API muette ou en erreur → la ligne de repli (jamais un ét
   } finally { await api.close(); }
 });
 
-test("la ligne LIVE STATUS entre dans l'invite du site, après la page et avant la consigne de langue ; jamais dans la console", async () => {
+test("the LIVE STATUS line enters the site's prompt, after the page and before the language directive; never in the console", async () => {
   const calls: LlmRequest[] = [];
   const llm: Llm = async (req) => { calls.push(req); return { content: "ok" }; };
   const live = "LIVE STATUS (test): 4 of 19 registered enclaves are active.";
@@ -179,7 +179,7 @@ test("la ligne LIVE STATUS entre dans l'invite du site, après la page et avant 
   assert.ok(!String(calls.at(-1)!.messages[0]!.content).includes("\nLIVE STATUS"));
 });
 
-test("bounty_list du site : le niveau ouvert (API) et le niveau vérifié (SealedBountyVerified, on-chain) ; un échec du second est dit", async () => {
+test("site bounty_list: the open level (API) and the verified level (SealedBountyVerified, on-chain); a failure of the second is stated", async () => {
   fresh();
   const api = await startFakeApi(routes());
   const keep = process.env.ARCHIVE_API;
@@ -213,7 +213,7 @@ test("bounty_list du site : le niveau ouvert (API) et le niveau vérifié (Seale
   }
 });
 
-test("marques de citation du modèle (site) : retirées même longues ou non refermées ; le reste du texte demeure", async () => {
+test("the model's citation marks (site): removed even when long or unclosed; the rest of the text stays", async () => {
   const { stripCitationMarks } = await import("../src/app");
   assert.equal(stripCitationMarks('No. It runs on the server【{"source":"site-v4#ia-privee","text":"' + "x".repeat(200) + '"}】.'), "No. It runs on the server.");
   assert.equal(stripCitationMarks('listed in the live status line【source":"site-v4#etat"]}.\nNext line.'), "listed in the live status line\nNext line.");
@@ -221,7 +221,7 @@ test("marques de citation du modèle (site) : retirées même longues ou non ref
 });
 
 
-test("enclaves_list du site : un résumé par produit, dans l'ordre des numéros, avant les lignes ; la console garde le sien", async () => {
+test("site enclaves_list: one summary per product, in number order, before the rows; the console keeps its own", async () => {
   fresh();
   const api = await startFakeApi(routes());
   const keep = process.env.ARCHIVE_API;

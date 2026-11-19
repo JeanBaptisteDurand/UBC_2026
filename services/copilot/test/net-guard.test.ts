@@ -13,7 +13,7 @@ import {
   BlockedUrlError, type Requester,
 } from "../src/net-guard";
 
-test("adresses : privées, locales, réservées et formes IPv6 qui embarquent une IPv4 privée refusées", () => {
+test("addresses: private, local, reserved and IPv6 forms that embed a private IPv4 are refused", () => {
   const refused = [
     "127.0.0.1", "10.1.2.3", "172.16.0.1", "172.31.255.255", "192.168.1.1", "169.254.169.254", "100.64.0.1", "0.0.0.0",
     "192.0.2.1", "198.51.100.7", "203.0.113.9", "224.0.0.1", "255.255.255.255", "198.18.0.1",
@@ -24,7 +24,7 @@ test("adresses : privées, locales, réservées et formes IPv6 qui embarquent un
   for (const ip of ["8.8.8.8", "1.1.1.1", "62.171.153.35", "2606:4700:4700::1111", "::ffff:8.8.8.8", "2002:808:808::1"]) assert.equal(isPublicIp(ip), true, ip);
 });
 
-test("URL : http(s) seulement, sans identifiants ; URL d'enclave sans requête ni fragment, préfixe de passerelle gardé", () => {
+test("URL: http(s) only, no credentials; enclave URL with no query or fragment, gateway prefix kept", () => {
   for (const bad of ["file:///etc/passwd", "gopher://x", "ftp://x.example/", "https://user:pw@x.example/", "pas une url"]) {
     assert.throws(() => checkUrl(bad), BlockedUrlError, bad);
   }
@@ -35,7 +35,7 @@ test("URL : http(s) seulement, sans identifiants ; URL d'enclave sans requête n
   assert.equal(enclaveEndpoint("https://abc-8802.dstack.phala.network", "/attest").href, "https://abc-8802.dstack.phala.network/attest");
 });
 
-test("URL d'enclave : https seulement, port 443 seulement, chemin fixe (racine ou passerelle connue, puis /attest ou /pubkeys)", () => {
+test("enclave URL: https only, port 443 only, fixed path (root or a known gateway, then /attest or /pubkeys)", () => {
   const ok: Array<[string, string, string]> = [
     ["https://abc-8802.dstack-pha1-prod9.phala.network", "/attest", "https://abc-8802.dstack-pha1-prod9.phala.network/attest"],
     ["https://abc.example:443/", "/pubkeys", "https://abc.example/pubkeys"],
@@ -68,7 +68,7 @@ test("URL d'enclave : https seulement, port 443 seulement, chemin fixe (racine o
   assert.throws(() => enclaveEndpoint("file:///etc/passwd", "/attest", dev), BlockedUrlError);
 });
 
-test("URL complète d'une route d'enclave (celle que le SDK appelle) : mêmes règles", () => {
+test("full URL of an enclave route (the one the SDK calls): the same rules", () => {
   assert.equal(enclaveRouteUrl("https://archive.example/enclave/inference/pubkeys").href, "https://archive.example/enclave/inference/pubkeys");
   assert.equal(enclaveRouteUrl("https://abc.example/attest").href, "https://abc.example/attest");
   for (const bad of [
@@ -78,13 +78,13 @@ test("URL complète d'une route d'enclave (celle que le SDK appelle) : mêmes r�
   assert.equal(enclaveRouteUrl("http://127.0.0.1:8802/pubkeys", { allowPrivate: true }).href, "http://127.0.0.1:8802/pubkeys");
 });
 
-test("résolution en développement local (allowPrivate) : noms et adresses privés permis", async () => {
+test("resolution in local development (allowPrivate): private names and addresses allowed", async () => {
   assert.deepEqual(await resolvePinned("localhost", { allowPrivate: true, resolve: async () => [{ address: "127.0.0.1", family: 4 }] }), { address: "127.0.0.1", family: 4 });
   assert.deepEqual(await resolvePinned("10.0.0.7", { allowPrivate: true }), { address: "10.0.0.7", family: 4 });
   await assert.rejects(resolvePinned("localhost", { resolve: async () => [{ address: "127.0.0.1", family: 4 }] }), BlockedUrlError);
 });
 
-test("résolution : localhost et noms internes refusés ; une seule réponse privée suffit à refuser", async () => {
+test("resolution: localhost and internal names refused; a single private answer is enough to refuse", async () => {
   for (const h of ["localhost", "x.localhost", "printer.local", "db.internal", "nas.lan", "box.home.arpa", "127.0.0.1", "[::1]", "169.254.169.254"]) {
     await assert.rejects(resolvePinned(h, { resolve: async () => [{ address: "8.8.8.8", family: 4 }] }), BlockedUrlError, h);
   }
@@ -112,7 +112,7 @@ before(async () => {
 });
 after(() => new Promise<void>((ok) => { srv.closeAllConnections(); srv.close(() => ok()); }));
 
-test("anti-rebinding : l'hôte est résolu UNE fois et la connexion part vers l'adresse vérifiée", async () => {
+test("anti-rebinding: the host is resolved ONCE and the connection goes to the checked address", async () => {
   handler = (_req, res) => { res.writeHead(200, { "content-type": "application/json" }); res.end('{"signer":"0x01","x25519":"0x02"}'); };
   let calls = 0;
   // 1re réponse : l'adresse contrôlée ; toute nouvelle résolution viserait ailleurs (le rebinding classique)
@@ -132,7 +132,7 @@ test("anti-rebinding : l'hôte est résolu UNE fois et la connexion part vers l'
   assert.equal(seen[0]!.body, '{"operator":"0xabc"}');
 });
 
-test("anti-rebinding : réponse publique puis privée → seule la publique sert (requêteur observé, HTTPS avec SNI)", async () => {
+test("anti-rebinding: a public then a private answer → only the public one is used (observed requester, HTTPS with SNI)", async () => {
   let calls = 0;
   const resolve = async () => (++calls === 1 ? [{ address: "93.184.216.34", family: 4 }] : [{ address: "127.0.0.1", family: 4 }]);
   let captured: any = null;
@@ -163,7 +163,7 @@ test("anti-rebinding : réponse publique puis privée → seule la publique sert
   assert.equal(captured, null);
 });
 
-test("refus : redirection, réponse trop grande, délai", async () => {
+test("refused: redirect, response too large, timeout", async () => {
   const pin = { resolve: async () => [{ address: "127.0.0.1", family: 4 }], isAllowed: () => true };
   handler = (_req, res) => { res.writeHead(302, { location: "http://169.254.169.254/latest/meta-data/" }); res.end(); };
   await assert.rejects(safeFetch(`${base}/attest`, {}, pin), /redirection refusée/);

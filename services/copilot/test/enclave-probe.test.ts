@@ -33,12 +33,12 @@ const dev = enclavePolicyOf({ allowPrivateUrls: true });
 const reply = (status: number, body: string, headers: Record<string, string> = { "content-type": "text/html" }) =>
   (_req: IncomingMessage, res: ServerResponse) => { res.writeHead(status, headers); res.end(body); };
 
-test("contexte : https, 443 et adresse publique sauf développement local ; préfixes de passerelle repris du contexte", () => {
+test("context: https, 443 and a public address except in local development; gateway prefixes taken from the context", () => {
   assert.deepEqual(enclavePolicyOf({}), { allowPrivate: false, prefixes: undefined });
   assert.deepEqual(enclavePolicyOf({ allowPrivateUrls: true, enclavePathPrefixes: ["/gw"] }), { allowPrivate: true, prefixes: ["/gw"] });
 });
 
-test("/attest qui répond une erreur : seul le statut revient, jamais le corps", async () => {
+test("/attest answering an error: only the status comes back, never the body", async () => {
   for (const status of [404, 500, 401]) {
     handler = reply(status, BODY);
     await assert.rejects(
@@ -48,7 +48,7 @@ test("/attest qui répond une erreur : seul le statut revient, jamais le corps",
   }
 });
 
-test("redirection : refusée, et la cible n'est jamais contactée (le relais du vérificateur)", async () => {
+test("redirect: refused, and the target is never contacted (the reviewer's relay)", async () => {
   handler = (req, res) => {
     if (req.url === "/attest") { res.writeHead(302, { location: `${base}/secret-after-redirect` }); res.end(); return; }
     reply(200, JSON.stringify(KEYS), { "content-type": "application/json" })(req, res);
@@ -63,7 +63,7 @@ test("redirection : refusée, et la cible n'est jamais contactée (le relais du 
   assert.deepEqual(seen, ["GET /pubkeys"]);
 });
 
-test("réponse 200 qui n'est pas du JSON : refusée sans rien recopier ; JSON : rendu", async () => {
+test("a 200 answer that is not JSON: refused without copying anything; JSON: returned", async () => {
   handler = reply(200, BODY);
   await assert.rejects(fetchEnclaveJson(base, "/attest", {}, dev), (e: any) => /réponse non JSON/.test(e.message) && !e.message.includes("PAGE-DU-SERVEUR"));
   await assert.rejects(fetchEnclavePubkeys(base, 1n, { fetch: guardedFetch(dev) }), (e: any) => !e.message.includes("PAGE-DU-SERVEUR") && !e.message.includes("<html"));
@@ -72,7 +72,7 @@ test("réponse 200 qui n'est pas du JSON : refusée sans rien recopier ; JSON : 
   assert.deepEqual(await fetchEnclavePubkeys(base, 1n, { fetch: guardedFetch(dev) }), KEYS);
 });
 
-test("/pubkeys lu par le SDK : réponse d'erreur rendue SANS corps (le message du SDK ne cite que le statut)", async () => {
+test("/pubkeys read by the SDK: an error answer returned WITHOUT its body (the SDK's message quotes only the status)", async () => {
   handler = reply(404, BODY);
   await assert.rejects(fetchEnclavePubkeys(base, 1n, { fetch: guardedFetch(dev) }), (e: any) => {
     assert.ok(e instanceof EnclaveKeyMismatchError && e.reason === "pubkeys_unreachable");
@@ -85,7 +85,7 @@ test("/pubkeys lu par le SDK : réponse d'erreur rendue SANS corps (le message d
   assert.equal(await r.text(), "", "le corps de l'erreur n'est jamais lu");
 });
 
-test("chemin libre, route autre que /attest ou /pubkeys : refusés AVANT toute connexion", async () => {
+test("free path, a route other than /attest or /pubkeys: refused BEFORE any connection", async () => {
   handler = reply(200, JSON.stringify(KEYS), { "content-type": "application/json" });
   seen.length = 0;
   await assert.rejects(fetchEnclaveJson(`${base}/redir`, "/attest", {}, dev), BlockedUrlError);
@@ -95,7 +95,7 @@ test("chemin libre, route autre que /attest ou /pubkeys : refusés AVANT toute c
   assert.deepEqual(seen, []);
 });
 
-test("mode public (copilote, MCP par défaut) : http, port non standard et réseau privé refusés avant toute connexion", async () => {
+test("public mode (copilot, MCP by default): http, non-standard port and private network refused before any connection", async () => {
   const pub = enclavePolicyOf({});
   seen.length = 0;
   await assert.rejects(fetchEnclaveJson(base, "/attest", {}, pub), /https seulement/);
@@ -127,7 +127,7 @@ function fakeRequester(status: number, body: string, headers: Record<string, str
   return { request, calls };
 }
 
-test("mode public : https sur le port 443, chemin fixe, adresse publique épinglée ; corps d'erreur jamais renvoyé", async () => {
+test("public mode: https on port 443, fixed path, pinned public address; error body never returned", async () => {
   const pub = enclavePolicyOf({});
   const resolve = async () => [{ address: "93.184.216.34", family: 4 }];
   const ok = fakeRequester(200, JSON.stringify(KEYS), { "content-type": "application/json" });
