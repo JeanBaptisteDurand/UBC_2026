@@ -441,7 +441,7 @@ export const en = {
   "hive.price.free": "free",
   "hive.price.pool": "paid by the bounty pool",
   "hive.price.call": "{p} / call",
-  "hive.price.unit": "{p} / unit",
+  "hive.price.unit": "{p} / token",
   "hive.refuted": "caught lying",
   "hive.refuted.title": "Its claim was refuted on Arc and its operator's bond seized",
   // ---------- levels (10/11) : open or verified operators
@@ -1015,7 +1015,7 @@ export const en = {
   "pub.activating": "Activating product #{id}: sign in your wallet…",
   "pub.done": "Product #{id} published and activated: {tx}",
   "pub.card.title": "Publish the product",
-  "pub.card.sub": "Price, billing unit, minimum bond required from operators, allowed image and payment mode. Demo split: 80% operator, 10% author, 10% network (the author gets 30% at most, the network 5% at least).",
+  "pub.card.sub": "Price, billing unit, minimum bond required from operators, allowed image and payment mode. Example split for a new product: 80% operator, 10% author, 10% network (the author gets 30% at most, the network 5% at least; the 7 live products use 95% operator, 0% author, 5% network).",
   "pub.f.price": "Price per unit (USDC)",
   "pub.f.minBond": "Minimum bond (USDC)",
   "pub.f.unit": "Billing unit (tokens per unit)",

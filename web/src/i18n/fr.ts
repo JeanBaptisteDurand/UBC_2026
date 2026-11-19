@@ -435,7 +435,7 @@ export const fr: Dict = {
   "hive.price.free": "gratuit",
   "hive.price.pool": "payé par la cagnotte de la prime",
   "hive.price.call": "{p} / appel",
-  "hive.price.unit": "{p} / unité",
+  "hive.price.unit": "{p} / jeton",
   "hive.refuted": "prise à mentir",
   "hive.refuted.title": "Sa réclamation a été réfutée sur Arc et la caution de son opérateur saisie",
   // ---------- niveaux (10/11) : opérateurs ouverts ou vérifiés
@@ -1004,7 +1004,7 @@ export const fr: Dict = {
   "pub.activating": "activation du produit #{id} : signez dans votre portefeuille…",
   "pub.done": "Produit #{id} publié et activé : {tx}",
   "pub.card.title": "Publier le produit",
-  "pub.card.sub": "Prix, unité facturée, caution minimale exigée des opérateurs, image autorisée et mode de paiement. Parts de démo : 80 % opérateur, 10 % auteur, 10 % réseau (l'auteur touche 30 % au plus, le réseau 5 % au moins).",
+  "pub.card.sub": "Prix, unité facturée, caution minimale exigée des opérateurs, image autorisée et mode de paiement. Exemple de parts pour un nouveau produit : 80 % opérateur, 10 % auteur, 10 % réseau (l'auteur touche 30 % au plus, le réseau 5 % au moins ; les 7 produits en service : 95 % opérateur, 0 % auteur, 5 % réseau).",
   "pub.f.price": "Prix par unité (USDC)",
   "pub.f.minBond": "Caution minimale (USDC)",
   "pub.f.unit": "Unité facturée (jetons par unité)",
