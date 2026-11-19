@@ -64,15 +64,18 @@ npx vite build --base /console/
 ## Languages
 
 English and French, without a library (`src/i18n`): `en.ts` is the reference dictionary and `fr.ts` must have exactly
-the same keys, which the type checker enforces. Errors from the contracts, the SDK and the API are translated from their
-stable codes (`errors.ts`, `i18n/contract-errors.en.ts`, `i18n/sdk-messages.en.ts`, `i18n/api-errors.ts`).
+the same keys, which the type checker enforces. Refusals are explained in the current language: contract errors by
+their name (`i18n/contract-errors.en.ts`), API refusals by their stable code (`i18n/api-errors.ts`) and the SDK's
+messages by rule (`i18n/sdk-messages.en.ts`), all through `errors.ts`.
 
 ## public/
 
 - `datacenter/`: the 3D server room. `room.js` is a prebuilt bundle of the scene and three.js r160; the models and their
   licences are listed in `datacenter/CREDITS.txt`.
-- `manifests/`: the product manifests whose keccak256 is registered on Arc, one set per deployment (v1, v2, v2.1 live,
-  v3 deployed). They are kept unchanged so that every past registration stays verifiable.
+- `manifests/`: the products' manifests, one set per deployment (v1, v2, v2.1 live, v3 deployed). On the live v2.1
+  stack, the keccak256 of each `*-v21.json` file equals the `manifestHash` its product stores on Arc (products 1 to 5
+  and 7): that match is what lets the console show a product's image as proven. Older sets are kept unchanged so that
+  earlier registrations stay checkable.
 - `install.sh` and `archive-node.mjs`: the operator agent, built from `packages/node` and served by the site
   (`curl -fsSL https://archive.62-171-153-35.sslip.io/install.sh | sh`). `install.sh` prints the agent's SHA-256 and
   refuses a mismatch when `ARCHIVE_NODE_SHA256` is set.
