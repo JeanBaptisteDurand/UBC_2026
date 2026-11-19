@@ -1,14 +1,14 @@
 /**
- * v21-setup.ts — met en place les PRODUITS de la pile v2.1 sur Arc testnet (idempotent : relançable sans doublon).
+ * v21-setup.ts — sets up the products of the v2.1 stack on Arc testnet (idempotent: can be re-run without duplicates).
  *
- * Pour chaque produit de la liste : le manifeste public (anglais, pour les juges) est ÉCRIT à partir du fichier compose
- * Phala réellement lancé (image épinglée par condensat, variables mesurées) et des adresses de la pile, dans
- * web/public/manifests/<fichier> ; son keccak256 est inscrit on-chain ; le produit est proposé puis activé (timelock 0
- * sur testnet). L'auteur des produits est la clé du déployeur (.secrets/deployer.json, jamais affichée).
- * L'opérateur se prépare à part : DEPLOYMENTS=… npx tsx scripts/operator-setup.ts (caution, agentId, VerdictLog).
+ * For each product in the list: the public manifest (in English) is written from the Phala compose file actually
+ * launched (image pinned by digest, measured variables) and from the stack's addresses, into
+ * web/public/manifests/<file>; its keccak256 is recorded on-chain; the product is proposed then activated (timelock 0
+ * on testnet). The products' author is the deployer key (.secrets/deployer.json, never printed).
+ * The operator is set up separately: DEPLOYMENTS=… npx tsx scripts/operator-setup.ts (bond, agentId, VerdictLog).
  *
- * Usage : cd enclave && DEPLOYMENTS=deployments.v21.testnet.json npx tsx scripts/v21-setup.ts [--dry]
- *   --dry : écrit les manifestes et affiche ce qui serait proposé, sans transaction.
+ * Usage: cd enclave && DEPLOYMENTS=deployments.v21.testnet.json npx tsx scripts/v21-setup.ts [--dry]
+ *   --dry: writes the manifests and prints what would be proposed, with no transaction.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { createPublicClient, createWalletClient, http, keccak256, toBytes, type Abi, type Address, type Hex } from "viem";
@@ -16,7 +16,7 @@ import { privateKeyToAccount } from "viem/accounts";
 
 const ROOT = new URL("../../", import.meta.url);
 const DEPLOYMENTS = process.env.DEPLOYMENTS;
-if (!DEPLOYMENTS || !/v21/.test(DEPLOYMENTS)) { console.error("DEPLOYMENTS=deployments.v21.testnet.json requis (ce script ne touche pas la v2)"); process.exit(1); }
+if (!DEPLOYMENTS || !/v21/.test(DEPLOYMENTS)) { console.error("DEPLOYMENTS=deployments.v21.testnet.json is required (this script does not touch v2)"); process.exit(1); }
 const D = JSON.parse(readFileSync(new URL(DEPLOYMENTS, ROOT), "utf8"));
 const K = D.contracts as Record<string, Address>;
 const X = D.external as Record<string, Address>;
@@ -25,7 +25,7 @@ const SITE = "https://archive.62-171-153-35.sslip.io";
 const MODEL = "openai/gpt-oss-120b";
 const abi = (name: string): Abi => JSON.parse(readFileSync(new URL(`contracts/out/${name}.sol/${name}.json`, ROOT), "utf8")).abi;
 
-/** Lit un compose Phala : services, image épinglée, variables (mesurées = en clair ; ${…} = chiffrées, non mesurées). */
+/** Reads a Phala compose file: services, pinned image, variables (measured = in clear; ${…} = encrypted, not measured). */
 function readCompose(file: string) {
   const text = readFileSync(new URL(`enclave/phala/${file}`, ROOT), "utf8");
   const services: Record<string, { image: string; measured: Record<string, string>; secret: string[]; ports: string[] }> = {};
@@ -50,7 +50,7 @@ function readCompose(file: string) {
       if (/^\$\{.+\}$/.test(val)) s.secret.push(k!); else s.measured[k!] = val;
     }
   }
-  for (const [n, s] of Object.entries(services)) if (!/@sha256:[0-9a-f]{64}$/.test(s.image)) throw new Error(`${file} : l'image de ${n} n'est pas épinglée par condensat`);
+  for (const [n, s] of Object.entries(services)) if (!/@sha256:[0-9a-f]{64}$/.test(s.image)) throw new Error(`${file}: the image of ${n} is not pinned by digest`);
   return { file, services };
 }
 
@@ -61,7 +61,7 @@ interface Spec {
   compose: string;
   service: string;
   settlement: Address;
-  price: bigint; // micro-USDC par unité (SessionPay) ou par appel (X402Settler)
+  price: bigint; // micro-USDC per unit (SessionPay) or per call (X402Settler)
   param: Hex;
   deterministic: boolean;
   manifest: (c: ReturnType<typeof readCompose>) => Record<string, unknown>;
@@ -75,7 +75,7 @@ const attestation = {
 };
 const composeBlock = (c: ReturnType<typeof readCompose>, service: string) => {
   const s = c.services[service];
-  if (!s) throw new Error(`${c.file} : service ${service} absent`);
+  if (!s) throw new Error(`${c.file}: service ${service} missing`);
   return { composeFile: `enclave/phala/${c.file}`, service, image: s.image, measuredEnv: s.measured, encryptedEnv: s.secret };
 };
 
@@ -167,7 +167,7 @@ const SPECS: Spec[] = [
     }),
   },
   {
-    // 10/11 : la Prime au NIVEAU VÉRIFIÉ. 11/11 : REDÉPLOYÉE en PRODUIT 7 sur la pile corrigée (revue de sécurité) ; preuves d'état désactivées (nœud trop gros), réactivables.
+    // The Sealed Bounty at the verified level, product 7 on the level stack redeployed after the security review; state proofs are off in this deployment and turn on with STATE_PROOF_RPC_URL.
     id: 7n, kind: "bounty-verified", manifestFile: "sealed-bounty-verified-v21.json", compose: "sealed-bounty-verified-v21.yml", service: "sealed-bounty",
     settlement: (D.levels?.SealedBountyVerified ?? "0x0000000000000000000000000000000000000000") as Address, price: 0n,
     param: keccak256(toBytes("arc-foundry v0.8.0-4 arc-anvil --network arc")), deterministic: true,
@@ -203,8 +203,8 @@ async function main() {
     const { request } = await pub.simulateContract({ account: author!, address: K.ProductRegistry!, abi: pr, functionName, args } as any);
     const hash = await wallet!.writeContract(request as any);
     const r = await pub.waitForTransactionReceipt({ hash });
-    console.log(`${label} : ${hash} (statut ${r.status}, gas ${r.gasUsed})`);
-    if (r.status !== "success") throw new Error(`${label} a échoué`);
+    console.log(`${label}: ${hash} (status ${r.status}, gas ${r.gasUsed})`);
+    if (r.status !== "success") throw new Error(`${label} failed`);
   };
   const only = process.env.ONLY_PRODUCT ? BigInt(process.env.ONLY_PRODUCT) : null;
   for (const s of SPECS) {
@@ -219,16 +219,16 @@ async function main() {
       settlement: s.settlement, param: s.param, advisoryIds: [] as string[], unitTokens: 1, outWeight: 1,
     };
     const n = (await pub.readContract({ address: K.ProductRegistry!, abi: pr, functionName: "productCount" })) as bigint;
-    console.log(`produit ${s.id} (${s.kind}) : manifeste ${s.manifestFile} ${manifestHash} ; ${n >= s.id ? "déjà proposé" : "à proposer"}`);
+    console.log(`product ${s.id} (${s.kind}): manifest ${s.manifestFile} ${manifestHash}; ${n >= s.id ? "already proposed" : "to propose"}`);
     if (n >= s.id) {
       const p = (await pub.readContract({ address: K.ProductRegistry!, abi: pr, functionName: "getProduct", args: [s.id] })) as any;
-      if (p.manifestHash?.toLowerCase() !== manifestHash.toLowerCase()) console.log(`  ⚠ le manifeste on-chain (${p.manifestHash}) diffère : mise à jour par proposeUpdateWithURI à faire`);
+      if (p.manifestHash?.toLowerCase() !== manifestHash.toLowerCase()) console.log(`  ⚠ the on-chain manifest (${p.manifestHash}) differs: update it with proposeUpdateWithURI (scripts/update-manifest-v21.ts)`);
       continue;
     }
     if (DRY) continue;
-    if (n !== s.id - 1n) throw new Error(`productCount = ${n} : les produits doivent être créés dans l'ordre (attendu ${s.id - 1n})`);
-    await send("propose", [params], `produit ${s.id} (${s.kind}) proposé`);
-    await send("activate", [s.id], `produit ${s.id} activé`);
+    if (n !== s.id - 1n) throw new Error(`productCount = ${n}: products must be created in order (expected ${s.id - 1n})`);
+    await send("propose", [params], `product ${s.id} (${s.kind}) proposed`);
+    await send("activate", [s.id], `product ${s.id} activated`);
   }
 }
-main().catch((e) => { console.error("ÉCHEC :", e?.shortMessage ?? e?.message ?? e); process.exit(1); });
+main().catch((e) => { console.error("FAILED:", e?.shortMessage ?? e?.message ?? e); process.exit(1); });
