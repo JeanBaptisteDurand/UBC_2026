@@ -88,9 +88,11 @@ export const film = {
   geo: 0,
   /** Fallback level (0: none; 2: one frame in k in flight; 3: Retina brought down to desktop; 4: shadow track in flight) */
   level: 0, k: 1, decMs: 12, cap: 160, budget: LIGHT ? 100e6 : SET === 'retina' ? 480e6 : 300e6, bytes: 0, set: SET,
+  /** Light frames received (light pass) */
+  liteN: 0,
 }
 ;(window as unknown as { __film: typeof film }).__film = film
-;(window as unknown as { __filmDbg: unknown }).__filmDbg = () => ({ bm: [...bm.keys()].sort((a, b) => a - b), dec: [...state].reduce((a, v, i) => (v === 1 ? a.concat(i) : a), [] as number[]), want: [...want.subarray(0, wantN)], pos: film.pos, shown: film.shown, def: film.def, jobs: jobs.size, busy: workers.map((w) => w.busy), sheets: sheets.map((x) => !!x), off: OFF })
+;(window as unknown as { __filmDbg: unknown }).__filmDbg = () => ({ bm: [...bm.keys()].sort((a, b) => a - b), dec: [...state].reduce((a, v, i) => (v === 1 ? a.concat(i) : a), [] as number[]), want: [...want.subarray(0, wantN)], pos: film.pos, shown: film.shown, def: film.def, jobs: jobs.size, busy: workers.map((w) => w.busy), sheets: sheets.map((x) => !!x), off: OFF, lite: { state: liteState, n: film.liteN, w: liteW, h: liteH, bm: bmLite.reduce((a, v) => a + v, 0) } })
 
 // ---- Per-refresh log (measurement tools) ----
 const LOGN = 1 << 15
@@ -100,6 +102,62 @@ const log = { n: 0, t: new Float64Array(LOGN), p: new Float32Array(LOGN), s: new
   /** [t, target (fractional), shown, resolution, draw duration (ms), moving] from entry i */
   read: (i = 0) => { const out: number[][] = []; for (let j = Math.max(i, log.n - LOGN); j < log.n; j++) { const q = j & (LOGN - 1); out.push([log.t[q], log.p[q], log.s[q], log.d[q], log.ms[q], log.mv[q], log.tk[q]]) } return out },
   get n() { return log.n },
+}
+
+// ---- Light pass ----
+// One frame in 2 of the film, reduced to a third and at a low quality, in one file streamed first (lite.bin, made by
+// scripts/film-lite.mjs: 1.9 MB on desktop and Retina, 2.3 MB on phones as sent, ordered 1 frame in 8, then 4, then 2):
+// a first visit has a coherent frame everywhere within seconds instead of the shadow track or a held frame. A sharp
+// frame within 2 frames always goes first; the sharp frame replaces the light one as soon as it is decoded. Off with
+// ?lite=0 and on a data saver. Measured 19/11 from a Mac (cold visit, moving refreshes more than 2.5 frames off or on
+// the shadow track): desktop 4.8% -> 0%, phone 30.4% -> 1.2%.
+const LITE_ON = Q.get('lite') !== '0' && !CONN?.saveData
+const liteB: (Blob | null)[] = []
+/** 1: the bitmap kept for this frame is the light one */
+let bmLite = new Uint8Array(0)
+/** 0 not started, 1 streaming, 2 complete, 3 unavailable (the shadow-track sheets are fetched then); liteCoarse: one
+ *  frame in 4 of the whole film has arrived (a light frame at most 2 frames from any position) */
+let liteState = 0, liteW = 0, liteH = 0, liteCoarse = false
+/** Fingerprint of meta.bin, as scripts/film-lite.mjs computes it: a light file made for another capture is ignored */
+function fingerprint(b: Uint8Array) {
+  let h = 0x811c9dc5
+  for (let i = 0; i < b.length; i += 61) { h ^= b[i]; h = Math.imul(h, 0x01000193) >>> 0 }
+  return (h ^ b.length) >>> 0
+}
+async function loadLite(url: string, n: number, fp: number) {
+  liteState = 1
+  try {
+    const r = await fetch(url, { priority: 'high' } as RequestInit)
+    if (!r.ok) throw new Error(String(r.status))
+    let buf = new Uint8Array(1 << 16), len = 0, count = -1, hdr = 0, at = 0, i = 0, ks: number[] = [], ls: number[] = []
+    const take = (c: Uint8Array) => {
+      if (len + c.length > buf.length) { const nb = new Uint8Array(Math.max(buf.length * 2, len + c.length)); nb.set(buf.subarray(0, len)); buf = nb }
+      buf.set(c, len); len += c.length
+      const dv = new DataView(buf.buffer)
+      if (count < 0 && len >= 20) {
+        if (dv.getUint32(0, true) !== 0x31544c46 || dv.getUint32(12, true) !== n || dv.getUint32(16, true) !== fp) throw new Error('other film')
+        count = dv.getUint32(4, true); liteW = dv.getUint16(8, true); liteH = dv.getUint16(10, true); hdr = 20 + count * 8
+      }
+      if (count >= 0 && !ks.length && len >= hdr) {
+        let total = hdr
+        for (let j = 0; j < count; j++) { ks.push(dv.getUint32(20 + j * 8, true)); ls.push(dv.getUint32(24 + j * 8, true)); total += ls[j] }
+        if (buf.length < total) { const nb = new Uint8Array(total); nb.set(buf.subarray(0, len)); buf = nb }
+        at = hdr
+      }
+      // every light frame complete in what has arrived
+      while (ks.length && i < count && at + ls[i] <= len) {
+        const k = ks[i]
+        if (k < n && !liteB[k]) { liteB[k] = new Blob([buf.slice(at, at + ls[i])], { type: 'image/avif' }); film.liteN++ }
+        at += ls[i]; i++
+      }
+      if (i >= Math.ceil(n / 4)) liteCoarse = true
+    }
+    const rd = r.body?.getReader()
+    if (!rd) take(new Uint8Array(await r.arrayBuffer()))
+    else for (;;) { const { done: end, value } = await rd.read(); if (end) break; if (value) take(value) }
+    liteState = 2
+  } catch { liteState = 3 }
+  if (liteState === 3 || !film.liteN) { liteState = 3; pump() }
 }
 
 // ---- Memory ----
@@ -254,7 +312,7 @@ function predict(): number {
 }
 
 // ---- Decoding workers ----
-type Job = { k: number; sheet: boolean; half: boolean; wi: number }
+type Job = { k: number; sheet: boolean; half: boolean; wi: number; lite?: boolean }
 const NW = FIREFOX && Q.get('fw') !== '1' ? 0 : LIGHT ? 1 : 2
 const workers: { w: Worker; busy: number }[] = []
 const jobs = new Map<number, Job>()
@@ -322,13 +380,17 @@ function done(id: number, bmp: ImageBitmap | null, ms: number, err?: string, ow 
     if (err && /memory|allocat|quota/i.test(err)) film.budget = Math.max(40e6, film.budget / 2)
     return
   }
-  // Measured throughput (moving average)
-  decN++; decSum += ms
-  film.decMs = film.decMs * 0.85 + ms * 0.15
-  film.cap = Math.max(1, workers.length || 1) * 1000 / Math.max(1, film.decMs)
+  // Measured throughput (moving average), on the sharp frames only (a light frame decodes ten times faster)
+  if (!job.lite) {
+    decN++; decSum += ms
+    film.decMs = film.decMs * 0.85 + ms * 0.15
+    film.cap = Math.max(1, workers.length || 1) * 1000 / Math.max(1, film.decMs)
+  }
   if (state[k] !== 1) { if (bmp) bmp.close(); else workers[0].w.postMessage({ type: 'drop', k }); return }
   const bytes = bmp ? bmp.width * bmp.height * 4 : ow * oh * 4
-  bm.set(k, bmp); bmBytes.set(k, bytes); state[k] = 2; film.bytes += bytes
+  // the sharp frame replaces the light one kept until now
+  if (bm.has(k)) { bm.get(k)?.close(); film.bytes -= bmBytes.get(k) ?? 0 }
+  bm.set(k, bmp); bmBytes.set(k, bytes); state[k] = 2; film.bytes += bytes; bmLite[k] = job.lite ? 1 : 0
   evict()
   // A frame nearer the target than the one shown: redraw
   if (Math.abs(k - film.pos) < Math.abs(film.shown - film.pos) + 0.01 || film.def) dirty = true
@@ -339,7 +401,7 @@ function drop(k: number) {
   const b = bm.get(k)
   film.bytes -= bmBytes.get(k) ?? 0; bmBytes.delete(k)
   if (b) b.close(); else workers[0].w.postMessage({ type: 'drop', k })
-  bm.delete(k); state[k] = 0
+  bm.delete(k); state[k] = 0; bmLite[k] = 0
 }
 // What is wanted, in order (the path), is protected from eviction
 let want = new Int32Array(0), wantN = 0, stamp = new Uint32Array(0), stampV = 1
@@ -396,15 +458,18 @@ function schedule() {
     for (let i = 1; i <= R; i++) { addWant(k0 + i * dir); addWant(k0 - i * dir) }
   }
   for (let i = 1; i <= 2; i++) { addWant(k0 + i * dir); addWant(k0 - i * dir) }
-  // Decode in the wanted order
+  // Decode in the wanted order: the sharp frame when it is there (also over a light frame already decoded), otherwise
+  // the light one
   for (let i = 0; i < wantN; i++) {
     const k = want[i]
-    if (state[k]) continue
     const b = blobs[k]
-    if (!b) continue
+    if (state[k] === 1 || (state[k] === 2 && !(bmLite[k] && b))) continue
+    const src = b ?? liteB[k]
+    if (!src) continue
+    const need = b ? fb : liteW * liteH * 4
     // Never beyond the window: evict what is not wanted first
-    if (film.bytes + fb > film.budget) { evict(fb, i + 1); if (film.bytes + fb > film.budget) break }
-    if (!decode({ k, sheet: false, half: false, wi: 0 }, b)) break
+    if (film.bytes + need > film.budget) { evict(need, i + 1); if (film.bytes + need > film.budget) break }
+    if (!decode({ k, sheet: false, half: false, wi: 0, lite: !b }, src)) break
     state[k] = 1
   }
   if (!allLoaded) pump()
@@ -416,6 +481,9 @@ function schedule() {
 // second whatever the bandwidth (measured 19/11: 200 ms per frame from Austin); 16 on a computer, 10 on a phone, 6 on a
 // slow link (where more in flight only delays the urgent frames)
 const MAXF = SLOW ? 6 : LIGHT ? 10 : 16
+/** Until the light pass covers the whole film (one frame in 4), a few sharp requests only (the frames at the position
+ *  and on the way): over HTTP/2 the light file shares the link with every request in flight */
+const maxF = () => (liteState === 1 && !liteCoarse ? (SLOW ? 2 : LIGHT ? 4 : 8) : MAXF)
 let nLoaded = 0
 /** Fetch order around the position: its neighbours first (ahead first), then the whole window coarse to fine (one frame
  *  in 8, in 4, in 2, then all). A visitor who scrolls faster than the link always finds a sharp frame at most 2 frames
@@ -457,8 +525,9 @@ function pump() {
   // nothing is fetched for a hidden tab (the frames come back with it, through the next refresh)
   if (document.hidden) return
   prune()
-  const sh = m.sh
-  while (fetching.size + sheetFetch.size < MAXF) {
+  // the shadow-track sheets only without the light pass (it covers the whole film, sharper)
+  const sh = LITE_ON && liteState !== 3 ? undefined : m.sh
+  while (fetching.size + sheetFetch.size < maxF()) {
     // 1. The sheets (the first one first)
     let sj = -1
     if (sh) for (let j = 0; j < sh.n; j++) if (!sheetBlobs[j] && !sheetFetch.has(j)) { sj = j; break }
@@ -468,7 +537,7 @@ function pump() {
     // cover the whole trip
     if (moving) for (let i = 0; i < wantN; i++) { const q = want[i]; if (q % 4 === 0 && !blobs[q] && !fetching.has(q)) { k = q; break } }
     if (k < 0) for (let i = 0; i < wantN; i++) { const q = want[i]; if (!blobs[q] && !fetching.has(q)) { k = q; break } }
-    if (k < 0 && sj > 0) for (let q = 0; q <= firstStopK; q++) if (!blobs[q] && !fetching.has(q)) { k = q; break }
+    if (k < 0 && (sj > 0 || !sh)) for (let q = 0; q <= firstStopK; q++) if (!blobs[q] && !fetching.has(q)) { k = q; break }
     if (sj >= 0 && (sj === 0 || k < 0)) {
       sheetFetch.add(sj)
       const j = sj
@@ -552,29 +621,36 @@ function choose(p: number) {
   pickB = -1; pickA = 0
   if (film.level < 4 && Math.abs(vel) < BLEND_V) {
     const a = Math.floor(p), f = Math.round((p - a) * 32) / 32
-    if (f > 0 && f < 1 && bm.has(a) && bm.has(a + 1)) { pickK = a; pickB = a + 1; pickA = f; pickD = 0; return true }
+    // two frames of the same kind (two sharp ones, or two light ones)
+    if (f > 0 && f < 1 && bm.has(a) && bm.has(a + 1) && bmLite[a] === bmLite[a + 1]) { pickK = a; pickB = a + 1; pickA = f; pickD = bmLite[a]; return true }
   }
   const t = Math.min(m.n - 1, nearestIdx(p))
   let full = -1
   const L4 = film.level >= 4 && moving
+  // a sharp frame at most 2 frames away, otherwise a light one at most 2 frames away
+  const sharp = (k: number) => bm.has(k) && !bmLite[k]
+  if (!L4) for (let d = 0; d <= 2 && full < 0; d++) {
+    const a = t + d * dir, b = t - d * dir
+    if (sharp(a)) full = a; else if (d && sharp(b)) full = b
+  }
   if (!L4) for (let d = 0; d <= 2 && full < 0; d++) {
     const a = t + d * dir, b = t - d * dir
     if (bm.has(a)) full = a; else if (d && bm.has(b)) full = b
   }
-  if (full >= 0) { pickK = full; pickD = 0; return true }
+  if (full >= 0) { pickK = full; pickD = bmLite[full]; return true }
   const sh = m.sh
   if (sh) {
     const j = Math.min(Math.floor((m.n - 1) / sh.every), Math.max(0, Math.round(t / sh.every)))
     if (sheets[Math.floor(j / (sh.cols * sh.rows))] && !(film.shown >= 0 && film.def === 0 && Math.abs(film.shown - t) <= SHEET_GAP)) {
       // The shadow track only has one frame in 4; if it would give back the frame already shown during a motion, a full
       // frame 3 frames from the target goes first (scrollbar at CPU x4: frame held for 3 refreshes)
-      if (moving && j * sh.every === film.shown) for (const a of [t + 3 * dir, t - 3 * dir]) if (a !== film.shown && bm.has(a)) { pickK = a; pickD = 0; return true }
+      if (moving && j * sh.every === film.shown) for (const a of [t + 3 * dir, t - 3 * dir]) if (a !== film.shown && bm.has(a)) { pickK = a; pickD = bmLite[a]; return true }
       pickK = j * sh.every; pickD = 2; return true
     }
   }
   // never a frame from further away: in the protocol, 10 frames apart can be a closed sled and an open one; better to
   // hold the frame on screen for a refresh than to flash another moment of the film
-  for (let d = 3; d < 4; d++) { const a = t + d * dir, b = t - d * dir; if (bm.has(a)) { pickK = a; pickD = 0; return true } if (bm.has(b)) { pickK = b; pickD = 0; return true } }
+  for (let d = 3; d < 4; d++) { const a = t + d * dir, b = t - d * dir; if (bm.has(a)) { pickK = a; pickD = bmLite[a]; return true } if (bm.has(b)) { pickK = b; pickD = bmLite[b]; return true } }
   return false
 }
 const NODRAW = Q.get('dessin') === '0'
@@ -725,17 +801,19 @@ export async function mountFilm(canvas: HTMLCanvasElement, onFirst: () => void) 
   let man: Manifest = all?.[SET] ?? await fetch(`${BASE}manifest.json`).then((r) => r.json() as Promise<Manifest>)
   const src = man.ysFrom ? all?.[man.ysFrom] : undefined
   if (src) man = { ...man, ys: src.ys }
-  // meta.bin is preloaded by index.html (same address, same mode): it is the critical path to the first draw; its ETag
-  // gives the film version
-  const meta = await fetch(`${ROOT}${man.ysFrom ?? SET}/meta.bin`, { priority: 'high' } as RequestInit).then((r) => {
-    const v = (r.headers.get('etag') || r.headers.get('last-modified') || '').replace(/[^\w-]/g, '')
-    if (v) VQ = `?v=${v.slice(0, 40)}`
-    return r.arrayBuffer()
-  })
+  // meta.bin is preloaded by index.html (same address, same mode): it is the critical path to the first draw. Its
+  // content gives the film version (?v=, immutable on the server): the same capture keeps the same addresses from one
+  // deploy to the next (its ETag changed at every build, so a return visit after a deploy fetched the whole film again)
+  const meta = await fetch(`${ROOT}${man.ysFrom ?? SET}/meta.bin`, { priority: 'high' } as RequestInit).then((r) => r.arrayBuffer())
+  const fp = fingerprint(new Uint8Array(meta))
+  VQ = `?v=${fp.toString(36)}`
   film.man = man; film.total = man.n
   film.fl = new Float32Array(meta, 0, man.n * man.nf)
   film.by = new Uint8Array(meta, man.n * man.nf * 4, man.n * man.ns * 2)
-  state = new Uint8Array(man.n); stamp = new Uint32Array(man.n)
+  state = new Uint8Array(man.n); stamp = new Uint32Array(man.n); bmLite = new Uint8Array(man.n)
+  // the light pass, before any sharp frame (Retina uses the desktop file, like its positions)
+  if (LITE_ON) void loadLite(`${ROOT}${man.ysFrom ?? SET}/lite.bin${VQ}`, man.n, fp)
+  else liteState = 3
   // The canvas has the frame size: drawing without scaling; framing and zoom are CSS
   cv.width = man.w; cv.height = man.h
   world.pick = pick
