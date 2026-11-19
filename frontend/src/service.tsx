@@ -37,7 +37,7 @@ function Service() {
     <>
       <a className="skip" href="#svc" data-front-free>{t('d.skip')}</a>
       <AppHeader page="service" section="svc.page" />
-      {/* what ArcHive sells (JB's product1 presentation, 18/11): the server's sleds, each family's chapter opens in the
+      {/* what ArcHive sells (the product presentation): the server's sleds, each family's chapter opens in the
           left column; a ?slot= without a product keeps the wall card */}
       {slot < 0 || pid0 ? <main className="app vt-main" id="svc"><Vitrine /></main> : (
       <main className="app svc-full" id="svc">

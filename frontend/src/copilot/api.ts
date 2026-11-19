@@ -11,7 +11,7 @@ import { ct } from './strings'
 import { COPILOT_SITE, MCP } from '../data/endpoints'
 import { askSealed, checkEnclave, setLeg } from './enclave'
 
-// URLs come from data/endpoints.ts (jb profile: /copilot-site on the API origin)
+// URLs come from data/endpoints.ts (live deployment: /copilot-site on the API origin)
 export const COPILOT_URL = COPILOT_SITE
 export const MCP_URL = MCP
 const MAX_MESSAGES = 20

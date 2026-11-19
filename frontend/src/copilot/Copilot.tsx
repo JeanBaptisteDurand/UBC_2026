@@ -36,10 +36,10 @@ export function hooksFor(msgId: string): DriveHooks {
 }
 export function play(msgId: string, steps: UiStep[]) { return drive(steps, hooksFor(msgId)) }
 
-/** Answers that just arrived: they unfold block by block once (JB, 19/11: "the text pops all at once") */
+/** Answers that just arrived: they unfold block by block once, instead of the whole text appearing at once */
 const fresh = new Set<string>()
 
-/** While AskHive answers (JB, 19/11: "nothing shows it is thinking"): the real steps of the round trip. Sealed to the
+/** While AskHive answers, the wait is visible: the real steps of the round trip. Sealed to the
  *  enclave: the question is sealed here first, then the enclave answers (its signature is checked on arrival). */
 function Thinking() {
   useLang()
@@ -86,7 +86,7 @@ async function send(text: string) {
   if (p.ui.length) void play(id, p.ui).finally(() => setState({ showing: false }))
 }
 
-/** The enclave badge (JB's, 19/11): what AskHive runs on, read on Arc; a click opens the proof */
+/** The enclave badge: what AskHive runs on, read on Arc; a click opens the proof */
 function EnclaveBadge({ svc }: { svc?: string }) {
   const lang = useLang()
   const e = useEnc()

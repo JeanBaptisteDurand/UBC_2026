@@ -49,7 +49,7 @@ function place(id: string): Place | undefined {
   const doc = m[1]!.toLowerCase(), a = m[2]!.toLowerCase()
   // a contract's source: the Doc chapter that lists the contracts
   if (/\.sol$/.test(doc)) return { t: CH.contracts!, href: `${link.doc}?c=contracts`, doc: true }
-  // the site's own pages (site-v3, site-v4, site-v5...); a repository file (README) has no place on the site
+  // the site's own pages (source ids starting with 'site'); a repository file (README) has no place on the site
   if (!/^site/.test(doc)) return undefined
   const ch = CH[a] ? a : CH_ALIAS[a]
   if (ch) return { t: CH[ch]!, href: `${link.doc}?c=${ch}`, doc: true }

@@ -149,7 +149,7 @@ const wheelNorm = (data: { deltaX: number; deltaY: number; event: WheelEvent | T
   const e = data.event as WheelEvent
   if (!e || e.type !== 'wheel' || !lenis || e.ctrlKey) return true
   // A wheel over a panel with its own scroll (AskHive's conversation, a dialog): that panel scrolls, never the page
-  // (JB, 19/11); Lenis then lets it through (its prevent option below)
+  // and Lenis lets it through (its prevent option below)
   if ((e.target as Element | null)?.closest?.(OWN_SCROLL)) return true
   const H = innerHeight || 800
   const raw = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * H : e.deltaY
@@ -179,7 +179,7 @@ const canScroll = (el: Element, dx: number, dy: number) => {
   return false
 }
 /** A wheel over a panel with its own scroll (its header, a badge, the input, a log at its end) that nothing inside can
- *  take any more would chain to the page behind: it stops at the panel (JB, 19/11) */
+ *  take any more would chain to the page behind: it stops at the panel */
 const ownScrollGuard = (sel: string) => (e: WheelEvent) => {
   if (e.ctrlKey || !e.cancelable || e.defaultPrevented) return
   const t = e.target as Element | null

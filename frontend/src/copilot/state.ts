@@ -58,7 +58,7 @@ function save(s: CopilotState) {
   keepForWallet(s)
 }
 
-// The wallet the conversation belongs to (JB, 19/11). Without a wallet, the conversation stays in the tab, as before.
+// The wallet the conversation belongs to. Without a wallet, the conversation stays in the tab.
 // With a wallet connected, it is also kept in this browser for that address (localStorage, 30 days) and comes back
 // when the same wallet connects again, in any tab; another wallet never sees it; disconnecting takes it off the screen;
 // "Start over" deletes it for that wallet too. It never leaves the browser.

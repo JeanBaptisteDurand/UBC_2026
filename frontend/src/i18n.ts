@@ -51,7 +51,7 @@ const EN = {
   'use.title': 'Use {a service}.',
   'use.lede': 'A green light is a service running in a sealed enclave that Arc has verified. Call it from the browser, an agent or the SDK. Paid services settle each use in USDC.',
   'use.pick': 'Pick a service right on the wall: choose any sled to see what it does and use it.', 'svx.lede': 'Every service registered on ArcHive, read live on Arc testnet. Each one runs in sealed Intel TDX enclaves; open it to see what it does, or use it at once.', 'svx.free': 'free', 'svx.run': '{a} of {b} enclaves running', 'svx.more': 'See the service', 'svx.back': 'All services', 'nav.catalog': 'Services', 'use.key': 'Green, running', 'use.lastNet': 'Latest payment on ArcHive',
-  // Services page (src/services/Vitrine.tsx): JB's product1 presentation, read in the left column
+  // Services page (src/services/Vitrine.tsx): the product presentation, read in the left column
   'vit.k': 'Services', 'vit.back': 'All services', 'vit.toc': 'On this page', 'hero.scroll': 'Scroll', 'vit.cta': 'The sleds on the right are interactive: click one to see its service and use it.', 'vit.of': '{a} of {b}', 'vit.prev': 'Previous chapter', 'vit.next': 'Next chapter', 'vit.more': 'Also on this page',
   'vit.w.on': 'Running', 'vit.run': '{a} of the {n} sealed machines are running now. Every past payment and proof stays readable on Arc.',
   'vit.src': 'Read live on Arc testnet', 'vit.reading': 'Reading Arc testnet…', 'vit.down': 'The ArcHive API did not answer. It is read again every 4 seconds.',
@@ -145,7 +145,7 @@ const EN = {
   'ev.pay': 'Paid {a}', 'ev.reg': 'Enclave {s} admitted', 'ev.inv': 'Enclave {s} invalidated', 'ev.ret': 'Enclave {s} retired', 'ev.slash': 'Bond slashed, enclave {s}',
   'ev.prod': 'Product updated', 'ev.work': 'Image fingerprint added', 'ev.workRet': 'Image fingerprint retired', 'ev.act': 'Product activated', 'ev.prop': 'Product proposed',
   'd.use': 'Use it', 'd.use.lede': 'Use it from the Network page: it checks the enclave key on Arc, encrypts your request for the enclave alone, and you sign the payment.',
-  // the service page's refuted demonstration product and free products (ported from the JB version, 19/11)
+  // the service page's refuted demonstration product and free products
   'app.st.refuteDemo': 'Bond seized', 'd.state.refuteDemo': 'Not for sale, a demonstration: its enclave was caught lying on 10 November and its operator’s whole bond was seized.', 'd.use.refuteDemo': 'Nothing to buy here: this product is the demonstration of an operator caught lying on 10 November. Its whole bond was seized, and each step is a real transaction on Arc.', 'd.use.lede.free': 'Use it from the Network page: it checks the enclave key on Arc and encrypts your request for the enclave alone.', 'd.use.proof': 'See the proof',
   'd.use.btn': 'Use this service', 'd.dev': 'From code: SDK, CLI and MCP', 'd.none': 'No product has this number.', 'd.none.hint': 'Go back to the catalog and pick a service.',
   'd.reading': 'Reading the service on Arc',

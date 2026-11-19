@@ -1,9 +1,9 @@
-// The Services page (service.html), after JB's product presentation (produits/product1.html): what ArcHive sells, in
+// The Services page (service.html), from the product presentation: what ArcHive sells, in
 // five families, next to the landing's room with one rack alone in the aisle (RoomStage.tsx: a Cycles still, its sleds
 // lit live, one per product read on Arc, the rest open slots). Nothing scrolls the page to an anchor: a sled, a shop-window row or an index entry opens its chapter
 // in the left column, which scrolls by itself (as on Network and the Doc page). ?c=<chapter> follows the open chapter
 // (replaceState); ?p=<product> from the landing wall, the Use catalog or the copilot opens that product's family.
-// Copy and chapters from JB (vit-content.ts, generated), numbers read live on Arc.
+// Copy and chapters from vit-content.ts (generated), numbers read live on Arc.
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { t, useLang, getLang } from '../i18n'
 import { useLive } from '../data/live'
@@ -32,7 +32,7 @@ const isTouch = () => typeof matchMedia === 'function' && matchMedia('(hover: no
 
 const SLOT = 'slot'
 const FAM = ['bounty', 'private-ai', 'attested-copilot', 'refutation', 'retired'] as const
-/** the products of each family, in JB's order */
+/** the products of each family, in the presentation's order */
 const PIDS: Record<string, string[]> = { bounty: ['2', '7'], 'private-ai': ['1', '3'], 'attested-copilot': ['4'], refutation: ['5'], retired: ['6'] }
 /** a product (landing wall, catalog, copilot links: ?p=<id>) opens its family */
 const FAM_OF: Record<string, string> = Object.fromEntries(Object.entries(PIDS).flatMap(([f, ps]) => ps.map((p) => [p, f])))
@@ -58,7 +58,7 @@ function initial(): string | null {
 const fixHtml = (h: string) => h.replaceAll('href="@hive"', `href="${link.hive}" target="_blank" rel="noreferrer"`).replaceAll('href="@dev"', `href="${link.dev}" target="_blank" rel="noreferrer"`)
   .replaceAll('href="@dc"', `href="${link.datacenter}" target="_blank" rel="noreferrer"`).replace(/href="@api\//g, `href="${API_DIRECT}/`)
 
-/** the live state of a family: running if any of its products has an enclave running; JB's word and lamp otherwise
+/** the live state of a family: running if any of its products has an enclave running; the presentation's word and lamp otherwise
  *  (his "Paused" holds while nothing runs). The refutation and the retired product keep their own words. */
 function useFamState() {
   const rows = useCatalog()
@@ -79,7 +79,7 @@ function Title({ text, acc }: { text: string; acc: string }) {
   )
 }
 
-/** the sections of the introduction, after JB's chapters (his "offer" board is left out: the sleds and their sheets
+/** the sections of the introduction, after the presentation's chapters (its "offer" board is left out: the sleds and their sheets
  *  say it). "Build on it" is the MCP server and its SDK: it is named so. */
 const SECS = ['notary', 'compare', 'market', 'build', 'faq'] as const
 const isSec = (id: string) => (SECS as readonly string[]).includes(id) || id === 'offers'
@@ -151,7 +151,7 @@ const ls = (k: keyof typeof LIVE_STR.en, v?: Record<string, string>) => {
 }
 const utcDay = (unix: number, lang: string) => `${new Date(unix * 1000).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })} UTC`
 
-/** JB's sentences that name the products running on 19 November ("#1, #2, #3 and #7"), read live: the products whose
+/** the presentation's sentences that name the products running on 19 November ("#1, #2, #3 and #7"), read live: the products whose
  *  enclave runs now. Another list drops the daily cost of 4 VMs that went with it; none running, one short line. The
  *  original text is kept per text node. */
 const RUNS = /#1, #2, #3 and #7|n°\s1, 2, 3 et 7/
@@ -174,15 +174,15 @@ function fillRuns(el: HTMLElement, ids: string[] | null, lang: string) {
   }
 }
 
-/** numbers JB's page read live, filled from /api/stats and /api/products */
+/** the numbers the presentation reads live, filled from /api/stats and /api/products */
 function useLiveFill(root: React.RefObject<HTMLDivElement | null>, key: string) {
   const lang = useLang()
   const stats = useLive((s) => s.stats)
   const products = useLive((s) => s.products)
   const status = useLive((s) => s.status)
   const rows = useCatalog()
-  // the sled faces and the "Today" lines of the sheets take the live state of their products (JB's page was written
-  // while every enclave was paused: its lamps and words are only the state before the first read)
+  // the sled faces and the "Today" lines of the sheets take the live state of their products (the static
+  // lamps and words are only the state before the first read)
   useEffect(() => {
     const el = root.current
     if (!el) return
@@ -251,8 +251,8 @@ function useLiveFill(root: React.RefObject<HTMLDivElement | null>, key: string) 
   }, [root, key, lang, stats, products])
 }
 
-/** a family's sheet cut in three: what it is (JB's header, who it is for, price, live state), its action, then the rest
- *  of JB's section and the live blocks of its products, folded under "Technical details" */
+/** a family's sheet cut in three: what it is (its header, who it is for, price, live state), its action, then the rest
+ *  of its section and the live blocks of its products, folded under "Technical details" */
 function splitFam(html: string, id: string) {
   const tpl = document.createElement('template'); tpl.innerHTML = html
   const hd = tpl.content.querySelector('.vit-fam-hd'); hd?.remove()
@@ -262,7 +262,7 @@ function splitFam(html: string, id: string) {
   pr?.remove()
   return { head: hd?.outerHTML ?? '', proof: pr?.outerHTML ?? '', rest: tpl.innerHTML }
 }
-/** JB's offer card of a family (the "Three products" board): who it is for, the price and its line */
+/** the offer card of a family (the "Three products" board): who it is for, the price and its line */
 function offerOf(all: VitChapter[], id: string) {
   const o = all.find((c) => c.id === 'offers'); if (!o) return null
   const tpl = document.createElement('template'); tpl.innerHTML = o.body
@@ -354,7 +354,7 @@ function SlotView({ close }: { close: () => void }) {
   )
 }
 
-/** a product with no family chapter yet (a service published after JB's page): its live sheet in the column */
+/** a product with no family chapter yet (a service published after the presentation): its live sheet in the column */
 function ProductView({ pid, name, close, act }: { pid: string; name: string; close: () => void; act: boolean }) {
   useLang()
   const ref = useRef<HTMLElement>(null)

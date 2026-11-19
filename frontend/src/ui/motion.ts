@@ -1,5 +1,5 @@
-// The site's motion rules (design/MOTION.md, owner 19/11: "des règles d'animation et de transition qui soient
-// toujours vraies", like the cursor). One grammar for every page:
+// The site's motion rules (MOTION.md): animation and transition rules that always hold, like the cursor's. One
+// grammar for every page:
 //  M1 the header never moves: page to page, it stays in place (cross-document view transition, styles.css);
 //  M2 new content always arrives the same way: its blocks rise 10 px and fade in, 360 ms, staggered 40 ms in
 //     reading order, at most 10 staggered (the rest arrives with the last one), only what is on screen;
