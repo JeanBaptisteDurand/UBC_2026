@@ -619,25 +619,25 @@ html.tournage, html.tournage body { cursor: none; }
 /* Hero: the two links read as things to press: an icon, a soft backlight that breathes, the text in ink. They sit
    with the buttons (a clear gap after the support line, a short one before the buttons) */
 .hero .support { margin-bottom: 0; }
-.hero .hero-live { position: relative; isolation: isolate; align-items: center; gap: 12px; margin-left: 0; padding: 6px 0; font-size: 14px; color: var(--ink); text-decoration: none; }
-.hero .hero-live:first-of-type { margin-top: 36px; }
+.hero-live:is(.hero *, .end *) { position: relative; isolation: isolate; align-items: center; gap: 12px; margin-left: 0; padding: 6px 0; font-size: 14px; color: var(--ink); text-decoration: none; }
+.hero-live:is(.hero *, .end *):first-of-type { margin-top: 36px; }
 .hero .hero-cat { margin-top: 6px; }
-.hero .hero-live::before { content: ''; position: absolute; left: -11px; top: 50%; width: 40px; height: 40px; margin-top: -20px; z-index: -1; border-radius: 50%; pointer-events: none;
+.hero-live:is(.hero *, .end *)::before { content: ''; position: absolute; left: -11px; top: 50%; width: 40px; height: 40px; margin-top: -20px; z-index: -1; border-radius: 50%; pointer-events: none;
   background: radial-gradient(circle, color-mix(in srgb, var(--arc-elec) 55%, transparent) 0, color-mix(in srgb, var(--arc-elec) 18%, transparent) 38%, transparent 70%);
   filter: blur(3px); animation: hero-live 3.2s ease-in-out infinite; }
 .hero .hero-cat::before { animation-delay: -1.6s; }
-.hero .hero-live:hover::before, .hero .hero-live:focus-visible::before { animation: none; opacity: 1; }
-.hero .hero-live > span { animation: live-text 3.2s ease-in-out infinite; }
+.hero-live:is(.hero *, .end *):hover::before, .hero-live:is(.hero *, .end *):focus-visible::before { animation: none; opacity: 1; }
+.hero-live:is(.hero *, .end *) > span { animation: live-text 3.2s ease-in-out infinite; }
 .hero .hero-cat > span { animation-delay: -1.6s; }
-.hero .hero-live:hover > span { text-decoration-color: currentColor; }
-.hero .hero-live > span { text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--ink) 30%, transparent); text-underline-offset: 4px; }
+.hero-live:is(.hero *, .end *):hover > span { text-decoration-color: currentColor; }
+.hero-live:is(.hero *, .end *) > span { text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--ink) 30%, transparent); text-underline-offset: 4px; }
 .hero-ic { flex: none; width: 18px; height: 18px; fill: none; stroke: var(--arc-light, #9cc0ff); stroke-width: 1.4; filter: drop-shadow(0 0 4px var(--arc-elec)); }
 .hero-ic path:not(.hero-ic-led) { fill: var(--arc-light, #9cc0ff); stroke: none; }
 .hero-ic .hero-ic-led { stroke: #fff; stroke-width: 1.6; }
 .hero .hero-acts { margin-top: 28px; }
 @keyframes hero-live { 0%, 100% { opacity: 0.35; transform: scale(0.85); } 50% { opacity: 1; transform: scale(1.1); } }
 @keyframes live-text { 0%, 100% { text-shadow: 0 0 0 transparent; } 50% { text-shadow: 0 0 10px color-mix(in srgb, var(--arc-elec) 55%, transparent); } }
-@media (prefers-reduced-motion: reduce) { .hero .hero-live::before, .hero .hero-live > span { animation: none; } .hero .hero-live::before { opacity: 0.7; } }
+@media (prefers-reduced-motion: reduce) { .hero-live:is(.hero *, .end *)::before, .hero-live:is(.hero *, .end *) > span { animation: none; } .hero-live:is(.hero *, .end *)::before { opacity: 0.7; } }
 
 /* Page transitions (ui/veil.ts): a veil in the page colour from the first paint, lifted once the page is ready, back
    down before leaving. Without JS it lifts on its own after a moment */
@@ -709,3 +709,23 @@ html.veil-none body::after { display: none; }
 }
 @keyframes vt-page-out { to { opacity: 0; } }
 
+
+/* The landing's live calls are shared by the first screen and the last section (the replayed demo) */
+.end .hero-live.end-demo { margin-top: 32px; }
+
+/* Invitation to scroll (Hero.tsx): a 1 px rule where a short Arc segment runs down, and a mono label; it fades out
+   once the page has moved */
+.scroll-cue { position: absolute; left: var(--gut); bottom: 32px; z-index: 3; display: flex; align-items: center; gap: 12px; color: var(--ink3); pointer-events: none; transition: opacity 420ms var(--productive); }
+.scroll-cue[data-on='0'] { opacity: 0; }
+.scroll-cue-l { position: relative; width: 1px; height: 40px; overflow: hidden; background: rgb(var(--ink-c) / 0.16); }
+.scroll-cue-l i { position: absolute; left: 0; top: 0; width: 1px; height: 14px; background: var(--arc-light, #9cc0ff); box-shadow: 0 0 6px var(--arc-elec); animation: scroll-cue 2.4s cubic-bezier(.65, 0, .35, 1) infinite; }
+.scroll-cue-t { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; }
+@keyframes scroll-cue { 0% { transform: translateY(-14px); opacity: 0; } 15% { opacity: 1; } 70% { transform: translateY(40px); opacity: 1; } 71%, 100% { transform: translateY(40px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .scroll-cue-l i { animation: none; transform: translateY(13px); } }
+@media (max-width: 760px) { .scroll-cue { display: none; } }
+
+/* AskHive's mark (copilot/AskHiveMark.tsx), used by the hero bar and the copilot */
+.ah-mark { flex: none; display: inline-block; overflow: visible; color: currentColor; }
+/* the eyes: the right one Arc blue (the logo's diode), the left one the amber of the site's LEDs, both lit */
+.ah-mark .ah-eye-b { fill: #eaf4ff; filter: drop-shadow(0 0 2px #4a86ff) drop-shadow(0 0 5px #3a6bff); }
+.ah-mark .ah-eye-a { fill: #fff1e0; filter: drop-shadow(0 0 2px #ff7a24) drop-shadow(0 0 5px #c4400c); }

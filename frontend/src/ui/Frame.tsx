@@ -73,7 +73,6 @@ export function Header({ loaded }: { loaded: number | (() => number) }) {
         <a className="logo" href={link.home} aria-label="ArcHive"><Logo /></a>
         <nav className="hd-nav" aria-label={t('nav.main')}>{nav}</nav>
         <div className="hd-side">
-          <a className="hd-console" href={link.console}>{t('nav.console')}</a>
           <button className="lang" onClick={() => setLang(lang === 'fr' ? 'en' : 'fr')} lang={lang === 'fr' ? 'en' : 'fr'} aria-label={t('lang.to')}>{lang === 'fr' ? 'EN' : 'FR'}</button>
           {/* the visitor's wallet, as on the app pages */}
           <HeaderWallet />

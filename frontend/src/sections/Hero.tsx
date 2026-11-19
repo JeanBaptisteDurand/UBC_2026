@@ -1,6 +1,8 @@
 // 1. The hero: the headline (a single key), the support line, the three buttons (which move down with the scroll).
 // The wall is on the right, face on, and overflows.
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
+import { onTick } from '../clock'
+import { AskHiveMark } from '../copilot/AskHiveMark'
 import { t, useLang, type TKey } from '../i18n'
 import { useIn } from '../ui/gestures'
 import { Slot, WallMirror } from '../ui/Frame'
@@ -40,6 +42,21 @@ function Catch() {
   )
 }
 
+/** the invitation to scroll, at the foot of the first screen; gone once the page has moved */
+function ScrollCue() {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => onTick(() => {
+    const el = ref.current; if (!el) return
+    const v = scrollY > 40 ? '0' : '1'
+    if (el.dataset.on !== v) el.dataset.on = v
+  }), [])
+  return (
+    <div className="scroll-cue" ref={ref} data-on="1" aria-hidden="true" data-front-free>
+      <span className="scroll-cue-l"><i /></span><span className="lbl mono scroll-cue-t">{t('hero.scroll')}</span>
+    </div>
+  )
+}
+
 export function Hero() {
   const ref = useRef<HTMLElement>(null)
   useIn(ref, 1)
@@ -54,8 +71,6 @@ export function Hero() {
         <p className="support">{t('hero.support')}</p>
         {/* the replayed demo, reachable from the first screen (the same link as in the last section) */}
         <a className="tlink hero-demo hero-live" href={link.demo}><svg className="hero-ic" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8.6" className="hero-ic-ring" /><path d="M8.2 6.6 L13.8 10 L8.2 13.4 Z" className="hero-ic-play" /></svg><span>{t('end.demo')}</span></a>
-        {/* the wall is the catalog: every lit sled is a service; the full list, in the same sled faces, is one click away */}
-        <a className="tlink hero-demo hero-cat hero-live" href={link.services}><svg className="hero-ic" viewBox="0 0 20 20" aria-hidden="true"><rect x="2.4" y="3" width="15.2" height="4" rx="0.6" /><rect x="2.4" y="8" width="15.2" height="4" rx="0.6" /><rect x="2.4" y="13" width="15.2" height="4" rx="0.6" /><path d="M4.6 4.2 V5.8" className="hero-ic-led l1" /><path d="M4.6 9.2 V10.8" className="hero-ic-led l2" /><path d="M4.6 14.2 V15.8" className="hero-ic-led l3" /></svg><span>{t('hero.cat')}</span></a>
         <p className="sr-only" id="wall-keys">{t('hero.hint.keys')}</p>
         {/* the buttons close the column: moving down, they never pass over any hero text. Under them, the copilot
             bar, as wide as the three buttons together: on the first screen it replaces the floating copilot button,
@@ -65,13 +80,16 @@ export function Hero() {
             <Slot k="use" home /><Slot k="rent" home /><Slot k="publish" home />
           </div>
           <a className="btn btn-line hero-cp" href="#copilot" data-slot="COPILOT">
-            <span className="hero-cp-mk" aria-hidden="true"><i /></span>
+            <AskHiveMark size={28} className="hero-cp-mk" />
             <span className="hero-cp-t">{t('hero.copilot')}</span>
             <span className="hero-cp-k">{t('hero.copilot.k')}</span>
           </a>
         </div>
         <WallMirror />
       </div>
+      {/* the invitation to scroll (owner, 19/11): a thin rule where a short segment runs down, and a mono label, in
+          the header's grammar; it leaves as soon as the page moves */}
+      <ScrollCue />
     </section>
   )
 }
