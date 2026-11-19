@@ -9,7 +9,8 @@
   "deployer": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
   "owner": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
   "treasury": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
-  "note": "Pile v2.1 (234 tests ; deux revues adverses + correctifs du 9/11) : empreinte d'IMAGE par rejeu on-chain du journal RTMR3 de dstack (stable d'un red\u00e9marrage \u00e0 l'autre)  verdicts ERC-8004 li\u00e9s \u00e0 la cha\u00eene et au contrat (requestHash sal\u00e9 contre l'occupation d'avance  VerdictSkipped  VerdictNotApplicable pour une session sans paiement  verdict de faute m\u00eame apr\u00e8s fermeture)  manifestURI modifiable sous timelock  primitive onlyAttested (attestedOperator). Registre branch\u00e9 sur le VRAI module TdxAttestationModule \u2192 Automata DCAP (deployments.dcap.testnet.json). REQUIRE_SEPT_VE = 1  timelock produits = 0 (testnet). D\u00e9ploiement : contracts/script/DeployTestnet.s.sol  10 tx  15 257 922 gas  0.3814 USDC (contracts/broadcast/DeployTestnet.s.sol/5042002/run-latest.json).",
+  "status": "live: the site, the API and the enclaves use this stack; v3 (deployments.v3.testnet.json) is deployed and not yet switched on",
+  "note": "Stack v2.1, live: the site, the API and the enclaves use it. Hardened by two adversarial reviews (fixes on 9 Nov 2026). Image fingerprint from an on-chain replay of dstack's RTMR3 boot log, stable across restarts; ERC-8004 verdicts bound to the chain and the contract (salted requestHash so no one can pre-register it; VerdictSkipped event; VerdictNotApplicable for a session with no payment; a fault verdict even after close); manifestURI changeable under timelock; onlyAttested primitive (attestedOperator). The registry calls TdxAttestationModule -> Automata DCAP (deployments.dcap.testnet.json). REQUIRE_SEPT_VE = 1; product timelock = 0 on testnet. Deployment: contracts/script/DeployTestnet.s.sol, 10 transactions (deployTxs below), 15,257,922 gas, 0.3814 USDC. 234 tests at deployment; 253 in contracts/test today.",
   "external": {
     "USDC": "0x3600000000000000000000000000000000000000",
     "ERC8004_Validation": "0x8004Cb1BF31DAf7788923b405b754f57acEB4272",
@@ -42,8 +43,8 @@
     "VerdictLog.initialize": "0xd27db0342b83b694bb2400d3e31815011982375bf26eb6fce535218da2e5b526"
   },
   "roles": {
-    "owner_and_productAuthor": "0x5724d89D610c3017b8DC161c025248341556f6Ab (cl\u00e9 du d\u00e9ployeur : reste hors du serveur)",
-    "operator": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a (enclaves + registrar ; agent ERC-8004 n\u00b0 897812)"
+    "owner_and_productAuthor": "0x5724d89D610c3017b8DC161c025248341556f6Ab (the deployer key, kept off the server)",
+    "operator": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a (enclaves and registrar; ERC-8004 agent 897812)"
   },
   "products": {
     "1": {
@@ -104,7 +105,7 @@
         "0x48608a43817c99ad4d015690752fbc9531339406b4270c3ca247009fa1bdfaba",
         "0xb1dc250ae7006b7ce4f80c1ceddfa230d0a5e8e4cc6f02c62193425b6751c6d7"
       ],
-      "superseded": "Retired on 11/11: its settlement contract (immutable) is tied to the levels stack deployed before the PckChip hardening, and its policy names an auditor that attests nobody. Replaced by product 7."
+      "superseded": "Retired on 11 Nov 2026: its settlement contract (immutable) is tied to the levels stack deployed before the PckChip hardening, and its policy names an auditor that attests nobody. Replaced by product 7."
     },
     "7": {
       "name": "Sealed Bounty, verified operator level (corrected stack)",
@@ -113,7 +114,7 @@
       "manifest": "https://archive.62-171-153-35.sslip.io/manifests/sealed-bounty-verified-v21.json",
       "manifestHash": "0x327f297e8b10c0246f7ebfed31f7369e7d36df6acd6bfa76c602e1dda0c0e14e",
       "enclaveSigner": "0x1306d239FfD65DEdbc30214E382F2B11153fb516",
-      "stateProofs": "off (no historical eth_getProof source; code ready + 23 tests; re-enable with a larger-disk node or an archive RPC)",
+      "stateProofs": "off until an Arc RPC serves historical eth_getProof; implemented and tested (23 tests)",
       "slashFromUtc": "2026-11-18T23:00:37Z",
       "proposeTx": "0x9acdd0fe270bc42a3677a8b026aadc9e9123d06c534ba1bcb7fbcd189b559c44",
       "activateTx": "0xd93ac5a0b73434faf6247410fc5aed0fed59f0e761f4f7d65e75ae3c10543957",
@@ -144,7 +145,7 @@
       "signer": "0x5E534608bc342dA7A069B1d7636AAE5c5cA55b8A",
       "registerTx": "0xbd5cb0616dae27f9b614ffa6c6eea28423030932c017f9f910099b0129e19a75",
       "registerGas": 6849050,
-      "modelAttestation": "aci : passerelle RedPill v\u00e9rifi\u00e9e (quote Intel, cl\u00e9s li\u00e9es, compose mesur\u00e9, OS de production), TLS \u00e9pingl\u00e9, re\u00e7us exig\u00e9s (11/11)"
+      "modelAttestation": "aci: RedPill gateway verified (Intel quote, bound keys, measured compose, production OS), pinned TLS, receipts required (11 Nov 2026)"
     },
     "2": {
       "product": 2,
@@ -168,7 +169,7 @@
       "signer": "0x3672cA6FC127bA61a61Be46fE0262f4830Ca7Ff0",
       "registerTx": "0x11de93a1f95b0382384ade1e09990ebb63fc6116f6891b2bfd19a54977b8734d",
       "registerGas": 6849026,
-      "modelAttestation": "aci : passerelle RedPill v\u00e9rifi\u00e9e (quote Intel, cl\u00e9s li\u00e9es, compose mesur\u00e9, OS de production), TLS \u00e9pingl\u00e9, re\u00e7us exig\u00e9s (11/11)"
+      "modelAttestation": "aci: RedPill gateway verified (Intel quote, bound keys, measured compose, production OS), pinned TLS, receipts required (11 Nov 2026)"
     },
     "4": {
       "product": 4,
@@ -181,7 +182,7 @@
       "registerTx": "0xad8b9780689513b1f68b8aba1a99f1b3156b4038a86aff46cad5ff96e294005e",
       "registerGas": 6849050,
       "composeHash": "0x254c2e42e9bf7dcc8a55924fa9fb4ef346e9bb4837353960ca5547c05a743bb7",
-      "modelAttestation": "aci : passerelle RedPill v\u00e9rifi\u00e9e (11/11)"
+      "modelAttestation": "aci: RedPill gateway verified (11 Nov 2026)"
     },
     "6": {
       "product": 6,
@@ -195,8 +196,8 @@
       "signer": "0xFD050Fc72F4ea5fEEF10D8C0882Ff1506Ae6912a",
       "registerTx": "0x524eef52938b73eefaa69074a835f1c8494a09326fb8896b66f6226c03237a54",
       "registerGas": 6849026,
-      "note": "Prime scell\u00e9e au niveau v\u00e9rifi\u00e9 (10/11) : settlement SealedBountyVerified, politique niveau 1 (ProofOfCloudAuditor), preuves d'\u00e9tat (STATE_PROOF_RPC_URL)",
-      "superseded": "red\u00e9ploy\u00e9 en produit 7 le 11/11 (signataire 0xFD05 p\u00e9rim\u00e9)"
+      "note": "Sealed Bounty, verified level (10 Nov 2026): settlement SealedBountyVerified, level-1 policy (ProofOfCloudAuditor); per-read state proofs through STATE_PROOF_RPC_URL once an Arc RPC serves historical eth_getProof",
+      "superseded": "Republished as product 7 on 11 Nov 2026 (signer 0xFD05 retired)"
     },
     "7": {
       "product": 6,
@@ -210,12 +211,12 @@
       "signer": "0x1306d239FfD65DEdbc30214E382F2B11153fb516",
       "registerTx": "0x524eef52938b73eefaa69074a835f1c8494a09326fb8896b66f6226c03237a54",
       "registerGas": 6849026,
-      "note": "produit 7 (niveau v\u00e9rifi\u00e9, pile corrig\u00e9e 11/11) ; m\u00eame VM que l'ancien produit 6, red\u00e9ploy\u00e9e (SEALEDBOUNTY=0x36a8, preuves d'\u00e9tat off)",
+      "note": "Product 7 (verified level, on the corrected stack of 11 Nov 2026); the same VM as the former product 6, redeployed (SEALEDBOUNTY=0x36a8; per-read state proofs off until an Arc RPC serves historical eth_getProof)",
       "x25519": "0x16ef4a3213c94fd1acd156542365eee24e16eb625bf463cea1e7c66838eef739",
       "productId": 7
     }
   },
-  "previous": "deployments.v2.testnet.json (pile v2 du 7/11, retir\u00e9e apr\u00e8s la bascule)",
+  "previous": "deployments.v2.testnet.json (stack v2 of 7 Nov 2026, retired after the switch to v2.1)",
   "os": {
     "name": "dstack-0.5.12 (production, no SSH)",
     "osImageHash": "0x8db40cb23008d6213668b5816702d100b37b859a8a5bfd18d938ae3a1b3715bd"
@@ -228,12 +229,12 @@
   },
   "refuteDemo": {
     "status": "done",
-    "note": "D\u00e9monstration S\u00c9PAR\u00c9E et \u00e9tiquet\u00e9e de SealedBounty.refute (produit 5, une image volontairement menteuse) : scripts/refute-demo.ts. Op\u00e9rateurs de d\u00e9monstration A, B, C ; jamais l'op\u00e9rateur principal.",
+    "note": "A separate, labeled demonstration of SealedBounty.refute (product 5, a deliberately lying image): enclave/scripts/refute-demo.ts. Demo operators A, B and C; never the main operator.",
     "startedAt": "2026-11-10T00:04:44.218Z",
     "transactions": [
       {
         "step": "a",
-        "label": "op\u00e9rateur A dot\u00e9 de 1.6 USDC",
+        "label": "operator A funded with 1.6 USDC",
         "hash": "0x83fac2255d95f60455dc1f7f490bb2f932ef582c743c7b4634219c8f35c3d24d",
         "status": "success",
         "block": "71619802",
@@ -242,7 +243,7 @@
       },
       {
         "step": "a",
-        "label": "op\u00e9rateur B dot\u00e9 de 1.6 USDC",
+        "label": "operator B funded with 1.6 USDC",
         "hash": "0xc6014d75cec3c27ed0de84fd7998e7e599ecf6ef941a1d1c197ea30749ea3a01",
         "status": "success",
         "block": "71619811",
@@ -251,7 +252,7 @@
       },
       {
         "step": "a",
-        "label": "op\u00e9rateur C dot\u00e9 de 1.6 USDC",
+        "label": "operator C funded with 1.6 USDC",
         "hash": "0xbf0f84b96276399794bacc6e293211b0d7122668c270b57473aaeda1654bb0b8",
         "status": "success",
         "block": "71619819",
@@ -260,7 +261,7 @@
       },
       {
         "step": "b",
-        "label": "A : identit\u00e9 ERC-8004 cr\u00e9\u00e9e",
+        "label": "A: ERC-8004 identity created",
         "hash": "0xfaabf56bd6d78ede0721e73cacfcf2589c5d7e209f4cc9b08857bc99775d72db",
         "status": "success",
         "block": "71619828",
@@ -269,7 +270,7 @@
       },
       {
         "step": "b",
-        "label": "A : VerdictLog autoris\u00e9 \u00e0 \u00e9crire ses verdicts",
+        "label": "A: VerdictLog allowed to write its verdicts",
         "hash": "0x14ad25a3c371e679cb3445769b67a7e32121b44a5e66c2e6f98e3f931f470ffb",
         "status": "success",
         "block": "71619837",
@@ -278,7 +279,7 @@
       },
       {
         "step": "b",
-        "label": "A : caution +1 USDC",
+        "label": "A: bond +1 USDC",
         "hash": "0x5014bbd9b569c36ab98c688fe62a9841161628b0717570ed105040ffc91a8e5d",
         "status": "success",
         "block": "71619846",
@@ -287,7 +288,7 @@
       },
       {
         "step": "b",
-        "label": "A : agentId 897821 d\u00e9clar\u00e9 dans OperatorBond",
+        "label": "A: agentId 897821 declared in OperatorBond",
         "hash": "0xbbbf50a94250993b3ab763919fd23c2f345d20a6e57024a138779e26468c6a01",
         "status": "success",
         "block": "71619855",
@@ -296,7 +297,7 @@
       },
       {
         "step": "b",
-        "label": "B : identit\u00e9 ERC-8004 cr\u00e9\u00e9e",
+        "label": "B: ERC-8004 identity created",
         "hash": "0x538f1d35693b5bfa738b9b12e01b42395a37c9efdd2718504e2c6b998bca74c5",
         "status": "success",
         "block": "71619863",
@@ -305,7 +306,7 @@
       },
       {
         "step": "b",
-        "label": "B : VerdictLog autoris\u00e9 \u00e0 \u00e9crire ses verdicts",
+        "label": "B: VerdictLog allowed to write its verdicts",
         "hash": "0x668b80454d49d1be09a1fbec4e7b591677c2b9f71daf134a656f225ab9b7ad11",
         "status": "success",
         "block": "71619872",
@@ -314,7 +315,7 @@
       },
       {
         "step": "b",
-        "label": "B : caution +1 USDC",
+        "label": "B: bond +1 USDC",
         "hash": "0x46813a20e49bfd7eae0f98a0b271952f9aaa90689bff2a94b7812b91c9e507e1",
         "status": "success",
         "block": "71619881",
@@ -323,7 +324,7 @@
       },
       {
         "step": "b",
-        "label": "B : agentId 897822 d\u00e9clar\u00e9 dans OperatorBond",
+        "label": "B: agentId 897822 declared in OperatorBond",
         "hash": "0x6a8ea730035eeea93ef6b1deb040186a69904a47f0fdccc20e31315574a44724",
         "status": "success",
         "block": "71619889",
@@ -332,7 +333,7 @@
       },
       {
         "step": "b",
-        "label": "C : identit\u00e9 ERC-8004 cr\u00e9\u00e9e",
+        "label": "C: ERC-8004 identity created",
         "hash": "0xada5e57840843cf114baa6dd0c0985190fcffdca60736e5d4d9b0e8726a74a16",
         "status": "success",
         "block": "71619898",
@@ -341,7 +342,7 @@
       },
       {
         "step": "b",
-        "label": "C : VerdictLog autoris\u00e9 \u00e0 \u00e9crire ses verdicts",
+        "label": "C: VerdictLog allowed to write its verdicts",
         "hash": "0xd42e542f2f76e4ce3548fc5c917b68b065d01ea2ef528aabbf3f823fa21d45c9",
         "status": "success",
         "block": "71619907",
@@ -350,7 +351,7 @@
       },
       {
         "step": "b",
-        "label": "C : caution +1 USDC",
+        "label": "C: bond +1 USDC",
         "hash": "0xa553c88642c4e2fd6d156714b8fd62fc72bfa2060042186d6bf9424ce0ae59e1",
         "status": "success",
         "block": "71619916",
@@ -359,7 +360,7 @@
       },
       {
         "step": "b",
-        "label": "C : agentId 897823 d\u00e9clar\u00e9 dans OperatorBond",
+        "label": "C: agentId 897823 declared in OperatorBond",
         "hash": "0xb0d111aedde4babdeb433c6b4abc0225e0d99bf18f24d5fee28eb5ee91da0dd3",
         "status": "success",
         "block": "71619925",
@@ -368,7 +369,7 @@
       },
       {
         "step": "c",
-        "label": "produit 5 propos\u00e9 (manifeste 0x418543f4eaae5fdd43ee3e08658e34e4627e0cf747ffae4041748fe405d81981)",
+        "label": "product 5 proposed (manifest 0x418543f4eaae5fdd43ee3e08658e34e4627e0cf747ffae4041748fe405d81981)",
         "hash": "0xae570d83aadba05100227d26db81daea6c599cd4d9451ba8817a70198ef35d91",
         "status": "success",
         "block": "71619933",
@@ -377,7 +378,7 @@
       },
       {
         "step": "c",
-        "label": "produit 5 activ\u00e9",
+        "label": "product 5 activated",
         "hash": "0xe0dcbb9d7a8f3ffc56755d2da00e05e811dfe0e68c8db193e0f77ebf21a3bfe8",
         "status": "success",
         "block": "71619942",
@@ -386,7 +387,7 @@
       },
       {
         "step": "d",
-        "label": "A : image propos\u00e9e (produit 5, par l'auteur)",
+        "label": "A: image proposed (product 5, by the author)",
         "hash": "0x84098c6aa9f633cbe613c994685fcae30e2a5475dcdfbd4bc599655087f7db40",
         "status": "success",
         "block": "71619958",
@@ -395,7 +396,7 @@
       },
       {
         "step": "d",
-        "label": "A : image autoris\u00e9e (par l'auteur)",
+        "label": "A: image allowed (by the author)",
         "hash": "0xfffb73def32dc26840098876abb659ed25334fce64ee4f1d9e331412ffdbcad7",
         "status": "success",
         "block": "71619967",
@@ -404,7 +405,7 @@
       },
       {
         "step": "d",
-        "label": "A : registerEnclave (v\u00e9rification DCAP on-chain)",
+        "label": "A: registerEnclave (DCAP verified on-chain)",
         "hash": "0xd73094e863eccd11500410b8041ba696b7a63d0628d9ac8d077d89434b98a23e",
         "status": "success",
         "block": "71619975",
@@ -413,7 +414,7 @@
       },
       {
         "step": "d",
-        "label": "B : image propos\u00e9e (produit 5, par l'auteur)",
+        "label": "B: image proposed (product 5, by the author)",
         "hash": "0x36d8a6eb322341b5e6728520f12d8f7cd935ab946819bacba624e2e73a5c610a",
         "status": "success",
         "block": "71620005",
@@ -422,7 +423,7 @@
       },
       {
         "step": "d",
-        "label": "B : image autoris\u00e9e (par l'auteur)",
+        "label": "B: image allowed (by the author)",
         "hash": "0x0449fd11e81a12f170c9422eae57a60c39948482418532ee0fa60ce5e4110a29",
         "status": "success",
         "block": "71620013",
@@ -431,7 +432,7 @@
       },
       {
         "step": "d",
-        "label": "B : registerEnclave (v\u00e9rification DCAP on-chain)",
+        "label": "B: registerEnclave (DCAP verified on-chain)",
         "hash": "0x5be314413963380b55ac95848a55c393ade5790aadc3843a94498c7cad302349",
         "status": "success",
         "block": "71620022",
@@ -440,7 +441,7 @@
       },
       {
         "step": "d",
-        "label": "C : registerEnclave (v\u00e9rification DCAP on-chain)",
+        "label": "C: registerEnclave (DCAP verified on-chain)",
         "hash": "0x0130c0a6160509b823f40d3c6a652787758228f3e66593fa2673c3f19201594c",
         "status": "success",
         "block": "71620048",
@@ -449,7 +450,7 @@
       },
       {
         "step": "e",
-        "label": "DemoVault de d\u00e9monstration d\u00e9ploy\u00e9 (faille volontaire : migrate sans contr\u00f4le d'acc\u00e8s)",
+        "label": "demo DemoVault deployed (a deliberate flaw: migrate has no access control)",
         "hash": "0x55899c2a13c1cbfd3bf1b28e6a941f87129054a64eb558f84ae145dc22e3b68c",
         "status": "success",
         "block": "71620066",
@@ -458,7 +459,7 @@
       },
       {
         "step": "e",
-        "label": "coffre dot\u00e9 de 1 USDC (vrais fonds)",
+        "label": "vault funded with 1 USDC (real funds)",
         "hash": "0x8d489198f85f259869bf7a1d122b40816ac5f741c8a4c6f0c932f86d951538c8",
         "status": "success",
         "block": "71620075",
@@ -467,7 +468,7 @@
       },
       {
         "step": "e",
-        "label": "prime publi\u00e9e sur le produit 5 (cagnotte 1 USDC, palier 0,5 USDC pour une perte \u2265 1 USDC)",
+        "label": "bounty posted on product 5 (1 USDC pool, 0.5 USDC tier for a loss >= 1 USDC)",
         "hash": "0x1b8511cc75871cf79e09b011a0598fc333cba4a0900155ce6c7acbaafaa2de99",
         "status": "success",
         "block": "71620084",
@@ -476,7 +477,7 @@
       },
       {
         "step": "f",
-        "label": "r\u00e9clamation MENSONG\u00c8RE accept\u00e9e (signature de l'enclave A v\u00e9rifi\u00e9e par le contrat)",
+        "label": "LYING claim accepted (enclave A's signature verified by the contract)",
         "hash": "0x6aee80e974458ba251d75d7d82f8bfe361006fc328fc1416816221a2e76eb0ea",
         "status": "success",
         "block": "71620107",
@@ -485,7 +486,7 @@
       },
       {
         "step": "h",
-        "label": "r\u00e9clamation R\u00c9FUT\u00c9E (deux op\u00e9rateurs distincts, ni l'un ni l'autre signataire)",
+        "label": "claim REFUTED (two distinct operators, neither of them the signer)",
         "hash": "0x0ffca5433186735bf5525e525995f3589d842681da8ffcaa82acb5993025051f",
         "status": "success",
         "block": "71620138",
@@ -710,7 +711,7 @@
     "cleanup": {
       "liarImageRetired": "0xafa3061eda65f87d02ed59a7539aefc40a4a972c030bb580333463f483f956b4",
       "vaultFundsRecovered": "0x639edc89a2172119b13562c640ad6d63155d831ffb4d54b407149e5fa3d445b3",
-      "demoVmsStopped": "2026-11-10 (archive-v21-refute-liar, archive-v21-refute-honest) : relan\u00e7ables pour rejouer la d\u00e9monstration",
+      "demoVmsStopped": "2026-11-10 (archive-v21-refute-liar, archive-v21-refute-honest), once the demonstration was complete",
       "retireB": "0x14672ed55995b33993ad7cb3297ebb9154f31fff1e3b757a1bdaa27576537e14",
       "unbondB": "0x36d7388521d41b47afa075a85647a97318675483397203b4856f7feccc90ad06",
       "retireC": "0x1c484069bea5bb8e5afe6af526f451772c00f4218084dd26bcb37d71187866d5",
@@ -721,7 +722,7 @@
   "history": [
     {
       "at": "2026-11-10",
-      "what": "produit 2 : image avec le relais RPC strict (en-t\u00eates li\u00e9s \u00e0 leur hash, \u00e9chec ferm\u00e9) et le mode de d\u00e9monstration DEMO_FAULT \u00e9teint ; ancienne enclave \u00e9teinte, ancienne empreinte retir\u00e9e",
+      "what": "product 2: image with the strict RPC relay (headers bound to their hash, fail closed) and the DEMO_FAULT demo mode off; previous enclave stopped, previous fingerprint revoked",
       "old": {
         "signer": "0xdc0DF7370b823c63FFc973722cf94Bf706359783",
         "imageId": "0x8fbf1a1c74c47e8705294549e2e6ec6425d5b4698000a0edd40b71abd5017057",
@@ -737,7 +738,7 @@
     },
     {
       "at": "2026-11-10",
-      "what": "produit 4 : copilote dont la consigne ne pr\u00e9tend plus que seule l'enclave lit la conversation (le fournisseur du mod\u00e8le la lit) ; ancienne enclave \u00e9teinte, ancienne empreinte retir\u00e9e",
+      "what": "product 4: copilot whose prompt no longer claims that only the enclave reads the conversation (the model provider reads it); previous enclave stopped, previous fingerprint revoked",
       "old": {
         "signer": "0xa5B460DbA6188246dbC94BcA8722147BBf17FB33",
         "imageId": "0x72ff07714a765537771c4eb09146f97bfbb98d3b5faf81d7961ce6a88a9f34eb",
@@ -753,7 +754,7 @@
     },
     {
       "date": "2026-11-11",
-      "what": "enclave 1 remplac\u00e9e (attestation du mod\u00e8le)",
+      "what": "enclave 1 replaced (model attestation)",
       "previous": {
         "signer": "0x58a192dE799834259D379a90DD02fC1C87497Be4",
         "image": "ghcr.io/jeanbaptistedurand/archive-sealed-chat@sha256:5699da226fb3f1e0f09234c8f9330b5a5414eb8d5bc619854953d10dbe7edc3f",
@@ -763,7 +764,7 @@
     },
     {
       "date": "2026-11-11",
-      "what": "enclave 3 remplac\u00e9e (attestation du mod\u00e8le)",
+      "what": "enclave 3 replaced (model attestation)",
       "previous": {
         "signer": "0x57131D04CDC84A7e23ffBCa63A0d9C0328A979c5",
         "image": "ghcr.io/jeanbaptistedurand/archive-sealed-chat@sha256:5699da226fb3f1e0f09234c8f9330b5a5414eb8d5bc619854953d10dbe7edc3f",
@@ -773,7 +774,7 @@
     },
     {
       "date": "2026-11-11",
-      "what": "enclave 4 (copilote) remplac\u00e9e (attestation du mod\u00e8le)",
+      "what": "enclave 4 (copilot) replaced (model attestation)",
       "previous": {
         "signer": "0xC2C6Cb7C2A91ab81BB0Bc68D46A91bD54EeC8310",
         "image": "ghcr.io/jeanbaptistedurand/archive-copilot-enclave@sha256:5aba8655fdb1204364630aeff1f439f3f327bd438737e8c55fb686f3483afc03",
@@ -783,7 +784,7 @@
     },
     {
       "date": "2026-11-11",
-      "what": "enclave 4 (copilote) remplac\u00e9e (base de connaissances : niveaux, mod\u00e8le v\u00e9rifi\u00e9, preuves d'\u00e9tat)",
+      "what": "enclave 4 (copilot) replaced (knowledge base: levels, verified model, state proofs)",
       "previous": {
         "signer": "0x78639363EAe204fFDFade7491F6d785383bE655A",
         "image": "ghcr.io/jeanbaptistedurand/archive-copilot-enclave@sha256:0d56042ffd97c081b985610924a470c0215e6d4af889c1ffbbfb29ffe3040430",
@@ -810,7 +811,7 @@
     },
     "Ed25519Verifier": "0x031579dd04398249feb67852632da4a648d4b5cf",
     "allianceKey": "0x5ea69fede5bcf71054395b273bad67f67158c242d77945d436374020ece525cb",
-    "note": "Deux niveaux d'op\u00e9rateur (10/11/2026) : MachineRegistry (liaison enclave \u2192 puce PPID, d\u00e9clarations, politiques), ProofOfCloudAuditor (jeton EdDSA de l'alliance Proof of Cloud v\u00e9rifi\u00e9 on-chain), PolicyEnclaves (registre vu \u00e0 travers la politique du produit), SealedBountyVerified (m\u00eame code que SealedBounty, branch\u00e9 sur PolicyEnclaves ; saisies et verdicts apr\u00e8s le d\u00e9lai de 8 jours de OperatorBond / VerdictLog). | 11/11: pile redeployee (PckChip corrige). settlement d'un produit etant IMMUABLE, le produit 6 reste cable a l'ancienne pile -> neutralise (auditeur mort) ; le produit verifie renait en produit 7 sur la pile corrigee apres synchro du noeud.",
+    "note": "Two operator levels (10 Nov 2026): MachineRegistry (binds an enclave to its chip PPID; declarations; policies), ProofOfCloudAuditor (the Proof of Cloud alliance's EdDSA token verified on-chain), PolicyEnclaves (the registry seen through the product's policy), SealedBountyVerified (the same code as SealedBounty, wired to PolicyEnclaves; seizures and verdicts after the 8-day delay of OperatorBond and VerdictLog). 11 Nov 2026: levels stack redeployed (PckChip hardened). A product's settlement contract is immutable, so product 6 stays wired to the previous stack and is neutralized (its auditor attests nobody); the verified level is republished as product 7 on the corrected stack.",
     "superseded": [
       {
         "date": "2026-11-11",
