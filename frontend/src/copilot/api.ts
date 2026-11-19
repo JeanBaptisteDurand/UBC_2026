@@ -131,18 +131,23 @@ export function chatBody(history: ChatTurn[], user: string | null): string {
   return body
 }
 
-export type Answer = { ok: true; parsed: Parsed } | { ok: false; text: string }
+/** sealed: the answer came from the enclave, sealed to its key (the turn may never go anywhere else in clear) */
+export type Answer = { ok: true; parsed: Parsed; sealed?: boolean } | { ok: false; text: string }
 
 const isNetwork = (e: unknown) => /^(Failed to fetch|Load failed|NetworkError|fetch failed|Network request failed)/i.test(String((e as Error)?.message ?? ''))
 const isTimeout = (e: unknown) => (e as Error)?.name === 'TimeoutError' || (e as Error)?.name === 'AbortError'
 
-export async function ask(history: ChatTurn[], user: string | null): Promise<Answer> {
+export async function ask(history: ChatTurn[], user: string | null, sealedBefore = false): Promise<Answer> {
   // AskHive in its enclave first (copilot/enclave.ts): sealed, its key checked on Arc. Where this page cannot seal
-  // (HTTP, another origin), or if the enclave does not answer, the ArcHive server copilot answers and the badge says so
+  // (HTTP, another origin), or if the enclave does not answer, the ArcHive server copilot answers and the badge says so.
+  // A conversation already sealed to the enclave is never sent to the server in clear: the visitor is told instead
   try {
     const s = await askSealed(history.slice(-MAX_MESSAGES), user, getLang() === 'fr' ? 'fr' : 'en')
-    if (s) return s.ok ? { ok: true, parsed: parseReply(s.reply) } : { ok: false, text: s.text }
-  } catch { void checkEnclave(true) /* the enclave is unreachable: the server copilot answers, the badge says so */ }
+    if (s) return s.ok ? { ok: true, parsed: parseReply(s.reply), sealed: true } : { ok: false, text: s.text }
+  } catch {
+    void checkEnclave(true) // the enclave is unreachable: the badge says so
+    if (sealedBefore) return { ok: false, text: ct('enc.held') }
+  }
   let res: Response
   try {
     res = await fetch(`${COPILOT_URL}/chat`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: chatBody(history, user), signal: AbortSignal.timeout(180_000) })

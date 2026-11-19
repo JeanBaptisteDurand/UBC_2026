@@ -30,6 +30,7 @@ export function hooksFor(msgId: string): DriveHooks {
     log: (line) => logStep(msgId, line),
     leave: (target, rest) => { setState({ open: true }); saveQueue({ at: Date.now(), target, msgId, steps: rest }) },
     drive: (on) => setState({ driving: on }),
+    hide: () => setState({ open: false, driving: false }),
   }
 }
 export function play(msgId: string, steps: UiStep[]) { return drive(steps, hooksFor(msgId)) }
@@ -40,11 +41,12 @@ async function send(text: string) {
   const user: Msg = { id: newId(), role: 'user', content }
   setState((s) => ({ msgs: [...s.msgs, user], busy: true }))
   const history: ChatTurn[] = getState().msgs.filter((m) => !m.local && m.content).map(({ role, content }) => ({ role, content }))
-  const a = await ask(history, getWallet().address ?? null)
+  const a = await ask(history, getWallet().address ?? null, getState().msgs.some((m) => m.sealed))
   const id = newId()
   if (!a.ok) { setState((s) => ({ msgs: [...s.msgs, { id, role: 'assistant', content: a.text, local: true }], busy: false })); return }
   const p = a.parsed
   const msg: Msg = { id, role: 'assistant', content: p.text || (p.cards.length || p.ui.length ? '' : ct('err.empty')), citations: p.citations, tools: p.toolNames, cards: p.cards }
+  if (a.sealed) { msg.sealed = true; setState((s) => ({ msgs: s.msgs.map((m) => (m.id === user.id ? { ...m, sealed: true } : m)) })) }
   if (!p.text && !p.cards.length && !p.ui.length) msg.local = true
   // gestures play before any new question (showing); if they change page, the resume on the new page keeps the
   // same lock (mount.tsx)
@@ -100,7 +102,8 @@ function WalletBar() {
   useLang()
   const w = useWallet()
   const [how, setHow] = useState(false)
-  const err = w.error === 'rejected' ? ct('wal.rejected') : w.error === 'pending' ? ct('wal.pending') : w.error ? ct('wal.err', { e: w.error }) : ''
+  // the site wallet writes its own sentence (refused, pending, wrong site…): shown as it is
+  const err = w.error === 'rejected' ? ct('wal.rejected') : w.error === 'pending' ? ct('wal.pending') : w.error ?? ''
   return (
     <div className="cp-wal" role="group" aria-label={ct('wal.label')}>
       {!w.has ? (
@@ -108,6 +111,14 @@ function WalletBar() {
           <p className="cp-wal-s"><i className="cp-led is-off" aria-hidden="true" />{ct('wal.none')}</p>
           <button type="button" className="cp-ib" aria-expanded={how} onClick={() => setHow(!how)}>{ct('wal.how')}</button>
           {how ? <div className="cp-wal-how"><p>{ct('wal.howText')}</p><a className="cp-a" href="https://faucet.circle.com" target="_blank" rel="noreferrer noopener">{ct('wal.faucet')}</a></div> : null}
+        </>
+      ) : w.pick?.length && w.status !== 'connected' ? (
+        <>
+          {/* several wallets in this browser (EIP-6963): the choice, here (the landing has no header wallet) */}
+          <p className="cp-wal-s"><i className="cp-led is-off" aria-hidden="true" />{ct('wal.pick')}</p>
+          <ul className="cp-wal-pick">
+            {w.pick.map((x) => <li key={x.id}><button type="button" className="cp-ib" onClick={() => void connect(x.id)}>{x.icon ? <img src={x.icon} alt="" width="16" height="16" /> : null}<span>{x.name}</span></button></li>)}
+          </ul>
         </>
       ) : w.status !== 'connected' ? (
         <>
@@ -206,7 +217,8 @@ export function Copilot() {
   useEffect(() => {
     const el = log.current
     if (!el) return
-    if (view === 'mcp') { el.scrollTop = 0; return }
+    // the MCP view and the empty conversation start at their top (the first suggestions, not the last ones)
+    if (view === 'mcp' || !msgs.length) { el.scrollTop = 0; return }
     el.scrollTo({ top: el.scrollHeight, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
   }, [msgs, busy, open, view])
 

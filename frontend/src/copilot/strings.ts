@@ -43,7 +43,7 @@ const EN = {
   'err.empty': 'The copilot sent an empty answer.',
   // pages and steps played on the site
   'page.home': 'the home page', 'page.use': 'the catalog', 'page.service': 'the service page', 'page.rent': 'the Rent page',
-  'page.publish': 'the Publish page', 'page.demo': 'the demo', 'page.datacenter': 'the 3D server room', 'page.console': 'the console',
+  'page.publish': 'the Publish page', 'page.network': 'the Network page', 'page.demo': 'the demo', 'page.datacenter': 'the 3D server room', 'page.console': 'the console',
   'step.open': 'Opened {page}',
   'step.search': 'Typed “{q}” in the search',
   'step.clear': 'Cleared the search',
@@ -60,6 +60,8 @@ const EN = {
   'note.from': 'Copilot',
   // wallet
   'wal.none': 'No wallet in this browser',
+  'wal.pick': 'Several wallets here. Choose one',
+  'enc.held': 'The enclave did not answer. This conversation was sealed to it, so it is not sent anywhere else in clear. Try again in a moment, or start over to ask the ArcHive server.',
   'wal.how': 'How to get one',
   'wal.howText': 'Install a browser wallet such as MetaMask or Rabby, then reload this page. On a phone, open this page in your wallet’s own browser. The copilot adds Arc testnet to it for you.',
   'wal.faucet': 'Get test USDC from Circle’s faucet',
@@ -182,7 +184,7 @@ const FR: Record<Key, string> = {
   'err.unreadable': 'La réponse du copilote est illisible (HTTP {status}).',
   'err.empty': 'Le copilote a envoyé une réponse vide.',
   'page.home': 'l’accueil', 'page.use': 'le catalogue', 'page.service': 'la page du service', 'page.rent': 'la page Louer',
-  'page.publish': 'la page Publier', 'page.demo': 'la démo', 'page.datacenter': 'la salle des serveurs en 3D', 'page.console': 'la console',
+  'page.publish': 'la page Publier', 'page.network': 'la page Réseau', 'page.demo': 'la démo', 'page.datacenter': 'la salle des serveurs en 3D', 'page.console': 'la console',
   'step.open': 'Ouvert : {page}',
   'step.search': 'Recherche tapée : « {q} »',
   'step.clear': 'Recherche effacée',
@@ -198,6 +200,8 @@ const FR: Record<Key, string> = {
   'target.bounty': 'la prime n° {id} (produit n° {p})',
   'note.from': 'Copilote',
   'wal.none': 'Aucun wallet dans ce navigateur',
+  'wal.pick': 'Plusieurs wallets ici. Choisissez-en un',
+  'enc.held': 'L’enclave n’a pas répondu. Cette conversation lui était scellée : elle n’est envoyée nulle part ailleurs en clair. Réessayez dans un instant, ou recommencez pour interroger le serveur ArcHive.',
   'wal.how': 'Comment en avoir un',
   'wal.howText': 'Installez un wallet de navigateur comme MetaMask ou Rabby, puis rechargez cette page. Sur un téléphone, ouvrez cette page dans le navigateur de votre wallet. Le copilote y ajoute Arc testnet pour vous.',
   'wal.faucet': 'Obtenir des USDC de test au robinet de Circle',
@@ -278,32 +282,41 @@ const FR: Record<Key, string> = {
   'mcp.note': 'HTTP en flux, sans compte ni clé. Chaque opération préparée se signe dans votre propre wallet.',
 }
 
-/** Suggestions for the empty conversation, depending on the open page. */
+/** Suggestions for the empty conversation, depending on the open page: three for the page, then the three every page
+ *  offers (renting out a machine, ArcHive in Claude Code, the MCP). */
 const SUGGEST: Record<string, { en: string[]; fr: string[] }> = {
   home: {
-    en: ['What am I looking at?', 'Show me the services running now', 'Walk me through the demo', 'I want to rent out my machine'],
-    fr: ['Qu’est-ce que je regarde ?', 'Montrez-moi les services en marche', 'Faites-moi la démo', 'Je veux louer ma machine'],
+    en: ['What am I looking at?', 'Show me a demo', 'Show me the services running now'],
+    fr: ['Qu’est-ce que je regarde ?', 'Montrez-moi une démo', 'Montrez-moi les services en marche'],
+  },
+  network: {
+    en: ['Show me a demo', 'What does Arc check before anyone pays?', 'Show me the services running now'],
+    fr: ['Montrez-moi une démo', 'Que vérifie Arc avant que quiconque paie ?', 'Montrez-moi les services en marche'],
   },
   use: {
-    en: ['Show me the private AI services', 'Which services are running right now?', 'How much does a private AI call cost?', 'I want to post a bounty'],
-    fr: ['Montrez-moi les services d’IA privée', 'Quels services sont en marche maintenant ?', 'Combien coûte un appel d’IA privée ?', 'Je veux publier une prime'],
+    en: ['Show me the private AI services', 'How much does a private AI call cost?', 'I want to post a bounty'],
+    fr: ['Montrez-moi les services d’IA privée', 'Combien coûte un appel d’IA privée ?', 'Je veux publier une prime'],
   },
   service: {
-    en: ['Explain this service', 'How do I use it?', 'Who runs it, and what did Arc check?', 'Back to the catalog'],
-    fr: ['Expliquez-moi ce service', 'Comment l’utiliser ?', 'Qui le fait tourner, et qu’a vérifié Arc ?', 'Retour au catalogue'],
+    en: ['Explain this service', 'How do I use it?', 'Who runs it, and what did Arc check?'],
+    fr: ['Expliquez-moi ce service', 'Comment l’utiliser ?', 'Qui le fait tourner, et qu’a vérifié Arc ?'],
   },
   rent: {
-    en: ['Prepare my bond deposit', 'What does the bond protect?', 'Walk me through the steps', 'Who already runs a machine?'],
-    fr: ['Préparez le dépôt de ma caution', 'À quoi sert la caution ?', 'Montrez-moi les étapes', 'Qui fait déjà tourner une machine ?'],
+    en: ['Prepare my bond deposit', 'What does the bond protect?', 'Walk me through the steps'],
+    fr: ['Préparez le dépôt de ma caution', 'À quoi sert la caution ?', 'Montrez-moi les étapes'],
   },
   publish: {
-    en: ['How do I publish my own service?', 'Prepare a skeleton for my service', 'What does the manifest fix?', 'Which products are on Arc?'],
-    fr: ['Comment publier mon propre service ?', 'Préparez le squelette de mon service', 'Que fixe le manifeste ?', 'Quels produits sont sur Arc ?'],
+    en: ['How do I publish my own service?', 'Prepare a skeleton for my service', 'What does the manifest fix?'],
+    fr: ['Comment publier mon propre service ?', 'Préparez le squelette de mon service', 'Que fixe le manifeste ?'],
   },
   demo: {
-    en: ['Play the demo', 'Explain this step', 'Go to the step where Arc refuses', 'Pause the demo'],
-    fr: ['Lancez la démo', 'Expliquez-moi cette étape', 'Allez à l’étape où Arc refuse', 'Mettez la démo en pause'],
+    en: ['Play the demo', 'Explain this step', 'Pause the demo'],
+    fr: ['Lancez la démo', 'Expliquez-moi cette étape', 'Mettez la démo en pause'],
   },
+}
+const EVERY = {
+  en: ['How do I rent out my machine?', 'How do I set up ArcHive with my Claude Code (inference and enclaves)?', 'How do I set up the ArcHive MCP?'],
+  fr: ['Comment louer ma machine ?', 'Comment brancher ArcHive dans mon Claude Code (inférence et enclaves) ?', 'Comment installer le MCP d’ArcHive ?'],
 }
 
 export type CKey = Key
@@ -314,5 +327,6 @@ export function ct(k: Key, vars?: Record<string, string | number>): string {
 }
 export function suggestions(page: string | null): string[] {
   const s = SUGGEST[page ?? 'home'] ?? SUGGEST.home
-  return getLang() === 'fr' ? s.fr : s.en
+  const l = getLang() === 'fr' ? 'fr' : 'en'
+  return [...s[l], ...EVERY[l]]
 }

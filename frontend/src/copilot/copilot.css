@@ -32,6 +32,9 @@
 .cp-wal-n { color: var(--ink3); }
 .cp-wal-how { flex-basis: 100%; display: grid; gap: 8px; padding: 4px 0 2px; }
 .cp-wal-how p { margin: 0; line-height: 1.5; }
+.cp-wal-pick { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.cp-wal-pick .cp-ib { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; }
+.cp-wal-pick img { width: 16px; height: 16px; flex: none; }
 .cp-wal-e { flex-basis: 100%; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin: 0; color: var(--amber); line-height: 1.45; }
 .cp-x { flex: none; width: 24px; height: 24px; color: var(--ink2); }
 .cp-led { display: inline-block; flex: none; width: 4px; height: 12px; border-radius: 1px; background: var(--led-off); }
@@ -160,6 +163,15 @@
   .cp-hd { padding: 10px 16px 10px; }
   .cp-in { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
   .cp-ghost-cap { max-width: 200px; }
+}
+/* a phone held sideways (or any short screen): the panel takes the full height on the right, so the conversation keeps
+   room between its header and the field */
+@media (max-height: 500px) and (min-width: 641px) {
+  .cp-panel { top: 0; right: 0; bottom: 0; height: auto; width: min(420px, 56vw); box-shadow: inset 1px 0 0 var(--rule2), -24px 0 48px -24px rgb(0 0 0 / 0.9); }
+  .cp-panel.is-driving { top: auto; height: auto; }
+  .cp-hd { padding: 8px 16px; }
+  .cp-wal { padding: 6px 16px; }
+  .cp-in { padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
 }
 @media (prefers-reduced-motion: reduce) {
   .cp-panel, .cp-note, .cp-ring { animation: none; }

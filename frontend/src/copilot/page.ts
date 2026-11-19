@@ -3,7 +3,7 @@
 import { link, serviceHref } from '../links'
 import { CONSOLE, DATACENTER } from '../data/endpoints'
 
-export type PageName = 'home' | 'use' | 'service' | 'rent' | 'publish' | 'demo'
+export type PageName = 'home' | 'use' | 'service' | 'rent' | 'publish' | 'demo' | 'network'
 export type Target = PageName | 'datacenter' | 'console'
 export const TARGETS: readonly Target[] = ['home', 'use', 'service', 'rent', 'publish', 'demo', 'datacenter', 'console']
 export const STATES = ['all', 'green', 'amber', 'red'] as const
@@ -16,14 +16,15 @@ export const isId = (x: unknown): x is string => typeof x === 'string' && /^\d{1
 export const isAnchor = (x: unknown): x is string => typeof x === 'string' && /^[a-z][a-z0-9-]{0,39}$/.test(x)
 export const oneOf = <T extends string>(list: readonly T[], x: unknown): T | undefined => (typeof x === 'string' && (list as readonly string[]).includes(x) ? (x as T) : undefined)
 
-/** The front page served at this URL (/, /use.html, /service.html…), or null outside the front (and for pages the
- *  server copilot does not know: Network, Bounties, Sessions, Operator). Resolved under the build base. */
+/** The front page served at this URL (/, /use.html, /service.html, /network.html…), or null outside the front (and for
+ *  pages the server copilot does not know: Bounties, Sessions, Operator). Resolved under the build base. The Network
+ *  page carries the site's demo (its 3D demo, network.html?focus=demo): the copilot plays it there. */
 export function pageOf(pathname = location.pathname): PageName | null {
   const base = import.meta.env.BASE_URL.replace(/\/+$/, '')
   const rel = base && pathname.startsWith(base) ? pathname.slice(base.length) || '/' : pathname
   const p = rel.replace(/\/index\.html$/, '/').replace(/\.html$/, '').replace(/\/+$/, '')
   if (p === '') return 'home'
-  const m = /^\/(use|service|rent|publish|demo)$/.exec(p)
+  const m = /^\/(use|service|rent|publish|demo|network)$/.exec(p)
   return m ? (m[1] as PageName) : null
 }
 
@@ -38,8 +39,12 @@ function homeSection(): string | undefined {
 }
 
 export interface PageCtx { name: PageName; productId?: string; query?: string; state?: StateF; kind?: KindF; section?: string }
+/** The Network page's 3D demo is open (its player, network/demo.ts, is shown) */
+export const netDemoOpen = () => { const r = document.querySelector<HTMLElement>('.s3d .dm'); return !!r && !r.hidden }
 export function pageContext(): PageCtx | undefined {
-  const name = pageOf()
+  const page = pageOf()
+  // the server knows the demo, not the Network page: there, the open demo is "demo", the rest says nothing
+  const name = page === 'network' ? (netDemoOpen() ? 'demo' : null) : page
   if (!name) return undefined
   const q = new URLSearchParams(location.search)
   const out: PageCtx = { name }

@@ -20,6 +20,8 @@ export interface Msg {
   content: string
   /** Written by the site (error, refusal), never sent back to the copilot. */
   local?: boolean
+  /** Sent to (or answered by) the enclave, sealed to its key: never resent to the server in clear. */
+  sealed?: boolean
   citations?: string[]
   tools?: string[]
   cards?: Prepared[]
