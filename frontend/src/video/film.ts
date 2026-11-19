@@ -824,6 +824,10 @@ function downTier() {
 // the image moves, the two neighbouring frames are blended at every speed, and the motion canvas has the pack's size.
 // The sharp frame is fetched and faded in over it (#film-sharp) only once the scroll rests. Today's film stays the
 // default and the fallback (pack missing or wrong, worker error, no first frames): decided before the first gesture.
+// ?rb=0 (comparison): the reading blur under the landing's text columns (styles.css, a backdrop-filter re-blurred on
+// every frame where the film moves under it) becomes a still shade (video.css). Measured 20/11 in headless Chromium,
+// 1440x900: with the blur the page renders at 30 frames per second while the film moves, without it at 60
+if (Q.get('rb') === '0') document.documentElement.classList.add('rb-off')
 const GATE_DEFAULT = false
 export const GATE = Q.get('gate') === '1' || (GATE_DEFAULT && Q.get('gate') !== '0' && !FIREFOX && !CONN?.saveData)
 /** The motion pack, next to the set's frames (Retina uses the desktop one); ?pack= overrides. motion.bin (10.3 MB

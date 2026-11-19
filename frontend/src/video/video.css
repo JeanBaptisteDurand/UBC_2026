@@ -88,3 +88,9 @@ html.film-lock { overflow: hidden; scrollbar-gutter: stable; }
 #film-gate-panel .fg-n { margin: 0; display: flex; gap: 16px; color: var(--ink3); min-height: 1.45em; }
 #film-gate-panel .fg-go[hidden] { display: none; }
 @media (prefers-reduced-motion: reduce) { #film-gate, #film-gate-panel, #film-gate-panel .fg-fill { transition: none; } }
+
+/* ?rb=0 (film.ts): the reading blur under the text columns (styles.css) as a still shade, same mask, no backdrop-filter:
+   nothing to re-blur on each moving frame of the film */
+@media (min-width: 761px) {
+  html.rb-off.film-page .txt::before, html.rb-off.film-page .end-in::before { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(var(--bg-c) / 0.42); animation: none; }
+}
