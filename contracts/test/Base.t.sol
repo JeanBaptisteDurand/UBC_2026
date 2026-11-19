@@ -20,15 +20,15 @@ import {SessionPay} from "../src/SessionPay.sol";
 import {SealedBounty} from "../src/SealedBounty.sol";
 import {X402Settler} from "../src/X402Settler.sol";
 
-/// @notice Base commune : déploie l'infrastructure, câble les droits, installe l'historique EIP-2935,
-///         et offre les aides (mesures d'attestation, signatures EIP-712, caution, inscription d'enclave).
+/// @notice Shared test base: deploys the infrastructure, wires permissions, installs the EIP-2935 history,
+///         and provides helpers (attestation measurements, EIP-712 signatures, bonding, enclave registration).
 abstract contract Base is Test {
     address internal constant HISTORY_ADDR = 0x0000F90827F1C53a10cb7A02335B175320002935;
     uint64 internal constant TIMELOCK = 5 minutes;
-    /// @dev v2 : validité en blocs. Fenêtres COURTES pour les tests (Arc mainnet : 170 000 blocs ≈ 24 h) :
-    ///      inscription au bloc 1000 → fenêtre [1000, 5999], grâce jusqu'au bloc 9999. Assez longues pour la
-    ///      fenêtre EIP-2935 (8 191 blocs), assez courtes pour tester « ancré dans la fenêtre, réglé après la
-    ///      grâce » sans sortir de cette fenêtre.
+    /// @dev Validity is counted in blocks. Windows are SHORT in tests (Arc mainnet: 170,000 blocks ≈ 24 h):
+    ///      registered at block 1000 → window [1000, 5999], grace until block 9999. Long enough for the
+    ///      EIP-2935 window (8,191 blocks), short enough to test "anchored inside the window, settled after the
+    ///      grace period" without leaving that window.
     uint64 internal constant TEST_VALIDITY_BLOCKS = 5_000;
     uint64 internal constant TEST_GRACE_BLOCKS = 4_000;
     uint64 internal constant TEST_BLOCK_TIME_MS = 508;
@@ -47,7 +47,7 @@ abstract contract Base is Test {
 
     address internal treasury = makeAddr("treasury");
 
-    // acteurs avec clés
+    // actors with keys
     uint256 internal opPk = 0xA11CE;
     uint256 internal op2Pk = 0xB0B;
     uint256 internal signerPk = 0x5151;
@@ -63,7 +63,7 @@ abstract contract Base is Test {
     address internal protocol;
 
     function setUp() public virtual {
-        // clés lisibles
+        // readable key labels
         operator = vm.addr(opPk);
         operator2 = vm.addr(op2Pk);
         user = vm.addr(userPk);
@@ -104,7 +104,7 @@ abstract contract Base is Test {
         );
         x402 = new X402Settler(address(usdc), address(products), address(registry), address(bond), treasury);
 
-        // câblage des droits, une fois (ce contrat de test est déployeur ET propriétaire de bond et verdict)
+        // wire permissions once (this test contract is deployer AND owner of bond and verdict)
         address[] memory settlements = new address[](3);
         settlements[0] = address(sessionPay);
         settlements[1] = address(sealedBounty);
@@ -119,7 +119,7 @@ abstract contract Base is Test {
         MockHistory mh = new MockHistory();
         vm.etch(HISTORY_ADDR, address(mh).code);
 
-        // liquidités
+        // liquidity
         usdc.mint(operator, 1_000_000e6);
         usdc.mint(operator2, 1_000_000e6);
         usdc.mint(user, 1_000_000e6);
@@ -171,7 +171,7 @@ abstract contract Base is Test {
         );
     }
 
-    // ---------- aides produit / caution / enclave ----------
+    // ---------- product / bond / enclave helpers ----------
 
     function _proposeAndActivate(
         address settlement,
@@ -202,12 +202,12 @@ abstract contract Base is Test {
             outWeight: 0
         });
         productId = products.propose(q);
-        vm.warp(vm.getBlockTimestamp() + TIMELOCK + 1); // cheatcode : jamais replié par l'optimiseur (via_ir)
+        vm.warp(vm.getBlockTimestamp() + TIMELOCK + 1); // cheatcode: never folded by the optimizer (via_ir)
         products.activate(productId);
     }
 
-    /// @dev Remplace `bond` par une caution neuve dont CE contrat de test est le registre et le seul contrat de
-    ///      règlement (tests unitaires de OperatorBond, sans passer par SessionPay / SealedBounty).
+    /// @dev Replaces `bond` with a fresh bond whose registry and only settlement contract is THIS test contract
+    ///      (OperatorBond unit tests, without going through SessionPay / SealedBounty).
     function _bondWithSelfAsSettlement() internal returns (OperatorBond b) {
         b = new OperatorBond(address(usdc), treasury, address(this), address(identity));
         address[] memory settlements = new address[](1);
@@ -216,15 +216,15 @@ abstract contract Base is Test {
         bond = b;
     }
 
-    /// @dev Le registre ERC-8004 de test coûte alors ce que coûte celui de Circle sur Arc (verdict ≈ 233 k contre
-    ///      ≈ 238 k mesurés le 7/11) : sans cela, le 1/64 de gaz restant après un verdict affamé ne paierait même pas la
-    ///      suite, et la faille du gaz minimal ne se verrait pas en test.
+    /// @dev The test ERC-8004 registry then costs what Circle's registry costs on Arc (verdict ≈ 233k vs
+    ///      ≈ 238k measured on Arc): otherwise the 1/64 of gas left after a starved verdict would not even pay for the
+    ///      rest, and the minimum-gas flaw would not show up in tests.
     function _emulateArcVerdictCost() internal {
         validation.setBurnSlots(8);
     }
 
-    /// @dev Le gaz MINIMAL auquel `target.call(data)`, envoyé par `sender`, réussit — ce que cherche eth_estimateGas —
-    ///      par dichotomie dans ]lo, hi] (lo échoue, hi réussit) ; l'état est restauré après chaque essai.
+    /// @dev The MINIMUM gas at which `target.call(data)`, sent by `sender`, succeeds (what eth_estimateGas looks for),
+    ///      found by bisection in ]lo, hi] (lo fails, hi succeeds); state is restored after each attempt.
     function _minGasToSucceed(address sender, address target, bytes memory data, uint256 lo, uint256 hi)
         internal
         returns (uint256)
@@ -256,7 +256,7 @@ abstract contract Base is Test {
         address op = vm.addr(operatorPk);
         signer = vm.addr(enclaveSignerPk);
         bytes32 x25519 = keccak256(abi.encodePacked("x25519", salt));
-        uint256 r = vm.getBlockNumber() - 1; // cheatcode : jamais replié par l'optimiseur après un vm.roll
+        uint256 r = vm.getBlockNumber() - 1; // cheatcode: never folded by the optimizer after a vm.roll
         quote = abi.encodePacked("quote", salt);
         IAttestationModule.Measurements memory m = _measurements(productId, op, signer, x25519, r, false);
         module.setMeasurements(quote, m);
@@ -294,7 +294,7 @@ abstract contract Base is Test {
     {
         address from = vm.addr(fromPk);
         uint256 validAfter = 0;
-        uint256 validBefore = vm.getBlockTimestamp() + 1 hours; // cheatcode : jamais replié après un vm.warp
+        uint256 validBefore = vm.getBlockTimestamp() + 1 hours; // cheatcode: never folded after a vm.warp
         bytes32 digest = usdc.hashReceive(from, to, value, validAfter, validBefore, nonce);
         a = UsdcPayer.Auth({
             validAfter: validAfter,
