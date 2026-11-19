@@ -64,7 +64,7 @@ export default function Products({ go }: { go: (r: string) => void }) {
                 <div className="flex flex-wrap items-center gap-1.5 font-medium">{n.name} <Badge tone="muted">{n.rail}</Badge>{p.deterministic && <Badge tone="accent">{t("common.deterministic")}</Badge>}</div>
                 <div className="text-[12px] text-muted">{tx("prod.author", { id: p.id.toString(), author: <Hex value={p.author} n={4} /> })}</div>
               </Td>
-              <Td label={t("prod.h.price")} wrap className="font-mono">
+              <Td label={t(p.settlement.toLowerCase() === testnet.sessionPay.toLowerCase() ? "prod.h.price.tok" : p.settlement.toLowerCase() === testnet.x402Settler.toLowerCase() ? "prod.h.price.call" : "prod.h.price")} wrap className="font-mono">
                 {/* prix 0 : payé par la cagnotte d'une prime, ou gratuit (aucun contrat de règlement : le copilote attesté) */}
                 <span className="whitespace-nowrap">{p.price === 0n ? t(/^0x0{40}$/i.test(p.settlement) ? "prod.free" : "prod.poolPaid") : usdc(p.price)}</span>
                 {p.price > 0n && p.settlement.toLowerCase() === testnet.sessionPay.toLowerCase() && (

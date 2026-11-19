@@ -652,7 +652,7 @@ export function ProposeCard() {
   return (
     <Card title={t("pub.card.title")} sub={t("pub.card.sub")}>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label={t("pub.f.price")} value={price} onChange={setPrice} />
+        <Field label={t(settlement.toLowerCase() === testnet.sessionPay.toLowerCase() ? "pub.f.price.tok" : settlement.toLowerCase() === testnet.x402Settler.toLowerCase() ? "pub.f.price.call" : "pub.f.price")} value={price} onChange={setPrice} />
         <Field label={t("pub.f.minBond")} value={minBond} onChange={setMinBond} />
         <Field label={t("pub.f.unit")} value={unitTokens} onChange={setUnitTokens} hint={t("pub.f.unitHint")} />
         <Field label={t("pub.f.weight")} value={outWeight} onChange={setOutWeight} hint={t("pub.f.weightHint")} />

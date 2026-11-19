@@ -134,7 +134,7 @@ import { arcTestnet, createAttestedCopilotClient, testnet } from "@arcvault/sdk"
 // ${t("dev.cop.c1")}
 const publicClient = createPublicClient({ chain: arcTestnet, transport: http() });
 const copilot = createAttestedCopilotClient({
-  copilotUrl: "${ATTESTED_COPILOT?.url ?? "https://…/enclave/copilot"}",
+  copilotUrl: "${ATTESTED_COPILOT?.url ?? "https://archive.62-171-153-35.sslip.io/enclave/copilot-site"}",
   productId: ${ATTESTED_COPILOT?.productId ?? 4n}n,
   publicClient, deployment: testnet,
   expectedOperator: "${ATTESTED_COPILOT?.operator ?? "0x…"}", // ${t("dev.cop.c2")}
