@@ -1,40 +1,40 @@
 /**
- * refute-demo.ts — la DÉMONSTRATION de la réfutation sur Arc testnet (pile v2.1), séparée et étiquetée : produit 5
- * « Sealed Bounty — refutation demo (one image deliberately lies) ». Avec un seul opérateur, une réfutation ne peut pas se
- * montrer on-chain (il faut au moins deux AUTRES opérateurs) : ce script monte trois opérateurs de démonstration et joue tout
- * le mécanisme avec de vraies transactions. Le même chemin tourne, avec les vrais contrats et le vrai rejeu, sur une chaîne
- * locale : test/bounty-demo-fault-chain.test.ts.
+ * refute-demo.ts — the refutation demo on Arc testnet (v2.1 stack), kept separate and labelled: product 5
+ * "Sealed Bounty — refutation demo (one image deliberately lies)". With a single operator, a refutation cannot be shown
+ * on-chain (it needs at least two other operators): this script sets up three demo operators and plays the whole
+ * mechanism with real transactions. The same path runs, with the real contracts and the real replay, on a local chain:
+ * test/bounty-demo-fault-chain.test.ts.
  *
- *  (a) clés d'opérateur A (image menteuse), B, C : .secrets/demo-operators.json (0600, créées au besoin) ; REFUS si l'une est
- *      l'opérateur principal (0x344f…2e1a), le déployeur ou le chasseur ; le déployeur dote chacune (gas + caution 1 USDC) ;
- *  (b) chaque opérateur : identité ERC-8004, VerdictLog autorisé (setApprovalForAll), caution 1 USDC (EIP-3009), agentId ;
- *  (c) l'auteur (déployeur) crée le produit 5 réglé par SealedBounty ; son manifeste public (anglais) est ÉCRIT depuis les
- *      deux composes dans web/public/manifests/sealed-bounty-refute-demo-v21.json, son keccak256 inscrit on-chain ;
- *  (d) inscription DCAP des trois enclaves, chacune par SON opérateur : scripts/register-dcap.ts, lancé avec une clé
- *      d'opérateur de démonstration dans un fichier temporaire 0600 (effacé ensuite) ; l'auteur autorise l'empreinte d'image
- *      de chaque VM pour le produit 5 ;
- *  (e) le protocole (déployeur) déploie un NOUVEAU coffre DemoVault, le dote de 1 USDC et publie une prime sur le produit 5
- *      (cagnotte 1 USDC, palier 0,5 USDC pour une perte ≥ 1 USDC, prédicat ERC20_DROP, clé X25519 propre à la prime) ;
- *  (f) le chasseur (.secrets/hunter.json) vérifie on-chain la clé de l'enclave MENTEUSE et lui soumet l'exploit
- *      (DemoVault.migrate(chasseur), comme e2e-bounty-v2.ts) : réclamation signée avec une perte de 2 USDC alors que le coffre
- *      n'en contient qu'un ; acceptClaim ;
- *  (g) AVANT la livraison, le protocole demande la réfutation (SDK requestRefutations) aux trois enclaves : A est écartée
- *      (opérateur de la réclamation), B et C rejouent au bloc N et signent Refutation { prouvée, perte réelle 1 USDC, palier }.
- *      Source : « protocole » (cP + secret X25519 de ce seul rapport, défaut) ou REFUTE_SOURCE=hunter (bundle + aléa r) ;
- *  (h) refute(claim, [A], f, [sigB, sigC]) envoyé par le déployeur : ClaimRefuted, caution de A saisie (moitié au
- *      dénonciateur, moitié au protocole : ici le déployeur, deux fois), A radié, paiement réservé rendu à la cagnotte,
- *      verdict ERC-8004 « refuted » (0) pour l'agent de A ;
- *  (i) le résumé (transactions, montants) est écrit dans deployments.v21.testnet.json, clé "refuteDemo", AU FIL DES ÉTAPES :
- *      relancé, le script reprend là où il s'était arrêté ; une fois la réclamation réfutée, il ne fait plus qu'afficher.
- * La clé de l'opérateur principal n'est jamais lue ni utilisée ; le produit 2 et ses enclaves ne sont pas touchés.
- * Secrets de la démonstration (clé X25519 de la prime, aléa r, rapport cP) : .secrets/refute-demo.json (0600).
+ *  (a) operator keys A (lying image), B, C: .secrets/demo-operators.json (0600, created if needed); refused if any of them
+ *      is the main operator (0x344f…2e1a), the deployer or the hunter; the deployer funds each one (gas + a 1 USDC bond);
+ *  (b) each operator: ERC-8004 identity, VerdictLog allowed (setApprovalForAll), 1 USDC bond (EIP-3009), agentId;
+ *  (c) the author (deployer) creates product 5, settled by SealedBounty; its public manifest (in English) is written from
+ *      the two compose files into web/public/manifests/sealed-bounty-refute-demo-v21.json, and its keccak256 recorded on-chain;
+ *  (d) DCAP registration of the three enclaves, each by its own operator: scripts/register-dcap.ts, run with a demo
+ *      operator key in a temporary 0600 file (deleted afterwards); the author allows each VM's image fingerprint for
+ *      product 5;
+ *  (e) the protocol (deployer) deploys a new DemoVault, funds it with 1 USDC and publishes a bounty on product 5
+ *      (pool 1 USDC, tier 0.5 USDC for a loss ≥ 1 USDC, ERC20_DROP predicate, an X25519 key of the bounty's own);
+ *  (f) the hunter (.secrets/hunter.json) verifies the lying enclave's key on-chain and submits the exploit to it
+ *      (DemoVault.migrate(hunter), as in e2e-bounty-v2.ts): a claim signed with a loss of 2 USDC although the vault
+ *      holds only 1; acceptClaim;
+ *  (g) before delivery, the protocol requests the refutation (SDK requestRefutations) from the three enclaves: A is left
+ *      out (the claim's operator), B and C replay at block N and sign Refutation { proven, real loss 1 USDC, tier }.
+ *      Source: "protocol" (cP + the X25519 secret of this one report, the default) or REFUTE_SOURCE=hunter (bundle + nonce r);
+ *  (h) refute(claim, [A], f, [sigB, sigC]) sent by the deployer: ClaimRefuted, A's bond seized (half to the reporter,
+ *      half to the protocol: here the deployer, twice), A banned, the reserved payment returned to the pool,
+ *      ERC-8004 verdict "refuted" (0) for A's agent;
+ *  (i) the summary (transactions, amounts) is written step by step into deployments.v21.testnet.json, key "refuteDemo":
+ *      when re-run, the script resumes where it stopped; once the claim is refuted, it only prints.
+ * The main operator's key is never read or used; product 2 and its enclaves are not touched.
+ * Demo secrets (the bounty's X25519 key, nonce r, report cP): .secrets/refute-demo.json (0600).
  *
- * Usage (depuis enclave/) :
- *   npx tsx scripts/refute-demo.ts --keys     clés A, B, C (créées au besoin) et variables CHIFFRÉES à donner aux deux VM
+ * Usage (from enclave/):
+ *   npx tsx scripts/refute-demo.ts --keys     keys A, B, C (created if needed) and the encrypted variables for the two VMs
  *   LIAR_URL=https://<app>-8803.dstack-… B_URL=https://<app>-8803.dstack-… C_URL=https://<app>-8813.dstack-… \
  *     npx tsx scripts/refute-demo.ts [--dry]
- *   DEPLOYMENTS (défaut deployments.v21.testnet.json) ; REFUTE_SOURCE=protocol|hunter (défaut protocol) ;
- *   --dry : contrôles (composes, enclaves, soldes) et manifeste écrit, aucune transaction.
+ *   DEPLOYMENTS (default deployments.v21.testnet.json); REFUTE_SOURCE=protocol|hunter (default protocol);
+ *   --dry: checks (compose files, enclaves, balances) and writes the manifest, with no transaction.
  */
 import { chmodSync, existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { spawn } from "node:child_process";
