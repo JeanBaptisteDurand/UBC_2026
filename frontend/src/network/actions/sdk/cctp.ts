@@ -1,8 +1,8 @@
 /** cctp.ts — on-ramp : voir l'USDC d'un utilisateur sur plusieurs chaînes et le convertir vers Arc via CCTP.
  *
  *  Le domaine CCTP d'Arc = 26 (VERIFIED, recherche Circle). La lecture des soldes multi-chaînes marche
- *  telle quelle ; le pont burn→mint est câblé (depositForBurn v2) mais exige les adresses CCTP testnet
- *  par chaîne, à renseigner dans la config `[À VÉRIFIER]`. Récupération d'attestation via l'API Iris de Circle. */
+ *  telle quelle ; le pont burn→mint (depositForBurn, CCTP v2) prend l'adresse du TokenMessenger de chaque chaîne
+ *  dans la config. Récupération d'attestation via l'API Iris de Circle. */
 import { createPublicClient, http, parseAbi, type Address, type Hex, type WalletClient, type Account, pad } from "viem";
 
 export const ARC_CCTP_DOMAIN = 26;
@@ -14,8 +14,8 @@ export interface CctpChain {
   rpcUrl: string;
   usdc: Address;
   cctpDomain: number;
-  tokenMessenger?: Address; // [À VÉRIFIER testnet]
-  messageTransmitter?: Address; // [À VÉRIFIER testnet]
+  tokenMessenger?: Address; // TokenMessengerV2 (CCTP v2) de la chaîne
+  messageTransmitter?: Address; // MessageTransmitterV2 (CCTP v2) de la chaîne
 }
 
 const erc20 = parseAbi(["function balanceOf(address a) view returns (uint256)", "function approve(address s, uint256 v) returns (bool)"]);
@@ -41,7 +41,7 @@ export function toBytes32(addr: Address): Hex { return pad(addr, { size: 32 }); 
 export async function bridgeToArc(
   wallet: WalletClient, account: Account, src: CctpChain, amount: bigint, arcRecipient: Address,
 ): Promise<Hex> {
-  if (!src.tokenMessenger) throw new Error(`tokenMessenger CCTP manquant pour ${src.key} [À VÉRIFIER]`);
+  if (!src.tokenMessenger) throw new Error(`tokenMessenger CCTP manquant pour ${src.key} (config de la chaîne)`);
   // approve
   await wallet.writeContract({ account, chain: null, address: src.usdc, abi: erc20, functionName: "approve", args: [src.tokenMessenger, amount] });
   // burn vers le domaine Arc (26), mint au destinataire sur Arc

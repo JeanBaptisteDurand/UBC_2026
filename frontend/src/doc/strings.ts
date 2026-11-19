@@ -20,7 +20,7 @@ const EN = {
   'doc.verdict.r': '13 of our contracts in service on Arc testnet, 51 deployed in all with Intel’s verifier.',
   'doc.readAt': 'Arc testnet, read at block {b}',
   'doc.reading': 'Reading Arc testnet',
-  'doc.st.off': 'Enclaves paused until the Austin demo on 21 November: 0 of {n} running, since the machines were deleted on 14 November. Everything on Arc stays readable, and every proof on this page is a real past transaction.',
+  'doc.st.off': 'No enclave running right now (0 of {n}). Everything on Arc stays readable, and every proof on this page is a real past transaction.',
   'doc.st.on': '{a} of {n} enclaves running now. Every proof on this page is a real past transaction.',
   // chapter 10, "On Arc now", read from /api/stats
   'doc.n.products': 'products published',
@@ -66,7 +66,7 @@ const FR: Record<K, string> = {
   'doc.verdict.r': '13 de nos contrats en service sur Arc testnet, 51 déployés en tout avec le vérificateur d’Intel.',
   'doc.readAt': 'Arc testnet, lu au bloc {b}',
   'doc.reading': 'Lecture d’Arc testnet',
-  'doc.st.off': 'Enclaves en pause jusqu’à la démo d’Austin, le 21 novembre : 0 sur {n} en marche, depuis la suppression des machines le 14 novembre. Tout ce qui est sur Arc reste lisible, et chaque preuve de cette page est une vraie transaction passée.',
+  'doc.st.off': 'Aucune enclave en marche pour le moment (0 sur {n}). Tout ce qui est sur Arc reste lisible, et chaque preuve de cette page est une vraie transaction passée.',
   'doc.st.on': '{a} enclaves sur {n} en marche en ce moment. Chaque preuve de cette page est une vraie transaction passée.',
   'doc.n.products': 'produits publiés',
   'doc.n.enclaves': 'enclaves admises, {a} en marche',
