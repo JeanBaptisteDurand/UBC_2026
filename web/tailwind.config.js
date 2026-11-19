@@ -1,4 +1,4 @@
-/** Tailwind compilé au build (plus de CDN au runtime). Les jetons de couleur et de typo d'ArcHive. */
+/** Tailwind compiled at build time (no CDN at runtime): ArcHive's colour and typography tokens. */
 export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
