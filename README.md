@@ -10,20 +10,22 @@ Built on Arc testnet for the UBC 2026 hackathon by Jean-Baptiste Durand and Flor
 
 | What | Link |
 |---|---|
-| The marketplace | https://archive.62-171-153-35.sslip.io |
-| How it works in 3D (roles, contracts, a guided demo) | https://archive.62-171-153-35.sslip.io/network.html |
-| The services, prices and shares | https://archive.62-171-153-35.sslip.io/service.html |
-| The Doc: how Arc checks every machine, every proof linked | https://archive.62-171-153-35.sslip.io/doc.html |
+| The marketplace | https://arc-hive.xyz |
+| How it works in 3D (roles, contracts, a guided demo) | https://arc-hive.xyz/network.html |
+| The services, prices and shares | https://arc-hive.xyz/service.html |
+| The Doc: how Arc checks every machine, every proof linked | https://arc-hive.xyz/doc.html |
 | Console (sessions, bounties, operators, developers) | https://archive.62-171-153-35.sslip.io/console/ |
-| 3D server room (live, or a replay of recorded events) | https://archive.62-171-153-35.sslip.io/datacenter/ |
-| Read API (JSON, no key) | https://archive.62-171-153-35.sslip.io/api/stats |
-| MCP server for AI agents (16 tools, no key) | https://archive.62-171-153-35.sslip.io/mcp |
+| 3D server room (live, or a replay of recorded events) | https://arc-hive.xyz/datacenter/ |
+| Read API (JSON, no key) | https://arc-hive.xyz/api/stats |
+| MCP server for AI agents (16 tools, no key) | https://arc-hive.xyz/mcp |
 | Arc testnet explorer | https://explorer.testnet.arc.io |
+
+The same site also answers at https://archive.62-171-153-35.sslip.io (the console and the operators' wallet sign-in use that address).
 
 ## Check it in two minutes, no wallet needed
 
 1. **What runs now**, and the key of each enclave Arc admitted:
-   `curl -s https://archive.62-171-153-35.sslip.io/api/enclaves`
+   `curl -s https://arc-hive.xyz/api/enclaves`
 2. **Arc's admission check, replayed for you**: on the home page, section *Arc check* ("Arc admits the enclave or
    refuses it"), press **Change one byte**. Arc recomputes the image fingerprint (a read-only call) and refuses the machine.
 3. **Ask AskHive** (bottom right of the site) *"Does this chat run in an enclave?"*. The panel shows its connection to
@@ -67,10 +69,10 @@ the contract between them in [`docs/COPILOT-SITE-CONTRACT.md`](docs/COPILOT-SITE
 ### The MCP server, in Claude Code, Cursor or any MCP client
 
 ```sh
-claude mcp add --transport http archive https://archive.62-171-153-35.sslip.io/mcp
+claude mcp add --transport http archive https://arc-hive.xyz/mcp
 ```
 
-Any other MCP client: `{ "mcpServers": { "archive": { "url": "https://archive.62-171-153-35.sslip.io/mcp" } } }`.
+Any other MCP client: `{ "mcpServers": { "archive": { "url": "https://arc-hive.xyz/mcp" } } }`.
 The server holds no key and has no tool that sends a transaction: it reads the network and **prepares** operations that
 the user signs in their own wallet. Its 16 tools:
 
@@ -123,7 +125,7 @@ three calls on Arc:
 
 Prices, shares, bonds and delays are on-chain parameters (`ProductRegistry`): the network keeps at least 5 %, an
 author at most 30 %, the operator the rest. Testnet prices are set so that every flow shows on the explorer; they are
-not market prices. Live values: `curl -s https://archive.62-171-153-35.sslip.io/api/products`.
+not market prices. Live values: `curl -s https://arc-hive.xyz/api/products`.
 
 ## How Arc verifies an enclave
 
@@ -192,7 +194,7 @@ exposure.
 | An enclave bound to its chip (PPID read from Intel's certificate) | 11 Nov 17:34 | [`0xd6928088…5f4f`](https://explorer.testnet.arc.io/tx/0xd6928088d90f8bbc2585d04564c4a574312593f3f19792a1cdbf819437bb5f4f) |
 
 The site keeps the full proof chain of a live enclave (image, Intel measurement, Arc admission, signed answer, USDC
-payment, ERC-8004 verdict): `curl -s https://archive.62-171-153-35.sslip.io/api/proof`.
+payment, ERC-8004 verdict): `curl -s https://arc-hive.xyz/api/proof`.
 
 ## Contracts on Arc testnet (chainId 5042002)
 
