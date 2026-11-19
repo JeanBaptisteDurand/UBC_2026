@@ -4,7 +4,9 @@ AskHive is the assistant of the ArcHive site. The same program (`services/copilo
 two places: on the site's server (`/copilot-site/`) and inside its own Intel TDX enclave, registered on Arc as
 product 4 (`/enclave/copilot-site/`). The panel of the site (`frontend/src/copilot/`) talks to the enclave when it can
 verify it, and says so on screen. This document is the contract between the panel, the copilot service and the MCP
-server. Production origin: https://archive.62-171-153-35.sslip.io (one origin; Caddy routes by path).
+server. Production: https://arc-hive.xyz, one server where Caddy routes by path. The same routes answer at the
+server's own address, https://archive.62-171-153-35.sslip.io, where the console runs (`https://arc-hive.xyz/console/`
+redirects there).
 
 ## 1. Routes in production
 
@@ -79,10 +81,10 @@ per-IP rate limit, request body ≤ 64 KiB, same tool list and logic as `service
 the network and PREPARE operations; nothing is signed or sent. Add it to an agent:
 
 ```sh
-claude mcp add --transport http archive https://archive.62-171-153-35.sslip.io/mcp
+claude mcp add --transport http archive https://arc-hive.xyz/mcp
 ```
 
-or, in any MCP client's configuration: `{ "mcpServers": { "archive": { "url": "https://archive.62-171-153-35.sslip.io/mcp" } } }`.
+or, in any MCP client's configuration: `{ "mcpServers": { "archive": { "url": "https://arc-hive.xyz/mcp" } } }`.
 The same server runs locally over stdio: `cd services/mcp && npm ci && npm start` (`ARCHIVE_API` sets the read API).
 
 ## 7. Guided tours (`ui_guide`)

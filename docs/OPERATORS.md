@@ -97,7 +97,8 @@ Settlement contracts built on `PolicyEnclaves` enforce the policy on-chain. Buye
    - the declaration is unexpired and not revoked;
    - the auditor is one the product accepts.
 
-Tests in `contracts/test/Levels.t.sol` and `LevelsBounty.t.sol` (18 tests) run on real data: our registration quotes, the alliance token, and RFC 8032 vectors. They cover:
+Tests in `contracts/test/Levels.t.sol` and `LevelsBounty.t.sol` (19 tests) run on real data: our registration quotes, the alliance token, and RFC 8032 vectors. They cover:
+- a forged chip ID (PPID) in the PCK certificate;
 - forged tokens and replays;
 - revocation taking effect at once;
 - a claim or refutation signed from an undeclared machine being refused by the Sealed Bounty.
