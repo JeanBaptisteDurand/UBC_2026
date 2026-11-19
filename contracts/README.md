@@ -64,7 +64,7 @@ comments included. This README is the English reference for them.
 |---|---|
 | `attested/AttestedSigners` | The `onlyAttested` primitive: a message is accepted only if it is signed by an enclave key that the registry holds as active for the product at the current block, from an operator in good standing. |
 | `lib/DstackEventLog` | Replays the RTMR3 event log of a dstack (Phala) VM on chain and derives the image fingerprint, which is stable across reboots. |
-| `lib/Sha384` | SHA-384 (FIPS 180-4) in EVM code, since Arc has no SHA-384 precompile; used to replay TDX measurement registers. |
+| `lib/Sha384` | SHA-384 (FIPS 180-4) in EVM code, written for this repository, since Arc's EVM has SHA-256 but no SHA-384 precompile; used to replay TDX measurement registers. |
 | `lib/History` | Reads a block hash through the EIP-2935 history contract on Arc. |
 | `lib/RevertReason` | Copies at most a bounded number of bytes of a callee's revert data, so a hostile callee cannot burn the caller's gas with a "return bomb". |
 | `lib/UsdcPayer` | Shared base for collecting USDC, with EIP-3009 `receiveWithAuthorization` (one signature, one call) or `transferFrom` after `approve`. |
@@ -95,11 +95,11 @@ comments included. This README is the English reference for them.
 
 | Suite | What it covers |
 |---|---|
-| `EnclaveRegistry.t.sol` | Admission and every rejection: REPORTDATA binding (chain, registry, product, operator, keys), quote replay, the EIP-2935 window (8,191 blocks accepted, 8,192 rejected, the current block rejected), expiry and grace windows. |
+| `EnclaveRegistry.t.sol` | Admission and its rejections: REPORTDATA binding (chain, registry, product, operator, keys), quote replay, the EIP-2935 window (8,191 blocks accepted, 8,192 rejected, the current block rejected), expiry and grace windows. |
 | `SessionPay.t.sol`, `X402Settler.t.sol` | Both payment rails: receipts, locked prices, exposure caps, EIP-3009 nonces, revenue splits, slashing. |
 | `SealedBounty.t.sol`, `LevelsBounty.t.sol` | Claims, block anchoring, delivery, refutation and slashing; the same contract at the verified level. |
 | `Registries.t.sol` | `ProductRegistry`, `OperatorBond` and `VerdictLog`: timelocks, royalty cap, bond rules, settlement delays. |
-| `AdversarialV2.t.sol`, `AdversarialV21.t.sol` | Regression suites of two adversarial reviews: each `test_FIXED_*` replays the exact attack scenario of a finding and proves it now fails, including a "return bomb" pause target and minimum-gas starvation at the value `eth_estimateGas` picks (found by bisection in `Base.t.sol`). |
+| `AdversarialV2.t.sol`, `AdversarialV21.t.sol` | Regression suites of two adversarial reviews: each `test_FIXED_*` (v2) and `test_F1_*` to `test_F6_*` (v2.1) test replays the exact attack scenario of a finding and proves it now fails, while `test_limit_*` documents what stays out of reach, including a "return bomb" pause target and minimum-gas starvation at the value `eth_estimateGas` picks (found by bisection in `Base.t.sol`). |
 | `DstackImage.t.sol` | The image fingerprint on a real Phala dstack quote and its RTMR3 event log, plus the replay rules. |
 | `Levels.t.sol` | Both operator levels on real data, including the forged-PPID hardening of `PckChip` (every forged quote is rejected). |
 | `Sha384.t.sol` | A differential test of the assembly SHA-384 against a FIPS 180-4 reference implementation. |
