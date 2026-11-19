@@ -1,17 +1,17 @@
 /**
- * dstack-eventlog.ts — v2.1 : le journal RTMR3 d'une VM dstack (Phala) pour EnclaveRegistry.registerEnclave.
+ * dstack-eventlog.ts — the RTMR3 event log of a dstack VM (Phala) for EnclaveRegistry.registerEnclave (v2.1 registry).
  *
- * Pourquoi : chez dstack, RTMR3 enregistre l'identifiant de l'INSTANCE de la VM (instance-id) ; l'empreinte complète
- * de la v2 (qui inclut RTMR3) change donc à chaque redémarrage. La v2.1 rejoue le journal RTMR3 sur la chaîne, exige
- * qu'il redonne le RTMR3 signé par Intel, et en lit compose-hash et os-image-hash : l'empreinte d'IMAGE qui en découle
- * ne dépend plus de l'instance (voir contracts/src/lib/DstackEventLog.sol, mêmes formules ici).
+ * Why: on dstack, RTMR3 records the VM's INSTANCE id (instance-id), so the full v2 workload id (which includes RTMR3)
+ * changes at every restart. The v2.1 registry replays the RTMR3 event log on-chain, requires it to give back the RTMR3
+ * signed by Intel, and reads compose-hash and os-image-hash from it: the resulting IMAGE id no longer depends on the
+ * instance (see contracts/src/lib/DstackEventLog.sol; the same formulas are used here).
  *
- *   condensat V1 = SHA384(le32(0x08000001) ‖ ":" ‖ nom ‖ ":" ‖ charge)
- *   condensat V2 = SHA384({"name":nom,"payload":hex(charge),"type":134217729})   (JSON canonique RFC 8785)
- *   RTMR3 = 0^48, puis RTMR3 = SHA384(RTMR3 ‖ condensat) pour chaque événement de RTMR3, dans l'ordre
- *   empreinte d'image = keccak256(MRTD ‖ RTMR0 ‖ RTMR1 ‖ RTMR2 ‖ compose-hash ‖ os-image-hash ‖ XFAM ‖ TDATTRIBUTES)
+ *   digest V1 = SHA384(le32(0x08000001) ‖ ":" ‖ name ‖ ":" ‖ payload)
+ *   digest V2 = SHA384({"name":name,"payload":hex(payload),"type":134217729})   (RFC 8785 canonical JSON)
+ *   RTMR3 = 0^48, then RTMR3 = SHA384(RTMR3 ‖ digest) for each RTMR3 event, in order
+ *   image id = keccak256(MRTD ‖ RTMR0 ‖ RTMR1 ‖ RTMR2 ‖ compose-hash ‖ os-image-hash ‖ XFAM ‖ TDATTRIBUTES)
  *
- * Encodage attendu par le registre : abi.encode(FORMAT_V1, (uint8 version, bytes name, bytes payload)[]).
+ * Encoding the registry expects: abi.encode(FORMAT_V1, (uint8 version, bytes name, bytes payload)[]).
  */
 import { sha384 } from "@noble/hashes/sha512";
 import {
@@ -20,14 +20,14 @@ import {
 } from "viem";
 import { parseTdxQuote, type TdxQuoteMeasurements } from "./quote";
 
-/** Préfixe du format (premier mot de l'encodage), = DstackEventLog.FORMAT_V1. */
+/** Format prefix (first word of the encoding), = DstackEventLog.FORMAT_V1. */
 export const DSTACK_EVENTLOG_FORMAT_V1: Hex = keccak256(toBytes("archive.dstack.rtmr3-events.v1"));
 
 export interface DstackRtmr3Event {
   version: 1 | 2;
-  /** `event` du journal (ex. "compose-hash") */
+  /** the log's `event` (e.g. "compose-hash") */
   name: string;
-  /** `event_payload`, décodé de l'hexadécimal */
+  /** `event_payload`, decoded from hex */
   payload: Hex;
 }
 
@@ -41,15 +41,15 @@ function utf8(bytes: Uint8Array): string {
 }
 
 /**
- * Lit le journal brut renvoyé par /attest : les octets UTF-8 du JSON de dstack (le kit d'enclave les rend en
- * hexadécimal, parfois préfixés de "0x" dans le texte même), ou directement le texte JSON. Rend les événements de
- * RTMR3 dans l'ordre, ou null si le journal est vide, illisible, ou déjà au format FORMAT_V1.
+ * Reads the raw log returned by /attest: the UTF-8 bytes of dstack's JSON (the enclave kit returns them as hex,
+ * sometimes prefixed with "0x" inside the text itself), or the JSON text directly. Returns the RTMR3 events in order,
+ * or null if the log is empty, unreadable, or already in FORMAT_V1.
  */
 export function parseDstackEventLog(raw: Hex | string | undefined | null): DstackRtmr3Event[] | null {
   if (!raw || raw === "0x") return null;
   let text = raw;
   if (isHex(raw, { strict: true })) {
-    if (raw.toLowerCase().startsWith(DSTACK_EVENTLOG_FORMAT_V1.toLowerCase())) return null; // déjà encodé
+    if (raw.toLowerCase().startsWith(DSTACK_EVENTLOG_FORMAT_V1.toLowerCase())) return null; // already encoded
     text = utf8(hexToBytes(raw));
   }
   text = text.trim();
@@ -73,7 +73,7 @@ export function parseDstackEventLog(raw: Hex | string | undefined | null): Dstac
   return out.length ? out : null;
 }
 
-/** abi.encode(FORMAT_V1, events) : le paramètre `eventLog` de registerEnclave en v2.1. */
+/** abi.encode(FORMAT_V1, events): the `eventLog` parameter of registerEnclave on a v2.1 registry. */
 export function encodeDstackEventLog(events: DstackRtmr3Event[]): Hex {
   return encodeAbiParameters(EVENT_TUPLE, [
     DSTACK_EVENTLOG_FORMAT_V1,
@@ -86,20 +86,20 @@ function preimage(e: DstackRtmr3Event): Uint8Array {
   if (e.version === 1) {
     return concat([Uint8Array.from([0x01, 0x00, 0x00, 0x08]), toBytes(":"), toBytes(e.name), toBytes(":"), payload]);
   }
-  if (/["\\\u0000-\u001f]/.test(e.name)) throw new Error(`nom d'événement V2 à échapper, refusé par le registre : ${JSON.stringify(e.name)}`);
+  if (/["\\\u0000-\u001f]/.test(e.name)) throw new Error(`V2 event name that needs escaping, refused by the registry: ${JSON.stringify(e.name)}`);
   return toBytes(`{"name":"${e.name}","payload":"${bytesToHex(payload).slice(2)}","type":134217729}`);
 }
 
 export interface DstackReplay {
-  /** RTMR3 rejoué (48 octets) : doit être celui du quote */
+  /** replayed RTMR3 (48 bytes): must be the quote's */
   rtmr3: Hex;
-  /** compose-hash et os-image-hash lus sans ambiguïté AVANT « system-ready » (règle du registre) */
+  /** compose-hash and os-image-hash read unambiguously BEFORE "system-ready" (the registry's rule) */
   imageKnown: boolean;
   composeHash: Hex | null;
   osImageHash: Hex | null;
 }
 
-/** Rejoue les événements de RTMR3 exactement comme DstackEventLog.replay. */
+/** Replays the RTMR3 events exactly as DstackEventLog.replay does. */
 export function replayDstackRtmr3(events: DstackRtmr3Event[]): DstackReplay {
   let rtmr: Uint8Array = new Uint8Array(48);
   let ready = false;
@@ -109,7 +109,7 @@ export function replayDstackRtmr3(events: DstackRtmr3Event[]): DstackReplay {
   let os: Hex | null = null;
   for (const e of events) {
     rtmr = sha384(concat([rtmr, sha384(preimage(e))]));
-    if (ready) continue; // après « system-ready » : rejoué, jamais interprété
+    if (ready) continue; // after "system-ready": replayed, never interpreted
     const size = (e.payload.length - 2) / 2;
     if (e.name === "system-ready") ready = true;
     else if (e.name === "compose-hash") { nCompose++; if (size === 32) compose = e.payload; else nCompose = 2; }
@@ -119,26 +119,26 @@ export function replayDstackRtmr3(events: DstackRtmr3Event[]): DstackReplay {
   return { rtmr3: bytesToHex(rtmr), imageKnown, composeHash: imageKnown ? compose : null, osImageHash: imageKnown ? os : null };
 }
 
-/** L'empreinte d'IMAGE (v2.1), = EnclaveRegistry.imageIdOf : sans RTMR3 ni MRCONFIGID, donc stable d'un redémarrage à l'autre. */
+/** The IMAGE id (v2.1), = EnclaveRegistry.imageIdOf: without RTMR3 or MRCONFIGID, so stable across restarts. */
 export function dstackImageId(m: Pick<TdxQuoteMeasurements, "mrtd" | "rtmr0" | "rtmr1" | "rtmr2" | "xfam" | "tdAttributes">, composeHash: Hex, osImageHash: Hex): Hex {
   return keccak256(concat([m.mrtd, m.rtmr0, m.rtmr1, m.rtmr2, composeHash, osImageHash, m.xfam, m.tdAttributes]));
 }
 
 export interface DstackImage {
-  /** journal encodé pour registerEnclave (FORMAT_V1), ou null si le journal brut est absent ou illisible */
+  /** the log encoded for registerEnclave (FORMAT_V1), or null if the raw log is missing or unreadable */
   eventLog: Hex | null;
-  /** le rejeu redonne le RTMR3 du quote */
+  /** the replay gives back the quote's RTMR3 */
   rtmr3Matches: boolean;
   imageKnown: boolean;
   composeHash: Hex | null;
   osImageHash: Hex | null;
-  /** empreinte d'image, si le rejeu concorde et que l'image est connue */
+  /** image id, if the replay matches and the image is known */
   imageId: Hex | null;
-  /** empreinte complète de la v2 (inclut RTMR3, donc l'instance) */
+  /** the full v2 workload id (includes RTMR3, hence the instance) */
   workloadId: Hex;
 }
 
-/** Tout en un, à partir de ce que rend /attest : quote + journal brut. Rien n'est vérifié ici de la signature d'Intel. */
+/** All in one, from what /attest returns: quote + raw log. Nothing here verifies Intel's signature. */
 export function dstackImageFromAttest(quote: Hex, rawEventLog: Hex | string | undefined | null): DstackImage {
   const m = parseTdxQuote(quote);
   const events = parseDstackEventLog(rawEventLog);
@@ -154,28 +154,28 @@ const V21_ABI = parseAbi([
   "function imageIdOf(bytes mrtd, bytes rtmr0, bytes rtmr1, bytes rtmr2, bytes32 composeHash, bytes32 osImageHash, bytes8 xfam, bytes8 tdAttributes) pure returns (bytes32)",
 ]);
 const ALLOWED_ABI = parseAbi(["function isWorkloadAllowed(uint256 productId, bytes32 workloadId) view returns (bool)"]);
-/** Sélecteur de replayEventLog(bytes) : présent dans le code d'un registre v2.1, absent d'un registre v2. */
+/** Selector of replayEventLog(bytes): present in a v2.1 registry's code, absent from a v2 registry. */
 const REPLAY_SELECTOR = "fb7be405";
 
 export interface RegistrationLogPlan {
-  /** le paramètre `eventLog` à passer à registerEnclave */
+  /** the `eventLog` parameter to pass to registerEnclave */
   eventLog: Hex;
-  /** ce qui admettra l'enclave : son empreinte d'IMAGE (v2.1), son empreinte complète (v2), ou rien (refus prévisible) */
+  /** what will admit the enclave: its IMAGE id (v2.1), its full workload id (v2), or nothing (a foreseeable refusal) */
   admittedBy: "image" | "workload" | null;
-  /** le registre sait rejouer le journal RTMR3 (v2.1) */
+  /** the registry can replay the RTMR3 log (v2.1) */
   v21: boolean;
   imageId: Hex | null;
   workloadId: Hex;
   composeHash: Hex | null;
   osImageHash: Hex | null;
-  /** pourquoi l'empreinte d'image n'est pas utilisable, le cas échéant */
+  /** why the image id cannot be used, if that is the case */
   note?: string;
 }
 
 /**
- * Choisit, AVANT d'envoyer une inscription (≈ 5,7 à 7 M gas), le journal à transmettre et l'empreinte qui admettra
- * l'enclave. Sur un registre v2.1 dont le produit autorise l'empreinte d'IMAGE : journal encodé (FORMAT_V1), rejoué
- * aussi par le registre (lecture), qui doit redonner le RTMR3 du quote. Sinon : journal brut, empreinte complète (v2).
+ * Chooses, BEFORE a registration is sent (≈ 5.7 to 7 M gas), the log to pass and the id that will admit the enclave.
+ * On a v2.1 registry whose product allows the IMAGE id: the encoded log (FORMAT_V1), also replayed by the registry (a
+ * read), which must give back the quote's RTMR3. Otherwise: the raw log and the full workload id (v2).
  */
 export async function planRegistrationLog(
   pub: PublicClient,
@@ -189,9 +189,9 @@ export async function planRegistrationLog(
   const base = { v21, imageId: img.imageId, workloadId: img.workloadId, composeHash: img.composeHash, osImageHash: img.osImageHash };
   let note: string | undefined;
   if (v21) {
-    if (!img.eventLog) note = "journal RTMR3 absent ou illisible dans /attest";
-    else if (!img.rtmr3Matches) note = "le journal RTMR3 ne redonne pas le RTMR3 du quote";
-    else if (!img.imageId) note = "image non reconnue dans le journal (compose-hash ou os-image-hash manquant ou ambigu)";
+    if (!img.eventLog) note = "RTMR3 event log missing or unreadable in /attest";
+    else if (!img.rtmr3Matches) note = "the RTMR3 event log does not give back the quote's RTMR3";
+    else if (!img.imageId) note = "image not recognized in the log (compose-hash or os-image-hash missing or ambiguous)";
     else {
       const [rtmr3, known, compose, os] = await pub.readContract({ address: q.registry, abi: V21_ABI, functionName: "replayEventLog", args: [img.eventLog] });
       const m = parseTdxQuote(q.quote);
@@ -201,10 +201,10 @@ export async function planRegistrationLog(
       });
       if (rtmr3.toLowerCase() !== m.rtmr3.toLowerCase() || !known || compose.toLowerCase() !== img.composeHash!.toLowerCase()
         || os.toLowerCase() !== img.osImageHash!.toLowerCase() || onchain.toLowerCase() !== img.imageId.toLowerCase()) {
-        note = "le rejeu du registre diffère du rejeu local : journal non transmis";
+        note = "the registry's replay differs from the local replay: log not passed";
       } else if (await allowed(img.imageId)) {
         return { ...base, eventLog: img.eventLog, admittedBy: "image" };
-      } else note = `l'empreinte d'image ${img.imageId} n'est pas autorisée par le produit`;
+      } else note = `image id ${img.imageId} is not allowed by the product`;
     }
   }
   return { ...base, eventLog: raw, admittedBy: (await allowed(img.workloadId)) ? "workload" : null, note };
