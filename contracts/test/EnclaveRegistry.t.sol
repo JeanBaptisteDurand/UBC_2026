@@ -226,7 +226,7 @@ contract EnclaveRegistryTest is Base {
 
         vm.prank(operator);
         vm.expectRevert(EnclaveRegistry.ReportDataMismatch.selector);
-        registry.registerEnclave(productId, quote, 999, enclaveKey, keccak256("x-operateur"), "");
+        registry.registerEnclave(productId, quote, 999, enclaveKey, keccak256("x-operator"), "");
     }
 
     /// A quote bound to product A cannot register the enclave on product B (same allowed image).
@@ -330,9 +330,9 @@ contract EnclaveRegistryTest is Base {
         (address s,) = _registerEnclave(productId, opPk, signerPk, "s1"); // window [1000, 5999]
         vm.warp(vm.getBlockTimestamp() + 25 hours);
         vm.roll(7000); // expired 1,000 blocks ago, inside the grace period (until block 9999)
-        assertTrue(registry.isActiveAt(s, productId, 1000), "grace : un bloc de la fenetre reste reglable (voulu)");
-        assertFalse(registry.isActiveAt(s, productId, 6000), "bloc posterieur a l'expiration : jamais actif");
-        assertFalse(registry.isActiveAt(s, productId, 7000), "bloc posterieur a l'expiration : jamais actif");
+        assertTrue(registry.isActiveAt(s, productId, 1000), "grace: a block of the window stays payable (intended)");
+        assertFalse(registry.isActiveAt(s, productId, 6000), "block after expiry: never active");
+        assertFalse(registry.isActiveAt(s, productId, 7000), "block after expiry: never active");
     }
 
     /// FIXED (adversarial review): re-attestation by the same operator (`operator renew`, every ≈ 24 h) EXTENDS
@@ -344,8 +344,8 @@ contract EnclaveRegistryTest is Base {
         vm.warp(vm.getBlockTimestamp() + 23 hours); // renewal before expiry
         _reRegister(productId, opPk, signerPk, "s1", abi.encodePacked("quote-renew"), 1009);
 
-        assertTrue(registry.isActiveAt(s, productId, 1010), "apres renouvellement : active");
-        assertTrue(registry.isActiveAt(s, productId, 1005), "les blocs anterieurs au renouvellement restent actifs");
+        assertTrue(registry.isActiveAt(s, productId, 1010), "after renewal: active");
+        assertTrue(registry.isActiveAt(s, productId, 1005), "blocks before the renewal stay active");
         IEnclaveRegistry.Enclave memory e = registry.enclaveOf(s);
         assertEq(e.fromBlock, 1000); // the window is extended, not replaced
         assertEq(e.untilBlock, 1010 + TEST_VALIDITY_BLOCKS - 1);
@@ -419,7 +419,7 @@ contract EnclaveRegistryTest is Base {
             abi.encodeWithSelector(EnclaveRegistry.EnclaveHeldByOtherOperator.selector, operator, uint256(10_000))
         );
         registry.registerEnclave(productId, hijackQuote, 999, s, _x25519Of("s1"), "");
-        assertEq(registry.enclaveOf(s).operator, operator, "l'enclave reste a son operateur");
+        assertEq(registry.enclaveOf(s).operator, operator, "the enclave stays with its operator");
         assertTrue(registry.isActiveAt(s, productId, 1000));
     }
 
@@ -488,7 +488,7 @@ contract EnclaveRegistryTest is Base {
         products.retireWorkload(productId, _workloadId()); // the author (this contract) retires the image
         registry.invalidateRetiredWorkload(s); // open to anyone, without a quote
         assertTrue(registry.killed(s));
-        assertFalse(registry.isActiveAt(s, productId, 1200), "plus rien ne se regle, meme ancre avant");
+        assertFalse(registry.isActiveAt(s, productId, 1200), "nothing settles any more, even anchored before");
         assertEq(registry.settleableUntilBlock(s), 0);
         assertEq(bond.reservedFor(s), 0);
 

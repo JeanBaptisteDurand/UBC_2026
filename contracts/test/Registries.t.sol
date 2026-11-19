@@ -106,7 +106,7 @@ contract ProductRegistryTest is Base {
         products.proposeWorkload(pid, w2);
 
         products.proposeWorkload(pid, w2);
-        assertFalse(products.isWorkloadAllowed(pid, w2), "pas d'effet immediat");
+        assertFalse(products.isWorkloadAllowed(pid, w2), "no immediate effect");
         vm.expectRevert(ProductRegistry.TooEarly.selector);
         products.applyWorkload(pid, w2);
 
@@ -158,7 +158,7 @@ contract ProductRegistryTest is Base {
 
         vm.expectRevert(ProductRegistry.TooEarly.selector);
         products.applyUpdate(pid);
-        assertEq(products.manifestURI(pid), "ipfs://m", "inchange avant le timelock");
+        assertEq(products.manifestURI(pid), "ipfs://m", "unchanged before the timelock");
 
         vm.warp(vm.getBlockTimestamp() + TIMELOCK + 1);
         vm.expectEmit(true, false, false, true, address(products));
@@ -190,7 +190,7 @@ contract ProductRegistryTest is Base {
 
         vm.warp(vm.getBlockTimestamp() + TIMELOCK + 1);
         products.applyUpdate(pid);
-        assertEq(products.manifestURI(pid), "ipfs://m", "URI inchange");
+        assertEq(products.manifestURI(pid), "ipfs://m", "URI unchanged");
         IProductRegistry.Product memory p = products.getProduct(pid);
         assertEq(p.manifestHash, keccak256("m3"));
         assertEq(p.price, 3e6);
@@ -278,7 +278,7 @@ contract OperatorBondTest is Base {
                 taken += 30e6;
             } catch {}
         }
-        assertLe(taken, 500e6, "jamais plus de 1/2 caution sur 24 h, tous produits confondus");
+        assertLe(taken, 500e6, "never more than 1/2 bond over 24 h, all products together");
     }
 
     function test_consumeExposureRevertNotSettlement() public {
@@ -405,7 +405,7 @@ contract OperatorBondTest is Base {
     /// Adversarial review (plausible): one can only link to an ERC-8004 agent one owns (or is approved for).
     function test_setAgentIdRequiresOwnership() public {
         vm.prank(operator);
-        uint256 agent = identity.register("ipfs://agent-operateur");
+        uint256 agent = identity.register("ipfs://operator-agent");
         vm.prank(operator);
         bond.setAgentId(agent);
         assertEq(bond.agentIdOf(operator), agent);

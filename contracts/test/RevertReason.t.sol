@@ -56,7 +56,7 @@ contract RevertReasonTest is Test {
             assertEq(uint8(r[i]), uint8(i & 0xff), "prefixe exact");
         }
         // clean allocation: the returned array sits below the new free memory pointer
-        assertEq(freeAfter, freeBefore + 0x20 + ((expected + 31) / 32) * 32, "pointeur de memoire libre avance");
+        assertEq(freeAfter, freeBefore + 0x20 + ((expected + 31) / 32) * 32, "free memory pointer advanced");
         return g;
     }
 
@@ -78,7 +78,7 @@ contract RevertReasonTest is Test {
     function test_constantCostWhateverTheRevertSize() public view {
         uint256 small = _check(133);
         uint256 huge = _check(200_000);
-        assertEq(huge, small, "cout independant de la taille du revert");
+        assertEq(huge, small, "cost independent of the revert size");
         assertLt(huge, 1_000);
     }
 

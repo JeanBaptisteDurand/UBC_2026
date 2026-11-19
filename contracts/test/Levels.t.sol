@@ -113,8 +113,8 @@ contract LevelsTest is Base {
     function test_chip_realQuote_ppidAndFmspc() public view {
         uint256 g = gasleft();
         (bytes16 p, bytes6 f) = harness.chip(realQuote);
-        console2.log("gaz : lecture de la puce dans le quote", g - gasleft());
-        assertEq(p, ppid, "PPID du certificat PCK = machine_id de Proof of Cloud");
+        console2.log("gas: reading the chip from the quote", g - gasleft());
+        assertEq(p, ppid, "PPID of the PCK certificate = Proof of Cloud machine_id");
         assertEq(f, REAL_FMSPC, "FMSPC = celui qu'Automata a lu (20a06f000000)");
     }
 
@@ -163,7 +163,7 @@ contract LevelsTest is Base {
         string memory j = vm.readFile("test/vectors/pck-forged-quotes.json");
         // the REAL quote still decodes to the REAL PPID after hardening (non-regression)
         (bytes16 p,) = harness.chip(j.readBytes(".genuine"));
-        assertEq(p, bytes16(j.readBytes(".genuinePpid")), "le vrai certificat decode toujours vers le vrai PPID");
+        assertEq(p, bytes16(j.readBytes(".genuinePpid")), "the real certificate still decodes to the real PPID");
         // every forgery is refused: non-canonical Base64, bytes appended after the certificate, or two PPID OIDs
         string[3] memory keys = [".forged_validTrailer", ".forged_memByte_0x8c", ".forged_memByte_0x90"];
         for (uint256 i = 0; i < keys.length; i++) {
@@ -183,7 +183,7 @@ contract LevelsTest is Base {
         emit MachineRegistry.MachineBound(s, ppid, keccak256(realQuote));
         uint256 g = gasleft();
         bytes16 got = machines.bindMachine(s, realQuote);
-        console2.log("gaz : bindMachine (quote reel)", g - gasleft());
+        console2.log("gas: bindMachine (real quote)", g - gasleft());
         assertEq(got, ppid);
         (bytes16 p, bool current,) = machines.machineOf(s);
         assertEq(p, ppid);
@@ -294,7 +294,7 @@ contract LevelsTest is Base {
         assertFalse(machines.meetsPolicy(id, s), "not yet bound nor declared");
         machines.bindMachine(s, realQuote);
         assertFalse(machines.meetsPolicy(id, s), "bound but not declared");
-        vm.prank(makeAddr("autre-verificateur"));
+        vm.prank(makeAddr("other-verifier"));
         machines.attestMachine(ppid, uint64(block.timestamp + 1 days), "", "");
         assertFalse(machines.meetsPolicy(id, s), "declared by a verifier the product does not accept");
         vm.prank(auditorB);
@@ -311,7 +311,7 @@ contract LevelsTest is Base {
         _bondOperator(opPk, 100e6);
         address s = _registerWith(id, opPk, signerPk, realQuote, REAL_FMSPC);
         uint256 n = block.number;
-        assertEq(view_.activeOperatorAt(s, id, n), operator, "produit ouvert : comme le registre");
+        assertEq(view_.activeOperatorAt(s, id, n), operator, "open product: same as the registry");
         assertEq(view_.attestedOperator(s, id), registry.attestedOperator(s, id));
         _setPolicy(id, 1, _one(auditorA));
         assertEq(view_.activeOperatorAt(s, id, n), address(0), "verified product, machine not declared");
@@ -402,8 +402,8 @@ contract LevelsTest is Base {
         vm.warp(tokTs + 60);
         uint256 g = gasleft();
         (bytes16 p, uint64 exp) = poc.submit(tokHeader, tokPayload, tokSig);
-        console2.log("gaz : jeton Proof of Cloud verifie sur la chaine (EdDSA)", g - gasleft());
-        assertEq(p, ppid, "machine_id du jeton = PPID du certificat Intel");
+        console2.log("gas: Proof of Cloud token verified on chain (EdDSA)", g - gasleft());
+        assertEq(p, ppid, "the token's machine_id = PPID of Intel's certificate");
         assertEq(exp, uint64(tokTs + 7 days));
         (uint64 e, bool revoked) = machines.auditOf(address(poc), ppid);
         assertEq(e, exp);

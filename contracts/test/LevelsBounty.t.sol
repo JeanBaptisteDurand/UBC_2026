@@ -181,7 +181,7 @@ contract LevelsBountyTest is Base {
         _verify(s1, q1);
         uint256 before = usdc.balanceOf(hunter);
         verifiedBounty.claim(r, sigs, cP);
-        assertEq(usdc.balanceOf(hunter) - before, 100e6, unicode"palier payé sur la signature d'une machine vérifiée");
+        assertEq(usdc.balanceOf(hunter) - before, 100e6, "tier paid on the signature of a verified machine");
     }
 
     function test_refutation_quorumCountsOnlyVerifiedMachines() public {
@@ -215,7 +215,7 @@ contract LevelsBountyTest is Base {
         SealedBounty.Claim memory r = _claim(keccak256("fp2"), keccak256(cP));
         bytes[] memory sigs = _one(_sigClaim(r, signerPk)); // before expectRevert (CLAIM_TYPEHASH is a call)
         vm.prank(auditor);
-        machines.revokeMachine(ppid, "machine sortie du datacenter");
+        machines.revokeMachine(ppid, "machine moved out of the datacenter");
         vm.expectRevert(SealedBounty.NoValidSigner.selector);
         verifiedBounty.claim(r, sigs, cP);
     }

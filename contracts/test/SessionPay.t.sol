@@ -245,7 +245,7 @@ contract SessionPayTest is Base {
 
         SessionPay.Receipt memory swapped = _receiptFor(sessionId, 1, 10, 1000);
         bytes memory sig2 = _sigReceipt(swapped, signerPk);
-        swapped.responseHash = keccak256("autre reponse"); // substituted answer
+        swapped.responseHash = keccak256("another answer"); // substituted answer
         vm.expectRevert(SessionPay.InactiveEnclave.selector);
         sessionPay.settle(swapped, sig2);
         assertEq(sessionPay.getSession(sessionId).paid, 0);
@@ -470,10 +470,10 @@ contract SessionPayTest is Base {
         sessionPay.settle(r2, _sigReceipt(r2, signerPk));
         SessionPay.Session memory s = sessionPay.getSession(sessionId);
         assertEq(s.price, 1e6, "prix verrouille");
-        assertEq(s.paid, 25e6, "25 x 1 USDC, pas 25 x 3 (v1 : 75)");
+        assertEq(s.paid, 25e6, "25 x 1 USDC, not 25 x 3 (before the fix: 75)");
 
         uint256 sid2 = _openSession(hunterPk, operator, makeAddr("sk-after-raise"), 100e6, 0, keccak256("open-raise"));
-        assertEq(sessionPay.getSession(sid2).price, 3e6, "une session ouverte apres la hausse paie le nouveau prix");
+        assertEq(sessionPay.getSession(sid2).price, 3e6, "a session opened after the rise pays the new price");
     }
 
     /// A price cut no longer reverts the next settlement (before the fix: due = 15 × 0.5 = 7.5
@@ -528,16 +528,16 @@ contract SessionPayTest is Base {
         validation.setShouldRevert(true); // the ERC-8004 registry refuses the write
         sessionPay.reportEquivocation(a, sigA, b, sigB);
         assertTrue(bond.banned(operator));
-        assertFalse(sessionPay.getSession(sessionId).verdictWritten, "ecriture echouee : drapeau non pose");
+        assertFalse(sessionPay.getSession(sessionId).verdictWritten, "failed write: flag not set");
 
         validation.setShouldRevert(false);
         assertEq(_closeAfterExpiry(sessionId, user), 1000e6 - 10e6);
-        assertEq(validation.responses(), 0, "pas de verdict 100 pour un operateur radie");
+        assertEq(validation.responses(), 0, "no 100 verdict for a banned operator");
         assertFalse(sessionPay.getSession(sessionId).verdictWritten);
 
         uint256 reporterBefore = usdc.balanceOf(address(this));
         sessionPay.reportEquivocation(a, sigA, b, sigB); // new report: retries the fault verdict
-        assertEq(usdc.balanceOf(address(this)), reporterBefore, "rien a saisir une deuxieme fois");
+        assertEq(usdc.balanceOf(address(this)), reporterBefore, "nothing to seize a second time");
         assertEq(validation.responses(), 1);
         assertTrue(sessionPay.getSession(sessionId).verdictWritten);
     }
@@ -604,7 +604,7 @@ contract SessionPayTest is Base {
     /// FIXED: the named enclave must be active for this product, at the announced operator, bonded and not banned.
     function test_FIXED_openRequiresActiveEnclaveOfAnnouncedOperator() public {
         vm.expectRevert(SessionPay.InactiveEnclave.selector);
-        this.openFor(makeAddr("pas-une-enclave"), 10e6, keccak256("o-none"));
+        this.openFor(makeAddr("not-an-enclave"), 10e6, keccak256("o-none"));
 
         UsdcPayer.Auth memory auth = _usdcAuth(userPk, address(sessionPay), 10e6, keccak256("o-wrong-op"));
         SessionPay.OpenParams memory q = SessionPay.OpenParams({
@@ -721,7 +721,7 @@ contract SessionPayTest is Base {
         vm.warp(uint256(sessionPay.getSession(sessionId).expiresAt) + sessionPay.SETTLE_GRACE());
         bytes memory call = abi.encodeCall(SessionPay.closeSession, (sessionId));
         uint256 g = _minGasToSucceed(user, address(sessionPay), call, 21_000, 3_000_000);
-        assertGt(g, sessionPay.VERDICT_GAS(), "le gaz minimal comprend celui du verdict");
+        assertGt(g, sessionPay.VERDICT_GAS(), "the minimum gas includes the verdict's");
 
         uint256 before = validation.responses();
         vm.prank(user);
@@ -729,7 +729,7 @@ contract SessionPayTest is Base {
         assertTrue(ok);
         assertTrue(sessionPay.getSession(sessionId).closed);
         assertTrue(sessionPay.getSession(sessionId).verdictWritten);
-        assertEq(validation.responses(), before + 1, "verdict ecrit au gaz minimal");
+        assertEq(validation.responses(), before + 1, "verdict written at the minimum gas");
     }
 
     /// FIXED: gas just above the path WITHOUT a verdict (what the wallet estimated before the fix) is
@@ -749,11 +749,11 @@ contract SessionPayTest is Base {
         uint256 noVerdictPath = g0 - gasleft();
         assertTrue(ok0);
         vm.revertToState(snap);
-        assertLt(noVerdictPath + 10_000, sessionPay.VERDICT_GAS(), "le chemin sans verdict coute bien moins");
+        assertLt(noVerdictPath + 10_000, sessionPay.VERDICT_GAS(), "the path without a verdict costs much less");
 
         vm.prank(user);
         (bool ok, bytes memory ret) = address(sessionPay).call{gas: noVerdictPath + 10_000}(call);
-        assertFalse(ok, "plus de fermeture sans verdict au gaz du chemin sans verdict");
+        assertFalse(ok, "no more close without a verdict at the gas of the no-verdict path");
         assertEq(bytes4(ret), SessionPay.InsufficientGasForVerdict.selector);
         assertFalse(sessionPay.getSession(sessionId).closed);
 
@@ -778,7 +778,7 @@ contract SessionPayTest is Base {
         (bool ok,) = address(sessionPay).call{gas: g}(call);
         assertTrue(ok);
         assertTrue(bond.banned(operator));
-        assertEq(validation.responses(), before + 1, "verdict de faute ecrit au gaz minimal");
+        assertEq(validation.responses(), before + 1, "fault verdict written at the minimum gas");
     }
 
     // ---- requestHash bound to the chain and the contract; VerdictSkipped when the write fails ----
@@ -788,7 +788,7 @@ contract SessionPayTest is Base {
     function test_v21_verdictRequestHashBoundToChainAndContract() public {
         bytes32 expected =
             keccak256(abi.encode(block.chainid, address(sessionPay), "session", sessionId, productId, user));
-        assertTrue(expected != keccak256(abi.encode("session", sessionId, productId, user)), "differe de la v2");
+        assertTrue(expected != keccak256(abi.encode("session", sessionId, productId, user)), "differs from the v2 hash");
         _settleUnits(sessionId, 10); // the session paid (otherwise, no verdict)
         _warpPastClose(sessionId);
         vm.expectEmit(true, true, false, true, address(verdict));
@@ -841,7 +841,7 @@ contract SessionPayTest is Base {
         _warpPastClose(sessionId);
         bytes memory call = abi.encodeCall(SessionPay.closeSession, (sessionId));
         uint256 g = _minGasToSucceed(user, address(sessionPay), call, 21_000, 3_000_000);
-        assertLt(g, sessionPay.VERDICT_GAS(), "aucun verdict a ecrire : aucune reserve de gaz");
+        assertLt(g, sessionPay.VERDICT_GAS(), "no verdict to write: no gas reserve");
 
         uint256 before = usdc.balanceOf(user);
         vm.expectEmit(true, false, false, true, address(sessionPay));

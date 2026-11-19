@@ -82,13 +82,13 @@ contract AttestedSignersTest is Base {
 
         assertEq(verifier.nextSeq(), 1);
         assertEq(verifier.batchOf(0), keccak256(abi.encodePacked(items)));
-        emit log_named_uint("AttestedBatchVerifier.submitBatch (3 elements), gaz", used);
+        emit log_named_uint("AttestedBatchVerifier.submitBatch (3 items), gas", used);
 
         // the primitive alone returns the signer
         bytes32 d = verifier.batchDigest(7, bytes32("x"), dl);
         g = gasleft();
         assertEq(verifier.requireAttestedSig(productId, d, _sign(signerPk, d)), signer);
-        emit log_named_uint("requireAttestedSig (appel externe), gaz", g - gasleft());
+        emit log_named_uint("requireAttestedSig (external call), gas", g - gasleft());
     }
 
     /// The modifier alone (AttestedInbox): the body reads the signing enclave.
@@ -150,7 +150,7 @@ contract AttestedSignersTest is Base {
     function test_otherProductEnclave_refused() public {
         _bondOperator(op2Pk, 1000e6);
         uint256 other = _proposeAndActivate(address(sessionPay), false, bytes32("model-2"), 1e6, 100e6, 100_000e6);
-        (address s2,) = _registerEnclave(other, op2Pk, signer2Pk, "autre");
+        (address s2,) = _registerEnclave(other, op2Pk, signer2Pk, "other");
         assertTrue(registry.isActiveAt(s2, other, vm.getBlockNumber()));
         bytes32[] memory items = _items(1, "lot-o");
         uint64 dl = _deadline();

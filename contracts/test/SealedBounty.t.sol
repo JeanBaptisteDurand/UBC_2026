@@ -426,8 +426,8 @@ contract SealedBountyTest is Base {
         vm.prank(hunter); // …then "reports" its two honest claims: refused
         vm.expectRevert(SealedBounty.NotEquivocation.selector);
         sealedBounty.reportEquivocation(first, sigFirst, second, sigSecond);
-        assertFalse(bond.banned(operator), "operateur honnete non saisi");
-        assertEq(bond.bondOf(operator), 1000e6, "caution intacte");
+        assertFalse(bond.banned(operator), "honest operator not slashed");
+        assertEq(bond.bondOf(operator), 1000e6, "bond intact");
     }
 
     /// Every variant: it is an equivocation ONLY with "same inputs (bountyId, blockN,
@@ -447,7 +447,7 @@ contract SealedBountyTest is Base {
         honest[3] = _claimAt(hunter, 1001, fp, 5e6, cph, dl + 60); // everything the same, another deadline
         honest[4] = _claimAt(hunter, 1000, fp, 50e6, cph, dl); // another block N AND another loss
         honest[5] = _claimAt(hunter, 1001, fp, 50e6, cph, dl);
-        honest[5].predicateHash = keccak256("autre-predicat"); // another predicate AND another loss
+        honest[5].predicateHash = keccak256("other-predicate"); // another predicate AND another loss
         bytes[] memory sigs = new bytes[](honest.length);
         for (uint256 i = 0; i < honest.length; i++) {
             sigs[i] = _sigClaim(honest[i], signerPk); // signatures computed BEFORE expectRevert
@@ -538,7 +538,7 @@ contract SealedBountyTest is Base {
         sealedBounty.claim(r, sigs, cP);
 
         assertEq(usdc.balanceOf(hunter) - hunterBefore, 100e6);
-        assertEq(bond.exposureOf(operator, productId), 50e6, "100 / 2 operateurs distincts, pas / 3 signatures");
+        assertEq(bond.exposureOf(operator, productId), 50e6, "100 / 2 distinct operators, not / 3 signatures");
         assertEq(bond.exposureOf(operator2, productId), 50e6);
         assertEq(usdc.balanceOf(operator) - opBefore, 2.5e6); // 5 % of 100, split in 2
         assertEq(usdc.balanceOf(operator2) - op2Before, 2.5e6);
@@ -723,7 +723,7 @@ contract SealedBountyTest is Base {
 
     /// FIXED (high): acceptClaim does not carry cP; deliver(cP), open to anyone, delivers and pays.
     function test_FIXED_acceptThenDeliver() public {
-        bytes memory cP = bytes("exploit chiffre vers le protocole");
+        bytes memory cP = bytes("exploit encrypted to the protocol");
         SealedBounty.Claim memory r = _claimAt(hunter, blockN, keccak256("fp-2s"), 5e6, keccak256(cP), uint64(vm.getBlockTimestamp() + 1 hours));
         uint256 poolBefore = sealedBounty.getBounty(bountyId).balance;
         sealedBounty.acceptClaim(r, _one(_sigClaim(r, signerPk)));
@@ -731,13 +731,13 @@ contract SealedBountyTest is Base {
         SealedBounty.Payout memory p = sealedBounty.pendingOf(bountyId, keccak256("fp-2s"));
         assertEq(p.payee, hunter);
         assertEq(p.amount, 100e6);
-        assertEq(poolBefore - sealedBounty.getBounty(bountyId).balance, 115e6, "palier + 10 % + 5 %, reserves");
-        assertEq(usdc.balanceOf(hunter), 1_000_000e6, "rien de paye avant la livraison");
+        assertEq(poolBefore - sealedBounty.getBounty(bountyId).balance, 115e6, "tier + 10 % + 5 %, reserved");
+        assertEq(usdc.balanceOf(hunter), 1_000_000e6, "nothing paid before delivery");
 
         vm.expectRevert(SealedBounty.CipherMismatch.selector);
-        sealedBounty.deliver(bountyId, keccak256("fp-2s"), bytes("autre chose"));
+        sealedBounty.deliver(bountyId, keccak256("fp-2s"), bytes("something else"));
 
-        vm.prank(makeAddr("relayeur")); // anyone delivers; the hunter is paid
+        vm.prank(makeAddr("relayer")); // anyone delivers; the hunter is paid
         sealedBounty.deliver(bountyId, keccak256("fp-2s"), cP);
         assertEq(usdc.balanceOf(hunter), 1_000_000e6 + 100e6);
         assertEq(validation.responses(), 1);
@@ -895,7 +895,7 @@ contract SealedBountyTest is Base {
             _claimAt(hunter, blockN, keccak256("fp-gas"), 5e6, keccak256(cP), uint64(vm.getBlockTimestamp() + 1 hours));
         sealedBounty.acceptClaim(r, _one(_sigClaim(r, signerPk)));
         bytes memory call = abi.encodeCall(SealedBounty.deliver, (bountyId, keccak256("fp-gas"), cP));
-        address relayer = makeAddr("relayeur-min-gas");
+        address relayer = makeAddr("relayer-min-gas");
         uint256 g = _minGasToSucceed(relayer, address(sealedBounty), call, 21_000, 3_000_000);
         assertGt(g, sealedBounty.VERDICT_GAS());
 
@@ -904,9 +904,9 @@ contract SealedBountyTest is Base {
         vm.prank(relayer);
         (bool ok,) = address(sealedBounty).call{gas: g}(call);
         assertTrue(ok);
-        assertEq(usdc.balanceOf(hunter) - hunterBefore, 100e6, "paye au gaz minimal");
+        assertEq(usdc.balanceOf(hunter) - hunterBefore, 100e6, "paid at the minimum gas");
         assertEq(sealedBounty.credit(hunter), 0, "aucun transfert affame change en credit");
-        assertEq(validation.responses(), before + 1, "verdict ecrit au gaz minimal");
+        assertEq(validation.responses(), before + 1, "verdict written at the minimum gas");
     }
 
     /// FIXED: slashing for equivocation at the minimum gas writes its fault verdict.
@@ -924,7 +924,7 @@ contract SealedBountyTest is Base {
         (bool ok,) = address(sealedBounty).call{gas: g}(call);
         assertTrue(ok);
         assertTrue(bond.banned(operator));
-        assertEq(validation.responses(), before + 1, "verdict de faute ecrit au gaz minimal");
+        assertEq(validation.responses(), before + 1, "fault verdict written at the minimum gas");
     }
 
     /// FIXED: a refutation at the minimum gas slashes AND writes its verdict.
@@ -951,7 +951,7 @@ contract SealedBountyTest is Base {
         (bool ok,) = address(sealedBounty).call{gas: g}(call);
         assertTrue(ok);
         assertTrue(bond.banned(operator));
-        assertEq(validation.responses(), before + 1, "verdict de refutation ecrit au gaz minimal");
+        assertEq(validation.responses(), before + 1, "refutation verdict written at the minimum gas");
     }
 
     // ---- requestHash bound to the chain and the contract; VerdictSkipped when the write fails ----
@@ -980,7 +980,7 @@ contract SealedBountyTest is Base {
         vm.expectEmit(true, false, false, true, address(sealedBounty));
         emit SealedBounty.VerdictSkipped(rh, abi.encodeWithSignature("Error(string)", "validation down"));
         sealedBounty.claim(r, sigs, cP);
-        assertEq(usdc.balanceOf(hunter) - before, 100e6, "paye malgre la panne du registre");
+        assertEq(usdc.balanceOf(hunter) - before, 100e6, "paid despite the registry outage");
     }
 
     /// Slashing for equivocation while VerdictLog refuses the caller: the slashing happens, VerdictSkipped is emitted.

@@ -281,12 +281,12 @@ contract Sha384Test is Test {
             fmpAfter := mload(0x40)
         }
         bytes memory after_ = _stream(500); // allocated AFTER: expected content, despite the reused scratch area
-        assertEq(keccak256(before), tag, "memoire allouee avant : intacte");
+        assertEq(keccak256(before), tag, "memory allocated before: intact");
         assertEq(keccak256(data), keccak256(_stream(333)), "message intact");
         assertEq(keccak256(after_), tag, "allocation suivante correcte");
         assertEq(got, Sha384Ref.hash(_stream(333)));
         // only allocations: the K table (640 + 32 bytes) and the result of abi.encodePacked (48 + 32 → 96)
-        assertLe(fmpAfter - fmpBefore, 640 + 32 + 96 + 64, "aucune fuite de memoire");
+        assertLe(fmpAfter - fmpBefore, 640 + 32 + 96 + 64, "no memory leak");
     }
 
     /// @dev hashAt on an unaligned pointer in the middle of a buffer (full blocks read in place).
@@ -316,11 +316,11 @@ contract Sha384Test is Test {
         uint256 g2 = hh.gasOf(_stream(228)); // 2 blocks
         uint256 g9 = hh.gasOf(_stream(1100)); // 9 blocks
         uint256 ge = hh.gasOfExtend();
-        emit log_named_uint("SHA-384, 1 bloc (100 octets), gaz", g1);
-        emit log_named_uint("SHA-384, 2 blocs (228 octets), gaz", g2);
-        emit log_named_uint("SHA-384, 9 blocs (1100 octets), gaz", g9);
-        emit log_named_uint("SHA-384, par bloc supplementaire, gaz", (g9 - g1) / 8);
-        emit log_named_uint("extension RTMR (SHA384(mr || d)), gaz", ge);
+        emit log_named_uint("SHA-384, 1 block (100 bytes), gas", g1);
+        emit log_named_uint("SHA-384, 2 blocks (228 bytes), gas", g2);
+        emit log_named_uint("SHA-384, 9 blocks (1100 bytes), gas", g9);
+        emit log_named_uint("SHA-384, per extra block, gas", (g9 - g1) / 8);
+        emit log_named_uint("RTMR extension (SHA384(mr || d)), gas", ge);
         assertLt((g9 - g1) / 8, 60_000);
     }
 }

@@ -213,8 +213,8 @@ contract V21SessionPayTest is V21Helpers {
             vm.recordLogs();
             vm.prank(user);
             (bool ok,) = address(sessionPay).call{gas: g[i]}(abi.encodeCall(SessionPay.closeSession, (sessionId)));
-            assertTrue(ok, "fermeture faite malgre le registre hostile");
-            assertEq(usdc.balanceOf(user) - before, 1000e6 - 10e6, "rembourse (depot - 10 unites reglees)");
+            assertTrue(ok, "close done despite the hostile registry");
+            assertEq(usdc.balanceOf(user) - before, 1000e6 - 10e6, "refunded (deposit - 10 units settled)");
             assertTrue(sessionPay.getSession(sessionId).closed);
             assertFalse(sessionPay.getSession(sessionId).verdictWritten);
             (bool found, bytes memory reason) = _skippedReason(vm.getRecordedLogs(), address(sessionPay));
@@ -233,9 +233,9 @@ contract V21SessionPayTest is V21Helpers {
         uint256 g = _minGasToSucceed(user, address(sessionPay), call, 21_000, 30_000_000);
         vm.prank(user);
         (bool ok,) = address(sessionPay).call{gas: g}(call);
-        assertTrue(ok, "reussit au gaz minimal trouve");
-        assertLt(g, 1_000_000, "gaz minimal borne");
-        emit log_named_uint("closeSession sous registre hostile, gaz minimal", g);
+        assertTrue(ok, "succeeds at the minimum gas found");
+        assertLt(g, 1_000_000, "minimum gas bounded");
+        emit log_named_uint("closeSession under a hostile registry, minimum gas", g);
     }
 
     /// FINDING 2: slashing for equivocation also goes through under a hostile registry (before the fix: blocked at 30 M gas).
@@ -243,7 +243,7 @@ contract V21SessionPayTest is V21Helpers {
         bytes memory call = _equivocationCall(5);
         _installBombRegistry();
         (bool ok,) = address(sessionPay).call{gas: 30_000_000}(call);
-        assertTrue(ok, "saisie faite malgre le registre hostile");
+        assertTrue(ok, "slashing done despite the hostile registry");
         assertTrue(bond.banned(operator));
         assertEq(bond.bondOf(operator), 0);
     }
@@ -270,7 +270,7 @@ contract V21SessionPayTest is V21Helpers {
     /// Control (passes before and after): with no attack, the 100 verdict is written under the session's requestHash.
     function test_control_sessionVerdictUnderBaseHash() public {
         _installStrictRegistry();
-        uint256 agent = _linkAgent(opPk, "operateur");
+        uint256 agent = _linkAgent(opPk, "operator");
         _warpPastClose();
         vm.prank(user);
         sessionPay.closeSession(sessionId);
@@ -287,7 +287,7 @@ contract V21SessionPayTest is V21Helpers {
     /// for the operator's agent; the attacker's entry stays under ITS own validator name and does not count for us.
     function test_F1_preemptedSessionVerdictWrittenUnderSaltedHash() public {
         _installStrictRegistry();
-        uint256 agent = _linkAgent(opPk, "operateur");
+        uint256 agent = _linkAgent(opPk, "operator");
         bytes32 h = _sessionHash();
         (address griefer,) = _preempt(h);
         _warpPastClose();
@@ -298,24 +298,24 @@ contract V21SessionPayTest is V21Helpers {
         vm.prank(user);
         sessionPay.closeSession(sessionId);
 
-        assertTrue(sessionPay.getSession(sessionId).verdictWritten, "verdict ecrit");
+        assertTrue(sessionPay.getSession(sessionId).verdictWritten, "verdict written");
         (address v, uint256 a, uint8 r, bool has) = strict.statusOf(salted);
         assertEq(v, address(verdict));
         assertEq(a, agent);
         assertEq(r, 100);
         assertTrue(has);
         (v,,,) = strict.statusOf(h);
-        assertEq(v, griefer, "l'entree occupee reste celle de l'attaquant, sous son nom");
+        assertEq(v, griefer, "the taken entry stays the attacker's, under its name");
         bytes32[] memory mine = strict.getAgentValidations(agent);
         assertEq(mine.length, 1);
-        assertEq(mine[0], salted, "l'agent de l'operateur ne porte que notre verdict");
+        assertEq(mine[0], salted, "the operator's agent carries only our verdict");
     }
 
     /// FINDING 1 (with the v2 gas reserve): at the MINIMUM gas that makes the close succeed (what eth_estimateGas picks), under preemption,
     /// the salted verdict is still written: the VERDICT_GAS reserve also covers the salted path (before the fix: skipped).
     function test_F1_minimalGas_saltedVerdictStillWritten() public {
         _installStrictRegistry();
-        uint256 agent = _linkAgent(opPk, "operateur");
+        uint256 agent = _linkAgent(opPk, "operator");
         bytes32 h = _sessionHash();
         _preempt(h);
         _warpPastClose();
@@ -325,20 +325,20 @@ contract V21SessionPayTest is V21Helpers {
         vm.prank(user);
         (bool ok,) = address(sessionPay).call{gas: g}(call);
         assertTrue(ok);
-        assertTrue(sessionPay.getSession(sessionId).verdictWritten, "verdict sale ecrit au gaz minimal");
+        assertTrue(sessionPay.getSession(sessionId).verdictWritten, "salted verdict written at the minimum gas");
         (address v, uint256 a, uint8 r, bool has) = strict.statusOf(salted);
         assertEq(v, address(verdict));
         assertEq(a, agent);
         assertEq(r, 100);
         assertTrue(has);
-        emit log_named_uint("closeSession sous preemption (sel), gaz minimal", g);
+        emit log_named_uint("closeSession under preemption (salt), minimum gas", g);
     }
 
     /// FINDING 1, FAULT verdict: the operator takes in advance, with its own agent, the hash (session, seq) on which it is about
     /// to equivocate. Before the fix: slashing done, verdict 0 never written. Fixed: written under the salted hash.
     function test_F1_preemptedSlashVerdictWrittenUnderSaltedHash() public {
         _installStrictRegistry();
-        uint256 agent = _linkAgent(opPk, "operateur");
+        uint256 agent = _linkAgent(opPk, "operator");
         bytes32 h = _equivocationHash(5);
         vm.prank(operator);
         strict.validationRequest(operator, agent, "", h);
@@ -346,8 +346,8 @@ contract V21SessionPayTest is V21Helpers {
 
         (bool ok,) = address(sessionPay).call(_equivocationCall(5));
         assertTrue(ok);
-        assertTrue(bond.banned(operator), "saisie faite");
-        assertTrue(sessionPay.getSession(sessionId).verdictWritten, "verdict de faute ecrit");
+        assertTrue(bond.banned(operator), "slashing done");
+        assertTrue(sessionPay.getSession(sessionId).verdictWritten, "fault verdict written");
         (address v, uint256 a, uint8 r, bool has) = strict.statusOf(salted);
         assertEq(v, address(verdict));
         assertEq(a, agent);
@@ -359,7 +359,7 @@ contract V21SessionPayTest is V21Helpers {
     /// VerdictLog never answers under a hash it did not request; the verdict goes, salted, to the operator's agent.
     function test_F1_preemptionNamingVerdictLog_noReputationTheft() public {
         _installStrictRegistry();
-        uint256 agent = _linkAgent(opPk, "operateur");
+        uint256 agent = _linkAgent(opPk, "operator");
         bytes32 h = _sessionHash();
         address griefer = makeAddr("griefer-2");
         vm.startPrank(griefer);
@@ -375,7 +375,7 @@ contract V21SessionPayTest is V21Helpers {
         (address v, uint256 a,, bool has) = strict.statusOf(h);
         assertEq(v, address(verdict));
         assertEq(a, ga);
-        assertFalse(has, "aucune reponse pour l'agent de l'attaquant");
+        assertFalse(has, "no response for the attacker's agent");
         uint8 r;
         (, a, r, has) = strict.statusOf(salted);
         assertEq(a, agent);
@@ -388,14 +388,14 @@ contract V21SessionPayTest is V21Helpers {
     /// in ERC-8004; the slashing and the ban still happen, and the skipped verdict is recorded with its reason.
     function test_limit_operatorRevokesApproval_slashedButVerdictSkipped() public {
         _installStrictRegistry();
-        _linkAgent(opPk, "operateur");
+        _linkAgent(opPk, "operator");
         vm.prank(operator);
         identity.setApprovalForAll(address(verdict), false);
         vm.expectEmit(true, false, false, true, address(sessionPay));
         emit SessionPay.VerdictSkipped(_equivocationHash(6), abi.encodeWithSignature("Error(string)", "Not authorized"));
         (bool ok,) = address(sessionPay).call(_equivocationCall(6));
         assertTrue(ok);
-        assertTrue(bond.banned(operator), "la faute est etablie par nos contrats");
+        assertTrue(bond.banned(operator), "the fault is established by our contracts");
         assertFalse(sessionPay.getSession(sessionId).verdictWritten);
     }
 
@@ -403,18 +403,18 @@ contract V21SessionPayTest is V21Helpers {
     /// (whatever one contract computes, another contract in the same block can compute). The close goes through; the verdict is skipped.
     function test_limit_sameBlockFrontRunOfSaltedHash() public {
         _installStrictRegistry();
-        _linkAgent(opPk, "operateur");
+        _linkAgent(opPk, "operator");
         _warpPastClose();
         bytes32 h = _sessionHash();
         _preempt(h);
-        address g2 = makeAddr("griefer-meme-bloc");
+        address g2 = makeAddr("griefer-same-block");
         vm.startPrank(g2);
-        uint256 ga2 = identity.register("griefer-meme-bloc");
+        uint256 ga2 = identity.register("griefer-same-block");
         strict.validationRequest(g2, ga2, "", _salted(h));
         vm.stopPrank();
         vm.prank(user);
         sessionPay.closeSession(sessionId);
-        assertTrue(sessionPay.getSession(sessionId).closed, "la fermeture passe");
+        assertTrue(sessionPay.getSession(sessionId).closed, "the close goes through");
         assertFalse(sessionPay.getSession(sessionId).verdictWritten, "limite residuelle : verdict saute");
     }
 
@@ -428,7 +428,7 @@ contract V21SessionPayTest is V21Helpers {
     function _faultVerdictWritten(uint256 sid) internal view returns (bool) {
         (bool ok, bytes memory ret) = address(sessionPay).staticcall(abi.encodeCall(SessionPay.getSession, (sid)));
         assertTrue(ok);
-        assertEq(ret.length, 17 * 32, "getSession porte faultVerdictWritten (v2.1 ter)");
+        assertEq(ret.length, 17 * 32, "getSession carries faultVerdictWritten (second round of fixes)");
         bytes32[17] memory w = abi.decode(ret, (bytes32[17]));
         return w[16] != bytes32(0);
     }
@@ -438,7 +438,7 @@ contract V21SessionPayTest is V21Helpers {
     /// Second round: full refund, no ERC-8004 entry (VerdictLog is not even called), VerdictNotApplicable.
     function test_F5_unpaidSessionsWriteNoVerdict() public {
         _installStrictRegistry();
-        uint256 agent = _linkAgent(opPk, "operateur");
+        uint256 agent = _linkAgent(opPk, "operator");
         uint256 sockPk = 0x50C50C; // a wallet of the operator
         address sock = vm.addr(sockPk);
         usdc.mint(sock, 3e6);
@@ -453,7 +453,7 @@ contract V21SessionPayTest is V21Helpers {
             vm.prank(sock);
             sessionPay.closeSession(sids[i]);
             assertTrue(sessionPay.getSession(sids[i]).closed);
-            assertFalse(sessionPay.getSession(sids[i]).verdictWritten, "aucun 100 pour une session qui n'a rien paye");
+            assertFalse(sessionPay.getSession(sids[i]).verdictWritten, "no 100 for a session that paid nothing");
         }
         Vm.Log[] memory logs = vm.getRecordedLogs();
         uint256 notApplicable;
@@ -467,7 +467,7 @@ contract V21SessionPayTest is V21Helpers {
                 notApplicable++;
             }
         }
-        assertEq(notApplicable, 3, "une trace par session fermee sans reglement");
+        assertEq(notApplicable, 3, "one record per session closed without settlement");
         (bool skipped,) = _skippedReason(logs, address(sessionPay));
         assertFalse(skipped, "aucun verdict tente");
         assertEq(usdc.balanceOf(sock), 3e6, "depots rendus en entier");
@@ -481,22 +481,22 @@ contract V21SessionPayTest is V21Helpers {
     /// the operator's agent, next to the 100.
     function test_F6_equivocationAfterCloseWritesSlashVerdict() public {
         _installStrictRegistry();
-        uint256 agent = _linkAgent(opPk, "operateur");
+        uint256 agent = _linkAgent(opPk, "operator");
         bytes memory call = _equivocationCall(5); // receipts anchored during the session
         _warpPastClose();
         vm.prank(user);
         sessionPay.closeSession(sessionId);
-        assertTrue(sessionPay.getSession(sessionId).verdictWritten, "100 ecrit a la fermeture");
+        assertTrue(sessionPay.getSession(sessionId).verdictWritten, "100 written at closing");
 
         (bool ok,) = address(sessionPay).call(call); // fault proven AFTER the close
         assertTrue(ok);
-        assertTrue(bond.banned(operator), "saisie faite");
+        assertTrue(bond.banned(operator), "slashing done");
         (address v, uint256 a, uint8 r, bool has) = strict.statusOf(_equivocationHash(5));
-        assertEq(v, address(verdict), "verdict de faute ecrit");
+        assertEq(v, address(verdict), "fault verdict written");
         assertEq(a, agent);
         assertEq(r, 0);
         assertTrue(has);
-        assertEq(strict.getAgentValidations(agent).length, 2, "le 100 de la fermeture et le 0 de la faute");
+        assertEq(strict.getAgentValidations(agent).length, 2, "the closing 100 and the fault 0");
         assertTrue(_faultVerdictWritten(sessionId));
     }
 
@@ -504,7 +504,7 @@ contract V21SessionPayTest is V21Helpers {
     /// the same session, attempts and writes nothing more (the slashing, still admissible, takes nothing more).
     function test_F6_oneSlashVerdictPerSession() public {
         _installStrictRegistry();
-        uint256 agent = _linkAgent(opPk, "operateur");
+        uint256 agent = _linkAgent(opPk, "operator");
         bytes memory eq5 = _equivocationCall(5);
         bytes memory eq6 = _equivocationCall(6);
         _warpPastClose();
@@ -512,7 +512,7 @@ contract V21SessionPayTest is V21Helpers {
         sessionPay.closeSession(sessionId);
         (bool ok,) = address(sessionPay).call(eq5);
         assertTrue(ok);
-        assertEq(strict.getAgentValidations(agent).length, 2, "le 100 et un 0");
+        assertEq(strict.getAgentValidations(agent).length, 2, "the 100 and a 0");
 
         vm.recordLogs();
         (bool ok5,) = address(sessionPay).call(eq5); // the same proof
@@ -520,11 +520,11 @@ contract V21SessionPayTest is V21Helpers {
         assertTrue(ok5 && ok6);
         Vm.Log[] memory logs = vm.getRecordedLogs();
         for (uint256 i = 0; i < logs.length; i++) {
-            assertTrue(logs[i].emitter != address(verdict), "aucune nouvelle ecriture");
+            assertTrue(logs[i].emitter != address(verdict), "no new write");
         }
         (bool skipped,) = _skippedReason(logs, address(sessionPay));
         assertFalse(skipped, "aucune nouvelle tentative");
-        assertEq(strict.getAgentValidations(agent).length, 2, "toujours un seul verdict de faute");
+        assertEq(strict.getAgentValidations(agent).length, 2, "still a single fault verdict");
         (address v,,,) = strict.statusOf(_equivocationHash(6));
         assertEq(v, address(0));
     }
@@ -536,7 +536,7 @@ contract V21SessionPayTest is V21Helpers {
         _warpPastClose();
         vm.prank(user);
         sessionPay.closeSession(sessionId);
-        assertEq(validation.responses(), 1, "le 100");
+        assertEq(validation.responses(), 1, "the 100");
 
         validation.setShouldRevert(true);
         vm.recordLogs();
@@ -544,14 +544,14 @@ contract V21SessionPayTest is V21Helpers {
         assertTrue(ok);
         assertTrue(bond.banned(operator));
         (bool found, bytes memory reason) = _skippedReason(vm.getRecordedLogs(), address(sessionPay));
-        assertTrue(found, "verdict de faute tente, et trace");
+        assertTrue(found, "fault verdict attempted, and recorded");
         assertEq(reason, abi.encodeWithSignature("Error(string)", "validation down"));
         assertFalse(_faultVerdictWritten(sessionId));
 
         validation.setShouldRevert(false);
         (ok,) = address(sessionPay).call(call); // new report: retries the fault verdict
         assertTrue(ok);
-        assertEq(validation.responses(), 2, "le 0, au second signalement");
+        assertEq(validation.responses(), 2, "the 0, at the second report");
         assertTrue(_faultVerdictWritten(sessionId));
     }
 
@@ -560,13 +560,13 @@ contract V21SessionPayTest is V21Helpers {
     /// empty session, and that 100 prevented the 0.
     function test_F5_unpaidClosedSessionStillGetsSlashVerdict() public {
         _installStrictRegistry();
-        uint256 agent = _linkAgent(opPk, "operateur");
+        uint256 agent = _linkAgent(opPk, "operator");
         sessionId = _openAs(userPk, 5e6, keccak256("open-unpaid")); // the helpers now target this session
         bytes memory call = _equivocationCall(7);
         _warpPastClose();
         vm.prank(user);
         sessionPay.closeSession(sessionId);
-        assertFalse(sessionPay.getSession(sessionId).verdictWritten, "pas de 100 : rien n'a ete paye");
+        assertFalse(sessionPay.getSession(sessionId).verdictWritten, "no 100: nothing was paid");
 
         (bool ok,) = address(sessionPay).call(call);
         assertTrue(ok);
@@ -575,8 +575,8 @@ contract V21SessionPayTest is V21Helpers {
         assertEq(a, agent);
         assertEq(r, 0);
         assertTrue(has);
-        assertEq(strict.getAgentValidations(agent).length, 1, "le seul verdict est celui de la faute");
-        assertTrue(sessionPay.getSession(sessionId).verdictWritten, "une entree ERC-8004 existe pour cette session");
+        assertEq(strict.getAgentValidations(agent).length, 1, "the only verdict is the fault verdict");
+        assertTrue(sessionPay.getSession(sessionId).verdictWritten, "an ERC-8004 entry exists for this session");
     }
 }
 
@@ -690,7 +690,7 @@ contract V21SealedBountyTest is V21Helpers {
         _installBombRegistry();
         uint256 before = usdc.balanceOf(hunter);
         (bool ok,) = address(sealedBounty).call{gas: 30_000_000}(abi.encodeCall(SealedBounty.claim, (r, sigs, cP)));
-        assertTrue(ok, "prime payee malgre le registre hostile");
+        assertTrue(ok, "bounty paid despite the hostile registry");
         assertEq(usdc.balanceOf(hunter) - before, 100e6);
         assertTrue(sealedBounty.fingerprintPaid(bountyId, keccak256("fp-bomb")));
     }
@@ -705,7 +705,7 @@ contract V21SealedBountyTest is V21Helpers {
         uint256 before = usdc.balanceOf(hunter);
         (bool ok,) =
             address(sealedBounty).call{gas: 30_000_000}(abi.encodeCall(SealedBounty.deliver, (bountyId, fp, cP)));
-        assertTrue(ok, "livre et paye malgre le registre hostile");
+        assertTrue(ok, "delivered and paid despite the hostile registry");
         assertEq(usdc.balanceOf(hunter) - before, 100e6);
     }
 
@@ -714,7 +714,7 @@ contract V21SealedBountyTest is V21Helpers {
         bytes memory call = _equivocationCall(keccak256("fp-eqb"), signerPk);
         _installBombRegistry();
         (bool ok,) = address(sealedBounty).call{gas: 30_000_000}(call);
-        assertTrue(ok, "saisie faite malgre le registre hostile");
+        assertTrue(ok, "slashing done despite the hostile registry");
         assertTrue(bond.banned(operator));
     }
 
@@ -737,7 +737,7 @@ contract V21SealedBountyTest is V21Helpers {
         _installBombRegistry();
         (bool ok,) =
             address(sealedBounty).call{gas: 30_000_000}(abi.encodeCall(SealedBounty.refute, (r, ops, f, sigs)));
-        assertTrue(ok, "refutation faite malgre le registre hostile");
+        assertTrue(ok, "refutation done despite the hostile registry");
         assertTrue(bond.banned(operator));
     }
 
@@ -780,7 +780,7 @@ contract V21SealedBountyTest is V21Helpers {
         emit SealedBounty.VerdictSkipped(_equivocationHash(fp, operator), abi.encodeWithSelector(ALREADY_RECORDED));
         (ok,) = address(sealedBounty).call(call);
         assertTrue(ok);
-        assertEq(strict.getAgentValidations(agent).length, 1, "un seul verdict de faute");
+        assertEq(strict.getAgentValidations(agent).length, 1, "a single fault verdict");
     }
 
     // ---- FINDING 4: collision between operators ----
@@ -791,7 +791,7 @@ contract V21SealedBountyTest is V21Helpers {
         _installStrictRegistry();
         uint256 agent1 = _linkAgent(opPk, "op1");
         uint256 agent2 = _linkAgent(op2Pk, "op2");
-        bytes32 fp = keccak256("meme-exploit");
+        bytes32 fp = keccak256("same-exploit");
         (bool ok1,) = address(sealedBounty).call(_equivocationCall(fp, signerPk));
         (bool ok2,) = address(sealedBounty).call(_equivocationCall(fp, signer2Pk));
         assertTrue(ok1 && ok2);
@@ -804,7 +804,7 @@ contract V21SealedBountyTest is V21Helpers {
         assertTrue(h1);
         (address v2, uint256 a2, uint8 r2, bool h2) = strict.statusOf(_equivocationHash(fp, operator2));
         assertEq(v2, address(verdict));
-        assertEq(a2, agent2, "le second operateur a son verdict de faute");
+        assertEq(a2, agent2, "the second operator has its fault verdict");
         assertEq(r2, 0);
         assertTrue(h2);
     }
@@ -822,8 +822,8 @@ contract V21VerdictLogTest is V21Helpers {
         vm.prank(address(sessionPay));
         verdict.record(agent, h, "", bytes32(0), "", 100, "tdx-dcap/inference");
         (bool ok, bytes memory ret) = address(verdict).staticcall(abi.encodeWithSignature("recordedAs(bytes32)", h));
-        assertTrue(ok, "recordedAs (v2.1 bis)");
-        assertEq(abi.decode(ret, (bytes32)), h, "pas de sel sans attaque");
+        assertTrue(ok, "recordedAs (first round of fixes)");
+        assertEq(abi.decode(ret, (bytes32)), h, "no salt without an attack");
 
         vm.prank(address(sessionPay));
         vm.expectRevert(ALREADY_RECORDED);
@@ -839,7 +839,7 @@ contract V21VerdictLogTest is V21Helpers {
         verdict.record(agent, h2, "", bytes32(0), "", 100, "tdx-dcap/inference");
         (ok, ret) = address(verdict).staticcall(abi.encodeWithSignature("recordedAs(bytes32)", h2));
         assertTrue(ok);
-        assertEq(abi.decode(ret, (bytes32)), _salted(h2), "ecrit sous le hash sale");
+        assertEq(abi.decode(ret, (bytes32)), _salted(h2), "written under the salted hash");
         (ok, ret) = address(verdict).staticcall(abi.encodeWithSignature("saltedHash(bytes32)", h2));
         assertTrue(ok);
         assertEq(abi.decode(ret, (bytes32)), _salted(h2));
@@ -872,7 +872,7 @@ contract V21AttestedTest is V21Helpers {
     function _attestedOperator(address s, uint256 pid) internal view returns (address) {
         (bool ok, bytes memory ret) =
             address(registry).staticcall(abi.encodeWithSignature("attestedOperator(address,uint256)", s, pid));
-        assertTrue(ok, "EnclaveRegistry.attestedOperator (v2.1 bis)");
+        assertTrue(ok, "EnclaveRegistry.attestedOperator (first round of fixes)");
         return abi.decode(ret, (address));
     }
 
@@ -880,11 +880,11 @@ contract V21AttestedTest is V21Helpers {
     /// the enclave as long as nobody had called invalidateRetiredWorkload(key). Fixed: refused at once.
     function test_F3_retiredImage_refusedWithoutKillTransaction() public {
         (bool ok,) = _submit(0, "avant");
-        assertTrue(ok, "temoin : accepte avant le retrait");
+        assertTrue(ok, "control: accepted before the retirement");
         products.retireWorkload(productId, _workloadId());
         assertFalse(registry.killed(signer), "aucune transaction de kill");
-        (bool ok2, bytes memory ret) = _submit(1, "apres retrait de l'image");
-        assertFalse(ok2, "refuse des le retrait de l'image");
+        (bool ok2, bytes memory ret) = _submit(1, "after the image is retired");
+        assertFalse(ok2, "refused as soon as the image is retired");
         assertEq(ret, abi.encodeWithSelector(AttestedSignersLib.NotAttested.selector, signer));
     }
 
@@ -892,30 +892,30 @@ contract V21AttestedTest is V21Helpers {
     /// window. Fixed: refused at once.
     function test_F3_retiredProduct_refused() public {
         products.retire(productId);
-        (bool ok, bytes memory ret) = _submit(0, "produit retire");
-        assertFalse(ok, "refuse des le retrait du produit");
+        (bool ok, bytes memory ret) = _submit(0, "product retired");
+        assertFalse(ok, "refused as soon as the product is retired");
         assertEq(ret, abi.encodeWithSelector(AttestedSignersLib.NotAttested.selector, signer));
     }
 
     /// FINDING 3: the EnclaveRegistry.attestedOperator read (first round of fixes), case by case.
     function test_F3_attestedOperatorView() public {
         assertEq(_attestedOperator(signer, productId), operator);
-        assertEq(_attestedOperator(signer, productId + 1), address(0), "autre produit");
+        assertEq(_attestedOperator(signer, productId + 1), address(0), "another product");
         assertEq(_attestedOperator(user, productId), address(0), "cle hors enclave");
 
         uint256 snap = vm.snapshotState();
         products.retireWorkload(productId, _workloadId());
-        assertEq(_attestedOperator(signer, productId), address(0), "image retiree");
+        assertEq(_attestedOperator(signer, productId), address(0), "image retired");
         vm.revertToState(snap);
 
         snap = vm.snapshotState();
         products.retire(productId);
-        assertEq(_attestedOperator(signer, productId), address(0), "produit retire");
+        assertEq(_attestedOperator(signer, productId), address(0), "product retired");
         vm.revertToState(snap);
 
         vm.prank(address(sessionPay)); // an authorized settlement contract that proved a fault
         bond.slash(operator, address(this), user);
-        assertEq(_attestedOperator(signer, productId), address(0), "operateur radie");
+        assertEq(_attestedOperator(signer, productId), address(0), "operator banned");
     }
 
     /// Intended scope (passes before and after): ANCHORED receipts and claims stay governed by activeOperatorAt (v2,

@@ -258,7 +258,7 @@ contract DstackImageRealVectorTest is Test, PhalaVector {
         uint256 g = gasleft();
         DstackEventLog.Replay memory rr = DstackEventLog.replay(log);
         uint256 libGas = g - gasleft();
-        assertEq(abi.encodePacked(rr.rtmr3Hi, rr.rtmr3Lo), _slice(QUOTE, O_RTMR3, 48), "RTMR3 du quote");
+        assertEq(abi.encodePacked(rr.rtmr3Hi, rr.rtmr3Lo), _slice(QUOTE, O_RTMR3, 48), "the quote's RTMR3");
 
         g = gasleft();
         (bytes memory r3, bool known, bytes32 compose, bytes32 os) = registry.replayEventLog(log);
@@ -270,15 +270,15 @@ contract DstackImageRealVectorTest is Test, PhalaVector {
         // dstack writes 0x01 ‖ compose-hash into MRCONFIGID: consistent with the replayed event
         assertEq(_slice(QUOTE, 48 + 184, 33), abi.encodePacked(bytes1(0x01), COMPOSE_HASH));
 
-        emit log_named_uint("rejeu RTMR3, 10 evenements reels (bibliotheque), gaz", libGas);
-        emit log_named_uint("rejeu RTMR3, 10 evenements reels (replayEventLog, appel externe), gaz", callGas);
+        emit log_named_uint("RTMR3 replay, 10 real events (library), gas", libGas);
+        emit log_named_uint("RTMR3 replay, 10 real events (replayEventLog, external call), gas", callGas);
         emit log_named_uint("journal encode FORMAT_V1, octets", log.length);
     }
 
     /// The identifiers: the full fingerprint of the real quote, recomputed by the real module, is that of the deployed
     /// v2 stack; the image fingerprint computed on chain is the one computed off chain.
     function test_realVector_ids() public {
-        assertEq(_legacyIdOf(QUOTE), LEGACY_WORKLOAD_ID, "empreinte complete = deployments.v2.testnet.json");
+        assertEq(_legacyIdOf(QUOTE), LEGACY_WORKLOAD_ID, "full fingerprint = deployments.v2.testnet.json");
         assertEq(
             registry.imageIdOf(MRTD, RTMR0, RTMR1, RTMR2, COMPOSE_HASH, OS_IMAGE_HASH, XFAM, TD_ATTRIBUTES), IMAGE_ID
         );
@@ -304,12 +304,12 @@ contract DstackImageRealVectorTest is Test, PhalaVector {
         uint256 used = g - gasleft();
 
         IEnclaveRegistry.Enclave memory e = registry.enclaveOf(SIGNER);
-        assertEq(e.workloadId, IMAGE_ID, "admise sur l'empreinte d'image");
+        assertEq(e.workloadId, IMAGE_ID, "admitted on the image fingerprint");
         assertEq(e.operator, V2_OPERATOR);
         assertTrue(e.active);
         assertEq(e.fmspc, FMSPC);
         assertTrue(registry.isActiveAt(SIGNER, 1, vm.getBlockNumber()));
-        emit log_named_uint("registerEnclave, vrai quote + journal (DCAP simule), gaz", used);
+        emit log_named_uint("registerEnclave, real quote + event log (simulated DCAP), gas", used);
     }
 
     /// Gas reference: the same quote through the v2 path (no event log, full fingerprint).
@@ -319,7 +319,7 @@ contract DstackImageRealVectorTest is Test, PhalaVector {
         _register(QUOTE, SIGNER, X25519, "");
         uint256 used = g - gasleft();
         assertEq(registry.enclaveOf(SIGNER).workloadId, LEGACY_WORKLOAD_ID);
-        emit log_named_uint("registerEnclave, vrai quote sans journal (DCAP simule), gaz", used);
+        emit log_named_uint("registerEnclave, real quote without event log (simulated DCAP), gas", used);
     }
 
     /// THE TARGET CASE: the VM reboots (new instance-id, hence a new RTMR3; a new ephemeral key). Same image:
@@ -333,11 +333,11 @@ contract DstackImageRealVectorTest is Test, PhalaVector {
         address signer2 = vm.addr(0xBEEF);
         bytes32 x2 = keccak256("x25519-instance-2");
         bytes memory q2 = _otherInstanceQuote(RTMR3_RESTART, signer2, x2);
-        assertEq(_legacyIdOf(q2), LEGACY_WORKLOAD_ID_RESTART, "l'empreinte complete a change (RTMR3)");
+        assertEq(_legacyIdOf(q2), LEGACY_WORKLOAD_ID_RESTART, "the full fingerprint changed (RTMR3)");
 
         vm.roll(vm.getBlockNumber() + 100);
         _register(q2, signer2, x2, _log(evs));
-        assertEq(registry.enclaveOf(signer2).workloadId, IMAGE_ID, "meme image, autre instance : acceptee");
+        assertEq(registry.enclaveOf(signer2).workloadId, IMAGE_ID, "same image, another instance: accepted");
         assertTrue(registry.isActiveAt(signer2, 1, vm.getBlockNumber()));
     }
 
@@ -389,7 +389,7 @@ contract DstackImageRealVectorTest is Test, PhalaVector {
         (bytes memory r3, bool known, bytes32 compose,) = registry.replayEventLog(log);
         assertEq(r3, RTMR3_EVIL_THEN_APP_GOOD, "rejeu = Python");
         assertTrue(known);
-        assertEq(compose, sha256("evil-compose"), "le compose du demarrage, pas celui de l'application");
+        assertEq(compose, sha256("evil-compose"), "the boot compose, not the application's");
 
         uint256 r = vm.getBlockNumber() - 1;
         vm.prank(V2_OPERATOR);

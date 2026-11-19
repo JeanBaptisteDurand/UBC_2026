@@ -268,7 +268,7 @@ contract AdversarialV2Test is Base {
 
         uint256 opBefore = usdc.balanceOf(operator);
         sessionPay.settle(r, sig);
-        assertEq(usdc.balanceOf(operator) - opBefore, 48_000 * PRICE * 8000 / 10_000, "le service est paye (80 %)");
+        assertEq(usdc.balanceOf(operator) - opBefore, 48_000 * PRICE * 8000 / 10_000, "the service is paid (80 %)");
     }
 
     /// HIGH (fixed): a session is bound to ONE enclave: the receipt of a 2nd enclave of the same operator is refused
@@ -309,7 +309,7 @@ contract AdversarialV2Test is Base {
         products.applyUpdate(chatId);
 
         (bool ok,) = address(sessionPay).call(abi.encodeCall(SessionPay.settle, (r, sig)));
-        assertTrue(ok, "recu emis avant le changement de modele : reglable");
+        assertTrue(ok, "receipt issued before the model change: payable");
         assertEq(sessionPay.getSession(sid).param, MODEL);
     }
 
@@ -352,7 +352,7 @@ contract AdversarialV2Test is Base {
 
         SessionPay.Receipt memory fair = _rcpt(chatId, sid, 1, keccak256("resp"), 48, uint64(vm.getBlockNumber()));
         sessionPay.settle(fair, _sigRcpt(fair, signerPk));
-        assertEq(sessionPay.getSession(sid).paid, 48 * PRICE, "0,0096 USDC au prix verrouille, pas 9,6");
+        assertEq(sessionPay.getSession(sid).paid, 48 * PRICE, "0.0096 USDC at the locked price, not 9.6");
     }
 
     /// MEDIUM (fixed): a key is bound for life to its (operator, product): moving it is refused, the proof of
@@ -373,7 +373,7 @@ contract AdversarialV2Test is Base {
         registry.registerEnclave(other, quote, 999, signer, _x25519Of("chat-a"), "");
 
         sessionPay.reportEquivocation(a, sigA, b, sigB);
-        assertTrue(bond.banned(operator), "l'operateur fautif perd sa caution");
+        assertTrue(bond.banned(operator), "the faulty operator loses its bond");
         assertEq(bond.bondOf(operator), 0);
     }
 
@@ -416,7 +416,7 @@ contract AdversarialV2Test is Base {
         SealedBounty.Claim memory r = _claim(bid, 1001, keccak256("faux"), keccak256(cP));
         uint256 hunterBefore = usdc.balanceOf(hunter);
         sealedBounty.claim(r, _one(_sigClaim(r, 0x6363)), cP);
-        assertEq(usdc.balanceOf(hunter) - hunterBefore, 50e6, "fausse reclamation payee (le contrat ne peut le savoir)");
+        assertEq(usdc.balanceOf(hunter) - hunterBefore, 50e6, "false claim paid (the contract cannot know)");
 
         // the cheater wants to leave: its bond is reserved for its enclave, then locked 7 days after the exposure
         vm.prank(op3);
@@ -445,19 +445,19 @@ contract AdversarialV2Test is Base {
 
         assertTrue(bond.banned(op3));
         assertEq(bond.bondOf(op3), 0);
-        assertEq(usdc.balanceOf(protocol) - protocolBefore, 100e6, "le protocole recupere 100 (denonciateur + victime)");
+        assertEq(usdc.balanceOf(protocol) - protocolBefore, 100e6, "the protocol recovers 100 (reporter + victim)");
         vm.warp(vm.getBlockTimestamp() + 7 days);
         uint256 before = usdc.balanceOf(op3);
         vm.prank(op3);
         vm.expectRevert(OperatorBond.NothingToWithdraw.selector);
         bond.withdraw();
-        assertEq(usdc.balanceOf(op3) - before, 0, "50 USDC voles, 100 USDC de caution perdus");
+        assertEq(usdc.balanceOf(op3) - before, 0, "50 USDC stolen, 100 USDC of bond lost");
     }
 
     /// HIGH (fixed): the deployer key no longer seizes anything: wiring happens once, then any new settlement
     /// contract waits 8 days; the honest operator withdraws its bond first.
     function test_FIXED_v2_deployKeyCannotSeizeBonds() public {
-        assertEq(bond.owner(), address(this), "proprietaire = ce contrat (multisig en production)");
+        assertEq(bond.owner(), address(this), "owner = this contract (a multisig in production)");
         address thief = makeAddr("thief");
         address[] memory evil = new address[](1);
         evil[0] = thief;
@@ -481,7 +481,7 @@ contract AdversarialV2Test is Base {
         bond.applySettlement(thief);
         vm.prank(thief);
         bond.slash(operator, thief, thief);
-        assertEq(usdc.balanceOf(operator), 1_000_000e6, "la caution de l'operateur honnete est rentree chez lui");
+        assertEq(usdc.balanceOf(operator), 1_000_000e6, "the honest operator's bond is back home");
         assertEq(usdc.balanceOf(thief), 0, "rien a saisir");
     }
 
@@ -489,7 +489,7 @@ contract AdversarialV2Test is Base {
     /// faulty operator can no longer have its slashing recorded under a competitor's agentId.
     function test_FIXED_v2_slashVerdictNotWrittenUnderBorrowedAgentId() public {
         vm.prank(operator);
-        uint256 agent = identity.register("ipfs://operateur-honnete");
+        uint256 agent = identity.register("ipfs://honest-operator");
         vm.prank(operator);
         bond.setAgentId(agent);
         _bondOperator(op2Pk, 100e6);
@@ -517,7 +517,7 @@ contract AdversarialV2Test is Base {
             "tdx-dcap/slash"
         );
         sessionPay.reportEquivocation(a, sigA, b, sigB);
-        assertTrue(bond.agentIdOf(operator2) != bond.agentIdOf(operator), "saisie d'operator2 hors de l'agent honnete");
+        assertTrue(bond.agentIdOf(operator2) != bond.agentIdOf(operator), "operator2's slashing outside the honest agent");
     }
 
     // ============================================================ Registre
@@ -538,8 +538,8 @@ contract AdversarialV2Test is Base {
         bytes memory sig = _sigRcpt(r, signerPk);
         vm.expectRevert(SessionPay.InactiveEnclave.selector);
         sessionPay.settle(r, sig);
-        assertFalse(registry.isActiveAt(signer, chatId, 1499), "enclave d'une image retiree : inactive");
-        assertFalse(registry.isActiveAt(signer, chatId, 1000), "sans grace, meme pour un bloc anterieur");
+        assertFalse(registry.isActiveAt(signer, chatId, 1499), "enclave of a retired image: inactive");
+        assertFalse(registry.isActiveAt(signer, chatId, 1000), "no grace, even for an earlier block");
 
         vm.prank(user); // the session closes without waiting for the deadline: nothing can be settled any more
         sessionPay.closeSession(sid);
@@ -567,14 +567,14 @@ contract AdversarialV2Test is Base {
 
         sealedBounty.claim(r1, s1, cP1);
         (bool paidAgain,) = address(sealedBounty).call(abi.encodeCall(SealedBounty.claim, (r2, s2, cP2)));
-        assertFalse(paidAgain, "le meme exploit (meme transaction, autre casse) n'est pas paye une 2e fois");
+        assertFalse(paidAgain, "the same exploit (same transaction, other case) is not paid a 2nd time");
 
         vm.roll(1010); // replayed later, anchored after the payout: same tier, refused
         SealedBounty.Claim memory r3 = _claim(bid, 1009, keccak256("fp-3"), keccak256(cP2));
         bytes[] memory s3 = _one(_sigClaim(r3, 0x6161));
         vm.expectRevert(SealedBounty.TierAlreadyPaid.selector);
         sealedBounty.claim(r3, s3, cP2);
-        assertEq(sealedBounty.getBounty(bid).balance, 60e6 - 5.75e6, "un seul paiement sur le pool de demo");
+        assertEq(sealedBounty.getBounty(bid).balance, 60e6 - 5.75e6, "a single payment from the demo pool");
     }
 
     /// HIGH (fixed): a booby-trapped pause target ("return bomb") no longer blocks the claim: the pause gets
@@ -590,7 +590,7 @@ contract AdversarialV2Test is Base {
         uint256 trapped2 = _createBounty(pid, 5e6, 60e6, address(trap), keccak256("trap-2"));
         vm.roll(1002);
 
-        bytes memory cP = bytes("exploit chiffre vers le protocole");
+        bytes memory cP = bytes("exploit encrypted to the protocol");
         SealedBounty.Claim memory rc = _claim(control, 1001, keccak256("fp-c"), keccak256(cP));
         SealedBounty.Claim memory rt = _claim(trapped, 1001, keccak256("fp-t"), keccak256(cP));
         SealedBounty.Claim memory rt2 = _claim(trapped2, 1001, keccak256("fp-t2"), keccak256(cP));
@@ -600,17 +600,17 @@ contract AdversarialV2Test is Base {
 
         (bool okControl,) =
             address(sealedBounty).call{gas: 30_000_000}(abi.encodeCall(SealedBounty.claim, (rc, sc, cP)));
-        assertTrue(okControl, "controle : une cible honnete, 30 M de gaz : payee");
+        assertTrue(okControl, "control: an honest target, 30 M gas: paid");
         assertTrue(honest.paused());
 
         (bool okTrapped,) =
             address(sealedBounty).call{gas: 30_000_000}(abi.encodeCall(SealedBounty.claim, (rt, st, cP)));
-        assertTrue(okTrapped, "cible de pause piegee : la reclamation passe quand meme");
+        assertTrue(okTrapped, "booby-trapped pause target: the claim still goes through");
 
         // in two steps: the reservation carries only the hash of cP; the delivery does not touch the target
         (bool okAccept,) =
             address(sealedBounty).call{gas: 30_000_000}(abi.encodeCall(SealedBounty.acceptClaim, (rt2, st2)));
-        assertTrue(okAccept, "reservation sans cP, malgre la cible piegee");
+        assertTrue(okAccept, "reservation without cP, despite the booby-trapped target");
         uint256 hunterBefore = usdc.balanceOf(hunter);
         sealedBounty.deliver(trapped2, keccak256("fp-t2"), cP);
         assertEq(usdc.balanceOf(hunter) - hunterBefore, 5e6);
