@@ -1,11 +1,11 @@
-/** bounty — la Prime scellée à distance, pile v2 : chasseur (list, status, submit) et protocole
- *  (create, reports). L'exploit en clair ne quitte cette machine que chiffré : cE vers une enclave dont la clé X25519
- *  est VÉRIFIÉE on-chain (SDK verifyEnclaveKeys : jamais la clé brute de /pubkeys), cP vers la clé X25519 du protocole
- *  lue on-chain. Paiement v2 en deux temps : acceptClaim (réserve, cP hors transaction) puis deliver (livre et paie).
+/** bounty — the remote Sealed Bounty, v2 stack and later: hunter (list, status, submit) and protocol
+ *  (create, reports). The plaintext exploit leaves this machine only encrypted: cE to an enclave whose X25519 key is
+ *  VERIFIED on-chain (SDK verifyEnclaveKeys: never the raw key from /pubkeys), cP to the protocol's X25519 key read
+ *  on-chain. Payment in two steps: acceptClaim (reserves; cP stays off the transaction) then deliver (delivers and pays).
  *
- *  v2.1 bis (revue adverse du 9/11) : « bounty create » crée une clé X25519 NEUVE PAR PRIME (secrets.ts : fichier 0600,
- *  nommé par la clé publique), au lieu d'une clé partagée par toutes les primes du protocole ; « reports » et « refute » la
- *  retrouvent par Bounty.protocolX25519. Le prédicat suit les règles P1–P4 du SDK (bornes et forme : predicate.ts). */
+ *  Hardened after an adversarial review: `bounty create` generates a fresh X25519 key PER BOUNTY (secrets.ts: file mode
+ *  0600, named after the public key), instead of one key shared by all of a protocol's bounties; `reports` and `refute`
+ *  find it through Bounty.protocolX25519. The predicate follows the SDK's rules P1–P4 (bounds and shape: predicate.ts). */
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {

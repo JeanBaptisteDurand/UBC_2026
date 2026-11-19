@@ -18,8 +18,9 @@ export const LEVEL_OPEN = 0 as const;
 export const LEVEL_VERIFIED = 1 as const;
 export type OperatorLevel = typeof LEVEL_OPEN | typeof LEVEL_VERIFIED;
 
-/** L'alliance Proof of Cloud (github.com/proofofcloud/trust-server) : ses serveurs de confiance et sa clé commune (VERIFIED
- *  le 10/11/2026 : public_info/peers_list.txt et public_info/public_key.txt). */
+/** The Proof of Cloud alliance (github.com/proofofcloud/trust-server): its trust servers and its common key, as published
+ *  in public_info/peers_list.txt and public_info/public_key.txt. `allianceKey` is the alliance's PUBLIC verification key
+ *  (Ed25519), not a secret. */
 export const PROOF_OF_CLOUD = {
   allianceKey: "0x5ea69fede5bcf71054395b273bad67f67158c242d77945d436374020ece525cb" as Hex,
   peers: ["https://trust-server.scrtlabs.com", "https://trust-server.nillion.network", "https://trust-server.iex.ec"],

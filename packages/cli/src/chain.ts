@@ -1,5 +1,5 @@
-/** chain.ts — accès à Arc testnet : clients, portefeuille (PRIVATE_KEY), simulation, envoi et
- *  confirmation, décodage des refus des contrats, lecture des événements, ABI absentes du SDK. */
+/** chain.ts — Arc testnet access: clients, wallet (PRIVATE_KEY), simulation, sending and
+ *  confirmation, decoding of contract reverts, event reads, ABIs not in the SDK. */
 import {
   createPublicClient, createWalletClient, decodeFunctionResult, encodeFunctionData, http, parseAbi, toHex,
   type Address, type Hex, type TransactionReceipt,
@@ -37,7 +37,7 @@ export const sameAddr = (a?: string, b?: string) => !!a && !!b && a.toLowerCase(
 
 // ---------- portefeuille ----------
 
-/** Compte depuis PRIVATE_KEY (ARC_PK accepté pour compatibilité). La valeur n'est jamais affichée. */
+/** Account from PRIVATE_KEY (ARC_PK is also accepted). The value is never printed. */
 export function walletAccount(): PrivateKeyAccount {
   const raw = (process.env.PRIVATE_KEY ?? process.env.ARC_PK ?? "").trim();
   if (!raw) {

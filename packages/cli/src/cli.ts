@@ -89,10 +89,10 @@ export function parseArgs(argv: string[], cmd: Command): Ctx {
       name = s.name;
     }
     if (name === "pk") {
-      throw new UsageError("--pk n'est plus accepté (la clé apparaîtrait dans l'historique et la liste des processus) : utilisez la variable d'environnement PRIVATE_KEY", cmd);
+      throw new UsageError("--pk is not supported (the key would appear in shell history and the process list): set the PRIVATE_KEY environment variable", cmd);
     }
     if (name === "r") {
-      throw new UsageError("--r n'est plus accepté (r apparaîtrait dans l'historique et la liste des processus ; avec le cP public, il ouvre l'exploit) : --r-file <fichier 0600>, ou --r-file - pour l'entrée standard", cmd);
+      throw new UsageError("--r is not supported (r would appear in shell history and the process list; with the public cP, it opens the exploit): use --r-file <file with mode 0600>, or --r-file - for standard input", cmd);
     }
     const spec = byName.get(name);
     if (!spec) throw new UsageError(`option inconnue : --${name}`, cmd);

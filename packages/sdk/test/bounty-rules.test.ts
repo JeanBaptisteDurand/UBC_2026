@@ -109,7 +109,7 @@ describe("4 — CLI : r dans un fichier 0600 ou sur l'entrée standard, jamais e
   it("--r <0x…> est refusé (historique du shell, liste des processus) ; --r-file est accepté", () => {
     const base = ["--claim", "0x" + "11".repeat(32), "--enclave", "https://e.example"];
     expect(() => parseArgs([...base, "--r", R], refuteCmd)).toThrow(UsageError);
-    expect(() => parseArgs([...base, `--r=${R}`], refuteCmd)).toThrow(/--r n'est plus accepté/);
+    expect(() => parseArgs([...base, `--r=${R}`], refuteCmd)).toThrow(/--r is not supported/);
     expect(parseArgs([...base, "--bundle", "x.json", "--r-file", "r.hex"], refuteCmd).opts["r-file"]).toBe("r.hex");
   });
 
@@ -124,8 +124,8 @@ describe("4 — CLI : r dans un fichier 0600 ou sur l'entrée standard, jamais e
     const j = join(dir, "r.json");
     writeFileSync(j, JSON.stringify({ r: R.toUpperCase().replace("0X", "0x") }), { mode: 0o600 });
     expect(await readR(j)).toBe(R);
-    expect(() => parseR("0xSECRET-PAS-HEX", "r.txt")).toThrow(CliError);
-    try { parseR("0xSECRET-PAS-HEX", "r.txt"); } catch (e) { expect((e as Error).message).not.toContain("SECRET"); }
+    expect(() => parseR("0xSECRET-NOT-HEX", "r.txt")).toThrow(CliError);
+    try { parseR("0xSECRET-NOT-HEX", "r.txt"); } catch (e) { expect((e as Error).message).not.toContain("SECRET"); }
   });
 
   it("entrée standard (--r-file -) : lue si redirigée ; refusée depuis un terminal (la saisie s'afficherait)", async () => {

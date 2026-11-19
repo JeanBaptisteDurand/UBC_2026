@@ -79,7 +79,7 @@ describe("x402 : formes canoniques", () => {
     expect(fixed).toBe(L(sig)); // …le SDK la rend canonique
     const v01 = `${sig.slice(0, 130)}${(v - 27).toString(16).padStart(2, "0")}` as Hex;
     expect(normalizeEcdsaSignature(v01)).toBe(L(sig));
-    expect(() => normalizeEcdsaSignature("0x1234" as Hex)).toThrow("65 octets");
+    expect(() => normalizeEcdsaSignature("0x1234" as Hex)).toThrow("65-byte");
   });
 
   it("reçu et appel en attente : lus strictement (rien de mal formé ne passe)", async () => {

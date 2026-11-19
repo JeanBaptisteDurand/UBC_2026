@@ -1,8 +1,8 @@
-/** secrets.ts — les secrets de la Prime scellée sur le disque de l'utilisateur (v2.1 bis, revue adverse du 9/11) :
- *  - une clé X25519 PAR PRIME (fichier 0600 dans un dossier 0700, nommé par sa clé publique) : la révéler pour une
- *    réfutation (--reveal-key) n'ouvre que les rapports de CETTE prime ;
- *  - l'aléa r d'un exploit (avec le cP public, il déchiffre l'exploit) : lu dans un fichier 0600 ou sur l'entrée standard,
- *    jamais en argument (historique du shell, liste des processus). */
+/** secrets.ts — Sealed Bounty secrets on the user's disk (hardened after an adversarial review):
+ *  - one X25519 key PER BOUNTY (file mode 0600 in a 0700 folder, named after its public key): revealing it for a
+ *    refutation (--reveal-key) opens only the reports of THAT bounty;
+ *  - an exploit's random r (with the public cP, it decrypts the exploit): read from a 0600 file or from standard input,
+ *    never as an argument (shell history, process list). */
 import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";

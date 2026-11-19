@@ -229,7 +229,7 @@ const SECP256K1_N = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0
  *  moitié basse (sinon l'USDC refuse). Même signataire. Lève pour une signature qui n'est pas ECDSA 65 octets. */
 export function normalizeEcdsaSignature(sig: Hex): Hex {
   if (typeof sig !== "string" || !/^0x[0-9a-fA-F]{130}$/.test(sig)) {
-    throw new Error("signature ECDSA de 65 octets attendue (les comptes contrats ne paient pas encore ce rail)");
+    throw new Error("expected a 65-byte ECDSA signature: this rail accepts EOA payers");
   }
   const r = sig.slice(2, 66);
   let s = BigInt(`0x${sig.slice(66, 130)}`);

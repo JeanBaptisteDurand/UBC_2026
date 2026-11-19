@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
-/** arcvault — CLI du réseau d'enclaves d'Arc (ArcHive). Lectures sans clé ; écritures signées avec PRIVATE_KEY
- *  (variable d'environnement, jamais affichée). Réseau : Arc testnet (chainId 5042002). */
+/** arcvault — command-line client for ArcHive, the network of verified enclaves on Arc. Reads need no key; writes are
+ *  signed with PRIVATE_KEY (an environment variable, never printed). Network: Arc testnet (chainId 5042002). */
 import { CliError, type Command, UsageError, info, out, parseArgs, renderGroupHelp, renderHelp } from "./cli";
 import { explainError } from "./chain";
 import { bountiesCmd, enclavesCmd, productsCmd, proxyCmd, verifyCmd } from "./commands/read";

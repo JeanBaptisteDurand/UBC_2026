@@ -131,7 +131,7 @@ const status: Command = {
     if (!s.closed) {
       out(`  clôture          ${c.closableNow ? "possible maintenant" : `possible ${fmtTime(c.atTime)} (échéance + 1 h), ou dès le bloc ${c.afterBlock + 1n} si l'enclave ne peut plus rien régler (tête ${c.head})`}`);
     }
-    out(`  verdict ERC-8004 ${s.verdictWritten ? "écrit" : "pas encore"}`);
+    out(`  ERC-8004 verdict ${s.verdictWritten ? "written" : "pending"}`);
   },
 };
 
