@@ -11,6 +11,8 @@ The read API of ArcHive, served at https://arc-hive.xyz/api. It exposes the stat
 | Console | `GET /index`, `/stats`, `/activity`, `/proof`; `POST /verify-receipt` |
 | Operators | `GET /auth/nonce`; `POST /pair/start`, `GET /pair/:code`, `POST /pair/approve`, `/pair/poll`, `/pair/reject`; `/operator/keys` (create, list, revoke); `POST /machines/heartbeat`, `GET /machines`, `/machines/:id` and their signed variants |
 
+Every error carries a stable `code` and its values in `params`, next to a sentence in `error`; the site and the operator agent display errors from the code.
+
 Operator actions are signed in with EIP-4361 messages: the nonce is issued by this API and used once, and the message must name this site, this chain (Arc testnet) and the action's exact statement. Pairing by code (`HIVE-XXXX-XXXX`) gives a machine an operator key (`arcop_…`) that cannot spend funds.
 
 `src/testSigner.ts` is an opt-in testnet demo wallet for end-to-end runs without a browser extension. It is off unless `TEST_SIGNER_PK` and `TEST_SIGNER_TOKEN` are set, and it only signs an allowlist of calls to the ArcHive contracts where the funds stay with that wallet or return to it.
