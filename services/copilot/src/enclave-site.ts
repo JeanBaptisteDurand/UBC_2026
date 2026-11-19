@@ -1,30 +1,29 @@
-/** enclave-site.ts — la surface « site » (COPILOT_SURFACE=site) du copilote DANS son enclave Intel TDX (produit 4, 18/11) :
- *  le panneau du site parle au MÊME programme que le copilote du site sur le serveur : même boucle d'app.ts
- *  (outils d'interface validés puis rendus au navigateur, outils prepare dont le visiteur signe le résultat avec SON
- *  wallet, docs_search, aucun outil qui dépense, filtre de secrets), même invite et mêmes outils (copilot.ts, site.ts).
- *  La requête scellée porte le même JSON que celle du serveur (messages, lang, user, page) ; la réponse a la forme du
- *  contrat du site (text, tools, citations, actions), scellée pour ce seul client. Ce module y ajoute trois choses :
+/** enclave-site.ts — the "site" surface (COPILOT_SURFACE=site) of the copilot INSIDE its Intel TDX enclave (product 4):
+ *  the site's panel talks to the SAME program as the site copilot on the server: the same app.ts loop (interface tools
+ *  validated then returned to the browser, prepare tools whose result the visitor signs with THEIR OWN wallet,
+ *  docs_search, no tool that spends, secrets filter), the same prompt and the same tools (copilot.ts, site.ts).
+ *  The sealed request carries the same JSON as the server's (messages, lang, user, page); the reply has the site
+ *  contract's shape (text, tools, citations, actions), sealed for that client only. This module adds three things:
  *
- *  1. OÙ IL TOURNE, dit juste (siteEnclaveNote, en anglais comme l'invite du site) : dans une VM TDX réelle, il dit qu'il
- *     tourne dans l'enclave du produit 4 ; hors TDX (quote simulé, développement), il dit le contraire et ne prétend
- *     jamais être dans une enclave. La conversation chiffrée ou en clair est dite telle quelle ; le modèle reste chez son
- *     fournisseur (passerelle vérifiée par l'enclave, ou non). Cette note REMPLACE celle du serveur : dans app.ts,
- *     systemNote prime sur site.whereNote (SITE_WHERE_NOTE, « on the ArcHive site's server, NOT in an enclave »), et
- *     whereNote est de plus retirée des options de l'enclave.
- *  2. UN GARDE-FOU (siteEnclaveSystem) : l'invite servie par l'enclave ne contient aucune phrase du serveur
- *     (« you run on the site's server », SITE_WHERE_NOTE…) ; sinon l'enclave refuse de démarrer (échec fermé, jamais deux
- *     vérités).
- *  3. CHAQUE RÉPONSE SCELLÉE EST SIGNÉE (signingSealedChannel) par la clé secp256k1 de l'enclave, celle qu'Arc tient pour
- *     le produit 4, au format que vérifie le panneau (frontend/src/copilot/enclave/client.ts, REPLY_TAG) :
- *       dans le chiffré : { status, body, sig: { v: SITE_REPLY_TAG, signer, requestHash, bodyHash, digest, signature } }
- *       requestHash = keccak256(enc ‖ ciphertext) de la question scellée, telle que reçue ;
- *       bodyHash    = keccak256(utf8(JSON.stringify(body))) (le client le recalcule sur le JSON ouvert : JSON.stringify
- *                     redonne les mêmes octets sur ce qu'il a lui-même produit) ;
+ *  1. WHERE IT RUNS, stated correctly (siteEnclaveNote, in English like the site's prompt): in a real TDX VM, it says it
+ *     runs in product 4's enclave; outside TDX (simulated quote, development), it says the opposite and never claims to
+ *     be in an enclave. Whether the conversation is encrypted or in clear is stated as it is; the model stays at its
+ *     provider (behind a gateway the enclave verifies, or not). This note REPLACES the server's: in app.ts, systemNote
+ *     takes precedence over site.whereNote (SITE_WHERE_NOTE, "on the ArcHive site's server, NOT in an enclave"), and
+ *     whereNote is also removed from the enclave's options.
+ *  2. A GUARD (siteEnclaveSystem): the prompt the enclave serves contains no server sentence ("you run on the site's
+ *     server", SITE_WHERE_NOTE…); otherwise the enclave refuses to start (fail closed, never two truths).
+ *  3. EVERY SEALED REPLY IS SIGNED (signingSealedChannel) by the enclave's secp256k1 key, the one Arc holds for
+ *     product 4, in the format the panel checks (frontend/src/copilot/enclave/client.ts, REPLY_TAG):
+ *       inside the ciphertext: { status, body, sig: { v: SITE_REPLY_TAG, signer, requestHash, bodyHash, digest, signature } }
+ *       requestHash = keccak256(enc ‖ ciphertext) of the sealed question, as received;
+ *       bodyHash    = keccak256(utf8(JSON.stringify(body))) (the client recomputes it on the opened JSON: JSON.stringify
+ *                     gives back the same bytes on what it produced itself);
  *       digest      = keccak256(abi.encode(string SITE_REPLY_TAG, uint256 chainId, address EnclaveRegistry,
- *                     uint256 productId, address signer, bytes32 requestHash, bytes32 bodyHash)) ;
- *       signature   = signature EIP-191 des 32 octets du digest (personal_sign de { raw: digest }), 65 octets.
- *     Le sceau prouve la réponse à ce seul client ; la signature la rend vérifiable par n'importe qui (un juge compris)
- *     avec la clé inscrite sur Arc (EnclaveRegistry.enclaveOf). Le statut n'est pas signé (il reste dans le sceau). */
+ *                     uint256 productId, address signer, bytes32 requestHash, bytes32 bodyHash));
+ *       signature   = an EIP-191 signature of the digest's 32 bytes (personal_sign of { raw: digest }), 65 bytes.
+ *     The seal proves the reply to that client only; the signature makes it verifiable by anyone (a judge included)
+ *     with the key registered on Arc (EnclaveRegistry.enclaveOf). The status is not signed (it stays inside the seal). */
 import { type Address, type Hex, concat, encodeAbiParameters, getAddress, keccak256, recoverMessageAddress, stringToBytes } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { COPILOT_SEALED_TAG } from "@arcvault/sdk";
