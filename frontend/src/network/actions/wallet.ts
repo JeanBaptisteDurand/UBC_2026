@@ -88,7 +88,7 @@ export async function connect(id: string) {
     listen()
     void refreshBalance()
   } catch (e) {
-    setWallet({ phase: 'idle', note: { tone: 'bad', text: isRefusal(e) ? w('w.refused.connect') : explain(e).message } })
+    setWallet({ phase: 'idle', note: pendingReq(e) ? PENDING() : { tone: 'bad', text: isRefusal(e) ? w('w.refused.connect') : explain(e).message } })
   }
 }
 
@@ -151,7 +151,7 @@ export async function switchToArc() {
     setWallet({ chainId: Number(await provider.request({ method: 'eth_chainId' })) })
     void refreshBalance()
   } catch (e) {
-    setWallet({ note: { tone: 'bad', text: isRefusal(e) ? w('w.refused.switch') : explain(e).message } })
+    setWallet({ note: pendingReq(e) ? PENDING() : { tone: 'bad', text: isRefusal(e) ? w('w.refused.switch') : explain(e).message } })
   } finally { setWallet({ switching: false }) }
 }
 
@@ -184,6 +184,13 @@ const codeOf = (e: unknown): number | undefined => {
   for (let x: any = e, n = 0; x && n < 12; x = x.cause, n++) if (typeof x?.code === 'number') return x.code // eslint-disable-line @typescript-eslint/no-explicit-any
   return undefined
 }
+/** A request the wallet already has open (EIP-1193 -32002, "Request of type … already pending"): said as a note */
+function pendingReq(e: unknown): boolean {
+  if (codeOf(e) === -32002) return true
+  for (let x: any = e, n = 0; x && n < 12; x = x.cause, n++) if (typeof x?.message === 'string' && /already pending/i.test(x.message)) return true // eslint-disable-line @typescript-eslint/no-explicit-any
+  return false
+}
+const PENDING = () => ({ tone: 'muted' as const, text: w('w.pending'), pending: true })
 export function isRefusal(e: unknown): boolean {
   for (let x: any = e, n = 0; x && n < 12; x = x.cause, n++) { // eslint-disable-line @typescript-eslint/no-explicit-any
     if (x?.code === 4001 || x?.code === 'ACTION_REJECTED' || x?.name === 'UserRejectedRequestError') return true

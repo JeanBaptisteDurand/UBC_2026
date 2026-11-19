@@ -13,6 +13,8 @@ import { spText } from '../../space/strings'
 const BRIDGE_NETS: Record<number, string> = { 11155111: 'Ethereum Sepolia', 84532: 'Base Sepolia' }
 
 // ---------- the wallet, in the header (top right, next to Console and the language) ----------
+/** AskHive's panel is open: the header popup would cover its header and wallet bar */
+const askOpen = () => !!document.getElementById('cp-panel')
 /** quiet: the popup does not open on its own on another network (the bridge page moves the wallet across chains) */
 export function HeaderWallet({ quiet = false }: { quiet?: boolean } = {}) {
   const lang = useLang()
@@ -31,7 +33,8 @@ export function HeaderWallet({ quiet = false }: { quiet?: boolean } = {}) {
     return () => { removeEventListener('pointerdown', out); removeEventListener('keydown', esc, true) }
   }, [open])
   // a refusal, an error or the choice between several wallets shows below the button
-  useEffect(() => { if (s.phase === 'pick' || s.note) setOpen(true) }, [s.phase, s.note])
+  // (never over AskHive's open panel, which says the same thing in its own wallet bar)
+  useEffect(() => { if ((s.phase === 'pick' || s.note) && !askOpen()) setOpen(true) }, [s.phase, s.note])
   const connected = s.phase === 'connected' && !!s.address
   const wrong = connected && s.chainId !== ARC_ID
   // on the bridge page, a wallet on one of the bridge's source chains is there on purpose (the page moved it for the
@@ -39,7 +42,7 @@ export function HeaderWallet({ quiet = false }: { quiet?: boolean } = {}) {
   const away = quiet && wrong && s.chainId !== undefined ? BRIDGE_NETS[s.chainId] : undefined
   const netName = away ?? (wrong ? w('w.wrong') : w('w.arc'))
   // connected on another network: the popup opens on its own, with the Switch to Arc button in view
-  useEffect(() => { if (wrong && !quiet) setOpen(true) }, [wrong, quiet])
+  useEffect(() => { if (wrong && !quiet && !askOpen()) setOpen(true) }, [wrong, quiet])
   const busy = s.phase === 'loading' || s.phase === 'connecting'
   // no wallet in this browser, on a touch screen: browser extensions cannot be installed there, so the page offers
   // to open itself in a wallet app, or the demo, which needs no wallet
