@@ -768,27 +768,27 @@ test("provenance explicite : pairedBy « code » ou « key », l'adresse qui a a
   assert.deepEqual(signed.map((m) => m.pairedBy).sort(), ["key", "key"]);
 });
 
-test("clés : 10 clés libres actives par opérateur, libellés masqués sans authentification", async () => {
+test("keys: 10 free active keys per operator, labels hidden without authentication", async () => {
   const opC = privateKeyToAccount(generatePrivateKey());
   let last = "";
   for (let i = 0; i < 10; i++) {
-    const r = await call("/operator/keys", { body: { label: `portable de JB ${i}`, ...(await signIn(opC, { kind: "createKey" })) } });
+    const r = await call("/operator/keys", { body: { label: `operator laptop ${i}`, ...(await signIn(opC, { kind: "createKey" })) } });
     assert.equal(r.status, 200, JSON.stringify(r.json));
     last = r.json.key;
   }
-  const over = await call("/operator/keys", { body: { label: "une de trop", ...(await signIn(opC, { kind: "createKey" })) } });
+  const over = await call("/operator/keys", { body: { label: "one too many", ...(await signIn(opC, { kind: "createKey" })) } });
   assert.equal(over.status, 409);
   assert.match(over.json.error, /limite de 10 clés/);
   assert.deepEqual([over.json.code, over.json.params], ["key_limit", { max: 10 }]);
   const anon = await call(`/operator/keys?address=${opC.address}`);
   assert.equal(anon.json.length, 10);
-  assert.ok(anon.json.every((k: any) => !String(k.label).includes("JB") && !("hash" in k) && k.restricted === true));
+  assert.ok(anon.json.every((k: any) => !String(k.label).includes("laptop") && !("hash" in k) && k.restricted === true));
   const full = await call(`/operator/keys?address=${opC.address}`, { auth: `Bearer ${last}` });
-  assert.ok(full.json.some((k: any) => String(k.label).includes("portable de JB")));
+  assert.ok(full.json.some((k: any) => String(k.label).includes("operator laptop")));
   const listed = await call("/operator/keys/list", { body: await signIn(opC, { kind: "read" }) });
   assert.equal(listed.json.length, 10);
-  assert.ok(listed.json.every((k: any) => k.restricted === false && String(k.label).startsWith("portable de JB")));
-  // la révocation d'une clé ne vaut que pour elle ; elle libère une place
+  assert.ok(listed.json.every((k: any) => k.restricted === false && String(k.label).startsWith("operator laptop")));
+  // revoking a key only affects that key; it frees one slot
   const [kid, kid2] = [anon.json[0].keyId, anon.json[1].keyId];
   assert.equal((await call(`/operator/keys/${kid2}/revoke`, { body: await signIn(opC, { kind: "revokeKey", keyId: kid }) })).status, 400);
   assert.equal((await call(`/operator/keys/${kid}/revoke`, { body: await signIn(opC, { kind: "revokeKey", keyId: kid }) })).status, 200);

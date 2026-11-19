@@ -1,11 +1,11 @@
-/** server.ts — API de lecture d'ArcHive. Expose l'état du réseau en HTTP : produits, enclaves (la ruche), primes,
- *  sessions d'un compte, prix, vérification de reçu, compteurs, activité, chaîne de preuves.
- *  Les événements viennent de NOTRE index (indexer.ts : RPC d'Arc, enregistré sur disque), plus de l'explorateur ;
- *  les lectures d'état sont groupées par Multicall3 (un seul appel RPC pour des dizaines de lectures).
- *  9/11 (pile v2.1, champs AJOUTÉS seulement, la forme des réponses ne change pas) : les événements v2.1 sont indexés
- *  (events.ts) ; /activity donne à chaque événement un libellé (`label`, anglais) ; /stats compte à part les appels payés
- *  x402 (x402Calls, x402SettledUsdc) ; /proof dit l'issue du verdict de la session montrée (écrit, sans objet, sauté et
- *  pourquoi, en attente) et l'empreinte d'image de l'enclave (EnclaveImage) ; l'index part du bloc du déploiement. */
+/** server.ts — ArcHive's read API. Exposes the state of the network over HTTP: products, enclaves (the hive), bounties,
+ *  an account's sessions, pricing, receipt verification, counters, activity, proof chain.
+ *  Events come from OUR index (indexer.ts: Arc's RPC, saved to disk), not from the explorer; state reads are batched
+ *  with Multicall3 (one RPC call for dozens of reads).
+ *  v2.1 stack (fields ADDED only; the shape of the responses does not change): v2.1 events are indexed (events.ts);
+ *  /activity gives each event a label (`label`, in English); /stats counts x402 paid calls separately (x402Calls,
+ *  x402SettledUsdc); /proof gives the outcome of the shown session's verdict (written, not applicable, skipped and why,
+ *  pending) and the enclave's image measurement (EnclaveImage); the index starts at the deployment block. */
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { serve } from "@hono/node-server";
@@ -26,7 +26,7 @@ import deploymentsV21 from "../../../deployments.v21.testnet.json";
 
 const PORT = Number(process.env.PORT ?? "8809");
 const DATA_DIR = process.env.DATA_DIR ?? "./data";
-const MULTICALL3 = "0xcA11bde05977b3631167028862bE2a173976CA11" as const; // présent sur Arc testnet (vérifié le 7/11)
+const MULTICALL3 = "0xcA11bde05977b3631167028862bE2a173976CA11" as const; // deployed on Arc testnet (checked on-chain)
 const pub = createPublicClient({
   chain: { ...arcTestnet, contracts: { multicall3: { address: MULTICALL3 } } },
   batch: { multicall: { wait: 16 } }, // les lectures lancées ensemble partent en UN eth_call
@@ -252,15 +252,15 @@ app.get("/pricing", async (c) => {
   });
 });
 
-// ---------- console : compteurs, activité, chaîne de preuves (notre index d'événements) ----------
+// ---------- console: counters, activity, proof chain (our event index) ----------
 
-// image de l'enclave d'inférence v2 déployée chez Phala (épinglée par digest : enclave/phala/sealed-chat-v2.yml)
+// Fallback image when an enclave's measurement is not in IMAGE_OF below: the v2 inference enclave at Phala
+// (pinned by digest: enclave/phala/sealed-chat-v2.yml)
 const IMAGE = process.env.INFERENCE_IMAGE ?? "ghcr.io/jeanbaptistedurand/archive-sealed-chat@sha256:eceb67a5bf985a9672d51db288ef85c9e2cb7908835057ea24888517793173fa";
 
-/** 17/11 : l'image (digest) de chaque empreinte d'enclave connue, d'après nos fichiers de déploiement (images épinglées par
- *  digest ; l'empreinte est l'imageId inscrit sur Arc). Sans manifeste vérifié, la chaîne de preuves nomme l'image que
- *  l'enclave choisie a VRAIMENT fait tourner, au lieu de l'image par défaut ci-dessus (celle de la v2, fausse pour toute
- *  autre enclave : la chaîne du 16/11 montrait eceb67a5… pour une enclave qui faisait tourner 5699da22…). */
+/** The image (digest) behind every known enclave measurement, read from the deployment files (images are pinned by
+ *  digest; the measurement is the imageId registered on Arc). Without a verified manifest, the proof chain names the image
+ *  the chosen enclave actually ran, not the fallback image above (which only applies to the v2 inference enclave). */
 const IMAGE_OF = (() => {
   const m = new Map<string, string>();
   const walk = (o: unknown): void => {
@@ -273,28 +273,28 @@ const IMAGE_OF = (() => {
   };
   walk(deploymentsV2);
   walk(deploymentsV21);
-  // les images inscrites après le dernier fichier de déploiement (VERIFIED : l'empreinte rejouée est égale à
-  // EnclaveRegistry.imageIdOf ; enclave/phala/copilot-site-v22.yml épingle ce
-  // condensat) : le copilote du site en enclave (produit 4), image r2, inscrit le 19/11 (tx 0xbe9deb65…), clé 0xfD0F…305a
+  // Images registered after the last deployment file (checked: the replayed measurement equals EnclaveRegistry.imageIdOf;
+  // enclave/phala/copilot-site-v22.yml pins this digest): the site copilot in its enclave (product 4), registration
+  // tx 0xbe9deb65…, enclave key 0xfD0F…305a
   m.set("0x7c4e666755be9d9443913f07e3f6265e6b12b5d3af73da6f5f889c1e70e39d63",
     "ghcr.io/jeanbaptistedurand/archive-copilot-enclave@sha256:eeb889b054e021ff17ee933873080403965623f4f36693986f2d780b269bf5dd");
-  // 19/11 (r3) : the same site copilot, image v22-site-r3 (ghcr.io/jeanbaptistedurand/archive-copilot-enclave:v22-site-r3),
+  // The same site copilot, next image (ghcr.io/jeanbaptistedurand/archive-copilot-enclave:v22-site-r3),
   // enclave 0x09061F21A5b938cD941ea9eDfa481f89DEb716Ac
   m.set("0x5771d334e0566b3b6126c630be055e9be6b94dd8eedd66fb076955b8b8bcebe0",
     "ghcr.io/jeanbaptistedurand/archive-copilot-enclave@sha256:22a18ce87d4ec47a37b526f431e208dab057f4db7170ff8d4fdb2983e95327ec");
   return m;
 })();
-/** 19/11 (r2) : les SealedBountyVerified remplacés (deployments.v21.testnet.json, levels.superseded : celui de l'ancien
- *  produit 6, désactivé le 10/11 et remplacé par le 7). Hors de l'index (aucune prime n'y a été payée), mais leur produit
- *  reste une PRIME : la chaîne de preuves dit « aucune prime payée », jamais « appel payé ou gratuit, pas de verdict ». */
+/** Superseded SealedBountyVerified contracts (deployments.v21.testnet.json, levels.superseded: the former product 6,
+ *  disabled and replaced by product 7). They are not indexed (no bounty was ever paid there), but their product is still a
+ *  BOUNTY: the proof chain says "no bounty paid", never "paid or free call, no verdict". */
 const SUPERSEDED_BOUNTIES: ReadonlySet<string> = new Set(
   (((deploymentsV21 as any).levels?.superseded ?? []) as any[]).map((x) => lc(x?.SealedBountyVerified)).filter((x) => ADDR_RE.test(x)),
 );
 
-// L'index tient les événements de NOS contrats (fichier par déploiement : un nouveau déploiement repart de zéro). Il part
-// du bloc du déploiement (deployBlock) s'il est connu ; sinon de INDEX_FROM_BLOCK ; sinon de 0 (toute la chaîne : lent).
+// The index holds the events of OUR contracts (one file per deployment: a new deployment starts from scratch). It starts
+// at the deployment block (deployBlock) when known; otherwise at INDEX_FROM_BLOCK; otherwise at 0 (the whole chain: slow).
 const START = indexStartBlock(testnet.deployBlock, process.env.INDEX_FROM_BLOCK);
-if (START.source === "genesis") console.warn("index : déploiement sans deployBlock et INDEX_FROM_BLOCK absent : lecture depuis le bloc 0 (lente)");
+if (START.source === "genesis") console.warn("index: deployment has no deployBlock and INDEX_FROM_BLOCK is unset: reading from block 0 (slow)");
 const idx = new EventIndexer({
   pub: pub as any, chainId: testnet.chainId, abi: EVENTS as any, fromBlock: START.block,
   file: `${DATA_DIR}/events-${testnet.chainId}-${testnet.enclaveRegistry.slice(2, 10).toLowerCase()}.json`,
