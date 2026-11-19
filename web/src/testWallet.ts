@@ -26,7 +26,7 @@ export function testSignerToken(): string | null {
 }
 
 export function leaveTestMode() {
-  try { localStorage.removeItem(KEY); } catch { /* rien */ }
+  try { localStorage.removeItem(KEY); } catch { /* nothing to do */ }
   window.location.reload();
 }
 
