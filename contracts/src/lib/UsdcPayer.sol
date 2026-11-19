@@ -3,14 +3,14 @@ pragma solidity ^0.8.28;
 
 import {IUSDC} from "../interfaces/IERC3009.sol";
 
-/// @title UsdcPayer — base commune pour encaisser de l'USDC
-/// @notice Deux chemins : EIP-3009 `receiveWithAuthorization` (signature, un seul appel) ou
-///         `transferFrom` classique (après `approve`). Le destinataire est toujours ce contrat,
-///         donc `to == msg.sender` est respecté (condition d'Arc, VERIFIED).
+/// @title UsdcPayer — shared base for collecting USDC
+/// @notice Two paths: EIP-3009 `receiveWithAuthorization` (a signature, a single call) or a classic
+///         `transferFrom` (after `approve`). The recipient is always this contract, so `to == msg.sender`
+///         holds (an Arc requirement, VERIFIED).
 abstract contract UsdcPayer {
     IUSDC public immutable usdc;
 
-    /// @dev Les champs d'une autorisation EIP-3009 (la valeur et `from` sont passés à part).
+    /// @dev The fields of an EIP-3009 authorization (the value and `from` are passed separately).
     struct Auth {
         uint256 validAfter;
         uint256 validBefore;
@@ -22,12 +22,12 @@ abstract contract UsdcPayer {
         usdc = IUSDC(_usdc);
     }
 
-    /// @dev Encaisse `value` depuis `from` par signature EIP-3009 (version `bytes`).
+    /// @dev Collects `value` from `from` with an EIP-3009 signature (`bytes` version).
     function _pullWithAuth(address from, uint256 value, Auth calldata a) internal {
         usdc.receiveWithAuthorization(from, address(this), value, a.validAfter, a.validBefore, a.nonce, a.signature);
     }
 
-    /// @dev Encaisse `value` depuis `from` par `transferFrom` (nécessite une allocation préalable).
+    /// @dev Collects `value` from `from` with `transferFrom` (requires a prior allowance).
     function _pullWithAllowance(address from, uint256 value) internal {
         require(usdc.transferFrom(from, address(this), value), "usdc:transferFrom");
     }

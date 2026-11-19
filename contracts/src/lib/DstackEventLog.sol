@@ -3,84 +3,84 @@ pragma solidity ^0.8.28;
 
 import {Sha384} from "./Sha384.sol";
 
-/// @title DstackEventLog — rejeu on-chain du registre RTMR3 d'une VM dstack (Phala) et empreinte d'IMAGE (v2.1)
-/// @notice Chez dstack, RTMR3 ne reçoit que des « événements d'exécution » (event_type 0x08000001), étendus par le
-///         système au démarrage puis, éventuellement, par l'application. Certains sont propres à l'INSTANCE de la VM
-///         (instance-id, app-id) : RTMR3 change à chaque redémarrage, donc une empreinte qui l'inclut aussi. Ce module
-///         rejoue le journal, vérifie (côté appelant) qu'il redonne le RTMR3 signé par Intel, et en lit les deux
-///         événements qui décrivent l'IMAGE : compose-hash (le docker-compose lancé) et os-image-hash.
+/// @title DstackEventLog — on-chain replay of the RTMR3 register of a dstack (Phala) VM, and IMAGE fingerprint (v2.1)
+/// @notice Under dstack, RTMR3 receives only "runtime events" (event_type 0x08000001), extended by the system at
+///         boot and then, possibly, by the application. Some are specific to the VM INSTANCE (instance-id, app-id):
+///         RTMR3 changes at every reboot, and so does a fingerprint that includes it. This module replays the event
+///         log, checks (on the caller's side) that it reproduces the RTMR3 signed by Intel, and reads from it the two
+///         events that describe the IMAGE: compose-hash (the docker-compose launched) and os-image-hash.
 ///
-///         Formules (sources de dstack, Apache-2.0 : dstack/cc-eventlog/src/runtime_events.rs, `RuntimeEvent::preimage`
-///         et `replay_events`, commit fbbc8ee4 du 22/07/2026) ; V1 VÉRIFIÉE hors chaîne en Python puis en Solidity sur
-///         le vrai journal de notre enclave Phala (test/vectors/phala-dstack-attest.json, 7/11 : les 10 événements de
-///         RTMR3 redonnent le RTMR3 du quote, décalage 48 + 472) :
-///           V1 : condensat = SHA384(le32(0x08000001) ‖ ":" ‖ nom ‖ ":" ‖ charge)
-///           V2 : condensat = SHA384(JSON canonique RFC 8785 {"name":nom,"payload":hex(charge),"type":134217729})
-///           RTMR3 = 0^48 puis, pour chaque événement, RTMR3 = SHA384(RTMR3 ‖ condensat)
-///         (V2 vérifiée contre le vecteur des tests de dstack ; aucun journal V2 réel en main au 8/11.)
+///         Formulas (dstack sources, Apache-2.0: dstack/cc-eventlog/src/runtime_events.rs, `RuntimeEvent::preimage`
+///         and `replay_events`, commit fbbc8ee4); V1 VERIFIED off chain in Python, then in Solidity, on the real event
+///         log of our Phala enclave (test/vectors/phala-dstack-attest.json: the 10 RTMR3 events reproduce the quote's
+///         RTMR3, offset 48 + 472):
+///           V1: digest = SHA384(le32(0x08000001) ‖ ":" ‖ name ‖ ":" ‖ payload)
+///           V2: digest = SHA384(RFC 8785 canonical JSON {"name":name,"payload":hex(payload),"type":134217729})
+///           RTMR3 = 0^48, then, for each event, RTMR3 = SHA384(RTMR3 ‖ digest)
+///         (V2 verified against the vector from dstack's tests; no real V2 event log was available to test against.)
 ///
-///         ENCODAGE (le paramètre `eventLog` de EnclaveRegistry.registerEnclave) :
+///         ENCODING (the `eventLog` parameter of EnclaveRegistry.registerEnclave):
 ///           eventLog = abi.encode(FORMAT_V1, Event[] events), Event = (uint8 version, bytes name, bytes payload)
-///         `events` = TOUS les événements de RTMR3 (imr == 3), dans l'ordre du journal ; `name` = les octets UTF-8 de
-///         `event` ; `payload` = `event_payload` décodé de l'hexadécimal ; `version` = 1, ou 2 si l'événement porte
-///         "version": 2. Un journal d'un autre format (par exemple le JSON brut de dstack) n'est PAS lu par le registre
-///         (chemin v2 : empreinte complète), voir isFormatV1.
+///         `events` = ALL the RTMR3 events (imr == 3), in the order of the log; `name` = the UTF-8 bytes of `event`;
+///         `payload` = `event_payload` decoded from hexadecimal; `version` = 1, or 2 if the event carries
+///         "version": 2. An event log in another format (for example dstack's raw JSON) is NOT read by the registry
+///         (the v2 path: full fingerprint), see isFormatV1.
 ///
-///         QUELS ÉVÉNEMENTS FONT FOI. Le système étend RTMR3 avant de lancer l'application, qui ne démarre qu'après
-///         « system-ready » ; l'application peut ensuite étendre RTMR3 à son tour (elle pourrait y écrire un faux
-///         « compose-hash »). Seuls les événements situés AVANT le premier « system-ready » sont donc lus ; ceux d'après
-///         sont rejoués, jamais interprétés. L'image n'est « connue » que si ce préfixe contient « system-ready » et
-///         EXACTEMENT un compose-hash et un os-image-hash de 32 octets. Le découpage d'un événement réel n'est pas
-///         falsifiable : le rejeu doit redonner RTMR3, donc chaque préimage est celle du journal réel ; une préimage V1
-///         commence par 01 00 00 08, une V2 par « { » ; en V1, un nom sans « : » se découpe d'une seule façon (un
-///         découpage différent ne produit qu'un nom méconnaissable, donc une image inconnue, jamais une fausse) ; en V2,
-///         le nom s'arrête au premier « " » (les noms à échapper sont refusés).
+///         WHICH EVENTS ARE TRUSTED. The system extends RTMR3 before launching the application, which starts only
+///         after "system-ready"; the application can then extend RTMR3 in turn (it could write a false "compose-hash"
+///         there). So only the events located BEFORE the first "system-ready" are read; those after it are replayed,
+///         never interpreted. The image is "known" only if this prefix contains "system-ready" and EXACTLY one
+///         compose-hash and one os-image-hash of 32 bytes. The split of a real event cannot be forged: the replay
+///         must reproduce RTMR3, so each preimage is the one of the real log; a V1 preimage starts with 01 00 00 08,
+///         a V2 one with "{"; in V1, a name without ":" splits in only one way (a different split only produces an
+///         unrecognizable name, hence an unknown image, never a false one); in V2, the name stops at the first '"'
+///         (names that need escaping are refused).
 library DstackEventLog {
-    /// @notice Préfixe du format (premier mot de abi.encode(FORMAT_V1, events)).
+    /// @notice Prefix of the format (first word of abi.encode(FORMAT_V1, events)).
     bytes32 internal constant FORMAT_V1 = keccak256("archive.dstack.rtmr3-events.v1");
-    /// @notice event_type des événements d'exécution de dstack (DSTACK_RUNTIME_EVENT_TYPE), le seul de RTMR3.
+    /// @notice event_type of dstack's runtime events (DSTACK_RUNTIME_EVENT_TYPE), the only one in RTMR3.
     uint32 internal constant DSTACK_EVENT_TYPE = 0x08000001;
 
     bytes32 private constant N_COMPOSE_HASH = keccak256("compose-hash");
     bytes32 private constant N_OS_IMAGE_HASH = keccak256("os-image-hash");
     bytes32 private constant N_SYSTEM_READY = keccak256("system-ready");
 
-    /// @notice Un événement de RTMR3, tel que le journal de dstack le décrit.
+    /// @notice An RTMR3 event, as dstack's event log describes it.
     struct Event {
-        uint8 version; // 1 (défaut de dstack) ou 2
-        bytes name; // `event`, octets UTF-8 (ex. "compose-hash")
-        bytes payload; // `event_payload`, décodé de l'hexadécimal
+        uint8 version; // 1 (dstack's default) or 2
+        bytes name; // `event`, UTF-8 bytes (e.g. "compose-hash")
+        bytes payload; // `event_payload`, decoded from hexadecimal
     }
 
-    /// @notice Résultat du rejeu.
+    /// @notice Result of the replay.
     struct Replay {
-        bytes32 rtmr3Hi; // RTMR3 rejoué, octets 0 à 31
-        bytes16 rtmr3Lo; // octets 32 à 47
-        bool imageKnown; // compose-hash et os-image-hash lus sans ambiguïté avant « system-ready »
-        bytes32 composeHash; // 0 si l'image n'est pas connue
-        bytes32 osImageHash; // 0 si l'image n'est pas connue
+        bytes32 rtmr3Hi; // replayed RTMR3, bytes 0 to 31
+        bytes16 rtmr3Lo; // bytes 32 to 47
+        bool imageKnown; // compose-hash and os-image-hash read unambiguously before "system-ready"
+        bytes32 composeHash; // 0 if the image is not known
+        bytes32 osImageHash; // 0 if the image is not known
     }
 
-    /// @notice Le journal n'est pas au format FORMAT_V1.
+    /// @notice The event log is not in the FORMAT_V1 format.
     error EventLogFormat();
-    /// @notice Version d'événement autre que 1 ou 2.
+    /// @notice Event version other than 1 or 2.
     error EventVersionUnsupported(uint256 index);
-    /// @notice V2 : nom qu'il faudrait échapper en JSON (« " », « \ » ou caractère de contrôle) : refusé.
+    /// @notice V2: a name that would need escaping in JSON ('"', '\' or a control character): refused.
     error EventNameUnsupported(uint256 index);
 
-    /// @notice Vrai si `eventLog` est au format FORMAT_V1 (lu en calldata, sans copie).
+    /// @notice True if `eventLog` is in the FORMAT_V1 format (read in calldata, without a copy).
     function isFormatV1(bytes calldata eventLog) internal pure returns (bool) {
         return eventLog.length >= 64 && bytes32(eventLog[:32]) == FORMAT_V1;
     }
 
-    /// @notice Rejoue RTMR3 à partir du journal et lit l'image. Revert si le format n'est pas FORMAT_V1 (ou si
-    ///         l'abi est malformée : revert sans données de abi.decode).
+    /// @notice Replays RTMR3 from the event log and reads the image. Reverts if the format is not FORMAT_V1 (or if the
+    ///         ABI is malformed: abi.decode reverts without data).
     function replay(bytes memory eventLog) internal pure returns (Replay memory r) {
         if (eventLog.length < 64 || _word(eventLog, 0) != FORMAT_V1) revert EventLogFormat();
         (, Event[] memory evs) = abi.decode(eventLog, (bytes32, Event[]));
 
-        bytes memory k = Sha384.K; // chargée une fois pour tous les hachages
-        bytes memory buf = new bytes(112); // tampon d'extension, réutilisé
+        bytes memory k = Sha384.K; // loaded once for all the hashes
+        bytes memory buf = new bytes(112); // extension buffer, reused
         bool ready;
         uint256 nCompose;
         uint256 nOs;
@@ -96,14 +96,14 @@ library DstackEventLog {
             (bytes32 dHi, bytes16 dLo) = Sha384.hashAt(k, p, pre.length);
             (r.rtmr3Hi, r.rtmr3Lo) = Sha384.extend(k, buf, r.rtmr3Hi, r.rtmr3Lo, dHi, dLo);
 
-            if (ready) continue; // après « system-ready » : rejoué, jamais interprété
+            if (ready) continue; // after "system-ready": replayed, never interpreted
             bytes32 n = keccak256(e.name);
             if (n == N_SYSTEM_READY) {
                 ready = true;
             } else if (n == N_COMPOSE_HASH) {
                 nCompose++;
                 if (e.payload.length == 32) compose = _word(e.payload, 0);
-                else nCompose = 2; // charge malformée : image inconnue
+                else nCompose = 2; // malformed payload: unknown image
             } else if (n == N_OS_IMAGE_HASH) {
                 nOs++;
                 if (e.payload.length == 32) os = _word(e.payload, 0);
@@ -117,10 +117,10 @@ library DstackEventLog {
         }
     }
 
-    /// @notice L'empreinte d'IMAGE d'une VM dstack : sans RTMR3 (propre à l'instance) ni mrConfigId, mais avec le
-    ///         compose-hash et l'os-image-hash lus dans RTMR3. Préimage de 272 octets (l'empreinte complète de la v2 en
-    ///         a 304 : les deux familles d'identifiants ne se confondent pas dans la liste d'images autorisées).
-    ///         mrtd, rtmr0, rtmr1, rtmr2 : 48 octets chacun.
+    /// @notice The IMAGE fingerprint of a dstack VM: without RTMR3 (instance-specific) or mrConfigId, but with the
+    ///         compose-hash and the os-image-hash read from RTMR3. A 272-byte preimage (the v2 full fingerprint has
+    ///         304, so the two families of identifiers never get mixed up in the list of allowed images).
+    ///         mrtd, rtmr0, rtmr1, rtmr2: 48 bytes each.
     function imageId(
         bytes memory mrtd,
         bytes memory rtmr0,
@@ -134,12 +134,12 @@ library DstackEventLog {
         return keccak256(abi.encodePacked(mrtd, rtmr0, rtmr1, rtmr2, composeHash, osImageHash, xfam, tdAttributes));
     }
 
-    /// @notice Préimage du condensat d'un événement (voir l'en-tête : V1 binaire, V2 JSON canonique).
+    /// @notice Preimage of an event's digest (see the header: V1 binary, V2 canonical JSON).
     function preimage(Event memory e) internal pure returns (bytes memory) {
         return _preimage(e, 0);
     }
 
-    // ---- interne ----
+    // ---- internal ----
 
     function _preimage(Event memory e, uint256 index) private pure returns (bytes memory) {
         if (e.version == 1) {
@@ -152,13 +152,13 @@ library DstackEventLog {
                 bytes1 c = name[j];
                 if (c < 0x20 || c == 0x22 || c == 0x5c) revert EventNameUnsupported(index);
             }
-            // clés dans l'ordre de RFC 8785 (name < payload < type), sans espace ; hexadécimal en minuscules
+            // keys in RFC 8785 order (name < payload < type), without spaces; lowercase hexadecimal
             return abi.encodePacked('{"name":"', name, '","payload":"', _hex(e.payload), '","type":134217729}');
         }
         revert EventVersionUnsupported(index);
     }
 
-    /// @dev Hexadécimal en minuscules, sans préfixe (comme hex::encode de Rust).
+    /// @dev Lowercase hexadecimal, without a prefix (like Rust's hex::encode).
     function _hex(bytes memory b) private pure returns (bytes memory out) {
         out = new bytes(2 * b.length);
         bytes16 digits = "0123456789abcdef";

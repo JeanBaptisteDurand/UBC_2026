@@ -1,26 +1,26 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-/// @title Sha384 — SHA-384 (FIPS 180-4) en EVM, sans précompilé (v2.1)
-/// @notice Sert à rejouer un registre de mesure TDX (RTMR = SHA384(RTMR ‖ condensat)). L'EVM d'Arc n'a pas de
-///         précompilé SHA-384 (seulement SHA-256, en 0x02). Écrit pour ce dépôt d'après FIPS 180-4 (compression de
-///         SHA-512, §6.4 ; valeurs initiales de SHA-384, §5.3.4 ; sortie tronquée à 384 bits, §6.5), pas repris d'une
-///         bibliothèque tierce. Vérifié par test/Sha384.t.sol : vecteurs de FIPS 180-4 (« », « abc », 448 et 896 bits,
-///         un million de « a »), toutes les longueurs de 0 à 300 octets contre hashlib de Python (chaque cas de
-///         bourrage, 1 ou 2 blocs finaux, est couvert), test différentiel (fuzz) contre une référence naïve en Solidity
-///         pur ; table K et valeurs initiales recalculées depuis les nombres premiers (racines cubiques et carrées).
+/// @title Sha384 — SHA-384 (FIPS 180-4) in the EVM, without a precompile (v2.1)
+/// @notice Used to replay a TDX measurement register (RTMR = SHA384(RTMR ‖ digest)). Arc's EVM has no SHA-384
+///         precompile (only SHA-256, at 0x02). Written for this repository from FIPS 180-4 (SHA-512 compression,
+///         §6.4; SHA-384 initial values, §5.3.4; output truncated to 384 bits, §6.5), not taken from a third-party
+///         library. Checked by test/Sha384.t.sol: FIPS 180-4 vectors ("", "abc", 448 and 896 bits, one million "a"),
+///         every length from 0 to 300 bytes against Python's hashlib (each padding case, 1 or 2 final blocks, is
+///         covered), a differential (fuzz) test against a naive reference in pure Solidity; table K and initial
+///         values recomputed from the prime numbers (cube and square roots).
 ///
-///         Mise en œuvre : mots de 64 bits portés par des mots de 256 ; rotation par « doublement » (x | x << 64, puis
-///         décalage et masque) ; K[t] + W[t] précalculés pour chaque bloc ; l'état de travail tient en DEUX mots
-///         empaquetés, s1 = a‖b‖c‖d et s2 = e‖f‖g‖h (64 bits chacun, a et e en tête) : un tour décale chaque mot de
-///         64 bits et insère en tête le nouveau a (resp. e), ce qui fait tourner les rôles sans recopie. Peu de
-///         variables vivantes : le compilateur (via_ir) n'a pas à déplacer de variables en mémoire. (Une version à
-///         8 variables et 8 tours déroulés, écrite d'abord, était juste mais coûtait ≈ 700 k gaz par bloc : via_ir la
-///         déplaçait en mémoire et recalculait les expressions. Celle-ci : voir test_gas_perBlock.)
-///         Zone de travail : 0x1600 octets au-delà du pointeur de mémoire libre, temporaire (jamais relue après
-///         l'appel), ce qu'autorise un bloc « memory-safe ».
+///         Implementation: 64-bit words carried by 256-bit words; rotation by "doubling" (x | x << 64, then shift
+///         and mask); K[t] + W[t] precomputed for each block; the working state fits in TWO packed words,
+///         s1 = a‖b‖c‖d and s2 = e‖f‖g‖h (64 bits each, a and e first): a round shifts each word by 64 bits and
+///         inserts the new a (resp. e) at the front, which rotates the roles without copying. Few live variables:
+///         the compiler (via_ir) does not have to move variables to memory. (A version with 8 variables and
+///         8 unrolled rounds, written first, was correct but cost ≈ 700k gas per block: via_ir moved it to memory
+///         and recomputed the expressions. This one: see test_gas_perBlock.)
+///         Working area: 0x1600 bytes beyond the free memory pointer, temporary (never read again after the call),
+///         which a "memory-safe" block allows.
 library Sha384 {
-    /// @notice Les 80 constantes K de SHA-512 (FIPS 180-4 §4.2.3), 8 octets gros-boutistes chacune (640 octets).
+    /// @notice The 80 SHA-512 constants K (FIPS 180-4 §4.2.3), 8 big-endian bytes each (640 bytes).
     bytes internal constant K =
         hex"428a2f98d728ae227137449123ef65cdb5c0fbcfec4d3b2fe9b5dba58189dbbc"
         hex"3956c25bf348b53859f111f1b605d019923f82a4af194f9bab1c5ed5da6d8118"
@@ -43,7 +43,7 @@ library Sha384 {
         hex"28db77f523047d8432caab7b40c724933c9ebe0a15c9bebc431d67c49c100d4c"
         hex"4cc5d4becb3e42b6597f299cfc657e2a5fcb6fab3ad6faec6c44198c4a475817";
 
-    /// @notice SHA-384 de `data` : le condensat de 48 octets en (hi = octets 0 à 31, lo = octets 32 à 47).
+    /// @notice SHA-384 of `data`: the 48-byte digest as (hi = bytes 0 to 31, lo = bytes 32 to 47).
     function hash(bytes memory data) internal pure returns (bytes32 hi, bytes16 lo) {
         bytes memory k = K;
         uint256 ptr;
@@ -53,14 +53,14 @@ library Sha384 {
         return hashAt(k, ptr, data.length);
     }
 
-    /// @notice SHA-384 des `len` octets en mémoire à partir de `ptr` (mémoire ALLOUÉE, sous le pointeur de mémoire
-    ///         libre). `k` = Sha384.K déjà chargé en mémoire : l'appelant le charge une fois pour une série de hachages.
+    /// @notice SHA-384 of the `len` bytes in memory from `ptr` (ALLOCATED memory, below the free memory pointer).
+    ///         `k` = Sha384.K already loaded in memory: the caller loads it once for a series of hashes.
     function hashAt(bytes memory k, uint256 ptr, uint256 len) internal pure returns (bytes32 hi, bytes16 lo) {
         assembly ("memory-safe") {
-            // Une compression (FIPS 180-4 §6.4.2). Zone de travail à st : état H0..H7 (8 mots, 0x100) ; W[0..79] à
-            // st + 0x100 ; K[t] + W[t] à st + 0xb00 ; bloc de 128 octets à bp ; table K (8 octets par constante) à kp.
+            // One compression (FIPS 180-4 §6.4.2). Working area at st: state H0..H7 (8 words, 0x100); W[0..79] at
+            // st + 0x100; K[t] + W[t] at st + 0xb00; 128-byte block at bp; table K (8 bytes per constant) at kp.
             function compress(st, bp, kp) {
-                // W[0..15] : le bloc, en mots gros-boutistes de 64 bits ; et K[t] + W[t]
+                // W[0..15]: the block, as big-endian 64-bit words; and K[t] + W[t]
                 for { let i := 0 } lt(i, 16) { i := add(i, 1) } {
                     let x := shr(192, mload(add(bp, shl(3, i))))
                     let q := add(st, shl(5, i))
@@ -68,7 +68,7 @@ library Sha384 {
                     mstore(add(q, 0xb00), add(x, shr(192, mload(add(kp, shl(3, i))))))
                 }
                 // W[t] = σ1(W[t-2]) + W[t-7] + σ0(W[t-15]) + W[t-16] (mod 2^64)
-                // σ0(x) = ROTR1 ^ ROTR8 ^ SHR7 ; σ1(x) = ROTR19 ^ ROTR61 ^ SHR6
+                // σ0(x) = ROTR1 ^ ROTR8 ^ SHR7; σ1(x) = ROTR19 ^ ROTR61 ^ SHR6
                 for { let i := 16 } lt(i, 80) { i := add(i, 1) } {
                     let p := add(add(st, 0x100), shl(5, i))
                     let x := mload(sub(p, 0x40))
@@ -81,7 +81,7 @@ library Sha384 {
                     mstore(p, s)
                     mstore(add(p, 0xa00), add(s, shr(192, mload(add(kp, shl(3, i))))))
                 }
-                // état empaqueté : s1 = a‖b‖c‖d, s2 = e‖f‖g‖h
+                // packed state: s1 = a‖b‖c‖d, s2 = e‖f‖g‖h
                 let s1 := or(
                     or(shl(192, mload(st)), shl(128, mload(add(st, 0x20)))),
                     or(shl(64, mload(add(st, 0x40))), mload(add(st, 0x60)))
@@ -90,10 +90,10 @@ library Sha384 {
                     or(shl(192, mload(add(st, 0x80))), shl(128, mload(add(st, 0xa0)))),
                     or(shl(64, mload(add(st, 0xc0))), mload(add(st, 0xe0)))
                 )
-                // 80 tours : T1 = h + Σ1(e) + Ch(e,f,g) + K[t] + W[t] ; T2 = Σ0(a) + Maj(a,b,c) ;
+                // 80 rounds: T1 = h + Σ1(e) + Ch(e,f,g) + K[t] + W[t]; T2 = Σ0(a) + Maj(a,b,c);
                 // (a,b,c,d,e,f,g,h) <- (T1 + T2, a, b, c, d + T1, e, f, g).
-                // Σ0 = ROTR28 ^ ROTR34 ^ ROTR39 ; Σ1 = ROTR14 ^ ROTR18 ^ ROTR41 ;
-                // Ch = g ^ (e & (f ^ g)) ; Maj = (a & b) | (c & (a | b)). shl(192, v) ne garde que les 64 bits bas de v.
+                // Σ0 = ROTR28 ^ ROTR34 ^ ROTR39; Σ1 = ROTR14 ^ ROTR18 ^ ROTR41;
+                // Ch = g ^ (e & (f ^ g)); Maj = (a & b) | (c & (a | b)). shl(192, v) keeps only the low 64 bits of v.
                 for { let p := add(st, 0xb00) } lt(p, add(st, 0x1500)) { p := add(p, 0x20) } {
                     let e := shr(192, s2)
                     let g := and(shr(64, s2), 0xffffffffffffffff)
@@ -130,7 +130,7 @@ library Sha384 {
             }
 
             let st := mload(0x40)
-            // H(0) de SHA-384 (FIPS 180-4 §5.3.4)
+            // SHA-384's H(0) (FIPS 180-4 §5.3.4)
             mstore(st, 0xcbbb9d5dc1059ed8)
             mstore(add(st, 0x20), 0x629a292a367cd507)
             mstore(add(st, 0x40), 0x9159015a3070dd17)
@@ -141,25 +141,25 @@ library Sha384 {
             mstore(add(st, 0xe0), 0x47b5481dbefa4fa4)
             let kp := add(k, 0x20)
 
-            // blocs entiers, lus en place
+            // whole blocks, read in place
             for { let end := add(ptr, and(len, not(127))) } lt(ptr, end) { ptr := add(ptr, 0x80) } {
                 compress(st, ptr, kp)
             }
 
-            // dernier(s) bloc(s) : reste du message ‖ 0x80 ‖ zéros ‖ longueur en bits sur 128 bits (§5.1.2)
+            // last block(s): rest of the message ‖ 0x80 ‖ zeros ‖ length in bits on 128 bits (§5.1.2)
             let rem := and(len, 127)
             let pad := add(st, 0x1500)
             for { let i := 0 } lt(i, 0x100) { i := add(i, 0x20) } { mstore(add(pad, i), 0) }
             for { let i := 0 } lt(i, rem) { i := add(i, 0x20) } { mstore(add(pad, i), mload(add(ptr, i))) }
-            mstore(add(pad, rem), 0) // efface ce que la copie par mots a pris au-delà du message
+            mstore(add(pad, rem), 0) // clears what the word-wise copy took beyond the message
             mstore8(add(pad, rem), 0x80)
-            let two := gt(rem, 111) // plus de place pour 0x80 et les 16 octets de longueur : deux blocs
-            let lp := add(pad, add(0x60, shl(7, two))) // dernier mot du dernier bloc
+            let two := gt(rem, 111) // no room left for 0x80 and the 16 length bytes: two blocks
+            let lp := add(pad, add(0x60, shl(7, two))) // last word of the last block
             mstore(lp, or(mload(lp), shl(3, len)))
             compress(st, pad, kp)
             if two { compress(st, add(pad, 0x80), kp) }
 
-            // condensat = H0 ‖ … ‖ H5 (384 bits)
+            // digest = H0 ‖ … ‖ H5 (384 bits)
             hi := or(
                 or(shl(192, mload(st)), shl(128, mload(add(st, 0x20)))),
                 or(shl(64, mload(add(st, 0x40))), mload(add(st, 0x60)))
@@ -168,8 +168,8 @@ library Sha384 {
         }
     }
 
-    /// @notice Extension d'un registre de mesure TDX : SHA384(mr ‖ d), 48 + 48 octets. `buf` : au moins 112 octets
-    ///         alloués par l'appelant, réutilisés d'une extension à l'autre ; `k` comme pour hashAt.
+    /// @notice Extension of a TDX measurement register: SHA384(mr ‖ d), 48 + 48 bytes. `buf`: at least 112 bytes
+    ///         allocated by the caller, reused from one extension to the next; `k` as for hashAt.
     function extend(bytes memory k, bytes memory buf, bytes32 mrHi, bytes16 mrLo, bytes32 dHi, bytes16 dLo)
         internal
         pure
