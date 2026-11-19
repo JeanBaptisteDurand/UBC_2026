@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "description": "SDK client du réseau d'enclaves d'Arc : sessions, clés, HPKE, reçus, client compatible OpenAI, primes, CCTP, lecture du registre",
+  "description": "Client SDK for ArcHive, the network of verified enclaves on Arc: sessions, keys, HPKE, receipts, an OpenAI-compatible client, x402 pay per call, sealed bounties, CCTP and registry reads",
   "main": "src/index.ts",
   "scripts": { "test": "vitest run", "build": "tsc -p tsconfig.json" },
   "dependencies": {

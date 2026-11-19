@@ -2,7 +2,7 @@
   "name": "@arcvault/node",
   "version": "0.1.0",
   "private": true,
-  "description": "archive-node : l'agent opérateur d'ArcHive (diagnostic, appairage par code, enclave Docker, battements de cœur)",
+  "description": "archive-node: the ArcHive operator agent (machine checks, pairing by code, Docker enclave, heartbeats)",
   "type": "module",
   "bin": { "archive-node": "dist/archive-node.mjs" },
   "engines": { "node": ">=20" },
