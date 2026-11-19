@@ -1,14 +1,14 @@
-/** operatorActions.ts — actions d'opérateur signées par le wallet, depuis le site (pile v2).
- *  - signAction : un message EIP-4361 (« Sign-In with Ethereum », signin.ts) avec un nonce neuf de l'API ; le wallet
- *    montre le site, l'action, le réseau et l'échéance, et signale un site imposteur ; aucune transaction, aucun frais.
- *  - registerMachineEnclave : inscription par le VRAI DCAP. Le SDK lit l'attestation de la machine (/attest), contrôle
- *    le quote hors chaîne (vrai Intel TDX, pas de DEBUG, SEPT_VE_DISABLE, image autorisée par le produit, REPORTDATA
- *    lié à votre adresse), puis registerEnclave : la chaîne vérifie la signature d'Intel (≈ 5,7 M gas) et la politique
- *    du produit. Aucun module de test, aucune mesure déclarée à la main : un quote simulé est refusé avant tout envoi.
- *    Rend aussi `admittedBy` : l'empreinte qui a fait admettre l'enclave (« image » : stable d'un redémarrage à
- *    l'autre ; « workload » : empreinte complète de la machine), à montrer après l'inscription (registeredMsg).
- *    Ses étapes (onStep) et son message de réussite sont des messages (msg.ts) : ils suivent la langue du site.
- *  - sendTx : une transaction que le SDK n'enveloppe pas (ex. setAgentId), simulée puis attendue. */
+/** operatorActions.ts — operator actions signed by the wallet, from the site (v2.1 stack).
+ *  - signAction: an EIP-4361 message ("Sign-In with Ethereum", signin.ts) with a fresh nonce from the API; the wallet
+ *    shows the site, the action, the network and the expiry, and flags an impostor site; no transaction, no fee.
+ *  - registerMachineEnclave: registration through the REAL DCAP verifier. The SDK reads the machine's attestation
+ *    (/attest), checks the quote off-chain (real Intel TDX, no DEBUG, SEPT_VE_DISABLE, an image allowed by the product,
+ *    REPORTDATA bound to your address), then calls registerEnclave: the chain verifies Intel's signature (≈ 6.9 M gas)
+ *    and the product's policy. No test module, no hand-declared measurement: a simulated quote is refused before
+ *    anything is sent. Also returns `admittedBy`: the fingerprint that got the enclave admitted ("image": stable across
+ *    restarts; "workload": the machine's full fingerprint), shown after registration (registeredMsg).
+ *    Its steps (onStep) and its success message are messages (msg.ts): they follow the site's language.
+ *  - sendTx: a transaction the SDK does not wrap (e.g. setAgentId), simulated and then awaited. */
 import { type Address, type Hex } from "viem";
 import { arcErrorsAbi, testnet, type ArcClient } from "@arcvault/sdk";
 import { fetchNonce, type Signed } from "./api";
@@ -16,8 +16,8 @@ import { dcapGasLabel, verifiedLabel, waitOk } from "./arc";
 import { MsgError, msg, type Msg } from "./msg";
 import { buildSignIn, type SignedAction } from "./signin";
 
-/** Signe une action d'opérateur : nonce neuf de l'API (usage unique, 5 min), message EIP-4361 pour CE site
- *  (domaine et origine de la page), signature du wallet. Rend aussi l'échéance de la signature (ms). */
+/** Signs an operator action: a fresh nonce from the API (single use, 5 min), an EIP-4361 message for THIS site (the
+ *  page's domain and origin), the wallet's signature. Also returns the signature's expiry (ms). */
 export async function signAction(arc: ArcClient, action: SignedAction): Promise<Signed & { expiresAt: number }> {
   if (!arc.wallet || !arc.account) throw new MsgError(msg("err.connectWallet"));
   const address = arc.account.address;
@@ -30,7 +30,7 @@ export async function signAction(arc: ArcClient, action: SignedAction): Promise<
   return { address, message, signature, expiresAt };
 }
 
-/** Simule (refus décodés avec toutes les erreurs du réseau), envoie, puis attend la confirmation. */
+/** Simulates (refusals decoded with all the network's errors), sends, then waits for the confirmation. */
 export async function sendTx(arc: ArcClient, address: Address, abi: readonly unknown[], functionName: string, args: unknown[]): Promise<Hex> {
   if (!arc.wallet || !arc.account) throw new MsgError(msg("err.connectWallet"));
   const fullAbi = [...abi, ...arcErrorsAbi] as any;
@@ -50,7 +50,7 @@ export async function registerMachineEnclave(arc: ArcClient, productId: bigint, 
   try {
     r = await arc.registerEnclave(productId, url);
   } catch (e: any) {
-    // /attest injoignable : machine hors ligne, ou adresse non publique (le contrôle du quote n'a pas pu commencer)
+    // /attest unreachable: the machine is offline, or its address is not public (the quote check could not start)
     const offline = (e?.name === "TypeError" && /fetch|network|load failed/i.test(String(e?.message))) || e?.name === "TimeoutError" || e?.name === "AbortError";
     if (offline) {
       throw new MsgError(msg("arc.reg.offline", { url }));
@@ -62,13 +62,13 @@ export async function registerMachineEnclave(arc: ArcClient, productId: bigint, 
   return { tx: r.tx, signer: r.signer, workloadId: r.workloadId, admittedBy: r.admittedBy };
 }
 
-/** Le message de réussite d'une inscription : l'enclave, sa transaction, et l'empreinte qui l'a fait admettre. */
+/** The success message of a registration: the enclave, its transaction, and the fingerprint that got it admitted. */
 export function registeredMsg(r: { tx: Hex; signer: Address; admittedBy?: AdmittedBy }): Msg {
   const done = msg("arc.reg.done", { signer: r.signer, label: verifiedLabel, tx: r.tx });
   return r.admittedBy ? msg("arc.reg.doneWith", { done, admitted: msg(r.admittedBy === "image" ? "arc.admitted.image" : "arc.admitted.workload") }) : done;
 }
 
-/** Ouvre le copilote avec une question déjà posée (depuis n'importe quel écran). */
+/** Opens the copilot with a question already asked (from any screen). */
 export function askCopilot(text: string) {
   window.dispatchEvent(new CustomEvent("archive:ask", { detail: text }));
 }

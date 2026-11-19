@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { usePublicClient, useWalletClient } from "wagmi";
 import { createArcClient, type ArcClient } from "@arcvault/sdk";
 
-/** Construit un ArcClient à partir du wallet connecté (null tant qu'il n'y a pas de client public). */
+/** Builds an ArcClient from the connected wallet (null while there is no public client). */
 export function useArc(): ArcClient | null {
   const pub = usePublicClient();
   const { data: wallet } = useWalletClient();

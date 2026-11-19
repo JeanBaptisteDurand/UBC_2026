@@ -1,7 +1,7 @@
-/** testWallet.ts — MODE TEST (Arc testnet) : un « wallet » dont la signature est faite par le wallet serveur provisionné
- *  d'ArcHive (route /test-signer de l'API), pour jouer les parcours de bout en bout sans extension de navigateur.
- *  Invisible sans jeton. Activation : ouvrir le site une fois avec ?testsigner=<jeton> (le jeton est gardé dans ce
- *  navigateur et retiré de l'adresse). Le serveur ne signe QUE vers les contrats d'ArcHive, sur Arc testnet. */
+/** testWallet.ts — TEST MODE (Arc testnet): a "wallet" whose signatures are made by ArcHive's provisioned server
+ *  wallet (the API's /test-signer route), to run the flows end to end without a browser extension. Invisible without a
+ *  token. To turn it on, open the site once with ?testsigner=<token> (the token is kept in this browser and removed
+ *  from the address). The server signs ONLY towards ArcHive's contracts, on Arc testnet. */
 import { API_URL } from "./config";
 import { t } from "./i18n";
 
@@ -30,7 +30,7 @@ export function leaveTestMode() {
   window.location.reload();
 }
 
-/** Fournisseur EIP-1193 : signatures → wallet serveur (avec le jeton) ; lectures → RPC public d'Arc. */
+/** EIP-1193 provider: signatures → the server wallet (with the token); reads → Arc's public RPC. */
 export function makeTestProvider(token: string) {
   const listeners: Record<string, Set<(...a: unknown[]) => void>> = {};
   const call = async (url: string, payload: unknown, auth?: string) => {

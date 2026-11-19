@@ -47,7 +47,7 @@ export function bountyLevelOf(settlement: string): BountyLevel | null {
 export const DCAP = testnet.attestation === "dcap";
 /** "verified by Arc" / « vérifiée par Arc » (or "registered" without DCAP), in the current language. */
 export const verifiedLabel = (): string => t(DCAP ? "arc.verified" : "arc.registered");
-/** Gas of a registration through the real DCAP verifier, shown before signing ("≈ 5.7 M gas" / « ≈ 5,7 M gas »). */
+/** Gas of a registration through the real DCAP verifier, shown before signing ("≈ 6.9 M gas" / « ≈ 6,9 M gas », from the SDK's DCAP_REGISTER_GAS_ESTIMATE). */
 export const dcapGasLabel = (): string => t("arc.gas", { m: fmtNum(Number(DCAP_REGISTER_GAS_ESTIMATE) / 1e6, { maximumFractionDigits: 1 }) });
 
 /** A USDC amount typed by a person ("2", "0.5", "0,5") → base units (6 decimals), with a readable refusal (in the

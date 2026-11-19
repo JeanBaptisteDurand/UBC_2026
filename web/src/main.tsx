@@ -1,4 +1,4 @@
-// d'abord : un navigateur qui bloque le stockage du site ne doit pas faire tomber la page (wagmi, RainbowKit)
+// first: a browser that blocks the site's storage must not bring the page down (wagmi, RainbowKit)
 import "./safeStorage";
 import React, { useEffect } from "react";
 import ReactDOM from "react-dom/client";
@@ -15,11 +15,10 @@ import App from "./App";
 const qc = new QueryClient();
 const theme = darkTheme({ accentColor: "#5b8cff", accentColorForeground: "#070b16", borderRadius: "medium" });
 
-/** 19/11 (r2) : au démarrage, wagmi demandait à CHAQUE portefeuille s'il était déjà autorisé : cela chargeait le SDK de
- *  WalletConnect (≈ 230 ko compressés) et appelait ses serveurs avant que la console soit utilisable, même pour un
- *  visiteur qui ne s'est jamais connecté. On ne reconnecte que le portefeuille utilisé la dernière fois (wagmi le note) ;
- *  s'il n'est plus dans la liste, comme avant, tous ; sans portefeuille noté, aucun : les autres se chargent quand on
- *  touche « Connect ». */
+/** On startup, only the wallet used last time is reconnected (wagmi records it): asking EVERY wallet whether it is
+ *  already authorised would load WalletConnect's SDK (≈ 230 kB compressed) and call its servers before the console is
+ *  usable, even for a visitor who has never connected. If that wallet is no longer in the list, all of them are tried;
+ *  with no recorded wallet, none: the others load when "Connect" is pressed. */
 function useLastWallet() {
   useEffect(() => {
     let alive = true;
@@ -34,7 +33,7 @@ function useLastWallet() {
   }, []);
 }
 
-/** La fenêtre de connexion de RainbowKit suit la langue du site (en-US / fr-FR). */
+/** RainbowKit's connect window follows the site's language (en-US / fr-FR). */
 function Root() {
   useLastWallet();
   const lang = useLang();

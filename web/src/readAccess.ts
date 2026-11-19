@@ -1,13 +1,13 @@
-/** readAccess.ts — la lecture réservée à l'opérateur : UNE signature EIP-4361 (« lire mes données d'opérateur »),
- *  valable 10 minutes, gardée en mémoire le temps de la session de la page (jamais écrite sur disque, oubliée au
- *  rechargement). Elle ouvre le détail des machines (diagnostic, journaux), leurs vrais noms et les vrais libellés des
- *  clés opérateur ; l'API consomme son nonce au premier usage et l'accepte ensuite jusqu'à son échéance. */
+/** readAccess.ts — the operator's reserved read: ONE EIP-4361 signature ("read my operator data"), valid for 10
+ *  minutes, kept in memory for the page's session (never written to disk, forgotten on reload). It opens the machines'
+ *  details (diagnostics, logs), their real names and the real labels of the operator keys; the API consumes its nonce
+ *  on first use and then accepts it until it expires. */
 import { useEffect, useState } from "react";
 import type { ArcClient } from "@arcvault/sdk";
 import type { Signed } from "./api";
 import { signAction } from "./operatorActions";
 
-/** marge avant l'échéance : au-delà, on redemande plutôt que d'envoyer une signature sur le point d'expirer */
+/** margin before expiry: past it, the site asks again rather than send a signature about to expire */
 const MARGIN_MS = 30_000;
 
 let held: { signed: Signed; expiresAt: number } | null = null;
@@ -21,12 +21,12 @@ function current(address?: string | null) {
   return Date.now() < held.expiresAt - MARGIN_MS ? held : null;
 }
 
-/** la signature de lecture en cours pour cette adresse, sans rien demander au wallet (null s'il n'y en a pas) */
+/** the current read signature for this address, without asking the wallet anything (null if there is none) */
 export const readSignature = (address?: string | null): Signed | null => current(address)?.signed ?? null;
-/** son échéance (ms), ou null */
+/** its expiry (ms), or null */
 export const readExpiresAt = (address?: string | null): number | null => current(address)?.expiresAt ?? null;
 
-/** La signature de lecture : celle en cours, sinon une nouvelle (le wallet demande de signer ; aucune transaction). */
+/** The read signature: the current one, otherwise a new one (the wallet asks to sign; no transaction). */
 export function requestReadAccess(arc: ArcClient): Promise<Signed> {
   const have = readSignature(arc.account?.address);
   if (have) return Promise.resolve(have);
@@ -34,7 +34,7 @@ export function requestReadAccess(arc: ArcClient): Promise<Signed> {
     .then(({ expiresAt, ...signed }) => {
       held = { signed, expiresAt };
       if (timer) clearTimeout(timer);
-      timer = setTimeout(notify, Math.max(0, expiresAt - MARGIN_MS - Date.now()) + 50); // fin : les pages repassent en vue publique
+      timer = setTimeout(notify, Math.max(0, expiresAt - MARGIN_MS - Date.now()) + 50); // at the end, the pages go back to the public view
       notify();
       return signed;
     })
@@ -42,7 +42,7 @@ export function requestReadAccess(arc: ArcClient): Promise<Signed> {
   return pending;
 }
 
-/** Oublie la lecture (échue, ou refusée par l'API : redémarrée entre-temps, par exemple). */
+/** Forgets the read (expired, or refused by the API: restarted in the meantime, for example). */
 export function dropReadAccess() {
   held = null;
   if (timer) clearTimeout(timer);
@@ -50,7 +50,7 @@ export function dropReadAccess() {
   notify();
 }
 
-/** La lecture en cours pour cette adresse ; la page se redessine quand elle arrive, est oubliée ou expire. */
+/** The current read for this address; the page redraws when it arrives, is forgotten or expires. */
 export function useReadAccess(address?: string | null): Signed | null {
   const [, redraw] = useState(0);
   useEffect(() => {

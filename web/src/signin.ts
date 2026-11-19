@@ -1,14 +1,14 @@
-/** signin.ts — les messages que le wallet signe pour ArcHive, au format EIP-4361 (« Sign-In with Ethereum »).
- *  Le wallet reconnaît ce format : il montre le site qui demande, la phrase de l'action, le réseau et l'échéance, et
- *  signale un site imposteur (domaine du message différent de la page). L'API (services/api/src/operators.ts) vérifie
- *  chaque ligne et consomme le nonce qu'elle a émis (GET /auth/nonce : usage unique, 5 minutes).
- *  Les phrases sont en anglais (on les lit dans son wallet), quelle que soit la langue du site, et en
- *  ASCII : la grammaire d'EIP-4361 n'accepte rien d'autre, et un wallet ne contrôle le domaine que d'un message qu'il sait
- *  lire. Elles doivent rester identiques à STATEMENT dans operators.ts (le test services/api/test/security.test.ts le
- *  vérifie). Module sans navigateur : le test de l'API l'importe tel quel. */
+/** signin.ts — the messages the wallet signs for ArcHive, in the EIP-4361 format ("Sign-In with Ethereum").
+ *  The wallet recognises this format: it shows the site that asks, the action's sentence, the network and the expiry,
+ *  and flags an impostor site (a message domain different from the page). The API (services/api/src/operators.ts)
+ *  checks every line and consumes the nonce it issued (GET /auth/nonce: single use, 5 minutes).
+ *  The sentences are in English (they are read in the wallet), whatever the site's language, and in ASCII: the
+ *  EIP-4361 grammar accepts nothing else, and a wallet only checks the domain of a message it can parse. They must stay
+ *  identical to STATEMENT in operators.ts (the test services/api/test/security.test.ts checks it). A module without
+ *  the browser: the API's test imports it as is. */
 import { createSiweMessage } from "viem/siwe";
 
-/** Les actions signées : une approbation d'appairage, une clé créée ou révoquée, une machine retirée, la lecture réservée. */
+/** The signed actions: a pairing approval, a key created or revoked, a machine removed, the reserved read. */
 export type SignedAction =
   | { kind: "pair"; code: string }
   | { kind: "createKey" }
@@ -16,7 +16,7 @@ export type SignedAction =
   | { kind: "removeMachine"; machineId: string }
   | { kind: "read" };
 
-/** Une action expire 5 minutes après sa signature ; la lecture sert 10 minutes. */
+/** An action expires 5 minutes after its signature; the read lasts 10 minutes. */
 export const ACTION_TTL_MS = 5 * 60_000;
 export const READ_TTL_MS = 10 * 60_000;
 
@@ -31,18 +31,18 @@ export function statementOf(a: SignedAction): string {
 }
 
 export interface SignInParams {
-  /** domaine de la page (window.location.host) ; l'URI est son origine (window.location.origin) */
+  /** the page's domain (window.location.host); the URI is its origin (window.location.origin) */
   domain: string;
   uri: string;
   chainId: number;
   address: string;
   action: SignedAction;
-  /** le nonce et son heure d'émission, tels que GET /auth/nonce les rend */
+  /** the nonce and its issue time, as GET /auth/nonce returns them */
   nonce: string;
   issuedAt: string | Date;
 }
 
-/** Le message à signer (11 lignes) et son échéance (ms). « Issued At » reprend l'heure du serveur : pas d'écart d'horloge. */
+/** The message to sign (11 lines) and its expiry (ms). "Issued At" takes the server's time: no clock skew. */
 export function buildSignIn(p: SignInParams): { message: string; expiresAt: number } {
   const issuedAt = new Date(p.issuedAt);
   if (!Number.isFinite(issuedAt.getTime())) throw new Error("heure d'émission du nonce illisible : rechargez la page");
