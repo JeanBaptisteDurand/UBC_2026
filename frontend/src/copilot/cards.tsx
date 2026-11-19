@@ -204,6 +204,15 @@ export function ActionCard({ c, cs, msgId, onAfter }: { c: Prepared; cs?: CardSt
   )
 }
 
+/** The price label follows the payment type the tool reports: a prepaid session is priced per token, x402 per call.
+ *  Anything else (a bounty, or no rail given) gets a plain price label. */
+function priceKey(...hints: unknown[]): 'l.price' | 'l.price.call' | 'l.price.tok' {
+  const h = hints.map(s).join(' ')
+  if (/sessionpay|jeton|token/i.test(h)) return 'l.price.tok'
+  if (/x402/i.test(h)) return 'l.price.call'
+  return 'l.price'
+}
+
 function Rows({ rows }: { rows: [string, unknown][] }) {
   const kept = rows.filter(([, v]) => v !== undefined && v !== null && String(v).trim() !== '')
   return kept.length ? <ul className="cp-card-l">{kept.map(([k]) => <li key={k}>{k}</li>)}</ul> : null
@@ -216,7 +225,7 @@ export function InfoCard({ c }: { c: Prepared }) {
   let title = ct('card.unknown'), body: ReactNode = null
   if (c.tool === 'pricing_quote') {
     title = ct('card.quote')
-    body = <Rows rows={[[ct('l.price', { p: s(r.pricePerUnit) }), r.pricePerUnit], [ct('l.units', { u: s(r.units) }), r.units], [ct('l.total', { t: s(r.total) }), r.total], [ct('l.budget', { b: s(r.budgetParRequete) }), r.budgetParRequete], [ct('l.maxUnits', { u: s(r.unitesMaxParRequete) }), r.unitesMaxParRequete], [ct('l.example', { d: s(r.exempleDeDepot?.depot) }), r.exempleDeDepot?.depot]]} />
+    body = <Rows rows={[[ct(priceKey(r.rail, r.unite), { p: s(r.pricePerUnit) }), r.pricePerUnit], [ct('l.units', { u: s(r.units) }), r.units], [ct('l.total', { t: s(r.total) }), r.total], [ct('l.budget', { b: s(r.budgetParRequete) }), r.budgetParRequete], [ct('l.maxUnits', { u: s(r.unitesMaxParRequete) }), r.unitesMaxParRequete], [ct('l.example', { d: s(r.exempleDeDepot?.depot) }), r.exempleDeDepot?.depot]]} />
   } else if (c.tool === 'snippet_generate') {
     title = ct('card.snippet')
     body = typeof r.code === 'string' ? <Code text={r.code} label={ct('card.snippet')} /> : null
@@ -224,7 +233,7 @@ export function InfoCard({ c }: { c: Prepared }) {
     title = ct('card.scaffold')
     body = (
       <>
-        <Rows rows={[[ct('l.name', { n: s(r.nom) }), r.nom], [ct('l.rail', { r: s(r.rail) }), r.rail], [ct('l.price', { p: s(r.prixParUnite) }), r.prixParUnite], [ct('l.minBond', { b: s(r.cautionMinimale) }), r.cautionMinimale], [s(r.parts?.lecture), r.parts?.lecture]]} />
+        <Rows rows={[[ct('l.name', { n: s(r.nom) }), r.nom], [ct('l.rail', { r: s(r.rail) }), r.rail], [ct(priceKey(r.rail), { p: s(r.prixParUnite) }), r.prixParUnite], [ct('l.minBond', { b: s(r.cautionMinimale) }), r.cautionMinimale], [s(r.parts?.lecture), r.parts?.lecture]]} />
         {Array.isArray(r.etapes) && r.etapes.length ? (
           <div className="cp-card-s"><p className="cp-card-h lbl">{ct('steps')}</p><ol className="cp-card-o">{r.etapes.map((e: R, i: number) => <li key={i}>{s(e?.titre ?? e)}</li>)}</ol></div>
         ) : null}
@@ -236,7 +245,7 @@ export function InfoCard({ c }: { c: Prepared }) {
     const checks = checksOf(r)
     body = (
       <>
-        {r.produit ? <Rows rows={[[ct('l.product', { id: s(r.produit.id) }), r.produit.id], [ct('l.price', { p: s(r.produit.prixParUnite) }), r.produit.prixParUnite]]} /> : null}
+        {r.produit ? <Rows rows={[[ct('l.product', { id: s(r.produit.id) }), r.produit.id], [ct(priceKey(r.produit.rail), { p: s(r.produit.prixParUnite) }), r.produit.prixParUnite]]} /> : null}
         {checks.length ? <div className="cp-card-s"><p className="cp-card-h lbl">{ct('checks')}</p><ul className="cp-checks">{checks.map((x, i) => <li key={i} className={x.ok ? '' : 'is-no'}><Led tone={x.ok ? 'ok' : 'no'} /><span>{x.what}</span></li>)}</ul></div> : null}
         {typeof r.codeSdk === 'string' ? <Code text={r.codeSdk} label={ct('card.test')} /> : null}
       </>
