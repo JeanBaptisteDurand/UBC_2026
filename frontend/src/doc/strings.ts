@@ -1,4 +1,4 @@
-// Doc page strings (EN, FR). The chapters themselves come from content.ts (JB's technology page); here only what the
+// Doc page strings (EN, FR). The chapters themselves come from content.ts (the technology page); here only what the
 // doc page adds around them, and the sentences whose numbers are read live.
 import { useLang } from '../i18n'
 

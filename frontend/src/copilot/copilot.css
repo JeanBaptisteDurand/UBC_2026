@@ -182,7 +182,7 @@
 .cp-svc-a { white-space: nowrap; color: var(--arc-light, #9cc0ff); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, currentColor 40%, transparent); }
 .cp-svc-a:hover { text-decoration-color: currentColor; }
 
-/* The enclave badge and its proof (JB's, 19/11, from the shared server): AskHive's machine, read on Arc */
+/* The enclave badge and its proof: AskHive's machine, read on Arc */
 .cp-enc-w { display: grid; gap: 4px; justify-items: start; min-width: 0px; margin: 6px 0px 0px 24px; }
 .cp-enc { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; min-height: 28px; margin: 0px; padding: 4px 10px; background: none; color: var(--ink2); font-size: 12px; line-height: 1.35; text-align: left; box-shadow: inset 0 0 0 1px var(--rule2); transition: box-shadow var(--t1) var(--productive),color var(--t1) var(--productive); }
 button.cp-enc { cursor: pointer; }
@@ -218,10 +218,10 @@ button.cp-enc:disabled .cp-enc-x { display: none; }
 .cp-enc-w.is-clear .cp-enc-lock, .cp-enc-w.is-off .cp-enc-lock { color: var(--amber); }
 @media (prefers-reduced-motion: reduce) { .cp-proof { animation: none; } .cp-enc-x::before, .cp-enc-x::after { transition: none; } }
 
-/* the badge is the single line under the title (owner, 19/11): it never wraps, the proof holds the rest */
+/* the badge is the single line under the title: it never wraps, the proof holds the rest */
 .cp-enc-t { flex-wrap: nowrap; white-space: nowrap; }
 .cp-enc-a { overflow: hidden; text-overflow: ellipsis; }
-/* waiting for AskHive (JB, 19/11): a readable line with the real steps of the round trip, then the answer unfolds
+/* waiting for AskHive: a readable line with the real steps of the round trip, then the answer unfolds
    block by block instead of popping at once */
 .cp-log .cp-typing { height: auto; min-height: 16px; margin: 14px 0 2px; }
 .cp-think { margin-left: 8px; font-size: 13px; line-height: 1.4; color: var(--ink2, #c5ccd4); }

@@ -1,4 +1,4 @@
-// AskHive, the site assistant's mark (owner, 19/11): the A of the ArcHive logo with its diode (the right eye, Arc
+// AskHive, the site assistant's mark: the A of the ArcHive logo with its diode (the right eye, Arc
 // blue), a second diode left of the A (the left eye, the amber of the site's LEDs) and the arrow's curve carried on
 // down under the A (the smile): the arrow's stem and the smile are one shape. Strokes in currentColor; the eyes glow
 // (styles in styles.css, .ah-mark). Source drawing: workspace/archive/logo/askhive/askhive-1.svg.

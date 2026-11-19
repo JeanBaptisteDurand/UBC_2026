@@ -51,7 +51,7 @@ const EN = {
   'use.title': 'Use {a service}.',
   'use.lede': 'A green light is a service running in a sealed enclave that Arc has verified. Call it from the browser, an agent or the SDK. Paid services settle each use in USDC.',
   'use.pick': 'Pick a service right on the wall: choose any sled to see what it does and use it.', 'svx.lede': 'Every service registered on ArcHive, read live on Arc testnet. Each one runs in sealed Intel TDX enclaves; open it to see what it does, or use it at once.', 'svx.free': 'free', 'svx.run': '{a} of {b} enclaves running', 'svx.more': 'See the service', 'svx.back': 'All services', 'nav.catalog': 'Services', 'use.key': 'Green, running', 'use.lastNet': 'Latest payment on ArcHive',
-  // Services page (src/services/Vitrine.tsx): JB's product1 presentation, read in the left column
+  // Services page (src/services/Vitrine.tsx): the product presentation, read in the left column
   'vit.k': 'Services', 'vit.back': 'All services', 'vit.toc': 'On this page', 'hero.scroll': 'Scroll', 'vit.cta': 'The sleds on the right are interactive: click one to see its service and use it.', 'vit.of': '{a} of {b}', 'vit.prev': 'Previous chapter', 'vit.next': 'Next chapter', 'vit.more': 'Also on this page',
   'vit.w.on': 'Running', 'vit.run': '{a} of the {n} sealed machines are running now. Every past payment and proof stays readable on Arc.',
   'vit.src': 'Read live on Arc testnet', 'vit.reading': 'Reading Arc testnet…', 'vit.down': 'The ArcHive API did not answer. It is read again every 4 seconds.',
@@ -145,7 +145,7 @@ const EN = {
   'ev.pay': 'Paid {a}', 'ev.reg': 'Enclave {s} admitted', 'ev.inv': 'Enclave {s} invalidated', 'ev.ret': 'Enclave {s} retired', 'ev.slash': 'Bond slashed, enclave {s}',
   'ev.prod': 'Product updated', 'ev.work': 'Image fingerprint added', 'ev.workRet': 'Image fingerprint retired', 'ev.act': 'Product activated', 'ev.prop': 'Product proposed',
   'd.use': 'Use it', 'd.use.lede': 'Use it from the Network page: it checks the enclave key on Arc, encrypts your request for the enclave alone, and you sign the payment.',
-  // the service page's refuted demonstration product and free products (ported from the JB version, 19/11)
+  // the service page's refuted demonstration product and free products
   'app.st.refuteDemo': 'Bond seized', 'd.state.refuteDemo': 'Not for sale, a demonstration: its enclave was caught lying on 10 November and its operator’s whole bond was seized.', 'd.use.refuteDemo': 'Nothing to buy here: this product is the demonstration of an operator caught lying on 10 November. Its whole bond was seized, and each step is a real transaction on Arc.', 'd.use.lede.free': 'Use it from the Network page: it checks the enclave key on Arc and encrypts your request for the enclave alone.', 'd.use.proof': 'See the proof',
   'd.use.btn': 'Use this service', 'd.dev': 'From code: SDK, CLI and MCP', 'd.none': 'No product has this number.', 'd.none.hint': 'Go back to the catalog and pick a service.',
   'd.reading': 'Reading the service on Arc',
@@ -175,7 +175,7 @@ const EN = {
   'r.doc': 'ArcHive. Rent out your machine', 'r.skip': 'Skip to the steps', 'r.lede': 'Bring an Intel TDX machine. The agent pairs it with your wallet, Arc verifies its enclave, and each paid use of a service it runs pays you in USDC. Your bond makes cheating cost more than it pays.',
   'r.verdict': '{a} operators hold a bond on Arc and {b} enclaves are running. Each enclave reserves its product’s minimum bond: {m} for product #1 on this testnet.', 'r.verdict1': '1 operator holds a bond on Arc and {b} enclaves are running. Each enclave reserves its product’s minimum bond: {m} for product #1 on this testnet.', 'r.verdict.wait': 'Reading the bonds on Arc testnet', 'r.verdict.src': 'Read live from OperatorBond and the ArcHive API.',
   'r.where': 'Where does your machine run?',
-  'r.m.cloud.t': 'An Intel TDX VM at a cloud provider', 'r.m.cloud.d': 'Phala Cloud (dstack): real attestation today, in a certified datacenter where physical access is controlled. Google Cloud C3 and Azure DCesv5 once the kit reads the quote through the Linux TSM interface (in progress).',
+  'r.m.cloud.t': 'An Intel TDX VM at a cloud provider', 'r.m.cloud.d': 'Phala Cloud (dstack): real attestation today, in a certified datacenter where physical access is controlled. Next: Google Cloud C3 and Azure DCesv5, once the kit reads the quote through the Linux TSM interface.',
   'r.m.bare.t': 'Your own Intel TDX server', 'r.m.bare.d': 'A 4th or 5th gen Xeon with TDX enabled, running dstack: real attestation. Outside a datacenter, physical access is not controlled: sensitive products may require a certified cloud, and the bond caps the risk.',
   'r.m.rent.t': 'No machine yet', 'r.m.rent.d': 'Rent an Intel TDX VM on Phala Cloud (from $0.06 an hour), then follow the cloud path.',
   'r.rentHint': 'On Phala Cloud, create a tdx.small VM, open an SSH session on it, then run the commands below.',
@@ -395,7 +395,7 @@ const FR: Partial<Record<Key, string>> = {
   'r.doc': 'ArcHive. Louer votre machine', 'r.skip': 'Aller aux étapes', 'r.lede': 'Apportez une machine Intel TDX. L’agent l’appaire à votre wallet, Arc vérifie son enclave, et chaque usage payant d’un service qui y tourne vous est réglé en USDC. Votre caution rend la triche plus coûteuse qu’elle ne rapporte.',
   'r.verdict': '{a} opérateurs ont une caution sur Arc et {b} enclaves sont en marche. Chaque enclave réserve la caution minimale de son produit : {m} pour le produit n° 1 sur ce testnet.', 'r.verdict1': '1 opérateur a une caution sur Arc et {b} enclaves sont en marche. Chaque enclave réserve la caution minimale de son produit : {m} pour le produit n° 1 sur ce testnet.', 'r.verdict.wait': 'Lecture des cautions sur Arc testnet', 'r.verdict.src': 'Lu en direct sur OperatorBond et l’API d’ArcHive.',
   'r.where': 'Où tourne votre machine ?',
-  'r.m.cloud.t': 'Une VM Intel TDX chez un hébergeur', 'r.m.cloud.d': 'Phala Cloud (dstack) : attestation réelle aujourd’hui, dans un datacenter certifié où l’accès physique est contrôlé. Google Cloud C3 et Azure DCesv5 dès que le kit lira le quote par l’interface TSM de Linux (en cours).',
+  'r.m.cloud.t': 'Une VM Intel TDX chez un hébergeur', 'r.m.cloud.d': 'Phala Cloud (dstack) : attestation réelle aujourd’hui, dans un datacenter certifié où l’accès physique est contrôlé. Ensuite : Google Cloud C3 et Azure DCesv5, dès que le kit lira le quote par l’interface TSM de Linux.',
   'r.m.bare.t': 'Votre propre serveur Intel TDX', 'r.m.bare.d': 'Un Xeon de 4e ou 5e génération avec TDX activé, sous dstack : attestation réelle. Hors datacenter, l’accès physique n’est pas contrôlé : un produit sensible peut exiger un cloud certifié, et la caution plafonne le risque.',
   'r.m.rent.t': 'Pas encore de machine', 'r.m.rent.d': 'Louez une VM Intel TDX sur Phala Cloud (à partir de 0,06 $ de l’heure), puis suivez le chemin du cloud.',
   'r.rentHint': 'Sur Phala Cloud, créez une VM tdx.small, ouvrez une session SSH, puis lancez les commandes ci-dessous.',

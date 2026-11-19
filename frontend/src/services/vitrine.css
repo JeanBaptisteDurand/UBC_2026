@@ -1,6 +1,6 @@
 /* Services page (Vitrine.tsx). A stage the height of the window under the header: the reading column on the left
    (scrolls inside itself, reading blur, lit accent words like the Doc page), the server on the right (the Blender rack
-   still with the sled faces laid over it). JB's chapter styles are in vit-jb.css (scoped to .vt-r); the overrides that
+   still with the sled faces laid over it). the chapter styles are in vit-jb.css (scoped to .vt-r); the overrides that
    fit them into the column follow. */
 .vt { --vtw: clamp(560px, 52vw, 860px); position: relative; height: calc(100svh - var(--hd, 118px)); min-height: 600px; display: grid; grid-template-columns: var(--vtw) minmax(0, 1fr); overflow: hidden;
   background: radial-gradient(80% 80% at 74% 46%, rgb(30 44 78 / 0.32), transparent 70%), linear-gradient(to bottom, rgb(14 17 23), rgb(10 12 16)); }
@@ -25,7 +25,7 @@
 .vt-r .vt-h1 { font-size: clamp(40px, 3.6vw, 60px); line-height: 1.02; }
 .vt-lede { margin: 28px 0 0; max-width: 34em; font-size: 18px; line-height: 1.55; color: var(--ink2); text-wrap: pretty; }
 
-/* introduction: JB's shop window and live figures, sized for the column */
+/* introduction: the shop window and live figures, sized for the column */
 .vt-intro { padding-top: 16px; }
 .vt-r .vt-shop { width: auto; max-width: 600px; margin: 40px 0 0; padding: 0; }
 .vt-r .vt-shop .rk-row { cursor: pointer; }
@@ -66,7 +66,7 @@
 .vt-r .vt-livesec .vit-dot { flex: none; }
 .vt .unfold .row, .js .vt .unfold .row { opacity: 1; transform: none; }
 
-/* ---- JB's chapters in the column: his page gutters off, our sizes */
+/* ---- the chapters in the column: his page gutters off, our sizes */
 .vt-r .vt-body { --gut: 0px; padding: 0; margin: 0; min-height: 0; }
 .vt-r .vt-body > :first-child { margin-top: 0; }
 .vt-r .vit-fam-hd { padding: 0; margin: 0; }
@@ -145,7 +145,7 @@ html:not([data-cur='1']) .vt-fac:hover::after, html:not([data-cur='1']) .vt-fac:
   .vt-bay.is-slot .blade-face { background: rgb(4 5 8); box-shadow: inset 0 0 0 1px rgb(200 220 255 / 0.1); }
 }
 
-/* JB's dimension marks (cote) are drawn by the scroll reveal on his page; in the column they are simply shown */
+/* the dimension marks (cote) are drawn by the scroll reveal on his page; in the column they are simply shown */
 .js .vt-r .cote-in .cote-l { transform: none; }
 .js .vt-r .cote-in .cote-v { clip-path: none; }
 
@@ -167,7 +167,7 @@ html:not([data-cur='1']) .vt-fac:hover::after, html:not([data-cur='1']) .vt-fac:
 .vt-tech > .vt-body { padding: 8px 0 32px; }
 .vt-tech > .vt-livesec { margin-top: 32px; }
 
-/* ---- the introduction: title, lede, the call to the room, then JB's sections one after the other (as on the landing) */
+/* ---- the introduction: title, lede, the call to the room, then the sections one after the other (as on the landing) */
 .vt-cta { position: relative; isolation: isolate; display: flex; align-items: center; gap: 12px; margin: 32px 0 0; max-width: 34em; font-size: 15px; line-height: 1.45; color: var(--ink); }
 .vt-cta::before { content: ''; position: absolute; left: -11px; top: 50%; width: 40px; height: 40px; margin-top: -20px; z-index: -1; border-radius: 50%; pointer-events: none;
   background: radial-gradient(circle, color-mix(in srgb, var(--arc-elec) 55%, transparent) 0, color-mix(in srgb, var(--arc-elec) 18%, transparent) 38%, transparent 70%);
@@ -175,7 +175,7 @@ html:not([data-cur='1']) .vt-fac:hover::after, html:not([data-cur='1']) .vt-fac:
 .vt-cta > span { animation: live-text 3.2s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .vt-cta::before, .vt-cta > span { animation: none; } .vt-cta::before { opacity: 0.7; } }
 .vt-sec { margin: 120px 0 0; scroll-margin-top: 16px; }
-/* the table of contents (owner, 19/11): one row per section, a click opens it in place */
+/* the table of contents: one row per section, a click opens it in place */
 .vt-toc { margin: 72px 0 0; }
 .vt-toc-k { margin: 0 0 8px; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink3); }
 .vt-toc .vt-sec { margin: 0; scroll-margin-top: 16px; }
@@ -221,7 +221,7 @@ html:not([data-cur='1']) .vt-fac:hover::after, html:not([data-cur='1']) .vt-fac:
   .vt-bay { min-width: 0; }
   .vt-bay .blade-face { min-width: 0; max-width: 100%; }
   .vt-sled { touch-action: manipulation; }
-  /* JB's small labels (11 px on his desktop page): at least 12 px on a phone and a tablet */
+  /* the small labels (11 px on his desktop page): at least 12 px on a phone and a tablet */
   .vt-r .rk-word, .vt-r .mk-nav-a .mono, .vt-r .mk-tag, .vt-r .mk-tk, .vt-r .mks-live { font-size: 12px; }
   .vt-r .mk-fly-c1, .vt-r .mk-fly-c2 { font-size: 12px; }
 }

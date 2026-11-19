@@ -87,7 +87,7 @@ export function Hero() {
         </div>
         <WallMirror />
       </div>
-      {/* the invitation to scroll (owner, 19/11): a thin rule where a short segment runs down, and a mono label, in
+      {/* the invitation to scroll: a thin rule where a short segment runs down, and a mono label, in
           the header's grammar; it leaves as soon as the page moves */}
       <ScrollCue />
     </section>

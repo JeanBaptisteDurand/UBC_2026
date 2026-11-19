@@ -1,5 +1,5 @@
 /* Doc page. A stage the height of the window under the header: the reading column on the left (scrolls inside itself,
-   reading blur, accent titles like Network's focus titles), the server and the chapter index on the right. JB's chapter
+   reading blur, accent titles like Network's focus titles), the server and the chapter index on the right. the chapter
    styles are in doc-jb.css (scoped to .doc-r); the overrides that fit them into the column are at the end. */
 .doc { --docw: clamp(560px, 50vw, 860px); }
 .doc-stage { position: relative; height: calc(100svh - var(--hd)); min-height: 600px; display: grid; grid-template-columns: var(--docw) minmax(0, 1fr); overflow: hidden;
@@ -72,7 +72,7 @@
 .doc-idx-l a[aria-current='true'] .doc-idx-n, .doc-idx-l a[aria-current='true'] .doc-idx-t { color: #9cc0ff; text-shadow: 0 0 10px rgb(74 134 255 / 0.45); }
 @media (max-height: 820px) and (min-width: 1025px) { .doc-idx-p { display: none; } .doc-idx-l a { padding: 7px 0 7px 16px; } }
 
-/* ---- JB's chapters in the column: fewer margins, our tokens */
+/* ---- the chapters in the column: fewer margins, our tokens */
 .doc-r .tc-ch { padding: 0; box-shadow: none; }
 .doc-r .tc-ch.tc-band { margin: 0 -24px; padding: 32px 24px 32px; }
 .doc-r .tc-ch.tc-band .doc-bar { margin-top: -8px; }
@@ -88,7 +88,7 @@
 .doc-r .tc-gate .bytes { display: flex; flex-wrap: wrap; gap: 3px; }
 .doc-r summary { cursor: pointer; }
 
-/* the diagram beside its steps while the column allows it (JB's narrow figure, at a reading size) */
+/* the diagram beside its steps while the column allows it (the narrow figure, at a reading size) */
 @container doc (min-width: 521px) {
   .doc-r .dg { grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 24px 28px; align-items: start; }
   .doc-r .dg-fig { padding: 12px; }
@@ -143,7 +143,7 @@
   .doc-r .doc-check a.tlink { min-height: 44px; }
 }
 /* the sequence diagram (chapter 02) is SVG, 360 units drawn at 272 to 382 px on a phone and at 276 px beside its steps:
-   its words are sized in those units, so they read 12 px or more (JB's 11 units read 8.3 px on a 320 px phone) */
+   its words are sized in those units, so they read 12 px or more (11 units read 8.3 px on a 320 px phone) */
 @media (max-width: 1024px) {
   .doc-r .dg-narrow .dg-tt, .doc-r .dg-narrow .dg-ec, .doc-r .dg-narrow .dg-b text { font-size: 16px; }
   /* the label's halo fills the space between its words too, so a lifeline never shows through it */

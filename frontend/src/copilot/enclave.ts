@@ -1,4 +1,4 @@
-// AskHive in its enclave (JB's attested site copilot, 19/11, kept by the owner): the conversation goes to the copilot
+// AskHive in its enclave (the attested site copilot): the conversation goes to the copilot
 // that runs in an Intel TDX enclave registered on Arc (product 4, …/enclave/copilot-site behind the API's nginx).
 // - Before anything is sent, the SDK client checks the enclave key on Arc (signer registered for this product, X25519
 //   key of /pubkeys = the registered one, enclave active, product active, image still allowed). A key that does not

@@ -410,7 +410,7 @@ export function End() {
             <a className="btn btn-line" href={networkFor('rent')} data-slot="RENT"><span>{t('cta.rent')}</span></a>
             <a className="btn btn-line" href={networkFor('publish')} data-slot="PUBLISH"><span>{t('cta.publish')}</span></a>
           </div>
-          {/* the replayed demo, the same live call as on the first screen (owner, 19/11) */}
+          {/* the replayed demo, the same live call as on the first screen */}
           <a className="tlink hero-demo hero-live end-demo" href={link.demo}><svg className="hero-ic" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8.6" className="hero-ic-ring" /><path d="M8.2 6.6 L13.8 10 L8.2 13.4 Z" className="hero-ic-play" /></svg><span>{t('end.demo')}</span></a>
         </div>
       </div>

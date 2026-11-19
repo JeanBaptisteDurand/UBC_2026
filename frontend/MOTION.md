@@ -1,10 +1,7 @@
 # Motion and transitions: the site's locks
 
-Owner, 19/11/2026 (M9 added the same evening: « je veux que tu laisses le header avec la barre de chargement en permanence… pour toutes les pages… que ce soit une règle par défaut »): « mettre en place des règles d'animation et de transition qui soient toujours vraies et que tu
-appliques à chaque fois, un peu comme ce qu'on a fait avec le curseur… des locks pour dire : si jamais il y a ça sur
-une page, je le veux absolument ». « Je cherche pas quelque chose de particulièrement visuel, mais quelque chose de
-cohérent. » « Le header doit toujours être visible… quand on passe d'une page à l'autre… la transition se passe à
-l'intérieur de la page. »
+The rule: one coherent motion grammar on every page; the header and its loading bar always stay visible, and a
+page change happens inside the page.
 
 These rules apply to every page except the landing's film (whose scroll is its own motion). The code lives in
 `frontend/src/ui/motion.ts` (`reveal`, `grow`) and `styles.css` (view transition). A new page or a new
