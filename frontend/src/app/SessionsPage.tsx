@@ -16,6 +16,7 @@ import { useProbe } from '../network/actions/probe'
 import type { SessionRow } from '../network/actions/jbapi'
 import { x, xTitle } from '../network/actions/strings-x'
 import { ServiceState, WalletLine, ActSec } from './opsui'
+import { useCopy, useHashScroll } from './parts'
 
 type Opened = Awaited<ReturnType<Engine['openSession']>>
 type Client = ReturnType<Engine['inferenceClient']>
@@ -36,6 +37,7 @@ export function SessionsPage({ embed = false }: { embed?: boolean } = {}) {
   const probe = useProbe(url)
   const [reload, setReload] = useState(0)
   useEffect(() => { if (!embed) document.title = xTitle('s.doc') }, [lang, embed])
+  useHashScroll(true) // space.html?tab=sessions#mine lands on its section
   return (
     <>
       {embed ? null : <><a className="skip" href="#open" data-front-free>{x('s.skip')}</a><AppHeader page="sessions" section="nav.sessions" /></>}
@@ -142,20 +144,20 @@ function Chat({ url: url0, onOpened }: { url: string; onOpened: () => void }) {
     <ActSec id="open" title={x('s.chat')} lede={x('s.chat.lede')}>
       <WalletLine />
       <ol className="na-list" aria-label={x('s.chat')}>
-        <Step n={1} part="use" el="" st={key.st} t={x('s.s1')} d={x('s.s1d')} note={key.note} active={!sess && key.st !== 'done'}>
+        <Step n={1} part="use" el="" st={key.st} t={x('s.s1')} d={x('s.s1d')} note={key.note} active={!sess && key.st !== 'done'} copilot="check">
           <div className="na-grid">
             <Field label={x('s.f.product')}><input inputMode="numeric" value={pid} onChange={(e) => setPid(e.target.value)} /></Field>
           </div>
           <Field label={x('s.f.url')} wide><input type="url" spellCheck={false} value={url} onChange={(e) => setUrl(e.target.value)} /></Field>
         </Step>
-        <Step n={2} part="use" el="" st={open.st} t={x('s.s2')} d={x('s.s2d')} note={open.note} active={key.st === 'done' && !sess}>
+        <Step n={2} part="use" el="" st={open.st} t={x('s.s2')} d={x('s.s2d')} note={open.note} active={key.st === 'done' && !sess} copilot="open">
           <div className="na-row">
             <Field label={x('s.f.deposit')}><input inputMode="decimal" value={deposit} onChange={(e) => setDeposit(e.target.value)} /></Field>
             <button type="button" className="btn btn-main btn-s" id="s-open" onClick={doOpen} disabled={!ready || key.st !== 'done' || open.st === 'doing'}><span>{x('s.openBtn', { a: `${deposit.trim() || '0'} USDC` })}</span></button>
           </div>
           {aek ? <AekReveal aek={aek} onDone={() => setAek('')} /> : null}
         </Step>
-        <Step n={3} part="use" el="" st={sess ? (last ? 'done' : busy ? 'doing' : 'todo') : 'todo'} t={x('s.s3')} d={x('s.s3d')} note={chatNote} active={!!sess}>
+        <Step n={3} part="use" el="" st={sess ? (last ? 'done' : busy ? 'doing' : 'todo') : 'todo'} t={x('s.s3')} d={x('s.s3d')} note={chatNote} active={!!sess} copilot="talk">
           {sess ? (
             <>
               <div className="chat-log" aria-live="polite">
@@ -182,7 +184,7 @@ function Chat({ url: url0, onOpened }: { url: string; onOpened: () => void }) {
             </>
           ) : null}
         </Step>
-        <Step n={4} part="use" el="" st={last ? 'done' : 'todo'} t={x('s.s4')} d={x('s.s4d')} active={!!last}>
+        <Step n={4} part="use" el="" st={last ? 'done' : 'todo'} t={x('s.s4')} d={x('s.s4d')} active={!!last} copilot="receipt">
           {last && E ? <ReceiptCheck E={E} c={last} /> : null}
         </Step>
       </ol>
@@ -216,16 +218,20 @@ function ReceiptCheck({ E, c }: { E: Engine; c: Comp }) {
 }
 
 function AekReveal({ aek, onDone }: { aek: string; onDone: () => void }) {
-  const [copied, setCopied] = useState(false)
+  useLang()
+  const v = useRef<HTMLParagraphElement>(null)
+  // "Copied", or the key selected with how to copy it when the browser refuses (never a silent button)
+  const c = useCopy(aek, v)
   return (
     <div className="na-ans aek">
       <p className="na-ans-t">{x('s.aek.title')}</p>
-      <p className="mono aek-v">{aek}</p>
+      <p className="mono aek-v" ref={v}>{aek}</p>
       <p className="lbl muted">{x('s.aek.note')}</p>
       <div className="na-row">
-        <button type="button" className="btn btn-main btn-s" onClick={() => { navigator.clipboard?.writeText(aek).then(() => setCopied(true)).catch(() => {}) }}><span>{copied ? x('s.aek.copied') : x('s.aek.copy')}</span></button>
+        <button type="button" className="btn btn-main btn-s" onClick={c.copy}><span>{c.done ? x('s.aek.copied') : x('s.aek.copy')}</span></button>
         <button type="button" className="tlink" onClick={onDone}>{x('s.aek.saved')}</button>
       </div>
+      {c.hint}
     </div>
   )
 }
@@ -241,7 +247,8 @@ function Mine({ reload }: { reload: number }) {
   useEffect(() => {
     if (!E || !s.address) { setRows(null); return }
     let alive = true
-    E.fetchSessions(s.address).then((r) => { if (alive) { setRows(r); setErr(null) } }).catch((e) => { if (alive) { setRows([]); setErr(errNote(E, e)) } })
+    // a list that could not be read stays unread (never "no session yet"); the previous list, if any, stays on screen
+    E.fetchSessions(s.address).then((r) => { if (alive) { setRows(r); setErr(null) } }).catch((e) => { if (alive) setErr(errNote(E, e)) })
     return () => { alive = false }
   }, [E, s.address, reload, tick])
   const [aek, setAek] = useState('')
@@ -254,7 +261,8 @@ function Mine({ reload }: { reload: number }) {
         <table className="tbl">
           <thead><tr><th scope="col">{x('s.h.session')}</th><th scope="col">{x('s.h.deposit')}</th><th scope="col">{x('s.h.paid')}</th><th scope="col">{x('s.h.state')}</th><th scope="col">{x('s.h.act')}</th></tr></thead>
           <tbody>
-            {rows === null ? <tr><td colSpan={5} className="muted">{x('state.reading')}</td></tr>
+            {rows === null ? (err ? <tr><td colSpan={5} className="muted b-unread"><span>{x('list.unread')}</span><button type="button" className="btn btn-line btn-s" onClick={() => { setErr(null); setTick((n) => n + 1) }}><span>{x('list.reread')}</span></button></td></tr>
+              : <tr><td colSpan={5} className="muted">{x('state.reading')}</td></tr>)
               : rows.length === 0 ? <tr><td colSpan={5} className="muted">{x('s.none')}</td></tr>
                 : rows.map((r) => <SessionLine key={r.id} r={r} E={E!} lang={lang} onChanged={() => setTick((n) => n + 1)} onKey={setAek} />)}
           </tbody>
@@ -278,10 +286,11 @@ function SessionLine({ r, E, lang, onChanged, onKey }: { r: SessionRow; E: Engin
   return (
     <>
       <tr>
-        <td data-l={x('s.h.session')}>{x('s.row', { id: r.id, p: r.productId })}{r.enclave ? <span className="lbl muted mono"> {short(r.enclave, 4)}</span> : null}</td>
+        {/* one box per cell: on phones a cell is a grid (label, value), a second child fell under the label */}
+        <td data-l={x('s.h.session')}><span>{x('s.row', { id: r.id, p: r.productId })}{r.enclave ? <span className="lbl muted mono"> {short(r.enclave, 4)}</span> : null}</span></td>
         <td className="mono" data-l={x('s.h.deposit')}>{usdc(r.deposit, lang)}</td>
         <td className="mono" data-l={x('s.h.paid')}>{usdc(r.paid, lang)}</td>
-        <td data-l={x('s.h.state')}>{r.closed ? x('s.st.closed') : expired ? x('s.st.expired') : x('s.st.open', { when: exp ? new Date(exp * 1000).toLocaleString(lang) : '?' })}</td>
+        <td className="tbl-long" data-l={x('s.h.state')}>{r.closed ? x('s.st.closed') : expired ? x('s.st.expired') : x('s.st.open', { when: exp ? new Date(exp * 1000).toLocaleString(lang) : '?' })}</td>
         <td data-l={x('s.h.act')}>
           {!r.closed ? (
             <span className="na-row s-acts">

@@ -12,11 +12,13 @@ import { ENCLAVE, PRODUCT, abs } from '../data/endpoints'
 import { useIn } from '../ui/gestures'
 import { Footer } from '../ui/Footer'
 import { AppHeader } from './AppFrame'
-import { useWallet, onArc } from '../network/actions/store'
+import { useWallet, onArc, engine } from '../network/actions/store'
 import { useEngine, Step, Field, NoteLine, errNote, type St, type Note, type Engine } from '../network/actions/kit'
 import { useProbe } from '../network/actions/probe'
 import { x, xTitle } from '../network/actions/strings-x'
 import { ServiceState, WalletLine, ActSec } from './opsui'
+import { refutationOfBounty } from '../data/facts'
+import { useHashScroll } from './parts'
 
 type Level = 'open' | 'verified'
 interface Row { id: string; productId: string; protocol: string; balance: bigint; paid: bigint; deadline: bigint; paused: boolean; predicateHash?: string }
@@ -37,19 +39,29 @@ function LevelSwitch({ level, set }: { level: Level; set: (l: Level) => void }) 
   )
 }
 
-/** the list: /api/bounties for the open level, the chain for the verified level (the API does not index it) */
+/** the list: /api/bounties for the open level, the chain for the verified level (the API does not index it). Reading
+ *  the chain is public: without a wallet (a phone), the engine loads for this read alone, no wallet is asked for */
 function useRows(level: Level, E: Engine | null, tick: number): { rows: Row[] | null; note?: Note } {
   const live = useLive((s) => s.bounties)
   const status = useLive((s) => s.status)
   const [chain, setChain] = useState<{ rows: Row[] | null; note?: Note }>({ rows: null })
   useEffect(() => {
     if (level !== 'verified') return
-    if (!E) { setChain({ rows: null, note: { tone: 'muted', text: x('b.verifiedNeedsWallet') } }); return }
-    let alive = true
-    setChain({ rows: null })
-    E.listBounties('verified').then((bs) => { if (alive) setChain({ rows: bs.map((b) => ({ id: b.id.toString(), productId: b.productId.toString(), protocol: b.protocol, balance: b.balance, paid: b.paidAmount, deadline: b.deadline, paused: b.paused, predicateHash: b.predicateHash })) }) })
-      .catch((e) => { if (alive) setChain({ rows: [], note: errNote(E, e) }) })
-    return () => { alive = false }
+    let alive = true, tm = 0
+    // a list already read stays on screen while it is read again (a wallet connecting, a bounty just posted)
+    setChain((c) => (c.rows && !c.note ? c : { rows: null }))
+    // the public Arc RPC answers bursts with "limit exceeded": two more tries before saying so. A list that could not
+    // be read stays unread (never "no bounty")
+    const read = (n: number) => void (E ? Promise.resolve(E) : engine()).then((m) => m.listBounties('verified')
+      .then((bs) => { if (alive) setChain({ rows: bs.map((b) => ({ id: b.id.toString(), productId: b.productId.toString(), protocol: b.protocol, balance: b.balance, paid: b.paidAmount, deadline: b.deadline, paused: b.paused, predicateHash: b.predicateHash })) }) })
+      .catch((e) => {
+        if (!alive) return
+        if (n < 2) { tm = window.setTimeout(() => read(n + 1), 1500 * (n + 1)); return }
+        setChain({ rows: null, note: errNote(m, e) })
+      }))
+      .catch((e) => { if (alive) setChain({ rows: null, note: errNote(null, e) }) }) // the engine itself did not load
+    read(0)
+    return () => { alive = false; clearTimeout(tm) }
   }, [level, E, tick])
   if (level === 'verified') return chain
   if (!live) return { rows: null, note: status === 'error' ? { tone: 'bad', text: x('svc.offline') } : undefined }
@@ -81,6 +93,7 @@ export function BountyPage({ embed = false }: { embed?: boolean } = {}) {
   }, [rows]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setPick('') }, [level])
   useEffect(() => { if (!embed) document.title = xTitle('b.doc') }, [lang, embed])
+  useHashScroll(rows !== null) // space.html?tab=bounties#hunt lands on its section, once the list above has its rows
   const slashFrom = levels?.verifiedBounty?.slashFrom
   return (
     <>
@@ -103,17 +116,24 @@ export function BountyPage({ embed = false }: { embed?: boolean } = {}) {
             <table className="tbl">
               <thead><tr><th scope="col">{x('b.h.bounty')}</th><th scope="col">{x('b.h.protocol')}</th><th scope="col">{x('b.h.pool')}</th><th scope="col">{x('b.h.deadline')}</th><th scope="col">{x('b.h.state')}</th><th scope="col"><span className="sr-only">{x('b.h.act')}</span></th></tr></thead>
               <tbody>
-                {rows === null ? <tr><td colSpan={6} className="muted">{x('state.reading')}</td></tr>
+                {rows === null ? (note ? (
+                  // not read (the API or Arc did not answer): said as such, never "no bounty"; the verified list is read
+                  // again on demand, the open one comes back with the next API reading
+                  <tr><td colSpan={6} className="muted b-unread"><span>{x('list.unread')}</span>{level === 'verified' ? <button type="button" className="btn btn-line btn-s" onClick={() => setTick((n) => n + 1)}><span>{x('list.reread')}</span></button> : null}</td></tr>
+                ) : <tr><td colSpan={6} className="muted">{x('state.reading')}</td></tr>)
                   : rows.length === 0 ? <tr><td colSpan={6} className="muted">{x('b.none')}</td></tr>
                     : rows.map((b) => {
                       const expired = b.deadline < now
+                      // the refutation of 10/11 is bounty 2 of the open level (product 5). The verified level numbers
+                      // its bounties from 1 too: its bounty 2 (product 7) is another bounty, never refuted
+                      const refuted = level === 'open' && refutationOfBounty(b.id)?.productId === String(b.productId)
                       return (
                         <tr key={b.id} data-on={pick === b.id ? '1' : '0'}>
                           <td data-l={x('b.h.bounty')}>{x('b.row', { id: b.id, p: b.productId })}</td>
                           <td className="mono" data-l={x('b.h.protocol')}>{b.protocol ? <a className="tlink mono" href={addr(b.protocol)} target="_blank" rel="noreferrer">{short(b.protocol, 4)}</a> : '?'}</td>
                           <td className="mono" data-l={x('b.h.pool')}>{usdc(b.balance.toString(), lang)}</td>
                           <td data-l={x('b.h.deadline')}>{new Date(Number(b.deadline) * 1000).toLocaleString(lang)}</td>
-                          <td data-l={x('b.h.state')}>{b.paused ? x('b.st.paused') : expired ? x('b.st.expired') : x('b.st.open')}{b.paid > 0n ? `, ${x('b.st.paid', { a: usdc(b.paid.toString(), lang) ?? '' })}` : ''}</td>
+                          <td className="tbl-long" data-l={x('b.h.state')}>{b.paused ? x('b.st.paused') : expired ? x('b.st.expired') : x('b.st.open')}{refuted ? `, ${x('b.st.refuted')}` : b.paid > 0n ? `, ${x('b.st.paid', { a: usdc(b.paid.toString(), lang) ?? '' })}` : ''}</td>
                           <td>{!b.paused && !expired ? <button type="button" className={`btn btn-s ${pick === b.id ? 'btn-main' : 'btn-line'}`} onClick={() => { setPick(b.id); document.getElementById('hunt')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}><span>{x('b.hunt')}</span></button> : null}</td>
                         </tr>
                       )
@@ -211,7 +231,7 @@ function Hunter({ level, E, pick, setPick, url, onDone }: { level: Level; E: Eng
   const failedPay = !!proven.current && (steps[2].st === 'fail' || steps[3].st === 'fail')
   const tKeys = ['h.s1', 'h.s2', 'h.s3', 'h.s4'] as const
   return (
-    <ActSec id="hunt" title={x('h.title')} lede={x('h.lede')}>
+    <ActSec id="hunt" title={x('h.title')} lede={x('h.lede')} copilot="hunt">
       <WalletLine />
       <div className="na-row">
         <Field label={x('h.f.bounty')}><input inputMode="numeric" value={pick} onChange={(e) => setPick(e.target.value)} /></Field>
@@ -283,7 +303,7 @@ function Create({ level, E, onDone }: { level: Level; E: Engine | null; onDone: 
     <ActSec id="create" title={x('b.c.title')} lede={x('b.c.lede')}>
       <WalletLine />
       <ol className="na-list" aria-label={x('b.c.title')}>
-        <Step n={1} part="publish" el="" st={st.st} t={x('b.c.s1')} d={fees ? x('b.c.s1d', { min: usdc(fees.min.toString(), lang) ?? '', fees: (fees.bps / 100).toString() }) : x('b.c.s1d0')} note={st.note} active>
+        <Step n={1} part="publish" el="" st={st.st} t={x('b.c.s1')} d={fees ? x('b.c.s1d', { min: usdc(fees.min.toString(), lang) ?? '', fees: (fees.bps / 100).toString() }) : x('b.c.s1d0')} note={st.note} active copilot="fund">
           <div className="na-grid">
             <Field label={x('b.f.product')}><input inputMode="numeric" value={pid} onChange={(e) => setPid(e.target.value)} /></Field>
             <Field label={x('b.f.funding')}><input inputMode="decimal" value={fund} onChange={(e) => setFund(e.target.value)} /></Field>

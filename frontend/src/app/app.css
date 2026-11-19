@@ -221,6 +221,10 @@ html.sheet-open { overflow: hidden; }
 .cmd-t { flex: 1; min-width: 0; padding: 12px 16px; color: var(--ink); white-space: nowrap; overflow-x: auto; scrollbar-width: none; }
 .cmd-b { flex: none; padding: 0 16px; min-height: 44px; background: var(--chip); color: var(--ink2); font-size: 13px; transition: background var(--t1) var(--productive), color var(--t1) var(--productive); }
 .cmd-b:hover, .cmd-b:focus-visible { color: var(--ink); }
+/* copying refused by the browser: the text is selected, this line says how to copy it by hand */
+.copy-h { margin: 4px 0 0; color: var(--amber); }
+/* a word of a command: a wrapped command breaks between words; a word longer than the line (a URL) still wraps */
+.cmd-w { display: inline-block; max-width: 100%; }
 .act { display: grid; gap: 16px; justify-items: start; margin-top: 32px; padding: 24px; background: var(--panel); }
 .act .body { margin: 0; max-width: 40em; }
 .tbl-w { overflow-x: auto; }
@@ -275,9 +279,10 @@ html.sheet-open { overflow: hidden; }
 .unfold.in .split-bar i { transform: none; }
 .d-full { margin-top: 16px; display: grid; gap: 12px; }
 @media (max-width: 760px) {
-  /* the command scrolls within its frame, the Copy button stays in the flow, below it */
+  /* the command wraps within its frame (a phone hides scrollbars: a scrolled command looked cut mid-host), the Copy
+     button stays in the flow, below it, and copies the whole line */
   .cmd { flex-direction: column; }
-  .cmd-t { white-space: pre; overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--ink3) transparent; padding-bottom: 8px; }
+  .cmd-t { white-space: pre-wrap; overflow-wrap: anywhere; overflow-x: visible; }
   .cmd-b { align-self: stretch; }
   .path::before { left: 0; top: 4px; }
   .path { padding-left: 16px; }
@@ -286,8 +291,24 @@ html.sheet-open { overflow: hidden; }
   .tbl, .tbl tbody, .tbl tr, .tbl td { display: block; width: 100%; }
   .tbl thead { display: none; }
   .tbl tr { padding: 12px 0; box-shadow: inset 0 1px 0 var(--rule); }
-  .tbl td { display: grid; grid-template-columns: minmax(0, 10em) minmax(0, 1fr); gap: 12px; padding: 4px 0; box-shadow: none; white-space: normal; overflow-wrap: anywhere; }
+  /* the label column in rem, not em: a mono cell (13 px) and a text cell (15 px) put their values on one edge */
+  .tbl td { display: grid; grid-template-columns: minmax(0, 9rem) minmax(0, 1fr); align-items: baseline; gap: 12px; padding: 4px 0; box-shadow: none; white-space: normal; overflow-wrap: anywhere; }
   .tbl td::before { content: attr(data-l); color: var(--ink2); font-family: var(--sans); font-size: 13px; }
+  /* a cell without a label (an action, a note, "reading") takes the whole width, not the value column */
+  .tbl td:not([data-l]) { grid-template-columns: minmax(0, 1fr); }
+  .tbl td:not([data-l])::before { display: none; }
+}
+/* landscape phones and tablets, on the work pages (Rent, Publish, My space): five or six columns did not fit (headers
+   over three lines, the last column under the copilot button or cut), so the tables are the phone's cards there too */
+@media (min-width: 761px) and (max-width: 1000px) {
+  .work .tbl-w { overflow: visible; }
+  .work .tbl, .work .tbl tbody, .work .tbl tr, .work .tbl td { display: block; width: 100%; }
+  .work .tbl thead { display: none; }
+  .work .tbl tr { padding: 12px 0; box-shadow: inset 0 1px 0 var(--rule); }
+  .work .tbl td { display: grid; grid-template-columns: minmax(0, 12rem) minmax(0, 1fr); align-items: baseline; gap: 16px; padding: 4px 0; box-shadow: none; white-space: normal; overflow-wrap: anywhere; }
+  .work .tbl td::before { content: attr(data-l); color: var(--ink2); font-family: var(--sans); font-size: 13px; }
+  .work .tbl td:not([data-l]) { grid-template-columns: minmax(0, 1fr); }
+  .work .tbl td:not([data-l])::before { display: none; }
 }
 
 /* service.html with no service: the catalog of services, each a sled face, its description, its enclaves and two ways
@@ -305,3 +326,47 @@ html.sheet-open { overflow: hidden; }
 .svx-acts { display: flex; align-items: center; gap: 20px; margin-top: 4px; }
 .svc-full-in:has(.svx) { max-width: 1120px; }
 .svx-acts .tlink { font-size: 14px; }
+
+/* ---------- touch and phones: the app pages ---------- */
+/* a section reached by a link or a button ("Open the catalog", #act) starts below the fixed header, not under it */
+#catalog, .work-sec { scroll-margin-top: calc(var(--hd, 86px) + 16px); }
+/* table headers of the work pages stay on one line where they are a table (a squeezed column wrapped "Reserved by
+   enclaves" over three lines): the table scrolls in its own box when it is wider than the page */
+@media (min-width: 761px) { .work .tbl th { white-space: nowrap; } }
+/* targets of at least 44 px on touch screens: the filter chips, a standalone link, a link alone in a table cell */
+@media (pointer: coarse) {
+  .chip, .sheet .svc-x { height: auto; min-height: 44px; }
+  .chip { min-width: 44px; justify-content: center; }
+  .path-x { display: inline-flex; align-items: center; min-height: 44px; }
+  /* a link in a table cell: a 44 px target that keeps a 24 px line, so a word after it ("banned, bond seized") wraps
+     close under it instead of 36 px lower */
+  .work .tbl td a.tlink, .work .tbl td button.tlink { display: inline-flex; align-items: center; min-height: 44px; margin-block: -10px; }
+  /* the small buttons outside the signing steps (a table's Hunt, "Read again now" in the catalog) */
+  .work .btn-s, .app.use .btn-s { height: 44px; }
+  /* a link inside a sentence (a proof's block, OperatorBond, the service sheet's latest payment and blocks): a 44 px
+     target that keeps its 24 px place in the line, its taller box spilling over the line's leading */
+  .path-pv a.tlink, main.use ~ .sheet .d-pay a.tlink, main.use ~ .sheet .ev a.tlink, main.use ~ .sheet .kv-row a.tlink { min-height: 44px; margin-block: -10px; }
+  /* the service sheet in the Use page's panel, as on the Services page (vitrine.css, under .vt-r): an address or a
+     transaction link, and the links of the action row ("From code", "Open the full page"), are 44 px targets */
+  .detail a.tlink.mono, .detail .kv-row a.tlink { min-height: 44px; padding-block: 10px; margin-block: -10px; }
+  .detail a.tlink.mono::after, .detail .kv-row a.tlink::after { bottom: 8px; }
+  .detail .d-acts > a.tlink { min-height: 44px; }
+}
+/* reading text of at least 15 px on phones, upright or held sideways (no taller than 500 px), and 16 px fields (iOS
+   does not zoom the page on focus, landscape too) */
+@media (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
+  .work-lede { font-size: 15px; line-height: 1.5; }
+}
+/* the work tables on a desktop or a tablet held sideways (1001 px and more): a long state ("expired, claim refuted on
+   Arc: nothing paid…") wraps in its cell, the other columns keep their line, so the table fits its box (1,194 px in
+   880 at 1024) */
+@media (min-width: 1001px) {
+  .work .tbl td.tbl-long { white-space: normal; min-width: 14em; }
+}
+/* a list that could not be read: the sentence, then "Read again" (beside it in a table, under it on cards) */
+.tbl td.b-unread { white-space: normal; }
+.tbl td.b-unread > .btn { margin-left: 16px; vertical-align: middle; }
+@media (max-width: 1000px) { .tbl td.b-unread > .btn { margin-left: 0; justify-self: start; } }
+@media (max-width: 760px), (pointer: coarse) {
+  .field input, .field select { font-size: 16px; }
+}
