@@ -3,17 +3,18 @@ pragma solidity ^0.8.28;
 
 import {IOperatorBond} from "./IOperatorBond.sol";
 
-/// @title IEnclaveRegistry — v2 : validité en blocs, historique borné des fenêtres
-/// @notice v2 (revue adverse du 7/11) : une clé d'enclave est liée À VIE à son premier couple (opérateur,
-///         produit) ; une image retirée (ProductRegistry.retireWorkload) invalide ses enclaves SANS grâce.
-///         v2.1 : empreinte d'IMAGE (dstack) — avec un journal RTMR3 au format DstackEventLog.FORMAT_V1, une enclave est
-///         admise sur l'empreinte de son image (sans les événements propres à l'instance), qui survit aux redémarrages.
+/// @title IEnclaveRegistry — v2: validity in blocks, bounded history of windows
+/// @notice v2 (after an adversarial review): an enclave key is bound FOR LIFE to its first (operator, product)
+///         pair; a retired image (ProductRegistry.retireWorkload) invalidates its enclaves WITHOUT grace.
+///         v2.1: IMAGE fingerprint (dstack). With an RTMR3 event log in the DstackEventLog.FORMAT_V1 format, an
+///         enclave is admitted on the fingerprint of its image (without the instance-specific events), which survives
+///         reboots.
 interface IEnclaveRegistry {
-    /// @dev v2 : les 12 premiers champs gardent l'ordre, le type et le sens de la v1 (un lecteur v1 les
-    ///      décode encore) ; `fromBlock` et `untilBlock` sont AJOUTÉS à la fin.
+    /// @dev v2: the first 12 fields keep the order, type and meaning of v1 (a v1 reader still decodes them);
+    ///      `fromBlock` and `untilBlock` are ADDED at the end.
     struct Enclave {
-        address signer; // clé secp256k1 de l'enclave
-        bytes32 x25519; // clé publique de chiffrement
+        address signer; // the enclave's secp256k1 key
+        bytes32 x25519; // public encryption key
         uint256 productId;
         address operator;
         bytes32 workloadId;
@@ -21,20 +22,20 @@ interface IEnclaveRegistry {
         uint8 tcbStatus;
         bytes32 quoteHash;
         uint64 anchorBlock;
-        uint64 registeredAt; // horodatage de la dernière (ré)inscription
-        uint64 expiresAt; // horodatage INDICATIF de fin de validité (la règle est en blocs : untilBlock)
-        bool active; // faux après un retrait ou une invalidation
-        uint64 fromBlock; // v2 : premier bloc de la fenêtre de validité en cours
-        uint64 untilBlock; // v2 : dernier bloc (inclus) de la fenêtre ; abaissé au retrait ou à l'invalidation
+        uint64 registeredAt; // timestamp of the last (re-)registration
+        uint64 expiresAt; // INDICATIVE end-of-validity timestamp (the rule is in blocks: untilBlock)
+        bool active; // false after a retirement or an invalidation
+        uint64 fromBlock; // v2: first block of the current validity window
+        uint64 untilBlock; // v2: last block (inclusive) of the window; lowered on retirement or invalidation
     }
 
-    /// @notice Une fenêtre de validité (v2). Un reçu ancré dans [fromBlock, untilBlock] se règle jusqu'au
-    ///         bloc untilBlock + GRACE_BLOCKS ; aucun bloc postérieur à untilBlock n'est jamais valide.
+    /// @notice A validity window (v2). A receipt anchored in [fromBlock, untilBlock] settles until block
+    ///         untilBlock + GRACE_BLOCKS; no block after untilBlock is ever valid.
     struct Window {
         uint256 productId;
         address operator;
         uint64 fromBlock;
-        uint64 untilBlock; // inclus
+        uint64 untilBlock; // inclusive
     }
 
     event EnclaveRegistered(
@@ -44,8 +45,8 @@ interface IEnclaveRegistry {
         bytes32 workloadId,
         uint64 expiresAt
     );
-    /// @notice v2.1 : l'image lue dans le journal RTMR3 rejoué (émis à chaque inscription avec un journal FORMAT_V1
-    ///         qui décrit l'image ; `imageId` est l'empreinte d'image, retenue si le produit l'autorise).
+    /// @notice v2.1: the image read from the replayed RTMR3 event log (emitted at each registration with a FORMAT_V1
+    ///         event log that describes the image; `imageId` is the image fingerprint, kept if the product allows it).
     event EnclaveImage(
         address indexed signer,
         uint256 indexed productId,
@@ -56,9 +57,9 @@ interface IEnclaveRegistry {
     event EnclaveInvalidated(address indexed signer, string reason);
     event EnclaveRetired(address indexed signer);
 
-    /// @param eventLog v2.1 : journal RTMR3 encodé abi.encode(DstackEventLog.FORMAT_V1, (uint8 version, bytes name,
-    ///                 bytes payload)[]) pour une admission sur l'empreinte d'IMAGE ; vide (ou d'un autre format, ignoré
-    ///                 comme en v2) pour l'empreinte complète.
+    /// @param eventLog v2.1: RTMR3 event log encoded as abi.encode(DstackEventLog.FORMAT_V1, (uint8 version,
+    ///                 bytes name, bytes payload)[]) for an admission on the IMAGE fingerprint; empty (or in another
+    ///                 format, ignored as in v2) for the full fingerprint.
     function registerEnclave(
         uint256 productId,
         bytes calldata quote,
@@ -70,20 +71,20 @@ interface IEnclaveRegistry {
 
     function invalidate(address signer, bytes calldata quote) external;
 
-    /// @notice v2 : invalide, sans quote et sans délai de grâce, une enclave dont l'image (workloadId) a été
-    ///         retirée du produit. Ouvert à tous. Ses reçus et réclamations ne se règlent plus, même ancrés avant.
+    /// @notice v2: invalidates, with no quote and no grace period, an enclave whose image (workloadId) was retired from
+    ///         the product. Open to anyone. Its receipts and claims no longer settle, even those anchored before.
     function invalidateRetiredWorkload(address signer) external;
 
     function retire(address signer) external;
 
-    /// @notice Vrai si un reçu de l'enclave `signer` pour `productId`, ancré au bloc `blockNumber`, est
-    ///         réglable MAINTENANT : `blockNumber` est dans une fenêtre de validité de l'enclave pour ce
-    ///         produit (après l'inscription, avant le retrait ou l'invalidation, avant l'expiration), et la
-    ///         grâce de cette fenêtre n'est pas écoulée.
+    /// @notice True if a receipt of enclave `signer` for `productId`, anchored at block `blockNumber`, is settleable
+    ///         NOW: `blockNumber` is inside a validity window of the enclave for this product (after the registration,
+    ///         before the retirement or the invalidation, before the expiry), and the grace period of that window is
+    ///         not over.
     function isActiveAt(address signer, uint256 productId, uint256 blockNumber) external view returns (bool);
 
-    /// @notice Comme isActiveAt, mais rend l'opérateur responsable de la fenêtre (address(0) si inactive).
-    ///         C'est ce que lisent les contrats de règlement : un seul appel, et l'opérateur de l'époque.
+    /// @notice Like isActiveAt, but returns the operator responsible for the window (address(0) if inactive).
+    ///         This is what the settlement contracts read: a single call, and the operator of that time.
     function activeOperatorAt(address signer, uint256 productId, uint256 blockNumber)
         external
         view
@@ -91,22 +92,22 @@ interface IEnclaveRegistry {
 
     function enclaveOf(address signer) external view returns (Enclave memory);
 
-    /// @notice La fenêtre en cours et la précédente (gardée pour sa grâce). Champs à zéro si absentes.
+    /// @notice The current window and the previous one (kept for its grace period). Zero fields if absent.
     function windowsOf(address signer) external view returns (Window memory current, Window memory previous);
 
-    /// @notice v2 : dernier bloc auquel un reçu de cette clé peut encore se régler (fin de fenêtre + grâce) ;
-    ///         0 si la clé est inconnue ou invalidée sans grâce. Au-delà, plus aucun reçu de cette enclave ne paie
-    ///         (SessionPay s'en sert pour laisser fermer plus tôt une session dont l'enclave a disparu).
+    /// @notice v2: last block at which a receipt of this key can still settle (end of the window + grace);
+    ///         0 if the key is unknown or invalidated without grace. Beyond it, no receipt of this enclave pays any
+    ///         more (SessionPay uses it to allow an earlier close of a session whose enclave is gone).
     function settleableUntilBlock(address signer) external view returns (uint256);
 
-    /// @notice v2.1 : la caution des opérateurs (déjà publique en v2). v2.1 bis : AttestedSigners passe désormais par
-    ///         attestedOperator, qui lit aussi la radiation de l'opérateur.
+    /// @notice v2.1: the operators' bond (already public in v2). v2.1b: AttestedSigners now goes through
+    ///         attestedOperator, which also reads whether the operator is banned.
     function bond() external view returns (IOperatorBond);
 
-    /// @notice v2.1 bis : l'opérateur de `signer` si cette clé FAIT FOI MAINTENANT pour `productId` (primitive onlyAttested,
-    ///         AttestedSigners) : enclave active au bloc courant (activeOperatorAt), opérateur non radié, produit ACTIF et
-    ///         image (Enclave.workloadId) ENCORE autorisée par le produit. Le retrait d'une image (retireWorkload) ou du
-    ///         produit (retire) agit donc tout de suite, sans attendre invalidateRetiredWorkload. Sinon address(0).
-    ///         (Les reçus et réclamations ANCRÉS, eux, restent régis par activeOperatorAt, comme en v2.)
+    /// @notice v2.1b: the operator of `signer` if this key is TRUSTED NOW for `productId` (the onlyAttested primitive,
+    ///         AttestedSigners): enclave active at the current block (activeOperatorAt), operator not banned, product
+    ///         ACTIVE and image (Enclave.workloadId) STILL allowed by the product. Retiring an image (retireWorkload)
+    ///         or the product (retire) therefore takes effect at once, without waiting for invalidateRetiredWorkload.
+    ///         Otherwise address(0). (ANCHORED receipts and claims are still governed by activeOperatorAt, as in v2.)
     function attestedOperator(address signer, uint256 productId) external view returns (address);
 }

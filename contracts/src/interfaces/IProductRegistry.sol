@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-/// @title IProductRegistry — la place de marché des produits
+/// @title IProductRegistry — the product marketplace
 interface IProductRegistry {
     enum State {
         None,
@@ -10,27 +10,27 @@ interface IProductRegistry {
         Retired
     }
 
-    /// @dev Les 14 premiers champs gardent l'ordre, le type et le sens de la v1 (un lecteur v1 les décode encore) ;
-    ///      v2 AJOUTE `unitTokens` et `outWeight` à la fin.
+    /// @dev The first 14 fields keep the order, type and meaning of v1 (a v1 reader still decodes them);
+    ///      v2 ADDS `unitTokens` and `outWeight` at the end.
     struct Product {
         address author;
         bytes32 manifestHash;
-        bool deterministic; // oui pour la Prime scellée, non pour l'inférence
-        uint256 price; // USDC (6 décimales) par unité
+        bool deterministic; // yes for the Sealed Bounty, no for inference
+        uint256 price; // USDC (6 decimals) per unit
         uint16 bpsOperator;
         uint16 bpsAuthor;
-        uint16 bpsNetwork; // somme = 10 000
+        uint16 bpsNetwork; // sum = 10,000
         uint256 minBond;
-        uint256 exposureCap; // v2 : plafond d'exposition par opérateur sur 24 h glissantes (en plus de ½ caution) ; 0 = aucun
-        address settlement; // contrat de règlement autorisé (C5/C6)
-        bytes32 param; // ex. hash du modèle (modelHash) pour l'inférence
+        uint256 exposureCap; // v2: exposure cap per operator over a rolling 24 h (on top of half the bond); 0 = none
+        address settlement; // authorized settlement contract
+        bytes32 param; // e.g. the model hash (modelHash) for inference
         uint64 version;
         uint64 activatesAt;
         State state;
-        /// @notice v2 : l'UNITÉ facturée vit dans le produit (plus seulement dans l'image) : jetons-équivalent-
-        ///         entrée par unité. Fixée à la proposition, jamais modifiée ; verrouillée dans chaque session.
+        /// @notice v2: the billed UNIT lives in the product (no longer only in the image): input-equivalent tokens
+        ///         per unit. Set in the proposal, never changed; locked in each session.
         uint32 unitTokens;
-        /// @notice v2 : poids d'un jeton de sortie, en jetons d'entrée. Fixé à la proposition, jamais modifié.
+        /// @notice v2: weight of an output token, in input tokens. Set in the proposal, never changed.
         uint32 outWeight;
     }
 
@@ -38,7 +38,7 @@ interface IProductRegistry {
     event ProductActivated(uint256 indexed productId);
     event WorkloadAdded(uint256 indexed productId, bytes32 workloadId);
     event WorkloadRetired(uint256 indexed productId, bytes32 workloadId);
-    /// @notice v2 : une image est proposée ; elle ne sera autorisée qu'après le timelock (`applyAt`).
+    /// @notice v2: an image is proposed; it will be allowed only after the timelock (`applyAt`).
     event WorkloadProposed(uint256 indexed productId, bytes32 workloadId, uint64 applyAt);
 
     function isWorkloadAllowed(uint256 productId, bytes32 workloadId) external view returns (bool);

@@ -1,36 +1,36 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-/// @title IAttestationModule — module d'attestation interchangeable
-/// @notice Aujourd'hui TDX/DCAP (Automata). Demain Nitro ou SEV-SNP, sans toucher aux produits.
-///         Le module vérifie un quote auprès du code tiers (C1) puis découpe le corps et
-///         rend des mesures normalisées. TOUTE la politique de refus vit dans l'EnclaveRegistry (C2),
-///         pas ici : le module ne fait que vérifier + mesurer.
+/// @title IAttestationModule — a replaceable attestation module
+/// @notice Today TDX/DCAP (Automata). Tomorrow Nitro or SEV-SNP, without touching the products.
+///         The module verifies a quote with the third-party verifier, then parses the body and returns normalized
+///         measurements. ALL of the refusal policy lives in the EnclaveRegistry, not here: the module only verifies
+///         and measures.
 interface IAttestationModule {
-    /// @dev Mesures normalisées rendues par le module.
-    ///      Les champs 48 octets (mrtd, rtmr*, mrConfigId) sont en `bytes` pour le concat du workloadId.
+    /// @dev Normalized measurements returned by the module.
+    ///      The 48-byte fields (mrtd, rtmr*, mrConfigId) are `bytes`, for the workloadId concatenation.
     struct Measurements {
-        bool ok; // succès de la vérification tierce (C1)
-        uint16 version; // 4 ou 5
-        uint16 bodyType; // TD10 (=2) ou TD15 (=3)
-        uint8 tcbStatus; // 0 = OK ... 6 = REVOKED, 7 = UNRECOGNIZED (enum Automata)
+        bool ok; // success of the third-party verification
+        uint16 version; // 4 or 5
+        uint16 bodyType; // TD10 (=2) or TD15 (=3)
+        uint8 tcbStatus; // 0 = OK ... 6 = REVOKED, 7 = UNRECOGNIZED (Automata's enum)
         bytes6 fmspc;
-        bytes reportData; // 64 octets
-        bytes mrtd; // 48 octets
-        bytes rtmr0; // 48 octets
-        bytes rtmr1; // 48 octets
-        bytes rtmr2; // 48 octets
-        bytes rtmr3; // 48 octets
-        bytes mrConfigId; // 48 octets
+        bytes reportData; // 64 bytes
+        bytes mrtd; // 48 bytes
+        bytes rtmr0; // 48 bytes
+        bytes rtmr1; // 48 bytes
+        bytes rtmr2; // 48 bytes
+        bytes rtmr3; // 48 bytes
+        bytes mrConfigId; // 48 bytes
         bytes8 xfam;
         bytes8 tdAttributes;
-        string[] advisories; // identifiants d'avis Intel (pour la liste blanche P2)
+        string[] advisories; // Intel advisory IDs (for the product's allowlist)
     }
 
-    /// @param quote    le quote DCAP brut (sortie de GetQuote de l'enclave)
-    /// @param eventLog le journal d'événements RTMR (vide si RTMR3 épinglé, cf. S1)
-    /// @dev Non-`view` : le vérificateur tiers (Automata) est `payable` et lit l'état du PCCS,
-    ///      donc appelé par CALL. Les chemins appelants (registerEnclave, invalidate) changent déjà l'état.
+    /// @param quote    the raw DCAP quote (output of the enclave's GetQuote)
+    /// @param eventLog the RTMR event log (empty if RTMR3 is pinned)
+    /// @dev Not `view`: the third-party verifier (Automata) is `payable` and reads the PCCS state, so it is called with
+    ///      CALL. The calling paths (registerEnclave, invalidate) already change state.
     function verify(bytes calldata quote, bytes calldata eventLog)
         external
         returns (Measurements memory m);

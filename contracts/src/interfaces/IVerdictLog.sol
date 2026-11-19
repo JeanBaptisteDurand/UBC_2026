@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-/// @title IVerdictLog — écrit chaque verdict vérifié dans le registre ERC-8004
+/// @title IVerdictLog — writes each verified verdict to the ERC-8004 registry
 interface IVerdictLog {
-    /// @param response 100 = vérifié et payé ; 0 = faute saisie
+    /// @param response 100 = verified and paid; 0 = slashed fault
     /// @param tag      "tdx-dcap/inference" | "tdx-dcap/sealed-bounty" | "tdx-dcap/slash"
     function record(
         uint256 agentId,
