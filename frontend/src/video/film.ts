@@ -1135,7 +1135,8 @@ function gateTick(now: number, rest: boolean) {
     updateGate(got, tot, eta, now - gateT0 > 3000 || eta > 20)
   }
   const k = Math.round(film.pos)
-  const sharpOk = ringOk && ((sharpOn && sharpK === k) || now - M.tRing > 3000)
+  // the first rest sharp, if it comes soon (motion.bin's odd frames are still streaming and share the link)
+  const sharpOk = ringOk && ((sharpOn && sharpK === k) || now - M.tRing > 800)
   const copOk = copDone || (M.tPack > 0 && now - M.tPack > 2000)
   if (ringOk && sharpOk && copOk) openGate()
 }
