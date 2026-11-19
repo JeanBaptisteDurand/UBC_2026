@@ -9,13 +9,13 @@ import { useEnc, useLeg, checkEnclave } from './enclave'
 import { EXPLORER } from '../data/endpoints'
 import { useEffect, useRef, useState, type KeyboardEvent as RKeyboardEvent } from 'react'
 import { useLang } from '../i18n'
-import { ct, suggestions } from './strings'
+import { ct, suggestions, pageName } from './strings'
 import { Markdown, Code, short } from './markdown'
 import { ActionCard, InfoCard, isInfo } from './cards'
 import { useCopilot, getState, setState, setCard, newId, logStep, saveQueue, setOwner, type Msg } from './state'
 import { ask, stripCitations, MCP_URL, type UiStep, type ChatTurn } from './api'
 import { drive, type DriveHooks } from './driver'
-import { pageOf } from './page'
+import { pageOf, netDemoOpen, type PageName } from './page'
 import { useCatalog } from '../app/useCatalog'
 import { serviceHref } from '../links'
 import { useWallet, getWallet, connect, toArc, forget, clearError, addrUrl, ARC } from './wallet'
@@ -192,6 +192,20 @@ function Mcp() {
   )
 }
 
+/** The questions offered before the first one: the demo's while the Network page's 3D demo is open (re-read while
+ *  shown, so they follow the demo opening or closing), the catalog's on Services without a sheet, and questions that
+ *  name the page (Doc chapter, service) since the enclave is not told which page is open */
+function Suggest({ page, locked }: { page: PageName | null; locked: boolean }) {
+  useLang()
+  const [, tick] = useState(0)
+  useEffect(() => { const h = setInterval(() => tick((x) => x + 1), 800); return () => clearInterval(h) }, [])
+  const q = new URLSearchParams(location.search)
+  const demo = page === 'demo' || (page === 'network' && (netDemoOpen() || (!document.querySelector('.s3d .dm') && q.get('focus') === 'demo')))
+  const catalog = page === 'service' && !q.get('p')
+  const list = suggestions(demo ? 'demo' : catalog ? 'catalog' : page, demo || catalog ? undefined : pageName(page))
+  return <ul className="cp-sug">{list.map((x) => <li key={x}><button type="button" onClick={() => void send(x)} disabled={locked}>{x}</button></li>)}</ul>
+}
+
 function Message({ m }: { m: Msg }) {
   useLang()
   if (m.role === 'user') return <li className="cp-m is-user"><span className="sr-only">{ct('you')}: </span><p>{m.content}</p></li>
@@ -339,7 +353,7 @@ export function Copilot() {
                   <div className="cp-intro">
                     <p>{ct('intro')}</p>
                     <p className="cp-card-h lbl">{ct('suggest')}</p>
-                    <ul className="cp-sug">{suggestions(page).map((q) => <li key={q}><button type="button" onClick={() => void send(q)} disabled={locked}>{q}</button></li>)}</ul>
+                    <Suggest page={page} locked={locked} />
                     <button type="button" className="cp-a cp-intro-mcp" onClick={() => setState({ view: 'mcp' })}>{ct('intro.mcp')}</button>
                   </div>
                 ) : null}

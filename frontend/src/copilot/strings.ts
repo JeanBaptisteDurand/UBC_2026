@@ -325,6 +325,11 @@ const SUGGEST: Record<string, { en: string[]; fr: string[] }> = {
     en: ['Play the demo', 'Explain this step', 'Pause the demo'],
     fr: ['Lancez la démo', 'Expliquez-moi cette étape', 'Mettez la démo en pause'],
   },
+  // Services without a sheet open (the catalog): AskHive picks the services itself
+  catalog: {
+    en: ['Which services run right now?', 'What does each service do?', 'How do I pay for a service?'],
+    fr: ['Quels services tournent en ce moment ?', 'Que fait chacun des services ?', 'Comment payer un service ?'],
+  },
 }
 const EVERY = {
   en: ['How do I rent out my machine?', 'How do I set up ArcHive with my Claude Code (inference and enclaves)?', 'How do I set up the ArcHive MCP?'],
@@ -337,8 +342,33 @@ export function ct(k: Key, vars?: Record<string, string | number>): string {
   if (vars) for (const [a, b] of Object.entries(vars)) s = s.split(`{${a}}`).join(String(b))
   return s
 }
-export function suggestions(page: string | null): string[] {
-  const s = SUGGEST[page ?? 'home'] ?? SUGGEST.home
+/** The page's own name, read from its title ("ArcHive. Doc. Tokenomics", "ArcHive. Attested Copilot"): the Doc
+ *  chapter open, or the service whose sheet is open. The questions name it, since the enclave is not told the page. */
+export function pageName(page: string | null, title = document.title): string | undefined {
+  const parts = title.split('. ').map((x) => x.trim()).filter(Boolean)
+  const n = page === 'doc' ? parts.slice(2).join('. ') : parts.slice(1).join('. ')
+  return n && n.length <= 60 ? n : undefined
+}
+/** The questions offered on a page. page: pageOf(), or 'demo' while the Network page's 3D demo is open, or 'catalog'
+ *  on Services without a sheet open; name: pageName() */
+export function suggestions(page: string | null, name?: string): string[] {
   const l = getLang() === 'fr' ? 'fr' : 'en'
-  return [...s[l], ...EVERY[l]]
+  const fr = l === 'fr'
+  const own: Record<string, string[]> = {
+    home: fr ? ['Expliquez la page d’accueil d’ArcHive'] : ['Explain the ArcHive home page'],
+    network: fr ? ['Expliquez la page Réseau'] : ['Explain the Network page'],
+    bridge: fr ? ['Expliquez la page Bridge'] : ['Explain the Bridge page'],
+    doc: name ? (fr ? [`Expliquez ce chapitre : ${name}`] : [`Explain this chapter: ${name}`]) : (fr ? ['Expliquez la page Doc'] : ['Explain the Doc page']),
+  }
+  if (page === 'service' && name) {
+    const s = fr
+      ? [`Expliquez ce service : ${name}`, `Comment utiliser ${name} ?`, `Quel opérateur fait tourner ${name}, et qu’a vérifié Arc ?`]
+      : [`Explain this service: ${name}`, `How do I use ${name}?`, `Which operator runs ${name}, and what did Arc check?`]
+    return [...s, ...EVERY[l]]
+  }
+  const base = (SUGGEST[page ?? 'home'] ?? SUGGEST.home)[l]
+  const first = own[page ?? 'home'] ?? (name && !SUGGEST[page ?? 'home'] ? [fr ? `Expliquez cette page : ${name}` : `Explain this page: ${name}`] : [])
+  // the home set's "What am I looking at?" does not say where the visitor is: the page's own question replaces it
+  const rest = base.filter((q) => q !== SUGGEST.home![l][0])
+  return [...new Set([...first, ...rest])].slice(0, 3).concat(EVERY[l])
 }
