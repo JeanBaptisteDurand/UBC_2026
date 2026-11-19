@@ -1,14 +1,15 @@
 /**
- * register-dcap.ts — inscrit une VRAIE enclave Intel TDX dans le registre v2, vérifiée par DCAP sur la chaîne :
- *  1) quote frais demandé à l'enclave (/attest), lié à la chaîne, au registre, au produit, à l'opérateur et à un bloc récent ;
- *  2) mesures obtenues en simulant le module DCAP (exactement ce que le contrat calculera), d'où le workloadId ;
- *  3) l'auteur du produit autorise ce workloadId (proposeWorkload puis applyWorkload ; délai = timelock, 0 sur testnet) ;
- *  4) registerEnclave : le registre appelle TdxAttestationModule → Automata DCAP, qui vérifie la signature d'Intel.
- * Rôles séparés : l'AUTEUR du produit (clé du déployeur) autorise l'image ; l'OPÉRATEUR (.secrets/operator.json) inscrit.
- * v2.1 (si le registre expose replayEventLog) : le journal RTMR3 de dstack est encodé (FORMAT_V1) et rejoué hors chaîne
- * PUIS par le registre lui-même ; l'image autorisée est l'EMPREINTE D'IMAGE (compose-hash + os-image-hash, sans
- * instance-id) : un redémarrage de la VM ne demande plus de nouvelle autorisation. Sur la v2, chemin d'origine.
- * Usage : ENCLAVE_URL=https://…-8802.dstack-pha1-prod9.phala.network PRODUCT_ID=1 npx tsx scripts/register-dcap.ts
+ * register-dcap.ts — registers a real Intel TDX enclave in the registry, verified by DCAP on-chain:
+ *  1) a fresh quote is requested from the enclave (/attest), bound to the chain, the registry, the product, the operator
+ *     and a recent block;
+ *  2) the measurements come from simulating the DCAP module (exactly what the contract will compute), hence the workloadId;
+ *  3) the product's author allows this workloadId (proposeWorkload, then applyWorkload; delay = timelock, 0 on testnet);
+ *  4) registerEnclave: the registry calls TdxAttestationModule → Automata DCAP, which verifies Intel's signature.
+ * Separate roles: the product's author (the deployer key) allows the image; the operator (.secrets/operator.json) registers.
+ * v2.1 (when the registry exposes replayEventLog): dstack's RTMR3 event log is encoded (FORMAT_V1) and replayed off-chain,
+ * then by the registry itself; the allowed image is the image fingerprint (compose-hash + os-image-hash, without the
+ * instance id), so a VM restart needs no new authorization. On the v2 registry, the original path is used.
+ * Usage: ENCLAVE_URL=https://…-8802.dstack-pha1-prod9.phala.network PRODUCT_ID=1 npx tsx scripts/register-dcap.ts
  */
 import { readFileSync } from "node:fs";
 import { createPublicClient, createWalletClient, encodePacked, http, keccak256, type Abi, type Address, type Hex } from "viem";
@@ -22,12 +23,12 @@ const K = D.contracts as Record<string, Address>;
 const abi = (name: string, dir = name): Abi => JSON.parse(readFileSync(new URL(`contracts/out/${dir}.sol/${name}.json`, ROOT), "utf8")).abi;
 const ENCLAVE = (process.env.ENCLAVE_URL ?? "").replace(/\/$/, "");
 const PRODUCT_ID = BigInt(process.env.PRODUCT_ID ?? "0");
-if (!ENCLAVE || !PRODUCT_ID) { console.error("ENCLAVE_URL et PRODUCT_ID requis"); process.exit(1); }
+if (!ENCLAVE || !PRODUCT_ID) { console.error("ENCLAVE_URL and PRODUCT_ID are required"); process.exit(1); }
 
 const chain = { id: 5042002, name: "Arc testnet", nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 }, rpcUrls: { default: { http: ["https://rpc.testnet.arc.io"] } } } as const;
 const key = (f: string) => privateKeyToAccount(JSON.parse(readFileSync(new URL(`.secrets/${f}`, ROOT), "utf8")).privateKey as Hex);
-const account = key(process.env.OPERATOR_KEY_FILE ?? "operator.json"); // l'opérateur : il inscrit l'enclave
-const author = key(process.env.AUTHOR_KEY_FILE ?? "deployer.json"); // l'auteur du produit : il autorise l'image
+const account = key(process.env.OPERATOR_KEY_FILE ?? "operator.json"); // the operator: registers the enclave
+const author = key(process.env.AUTHOR_KEY_FILE ?? "deployer.json"); // the product's author: allows the image
 const pub = createPublicClient({ chain, transport: http(undefined, { retryCount: 6, retryDelay: 800 }) });
 const wallet = createWalletClient({ account, chain, transport: http() });
 const authorWallet = createWalletClient({ account: author, chain, transport: http() });
@@ -37,8 +38,8 @@ async function send(address: Address, a: Abi, functionName: string, args: unknow
   const hash = await w.writeContract(request as any);
   const r = await pub.waitForTransactionReceipt({ hash });
   const price = r.effectiveGasPrice ?? 0n;
-  console.log(`${label} : ${hash} (statut ${r.status}, gas ${r.gasUsed}, ${(Number(r.gasUsed * price) / 1e18).toFixed(4)} USDC)`);
-  if (r.status !== "success") throw new Error(`${label} a échoué`);
+  console.log(`${label}: ${hash} (status ${r.status}, gas ${r.gasUsed}, ${(Number(r.gasUsed * price) / 1e18).toFixed(4)} USDC)`);
+  if (r.status !== "success") throw new Error(`${label} failed`);
   return r;
 }
 
@@ -47,55 +48,55 @@ async function main() {
   const anchorR = (await pub.getBlockNumber()) - 10n;
   const res = await fetch(`${ENCLAVE}/attest`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ operator: account.address, anchorR: anchorR.toString() }) });
   const a = await res.json() as { quote: Hex; signer: Address; x25519: Hex; eventLog?: Hex; mock?: boolean; error?: string };
-  if (!res.ok || a.error) throw new Error(`/attest : ${res.status} ${a.error ?? ""}`);
-  if (a.mock) throw new Error("quote simulé : cette machine n'a pas Intel TDX, inscription refusée");
+  if (!res.ok || a.error) throw new Error(`/attest: ${res.status} ${a.error ?? ""}`);
+  if (a.mock) throw new Error("simulated quote: this machine has no Intel TDX, registration refused");
   let eventLog = (a.eventLog ?? "0x") as Hex;
-  console.log(`quote TDX reçu : ${(a.quote.length - 2) / 2} octets, signataire ${a.signer}, ancré au bloc ${anchorR}`);
-  // v2.1 ? (le registre sait rejouer le journal RTMR3)
+  console.log(`TDX quote received: ${(a.quote.length - 2) / 2} bytes, signer ${a.signer}, anchored to block ${anchorR}`);
+  // v2.1? (the registry can replay the RTMR3 event log)
   const img = dstackImageFromAttest(a.quote, a.eventLog);
   let v21 = false;
   if (img.eventLog) {
     try {
       const [rtmr3, known, compose, os] = await pub.readContract({ address: K.EnclaveRegistry!, abi: reg, functionName: "replayEventLog", args: [img.eventLog] }) as [Hex, boolean, Hex, Hex];
       v21 = true;
-      if (!img.rtmr3Matches) throw new Error("le journal RTMR3 ne redonne pas le RTMR3 du quote (rejeu local)");
-      if (rtmr3.toLowerCase() !== parseTdxQuote(a.quote).rtmr3.toLowerCase()) throw new Error("le rejeu du registre ne redonne pas le RTMR3 du quote");
+      if (!img.rtmr3Matches) throw new Error("the RTMR3 event log does not reproduce the quote's RTMR3 (local replay)");
+      if (rtmr3.toLowerCase() !== parseTdxQuote(a.quote).rtmr3.toLowerCase()) throw new Error("the registry's replay does not reproduce the quote's RTMR3");
       if (!known || compose.toLowerCase() !== img.composeHash?.toLowerCase() || os.toLowerCase() !== img.osImageHash?.toLowerCase())
-        throw new Error(`rejeu du registre différent du rejeu local (image connue ${known}, compose ${compose}, os ${os})`);
+        throw new Error(`the registry's replay differs from the local replay (known image ${known}, compose ${compose}, os ${os})`);
       eventLog = img.eventLog;
-      console.log(`v2.1 : journal RTMR3 rejoué (hors chaîne et par le registre) : compose-hash ${compose}, os-image-hash ${os}`);
+      console.log(`v2.1: RTMR3 event log replayed (off-chain and by the registry): compose-hash ${compose}, os-image-hash ${os}`);
     } catch (e) {
       if (v21) throw e;
-      console.log("registre v2 (pas de replayEventLog) : empreinte complète, journal brut");
+      console.log("v2 registry (no replayEventLog): full fingerprint, raw event log");
     }
   }
 
-  // ce que le contrat va calculer : la vérification DCAP simulée renvoie les mesures
+  // what the contract will compute: the simulated DCAP verification returns the measurements
   const { result: m } = await pub.simulateContract({ account, address: K.TdxAttestationModule!, abi: mod, functionName: "verify", args: [a.quote, eventLog] } as any) as { result: any };
-  if (!m.ok) throw new Error("vérification DCAP simulée : échec");
+  if (!m.ok) throw new Error("simulated DCAP verification: failed");
   const workloadId = keccak256(encodePacked(
     ["bytes", "bytes", "bytes", "bytes", "bytes", "bytes", "bytes8", "bytes8"],
     [m.mrtd, m.rtmr0, m.rtmr1, m.rtmr2, m.rtmr3, m.mrConfigId, m.xfam, m.tdAttributes],
   ));
-  console.log(`DCAP (simulé) : version ${m.version}, TCB ${m.tcbStatus}, FMSPC ${m.fmspc}, attributs ${m.tdAttributes}, workloadId ${workloadId}`);
-  if (workloadId.toLowerCase() !== img.workloadId.toLowerCase()) throw new Error("empreinte complète : SDK et module DCAP en désaccord");
+  console.log(`DCAP (simulated): version ${m.version}, TCB ${m.tcbStatus}, FMSPC ${m.fmspc}, attributes ${m.tdAttributes}, workloadId ${workloadId}`);
+  if (workloadId.toLowerCase() !== img.workloadId.toLowerCase()) throw new Error("full fingerprint: the SDK and the DCAP module disagree");
 
   let allowId = workloadId;
   if (v21) {
     const onchain = await pub.readContract({ address: K.EnclaveRegistry!, abi: reg, functionName: "imageIdOf", args: [m.mrtd, m.rtmr0, m.rtmr1, m.rtmr2, img.composeHash, img.osImageHash, m.xfam, m.tdAttributes] }) as Hex;
-    if (onchain.toLowerCase() !== img.imageId?.toLowerCase()) throw new Error(`empreinte d'image : registre ${onchain}, SDK ${img.imageId}`);
+    if (onchain.toLowerCase() !== img.imageId?.toLowerCase()) throw new Error(`image fingerprint: registry ${onchain}, SDK ${img.imageId}`);
     allowId = onchain;
-    console.log(`empreinte d'IMAGE (stable d'un redémarrage à l'autre) : ${allowId}`);
+    console.log(`image fingerprint (stable across restarts): ${allowId}`);
   }
   if (!(await pub.readContract({ address: K.ProductRegistry!, abi: pr, functionName: "isWorkloadAllowed", args: [PRODUCT_ID, allowId] }))) {
-    await send(K.ProductRegistry!, pr, "proposeWorkload", [PRODUCT_ID, allowId], `image proposée (produit ${PRODUCT_ID}, par l'auteur)`, authorWallet);
-    await send(K.ProductRegistry!, pr, "applyWorkload", [PRODUCT_ID, allowId], "image autorisée (par l'auteur)", authorWallet);
+    await send(K.ProductRegistry!, pr, "proposeWorkload", [PRODUCT_ID, allowId], `image proposed (product ${PRODUCT_ID}, by the author)`, authorWallet);
+    await send(K.ProductRegistry!, pr, "applyWorkload", [PRODUCT_ID, allowId], "image allowed (by the author)", authorWallet);
   }
-  const r = await send(K.EnclaveRegistry!, reg, "registerEnclave", [PRODUCT_ID, a.quote, anchorR, a.signer, a.x25519, eventLog], "registerEnclave (vérification DCAP on-chain)");
+  const r = await send(K.EnclaveRegistry!, reg, "registerEnclave", [PRODUCT_ID, a.quote, anchorR, a.signer, a.x25519, eventLog], "registerEnclave (on-chain DCAP verification)");
   const e = await pub.readContract({ address: K.EnclaveRegistry!, abi: reg, functionName: "enclaveOf", args: [a.signer] }) as any;
   const head = await pub.getBlockNumber();
   const op = await pub.readContract({ address: K.EnclaveRegistry!, abi: reg, functionName: "activeOperatorAt", args: [a.signer, PRODUCT_ID, head] });
-  console.log(`inscrite : produit ${e.productId}, opérateur ${e.operator}, TCB ${e.tcbStatus}, FMSPC ${e.fmspc}, workload ${e.workloadId}, blocs ${e.fromBlock}→${e.untilBlock} ; opérateur actif au bloc ${head} : ${op}`);
-  console.log(`tx d'inscription : ${r.transactionHash}`);
+  console.log(`registered: product ${e.productId}, operator ${e.operator}, TCB ${e.tcbStatus}, FMSPC ${e.fmspc}, workload ${e.workloadId}, blocks ${e.fromBlock}→${e.untilBlock}; active operator at block ${head}: ${op}`);
+  console.log(`registration tx: ${r.transactionHash}`);
 }
-main().catch((e) => { console.error("ÉCHEC :", e?.shortMessage ?? e?.message ?? e); process.exit(1); });
+main().catch((e) => { console.error("FAILED:", e?.shortMessage ?? e?.message ?? e); process.exit(1); });
