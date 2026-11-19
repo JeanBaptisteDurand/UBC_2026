@@ -3,7 +3,7 @@
  *  - « Paiement à l'appel (x402) » : chaque message payé par une signature du prix lu sur Arc (X402Chat.tsx, X402Settler).
  *  Les deux restent montés : changer de mode ne fait perdre ni la session ouverte (sa clé n'est qu'en mémoire) ni la
  *  conversation payée à l'appel. Le choix est gardé dans ce navigateur (commodité, stockage protégé). */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PageHeader, Btn, usdc } from "../ui";
 import { t, useLang } from "../i18n";
 import { safeStorage } from "../safeStorage";
@@ -13,10 +13,17 @@ import X402Chat from "./X402Chat";
 type Mode = "session" | "x402";
 const MODE_KEY = "archive.payMode";
 const storedMode = (): Mode => (safeStorage.getItem(MODE_KEY) === "x402" ? "x402" : "session");
+/** 19/11 : « #/playground?mode=x402 » (le lien du produit 3 dans la Ruche) ouvre la page sur le paiement à l'appel. */
+const hashMode = (): Mode | null => {
+  const m = new URLSearchParams(window.location.hash.split("?")[1] ?? "").get("mode");
+  return m === "x402" || m === "session" ? m : null;
+};
 
 export default function Playground({ go }: { go: (r: string) => void }) {
   useLang();
-  const [mode, setMode] = useState<Mode>(storedMode);
+  const [mode, setMode] = useState<Mode>(() => hashMode() ?? storedMode());
+  // le mode demandé par le lien devient le choix gardé, comme un clic sur l'option
+  useEffect(() => { const m = hashMode(); if (m) safeStorage.setItem(MODE_KEY, m); }, []);
   // le prix d'un appel x402, lu sur Arc par X402Chat (null tant qu'il n'est pas lu, ou si le produit n'est pas payable)
   const [price, setPrice] = useState<bigint | null>(null);
   function choose(m: Mode) {
@@ -46,7 +53,7 @@ export default function Playground({ go }: { go: (r: string) => void }) {
                 </span>
                 {label}
               </span>
-              <span className="mt-1 block pl-6 text-[12px] text-muted">{hint}</span>
+              <span className="expl mt-1 block pl-6 text-[12px] text-muted">{hint}</span>
             </button>
           );
         })}

@@ -73,9 +73,23 @@ export function resolveRoute(x?: string | null): RouteId {
 export function useHashRoute(): [RouteId, (r: string) => void] {
   const [route, setRoute] = useState<RouteId>(() => resolveRoute(window.location.hash));
   useEffect(() => {
-    const on = () => setRoute(resolveRoute(window.location.hash));
+    // 19/11 : un lien « #/… » posé dans une page (panneau de la Ruche, phrase d'aide) change de page sans passer par go() :
+    // la page ouverte par un CLIC commence en haut, comme par le menu (elle s'ouvrait à la hauteur de défilement de
+    // l'ancienne, souvent tout en bas). Le bouton retour du navigateur, lui, garde la hauteur qu'il restaure.
+    let clickedAt = -Infinity;
+    const onClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = (e.target as Element | null)?.closest?.("a[href^='#/']");
+      if (a && !a.hasAttribute("target")) clickedAt = performance.now();
+    };
+    const on = () => {
+      if (performance.now() - clickedAt < 1500) window.scrollTo({ top: 0 });
+      clickedAt = -Infinity;
+      setRoute(resolveRoute(window.location.hash));
+    };
+    document.addEventListener("click", onClick);
     window.addEventListener("hashchange", on);
-    return () => window.removeEventListener("hashchange", on);
+    return () => { document.removeEventListener("click", onClick); window.removeEventListener("hashchange", on); };
   }, []);
   const go = (r: string) => {
     const id = resolveRoute(r);

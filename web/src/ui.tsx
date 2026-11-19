@@ -16,9 +16,9 @@ export function addrLink(a: string) { return `${EXPLORER}/address/${a}`; }
 export function PageHeader({ title, lead, actions }: { title: string; lead?: ReactNode; actions?: ReactNode }) {
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-edge pb-5">
-      <div className="max-w-2xl">
+      <div className="min-w-0 max-w-2xl">
         <h1 className="text-[22px] font-semibold leading-tight tracking-tight">{title}</h1>
-        {lead && <p className="mt-1.5 text-[14px] leading-relaxed text-muted">{lead}</p>}
+        {lead && <p className="mt-1.5 text-[14px] leading-relaxed text-muted [overflow-wrap:anywhere]">{lead}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
@@ -32,9 +32,10 @@ export function Section({ title, lead, children, right }: { title?: string; lead
     <section className="mb-8 min-w-0">
       {(title || right) && (
         <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-          <div>
+          {/* une adresse longue dans la phrase (dépôt, URL) passe à la ligne au lieu d'élargir la page (320 px) */}
+          <div className="min-w-0">
             {title && <h2 className="text-[15px] font-semibold">{title}</h2>}
-            {lead && <p className="mt-0.5 text-[13px] text-muted">{lead}</p>}
+            {lead && <p className="mt-0.5 text-[13px] text-muted [overflow-wrap:anywhere]">{lead}</p>}
           </div>
           {right}
         </div>
@@ -67,7 +68,8 @@ export function Card({ title, sub, children, right }: { title?: string; sub?: st
 export function Btn({ children, onClick, disabled, kind = "primary", type = "button" }: {
   children: ReactNode; onClick?: () => void; disabled?: boolean; kind?: "primary" | "ghost" | "danger"; type?: "button" | "submit";
 }) {
-  const base = "inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium transition disabled:cursor-not-allowed disabled:opacity-40";
+  // tap : 44 px de haut sur un écran tactile (index.css), la taille d'origine à la souris
+  const base = "tap inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium transition disabled:cursor-not-allowed disabled:opacity-40";
   const style = kind === "primary" ? "bg-accent text-ink hover:brightness-110"
     : kind === "danger" ? "border border-bad/40 text-bad hover:bg-bad/10"
     : "border border-edge text-text hover:border-muted/60";
@@ -78,11 +80,12 @@ export function Field({ label, value, onChange, placeholder, hint }: { label: st
   return (
     <label className="block">
       <span className="text-[13px] text-muted">{label}</span>
+      {/* 16 px sur téléphone : Safari d'iOS ne zoome pas sur le champ quand il prend le focus */}
       <input
-        className="mt-1 w-full rounded-lg border border-edge bg-ink px-3 py-2 font-mono text-[13px] outline-none transition focus:border-accent"
+        className="tap mt-1 w-full rounded-lg border border-edge bg-ink px-3 py-2 font-mono text-base outline-none transition focus:border-accent sm:text-[13px]"
         value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)}
       />
-      {hint && <span className="mt-1 block text-[12px] text-muted">{hint}</span>}
+      {hint && <span className="expl mt-1 block text-[12px] text-muted">{hint}</span>}
     </label>
   );
 }
@@ -100,25 +103,30 @@ export function Stat({ label, value, tone }: { label: string; value: ReactNode; 
 export function Badge({ children, tone }: { children: ReactNode; tone?: "good" | "bad" | "warn" | "muted" | "accent" }) {
   const c = tone === "good" ? "bg-good/15 text-good" : tone === "bad" ? "bg-bad/15 text-bad" : tone === "warn" ? "bg-warn/15 text-warn"
     : tone === "accent" ? "bg-accent/15 text-accent" : "bg-edge text-muted";
-  return <span className={`inline-flex items-center whitespace-nowrap rounded-md px-1.5 py-0.5 text-[12px] font-medium ${c}`}>{children}</span>;
+  // un badge long (« Verified · Proof of Cloud ») passe à la ligne dans une carte étroite au lieu d'en déborder
+  return <span className={`inline-flex max-w-full items-center rounded-md px-1.5 py-0.5 text-[12px] font-medium leading-tight [overflow-wrap:anywhere] ${c}`}>{children}</span>;
 }
 
 export function Mono({ children }: { children: ReactNode }) {
   return <span className="font-mono text-[12px] text-muted">{children}</span>;
 }
 
-/** Une adresse ou un hash : tronqué, copiable, avec lien vers l'explorateur. Toujours sur une ligne (« 0xff28…e6c4 »). */
+/** Une adresse ou un hash : tronqué, copiable, avec lien vers l'explorateur. Le hash reste sur une ligne
+ *  (« 0xff28…e6c4 ») ; 19/11 : sur un écran tactile, la copie et l'explorateur sont des cibles de 44 px (index.css,
+ *  .hexbtn), qui passent sous le hash si la colonne est trop étroite. */
 export function Hex({ value, kind = "address", n = 6 }: { value?: string | null; kind?: "address" | "tx" | "none"; n?: number }) {
   const [ok, setOk] = useState(false);
   if (!value) return <span className="text-muted">—</span>;
   const href = kind === "tx" ? txLink(value) : kind === "address" ? addrLink(value) : undefined;
   return (
-    <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap font-mono text-[12px]">
-      {href ? <a className="text-text hover:text-accent" href={href} target="_blank" rel="noreferrer" title={value}>{short(value, n)}</a> : <span title={value}>{short(value, n)}</span>}
-      <button aria-label={t("ui.copy")} className="text-muted hover:text-text" onClick={() => { navigator.clipboard?.writeText(value); setOk(true); setTimeout(() => setOk(false), 1200); }}>
-        {ok ? <Check size={12} /> : <Copy size={12} />}
-      </button>
-      {href && <a aria-label={t("ui.openExplorer")} className="text-muted hover:text-accent" href={href} target="_blank" rel="noreferrer"><ExternalLink size={12} /></a>}
+    <span className="inline-flex max-w-full shrink-0 flex-wrap items-center gap-x-1 font-mono text-[12px]">
+      {href ? <a className="hexlink whitespace-nowrap text-text hover:text-accent" href={href} target="_blank" rel="noreferrer" title={value}>{short(value, n)}</a> : <span className="whitespace-nowrap" title={value}>{short(value, n)}</span>}
+      <span className="inline-flex items-center gap-1">
+        <button aria-label={t("ui.copy")} title={t("ui.copy")} className="hexbtn text-muted hover:text-text" onClick={() => { navigator.clipboard?.writeText(value); setOk(true); setTimeout(() => setOk(false), 1200); }}>
+          {ok ? <Check size={12} /> : <Copy size={12} />}
+        </button>
+        {href && <a aria-label={t("ui.openExplorer")} title={t("ui.openExplorer")} className="hexbtn text-muted hover:text-accent" href={href} target="_blank" rel="noreferrer"><ExternalLink size={12} /></a>}
+      </span>
     </span>
   );
 }
@@ -232,7 +240,8 @@ export function EnclaveCheckView({ check, onRetry }: { check: EnclaveCheck; onRe
 /** Demande de connexion du wallet, pour les pages qui en ont besoin (`what` : ce que la connexion permet, déjà traduit). */
 export function NeedWallet({ what }: { what: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-edge px-5 py-8 text-[14px] text-muted">
+    // mb-8 : la section qui suit garde l'écart des autres sections (elle touchait le cadre)
+    <div className="mb-8 rounded-xl border border-dashed border-edge px-5 py-8 text-[14px] text-muted">
       {t("ui.needWallet", { what })}
     </div>
   );

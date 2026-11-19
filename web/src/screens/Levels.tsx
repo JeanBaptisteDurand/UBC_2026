@@ -47,7 +47,7 @@ export function LevelsCard() {
         <div className="min-w-0 rounded-xl border border-good/40 p-4">
           <div className="flex items-center gap-2 text-sm font-medium"><ShieldCheck size={16} aria-hidden /> {t("lvl.verified.title")}</div>
           <p className="mt-2 text-[13px] text-muted">{t("lvl.verified.body")}</p>
-          <p className="mt-2 text-[12px] text-muted">{t("lvl.verified.why")}</p>
+          <p className="expl mt-2 text-[12px] text-muted">{t("lvl.verified.why")}</p>
           <div className="mt-3 text-[12px] text-muted">{t("lvl.steps.verified")}</div>
           <div className="mt-1.5 space-y-1.5">
             <CopyLine cmd="arcvault operator bind-machine --signer <enclave key>" />

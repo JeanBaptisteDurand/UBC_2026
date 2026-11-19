@@ -147,9 +147,9 @@ function PaidCallBox({ arc, pf, busy, onResume, onDismiss }: {
   return (
     <div className="rounded-lg border border-warn/40 bg-warn/5 p-3" role="alert">
       <div className="text-[13px] font-medium text-warn">{t(lost ? "x402.paid.lostTitle" : "x402.paid.title")}</div>
-      <p className="mt-1 break-words text-[12px] text-muted">{paidCallText(e)}</p>
+      <p className="expl mt-1 break-words text-[12px] text-muted">{paidCallText(e)}</p>
       <div className="mt-1.5 text-[12px]"><SettlementLine arc={arc} r={pf.ref} /></div>
-      {!lost && !canResume && <p className="mt-1 text-[12px] text-muted">{t("x402.paid.noResume")}</p>}
+      {!lost && !canResume && <p className="expl mt-1 text-[12px] text-muted">{t("x402.paid.noResume")}</p>}
       <div className="mt-2 flex flex-wrap gap-2">
         {canResume && <Btn onClick={() => onResume()} disabled={busy}>{t("x402.paid.resume")}</Btn>}
         {canResume && newPrice !== undefined && (
@@ -314,14 +314,14 @@ export default function X402Chat({ active, onPrice }: { active: boolean; onPrice
         <div className="sm:col-span-2">
           <Field label={t("field.enclaveUrl")} value={url} onChange={setUrl} placeholder="https://…/enclave/x402" />
           <div className="mt-1.5">
-            {url.trim() ? <EnclaveCheckView check={check} onRetry={recheck} /> : <span className="text-[12px] text-muted">{t("x402.needUrl")}</span>}
+            {url.trim() ? <EnclaveCheckView check={check} onRetry={recheck} /> : <span className="expl text-[12px] text-muted">{t("x402.needUrl")}</span>}
           </div>
         </div>
       </div>
 
       <div className="mt-4 space-y-3">
         <div className="max-h-[420px] space-y-2 overflow-auto rounded-xl border border-edge bg-ink/50 p-3">
-          {lines.length === 0 && <p className="text-[12px] text-muted">{t("x402.empty")}</p>}
+          {lines.length === 0 && <p className="expl text-[12px] text-muted">{t("x402.empty")}</p>}
           {lines.map((m, i) => (
             <div key={i} className={m.role === "user" ? "text-right" : ""}>
               <div className={`inline-block max-w-[85%] whitespace-pre-wrap rounded-xl px-3 py-2 text-left text-sm [overflow-wrap:anywhere] ${m.role === "user" ? "bg-accent/20" : "bg-edge"}`}>{m.content}</div>
@@ -344,8 +344,8 @@ export default function X402Chat({ active, onPrice }: { active: boolean; onPrice
             <Btn onClick={send} disabled={!canSend}>{payable ? t("x402.send", { price: usdc(payable.price) }) : t("x402.sendPlain")}</Btn>
           </div>
         </div>
-        {!wallet ? <p className="text-[12px] text-muted">{t("x402.needWallet")}</p>
-          : wrongNet ? <p className="text-[12px] text-warn">{t("err.wrongNetwork")}</p> : null}
+        {!wallet ? <p className="expl text-[12px] text-muted">{t("x402.needWallet")}</p>
+          : wrongNet ? <p className="expl text-[12px] text-warn">{t("err.wrongNetwork")}</p> : null}
       </div>
       {status && <p className={`mt-2 break-words font-mono text-xs ${isFailure(status) ? "text-bad" : "text-muted"}`}>{show(status)}</p>}
     </Card>

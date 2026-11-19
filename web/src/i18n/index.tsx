@@ -29,11 +29,18 @@ export type TemplateKey = { [K in Key]: En[K] extends string ? K : never }[Key];
 
 const DICTS: Record<Lang, Dict> = { en, fr };
 const STORE_KEY = "archive.lang";
+/** 19/11 : la clé de la langue du site (le front de Florent, « archive-lang ») : un visiteur qui a choisi le français sur
+ *  le site arrive dans une console en français. Elle est lue d'abord (le site ne l'écrit que sous son nom, la console
+ *  écrit les deux : la plus récente des deux décisions gagne) ; l'ancienne clé de la console sert ensuite. */
+const SITE_KEY = "archive-lang";
 
 function stored(): Lang | null {
   try {
-    const v = window.localStorage.getItem(STORE_KEY);
-    return v === "en" || v === "fr" ? v : null;
+    for (const k of [SITE_KEY, STORE_KEY]) {
+      const v = window.localStorage.getItem(k);
+      if (v === "en" || v === "fr") return v;
+    }
+    return null;
   } catch { return null; }
 }
 
@@ -47,7 +54,7 @@ export const locale = (): "en-US" | "fr-FR" => (current === "fr" ? "fr-FR" : "en
 export function setLang(l: Lang) {
   if (l === current || !LANGS.includes(l)) return;
   current = l;
-  try { window.localStorage.setItem(STORE_KEY, l); } catch { /* storage unavailable: the choice lasts for this page */ }
+  try { window.localStorage.setItem(STORE_KEY, l); window.localStorage.setItem(SITE_KEY, l); } catch { /* storage unavailable: the choice lasts for this page */ }
   syncDocument();
   for (const f of listeners) f();
 }
@@ -86,9 +93,9 @@ export function tx<K extends TemplateKey>(key: K, vars: Record<Placeholders<En[K
 export function fmtNum(n: number | bigint, o?: Intl.NumberFormatOptions): string {
   return new Intl.NumberFormat(locale(), o).format(n);
 }
-/** short date and time from milliseconds */
+/** short date and time from milliseconds, with the time zone (19/11: a deadline without its zone was ambiguous) */
 export function fmtDateTime(ms: number): string {
-  return new Date(ms).toLocaleString(locale(), { dateStyle: "short", timeStyle: "short" });
+  return new Date(ms).toLocaleString(locale(), { year: "2-digit", month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" });
 }
 /** short date and time from Unix seconds (on-chain timestamps) */
 export function fmtUnix(s: bigint | number): string {

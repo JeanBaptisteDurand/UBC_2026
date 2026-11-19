@@ -49,8 +49,10 @@ export function CopyLine({ cmd }: { cmd: string }) {
   const [ok, setOk] = useState(false);
   return (
     <div className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-edge bg-ink px-3 py-2">
-      <code className="min-w-0 overflow-x-auto whitespace-nowrap font-mono text-[12px]">{cmd}</code>
-      <button aria-label={t("op.copyCmd")} className="shrink-0 text-muted hover:text-text" onClick={() => { navigator.clipboard?.writeText(cmd); setOk(true); setTimeout(() => setOk(false), 1200); }}>
+      {/* 19/11 : sur téléphone, la commande passe à la ligne (rien de caché sous le bouton), entre ses mots d'abord (un mot
+          n'est coupé que s'il est plus long que la ligne : une URL) ; plus large, une ligne qui défile */}
+      <code className="min-w-0 whitespace-pre-wrap font-mono text-[12px] [overflow-wrap:anywhere] sm:overflow-x-auto sm:whitespace-nowrap sm:[overflow-wrap:normal]">{cmd}</code>
+      <button aria-label={t("op.copyCmd")} title={t("op.copyCmd")} className="hexbtn -my-1.5 shrink-0 text-muted hover:text-text" onClick={() => { navigator.clipboard?.writeText(cmd); setOk(true); setTimeout(() => setOk(false), 1200); }}>
         {ok ? <Check size={14} /> : <Copy size={14} />}
       </button>
     </div>

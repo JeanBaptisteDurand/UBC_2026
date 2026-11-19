@@ -6,13 +6,23 @@ import { t, tx, type StaticKey } from "../i18n";
 import { explainError } from "../errors";
 
 /** Nom lisible d'un produit, déduit de son rail de règlement (le registre ne stocke qu'un manifeste). */
+/** 19/11 : le produit 5 est la démo de réfutation du 10/11 (une enclave menteuse prise, sa caution saisie ; la prime n'a
+ *  rien payé) : même rail que le produit 2, son rôle n'est pas inscrit on-chain (deployments.v21.testnet.json). */
+const REFUTE_DEMO = 5n;
+
 export function productName(p: ProductView): { name: string; rail: string; route: string } {
   const s = p.settlement.toLowerCase();
-  if (s === testnet.sealedBounty.toLowerCase()) return { name: t("prod.name.bounty"), rail: "SealedBounty", route: "primes" };
+  if (s === testnet.sealedBounty.toLowerCase()) {
+    return { name: t(p.id === REFUTE_DEMO ? "prod.name.refuteDemo" : "prod.name.bounty"), rail: "SealedBounty", route: "primes" };
+  }
   if (s === testnet.x402Settler.toLowerCase()) return { name: t("prod.name.x402"), rail: "x402", route: "playground" };
   // sans contrat de règlement : service gratuit (le copilote attesté, produit 4)
   if (s === "0x0000000000000000000000000000000000000000") return { name: t("prod.name.copilot"), rail: t("prod.rail.free"), route: "vue" };
   if (s === testnet.sessionPay.toLowerCase()) return { name: t("prod.name.inference"), rail: t("prod.rail.session"), route: "playground" };
+  // les deux SealedBountyVerified (deployments.v21.testnet.json) : produit 7 (niveau vérifié), et l'ancien produit 6,
+  // neutralisé le 12/11 (faille corrigée) et remplacé par le 7
+  if (s === "0x36a8ddf9fcb1308b9e86425bec9b098e933c7348") return { name: t("prod.name.bountyVerified"), rail: "SealedBountyVerified", route: "primes" };
+  if (s === "0x242ca1c4d0a5a6fe5a806f215ca5f127422364d2") return { name: t("prod.name.bountyOld"), rail: "SealedBountyVerified (v1)", route: "primes" };
   return { name: t("prod.name.other"), rail: s.slice(0, 10) + "…", route: "produits" };
 }
 
@@ -55,7 +65,8 @@ export default function Products({ go }: { go: (r: string) => void }) {
                 <div className="text-[12px] text-muted">{tx("prod.author", { id: p.id.toString(), author: <Hex value={p.author} n={4} /> })}</div>
               </Td>
               <Td label={t("prod.h.price")} wrap className="font-mono">
-                <span className="whitespace-nowrap">{p.price === 0n ? t("prod.poolPaid") : usdc(p.price)}</span>
+                {/* prix 0 : payé par la cagnotte d'une prime, ou gratuit (aucun contrat de règlement : le copilote attesté) */}
+                <span className="whitespace-nowrap">{p.price === 0n ? t(/^0x0{40}$/i.test(p.settlement) ? "prod.free" : "prod.poolPaid") : usdc(p.price)}</span>
                 {p.price > 0n && p.settlement.toLowerCase() === testnet.sessionPay.toLowerCase() && (
                   <span className="block text-[12px] text-muted">{t("prod.unit", { tokens: p.unitTokens, weight: p.outWeight })}</span>
                 )}
@@ -72,8 +83,8 @@ export default function Products({ go }: { go: (r: string) => void }) {
           );
         })}
       </Table>
-      {retired > 0 && <p className="mt-3 text-[12px] text-muted">{t("prod.retired", { n: retired })}</p>}
-      <p className="mt-3 text-[12px] text-muted">{t("prod.testnetNote")}</p>
+      {retired > 0 && <p className="expl mt-3 text-[12px] text-muted">{t("prod.retired", { n: retired })}</p>}
+      <p className="expl mt-3 text-[12px] text-muted">{t("prod.testnetNote")}</p>
     </>
   );
 }

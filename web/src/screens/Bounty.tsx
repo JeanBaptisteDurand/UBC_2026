@@ -1,15 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { type Address, type Hex, encodeFunctionData, parseAbi, parseEventLogs, toHex, zeroAddress } from "viem";
 import {
   testnet, predicateHash, encodeExploitTx, generateX25519, sealedBountyAbi,
-  type BountyRow, type Predicate, type ProvenClaim,
+  type Predicate, type ProvenClaim,
 } from "@arcvault/sdk";
 import { useArc } from "../useArc";
 import { useAccount } from "wagmi";
-import { fetchBounties } from "../api";
-import { BOUNTY_PRODUCT, parseUsdc, trackTxs, waitOk } from "../arc";
+import { fetchBounties, bountyKey, type Bounty as BountyItem } from "../api";
+import { BOUNTY_PRODUCT, VERIFIED_BOUNTY, arcForLevel, bountyLevelOf, parseUsdc, trackTxs, waitOk, type BountyLevel } from "../arc";
 import { Card, Btn, Field, Mono, Status, Steps, Table, Td, Badge, Empty, Hex as HexVal, usdc, type StepState } from "../ui";
-import { O3_URL } from "../config";
+import { O3_URL, O3V_URL } from "../config";
 import { MsgError, errorMsg, fail, failWith, msg, renderShown, type Msg, type Shown } from "../msg";
 import { fmtNum, fmtUnix, t, tx } from "../i18n";
 
@@ -58,7 +58,7 @@ function downloadProtocolKey(bountyId: bigint, publicKey: Hex, privateKey: Hex) 
 }
 
 export function ProtocolPanel({ onCreated }: { onCreated?: () => void } = {}) {
-  const arc = useArc();
+  const base = useArc();
   const [productId, setProductId] = useState(BOUNTY_PRODUCT.toString());
   const [funding, setFunding] = useState("2");
   const [hours, setHours] = useState("24");
@@ -66,7 +66,7 @@ export function ProtocolPanel({ onCreated }: { onCreated?: () => void } = {}) {
   const [key, setKey] = useState<{ bountyId: bigint; publicKey: Hex; privateKey: Hex } | null>(null);
 
   async function create() {
-    if (!arc) return;
+    if (!base) return;
     setKey(null);
     try {
       if (!/^\d+$/.test(productId.trim())) throw new MsgError(msg("bounty.badProduct", { v: productId }));
@@ -75,14 +75,15 @@ export function ProtocolPanel({ onCreated }: { onCreated?: () => void } = {}) {
       const h = Number(hours.trim().replace(",", "."));
       if (!Number.isFinite(h) || h <= 0) throw new MsgError(msg("bounty.badHours", { v: hours }));
       setOut(msg("bounty.checking"));
-      const p = await arc.getProduct(pid);
+      const p = await base.getProduct(pid);
       if (p.state !== "Active") throw new MsgError(msg("bounty.notActive", { id: pid, state: p.state }));
-      if (!p.deterministic || p.settlement.toLowerCase() !== testnet.sealedBounty.toLowerCase()) {
-        throw new MsgError(msg("bounty.notSealed", { id: pid }));
-      }
+      // 19/11 : une prime se poste au niveau de son produit (produit 2 : SealedBounty ; produit 7 : SealedBountyVerified)
+      const level = bountyLevelOf(p.settlement);
+      if (!p.deterministic || !level) throw new MsgError(msg("bounty.notSealed", { id: pid }));
+      const arc = arcForLevel(base, level);
       const [net, op] = await Promise.all([
-        arc.pub.readContract({ address: testnet.sealedBounty, abi: sealedBountyAbi, functionName: "networkBountyBps" }),
-        arc.pub.readContract({ address: testnet.sealedBounty, abi: sealedBountyAbi, functionName: "operatorBountyBps" }),
+        arc.pub.readContract({ address: arc.d.sealedBounty, abi: sealedBountyAbi, functionName: "networkBountyBps" }),
+        arc.pub.readContract({ address: arc.d.sealedBounty, abi: sealedBountyAbi, functionName: "operatorBountyBps" }),
       ]) as [number, number];
       const total = TIER_AMOUNT + (TIER_AMOUNT * BigInt(Number(net) + Number(op))) / 10_000n;
       if (fund < total) {
@@ -117,7 +118,7 @@ export function ProtocolPanel({ onCreated }: { onCreated?: () => void } = {}) {
         <Field label={t("bounty.f.funding")} value={funding} onChange={setFunding} hint={t("bounty.f.fundingHint")} />
         <Field label={t("bounty.f.hours")} value={hours} onChange={setHours} hint={t("bounty.f.hoursHint")} />
       </div>
-      <div className="mt-3 flex items-center gap-3"><Btn onClick={create} disabled={!arc?.wallet}>{t("bounty.create")}</Btn></div>
+      <div className="mt-3 flex items-center gap-3"><Btn onClick={create} disabled={!base?.wallet}>{t("bounty.create")}</Btn></div>
       <Status msg={out} />
       {key && (
         <div className="mt-4 rounded-lg border border-good/40 bg-good/5 p-4">
@@ -141,21 +142,23 @@ export function ProtocolPanel({ onCreated }: { onCreated?: () => void } = {}) {
 export function MyBounties({ refreshKey = 0 }: { refreshKey?: number }) {
   const arc = useArc();
   const { address } = useAccount();
-  const [rows, setRows] = useState<BountyRow[] | null>(null);
+  const [rows, setRows] = useState<BountyItem[] | null>(null);
   const [note, setNote] = useState<Msg | null>(null);
   useEffect(() => {
     if (!address) return;
     fetchBounties().then((b) => setRows(b.filter((x) => x.protocol.toLowerCase() === address.toLowerCase()))).catch(() => setRows([]));
   }, [address, refreshKey]);
   if (!address) return null;
-  async function withdraw(b: BountyRow) {
+  async function withdraw(b: BountyItem) {
     if (!arc) return;
+    // 19/11 : le retrait se fait sur le contrat du niveau de la prime
+    const a = arcForLevel(arc, b.level);
     setNote(msg("bounty.withdrawing", { id: b.id }));
     try {
-      const hash = await arc.withdrawRemaining(b.id);
+      const hash = await a.withdrawRemaining(b.id);
       setNote(msg("common.withdrawSent"));
-      await waitOk(arc, hash, "tx.withdraw");
-      setRows((rs) => rs?.map((x) => (x.id === b.id ? { ...x, balance: 0n } : x)) ?? null);
+      await waitOk(a, hash, "tx.withdraw");
+      setRows((rs) => rs?.map((x) => (bountyKey(x) === bountyKey(b) ? { ...x, balance: 0n } : x)) ?? null);
       setNote(msg("bounty.withdrawnFrom", { amt: () => usdc(b.balance), id: b.id, tx: hash }));
     } catch (e) { setNote(fail(e)); }
   }
@@ -168,10 +171,11 @@ export function MyBounties({ refreshKey = 0 }: { refreshKey?: number }) {
         {rows?.map((b) => {
           const expired = b.deadline < tNow;
           return (
-            <tr key={b.id.toString()} className="hover:bg-panel/60">
-              <Td main wrap><span className="whitespace-nowrap font-medium">{t("common.Bounty", { id: b.id.toString() })}</span> <span className="whitespace-nowrap text-[12px] text-muted">{t("common.product", { id: b.productId.toString() })}</span></Td>
+            <tr key={bountyKey(b)} className="hover:bg-panel/60">
+              <Td main wrap><span className="whitespace-nowrap font-medium">{t("common.Bounty", { id: b.id.toString() })}</span> <span className="whitespace-nowrap text-[12px] text-muted">{t("common.product", { id: b.productId.toString() })}</span> <BountyLevelBadge level={b.level} /></Td>
               <Td label={t("bounties.h.pool")} className="font-mono">{usdc(b.balance)}</Td>
-              <Td label={t("bounty.mine.paid")} className="font-mono">{b.paidAmount > 0n ? usdc(b.paidAmount) : "—"}</Td>
+              {/* ce qui a VRAIMENT été versé (BountyPaid) ; une réclamation réfutée n'a rien payé */}
+              <Td label={t("bounty.mine.paid")} className="font-mono">{b.paidOut && b.paidOut > 0n ? usdc(b.paidOut) : b.claimsRefuted > 0 ? t("bounties.refutedShort") : "—"}</Td>
               <Td label={t("bounties.h.deadline")} className="text-muted">{fmtUnix(b.deadline)}</Td>
               <Td label={t("bounties.h.status")}>{expired ? <Badge tone="muted">{t("common.expired")}</Badge> : b.paused ? <Badge tone="warn">{t("common.paused")}</Badge> : <Badge tone="good">{t("common.open")}</Badge>}</Td>
               <Td actions>{expired && b.balance > 0n
@@ -186,29 +190,36 @@ export function MyBounties({ refreshKey = 0 }: { refreshKey?: number }) {
   );
 }
 
-/** Un paiement de prime dont le transfert avait été refusé reste en crédit dans SealedBounty : on le retire ici. */
+/** Un paiement de prime dont le transfert avait été refusé reste en crédit dans le contrat de la prime : on le retire ici.
+ *  19/11 : sur les deux contrats (SealedBounty et SealedBountyVerified). */
 export function CreditNotice() {
   const arc = useArc();
   const { address } = useAccount();
-  const [credit, setCredit] = useState(0n);
+  const [credits, setCredits] = useState<Record<BountyLevel, bigint>>({ open: 0n, verified: 0n });
   const [note, setNote] = useState<Msg | null>(null);
   const pub = arc?.pub;
   useEffect(() => {
-    if (!pub || !address) { setCredit(0n); return; }
-    pub.readContract({ address: testnet.sealedBounty, abi: sealedBountyAbi, functionName: "credit", args: [address] })
-      .then((c) => setCredit(c as bigint)).catch(() => { /* lecture facultative */ });
+    if (!pub || !address) { setCredits({ open: 0n, verified: 0n }); return; }
+    const read = (a: string) => pub.readContract({ address: a as Address, abi: sealedBountyAbi, functionName: "credit", args: [address] }).then((c) => c as bigint).catch(() => 0n);
+    Promise.all([read(testnet.sealedBounty), VERIFIED_BOUNTY ? read(VERIFIED_BOUNTY) : Promise.resolve(0n)])
+      .then(([open, verified]) => setCredits({ open, verified })).catch(() => { /* lecture facultative */ });
   }, [pub, address]);
+  const credit = credits.open + credits.verified;
   if (credit === 0n && !note) return null;
   async function withdraw() {
     if (!arc) return;
-    const amount = credit;
     setNote(msg("bounty.credit.withdrawing"));
     try {
-      const hash = await arc.withdrawCredit();
-      setNote(msg("common.withdrawSent"));
-      await waitOk(arc, hash, "tx.withdrawCredit");
-      setNote(msg("common.withdrawn", { amt: () => usdc(amount), tx: hash }));
-      setCredit(0n);
+      for (const level of ["open", "verified"] as const) {
+        const amount = credits[level];
+        if (amount === 0n) continue;
+        const a = arcForLevel(arc, level);
+        const hash = await a.withdrawCredit();
+        setNote(msg("common.withdrawSent"));
+        await waitOk(a, hash, "tx.withdrawCredit");
+        setNote(msg("common.withdrawn", { amt: () => usdc(amount), tx: hash }));
+        setCredits((c) => ({ ...c, [level]: 0n }));
+      }
     } catch (e) { setNote(fail(e)); }
   }
   return (
@@ -230,12 +241,20 @@ const STEP_KEYS = ["hunt.step.key", "hunt.step.replay", "hunt.step.accepted", "h
 type StepRow = { state: StepState; detail?: Shown };
 const freshSteps = (): StepRow[] => STEP_KEYS.map(() => ({ state: "todo" as StepState }));
 
-export function HunterPanel({ initialBountyId = "1" }: { initialBountyId?: string } = {}) {
-  const arc = useArc();
+/** 19/11 : le badge du niveau d'une prime (ouvert : SealedBounty ; vérifié : SealedBountyVerified, produit 7) */
+export function BountyLevelBadge({ level }: { level: BountyLevel }) {
+  return level === "verified" ? <Badge tone="good">{t("bounties.level.verified")}</Badge> : <Badge tone="muted">{t("bounties.level.open")}</Badge>;
+}
+
+export function HunterPanel({ initialBountyId = "1", level = "open" }: { initialBountyId?: string; level?: BountyLevel } = {}) {
+  // 19/11 : la chasse se fait sur le contrat du niveau de la prime (même code, autre adresse) et avec son enclave
+  const base = useArc();
+  const arc = useMemo(() => (base ? arcForLevel(base, level) : null), [base, level]);
   const { address } = useAccount();
   const [bountyId, setBountyId] = useState(initialBountyId);
   useEffect(() => { setBountyId(initialBountyId); }, [initialBountyId]);
-  const [o3Url, setO3Url] = useState(O3_URL);
+  const [o3Url, setO3Url] = useState(level === "verified" ? O3V_URL : O3_URL);
+  useEffect(() => { setO3Url(level === "verified" ? O3V_URL : O3_URL); }, [level]);
   const [steps, setSteps] = useState<StepRow[]>(freshSteps);
   const [out, setOut] = useState<Msg | null>(null);
   const [busy, setBusy] = useState(false);

@@ -6,6 +6,8 @@ export const API_URL: string = env.VITE_API_URL ?? "http://localhost:8809"; // l
 export const COPILOT_URL: string = env.VITE_COPILOT_URL ?? "http://localhost:8808"; // copilote EN CLAIR du serveur
 export const ENCLAVE_URL: string = env.VITE_ENCLAVE_URL ?? "http://localhost:8802"; // inférence (O2)
 export const O3_URL: string = env.VITE_O3_URL ?? "http://localhost:8803"; // Prime scellée (O3)
+/** 19/11 : l'enclave de la Prime au niveau vérifié (produit 7), servie à côté de celle du niveau ouvert (/enclave/bounty-verified) */
+export const O3V_URL: string = env.VITE_O3V_URL ?? O3_URL.replace(/\/enclave\/bounty\/?$/, "/enclave/bounty-verified");
 /** Inférence payée à l'appel (x402, produit 3 de la v2.1) : facultative (vide = à saisir sur la page). */
 export const X402_URL: string = String(env.VITE_X402_URL ?? "").trim();
 
@@ -26,3 +28,9 @@ function attestedCopilot(): AttestedCopilotConfig | null {
   return { url: url.replace(/\/+$/, ""), productId: BigInt(pid), operator: op as Address };
 }
 export const ATTESTED_COPILOT: AttestedCopilotConfig | null = attestedCopilot();
+
+/** 19/11 : le copilote attesté du produit 4 tourne depuis le 19/11 dans l'enclave du copilote du SITE (surface « site »,
+ *  /enclave/copilot-site, à côté de /enclave/copilot) : le panneau de la Ruche y confronte sa clé à Arc (lecture de
+ *  /pubkeys seulement). Vide : pas de contrôle. */
+export const COPILOT_SITE_URL: string = String(env.VITE_COPILOT_SITE_ENCLAVE_URL
+  ?? String(env.VITE_COPILOT_ENCLAVE_URL ?? "").trim().replace(/\/enclave\/copilot\/?$/, "/enclave/copilot-site")).trim();

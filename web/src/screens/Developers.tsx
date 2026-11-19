@@ -3,16 +3,26 @@ import { API_URL, ATTESTED_COPILOT, ENCLAVE_URL, X402_URL } from "../config";
 import { DCAP, INFERENCE_PRODUCT, X402_PRODUCT } from "../arc";
 import { PageHeader, Section, Table, Td, Hex } from "../ui";
 import { getLang, t, tx, type StaticKey } from "../i18n";
+import type { LevelsView } from "../api";
+import { useLevels } from "./Levels";
 
-const ENDPOINTS: Array<[string, StaticKey]> = [
+/** Les routes de l'API de lecture ; 19/11 : + les deux niveaux de primes, la chaîne d'une enclave donnée, un produit,
+ *  la vérification d'un reçu (POST : décrite, pas de lien), l'état de l'index et la santé. */
+const ENDPOINTS: Array<[string, StaticKey, ("GET" | "POST")?]> = [
   ["/stats", "dev.ep.stats"],
   ["/proof", "dev.ep.proof"],
+  ["/proof?product=3", "dev.ep.proofOf"],
   ["/activity?limit=25", "dev.ep.activity"],
   ["/enclaves", "dev.ep.enclaves"],
+  ["/levels", "dev.ep.levels"],
   ["/products", "dev.ep.products"],
-  ["/bounties", "dev.ep.bounties"],
+  ["/products/1", "dev.ep.product"],
+  ["/bounties?level=all", "dev.ep.bounties"],
   [`/pricing?productId=${INFERENCE_PRODUCT}&units=1000`, "dev.ep.pricing"],
   ["/sessions/0x…", "dev.ep.sessions"],
+  ["/verify-receipt", "dev.ep.verify", "POST"],
+  ["/index", "dev.ep.index"],
+  ["/health", "dev.ep.health"],
 ];
 
 const CONTRACTS: Array<[string, string, StaticKey]> = [
@@ -25,6 +35,15 @@ const CONTRACTS: Array<[string, string, StaticKey]> = [
   ["SealedBounty", testnet.sealedBounty, "dev.c.bounty"],
   ["VerdictLog", testnet.verdictLog, "dev.c.verdict"],
   ["DemoVault", testnet.demoVault, "dev.c.vault"],
+];
+
+/** 16/11 : les contrats des deux niveaux d'opérateur ; leurs adresses viennent de GET /levels. */
+const LEVEL_CONTRACTS: Array<[string, keyof NonNullable<LevelsView["contracts"]>, StaticKey]> = [
+  ["MachineRegistry", "machineRegistry", "dev.c.machines"],
+  ["ProofOfCloudAuditor", "proofOfCloudAuditor", "dev.c.poc"],
+  ["Ed25519Verifier", "ed25519Verifier", "dev.c.ed25519"],
+  ["PolicyEnclaves", "policyEnclaves", "dev.c.policy"],
+  ["SealedBountyVerified", "sealedBountyVerified", "dev.c.bountyVerified"],
 ];
 
 const ROUTES: Array<[string, string, StaticKey]> = [
@@ -44,13 +63,16 @@ function Code({ children }: { children: string }) {
 
 export default function Developers() {
   const api = API_URL.replace(/\/$/, "");
+  const levels = useLevels();
   return (
     <>
       <PageHeader title={t("dev.title")} lead={t("dev.lead")} />
-      <Section title={t("dev.api.title")} lead={tx("dev.api.lead", { base: <span className="font-mono text-text">{api}</span> })}>
+      <Section title={t("dev.api.title")} lead={tx("dev.api.lead", { base: <span className="break-all font-mono text-text">{api}</span> })}>
         <Table stack="sm" head={[t("dev.api.h.endpoint"), t("dev.api.h.returns")]}>
-          {ENDPOINTS.map(([p, d]) => (
-            <tr key={p}><Td main><a className="font-mono text-accent hover:underline" href={`${api}${p.replace("0x…", DEMO_OWNER)}`} target="_blank" rel="noreferrer">GET {p}</a></Td><Td label={t("dev.api.h.returns")} wrap className="text-muted">{t(d)}</Td></tr>
+          {ENDPOINTS.map(([p, d, m = "GET"]) => (
+            <tr key={p}><Td main wrap>{m === "POST"
+              ? <span className="break-all font-mono">{m} {p}</span>
+              : <a className="tap inline-flex items-center break-all font-mono text-accent hover:underline" href={`${api}${p.replace("0x…", DEMO_OWNER)}`} target="_blank" rel="noreferrer">{m} {p}</a>}</Td><Td label={t("dev.api.h.returns")} wrap className="text-muted">{t(d)}</Td></tr>
           ))}
         </Table>
       </Section>
@@ -128,6 +150,16 @@ if (r.authenticated) {
         </Section>
       </div>
       <Section title={t("dev.mcp.title")} lead={t("dev.mcp.lead")}>
+        {/* 16/11 : le serveur MCP est en ligne (Streamable HTTP, sans état) : d'abord l'adresse, puis la variante locale */}
+        <Code>{`{
+  "mcpServers": {
+    "archive": { "url": "https://archive.62-171-153-35.sslip.io/mcp" }
+  }
+}
+
+# Claude Code
+claude mcp add --transport http archive https://archive.62-171-153-35.sslip.io/mcp`}</Code>
+        <p className="mt-3 text-[13px] text-muted">{t("dev.mcp.local")}</p>
         <Code>{`{
   "mcpServers": {
     "archive": {
@@ -141,6 +173,7 @@ if (r.authenticated) {
       <Section title={t("dev.contracts.title")} lead={t("dev.contracts.lead")}>
         <Table stack="sm" head={[t("dev.contracts.h.contract"), t("dev.contracts.h.address"), t("dev.contracts.h.role")]}>
           {CONTRACTS.map(([n, a, r]) => <tr key={n}><Td main className="font-medium">{n}</Td><Td label={t("dev.contracts.h.address")}><Hex value={a} n={6} /></Td><Td label={t("dev.contracts.h.role")} wrap className="text-muted">{t(r)}</Td></tr>)}
+          {levels?.contracts && LEVEL_CONTRACTS.map(([n, k, r]) => <tr key={n}><Td main className="font-medium">{n}</Td><Td label={t("dev.contracts.h.address")}><Hex value={levels.contracts![k]} n={6} /></Td><Td label={t("dev.contracts.h.role")} wrap className="text-muted">{t(r)}</Td></tr>)}
         </Table>
       </Section>
       <Section title={t("dev.enclave.title")} lead={t("dev.enclave.lead")}>
@@ -148,7 +181,7 @@ if (r.authenticated) {
           {ROUTES.map(([m, r, d]) => (
             <tr key={r}>
               <Td main>{m === "GET" && !r.includes(":")
-                ? <a className="font-mono text-accent hover:underline" href={`${ENCLAVE_URL.replace(/\/$/, "")}${r}`} target="_blank" rel="noreferrer">GET {r}</a>
+                ? <a className="tap inline-flex items-center font-mono text-accent hover:underline" href={`${ENCLAVE_URL.replace(/\/$/, "")}${r}`} target="_blank" rel="noreferrer">GET {r}</a>
                 : <span className="font-mono">{m} {r}</span>}</Td>
               <Td label={t("dev.contracts.h.role")} wrap className="text-muted">{t(d)}</Td>
             </tr>

@@ -11,7 +11,7 @@
  *  le repli VISIBLE sur le copilote du serveur (bandeau, étiquette de chaque réponse). La question qui a échoué n'est
  *  jamais renvoyée au serveur sans un clic, et le serveur ne reçoit jamais la partie attestée de la conversation.
  *  Les actions à signer proposées par l'un ou l'autre passent par la carte de vérification (CopilotActions.tsx). */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useAccount, usePublicClient } from "wagmi";
 import { ExternalLink, Loader2, RotateCcw, ShieldCheck } from "lucide-react";
 import type { Address, Hex } from "viem";
@@ -82,6 +82,21 @@ const serverText = (s: string): string => {
   const x = stripCitations(s);
   return getLang() === "en" ? toEnglish(x) : x;
 };
+
+/** 16/11 : le gras (**…**) et le code (`…`) des réponses, rendus au lieu d'afficher les astérisques et les accents graves
+ *  bruts (le reste du texte, retours à la ligne compris, reste tel quel : jamais de HTML venu du modèle). */
+function rich(s: string): ReactNode[] {
+  const out: ReactNode[] = [];
+  const re = /\*\*([^*\n]+)\*\*|`([^`\n]+)`/g;
+  let last = 0, k = 0;
+  for (let m = re.exec(s); m; m = re.exec(s)) {
+    if (m.index > last) out.push(s.slice(last, m.index));
+    out.push(m[1] !== undefined ? <strong key={k++}>{m[1]}</strong> : <code key={k++} className="rounded bg-ink/40 px-1 font-mono text-[12px]">{m[2]}</code>);
+    last = re.lastIndex;
+  }
+  if (last < s.length) out.push(s.slice(last));
+  return out;
+}
 
 /** Un fetch qui n'a pas eu de réponse (hors ligne, DNS, CORS, serveur arrêté), ou qui a dépassé son délai. */
 const isNetwork = (e: any) => /^(Failed to fetch|Load failed|NetworkError|fetch failed|Network request failed)/i.test(String(e?.message ?? ""));
@@ -163,6 +178,30 @@ function SealedBadge({ by }: { by: SealedBy }) {
 
 type KeyState = { state: "idle" } | { state: "checking" } | { state: "ok"; keys: VerifiedCopilot } | { state: "bad" };
 
+/** 19/11 : sur téléphone (sous 640 px), la bulle est une feuille collée en bas de l'écran VISIBLE : quand le clavier
+ *  s'ouvre (Safari d'iOS réduit la fenêtre visuelle, pas la mise en page), elle remonte au-dessus de lui et rétrécit,
+ *  pour que le champ de saisie reste visible. Lu sur window.visualViewport ; sans lui, la feuille garde 85dvh. */
+function useSheet(open: boolean): { phone: boolean; inset: number; height?: number } {
+  const [s, setS] = useState<{ phone: boolean; inset: number; height?: number }>({ phone: false, inset: 0 });
+  useEffect(() => {
+    if (!open || typeof window === "undefined") return;
+    const mq = window.matchMedia?.("(max-width: 639px)");
+    const vv = window.visualViewport;
+    const on = () => {
+      if (!mq?.matches) { setS({ phone: false, inset: 0 }); return; }
+      if (!vv) { setS({ phone: true, inset: 0 }); return; }
+      const inset = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+      setS({ phone: true, inset, height: Math.round(Math.min(window.innerHeight * 0.85, vv.height - 8)) });
+    };
+    on();
+    mq?.addEventListener?.("change", on);
+    vv?.addEventListener("resize", on);
+    vv?.addEventListener("scroll", on);
+    return () => { mq?.removeEventListener?.("change", on); vv?.removeEventListener("resize", on); vv?.removeEventListener("scroll", on); };
+  }, [open]);
+  return s;
+}
+
 export default function FloatingCopilot({ onNavigate, open, setOpen }: { onNavigate: (tab: string) => void; open: boolean; setOpen: (v: boolean) => void }) {
   const { address } = useAccount();
   const pub = usePublicClient();
@@ -178,6 +217,7 @@ export default function FloatingCopilot({ onNavigate, open, setOpen }: { onNavig
   const inflight = useRef<Promise<VerifiedCopilot> | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const attested = client !== null && fallback === null;
+  const kb = useSheet(open);
 
   useEffect(() => { scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" }); }, [msgs, open, status]);
 
@@ -308,10 +348,14 @@ export default function FloatingCopilot({ onNavigate, open, setOpen }: { onNavig
   }, []);
 
   if (!open) {
+    // 19/11 : sur téléphone, en paysage et sur tablette, un rond de 48 px (le libellé « Copilot » seulement sur grand
+    // écran, à partir de 1280 px) : il cache moins de texte ; le contenu garde 7 rem de marge en bas (Layout.tsx) pour
+    // finir au-dessus de lui. Sur un écran court (paysage, moins de 500 px de haut), il laisse sa place au bouton de la
+    // barre du haut (.copilot-fab / .copilot-top, index.css)
     return (
-      <button onClick={() => setOpen(true)} aria-label={t("copilot.open")}
-        className="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-full border border-accent/50 bg-accent px-4 py-3 font-medium text-ink shadow-xl transition hover:brightness-110">
-        <span className="text-lg">⬡</span><span className="hidden sm:inline">{t("copilot.name")}</span>
+      <button onClick={() => setOpen(true)} aria-label={t("copilot.open")} title={t("copilot.open")}
+        className="copilot-fab fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-[max(1rem,env(safe-area-inset-right))] z-50 flex h-12 min-w-12 items-center justify-center gap-2 rounded-full border border-accent/50 bg-accent px-3.5 font-medium text-ink shadow-xl transition hover:brightness-110 xl:bottom-5 xl:right-5 xl:h-auto xl:px-4 xl:py-3">
+        <span className="text-lg">⬡</span><span className="hidden xl:inline">{t("copilot.name")}</span>
       </button>
     );
   }
@@ -331,8 +375,15 @@ export default function FloatingCopilot({ onNavigate, open, setOpen }: { onNavig
       </span>
     );
 
+  // 19/11 : sur téléphone, une feuille pleine largeur collée en bas (hauteur : 85 % de l'écran visible, au-dessus du
+  // clavier : kb) ; plus large, la bulle flottante, jamais plus haute que l'écran (paysage)
+  const sheet = kb.phone ? { bottom: kb.inset, height: kb.height } : undefined;
   return (
-    <div className="fixed bottom-5 right-5 z-50 flex h-[70vh] max-h-[560px] w-[min(92vw,380px)] flex-col overflow-hidden rounded-2xl border border-edge bg-panel shadow-2xl">
+    <>
+    {/* téléphone : la page derrière la feuille est voilée ; un toucher dessus replie le copilote */}
+    {kb.phone && <button type="button" aria-label={t("copilot.minimize")} className="fixed inset-0 z-40 bg-black/50 sm:hidden" onClick={() => setOpen(false)} />}
+    <div style={sheet}
+      className="fixed inset-x-0 bottom-0 z-50 flex h-[85dvh] flex-col overflow-hidden rounded-t-2xl border border-edge bg-panel pb-[env(safe-area-inset-bottom)] shadow-2xl sm:inset-x-auto sm:bottom-5 sm:right-5 sm:h-[min(560px,calc(100dvh-2.5rem))] sm:w-[min(92vw,380px)] sm:rounded-2xl sm:pb-0">
       <div className="flex items-center justify-between gap-2 border-b border-edge bg-ink/60 px-4 py-3">
         <div className="flex min-w-0 items-center gap-2">
           <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-accent font-mono text-ink">⬡</span>
@@ -343,11 +394,11 @@ export default function FloatingCopilot({ onNavigate, open, setOpen }: { onNavig
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {msgs.length > 0 && (
-            <button onClick={reset} disabled={busy} className="rounded-lg p-1.5 text-muted hover:text-white disabled:opacity-40" aria-label={t("copilot.new")} title={t("copilot.new")}>
-              <RotateCcw size={14} />
+            <button onClick={reset} disabled={busy} className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:text-white disabled:opacity-40 [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11" aria-label={t("copilot.new")} title={t("copilot.new")}>
+              <RotateCcw size={15} />
             </button>
           )}
-          <button onClick={() => setOpen(false)} className="rounded-lg px-2 py-1 text-muted hover:text-white" aria-label={t("copilot.minimize")}>—</button>
+          <button onClick={() => setOpen(false)} className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:text-white [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11" aria-label={t("copilot.minimize")} title={t("copilot.minimize")}>—</button>
         </div>
       </div>
 
@@ -359,7 +410,7 @@ export default function FloatingCopilot({ onNavigate, open, setOpen }: { onNavig
           <p className="min-w-0 flex-1 [overflow-wrap:anywhere]" title={show(fallback)}>
             {t("copilot.fallbackBanner", { why: sentence(compactHex(show(fallback))) })}
           </p>
-          <button onClick={retryAttested} disabled={busy || key.state === "checking"} className="shrink-0 font-medium text-accent hover:underline disabled:opacity-40">
+          <button onClick={retryAttested} disabled={busy || key.state === "checking"} className="tap -my-1 shrink-0 rounded-md px-2 py-1 font-medium text-accent hover:underline disabled:opacity-40">
             {key.state === "checking" ? t("copilot.mode.checkingShort") : t("copilot.retryAttested")}
           </button>
         </div>
@@ -368,11 +419,12 @@ export default function FloatingCopilot({ onNavigate, open, setOpen }: { onNavig
       <div ref={scroller} className="flex-1 space-y-2 overflow-auto bg-ink/40 p-3">
         {msgs.length === 0 && (
           <div className="space-y-3">
-            <p className="text-sm text-muted">{t(client ? (attested ? "copilot.introAttested" : "copilot.introServer") : "copilot.intro")}</p>
+            {/* le bandeau du repli dit déjà à qui l'on parle : l'introduction ne le répète pas */}
+            <p className="text-sm text-muted">{t(client && attested ? "copilot.introAttested" : "copilot.intro")}</p>
             <div className="flex flex-col gap-1.5">
               {SUGGEST.map((k) => {
                 const q = t(k);
-                return <button key={k} onClick={() => send(q)} className="rounded-lg border border-edge bg-panel px-3 py-2 text-left text-xs text-muted transition hover:border-accent/50 hover:text-white">{q}</button>;
+                return <button key={k} onClick={() => send(q)} className="tap rounded-lg border border-edge bg-panel px-3 py-2 text-left text-xs text-muted transition hover:border-accent/50 hover:text-white">{q}</button>;
               })}
             </div>
           </div>
@@ -380,7 +432,7 @@ export default function FloatingCopilot({ onNavigate, open, setOpen }: { onNavig
         {msgs.map((m, i) => (
           <div key={i} className={m.role === "user" ? "text-right" : ""}>
             <div className={`inline-block max-w-[88%] whitespace-pre-wrap rounded-xl px-3 py-2 text-left text-sm [overflow-wrap:anywhere] ${m.role === "user" ? "bg-accent/20" : m.local ? "bg-warn/10 text-warn" : "bg-edge"}`}>
-              {m.role === "user" ? m.content : m.note ? show(m.note) : serverText(m.content)}
+              {m.role === "user" ? m.content : m.note ? show(m.note) : rich(serverText(m.content))}
             </div>
             {/* d'où vient la réponse : le badge SEULEMENT pour une réponse scellée par l'enclave vérifiée */}
             {m.role === "assistant" && !m.local && m.sealedBy && <div className="mt-1"><SealedBadge by={m.sealedBy} /></div>}
@@ -407,12 +459,14 @@ export default function FloatingCopilot({ onNavigate, open, setOpen }: { onNavig
           value={input} onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
           rows={1} placeholder={t(client && !attested ? "copilot.placeholderServer" : "copilot.placeholder")} aria-label={t("copilot.placeholder")}
-          className="max-h-24 flex-1 resize-none rounded-lg border border-edge bg-ink px-3 py-2 text-sm outline-none focus:border-accent/50"
+          // 16 px sur téléphone : Safari d'iOS ne zoome pas quand le champ prend le focus
+          className="tap max-h-24 flex-1 resize-none rounded-lg border border-edge bg-ink px-3 py-2 text-base outline-none focus:border-accent/50 sm:text-sm"
         />
-        <button onClick={() => send()} disabled={busy || !input.trim()} aria-label={t("copilot.send")}
-          className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-ink transition hover:brightness-110 disabled:opacity-40">↑</button>
+        <button onClick={() => send()} disabled={busy || !input.trim()} aria-label={t("copilot.send")} title={t("copilot.send")}
+          className="tap min-w-[44px] rounded-lg bg-accent px-3 py-2 text-sm font-medium text-ink transition hover:brightness-110 disabled:opacity-40">↑</button>
       </div>
     </div>
+    </>
   );
 }
 

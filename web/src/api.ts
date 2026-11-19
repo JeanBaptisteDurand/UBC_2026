@@ -34,19 +34,39 @@ export async function fetchProducts(): Promise<ProductView[]> {
   }));
 }
 
-export async function fetchEnclaves(): Promise<EnclaveView[]> {
+/** 19/11 : l'état d'une clé d'enclave dit par l'API (active, retirée par son opérateur, invalidée, expirée) ; absent d'une
+ *  API plus ancienne. */
+export type EnclaveStatus = "active" | "retired" | "invalidated" | "expired";
+export type Enclave = EnclaveView & { status?: EnclaveStatus; statusReason?: string };
+
+export async function fetchEnclaves(): Promise<Enclave[]> {
   const raw = await get<any[]>("/enclaves");
   return raw.map((e) => ({
     ...bigs<EnclaveView>(e, ["productId", "expiresAt", "fromBlock", "untilBlock", "anchorBlock", "registeredAt"]),
     head: e.head !== undefined ? B(e.head) : undefined, tcbStatus: Number(e.tcbStatus), active: !!e.active,
+    status: typeof e.status === "string" ? e.status as EnclaveStatus : undefined, statusReason: e.statusReason ?? undefined,
   }));
 }
 
-export async function fetchBounties(): Promise<BountyRow[]> {
-  const raw = await get<any[]>("/bounties");
+/** 19/11 : une prime, à l'un des DEUX niveaux : ouvert (SealedBounty) ou vérifié (SealedBountyVerified, produit 7). Les
+ *  numéros existent aux deux niveaux (n° 2 ouvert et n° 2 vérifié) : une prime se désigne par son niveau ET son numéro.
+ *  `paidOut` : USDC réellement versés (somme des BountyPaid) ; `paidAmount` est le champ on-chain (palier réservé ou payé
+ *  depuis l'armement), qui reste à 0,5 après une réclamation RÉFUTÉE : il ne prouve aucun paiement. */
+export type BountyLevel = "open" | "verified";
+export type Bounty = BountyRow & {
+  level: BountyLevel; contract: string; address?: string;
+  /** null : API d'avant ce champ (rien n'est alors affiché comme payé) */
+  paidOut: bigint | null; claimsAccepted: number; claimsRefuted: number;
+};
+export const bountyKey = (b: Pick<Bounty, "level" | "id">) => `${b.level}:${b.id.toString()}`;
+
+export async function fetchBounties(): Promise<Bounty[]> {
+  const raw = await get<any[]>("/bounties?level=all");
   return raw.map((b) => ({
     ...bigs<BountyRow>(b, ["id", "productId", "balance", "deadline", "singleCap", "paidAmount", "lastPaidBlock", "pausedFromBlock"]),
     k: Number(b.k ?? 1), paused: !!b.paused,
+    level: b.level === "verified" ? "verified" : "open", contract: String(b.contract ?? "SealedBounty"), address: b.address ?? undefined,
+    paidOut: b.paidOut !== undefined ? B(b.paidOut) : null, claimsAccepted: Number(b.claimsAccepted ?? 0), claimsRefuted: Number(b.claimsRefuted ?? 0),
   }));
 }
 
@@ -57,17 +77,23 @@ export interface Stats {
   settledUsdc: string; refundedUsdc: string; x402Calls: number; verdicts: number;
   bounties: number; bountyPool: string; bountiesPaid: number; bountyPaidUsdc: string; head: string;
   sessionSettledUsdc?: string; x402SettledUsdc?: string; verdictsSkipped?: number; verdictsNotApplicable?: number;
+  /** 19/11 : primes des deux niveaux, celles qu'on peut chasser maintenant, réclamations réfutées, cautions saisies */
+  bountiesOpen?: number; claimsRefuted?: number; bondSlashedUsdc?: string;
 }
 /** Un événement de /activity ; `label` : son libellé anglais (API du 9/11), le site écrit le sien dans sa langue. */
 export interface ActivityEvent { contract: string; name: string; args: Record<string, string | number>; block: number; tx: string; ts?: string; logIndex?: number; label?: string }
-/** L'issue du verdict ERC-8004 de la session que montre la chaîne de preuves (API du 9/11). */
-export type VerdictStatus = "written" | "not_applicable" | "skipped" | "none" | "pending";
+/** L'issue du verdict ERC-8004 de la session que montre la chaîne de preuves (API du 9/11) ; 19/11 : « no_verdict_rail »,
+ *  un produit dont le rail n'écrit pas de verdict (appel payé x402, produit gratuit). */
+export type VerdictStatus = "written" | "not_applicable" | "skipped" | "none" | "pending" | "no_verdict_rail";
+/** 19/11 : le rail de règlement du produit de l'enclave montrée. */
+export type ProofRail = "session" | "x402" | "bounty" | "free" | "other";
 export interface Proof {
   /** L'image affichée au maillon 1 : celle du manifeste de l'auteur, mais seulement si `manifestVerified` (keccak256 du
    *  manifeste = manifestHash on-chain) ; sinon l'image par défaut de l'API, qui ne prouve rien. */
-  image: string; manifestURI?: string; manifestVerified?: boolean;
-  enclave: (Omit<EnclaveView, "productId" | "expiresAt"> & { productId: string; expiresAt: string }) | null;
+  image: string; manifestURI?: string; manifestVerified?: boolean; imageSource?: "manifest" | "deployments" | "unknown";
+  enclave: (Omit<EnclaveView, "productId" | "expiresAt"> & { productId: string; expiresAt: string; status?: EnclaveStatus }) | null;
   registerTx: string | null; settleTx: string | null; settleUsdc: string | null; settleSession: string | null;
+  rail?: ProofRail | null; settleBounty?: string | null; settleLevel?: BountyLevel | null;
   verdictTx: string | null; verdictAgentId: string | null; verdictResponse: number | null;
   verdictSession?: string | null; verdictStatus?: VerdictStatus | null; verdictStatusTx?: string | null;
   verdictReason?: string | null; verdictReasonData?: string | null; verdictSalted?: boolean | null;
@@ -77,7 +103,8 @@ export interface Proof {
 export interface IndexStatus { lastBlock: number; head: number; lagBlocks: number | null; events: number; syncing: boolean; lastSyncAt: number | null; lastError: string | null; fromBlock?: number }
 export const fetchStats = () => get<Stats>("/stats");
 export const fetchActivity = (limit = 12) => get<ActivityEvent[]>(`/activity?limit=${limit}`);
-export const fetchProof = () => get<Proof>("/proof");
+/** la chaîne de preuves de l'enclave d'inférence ; 19/11 : celle d'une clé d'enclave donnée (?signer=) */
+export const fetchProof = (signer?: string) => get<Proof>(signer ? `/proof?signer=${signer}` : "/proof");
 
 // ---------- opérateurs : machines, appairage, clés arcop_ ----------
 export interface MachineCheck { id: string; label: string; ok: boolean; detail: string }

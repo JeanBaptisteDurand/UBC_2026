@@ -23,6 +23,26 @@ export const BOUNTY_PRODUCT: bigint = testnet.products?.bounty ?? 2n;
 /** v2.1 : l'inférence payée à l'appel (X402Settler, rail x402), produit 3. */
 export const X402_PRODUCT: bigint = testnet.products?.x402 ?? 3n;
 
+/** 19/11 : la Prime au niveau VÉRIFIÉ (produit 7) est le même code que SealedBounty, sur un autre contrat
+ *  (SealedBountyVerified) : le client d'un niveau est le même client, avec ce contrat à la place de SealedBounty. */
+export type BountyLevel = "open" | "verified";
+export const VERIFIED_BOUNTY: string | null = testnet.levels?.sealedBountyVerified ?? null;
+export function arcForLevel(arc: ArcClient, level: BountyLevel): ArcClient {
+  if (level === "open" || !VERIFIED_BOUNTY) return arc;
+  return createArcClient({ publicClient: arc.pub, walletClient: arc.wallet, account: arc.account, deployment: { ...arc.d, sealedBounty: VERIFIED_BOUNTY as Hex } });
+}
+/** 19/11 : le PREMIER SealedBountyVerified (deployments.v21.testnet.json, levels.superseded), contrat de règlement de
+ *  l'ancien produit 6, neutralisé le 12/11 (faille corrigée) et remplacé par le 7. Ce n'est pas un niveau qu'on peut
+ *  utiliser (bountyLevelOf le laisse de côté : aucune prime ne s'y crée) ; il est seulement reconnu comme une prime. */
+export const SUPERSEDED_VERIFIED_BOUNTY = "0x242ca1c4d0a5a6fe5a806f215ca5f127422364d2";
+/** le niveau d'un produit réglé par une prime (son contrat de règlement), sinon null */
+export function bountyLevelOf(settlement: string): BountyLevel | null {
+  const s = settlement.toLowerCase();
+  if (s === testnet.sealedBounty.toLowerCase()) return "open";
+  if (VERIFIED_BOUNTY && s === VERIFIED_BOUNTY.toLowerCase()) return "verified";
+  return null;
+}
+
 /** Vrai si le registre vérifie lui-même la signature d'Intel (DCAP) : seulement alors on écrit « vérifiée ». */
 export const DCAP = testnet.attestation === "dcap";
 /** « verified by Arc » / « vérifiée par Arc » (ou « inscrite » sans DCAP), dans la langue du moment. */

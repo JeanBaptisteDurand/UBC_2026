@@ -13,7 +13,7 @@ export default function PostBounty() {
       <CreditNotice />
       <Section>
         <ProtocolPanel onCreated={() => setCreated((n) => n + 1)} />
-        <p className="mt-2 text-[12px] text-muted">{t("post.demo")}</p>
+        <p className="expl mt-2 text-[12px] text-muted">{t("post.demo")}</p>
       </Section>
       {isConnected && (
         <Section title={t("post.mine.title")} lead={t("post.mine.lead")}>

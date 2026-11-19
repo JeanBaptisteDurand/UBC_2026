@@ -40,6 +40,25 @@ const browserWallet = (): Wallet => ({ ...injectedWallet(), name: t("wallet.brow
 const GROUP_RECOMMENDED = "Recommended";
 const GROUP_TEST = "Test (Arc testnet)";
 
+/** 19/11 (r2) : le connecteur WalletConnect de wagmi se préparait dès la création de la config (setup → getProvider) : il
+ *  chargeait son SDK (≈ 230 ko compressés) et appelait les serveurs de WalletConnect à l'ouverture de chaque page, avant
+ *  que la console soit utilisable, même pour un visiteur qui ne se connecte jamais. Il ne se prépare plus qu'au moment de
+ *  se connecter (connect() branche lui-même ce que setup branchait) ou de reconnecter le portefeuille utilisé la dernière
+ *  fois (main.tsx). Les portefeuilles injectés (extension) et Coinbase ne changent pas. */
+const lazyWalletConnect = <W extends (...a: any[]) => Wallet>(w: W): W => ((...a: any[]) => {
+  const wallet = w(...a);
+  return {
+    ...wallet,
+    createConnector: (details: any) => {
+      const create = wallet.createConnector(details) as any;
+      return ((cfg: any) => {
+        const c = create(cfg);
+        return c?.type === "walletConnect" ? { ...c, setup: undefined } : c;
+      }) as any;
+    },
+  };
+}) as unknown as W;
+
 export const config = getDefaultConfig({
   appName: "ArcHive",
   projectId,
@@ -49,7 +68,7 @@ export const config = getDefaultConfig({
   // stockage protégé : un navigateur qui bloque les données du site ne fait plus tomber la page (safeStorage.ts)
   storage: createStorage({ storage: safeStorage }),
   wallets: [
-    { groupName: GROUP_RECOMMENDED, wallets: [metaMaskWallet, rainbowWallet, coinbaseWallet, walletConnectWallet, browserWallet] },
+    { groupName: GROUP_RECOMMENDED, wallets: [lazyWalletConnect(metaMaskWallet), lazyWalletConnect(rainbowWallet), coinbaseWallet, lazyWalletConnect(walletConnectWallet), browserWallet] },
     ...(token ? [{ groupName: GROUP_TEST, wallets: [archiveTestWallet] }] : []),
   ],
 });

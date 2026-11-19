@@ -47,7 +47,7 @@ export function RefillBox({ arc, sessionId, refill, onRefilled }: { arc: ArcClie
   return (
     <div className="rounded-lg border border-warn/40 bg-warn/5 p-3">
       <div className="text-[13px] font-medium text-warn">{refill.pending ? t("refill.pendingTitle") : t("refill.lowTitle")}</div>
-      <p className="mt-1 text-[12px] text-muted">
+      <p className="expl mt-1 text-[12px] text-muted">
         {refill.pending ? t("refill.pendingText", { cost: usdc(refill.cost) }) : t("refill.lowText")}
       </p>
       <div className="mt-2 flex flex-wrap items-end gap-2">
@@ -232,7 +232,7 @@ export default function Chat() {
             </div>
             <div className="sm:col-span-2 flex flex-wrap items-center gap-3">
               <Btn onClick={open} disabled={!arc?.wallet || check.state !== "ok"}>{t("chat.open")}</Btn>
-              {!arc?.wallet && <span className="text-[12px] text-muted">{t("chat.needWallet")}</span>}
+              {!arc?.wallet && <span className="expl text-[12px] text-muted">{t("chat.needWallet")}</span>}
             </div>
             {hint && <p className="sm:col-span-2 font-mono text-xs text-muted">{hint}</p>}
           </div>
@@ -245,7 +245,7 @@ export default function Chat() {
               <Btn kind="ghost" onClick={reset}>{t("chat.new")}</Btn>
             </div>
             <div className="max-h-[360px] space-y-2 overflow-auto rounded-xl border border-edge bg-ink/50 p-3">
-              {msgs.length === 0 && <p className="text-[12px] text-muted">{t("chat.empty")}</p>}
+              {msgs.length === 0 && <p className="expl text-[12px] text-muted">{t("chat.empty")}</p>}
               {msgs.map((m, i) => (
                 <div key={i} className={m.role === "user" ? "text-right" : ""}>
                   <div className={`inline-block max-w-[85%] whitespace-pre-wrap rounded-xl px-3 py-2 text-left text-sm ${m.role === "user" ? "bg-accent/20" : "bg-edge"}`}>{m.content}</div>

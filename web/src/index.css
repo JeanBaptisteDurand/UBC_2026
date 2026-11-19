@@ -2,6 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 19/11 (r2) : Chivo et Chivo Mono servis par le site lui-même (fonts/, licence SIL OFL : fonts/Chivo-OFL.txt), au lieu de
+   la feuille de Google Fonts qui bloquait le premier affichage (deux hôtes de plus à joindre sur un téléphone). Polices
+   variables (un fichier par sous-ensemble pour toutes les graisses), latin et latin étendu, comme Google les servait. */
+@font-face {
+  font-family: "Chivo"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url("./fonts/chivo-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Chivo"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url("./fonts/chivo-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Chivo Mono"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url("./fonts/chivo-mono-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Chivo Mono"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url("./fonts/chivo-mono-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 html { -webkit-font-smoothing: antialiased; }
 body { background: #070b16; color: #e6edf7; font-family: Chivo, ui-sans-serif, system-ui, sans-serif; font-size: 14px; }
 ::selection { background: #5b8cff55; }
@@ -48,4 +72,42 @@ body { background: #070b16; color: #e6edf7; font-family: Chivo, ui-sans-serif, s
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
+}
+
+/* 19/11 — téléphone et tablette (écran tactile) : chaque cible fait au moins 44 × 44 px. `.tap` : boutons et champs ;
+   `.hexbtn` : copier et ouvrir dans l'explorateur, à côté de chaque hash (ui.tsx, Hex) ; `.hexlink` : le hash lui-même.
+   À la souris, rien ne change. */
+@media (pointer: coarse) {
+  .tap { min-height: 44px; }
+  .hexbtn { display: inline-grid; place-items: center; min-width: 44px; min-height: 44px; }
+  .hexbtn svg { width: 15px; height: 15px; }
+  .hexlink { display: inline-flex; align-items: center; min-height: 44px; }
+  /* un champ à 16 px au moins, même en paysage (Safari d'iOS zoome sur un champ plus petit) */
+  input.tap, textarea.tap { font-size: 16px; }
+  /* le bouton « Connect » de RainbowKit, et la bascule de langue de l'ordinateur sur une tablette */
+  header [data-testid="rk-connect-button"], header [data-testid="rk-account-button"] { min-height: 44px; }
+  header [role="group"] button { min-width: 44px; }
+}
+
+/* 19/11 — téléphone (portrait, ou paysage de moins de 500 px de haut) : le texte courant fait au moins 15 px et les
+   petites étiquettes au moins 12-13 px. Les tailles fixes de la console (text-[12px], text-[13px]…) sont remontées ici,
+   en un seul endroit ; l'ordinateur et la tablette gardent les leurs. */
+@media (max-width: 639px), (pointer: coarse) and (max-height: 500px) {
+  #root .text-\[11px\] { font-size: 12px; }
+  #root .text-\[12px\], #root .text-xs { font-size: 13px; }
+  #root .text-\[13px\], #root .text-\[14px\], #root .text-sm { font-size: 15px; }
+  /* 19/11 (r2) : une PHRASE d'explication écrite petit sur ordinateur (maillons de la chaîne de preuves, aide d'un champ,
+     description d'un mode, note de bas de page) se lit à 15 px, comme le texte courant ; les étiquettes restent à 13 px */
+  #root .expl { font-size: 15px; line-height: 1.45; }
+}
+
+/* 19/11 (r2) : écran court (téléphone en paysage) : le bouton du copilote passe dans la barre du haut (Layout.tsx), le
+   rond flottant (FloatingCopilot.tsx) ne couvre plus la fin des lignes */
+.copilot-top { display: none; }
+@media (max-height: 500px) {
+  .copilot-top { display: grid; }
+  .copilot-fab { display: none; }
+  /* la pastille du bloc courant laisse sa place au nom de la page (il était coupé : « Vue d'en… ») ; #root : plus fort
+     que md:inline-flex, que Tailwind écrit après ces règles */
+  #root .net-pill { display: none; }
 }
