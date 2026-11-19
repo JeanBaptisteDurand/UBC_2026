@@ -199,14 +199,14 @@ async function verifyAndClaim(w: Writer, a: {
 
 const list: Command = {
   path: ["bounty", "list"],
-  summary: "liste les primes (état, solde, échéance)",
+  summary: "lists the bounties (state, balance, expiry)",
   usage: "bounty list",
   run: listBounties,
 };
 
 const status: Command = {
   path: ["bounty", "status"],
-  summary: "détail d'une prime : paliers, frais, plafond d'une seule enclave, clé du protocole, solde",
+  summary: "a bounty in detail: tiers, fees, single-enclave cap, protocol key, balance",
   usage: "bounty status <id>",
   args: [{ name: "id", desc: "identifiant de la prime" }],
   examples: ["arcvault bounty status 1"],
@@ -238,7 +238,7 @@ const status: Command = {
 
 const create: Command = {
   path: ["bounty", "create"],
-  summary: "crée et finance une prime scellée (protocole)",
+  summary: "creates and funds a sealed bounty (protocol)",
   usage: "bounty create --product <id> --predicate <prédicat.json> --tiers <perte:montant,…> --funding <usdc> [--cap <usdc>] [--k 2] [--pause <adresse>] [--deadline 7d] [--protocol-key <nouveau fichier>]",
   description: [
     "Le prédicat (JSON { combine, clauses }) décrit ce qui prouve l'exploit ; son hash canonique est épinglé",
@@ -325,7 +325,7 @@ const create: Command = {
 
 const submit: Command = {
   path: ["bounty", "submit"],
-  summary: "chasseur : prouve un exploit dans une ou k enclaves (clés vérifiées on-chain), puis fait payer la prime",
+  summary: "hunter: proves an exploit in one or k enclaves (keys verified on-chain), then gets the bounty paid",
   usage: "bounty submit --bounty <id> --bundle <exploit.json> --enclave <url O3>[,<url O3>…] [--payee <adresse>] [--out <fichier>] [--save-r <nouveau fichier>] | --resume <fichier>",
   description: [
     "exploit.json : { predicate, txs: [0x…] (1 à 10), capital?: \"<entier>\", attackCode?: 0x… } ;",
@@ -440,7 +440,7 @@ const submit: Command = {
 
 const reports: Command = {
   path: ["bounty", "reports"],
-  summary: "protocole : déchiffre les rapports d'exploit livrés (événements ExploitDelivered) avec sa clé",
+  summary: "protocol: decrypts the delivered exploit reports (ExploitDelivered events) with its key",
   usage: "bounty reports <id> [--key <fichier>] [--out <dossier>]",
   description: [
     "Chaque réclamation payée livre cP (chiffré vers la clé X25519 du protocole) dans l'événement ExploitDelivered.",
@@ -491,4 +491,4 @@ async function deliveredReports(pub: Pub, id: bigint) {
 }
 
 export const bountyCommands: Command[] = [list, status, create, submit, reports];
-export const BOUNTY_TITLE = "la Prime scellée : primes, preuve d'exploit en enclave, réclamation payée dans le bloc, rapports chiffrés";
+export const BOUNTY_TITLE = "the Sealed Bounty: bounties, exploit proof in an enclave, claim paid in the block, encrypted reports";

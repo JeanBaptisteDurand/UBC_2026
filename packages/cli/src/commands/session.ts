@@ -18,7 +18,7 @@ async function loadSession(arc: Writer["arc"], id: bigint) {
 
 const open: Command = {
   path: ["session", "open"],
-  summary: "ouvre une session prépayée VERROUILLÉE sur une enclave (clés vérifiées on-chain) et émet sa clé d'accès aek_",
+  summary: "opens a prepaid session LOCKED to one enclave (keys verified on-chain) and issues its aek_ access key",
   usage: "session open --product <id> --enclave <url> --deposit <usdc> [--operator <adresse>] [--cap <usdc>] [--expires 24h]",
   description: [
     "v2 : une session ne paie que les reçus de l'enclave choisie à l'ouverture. Les clés de --enclave sont confrontées",
@@ -87,7 +87,7 @@ const open: Command = {
 
 const list: Command = {
   path: ["session", "list"],
-  summary: "liste les sessions d'un propriétaire",
+  summary: "lists an owner's sessions",
   usage: "session list [--owner <adresse>]",
   options: [{ name: "owner", value: "<adresse>", desc: "propriétaire (défaut : l'adresse de PRIVATE_KEY)" }],
   examples: ["arcvault session list --owner 0x5724d89D610c3017b8DC161c025248341556f6Ab"],
@@ -106,7 +106,7 @@ const list: Command = {
 
 const status: Command = {
   path: ["session", "status"],
-  summary: "état d'une session : enclave verrouillée, dépôt, réglé, disponible, clé en cours, échéance, clôture",
+  summary: "a session's state: locked enclave, deposit, settled, available, current key, expiry, closing",
   usage: "session status <id>",
   args: [{ name: "id", desc: "identifiant de la session" }],
   examples: ["arcvault session status 12"],
@@ -137,7 +137,7 @@ const status: Command = {
 
 const topup: Command = {
   path: ["session", "topup"],
-  summary: "recharge une session (EIP-3009, un seul appel)",
+  summary: "tops up a session (EIP-3009, a single call)",
   usage: "session topup <id> --amount <usdc>",
   args: [{ name: "id", desc: "identifiant de la session" }],
   options: [{ name: "amount", value: "<usdc>", desc: "montant à ajouter au dépôt", required: true }],
@@ -161,7 +161,7 @@ const topup: Command = {
 
 const close: Command = {
   path: ["session", "close"],
-  summary: "ferme une session échue : rembourse le reste au propriétaire, écrit le verdict ERC-8004",
+  summary: "closes an expired session: refunds the rest to the owner, writes the ERC-8004 verdict",
   usage: "session close <id>",
   description: [
     "Possible à partir de l'échéance + 1 h (délai laissé à l'opérateur pour son dernier règlement), ou plus tôt dès que",
@@ -191,7 +191,7 @@ const close: Command = {
 
 const rotate: Command = {
   path: ["session", "rotate"],
-  summary: "tourne la clé de session : nouvelle clé aek_ créée ici, l'ancienne est révoquée on-chain",
+  summary: "rotates the session key: a new aek_ key created here, the old one revoked on-chain",
   usage: "session rotate <id>",
   description: [
     "Génère localement une nouvelle clé, inscrit son adresse (rotateKey), puis écrit la nouvelle clé aek_",
@@ -225,4 +225,4 @@ const rotate: Command = {
 };
 
 export const sessionCommands: Command[] = [open, list, status, topup, close, rotate];
-export const SESSION_TITLE = "sessions prépayées (SessionPay) et clés d'accès aek_ : ouvrir, suivre, recharger, fermer, tourner la clé";
+export const SESSION_TITLE = "prepaid sessions (SessionPay) and aek_ access keys: open, follow, top up, close, rotate the key";

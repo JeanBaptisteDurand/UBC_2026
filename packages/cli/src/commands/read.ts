@@ -47,21 +47,21 @@ export async function listBounties(ctx: Ctx): Promise<void> {
 
 export const productsCmd: Command = {
   path: ["products"],
-  summary: "liste les produits de la place de marché (alias de « product list »)",
+  summary: "lists the marketplace products (alias of \"product list\")",
   usage: "products",
   run: listProducts,
 };
 
 export const bountiesCmd: Command = {
   path: ["bounties"],
-  summary: "liste les primes scellées (alias de « bounty list »)",
+  summary: "lists the sealed bounties (alias of \"bounty list\")",
   usage: "bounties",
   run: listBounties,
 };
 
 export const enclavesCmd: Command = {
   path: ["enclaves"],
-  summary: "liste les enclaves inscrites (la « hive ») et leur état",
+  summary: "lists the registered enclaves (the \"hive\") and their state",
   usage: "enclaves [--product <id>] [--operator <adresse>]",
   description: [
     "« active » : l'enclave peut signer des reçus maintenant (bloc de tête dans sa fenêtre de validité) ;",
@@ -114,7 +114,7 @@ export function normalizeReceipt(r: any): Receipt {
 
 export const verifyCmd: Command = {
   path: ["verify"],
-  summary: "vérifie un reçu d'inférence comme SessionPay.settle : enclave verrouillée, active, opérateur, modèle, cumul",
+  summary: "verifies an inference receipt like SessionPay.settle: locked enclave, active, operator, model, total",
   usage: "verify --receipt <fichier.json> [--sig 0x…]",
   description: [
     "Le fichier contient { receipt, signature } (tel que rendu par l'enclave) ou le reçu à plat.",
@@ -141,7 +141,7 @@ export const verifyCmd: Command = {
 
 export const proxyCmd: Command = {
   path: ["proxy"],
-  summary: "mandataire local compatible OpenAI : chiffre, signe avec la clé aek_, vérifie chaque reçu",
+  summary: "local OpenAI-compatible proxy: encrypts, signs with the aek_ key, verifies every receipt",
   usage: "proxy --key <aek_…> --enclave <url> [--port 8787]",
   description: [
     "Tout programme qui parle à OpenAI marche en changeant son URL de base vers http://localhost:<port>/v1.",

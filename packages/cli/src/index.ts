@@ -22,14 +22,14 @@ const TOP: Command[] = [productsCmd, enclavesCmd, bountiesCmd, verifyCmd, proxyC
 const ALL: Command[] = [...TOP, ...Object.values(GROUPS).flatMap((g) => g.cmds)];
 
 function globalHelp(): string {
-  const line = (c: Command) => `  ${c.path.join(" ").padEnd(20)}${c.summary}${c.write ? " [signe]" : ""}`;
+  const line = (c: Command) => `  ${c.path.join(" ").padEnd(25)}${c.summary}${c.write ? " [signs]" : ""}`;
   const group = (name: string) => [`${name} — ${GROUPS[name]?.title}`, ...(GROUPS[name]?.cmds ?? []).map(line)];
   return [
-    "arcvault — CLI d'ArcHive : enclaves Intel TDX vérifiées par les contrats d'Arc, payées en USDC",
+    "arcvault — the ArcHive CLI: Intel TDX enclaves verified by Arc contracts, paid in USDC",
     "",
-    "Usage : arcvault <commande> [sous-commande] [arguments] [options]",
+    "Usage: arcvault <command> [subcommand] [arguments] [options]",
     "",
-    "Lectures et outils :",
+    "Reads and tools:",
     ...TOP.map(line),
     "",
     ...group("session"),
@@ -42,13 +42,13 @@ function globalHelp(): string {
     "",
     ...group("auditor"),
     "",
-    "Portefeuille : les commandes [signe] utilisent PRIVATE_KEY (variable d'environnement, jamais affichée) ;",
-    "  --dry-run les simule sans rien envoyer. Réseau : Arc testnet (5042002), RPC https://rpc.testnet.arc.io (--rpc).",
-    "Aide détaillée : arcvault <commande> [sous-commande] --help",
+    "Wallet: [signs] commands use PRIVATE_KEY (an environment variable, never printed);",
+    "  --dry-run simulates them without sending anything. Network: Arc testnet (5042002), RPC https://rpc.testnet.arc.io (--rpc).",
+    "Detailed help: arcvault <command> [subcommand] --help",
   ].join("\n");
 }
 
-let current: Command | undefined; // commande en cours (pour pointer vers son aide en cas d'erreur)
+let current: Command | undefined; // the command being run (to point to its help on error)
 
 async function main(argv: string[]): Promise<void> {
   const head = argv[0];
@@ -59,10 +59,10 @@ async function main(argv: string[]): Promise<void> {
   }
   if (!cmd) {
     const g = GROUPS[head];
-    if (!g) throw new UsageError(`commande inconnue : ${head}`);
+    if (!g) throw new UsageError(`unknown command: ${head}`);
     const sub = argv[1];
     if (!sub || sub === "--help" || sub === "-h") return out(renderGroupHelp(head, g.title, g.cmds));
-    throw new UsageError(`sous-commande inconnue : ${head} ${sub} (voir arcvault ${head} --help)`);
+    throw new UsageError(`unknown subcommand: ${head} ${sub} (see arcvault ${head} --help)`);
   }
   current = cmd;
   const rest = argv.slice(cmd.path.length);

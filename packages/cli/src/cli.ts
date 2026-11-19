@@ -170,9 +170,9 @@ export function renderHelp(c: Command): string {
 }
 
 export function renderGroupHelp(group: string, title: string, cmds: Command[]): string {
-  const L: string[] = [`Usage : arcvault ${group} <sous-commande> [options]`, "", `  ${title}`, "", "Sous-commandes :"];
-  for (const c of cmds) L.push(`  ${pad(c.path.slice(1).join(" "), 14)}${c.summary}${c.write ? " [signe]" : ""}`);
-  L.push("", `Aide détaillée : arcvault ${group} <sous-commande> --help`);
+  const L: string[] = [`Usage: arcvault ${group} <subcommand> [options]`, "", `  ${title}`, "", "Subcommands:"];
+  for (const c of cmds) L.push(`  ${pad(c.path.slice(1).join(" "), 14)}${c.summary}${c.write ? " [signs]" : ""}`);
+  L.push("", `Detailed help: arcvault ${group} <subcommand> --help`);
   return L.join("\n");
 }
 

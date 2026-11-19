@@ -92,7 +92,7 @@ function resultLine(r: RefuteEnclaveResult): string {
 
 export const refuteCmd: Command = {
   path: ["bounty", "refute"],
-  summary: "réfute une réclamation acceptée : contre-rejeu par les enclaves d'autres opérateurs, puis refute (avec confirmation)",
+  summary: "refutes an accepted claim: counter-replay by other operators' enclaves, then refute (with confirmation)",
   usage:
     "bounty refute (--claim <digest> | --bounty <id>) --enclave <url[,url…]> ([--protocol-key <fichier>] [--reveal-key] [--cp <0x…>] | --bundle <exploit.json> --r-file <fichier 0600 | ->) [--deployments <fichier>] [--yes] [--dry-run]",
   description: [

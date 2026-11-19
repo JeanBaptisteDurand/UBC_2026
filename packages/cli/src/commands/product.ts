@@ -90,14 +90,14 @@ function parseManifest(path: string): { m: Manifest; hash: Hex } {
 
 const list: Command = {
   path: ["product", "list"],
-  summary: "liste les produits : état, prix, parts, caution minimale, contrat de règlement",
+  summary: "lists the products: state, price, shares, minimum bond, settlement contract",
   usage: "product list",
   run: listProducts,
 };
 
 const propose: Command = {
   path: ["product", "propose"],
-  summary: "propose un produit depuis son manifeste JSON ; activable après le timelock",
+  summary: "proposes a product from its JSON manifest; it can be activated after the timelock",
   usage: "product propose <manifeste.json> [--uri <manifestURI>]",
   description: [
     "Champs lus : workloadIds (facultatif : sinon proposeWorkload → applyWorkload), deterministic, price (USDC/unité),",
@@ -142,7 +142,7 @@ const propose: Command = {
 
 const activate: Command = {
   path: ["product", "activate"],
-  summary: "active un produit proposé, une fois le timelock écoulé (ouvert à tous)",
+  summary: "activates a proposed product once the timelock has passed (open to anyone)",
   usage: "product activate <id>",
   args: [{ name: "id", desc: "identifiant du produit" }],
   write: true,
@@ -161,4 +161,4 @@ const activate: Command = {
 };
 
 export const productCommands: Command[] = [list, propose, activate];
-export const PRODUCT_TITLE = "la place de marché des produits (auteurs) : lister, proposer un manifeste, activer après le timelock";
+export const PRODUCT_TITLE = "the product marketplace (authors): list, propose a manifest, activate after the timelock";

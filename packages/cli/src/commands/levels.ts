@@ -11,8 +11,8 @@ import {
 import { CliError, type Command, UsageError, check, flag, fmtTime, info, opt, out, parseAddr, parseId, req } from "../cli";
 import { confirm, reader, writeCall, writer } from "../chain";
 
-export const LEVELS_TITLE = "niveaux d'opérateur : ouvert (attestation + caution) ou vérifié (machine en datacenter déclarée)";
-export const AUDITOR_TITLE = "vérificateur : déclarer des machines (PPID) en datacenter connu, en son propre nom";
+export const LEVELS_TITLE = "operator levels: open (attestation + bond) or verified (machine attested in a known datacenter)";
+export const AUDITOR_TITLE = "attest machines (PPID) in a known datacenter, in your own name";
 
 const L = () => {
   if (!testnet.levels) throw new CliError("ce déploiement n'a pas les niveaux d'opérateur");
@@ -26,7 +26,7 @@ const ppidOf = (v: string): Hex => {
 
 const level: Command = {
   path: ["operator", "level"],
-  summary: "niveau d'une enclave : machine liée, déclaration de l'alliance Proof of Cloud, politique d'un produit",
+  summary: "an enclave's level: bound machine, Proof of Cloud alliance attestation, a product's policy",
   usage: "operator level --signer <adresse> [--product <id>]",
   description: [
     "Niveau « ouvert » : l'enclave est attestée par Intel, vérifiée par le registre, l'opérateur a une caution.",
@@ -57,7 +57,7 @@ const level: Command = {
 
 const bind: Command = {
   path: ["operator", "bind-machine"],
-  summary: "lie l'enclave à sa machine (PPID du certificat d'Intel), d'après le quote de son inscription en cours",
+  summary: "binds the enclave to its machine (PPID from Intel's certificate), from the quote of its current registration",
   usage: "operator bind-machine --signer <adresse> [--tx <hash de registerEnclave>]",
   write: true,
   description: [
@@ -83,7 +83,7 @@ const bind: Command = {
 
 const proofOfCloud: Command = {
   path: ["operator", "proof-of-cloud"],
-  summary: "fait déclarer la machine par l'alliance Proof of Cloud (jeton cosigné, vérifié on-chain)",
+  summary: "has the Proof of Cloud alliance attest the machine (co-signed token, verified on-chain)",
   usage: "operator proof-of-cloud --signer <adresse>",
   write: true,
   description: [
@@ -110,7 +110,7 @@ const proofOfCloud: Command = {
 
 const policy: Command = {
   path: ["product", "policy"],
-  summary: "politique de niveau d'un produit : lire, proposer (auteur), appliquer après le timelock",
+  summary: "a product's level policy: read, propose (author), apply after the timelock",
   usage: "product policy --product <id> [--level 0|1 --auditors <a,b,…>] [--apply]",
   write: true,
   description: [
@@ -151,7 +151,7 @@ const policy: Command = {
 
 const attest: Command = {
   path: ["auditor", "attest"],
-  summary: "déclare, en votre nom, une machine (PPID) en datacenter connu jusqu'à une date",
+  summary: "attests, in your name, a machine (PPID) in a known datacenter until a date",
   usage: "auditor attest --ppid <32 hex> --days <n> --site <texte> [--evidence <url ou hash>]",
   write: true,
   description: [
@@ -178,7 +178,7 @@ const attest: Command = {
 
 const revoke: Command = {
   path: ["auditor", "revoke"],
-  summary: "retire, tout de suite, votre déclaration sur une machine",
+  summary: "withdraws your attestation of a machine, immediately",
   usage: "auditor revoke --ppid <32 hex> --reason <texte>",
   write: true,
   options: [

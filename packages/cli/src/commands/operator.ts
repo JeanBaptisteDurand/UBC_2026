@@ -19,7 +19,7 @@ const readBond = (pub: Pub, fn: string, args: unknown[]) =>
 
 const init: Command = {
   path: ["operator", "init"],
-  summary: "prépare l'identité ERC-8004 de l'opérateur et l'approbation de VerdictLog (transactions à signer)",
+  summary: "prepares the operator's ERC-8004 identity and the VerdictLog approval (transactions to sign)",
   usage: "operator init [--uri <agentURI>] [--agent-id <n>] [--address <adresse>]",
   description: [
     "N'envoie rien : affiche les étapes, avec destinataire et calldata de chaque transaction à signer dans votre",
@@ -76,7 +76,7 @@ const init: Command = {
 
 const bond: Command = {
   path: ["operator", "bond"],
-  summary: "dépose la caution en USDC (EIP-3009 en un appel, ou approve + bondFrom)",
+  summary: "deposits the bond in USDC (EIP-3009 in one call, or approve + bondFrom)",
   usage: "operator bond --amount <usdc> [--mode auth|allowance]",
   description: [
     "La caution borne ce qu'une seule de vos enclaves peut faire payer sur 24 h (la moitié de la caution",
@@ -158,7 +158,7 @@ async function registerFlow(ctx: Parameters<Command["run"]>[0], vm: string, prod
 
 const register: Command = {
   path: ["operator", "register"],
-  summary: "inscrit une enclave : lit /attest sur la VM (quote + journal), choisit le bloc d'ancrage, registerEnclave",
+  summary: "registers an enclave: reads /attest on the VM (quote + event log), picks the anchor block, registerEnclave",
   usage: "operator register --vm <url> --product <id>",
   description: [
     "Contrôles avant envoi : produit actif, caution disponible et libre ≥ caution minimale, clé pas liée ailleurs,",
@@ -178,7 +178,7 @@ const register: Command = {
 
 const renew: Command = {
   path: ["operator", "renew"],
-  summary: "réatteste une enclave déjà inscrite (toutes les 24 h) : nouveau quote, nouvelle échéance",
+  summary: "re-attests an enclave already registered (every 24 h): new quote, new expiry",
   usage: "operator renew --vm <url> [--product <id>]",
   description: [
     "Même chemin que register, pour une enclave inscrite par vous. Le service Registrar (O4) le fait aussi en tâche planifiée.",
@@ -198,7 +198,7 @@ const renew: Command = {
 
 const retire: Command = {
   path: ["operator", "retire"],
-  summary: "retire une de vos enclaves : plus rien ne s'ancre après, sa réserve de caution est libérée",
+  summary: "retires one of your enclaves: nothing anchors after that, its bond reserve is released",
   usage: "operator retire --signer <adresse>",
   description: [
     "v2 : chaque clé inscrite réserve la caution minimale de son produit. Une enclave redémarrée a de nouvelles clés :",
@@ -223,7 +223,7 @@ const retire: Command = {
 
 const settle: Command = {
   path: ["operator", "settle"],
-  summary: "règle les derniers reçus cumulatifs des sessions servies (une transaction par session)",
+  summary: "settles the latest cumulative receipts of the sessions served (one transaction per session)",
   usage: "operator settle --receipts <fichier.json>",
   description: [
     "Fichier : un objet ou une liste de { receipt, signature } (reçus signés par l'enclave). Pour chaque session,",
@@ -277,7 +277,7 @@ const settle: Command = {
 
 const status: Command = {
   path: ["operator", "status"],
-  summary: "état d'un opérateur : caution, exposition sur 24 h, enclaves et échéances, gains, identité",
+  summary: "an operator's state: bond, 24 h exposure, enclaves and expiries, earnings, identity",
   usage: "operator status [<adresse>]",
   args: [{ name: "adresse", desc: "opérateur (défaut : l'adresse de PRIVATE_KEY)", optional: true }],
   examples: ["arcvault operator status 0x5724d89D610c3017b8DC161c025248341556f6Ab"],
@@ -351,4 +351,4 @@ async function earnings(op: Address): Promise<string> {
 }
 
 export const operatorCommands: Command[] = [init, bond, register, renew, retire, settle, status];
-export const OPERATOR_TITLE = "devenir fournisseur d'enclave : identité ERC-8004, caution, inscription, réattestation, retrait, règlements, état";
+export const OPERATOR_TITLE = "become an enclave provider: ERC-8004 identity, bond, registration, re-attestation, retirement, settlements, state";
