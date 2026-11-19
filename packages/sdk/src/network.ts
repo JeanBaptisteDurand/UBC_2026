@@ -60,10 +60,10 @@ export interface Deployment {
   };
 }
 
-/** Pile v2.1 sur Arc testnet (deployments.v21.testnet.json, déployée le 9/11, bloc 71481927) : comme la v2 (registre
- *  branché sur le VRAI module DCAP, REQUIRE_SEPT_VE, timelock 0 sur testnet), plus l'empreinte d'IMAGE par rejeu
- *  on-chain du journal RTMR3 de dstack (stable d'un redémarrage à l'autre), des verdicts ERC-8004 liés au contrat et
- *  salés, et l'inférence payée à l'appel (x402, produit 3). Le copilote attesté est le produit 4 (sans règlement). */
+/** v2.1 stack on Arc testnet (deployments.v21.testnet.json, deployed at block 71481927): like v2 (the registry is wired
+ *  to the REAL DCAP module, REQUIRE_SEPT_VE, timelock 0 on testnet), plus the IMAGE measurement by on-chain replay of
+ *  dstack's RTMR3 event log (stable from one restart to the next), ERC-8004 verdicts bound to the contract and salted,
+ *  and inference paid per call (x402, product 3). The attested copilot is product 4 (no settlement). */
 export const testnet: Deployment = {
   version: "v2",
   chainId: ARC_TESTNET_ID,
@@ -86,9 +86,9 @@ export const testnet: Deployment = {
   treasury: "0x5724d89D610c3017b8DC161c025248341556f6Ab",
   products: { inference: 1n, bounty: 2n, x402: 3n },
   attestation: "dcap",
-  // 11/11/2026 : pile des niveaux REDÉPLOYÉE après la revue de sécurité (PckChip corrigé) ; l'ancienne est abandonnée
-  // (voir deployments.v21.testnet.json → levels.superseded). La Prime vérifiée est le PRODUIT 7 (le 6 est neutralisé) ;
-  // elle saisit et écrit ses verdicts à partir du 18/11 23:00 UTC.
+  // The levels stack was REDEPLOYED after the security review (PckChip fixed); the previous one is abandoned
+  // (see deployments.v21.testnet.json → levels.superseded). The verified Sealed Bounty is PRODUCT 7 (product 6 is
+  // neutralized); its seizures and verdicts are enabled from 2026-11-18 23:00 UTC.
   levels: {
     machineRegistry: "0xd671013f556b1272b25e3cc17c889d402f4dc26d",
     proofOfCloudAuditor: "0xcdc4c150344f06d506deb5500332737e8dcc8fab",
@@ -98,10 +98,10 @@ export const testnet: Deployment = {
   },
 };
 
-/** Pile v2 sur Arc testnet (deployments.v2.testnet.json, déployée le 7/11, bloc 71206317 ; remplacée par la v2.1 le 9/11,
- *  gardée pour l'historique : sessions, primes et verdicts passés) : le registre d'enclaves
- *  est branché sur le VRAI module DCAP (chaque quote est vérifié contre la signature d'Intel, ≈ 5,7 M gas par
- *  inscription), REQUIRE_SEPT_VE actif, timelock des produits à 0 (testnet). */
+/** v2 stack on Arc testnet (deployments.v2.testnet.json, deployed at block 71206317; superseded by v2.1 and kept for
+ *  history: past sessions, bounties and verdicts): the enclave registry is wired to the REAL DCAP module (every quote is
+ *  verified against Intel's signature, ≈ 5.7 M gas per registration), REQUIRE_SEPT_VE on, product timelock at 0
+ *  (testnet). */
 export const testnetV2: Deployment = {
   version: "v2",
   chainId: ARC_TESTNET_ID,
