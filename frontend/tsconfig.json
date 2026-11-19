@@ -13,5 +13,6 @@
     "types": ["vite/client"]
   },
   "include": ["src"],
+  // Node-only (node:crypto, node:https): the SDK's Proof of Cloud client, not part of the browser build
   "exclude": ["src/network/actions/sdk/proof-of-cloud.ts"]
 }

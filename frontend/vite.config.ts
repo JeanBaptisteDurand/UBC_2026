@@ -28,7 +28,7 @@ function rebase(base: string): Plugin {
 }
 
 /** App pages: the entry script blocks the first render, so the header is on screen at the page's first frame and
- *  stays in place across the page transition (design/MOTION.md, M1). The landing (film) keeps its own loading. */
+ *  stays in place across the page transition (MOTION.md, M1). The landing (film) keeps its own loading. */
 function renderBlocking(): Plugin {
   return {
     name: 'render-blocking-entry', enforce: 'post',
@@ -43,7 +43,7 @@ function renderBlocking(): Plugin {
  *  reuses the desktop positions (ysFrom) */
 function filmManifests(): Plugin {
   return {
-    name: 'film-manifestes',
+    name: 'film-manifests',
     transformIndexHtml(html) {
       if (!html.includes('/*FILM_MAN*/')) return html
       const out: Record<string, unknown> = {}
