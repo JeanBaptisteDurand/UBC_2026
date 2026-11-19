@@ -37,7 +37,7 @@ function post(app: ReturnType<typeof makeApp>, body: unknown, headers: Record<st
 }
 const sys = (req: LlmRequest) => String(req.messages[0]!.content);
 
-test("parseLang, Accept-Language : seules nos langues ; la préférence la plus forte d'abord", () => {
+test("parseLang, Accept-Language: only the supported languages; the strongest preference first", () => {
   for (const [x, l] of [["en", "en"], ["EN", "en"], ["en-US", "en"], ["fr_FR", "fr"], [" fr ", "fr"]] as const) assert.equal(parseLang(x), l);
   for (const x of ["de", "", "english", "français", 3, null, undefined, {}]) assert.equal(parseLang(x), undefined, String(x));
   assert.equal(langFromAcceptLanguage("fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7"), "fr");
@@ -48,7 +48,7 @@ test("parseLang, Accept-Language : seules nos langues ; la préférence la plus 
   assert.equal(langFromAcceptLanguage(undefined), undefined);
 });
 
-test("détection : les questions du site dans les deux langues ; rien de concluant → undefined", () => {
+test("detection: the site's questions in both languages; nothing conclusive → undefined", () => {
   for (const q of ["Show me the enclave hive", "Which products, at what price?", "I want to run a private inference", "How do I post a bounty?",
     "here is my private key, not the tx hash", "What's the hive?", "Can you explain how the bond works?"]) assert.equal(detectLang(q), "en", q);
   for (const q of ["Montre-moi la ruche des enclaves", "Quels produits, à quel prix ?", "Je veux lancer une inférence privée",
@@ -56,7 +56,7 @@ test("détection : les questions du site dans les deux langues ; rien de conclua
   for (const q of ["ok", "x", "1", "q0", "0x1234", "session", "wallet ?"]) assert.equal(detectLang(q), undefined, q);
 });
 
-test("résolution : lang demandé > dernier message de l'utilisateur (en remontant) > Accept-Language > anglais", () => {
+test("resolution: requested lang > the user's last message (going back) > Accept-Language > English", () => {
   assert.equal(resolveLang({ requested: "fr", userTexts: ["Show me the hive"], acceptLanguage: "en" }), "fr");
   assert.equal(resolveLang({ requested: "xx", userTexts: ["Montre-moi la ruche"] }), "fr");
   assert.equal(resolveLang({ userTexts: ["ok", "Show me the hive"], acceptLanguage: "fr" }), "en", "on remonte au dernier message concluant");
@@ -66,7 +66,7 @@ test("résolution : lang demandé > dernier message de l'utilisateur (en remonta
   assert.deepEqual(userTextsOf(null), []);
 });
 
-test("consigne de langue : anglais imposé, libellés anglais exacts des pages et boutons ; français : vouvoiement et libellés français", () => {
+test("language directive: English enforced, the exact English labels of pages and buttons; French: formal address and French labels", () => {
   const en = languageDirective("en");
   assert.match(en, /ENGLISH/);
   for (const name of [...Object.values(PAGES.en), ...BUTTONS.en]) assert.ok(en.includes(name), name);
@@ -78,7 +78,7 @@ test("consigne de langue : anglais imposé, libellés anglais exacts des pages e
   for (const name of [...Object.values(PAGES.fr), ...BUTTONS.fr]) assert.ok(fr.includes(name), name);
 });
 
-test("lang \"en\" : la consigne anglaise arrive EN DERNIER dans l'invite, même pour une question en français", async () => {
+test("lang \"en\": the English directive comes LAST in the prompt, even for a question in French", async () => {
   const m = scriptedLlm(() => ({ content: "Here is the Hive." }));
   const app = makeApp({}, m.llm);
   const j = await (await post(app, { messages: [{ role: "user", content: "Montre-moi la ruche" }], lang: "en" })).json() as any;
@@ -94,7 +94,7 @@ test("lang \"en\" : la consigne anglaise arrive EN DERNIER dans l'invite, même 
   assert.ok(sys(m.calls.at(-1)!).endsWith(languageDirective("fr")));
 });
 
-test("refus dans la langue : corps lu (lang, puis message) ; avant le corps : Accept-Language, sinon anglais ; chaque refus a un code", async () => {
+test("refusals in the language: body read (lang, then message); before the body: Accept-Language, else English; every refusal has a code", async () => {
   const app = makeApp();
   // conversation invalide, lang demandé
   let j = await (await post(app, { messages: [{ role: "system", content: "x" }, { role: "user", content: "salut" }], lang: "en" })).json() as any;
@@ -135,7 +135,7 @@ test("refus dans la langue : corps lu (lang, puis message) ; avant le corps : Ac
   assert.match(j.text, /daily request cap/);
 });
 
-test("messages d'action, de repli et d'erreur dans la langue ; ponctuation anglaise sans espace avant « ! ? : »", async () => {
+test("action, fallback and error messages in the language; English punctuation with no space before \"! ? :\"", async () => {
   // action préparée et texte vide : message d'action
   let n = 0;
   const m = scriptedLlm(() => (n++ === 0
@@ -169,7 +169,7 @@ test("messages d'action, de repli et d'erreur dans la langue ; ponctuation angla
   assert.equal((await (await post(t, { messages: [{ role: "user", content: "salut" }], lang: "fr" })).json() as any).text, "Hello ! Ready ? Note : yes.");
 });
 
-test("navigation de secours : les demandes en anglais mènent aux mêmes pages que les françaises", () => {
+test("fallback navigation: requests in English lead to the same pages as French ones", () => {
   const cases: Array<[string, string]> = [
     ["Show me the enclave hive", "ruche"], ["How do I post a bounty?", "publier-prime"], ["Which products, at what price?", "produits"],
     ["I want to run a private inference", "playground"], ["I want to become an operator", "operateur"], ["Where are the SDK docs?", "developpeurs"],
@@ -180,7 +180,7 @@ test("navigation de secours : les demandes en anglais mènent aux mêmes pages q
   for (const [q, page] of cases) assert.equal(intentNav(q), page, q);
 });
 
-test("parseChatRequest : erreurs en anglais sur demande, en français par défaut", () => {
+test("parseChatRequest: errors in English on request, in French by default", () => {
   const bad = { messages: [{ role: "tool", content: "x" }, { role: "user", content: "y" }] };
   const en = parseChatRequest(bad, undefined, "en");
   const fr = parseChatRequest(bad);
@@ -188,7 +188,7 @@ test("parseChatRequest : erreurs en anglais sur demande, en français par défau
   assert.ok(!fr.ok && /seuls user et assistant sont acceptés/.test(fr.error));
 });
 
-test("/health : langues servies ; pas de conversation chiffrée hors enclave", async () => {
+test("/health: languages served; no encrypted conversation outside an enclave", async () => {
   const j = await (await makeApp().request("/health")).json() as any;
   assert.deepEqual(j.languages, ["en", "fr"]);
   assert.equal(j.sealed, null);

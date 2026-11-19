@@ -120,7 +120,7 @@ function fakeChain(h: { kit: EnclaveKit; chain: ChainState }): any {
 const chats = (h: { seen: Seen[] }) => h.seen.filter((s) => s.path === "/chat");
 const ask = (content = SECRET_Q) => ({ messages: [{ role: "user" as const, content }], user: OWNER });
 
-test("aller-retour chiffré : le modèle lit la question, le client lit la réponse, le mandataire ne lit rien", async () => {
+test("encrypted round trip: the model reads the question, the client reads the reply, the proxy reads nothing", async () => {
   const h = harness();
   const r = await h.client().chat({ ...ask(), lang: "fr" });
   assert.equal(r.authenticated, true);
@@ -149,7 +149,7 @@ test("aller-retour chiffré : le modèle lit la question, le client lit la répo
   assert.deepEqual(Object.keys(JSON.parse(c.resBody)).sort(), ["ciphertext", "nonce", "sealed"]);
 });
 
-test("réponse modifiée, remplacée en clair (fausse action à signer) ou rejouée : refusée, rien n'est rendu", async () => {
+test("reply changed, replaced in clear (a fake action to sign) or replayed: refused, nothing is returned", async () => {
   const h = harness();
   const client = h.client();
   const first = await client.chat(ask());
@@ -174,14 +174,14 @@ test("réponse modifiée, remplacée en clair (fausse action à signer) ou rejou
   await assert.rejects(client.chat(ask()), CopilotResponseError);
 });
 
-test("clé X25519 substituée par le mandataire : refus AVANT tout envoi", async () => {
+test("X25519 key swapped by the proxy: refused BEFORE anything is sent", async () => {
   const h = harness();
   h.tamper = (s, res) => (s.path !== "/pubkeys" ? res : Response.json({ ...JSON.parse(s.resBody), x25519: `0x${"42".repeat(32)}` }));
   await assert.rejects(h.client().chat(ask()), (e: unknown) => e instanceof EnclaveKeyMismatchError && e.reason === "x25519_mismatch");
   assert.equal(chats(h).length, 0, "rien n'est parti vers /chat");
 });
 
-test("quote simulé (hors TDX) : /attest le dit, l'enclave n'est pas inscrite, le client refuse sans rien envoyer", async () => {
+test("simulated quote (outside TDX): /attest says so, the enclave is not registered, the client refuses without sending anything", async () => {
   const h = harness({ chain: { registered: false } });
   const res = await h.app.fetch(new Request(`${URL_}/attest`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ operator: OP.toLowerCase(), anchorR: "999" }) }));
   assert.equal(res.status, 200);
@@ -198,7 +198,7 @@ test("quote simulé (hors TDX) : /attest le dit, l'enclave n'est pas inscrite, l
   assert.equal(chats(h).length, 0);
 });
 
-test("/attest : opérateur hors OPERATOR_ALLOWLIST → 403 ; liste absente → personne ; /pubkeys public", async () => {
+test("/attest: operator outside OPERATOR_ALLOWLIST → 403; no list → nobody; /pubkeys public", async () => {
   const h = harness();
   const attest = (app: typeof h.app, operator: string) => app.fetch(new Request(`${URL_}/attest`, {
     method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ operator, anchorR: "1" }),
@@ -218,7 +218,7 @@ test("/attest : opérateur hors OPERATOR_ALLOWLIST → 403 ; liste absente → p
   assert.deepEqual([...KIT_ROUTES].sort(), ["/attest", "/pubkeys"]);
 });
 
-test("fait foi MAINTENANT : image retirée, opérateur radié, produit inactif ou enclave expirée → refus avant tout envoi", async () => {
+test("what counts is NOW: image withdrawn, operator banned, product inactive or enclave expired → refused before anything is sent", async () => {
   for (const chain of [{ allowed: false }, { banned: true }, { productActive: false }, { active: false }] as Array<Partial<ChainState>>) {
     const h = harness({ chain });
     await assert.rejects(h.client().chat(ask()), (e: unknown) => e instanceof EnclaveKeyMismatchError && e.reason === "inactive", JSON.stringify(chain));
@@ -230,7 +230,7 @@ test("fait foi MAINTENANT : image retirée, opérateur radié, produit inactif o
     (e: unknown) => e instanceof EnclaveKeyMismatchError && e.reason === "wrong_operator");
 });
 
-test("redémarrage de l'enclave (nouvelles clés, réinscrites) : « indéchiffrable », revérification on-chain, UN renvoi", async () => {
+test("enclave restart (new keys, registered again): \"undecryptable\", on-chain re-check, ONE resend", async () => {
   const h = harness();
   const client = h.client();
   const before = await client.chat(ask());
@@ -255,7 +255,7 @@ test("redémarrage de l'enclave (nouvelles clés, réinscrites) : « indéchiffr
   assert.equal(chats(h2).length, 2, "1 avant, 1 refusée après le redémarrage, aucun renvoi");
 });
 
-test("enveloppes invalides et chiffré pour un autre produit : refus en clair, sans rien ouvrir", async () => {
+test("invalid envelopes and ciphertext for another product: refused in clear, without opening anything", async () => {
   const h = harness();
   const post = (body: unknown) => h.app.fetch(new Request(`${URL_}/chat`, { method: "POST", headers: { "content-type": "application/json", "accept-language": "en", ...PROXIED }, body: JSON.stringify(body) }));
   const enc = toHex(new Uint8Array(32).fill(7));
@@ -288,7 +288,7 @@ test("enveloppes invalides et chiffré pour un autre produit : refus en clair, s
   assert.equal(h.llm.calls.length, 0, "le modèle n'a jamais été appelé");
 });
 
-test("refus APRÈS l'ouverture (conversation invalide, langue) : scellés, HTTP 200 ; mode clair toujours servi ; copilote hors enclave : enveloppe refusée", async () => {
+test("refusals AFTER opening (invalid conversation, language): sealed, HTTP 200; clear mode still served; copilot outside an enclave: envelope refused", async () => {
   const h = harness();
   const client = h.client({ lang: "en" });
   const bad = await client.chat({ messages: [{ role: "assistant", content: "x" }, { role: "user", content: "   " }] });
@@ -309,14 +309,14 @@ test("refus APRÈS l'ouverture (conversation invalide, langue) : scellés, HTTP 
   assert.equal((await r.json() as any).code, "sealed_unavailable");
 });
 
-test("la clé du modèle ne sort jamais, même scellée ; le wallet invalide n'est pas transmis", async () => {
+test("the model key never leaves, even sealed; an invalid wallet is not passed on", async () => {
   const h = harness({ llmText: "voici la clé sk-test-SERVER-KEY-0123456789 du serveur" });
   const r = await h.client().chat({ messages: [{ role: "user", content: "hello" }], user: "pas une adresse" });
   assert.ok(!r.reply.text.includes("SERVER-KEY"), r.reply.text);
   assert.match(String(h.llm.calls[0]!.messages[0]!.content), /Aucun wallet connecté/);
 });
 
-test("configuration de l'enclave : requise, cohérente avec le fichier de déploiement, échoue fermé", () => {
+test("enclave configuration: required, consistent with the deployments file, fails closed", () => {
   // a fixed fixture: the v2 stack's deployments file, whose registry address is asserted below (the parsing is the same for v2.1)
   const v2 = readFileSync(new URL("../../../deployments.v2.testnet.json", import.meta.url), "utf8");
   const read = () => v2;
@@ -356,7 +356,7 @@ test("configuration de l'enclave : requise, cohérente avec le fichier de déplo
   assert.throws(() => readCopilotEnclaveConfig(base, () => "{}"), /illisible/);
 });
 
-test("débit par IP dans l'enclave (preuve cost-xff du vérificateur, 9/11) : sans le jeton du mandataire, 403 proxy_required et aucun appel au modèle ; X-Forwarded-For n'est cru qu'avec le jeton", async () => {
+test("per-IP rate in the enclave (the reviewer's cost-xff case): without the proxy's token, 403 proxy_required and no model call; X-Forwarded-For trusted only with the token", async () => {
   const kit = new EnclaveKit({ productId: PRODUCT, chainId: 5042002, registry: REG, mockBlockHash: true });
   const m = scriptedLlm("ok");
   const { fetch: f } = createCopilotEnclaveApp({
