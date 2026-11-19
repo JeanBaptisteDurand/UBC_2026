@@ -53,6 +53,7 @@ SOURCE_DATE_EPOCH=1794960000 docker buildx build --platform linux/amd64 -f encla
 ## Tests
 
 ```bash
+cd contracts && forge build && cd ..   # the on-chain demo test reads the compiled contracts from contracts/out
 cd enclave && npm ci && npm test   # vitest run
 ```
 
