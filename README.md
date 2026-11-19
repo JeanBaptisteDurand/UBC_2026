@@ -113,11 +113,11 @@ three calls on Arc:
 
 | # | Product | Who pays | Who is paid | Contract | On 19 Nov |
 |---|---|---|---|---|---|
-| 1 | Private AI, prepaid session | a user or an app deposits USDC, billed per token (0.0001 USDC on testnet) | operator 95 %, network 5 %; the rest is refunded | `SessionPay` | running |
+| 1 | Private AI, prepaid session | a user or an app deposits USDC, billed per token (0.10 USDC per 1,000 tokens on testnet) | operator 95 %, network 5 %; the rest is refunded | `SessionPay` | running |
 | 2 | Sealed Bounty, open level | a protocol funds a USDC pool | the hunter gets 100 % of the tier; +10 % network and +5 % verifying operators, on top, only when paid | `SealedBounty` | running |
-| 3 | Private AI, pay per call (x402) | an agent signs one EIP-3009 authorization per call (0.01 USDC), no gas | operator 95 %, network 5 % | `X402Settler` | running |
+| 3 | Private AI, pay per call (x402) | an agent signs one EIP-3009 authorization per call (0.01 USDC per call), no gas for the agent (the operator pays the settlement gas, about 0.005 USDC at 25 gwei) | operator 95 %, network 5 % | `X402Settler` | running |
 | 4 | AskHive, the attested copilot | free | — | — | running |
-| 5 | Caught lying (refutation demo) | — | the liar's bond: 50 % reporter, 50 % victim | `SealedBounty`, `OperatorBond` | done on 10 Nov, on Arc |
+| 5 | Caught lying (refutation demo) | — | the liar's whole bond: 50 % reporter, 50 % victim (or the network treasury if there is no victim) | `SealedBounty`, `OperatorBond` | done on 10 Nov, on Arc |
 | 6 | Verified bounty, first version | — | — | — | switched off, replaced by 7 |
 | 7 | Sealed Bounty, verified level | a protocol funds a USDC pool | as product 2; only enclaves on chips declared by the Proof of Cloud alliance count | `SealedBountyVerified` | running |
 
@@ -139,7 +139,7 @@ not market prices. Live values: `curl -s https://archive.62-171-153-35.sslip.io/
 - **The policy**: debug mode off, `SEPT_VE_DISABLE`, firmware (TCB) up to date, a quote bound to a recent Arc block
   (EIP-2935, within 8,191 blocks), `REPORTDATA` binding chain, registry, product, operator and the enclave's keys,
   a quote never seen before, and enough free bond.
-- **The cost**: about 6.6 to 6.9 M gas per registration, 0.13 to 0.17 USDC at 20 to 25 gwei. The operator's
+- **The cost**: about 6.85 to 6.87 M gas per registration, 0.15 to 0.17 USDC at 21.5 to 25 gwei (measured on Arc testnet). The operator's
   registrar renews each admission before its window ends.
 
 **Operator levels** (`MachineRegistry`, `ProofOfCloudAuditor`, `PolicyEnclaves`; see [docs/OPERATORS.md](docs/OPERATORS.md)):
@@ -150,9 +150,9 @@ not market prices. Live values: `curl -s https://archive.62-171-153-35.sslip.io/
   Product 7 requires it.
 
 **Bonds and slashing** (`OperatorBond`): each enclave reserves the product's minimum bond (1 USDC for the live products on testnet). On the
-word of an operator's enclaves, settlement contracts never release more than half of its free bond in any 24 hours. A
+word of an operator's enclaves, settlement contracts never release more than half of its free bond in any 24 hours, nor more than the product's exposure cap (10 USDC on testnet). A
 fault proven on-chain (two signed answers to one request, or a bounty claim refuted by other operators' replays) seizes
-the whole bond: half to the reporter, half to the victim. A bond leaves 7 days after the request and after its last
+the whole bond: half to the reporter, half to the victim (or to the network treasury when there is no victim). A bond leaves 7 days after the request and after its last
 exposure.
 
 **Verdicts** (`VerdictLog`): written to Circle's ERC-8004 validation registry under the operator's agent identity
@@ -274,7 +274,7 @@ prepare tools to any agent. The bounty enclave reaches Arc only through a strict
 header and signs nothing that depends on an RPC error.
 
 **What else Arc brings**: USDC is the money and the gas, so every check has a dollar price; EIP-3009 lets a buyer pay
-with one signature (no approve, no gas); Arc Foundry's `arc-anvil` forks Arc with its own precompiles (native USDC
+with one signature (no approve, and no gas for the buyer: the operator pays the settlement, about 0.005 USDC); Arc Foundry's `arc-anvil` forks Arc with its own precompiles (native USDC
 included) to replay an exploit exactly; EIP-2935 block history lets a contract refuse stale quotes and claims.
 
 ## Run it

@@ -67,7 +67,7 @@ arcvault operator level --signer <enclave key> --product <id>
 - **Is your machine on the list?** The alliance only issues a token for a machine on its list that has not been revoked. Phala Cloud machines are on it (verified 10 Nov). For your own hardware, see [proofofcloud.org](https://proofofcloud.org) and its inspection ceremonies.
 - **The registrar keeps the level for you.** Every renewal changes the quote, and a stale binding drops the enclave back to the open level. The registrar re-binds right after each renewal. It also requests a fresh alliance token when the declaration has less than 3 days left (`LEVELS=0` turns this off).
 - **Costs on Arc testnet**, gas paid in USDC:
-  - binding: about 1.17 M gas, roughly 0.03 USDC, after each daily renewal;
+  - binding: about 1.73 M gas, roughly 0.04 USDC at 25 gwei, after each daily renewal;
   - alliance token: about 5.2 M gas, roughly 0.13 USDC, once a week per machine.
 
 ## Be an auditor
