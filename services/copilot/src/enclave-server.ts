@@ -61,7 +61,7 @@ async function main() {
   const base = { ...c.options, health: { ...c.options.health, enclave } };
   const app = createCopilotEnclaveApp({
     kit,
-    // site : invite contrôlée (aucune phrase du serveur), note de l'enclave, /health qui dit où il tourne ; console : inchangé
+    // site: controlled prompt (no server-side sentence), the enclave's note, /health reports where it runs; console: unchanged
     copilot: site ? siteEnclaveOptions(base, facts) : { ...base, systemNote: enclaveSystemNote(facts) },
     proxyToken: cfg.proxyToken,
     attest: { operatorAllowlist: cfg.operatorAllowlist },

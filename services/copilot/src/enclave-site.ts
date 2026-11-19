@@ -1,5 +1,5 @@
 /** enclave-site.ts — la surface « site » (COPILOT_SURFACE=site) du copilote DANS son enclave Intel TDX (produit 4, 18/11) :
- *  le panneau du front de Florent parle au MÊME programme que le copilote du site sur le serveur : même boucle d'app.ts
+ *  le panneau du site parle au MÊME programme que le copilote du site sur le serveur : même boucle d'app.ts
  *  (outils d'interface validés puis rendus au navigateur, outils prepare dont le visiteur signe le résultat avec SON
  *  wallet, docs_search, aucun outil qui dépense, filtre de secrets), même invite et mêmes outils (copilot.ts, site.ts).
  *  La requête scellée porte le même JSON que celle du serveur (messages, lang, user, page) ; la réponse a la forme du

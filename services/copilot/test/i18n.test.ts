@@ -61,7 +61,7 @@ test("résolution : lang demandé > dernier message de l'utilisateur (en remonta
   assert.equal(resolveLang({ requested: "xx", userTexts: ["Montre-moi la ruche"] }), "fr");
   assert.equal(resolveLang({ userTexts: ["ok", "Show me the hive"], acceptLanguage: "fr" }), "en", "on remonte au dernier message concluant");
   assert.equal(resolveLang({ userTexts: ["ok"], acceptLanguage: "fr-FR" }), "fr");
-  assert.equal(resolveLang({ userTexts: ["ok"] }), "en", "le hackathon se juge en anglais");
+  assert.equal(resolveLang({ userTexts: ["ok"] }), "en", "English is the default language");
   assert.deepEqual(userTextsOf({ messages: [{ role: "user", content: "a" }, { role: "assistant", content: "b" }, { role: "system", content: "c" }, { role: "user", content: 4 }, { role: "user", content: "d" }] }), ["d", "a"]);
   assert.deepEqual(userTextsOf(null), []);
 });

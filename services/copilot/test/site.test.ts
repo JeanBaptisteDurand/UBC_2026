@@ -1,14 +1,14 @@
-/** site.test.ts — la surface « site » du copilote (COPILOT_SURFACE=site, CONTRACT.md §2 à §4) avec un modèle SIMULÉ
- *  (aucun appel au fournisseur) : validation stricte des trois outils d'interface (énumérations, chiffres, chaînes
- *  bornées, ancres connues, 3 actions au plus, rien après console ou datacenter), contexte `page` validé puis dit en
- *  UNE ligne (tentatives d'injection retirées), réponse détaillée (`tools` = { tool, label, input, result? }), invite,
- *  outils, libellés, consigne de langue et base de connaissances du site, coût borné avec la vraie invite. 18/11 : les
- *  pages Produits et Technologie et les pages de Florent (Primes, Sessions, Opérateur, Network), la fiche de FAITS, la
- *  règle des adresses, et la Prime du produit 7 préparée sur SealedBountyVerified. 18/11 au soir : le copilote GUIDE
- *  (ui_guide) — recettes en anglais et en français, guides écrits par le modèle validés (registre d'ancres partagé, jamais
- *  un bouton qui signe, copie limitée aux commandes de la page), un guide par réponse, intentions, filet des guides dans
- *  la boucle pour chaque intention (EN et FR), recette écrite dans le texte, et la ligne « où tu tournes » du serveur.
- *  Lancer : cd services/copilot && npx tsx --test test/site.test.ts */
+/** site.test.ts — the copilot's "site" surface (COPILOT_SURFACE=site, docs/COPILOT-SITE-CONTRACT.md §2-§4) with a
+ *  SIMULATED model (no call to the provider): strict validation of the interface tools (enumerations, numbers, bounded
+ *  strings, known anchors, at most 3 actions, nothing after console or datacenter), the `page` context validated then
+ *  stated in ONE line (injection attempts removed), detailed response (`tools` = { tool, label, input, result? }), the
+ *  site's prompt, tools, labels, language directive and knowledge base, bounded cost with the real prompt. The Products
+ *  and Technology pages and the action pages (Bounties, Sessions, Operator, Network), the FACTS sheet, the address rule,
+ *  and product 7's bounty prepared on SealedBountyVerified. The copilot GUIDES (ui_guide): recipes in English and in
+ *  French, guides written by the model and validated (shared anchor registry, never a button that signs, copying
+ *  limited to the page's commands), one guide per answer, intents, the guide fallback in the loop for each intent (EN
+ *  and FR), a recipe written in the text, and the server's "where you run" line.
+ *  Run: cd services/copilot && npx tsx --test test/site.test.ts */
 import { siteFixedAnswer, siteWhereAnswer, stripInternalLabels } from "../src/site";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -523,7 +523,7 @@ test("site : filet — demande claire, modèle sans geste ni carte : la page est
   assert.equal(j2.tools.some((t: { inferred?: true }) => t.inferred), false);
 });
 
-// ---------------------------------------------------------------- 18/11 : les pages Produits et Technologie, les pages de Florent
+// ---------------------------------------------------------------- the Products and Technology pages, the action pages
 
 test("ui_navigate (19/11) : Services, Doc, Mon espace (Primes, Sessions, Opérateur), Network ; les anciens noms suivis ; act sur Utiliser, Louer et Publier", () => {
   const nav = (a: unknown) => createUiSession().run("ui_navigate", a);
@@ -641,7 +641,7 @@ test("FAITS du site = fiche vérifiée du 17/11 (frontend/src/products/faits.jso
   assert.ok(contrats.includes("13 of our own code in service") && contrats.includes("51 deployed"));
 });
 
-test("docs_search du site (18/11) : familles de produits, marché, notaire, contrats, développeurs, pages de Florent", async () => {
+test("site docs_search: product families, market, notary, contracts, developers, bounty/session/operator pages", async () => {
   const top = async (q: string) => ((await executeSiteTool("docs_search", { query: q }, { arc: fakeArc() })).citations ?? [])[0];
   for (const [q, src] of [
     ["what can I buy here?", "site-v4#products"],

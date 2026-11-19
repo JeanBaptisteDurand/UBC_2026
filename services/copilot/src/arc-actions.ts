@@ -449,7 +449,7 @@ export async function sessionStatus(arc: ArcClient, sessionIdIn: unknown) {
   const h = await headBlock(arc);
   const settleGrace = await constant<bigint>(arc, arc.d.sessionPay, "SETTLE_GRACE");
   const deposit = BigInt(s.deposit), cap = BigInt(s.cap), paid = BigInt(s.paid), expiresAt = BigInt(s.expiresAt);
-  const price = BigInt(s.price); // v2 : verrouillé à l'ouverture
+  const price = BigInt(s.price); // locked when the session opens
   const ceiling = cap === 0n ? deposit : (cap < deposit ? cap : deposit);
   const remaining = ceiling > paid ? ceiling - paid : 0n;
   const closableAt = expiresAt + settleGrace;
@@ -631,7 +631,7 @@ export async function prepareSessionOpen(arc: ArcClient, q: any, cx: ActionCtx =
   const user = optAddr(q.user, "user") ?? cx.user;
   const actives = es.filter((e) => e.active && e.productId === pid);
   const operator = optAddr(q.operator, "operator") ?? (actives[0] ? getAddress(actives[0].operator) : undefined);
-  // v2 : la session est verrouillée sur UNE enclave (OpenParams.enclave) : une enclave active de cet opérateur
+  // the session is locked to ONE enclave (OpenParams.enclave): an active enclave of this operator
   const enclave = actives.find((e) => operator && e.operator.toLowerCase() === operator.toLowerCase());
   const h = await headBlock(arc);
   const verifications = [
@@ -647,7 +647,7 @@ export async function prepareSessionOpen(arc: ArcClient, q: any, cx: ActionCtx =
     verifications.push({ ok: bal >= deposit, quoi: `solde USDC de ${user} : ${usdc(bal)} (dépôt : ${usdc(deposit)})` });
   }
   const a = eip3009(arc, user, arc.d.sessionPay, deposit, h.timestamp);
-  const expiresAt = h.timestamp + 86_400n; // échéance proposée : 24 h (défaut du SDK) ; v2 : entre 10 min et 30 j
+  const expiresAt = h.timestamp + 86_400n; // proposed expiry: 24 h (the SDK's default); allowed range: 10 min to 30 days
   return {
     note: "Ouvre une session : signe l'autorisation EIP-3009 ci-dessous. La clé de session naît dans ton navigateur, jamais ici.",
     execute: false,
@@ -1107,7 +1107,7 @@ export async function prepareRegister(arc: ArcClient, q: any, cx: ActionCtx = {}
       try {
         const m = parseTdxQuote(quote);
         const needSeptVe = await read<boolean>(arc, arc.d.enclaveRegistry, extraAbi, "requireSeptVeDisable");
-        // v2.1 : empreinte d'IMAGE (journal RTMR3 rejoué par le registre) si le produit l'autorise, sinon empreinte complète
+        // IMAGE fingerprint (RTMR3 log replayed by the registry) if the product allows it, otherwise the full fingerprint
         const plan = await planRegistrationLog(arc.pub as any, { registry: arc.d.enclaveRegistry, productRegistry: arc.d.productRegistry, productId: pid, quote, rawEventLog: eventLog });
         const allowed = plan.admittedBy !== null;
         if (plan.admittedBy === "image") eventLog = plan.eventLog;

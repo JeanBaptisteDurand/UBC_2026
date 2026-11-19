@@ -1,8 +1,8 @@
-/** i18n.ts — la langue du copilote (anglais ou français) : le champ `lang` de POST /chat (choisi sur le site), sinon la
- *  langue du dernier message de l'utilisateur (détectée), sinon l'en-tête Accept-Language, sinon l'anglais (le hackathon
- *  se juge en anglais). Le copilote répond dans cette langue, refus et messages d'action compris ; sa base de
- *  connaissances et ses outils restent en français (le modèle traduit), mais il cite les pages et les boutons du site sous
- *  leur nom dans la langue choisie (PAGES, BUTTONS : repris de web/src/i18n/{en,fr}.ts le 9/11 ; à tenir alignés). */
+/** i18n.ts — the copilot's language (English or French): the `lang` field of POST /chat (chosen on the site), else the
+ *  language of the user's last message (detected), else the Accept-Language header, else English. The copilot answers in
+ *  that language, refusals and action messages included; parts of its knowledge base and tools are in French (the model
+ *  translates), but it names the site's pages and buttons as they appear in the chosen language (PAGES, BUTTONS: the labels
+ *  of web/src/i18n/{en,fr}.ts). */
 
 export type Lang = "en" | "fr";
 export const LANGS: readonly Lang[] = ["en", "fr"];

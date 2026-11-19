@@ -172,7 +172,7 @@ export interface SealedRequest {
 }
 /** Conversation chiffrée (copilote en enclave) : l'enclave ouvre la requête avec sa clé X25519 (kit d'enclave). */
 export interface SealedChannel {
-  /** Étiquette du protocole : valeur attendue du champ `sealed` (ARC-COPILOT-CHAT-v1). */
+  /** Protocol tag: the expected value of the `sealed` field (ARC-COPILOT-CHAT-v1). */
   tag: string;
   /** Ouvre une requête (lève si elle n'est pas pour cette enclave ou a été modifiée). */
   open(enc: Uint8Array, ciphertext: Uint8Array): Promise<SealedRequest>;
@@ -364,7 +364,7 @@ async function runChat(
   const cutLineOf = (dropped: number) => dropped || cut.truncated
     ? `\nNote : la conversation reçue a été raccourcie (${dropped} message(s) ancien(s) retiré(s), ${cut.truncated} message(s) tronqué(s)) ; ne prétends pas avoir lu ce qui manque.`
     : "";
-  // où tourne le copilote : la note de l'enclave, sinon (site, 18/11 au soir) celle du serveur du site ; rien pour la console
+  // where the copilot runs: the enclave's note; otherwise (site) the site server's note; none for the console
   const note = o.systemNote ? `\n${o.systemNote({ sealed, lang })}` : o.site?.whereNote ? `\n${o.site.whereNote}` : "";
   // site (16/11) : la réponse suit la langue du dernier message quand on la reconnaît (une question en français sur le
   // site anglais reçoit une réponse en français) ; les libellés des pages restent ceux de l'écran. Le modèle suit mal une

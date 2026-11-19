@@ -1,23 +1,23 @@
-/** enclave-site-measure.ts — l'empreinte de la VM du copilote du site AVANT de la lancer (18/11/2026) : ce que l'auteur
- *  du produit 4 devra autoriser sur Arc (ProductRegistry.proposeWorkload → applyWorkload), calculé à partir des fichiers.
+/** enclave-site-measure.ts — the fingerprint of the site copilot's VM BEFORE it is launched: what product 4's author must
+ *  allow on Arc (ProductRegistry.proposeWorkload → applyWorkload), computed from the files.
  *
- *  Comment dstack et Arc mesurent une VM (VERIFIED le 18/11 sur la VM du copilote v21, sauvegardée le 14/11, note V) :
- *   - compose-hash = sha256 de l'app-compose.json de Phala (le docker-compose dans le champ docker_compose_file, plus le
- *     script de lancement, les noms des variables chiffrées, kms, passerelle…), écrit en JSON COMPACT, clés TRIÉES, UTF-8
- *     sans échappement (json.dumps(sort_keys=True, separators=(",", ":"), ensure_ascii=False)) : 0x254c2e42… pour la v21,
- *     égal au compose_hash que Phala affichait ; le compose-hash entre dans RTMR3 (événement « compose-hash ») ;
- *   - empreinte d'IMAGE (ce que le produit autorise, EnclaveRegistry.imageIdOf) = keccak256(MRTD ‖ RTMR0 ‖ RTMR1 ‖ RTMR2 ‖
- *     compose-hash ‖ os-image-hash ‖ XFAM ‖ TDATTRIBUTES), sans RTMR3 ni identifiant d'instance : stable d'un redémarrage
- *     à l'autre. MRTD et RTMR0-2 dépendent du micrologiciel, de l'image système et de la taille de la VM, pas du compose.
- *  Les mesures de la VM v21 (tdx.small, nœud prod9, dstack-0.5.12 de production) sont relues dans sa transaction
- *  d'inscription (calldata publique de registerEnclave) ; le rejeu redonne son empreinte enregistrée 0x919e9c97…. Une VM
- *  de MÊME taille, sur la même image système et le même micrologiciel, garde ces mesures : son empreinte se PRÉDIT avec le
- *  nouveau compose-hash. La valeur qui fait foi reste celle du quote réel de la nouvelle VM (scripts/register-dcap.ts la
- *  recalcule et la compare au registre avant d'autoriser quoi que ce soit).
+ *  How dstack and Arc measure a VM (checked against the copilot's v2.1 enclave VM):
+ *   - compose-hash = sha256 of Phala's app-compose.json (the docker-compose in the docker_compose_file field, plus the
+ *     launch script, the names of the encrypted variables, kms, gateway…), written as COMPACT JSON, SORTED keys, UTF-8
+ *     without escaping (json.dumps(sort_keys=True, separators=(",", ":"), ensure_ascii=False)): 0x254c2e42… for v2.1,
+ *     equal to the compose_hash Phala displayed; the compose-hash goes into RTMR3 (the "compose-hash" event);
+ *   - IMAGE fingerprint (what the product allows, EnclaveRegistry.imageIdOf) = keccak256(MRTD ‖ RTMR0 ‖ RTMR1 ‖ RTMR2 ‖
+ *     compose-hash ‖ os-image-hash ‖ XFAM ‖ TDATTRIBUTES), without RTMR3 or any instance id: stable from one restart to
+ *     the next. MRTD and RTMR0-2 depend on the firmware, the OS image and the VM size, not on the compose.
+ *  The v2.1 VM's measurements (tdx.small, node prod9, production dstack-0.5.12) are read back from its registration
+ *  transaction (the public calldata of registerEnclave); the replay gives back its registered fingerprint 0x919e9c97….
+ *  A VM of the SAME size, on the same OS image and firmware, keeps these measurements: its fingerprint is PREDICTED from
+ *  the new compose-hash. The value that counts is still the one in the new VM's real quote (scripts/register-dcap.ts
+ *  recomputes it and compares it with the registry before allowing anything).
  *
- *  Usage (aucun réseau, aucune clé) :
- *    npx tsx src/enclave-site-measure.ts <app-compose v21 sauvegardé> <docker-compose.yml> [--out <app-compose.json>]
- *  → le compose-hash, l'empreinte d'image prédite, et (avec --out) l'app-compose.json exact à déployer
+ *  Usage (no network, no key):
+ *    npx tsx src/enclave-site-measure.ts <saved v2.1 app-compose> <docker-compose.yml> [--out <app-compose.json>]
+ *  → the compose-hash, the predicted image fingerprint, and (with --out) the exact app-compose.json to deploy
  *    (phala deploy --app-compose <fichier> : le même script de lancement, donc le même compose-hash). */
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";

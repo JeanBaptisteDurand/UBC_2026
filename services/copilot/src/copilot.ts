@@ -1,18 +1,18 @@
-/** copilot.ts — le copilote RAG agentique (OpenAI-compatible : OpenAI/DeepSeek/RedPill) monté à partir de
- *  l'environnement : invite système, outils, modèle, garde-fous. Aucun serveur HTTP ici : server.ts le sert tel quel (VPS),
- *  enclave-server.ts le sert DANS une enclave avec le kit (clés en mémoire, /attest, /pubkeys, conversation chiffrée).
- *  Les deux font donc tourner exactement le même copilote (mêmes outils, mêmes bornes, même invite).
- *  Variables : OPENAI_API_KEY (secrète ; dans une enclave, variable CHIFFRÉE), OPENAI_BASE_URL et COPILOT_MODEL (en
- *  clair, mesurées dans une enclave), COPILOT_MAX_TOKENS (max_tokens par appel, défaut 2 000), COPILOT_MAX_TOOL_CHARS
- *  (ce qui s'ajoute à l'historique pendant une requête : résultats d'outils et sorties du modèle, défaut 40 000),
- *  COPILOT_MAX_INPUT_CHARS (entrée cumulée de tous les appels au modèle d'une requête, défaut 160 000),
- *  COPILOT_MAX_INPUT_TOKENS (la même, en jetons ESTIMÉS : 0,3 par caractère ASCII, 3 par autre caractère ; défaut
- *  50 000, borne dure, premier appel compris), ALLOWED_ORIGINS, COPILOT_RATE_PER_MINUTE,
- *  COPILOT_RATE_PER_DAY, COPILOT_GLOBAL_PER_DAY, ENCLAVE_PATH_PREFIXES, COPILOT_ALLOW_PRIVATE_URLS (développement
- *  local seulement), RPC_URL, ARCHIVE_API, ENCLAVE_URL, PORT, DEPLOYMENTS (chemin d'un deployments.*.json : la pile
- *  que lisent les outils ; sans elle, la v2 du SDK), COPILOT_SURFACE (16/11 : « console », défaut, la bulle de la console,
- *  inchangée ; « site » : le panneau du front de Florent, servi sous /copilot-site/ : invite, outils d'interface,
- *  contexte de page et base de connaissances du site, voir site.ts ; toute autre valeur arrête le démarrage). */
+/** copilot.ts — the agentic RAG copilot (OpenAI-compatible API: OpenAI, DeepSeek, RedPill) assembled from the
+ *  environment: system prompt, tools, model, guards. No HTTP server here: server.ts serves it as is (on the server),
+ *  enclave-server.ts serves it INSIDE an enclave with the enclave kit (keys in memory, /attest, /pubkeys, encrypted
+ *  conversation). Both therefore run exactly the same copilot (same tools, same limits, same prompt).
+ *  Variables: OPENAI_API_KEY (secret; in an enclave, an ENCRYPTED variable), OPENAI_BASE_URL and COPILOT_MODEL (in
+ *  clear, measured in an enclave), COPILOT_MAX_TOKENS (max_tokens per call, default 2,000), COPILOT_MAX_TOOL_CHARS
+ *  (what is added to the history during a request: tool results and model outputs, default 40,000),
+ *  COPILOT_MAX_INPUT_CHARS (the summed input of all model calls of a request, default 160,000),
+ *  COPILOT_MAX_INPUT_TOKENS (the same, in ESTIMATED tokens: 0.3 per ASCII character, 3 per other character; default
+ *  50,000, a hard limit, first call included), ALLOWED_ORIGINS, COPILOT_RATE_PER_MINUTE, COPILOT_RATE_PER_DAY,
+ *  COPILOT_GLOBAL_PER_DAY, ENCLAVE_PATH_PREFIXES, COPILOT_ALLOW_PRIVATE_URLS (local development only), RPC_URL,
+ *  ARCHIVE_API, ENCLAVE_URL, PORT, DEPLOYMENTS (path to a deployments.*.json: the stack the tools read; without it, the
+ *  SDK's built-in `testnet` stack), COPILOT_SURFACE ("console", the default: the console's chat bubble, unchanged;
+ *  "site": AskHive, the site's panel, served under /copilot-site/: prompt, interface tools, page context and the
+ *  site's knowledge base, see site.ts; any other value stops the start). */
 import { readFileSync } from "node:fs";
 import { createPublicClient, defineChain, http } from "viem";
 import { createArcClient, arcTestnet, testnet, deploymentFromJson, type Deployment } from "@arcvault/sdk";

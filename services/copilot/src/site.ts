@@ -1,33 +1,33 @@
-/** site.ts — la surface « site » du copilote (COPILOT_SURFACE=site ; Caddy la sert sous /copilot-site/) : le panneau du
- *  front de Florent (accueil, produits, technologie, use, service, primes, sessions, opérateur, rent, publish, demo),
- *  d'après CONTRACT.md §2 à §4 (16/11/2026), étendu le 18/11 aux pages Produits et Technologie et aux pages de Florent
- *  où le visiteur signe (Primes, Sessions, Opérateur ; Network, sans panneau). La surface « console » (défaut) n'en
- *  dépend pas et reste inchangée (test/console-pin.test.ts).
- *  - Invite : celle de la console, dont le paragraphe qui pilote les écrans de la console est remplacé par
- *    SITE_UI_PARAGRAPH (montage dans copilot.ts : SITE_SYSTEM) : le copilote MONTRE pendant qu'il explique, une action
- *    d'interface à la fois, chacune racontée en une phrase courte (reason, note), 3 au plus par réponse ; il répond sur
- *    un produit dans l'ordre de l'acheteur (pour qui, prix, comment commencer, garanties, preuve) ; une fiche de FAITS
- *    vérifiés le 17/11 (frontend/src/products/faits.json) prime sur sa mémoire ; il n'invente aucune adresse.
- *  - Outils : ceux de la console, sauf son ui_navigate (écrans de la console), remplacé par les trois outils d'interface
- *    du site : ui_navigate, ui_highlight, ui_demo. Ils s'exécutent DANS LE NAVIGATEUR : le serveur ne fait que valider
- *    (énumérations, chiffres, chaînes bornées, ancres connues de la page) et renvoie l'entrée normalisée
- *    ({ ok: true, … }) ou { ok: false, error }, au modèle comme au panneau, qui exécute les ok dans l'ordre. La page
- *    courante est suivie pendant la requête (contexte `page`, puis chaque ui_navigate accepté) ; 3 actions acceptées au
- *    plus par réponse ; après network, datacenter ou console (le panneau n'y est pas), plus aucune.
- *  - Contexte : le champ `page` de la requête (la page affichée) est validé et borné, puis dit en UNE ligne de l'invite
- *    (« The user is looking at: … ») ; toute valeur invalide ou inconnue est retirée sans bruit, jamais recopiée.
- *  - docs_search : la base de la console, dont les fiches propres à la console (écrans, page Développeurs, niveaux du
- *    11/11) sont remplacées par celles du site (SITE_KB) : pages, familles de produits, marché, notaire, contrats.
- *  Les réponses du modèle et ses légendes (reason, note) suivent la langue du dernier message de l'utilisateur quand app.ts
- *  la reconnaît, sinon celle du site ; les pages et les boutons gardent les libellés de l'écran (siteLanguageDirective).
- *  18/11 au soir : le copilote GUIDE. Quatrième outil d'interface, ui_guide : une visite pas à pas sur UNE page (6 étapes au
- *  plus, chacune mise en lumière avec sa note), que le navigateur joue ; le serveur la valide (page, ancres du registre
- *  partagé, notes de 120 caractères, jamais un bouton qui signe, copie limitée aux commandes affichées) et la renvoie
- *  normalisée. Le guide ne signe ni ne clique jamais : sur une étape où le visiteur signe (wait "signature"), il attend.
- *  Quatre recettes vérifiées (install, operator, session, bounty) donnent les étapes et les notes dans la langue de la
- *  réponse ; le filet de app.ts les joue quand une demande claire (installer l'outil, lancer une enclave, ouvrir une
- *  session, publier une prime) reste sans guide. Où tourne le copilote se dit en une ligne (SITE_WHERE_NOTE sur le
- *  serveur du site ; dans une enclave, sa propre note) : jamais « en enclave » sur le serveur. */
+/** site.ts — the copilot's "site" surface, AskHive (COPILOT_SURFACE=site; Caddy serves it under /copilot-site/): the
+ *  panel of the marketplace site (home, products, technology, use, service, bounties, sessions, operator, rent, publish,
+ *  demo), following docs/COPILOT-SITE-CONTRACT.md §2-§4, including the pages where the visitor signs (Bounties,
+ *  Sessions, Operator; Network). The "console" surface (the default) does not depend on it and stays unchanged
+ *  (test/console-pin.test.ts).
+ *  - Prompt: the console's, with the paragraph that drives the console's screens replaced by SITE_UI_PARAGRAPH
+ *    (assembled in copilot.ts: SITE_SYSTEM): the copilot SHOWS while it explains, one interface action at a time, each
+ *    told in a short sentence (reason, note), at most 3 per answer; it answers about a product in the buyer's order (for
+ *    whom, price, how to start, guarantees, proof); a sheet of checked FACTS (frontend/src/products/faits.json) overrides
+ *    its memory; it never invents an address.
+ *  - Tools: the console's, except its ui_navigate (the console's screens), replaced by the site's interface tools:
+ *    ui_navigate, ui_highlight, ui_demo. They run IN THE BROWSER: the server only validates them (enumerations, numbers,
+ *    bounded strings, anchors known on the page) and returns the normalized input ({ ok: true, … }) or
+ *    { ok: false, error }, to the model and to the panel, which runs the ok ones in order. The current page is tracked
+ *    during the request (the `page` context, then each accepted ui_navigate); at most 3 accepted actions per answer;
+ *    none after network, datacenter or console (the panel is not there).
+ *  - Context: the request's `page` field (the page on screen) is validated and bounded, then stated in ONE line of the
+ *    prompt ("The user is looking at: …"); any invalid or unknown value is dropped silently, never copied.
+ *  - docs_search: the console's knowledge base, with the console-only entries (screens, Developers page, levels)
+ *    replaced by the site's (SITE_KB): pages, product families, market, notary, contracts.
+ *  The model's answers and captions (reason, note) follow the language of the user's last message when app.ts
+ *  recognises it, otherwise the site's; pages and buttons keep their on-screen labels (siteLanguageDirective).
+ *  The copilot GUIDES: a fourth interface tool, ui_guide, is a step-by-step tour of ONE page (at most 6 steps, each
+ *  highlighted with its note) that the browser plays; the server validates it (page, anchors of the shared registry,
+ *  120-character notes, never a button that signs, copying limited to the commands on screen) and returns it
+ *  normalized. The guide never signs or clicks: on a step where the visitor signs (wait "signature"), it waits.
+ *  Four checked recipes (install, operator, session, bounty) give the steps and notes in the answer's language; app.ts's
+ *  fallback plays them when a clear request (install the tool, launch an enclave, open a session, post a bounty) gets
+ *  no guide. Where the copilot runs is said in one line (SITE_WHERE_NOTE on the site's server; in an enclave, its own
+ *  note): never "in an enclave" on the server. */
 import { BUTTONS, MASKED_NOTE_EN, PAGES, type Lang, type PageId } from "./i18n";
 import { DISPLAY, KB, TOOL_DEFS, executeTool, searchDocs, type ToolCtx } from "./tools";
 import { scrubSecrets } from "./secrets";
@@ -36,14 +36,13 @@ import { claudeCodeText } from "./claude-code";
 import { BRIDGE_PATH, BRIDGE_URL_TEXT, MCP_ADD_CMD_TEXT, MCP_URL_TEXT, NETWORK_PART_URL, SITE_ORIGIN_URL } from "./site-urls";
 import type { SiteSurface, UiResult, UiSession } from "./app";
 
-// ---------------------------------------------------------------- le vocabulaire du site (CONTRACT §4)
+// ---------------------------------------------------------------- the site's vocabulary (docs/COPILOT-SITE-CONTRACT.md §4)
 
-/** Les pages du site, dans l'ordre de son menu. 19/11, site final (fusion du front de Florent, beta_0.3, et du nôtre) :
- *  Network, Services (service.html : la vitrine, ?p=<id> la famille et la fiche d'un produit), Doc (doc.html, ?c=<chapitre>),
- *  Mon espace (space.html : Primes, Sessions et Opérateur y sont des onglets, ?tab=bounties|sessions|machines|services),
- *  les rôles de Network où l'on agit (Utiliser, Louer, Publier : network.html?focus=use|rent|publish, leurs anciennes pages
- *  ne font que rediriger) et la démo en 3D de Network. « products » et « technology » ne sont plus que
- *  des alias (PAGE_ALIAS) : leurs adresses mènent à Services et à Doc. */
+/** The site's pages, in menu order: Network, Services (service.html: the shop window, ?p=<id> a product's family and
+ *  sheet), Doc (doc.html, ?c=<chapter>), My space (space.html: Bounties, Sessions and Operator are its tabs,
+ *  ?tab=bounties|sessions|machines|services), the Network roles where the visitor acts (Use, Rent, Publish:
+ *  network.html?focus=use|rent|publish; their former pages redirect there) and Network's 3D demo. "products" and
+ *  "technology" are aliases (PAGE_ALIAS): their addresses lead to Services and Doc. */
 export const SITE_PAGES = [
   "home", "network", "service", "doc", "space", "use", "bounty", "sessions", "operator", "rent", "publish", "bridge", "demo", "datacenter", "console",
 ] as const;
@@ -70,13 +69,13 @@ export type DemoPart = (typeof DEMO_PARTS)[number];
 export const DEMO_CHAPTERS = ["Publish the service", "Bring an enclave", "Use it"] as const;
 /** Les vues de la page Network (?focus=) : les trois rôles, ce qui tourne sur Arc, CCTP, la démo. */
 export const NETWORK_FOCUS = ["use", "rent", "publish", "arc", "cctp", "demo"] as const;
-/** Les ancres de chaque page (CONTRACT §4, front du 15/11, puis du 18/11) : l'id d'une section de la page (ou son
- *  data-copilot). Pages de Florent : act = « Le faire ici » (Utiliser, Louer, Publier) ; Primes list, hunt, create, mine ;
- *  Sessions open, mine ; Opérateur bond, machines, register, keys (mine : seulement avec un wallet connecté). Produits
- *  et Technologie : les ids que ces pages doivent porter (une section par famille de produits, par sujet technique).
- *  18/11 au soir, REGISTRE PARTAGÉ avec le front (data-copilot="<nom>", unique sur la page) : les étapes de Florent
- *  (li.na data-st, STEP_ANCHORS) et deux sortes de contrôles, la boîte de la commande d'installation (install-cmd) et les
- *  boutons qui font signer (SIGNING_BUTTONS : montrables, jamais la cible d'un guide) ; Louer gagne aussi where, ops, rules. */
+/** Each page's anchors (docs/COPILOT-SITE-CONTRACT.md §4): the id of a section of the page (or its data-copilot). Action
+ *  pages: act = "Do it here" (Use, Rent, Publish); Bounties list, hunt, create, mine; Sessions open, mine; Operator bond,
+ *  machines, register, keys (mine: only with a connected wallet). Products and Technology: the ids these pages carry
+ *  (one section per product family, per technical topic).
+ *  Shared registry with the front end (data-copilot="<name>", unique on the page): each page's steps (li.na data-st,
+ *  STEP_ANCHORS) and two kinds of controls, the install command's box (install-cmd) and the buttons that ask for a
+ *  signature (SIGNING_BUTTONS: can be shown, never the target of a guide); Rent also has where, ops, rules. */
 export const ANCHORS: Record<SitePage, readonly string[]> = {
   home: ["top", "wall", "use", "rent", "publish", "invalid", "protocol", "arc", "end"],
   // 19/11 au soir : une « section » de Network est une vue de la page (?focus=) : un rôle, ce qui tourne sur Arc, CCTP, la démo
@@ -122,9 +121,9 @@ export const DOC_SUB: Readonly<Record<string, string>> = {
   "tk-shares": "tokenomics", "tk-split": "tokenomics", "tk-escrow": "tokenomics", "tk-deposit": "tokenomics",
   "tk-pool": "tokenomics", "tk-bond": "tokenomics", "tk-bonds": "tokenomics", "tk-treasury": "tokenomics",
 };
-/** Les étapes de Florent (composant Step : li.na data-st="todo|doing|done|fail|soon") de chaque page, dans l'ordre de la
- *  page : Louer et la section bond d'Opérateur (RentActs : connect, bond, install, pair, admit), puis l'inscription
- *  d'Opérateur (register, retire) ; Sessions (check, open, talk, receipt) ; l'appel payé d'Utiliser ; Publier ; la Prime. */
+/** Each page's steps (Step component: li.na data-st="todo|doing|done|fail|soon"), in page order: Rent and Operator's
+ *  bond section (RentActs: connect, bond, install, pair, admit), then Operator's registration (register, retire);
+ *  Sessions (check, open, talk, receipt); Use's paid call; Publish; the Bounty. */
 export const STEP_ANCHORS: Partial<Record<SitePage, readonly string[]>> = {
   rent: ["connect", "bond", "install", "pair", "admit"],
   operator: ["connect", "bond", "install", "pair", "admit", "register", "retire"],
@@ -215,8 +214,8 @@ const COPYABLE: ReadonlyArray<string | RegExp> = [
 ];
 /** Ce que copie une étape « copy » sans texte : la commande d'installation (sa boîte, ou l'étape qui la porte). */
 const COPY_DEFAULT: Readonly<Record<string, string>> = { "install-cmd": INSTALL_CMD, install: INSTALL_CMD };
-/** Les champs où un guide peut taper, et ce qu'il peut y taper (19/11 soir : plus de recherche, le catalogue est Services) : le code d'appairage que la
- *  machine affiche (HIVE-XXXX-XXXX, le préfixe facultatif), dans l'étape pair, seulement s'il vient du visiteur. */
+/** The fields where a guide can type, and what it can type there (the catalogue is Services, with no search field): the
+ *  pairing code the machine shows (HIVE-XXXX-XXXX, prefix optional), in the pair step, only when it comes from the visitor. */
 const PAIR_CODE = {
   check: (v: string) => { const c = v.toUpperCase().replace(/^HIVE-/, ""); return /^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(c) ? `HIVE-${c}` : undefined; },
   hint: "the pairing code the machine shows, HIVE-XXXX-XXXX",
@@ -226,7 +225,7 @@ const TYPE_RULES: Partial<Record<SitePage, Readonly<Record<string, { check(v: st
   operator: { pair: PAIR_CODE },
 };
 
-/** Les libellés des pages du site dans chaque langue, ceux de l'écran (front de Florent, i18n.ts : nav.*, net.name, sec.*). */
+/** The site's page labels in each language, as on screen (the front end's i18n.ts: nav.*, net.name, sec.*). */
 export const SITE_PAGE_LABELS: Record<Lang, Record<SitePage, string>> = {
   en: {
     home: "Home", network: "Network", service: "Services", doc: "Doc", space: "My space", use: "Use", bounty: "My bounties",
@@ -240,10 +239,10 @@ export const SITE_PAGE_LABELS: Record<Lang, Record<SitePage, string>> = {
 
 // ---------------------------------------------------------------- l'invite et les outils
 
-/** Le paragraphe de l'invite qui pilote le site (remplace celui de la console ; copilot.ts monte SITE_SYSTEM) : les gestes,
- *  l'ordre d'une réponse sur un produit, où le visiteur signe, les adresses permises, puis les FAITS du 17/11 (fiche
- *  vérifiée frontend/src/products/faits.json), qui priment sur la mémoire du modèle. Chaque caractère compte : l'invite
- *  repart à chaque appel au modèle et pèse sur le budget d'entrée en jetons (app.ts). */
+/** The prompt paragraph that drives the site (it replaces the console's; copilot.ts assembles SITE_SYSTEM): the
+ *  gestures, the order of an answer about a product, where the visitor signs, the allowed addresses, then the FACTS
+ *  (the checked sheet frontend/src/products/faits.json), which override the model's memory. Every character counts: the
+ *  prompt is sent with every model call and weighs on the input token budget (app.ts). */
 export const SITE_UI_PARAGRAPH = `You are AskHive, the ArcHive site's assistant: the name on this panel and on the AskHive button of every page. AskHive is product 4 on Arc, the attested copilot: in its own Intel TDX enclave the conversation is sealed to the enclave's key (HPKE) and every answer is signed by that key, registered on Arc; when that enclave cannot be reached, the site's server answers in its place (server mode). Where THIS answer runs is the WHERE YOU RUN line: never claim more. Always call yourself AskHive, in every language. Where the site shows AskHive: the AskHive button on every page (on the landing's first screen, the hero's "Ask AskHive" button stands in for it: home, anchor top); its own sheet in Services, product 4, family attested-copilot ("Ask about ArcHive in AskHive", button "Open AskHive"); in the Doc, the Tokenomics chapter's card #4. Asked where the site presents AskHive: show those places (ui_navigate service with productId 4, then ui_highlight attested-copilot; or home, ui_highlight top), never say there is none.
 You DRIVE the site in front of the user: you live in a panel of the ArcHive site, and its pages move when you call your four UI tools, which the user's browser runs: ui_navigate (open a page; scroll to a section), ui_highlight (make an element of the displayed page glow, with a note), ui_demo (play the 3D demo of the Network page) and ui_guide (walk the user through a task, step by step, on one page). These actions happen ONLY by CALLING the tools: never write a tool name, its parameters (recipe, target, action, wait...), an anchor, JSON, a table or a list of "UI actions" in your reply; the user sees only your text. SHOW while you explain: one action at a time, each told in ONE short sentence in its caption (reason, note), in the user's language (e.g. "Here is the Rent role", in French « Voici la Prime scellée »); never more than 3 UI actions per answer; then answer in a few sentences, without repeating the captions. Show things on the site's EXISTING pages (list in ui_navigate), never invent a place: service (Services) is the shop window: what ArcHive sells in 5 families, for whom, at what price, why a sealed machine (productId opens that product's family and sheet); doc (Doc) explains how Arc checks every machine, one chapter at a time (section = chapter); space (My space) holds the visitor's own bounties, sessions, machines and services, read by wallet: bounty, sessions and operator are its tabs, where the visitor acts with their wallet; network shows the roles in 3D (section = a view: arc, cctp, demo), and its three roles are the pages use (a paid call), rent (rent out a machine) and publish (publish a service), each its steps signed by the visitor's wallet (/network.html?focus=use, rent or publish). A demo, "show me how it works", "show me a demo": ui_demo (the Network page's 3D demo, "How ArcHive works" in 3 chapters: 1 publish the service, 2 bring an enclave, 3 use it; or one role's own demo; or part refusal: Arc refusing a machine whose image changed), then explain the chapter shown; there is no separate demo page. datacenter and console leave your panel: last action only, and only when asked or for what only the console does (aek_ and arcop_ keys, wallet). "The hive", "the enclaves" = the wall (home, anchor wall). What runs NOW: answer from the LIVE STATUS line (product by product); call enclaves_list only for details (signers, operators, windows), and copy an address only from its own row. The labels of these instructions (LIVE STATUS, FACTS, WHERE YOU RUN) and the sources of docs_search are internal: never write them in a reply (say "right now, read on Arc").
 GUIDES: when the user wants to DO something that takes several steps, call ui_guide: the page scrolls to each step and spotlights it with its note; the guide never signs nor clicks, and it waits where the user signs in THEIR wallet. Install the tool, the agent or archive-node: ui_guide { recipe: "install" }. Launch or run an enclave (for me, linked to my wallet), rent out my machine, become an operator: ONLY if a wallet is connected, first operator_prepare_bond { productId: "1" } (archive-node up --product 1 serves product 1, the default: never ask which product first; without a wallet prepare nothing, the guide's first step connects it), then ui_guide { recipe: "operator" } (it plays on the Network page's Rent role, or on My machines if the user is there); and tell the truth: you launch nothing yourself, the enclave runs on THEIR OWN Intel TDX machine (a tdx.small VM on Phala Cloud or a Xeon TDX server; a machine without TDX is refused), which they install, then pair and register by signing in their wallet; then My space, My machines shows it (reports, diagnostics, registration) and each paid use pays them in USDC (ArcHive's own enclaves run on its operator's machines). Open a private AI session: recipe "session". Post a bounty: recipe "bounty". The user gives their pairing code HIVE-XXXX-XXXX: a guide on operator (or rent if displayed) with the step { target: "pair", action: "type", text: their code, wait: "signature" }; never type a code they did not give. A recipe brings checked steps and notes in the user's language; for another walk-through give page, title and steps (anchors of that page, one note each). A guide opens its own page: call it alone, never after a ui_navigate. One guide per answer, as your last UI action; then say in two or three sentences what the user will do, naming the page the guide plays on.
@@ -261,8 +260,8 @@ const ANCHOR_LIST = (Object.entries(ANCHORS) as Array<[SitePage, readonly string
 /** Les étapes où un guide peut attendre une signature, page par page (description de ui_guide). */
 const SIGN_LIST = (Object.entries(SIGN_STEPS) as Array<[SitePage, readonly string[]]>).map(([p, a]) => `${p} ${a.join(", ")}`).join("; ");
 
-/** Les quatre outils d'interface du site (exécutés dans le navigateur ; validés par createUiSession). En anglais depuis le
- *  18/11, comme le paragraphe de l'invite : ils repartent à chaque appel au modèle (budget d'entrée en jetons, app.ts). */
+/** The site's four interface tools (run in the browser; validated by createUiSession). In English, like the prompt
+ *  paragraph: they are sent with every model call (input token budget, app.ts). */
 export const SITE_UI_TOOL_DEFS = [
   { name: "ui_navigate", description: `Drives the site in front of the user (their browser runs it): opens a page; on use, types a search and sets the filters; scrolls to a section. On the page already displayed, everything applies in place. One action at a time, told in reason. Pages: home (the wall of services, the protocol, Arc's check); network (the roles in 3D; section = a view: use, rent, publish (a role's steps), arc (what runs on Arc, contract by contract), cctp (pay from other chains), demo (the 3-chapter demo; ui_demo drives it)); service (Services: the 7 products in 5 families, prices, the market; productId opens a product's family and sheet, a family section opens it too); doc (Doc: Arc the notary, no third party, the contracts; section = a chapter; in the chapter tokenomics, ui_highlight shows tk-split (each payment split, product by product), tk-shares (who gets what), tk-escrow (money held in escrow; its rows tk-deposit, tk-pool, tk-bond), tk-bonds (bonds and slashing), tk-treasury (the network's share)); space (My space, by wallet); use, rent, publish (the Network page's three roles, /network.html?focus=use|rent|publish: their steps, signed by the visitor's wallet; use = a paid call, productId = the service called; rent = rent out a machine; publish = publish a service); bounty, sessions, operator (tabs of My space: post and hunt bounties; private AI sessions, productId optional; bond, machines, registration, operator keys); bridge (Bridge, ${BRIDGE_PATH}: testnet USDC from Ethereum Sepolia or Base Sepolia to Arc with Circle's CCTP, 3 steps signed by the visitor's wallet; section bridge = the transfer, br-how = how it works); demo (= network, section demo); datacenter (3D server room) and console (consoleRoute) leave the panel: last action only, when asked. The Sealed Bounty as a product (what it is, for whom, price) = service, section bounty; the bounties themselves (list, hunt, post) = bounty; never the console. Anchors (section): ${ANCHOR_LIST}.`,
     input_schema: { type: "object", properties: {
@@ -309,12 +308,11 @@ export const SITE_DISPLAY: Record<string, string> = { ...DISPLAY, ui_navigate: "
 
 // ---------------------------------------------------------------- la base de connaissances du site
 
-/** Ce que montre chaque page du site et ce qu'on y achète (front de Florent du 15/11 et du 17/11 ; faits vérifiés du 17/11,
- *  frontend/src/products/faits.json), pour docs_search. Les fiches du site passent AVANT celles de la console (SITE_KB).
- *  À score égal, la première l'emporte (searchDocs) : d'abord les fiches à sujet unique (état, MCP), puis les pages et
- *  celle des développeurs, puis les familles de produits et la technique, les vues d'ensemble en dernier. Les fiches du
- *  18/11 (site-v4) sont en anglais : chaque caractère accentué compte 3 jetons dans le budget d'entrée (app.ts), et le
- *  modèle les traduit dans la langue de l'utilisateur. */
+/** What each page of the site shows and what can be bought there (checked facts: frontend/src/products/faits.json), for
+ *  docs_search. The site's entries come BEFORE the console's (SITE_KB). On equal scores the first one wins (searchDocs):
+ *  first the single-topic entries (status, MCP), then the pages and the developers' entry, then the product families
+ *  and the technology, overviews last. The entries are in English: every accented character counts as 3 tokens in the
+ *  input budget (app.ts), and the model translates them into the user's language. */
 export const SITE_PAGES_KB: Array<{ source: string; text: string; tags?: string }> = [
   { source: "site-v4#etat", tags: "etat state status aucune zero active actives enclave enclaves pourquoi why rien nothing running runs tourne tournent marche maintenant now direct live orange attente waiting supprimee supprimees deleted panne down offline ligne pause paused relance relaunch relaunched austin",
     text: "Network status: read LIVE at answer time (the LIVE STATUS line of your instructions; enclaves_list and bounty_list are authoritative), never from memory. History: on 19/11/2026 ArcHive's verified enclaves were relaunched on Arc testnet: at 00:55 UTC for products 1, 2, 3 and 7 (Private AI, prepaid and per call; Sealed Bounty, both levels), at 03:54 UTC for product 4 (attested copilot: the copilot of the site's panel, in its own enclave). Everything stays readable and verifiable on Arc (DCAP-verified registrations, payments, verdicts): the proofs of 9 to 11/11 are real transactions and stay valid, and the demo replays a real recording." },
@@ -1016,7 +1014,7 @@ export function extractInlineSiteNav(text: string): { text: string; input?: Reco
 /** 16/11 : filet déterministe du site (comme intentNav de la console) : si le modèle n'a rien montré ni préparé, la page
  *  se déduit de la demande (mots-clés, en français et en anglais), puis passe par la même validation qu'un vrai appel.
  *  Du plus précis au plus général ; rien pour une demande sans mot-clé. 18/11 : les pages Produits et Technologie, et les
- *  pages de Florent où l'on agit (Primes, Sessions, Opérateur) ; le panneau ne part jamais seul vers Network. */
+ *  pages où l'on agit (Primes, Sessions, Opérateur) ; le panneau ne part jamais seul vers Network. */
 /** Le texte d'une demande tel que les filets le lisent : minuscules, sans accents, ligatures défaites (« nœud »). */
 export const intentText = (q: string) => q.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/œ/g, "oe").replace(/æ/g, "ae");
 

@@ -31,7 +31,7 @@ import { IMAGE_PLACEHOLDER, V21_COPILOT_VM, appComposeFor, canonicalJson, compos
 import { SITE_KB, SITE_PAGES_KB, siteLanguageDirective } from "../src/site";
 import * as siteModule from "../src/site";
 
-/** La note du serveur du site (site.ts, 18/11 au soir), lue sans en dépendre à la compilation. */
+/** The site server's note (site.ts), read without a compile-time dependency. */
 const SERVER_NOTE = (siteModule as unknown as Record<string, unknown>).SITE_WHERE_NOTE as string | undefined;
 
 const SITE = "https://archive.62-171-153-35.sslip.io";
