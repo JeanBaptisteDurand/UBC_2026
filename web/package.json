@@ -1,9 +1,11 @@
 {
   "name": "@arcvault/web",
+  "description": "ArcHive console: products, enclaves, sessions, bounties and operators on Arc testnet",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "typecheck": "tsc --noEmit",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },
