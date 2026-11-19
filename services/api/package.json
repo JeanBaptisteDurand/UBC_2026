@@ -2,7 +2,7 @@
   "name": "@arcvault/api",
   "private": true,
   "type": "module",
-  "scripts": { "start": "tsx src/server.ts" },
+  "scripts": { "start": "tsx src/server.ts", "test": "tsx --test test/*.test.ts" },
   "dependencies": {
     "@arcvault/sdk": "file:../../packages/sdk",
     "@hono/node-server": "1.13.7",

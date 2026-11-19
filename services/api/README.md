@@ -22,7 +22,7 @@ Operator actions are signed in with EIP-4361 messages: the nonce is issued by th
 ```sh
 npm ci
 npm start                          # tsx src/server.ts, port 8809
-npx tsx --test test/*.test.ts      # Node's test runner, no network: a stub RPC and local requests
+npm test                           # Node's test runner (tsx --test), no network: a stub RPC and local requests
 ```
 
-Environment: `PORT` (8809), `DATA_DIR` (`./data`), `RPC_URL`, `INDEX_FROM_BLOCK`, `WEB_URL` (the public site, the only origin allowed in sign-in messages), `SIGN_ORIGINS` (extra origins for development), `INFERENCE_IMAGE`, and the optional `TEST_SIGNER_*` variables.
+Environment: `PORT` (8809), `DATA_DIR` (`./data`), `RPC_URL`, `INDEX_FROM_BLOCK`, `WEB_URL` (the public site, whose origin sign-in messages must name), `SIGN_ORIGINS` (extra origins, for development), `INFERENCE_IMAGE`, and the optional `TEST_SIGNER_*` variables.
