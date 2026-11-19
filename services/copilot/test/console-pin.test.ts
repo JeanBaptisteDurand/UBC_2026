@@ -26,7 +26,8 @@ const PIN = {
   toolDefs: "089f53031d5e526fa6906747e9facd4a7e63c846eecd2809a137b3b24b76d512",
   oaiTools: "83df4798fb997bfcc77b44d1f307d155b58ecab6c2d498c447ad8e18b7325044",
   display: "7b3ea661af720733594ed05c52bde1c5ad1ed5f9ca3e650186455fe855f9cea4",
-  kb: "d301145aa67a550a326338c373e057e97e00edecd9de20954f7d53342891089c",
+  // la base de connaissances porte depuis le 20/11 les prix avec leur unité et le gaz mesuré sur Arc
+  kb: "da1596e578dc088b7ae7fe3a56783b1afe037dca42b205fa5d502d141e383340",
   langEn: "d6820f380519f72ea6d5f4da83757c5d39211de778b730c08a7cc74713868421",
   langFr: "dc3e07217c78f1839162130a0d93cbf877a0a7f40984b6913cac3404a9e4006a",
 };
