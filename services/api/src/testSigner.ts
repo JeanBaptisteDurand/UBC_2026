@@ -1,31 +1,31 @@
-/** testSigner.ts — MODE TEST UNIQUEMENT (Arc testnet) : un wallet côté serveur, provisionné, que le site peut utiliser
- *  comme n'importe quel wallet (EIP-1193 relayé), pour jouer les parcours de bout en bout sans extension de navigateur.
+/** testSigner.ts — TEST MODE ONLY (Arc testnet): an opt-in, server-side demo wallet that the site can use like any
+ *  wallet (relayed EIP-1193), to run the end-to-end journeys without a browser extension. It is off unless
+ *  TEST_SIGNER_PK and TEST_SIGNER_TOKEN (24 characters or more) are set, and it is NOT the deployment key.
  *
- *  Garde-fous (audit du 7/11, faille n° 2 : « vers nos contrats seulement » ne suffisait pas, fund ou topUp vers la
- *  prime ou la session d'un tiers vidaient ce wallet) :
- *  - jeton obligatoire (comparaison à temps constant), Arc testnet seulement, débit limité ;
- *  - transactions : la calldata est DÉCODÉE et seule une liste blanche passe, contrat par contrat, là où l'argent reste
- *    à ce wallet ou lui revient : SessionPay.openSession / topUp / rotateKey / closeSession ; SealedBounty.createBounty
- *    / fund / setPaused / reopen / withdrawRemaining / withdrawCredit, plus les fonctions de chasseur acceptClaim,
- *    claim, deliver (elles paient depuis la prime, jamais depuis ce wallet) ; OperatorBond.requestUnbond / withdraw.
- *    topUp, fund et les actions de propriétaire exigent que la session ou la prime appartienne à ce wallet (lecture
- *    on-chain). Rien sur l'USDC (ni transfer ni approve), rien vers un autre contrat, aucune valeur native ;
- *  - autorisations EIP-3009 : ReceiveWithAuthorization seulement, 2 USDC au plus par autorisation, budget de 10 USDC par
- *    jour (UTC) qui compte aussi le gaz, et seulement vers un contrat du déploiement du SDK (adresses lues dans
- *    `testnet`, jamais écrites ici) :
- *    · SessionPay ou SealedBounty (le contrat encaisse depuis l'appelant, donc depuis une transaction de ce wallet
- *      passée par la liste blanche), validité de 24 h au plus ;
- *    · X402Settler (9/11) : le paiement x402 d'UN appel (rail « paiement à l'appel »). Le contrat encaisse depuis
- *      cr.payer contre un reçu d'appel signé par une enclave active du produit, et le montant part à l'opérateur, à
- *      l'auteur et au réseau : celui qui tient l'autorisation ne peut que régler cet appel-là (nonce = celui du reçu),
- *      au plus le montant signé, borné comme les autres (2 USDC, budget du jour) ; validité d'1 h au plus, celle du
- *      client x402 du SDK (X402_MAX_VALIDITY_SECONDS) ;
- *  - gaz fixé par le serveur (estimation + 20 %, plafond 3 M) : le gaz demandé par le client est ignoré ;
- *  - personal_sign : seulement un message de connexion ArcHive (EIP-4361) au nom de ce wallet, pour notre site, avec un
- *    nonce émis par cette API et encore valable (operators.ts : arcHiveSignInStatement) ;
- *  - un journal par requête (méthode, destinataire, sélecteur, fonction, montant ; jamais le jeton).
- *  Désactivé sans TEST_SIGNER_PK + TEST_SIGNER_TOKEN (24 caractères au moins). Ce wallet n'est PAS la clé de déploiement.
- *  Réglages : TEST_SIGNER_MAX_AUTH_USDC (2), TEST_SIGNER_DAILY_USDC (10), TEST_SIGNER_GAS_CAP (3 000 000). */
+ *  Guardrails (a security audit showed that "to our contracts only" is not enough: fund or topUp toward someone else's
+ *  bounty or session would drain this wallet):
+ *  - a token is required (constant-time comparison), Arc testnet only, rate-limited;
+ *  - transactions: the calldata is DECODED and only an allowlist passes, contract by contract, where the money stays
+ *    with this wallet or comes back to it: SessionPay.openSession / topUp / rotateKey / closeSession; SealedBounty.createBounty
+ *    / fund / setPaused / reopen / withdrawRemaining / withdrawCredit, plus the hunter functions acceptClaim, claim,
+ *    deliver (they pay from the bounty, never from this wallet); OperatorBond.requestUnbond / withdraw. topUp, fund and
+ *    the owner actions require the session or bounty to belong to this wallet (read on-chain). Nothing on USDC (no
+ *    transfer, no approve), nothing to any other contract, no native value;
+ *  - EIP-3009 authorizations: ReceiveWithAuthorization only, at most 2 USDC per authorization, a budget of 10 USDC per
+ *    day (UTC) that also counts gas, and only toward a contract of the SDK's deployment (addresses read from `testnet`,
+ *    never written here):
+ *    · SessionPay or SealedBounty (the contract collects from the caller, so from a transaction of this wallet that
+ *      went through the allowlist), valid for 24 h at most;
+ *    · X402Settler: the x402 payment for ONE call (the pay-per-call rail). The contract collects from cr.payer against
+ *      a call receipt signed by an active enclave of the product, and the amount goes to the operator, the author and
+ *      the network: whoever holds the authorization can only settle that one call (nonce = the receipt's), at most the
+ *      signed amount, bounded like the others (2 USDC, daily budget); valid for 1 h at most, the limit of the SDK's x402
+ *      client (X402_MAX_VALIDITY_SECONDS);
+ *  - gas set by the server (estimate + 20 %, capped at 3 M): the gas the client asks for is ignored;
+ *  - personal_sign: only an ArcHive sign-in message (EIP-4361) for this wallet, for our site, with a nonce issued by
+ *    this API and still valid (operators.ts: arcHiveSignInStatement);
+ *  - one log line per request (method, recipient, selector, function, amount; never the token).
+ *  Settings: TEST_SIGNER_MAX_AUTH_USDC (2), TEST_SIGNER_DAILY_USDC (10), TEST_SIGNER_GAS_CAP (3,000,000). */
 import type { Context, Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { timingSafeEqual } from "node:crypto";
@@ -36,7 +36,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { arcTestnet, testnet, X402_MAX_VALIDITY_SECONDS } from "@arcvault/sdk";
 import { arcHiveSignInStatement, clientIp } from "./operators";
 
-const WEI_PER_MICRO = 1_000_000_000_000n; // gaz natif d'Arc : USDC à 18 décimales
+const WEI_PER_MICRO = 1_000_000_000_000n; // Arc's native gas: USDC with 18 decimals
 const MAX_AUTH_TTL_S = 24 * 3600;
 const BODY_MAX = 64 * 1024;
 
@@ -49,7 +49,7 @@ const fmt = (micro: bigint) => {
   return `${s.slice(0, -6)}.${s.slice(-6)}`.replace(/\.?0+$/, "") || "0";
 };
 
-// ---- ABI de la liste blanche (pile v2, sélecteurs vérifiés dans le bytecode déployé le 7/11) ----
+// ---- Allowlist ABI (v2 stack; selectors checked against the deployed bytecode) ----
 const AUTH = "struct Auth { uint256 validAfter; uint256 validBefore; bytes32 nonce; bytes signature; }";
 const sessionPayAbi = parseAbi([
   AUTH,

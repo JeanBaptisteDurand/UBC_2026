@@ -1,34 +1,32 @@
-/** operators.ts — l'arrivée d'une machine d'opérateur, de la machine nue au réseau :
- *  appairage par code (comme une TV : la machine affiche HIVE-7K2P-QX9M, l'humain l'approuve en signant avec son wallet),
- *  clés opérateur à portée limitée (arcop_…, empreinte seule stockée), battements de cœur, diagnostic.
- *  Une clé opérateur ne peut RIEN dépenser : la caution et l'inscription on-chain restent signées par le wallet.
+/** operators.ts — how an operator's machine joins, from a bare machine to the network:
+ *  pairing by code (like a TV: the machine shows HIVE-7K2P-QX9M, a person approves it by signing with their wallet),
+ *  limited-scope operator keys (arcop_…, only a hash is stored), heartbeats, diagnostics.
+ *  An operator key can spend NOTHING: the bond and the on-chain registration stay signed by the wallet.
  *
- *  Garde-fous (audit du 7/11, failles n° 3, 5 et 9 ; vérification du 8/11) :
- *  - débit par IP (celle du client, posée par Caddy dans X-Forwarded-For), assez haut pour une salle entière derrière un
- *    même Wi-Fi (une démo en salle). La défense contre les abus tient au coût, pas à l'adresse : une signature INVALIDE se
- *    compte par IP (30 par minute, puis plus aucune vérification pour cette IP pendant la minute) ; une signature
- *    VALIDE se compte par compte (30 actions, 10 lectures ouvertes, 300 lectures par minute), et personne ne peut
- *    épuiser le budget d'un autre compte ; les codes faux se comptent par réseau (/24 en IPv4, /48 en IPv6), sans
- *    plafond global ; une table de débit ne sature jamais (au-delà de 50 000 clés dans la minute, les clés nouvelles
- *    comptent dans une table fixe partagée, sans refus d'office) ;
- *  - stockage borné : appairages expirés purgés (au démarrage puis chaque minute), 10 clés libres actives et
- *    20 machines par opérateur, plafonds globaux, corps de 64 Kio au plus, chaque champ validé (type, format, taille),
- *    journaux gardés en mémoire seulement (jamais réécrits sur disque à chaque battement) ;
- *  - codes d'appairage de 8 caractères tirés sans biais (31^8 ≈ 8,5·10^11) ; le nom de la machine n'est montré qu'à
- *    celui qui a signé l'appairage ;
- *  - journaux et diagnostic d'une machine réservés à son opérateur : clé arcop_ (en-tête Authorization) ou signature de
- *    lecture (« lire mes données d'opérateur », valable 10 min) ; la vue publique ne garde que l'état utile (en ligne,
- *    inscrite, vérifications en échec), sans nom de machine, sans adresse http://IP, sans journaux.
+ *  Guardrails (from a security audit and its re-check):
+ *  - rate limits per IP (the client's, set by Caddy in X-Forwarded-For), high enough for a whole room behind the same
+ *    Wi-Fi (a live demo). Abuse is held back by cost, not by address: an INVALID signature counts per IP (30 per minute,
+ *    then no more verification for that IP during the minute); a VALID signature counts per account (30 actions, 10 open
+ *    reads, 300 reads per minute), and no one can exhaust another account's budget; wrong codes count per network (/24
+ *    in IPv4, /48 in IPv6), with no global cap; a rate table never saturates (beyond 50,000 keys in the minute, new keys
+ *    count in a fixed shared table, with no blanket refusal);
+ *  - bounded storage: expired pairings purged (at startup, then every minute), 10 free active keys and 20 machines per
+ *    operator, global caps, bodies of 64 KiB at most, every field validated (type, format, size), logs kept in memory
+ *    only (never rewritten to disk at each heartbeat);
+ *  - 8-character pairing codes drawn without bias (31^8 ≈ 8.5·10^11); the machine's name is shown only to whoever
+ *    signed the pairing;
+ *  - a machine's logs and diagnostics are reserved to its operator: an arcop_ key (Authorization header) or a read
+ *    signature ("read my operator data", valid 10 min); the public view keeps only the useful state (online,
+ *    registered, failed checks), with no machine name, no http://IP address and no logs.
  *
- *  Signatures du wallet (audit du 7/11, faille n° 8) : format EIP-4361 (« Sign-In with Ethereum »). Le wallet reconnaît
- *  ce format et compare le domaine du message à celui de la page : un site imposteur est signalé. L'API vérifie CHAQUE
- *  ligne (domaine et URI du site, adresse EIP-55, phrase exacte de l'action, version, Chain ID 5042002, nonce,
- *  Issued At, Expiration Time) ; le nonce est émis ici (GET /auth/nonce), sert une seule fois, dans les 5 minutes. Il
- *  n'est PAS stocké à l'émission : c'est un jeton signé par l'API (heure d'émission, aléa, HMAC d'une clé tirée au
- *  démarrage), vérifiable sans table ; seuls les nonces consommés sont gardés, jusqu'à leur échéance. Demander des
- *  nonces ne remplit donc plus rien (avant : 20 000 places, saturées par 134 IP).
- *  La machine, elle, montre l'adresse complète qui l'a approuvée et demande une confirmation avant de garder sa clé ;
- *  si l'humain refuse, POST /pair/reject révoque la clé (faille n° 5, côté machine). */
+ *  Wallet signatures: EIP-4361 format ("Sign-In with Ethereum"). The wallet recognizes this format and compares the
+ *  message's domain with the page's: an impostor site is flagged. The API checks EVERY line (the site's domain and URI,
+ *  EIP-55 address, the action's exact statement, version, Chain ID 5042002, nonce, Issued At, Expiration Time); the
+ *  nonce is issued here (GET /auth/nonce) and is used once, within 5 minutes. It is NOT stored when issued: it is a
+ *  token signed by the API (issue time, randomness, HMAC with a key drawn at startup), verifiable without a table; only
+ *  consumed nonces are kept, until they expire. Requesting nonces therefore fills nothing.
+ *  The machine, for its part, shows the full address that approved it and asks for confirmation before keeping its key;
+ *  if the person refuses, POST /pair/reject revokes the key. */
 import type { Context, Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
@@ -42,9 +40,9 @@ type Key = { keyId: string; hash: string; operator: string; label: string; machi
 type Pair = {
   deviceCode: string; userCode: string; hostname: string; mode: string; version: string; createdAt: number; expiresAt: number;
   status: "pending" | "approved" | "consumed"; operator?: string; machineId?: string; keyPlain?: string;
-  /** empreinte courte de l'IP qui a demandé le code (plafond d'appairages en cours par adresse) ; jamais l'IP en clair */
+  /** short hash of the IP that requested the code (cap on pending pairings per address); never the IP in clear */
   ip?: string;
-  /** empreinte courte de son réseau (/24 en IPv4, /48 en IPv6) : plafond d'appairages en cours par réseau */
+  /** short hash of its network (/24 in IPv4, /48 in IPv6): cap on pending pairings per network */
   net?: string;
 };
 type Check = { id: string; label: string; ok: boolean; detail: string };
@@ -52,13 +50,13 @@ type Machine = {
   machineId: string; operator: string; hostname: string; mode: string; version: string; productId: string | null;
   enclaveUrl: string | null; signer: string | null; x25519: string | null; status: string;
   doctor: { ok: boolean; checks: Check[] } | null; lastSeen: number | null; createdAt: number;
-  /** D'où vient ce que la machine annonce : « code » (appairée par code, l'humain a confirmé le compte sur la machine)
-   *  ou « key » (battement d'une clé arcop_ libre, sans confirmation sur la machine ; une clé libre qui reprend une
-   *  machine appairée par code la fait passer à « key »). Absent : machine d'avant ce champ, provenance inconnue. */
+  /** Where what the machine announces comes from: "code" (paired by code, the person confirmed the account on the
+   *  machine) or "key" (heartbeat of a free arcop_ key, with no confirmation on the machine; a free key that takes over
+   *  a machine paired by code switches it to "key"). Absent: a machine recorded before this field, origin unknown. */
   pairedBy?: "code" | "key";
-  /** l'adresse qui a approuvé : le compte qui a signé l'appairage, ou celui qui a créé la clé libre */
+  /** the approving address: the account that signed the pairing, or the one that created the free key */
   approvedBy?: string;
-  /** la clé libre (keyId) qui a ajouté ou repris la machine (« key » seulement) */
+  /** the free key (keyId) that added or took over the machine ("key" only) */
   viaKey?: string | null;
   pairedAt?: number;
 };
