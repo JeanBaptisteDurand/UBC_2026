@@ -1,12 +1,12 @@
-/** arc.ts — aides du site pour la pile v2 d'Arc testnet.
- *  - les produits de référence du déploiement (1 = Inférence privée, 2 = Prime scellée) ;
- *  - le libellé de vérification, qui suit le module d'attestation du déploiement (« dcap » : vérifiée par Arc) et la
- *    langue du site (verifiedLabel, dcapGasLabel : des fonctions, lues au moment de l'affichage) ;
- *  - useVerifiedEnclave : les clés d'une enclave CONFRONTÉES à la chaîne (verifyEnclaveKeys) avant tout chiffrement.
- *    /pubkeys passe par le mandataire de même origine du site : seule la clé inscrite on-chain fait foi ;
- *  - waitOk / trackTxs : attendre une transaction, suivre les transactions d'une action en plusieurs temps ;
- *  - closeOutcome : ce qu'est devenu le verdict ERC-8004 à la fermeture d'une session (pile v2.1 : écrit, sans objet
- *    faute de paiement, ou sauté), lu dans les événements de sa transaction. */
+/** arc.ts — console helpers for the ArcHive v2.1 stack on Arc testnet.
+ *  - the deployment's reference products (1 = Private inference, 2 = Sealed bounty);
+ *  - the verification label, which follows the deployment's attestation module ("dcap": verified by Arc) and the
+ *    site's language (verifiedLabel, dcapGasLabel: functions, read at display time);
+ *  - useVerifiedEnclave: an enclave's keys CHECKED against the chain (verifyEnclaveKeys) before any encryption.
+ *    /pubkeys goes through the site's same-origin proxy: only the key registered on-chain counts;
+ *  - waitOk / trackTxs: wait for a transaction, follow the transactions of a multi-step action;
+ *  - closeOutcome: what became of the ERC-8004 verdict when a session closed (v2.1 stack: written, not applicable
+ *    without a payment, or skipped), read from the events of its transaction. */
 import { useEffect, useState } from "react";
 import { decodeErrorResult, parseAbi, parseEventLogs, parseUnits, type Hex, type Log, type TransactionReceipt } from "viem";
 import {
@@ -17,25 +17,25 @@ import { explainError } from "./errors";
 import { fmtNum, t, type StaticKey } from "./i18n";
 import { MsgError, msg } from "./msg";
 
-/** Produits de référence de la pile v2 (lus on-chain le 7/11) : Inférence privée (SessionPay), Prime scellée (SealedBounty). */
+/** Reference products of the live stack (read on-chain): Private inference (SessionPay), Sealed bounty (SealedBounty). */
 export const INFERENCE_PRODUCT: bigint = testnet.products?.inference ?? 1n;
 export const BOUNTY_PRODUCT: bigint = testnet.products?.bounty ?? 2n;
-/** v2.1 : l'inférence payée à l'appel (X402Settler, rail x402), produit 3. */
+/** v2.1: inference paid per call (X402Settler, x402 rail), product 3. */
 export const X402_PRODUCT: bigint = testnet.products?.x402 ?? 3n;
 
-/** 19/11 : la Prime au niveau VÉRIFIÉ (produit 7) est le même code que SealedBounty, sur un autre contrat
- *  (SealedBountyVerified) : le client d'un niveau est le même client, avec ce contrat à la place de SealedBounty. */
+/** The bounty at the VERIFIED level (product 7) runs the same code as SealedBounty on another contract
+ *  (SealedBountyVerified): a level's client is the same client, with this contract in place of SealedBounty. */
 export type BountyLevel = "open" | "verified";
 export const VERIFIED_BOUNTY: string | null = testnet.levels?.sealedBountyVerified ?? null;
 export function arcForLevel(arc: ArcClient, level: BountyLevel): ArcClient {
   if (level === "open" || !VERIFIED_BOUNTY) return arc;
   return createArcClient({ publicClient: arc.pub, walletClient: arc.wallet, account: arc.account, deployment: { ...arc.d, sealedBounty: VERIFIED_BOUNTY as Hex } });
 }
-/** 19/11 : le PREMIER SealedBountyVerified (deployments.v21.testnet.json, levels.superseded), contrat de règlement de
- *  l'ancien produit 6, neutralisé le 12/11 (faille corrigée) et remplacé par le 7. Ce n'est pas un niveau qu'on peut
- *  utiliser (bountyLevelOf le laisse de côté : aucune prime ne s'y crée) ; il est seulement reconnu comme une prime. */
+/** The first SealedBountyVerified (deployments.v21.testnet.json, levels.superseded): the settlement contract of the
+ *  former product #6, retired after a security fix and replaced by product #7. It is not a usable level (bountyLevelOf
+ *  skips it, so no bounty is created there); it is only recognised as a bounty. */
 export const SUPERSEDED_VERIFIED_BOUNTY = "0x242ca1c4d0a5a6fe5a806f215ca5f127422364d2";
-/** le niveau d'un produit réglé par une prime (son contrat de règlement), sinon null */
+/** the level of a product settled by a bounty (its settlement contract), otherwise null */
 export function bountyLevelOf(settlement: string): BountyLevel | null {
   const s = settlement.toLowerCase();
   if (s === testnet.sealedBounty.toLowerCase()) return "open";
@@ -43,38 +43,38 @@ export function bountyLevelOf(settlement: string): BountyLevel | null {
   return null;
 }
 
-/** Vrai si le registre vérifie lui-même la signature d'Intel (DCAP) : seulement alors on écrit « vérifiée ». */
+/** True if the registry itself verifies Intel's signature (DCAP): only then does the site write "verified". */
 export const DCAP = testnet.attestation === "dcap";
-/** « verified by Arc » / « vérifiée par Arc » (ou « inscrite » sans DCAP), dans la langue du moment. */
+/** "verified by Arc" / « vérifiée par Arc » (or "registered" without DCAP), in the current language. */
 export const verifiedLabel = (): string => t(DCAP ? "arc.verified" : "arc.registered");
-/** Gaz d'une inscription par le vrai DCAP, pour prévenir avant la signature (« ≈ 5.7 M gas » / « ≈ 5,7 M gas »). */
+/** Gas of a registration through the real DCAP verifier, shown before signing ("≈ 5.7 M gas" / « ≈ 5,7 M gas »). */
 export const dcapGasLabel = (): string => t("arc.gas", { m: fmtNum(Number(DCAP_REGISTER_GAS_ESTIMATE) / 1e6, { maximumFractionDigits: 1 }) });
 
-/** Montant en USDC saisi par un humain (« 2 », « 0.5 », « 0,5 ») → unités de base (6 décimales), avec un refus lisible
- *  (dans la langue du moment de son affichage). `what` : la clé du nom du montant ("what.deposit"…). */
+/** A USDC amount typed by a person ("2", "0.5", "0,5") → base units (6 decimals), with a readable refusal (in the
+ *  language current when it is displayed). `what`: the key of the amount's name ("what.deposit"…). */
 export function parseUsdc(v: string, what: StaticKey = "what.amount"): bigint {
   const s = v.trim().replace(",", ".");
   if (!/^\d+(\.\d{1,6})?$/.test(s)) throw new MsgError(msg("arc.badUsdc", { what: msg(what), v }));
   return parseUnits(s, 6);
 }
 
-/** Transaction minée mais annulée (revert) : rien n'a changé on-chain. */
+/** A transaction mined but reverted: nothing changed on-chain. */
 export class TxRevertedError extends MsgError {
   constructor(what: StaticKey, readonly hash: Hex) {
     super(msg("arc.reverted", { what: msg(what), hash }), "TxRevertedError");
   }
 }
 
-/** Attend la confirmation d'une transaction ; lève TxRevertedError si elle est annulée on-chain. Rend le reçu (événements).
- *  `what` : la clé de la transaction attendue ("tx.openSession"…). */
+/** Waits for a transaction's confirmation; throws TxRevertedError if it reverts on-chain. Returns the receipt (events).
+ *  `what`: the key of the awaited transaction ("tx.openSession"…). */
 export async function waitOk(arc: ArcClient, hash: Hex, what: StaticKey = "tx.default"): Promise<TransactionReceipt> {
   const r = await arc.pub.waitForTransactionReceipt({ hash, timeout: 180_000 });
   if (r.status !== "success") throw new TxRevertedError(what, hash);
   return r;
 }
 
-/** Les événements d'une fermeture de session qui disent ce qu'est devenu son verdict ERC-8004 (VerdictLog.Recorded ;
- *  v2.1 : SessionPay.VerdictNotApplicable, session close sans paiement ; SessionPay.VerdictSkipped, écriture refusée). */
+/** The events of a session close that tell what became of its ERC-8004 verdict (VerdictLog.Recorded;
+ *  v2.1: SessionPay.VerdictNotApplicable, a session closed without payment; SessionPay.VerdictSkipped, the write refused). */
 const CLOSE_EVENTS = parseAbi([
   "event Recorded(uint256 indexed agentId, bytes32 indexed requestHash, uint8 response, string tag)",
   "event VerdictNotApplicable(uint256 indexed sessionId)",
@@ -82,10 +82,10 @@ const CLOSE_EVENTS = parseAbi([
 ]);
 const REASON_ABI = [...arcErrorsAbi, ...parseAbi(["error AlreadyRecorded()"])];
 
-/** La raison d'un verdict sauté (données de revert bornées à 132 octets), dans la langue du moment : l'erreur nommée si
- *  elle est connue (« Nom(arguments) ») ; un revert vide ou illisible dit ce qu'il est ; des octets inconnus sont
- *  résumés par leur sélecteur et leur taille (les octets entiers restent dans la transaction). Même phrase partout :
- *  maillon 6 de la Vue d'ensemble, activité, fermeture d'une session. */
+/** Why a verdict was skipped (revert data bounded to 132 bytes), in the current language: the named error if it is
+ *  known ("Name(arguments)"); an empty or unreadable revert says what it is; unknown bytes are summarised by their
+ *  selector and size (the full bytes stay in the transaction). The same sentence everywhere: link 6 of the Overview,
+ *  the activity feed, closing a session. */
 export function skipReason(data: unknown): string {
   if (typeof data !== "string" || !/^0x([0-9a-fA-F]{2})*$/.test(data)) return t("reason.unreadable");
   if (data === "0x") return t("reason.empty");
@@ -97,10 +97,10 @@ export function skipReason(data: unknown): string {
   }
 }
 
-/** Ce qu'est devenu le verdict ERC-8004 de la session fermée par cette transaction : « written » (VerdictLog l'a écrit),
- *  « not_applicable » (v2.1 : aucun paiement, rien à attester), « skipped » (v2.1 : le registre a refusé ; `reasonData` :
- *  ses octets, mis en mots à l'affichage par skipReason), « none » (rien de tout cela : pile v2 sans événement, ou
- *  opérateur radié). */
+/** What became of the ERC-8004 verdict of the session closed by this transaction: "written" (VerdictLog wrote it),
+ *  "not_applicable" (v2.1: no payment, nothing to attest), "skipped" (v2.1: the registry refused; `reasonData`: its
+ *  bytes, put into words at display time by skipReason), "none" (none of these: a v2 contract without the event, or an
+ *  operator struck off). */
 export function closeOutcome(logs: readonly Log[]): { outcome: "written" | "not_applicable" | "skipped" | "none"; reasonData?: Hex } {
   const at = (a: string) => (l: Log) => l.address.toLowerCase() === a.toLowerCase();
   const pay = parseEventLogs({ abi: CLOSE_EVENTS, logs: logs.filter(at(testnet.sessionPay)) as Log[] });
@@ -115,9 +115,8 @@ export function closeOutcome(logs: readonly Log[]): { outcome: "written" | "not_
 export type TxEvent = { fn: string; phase: "sign" | "sent"; hash?: Hex };
 
 /**
- * Le même client, dont le wallet signale chaque transaction : « sign » quand le SDK la soumet au wallet, « sent » quand
- * elle est partie. Sert à afficher les étapes d'une action en plusieurs transactions (acceptAndDeliver), sans rien
- * changer à ce que le SDK envoie.
+ * The same client, whose wallet reports each transaction: "sign" when the SDK hands it to the wallet, "sent" once it has
+ * left. Used to show the steps of a multi-transaction action (acceptAndDeliver), without changing anything the SDK sends.
  */
 export function trackTxs(arc: ArcClient, on: (e: TxEvent) => void): ArcClient {
   const w = arc.wallet;
@@ -145,12 +144,12 @@ export type EnclaveCheck =
 type RawCheck = Exclude<EnclaveCheck, { state: "bad" }> | { state: "bad"; error: unknown; reason?: EnclaveKeyMismatchReason };
 
 /**
- * Lit {enclaveUrl}/pubkeys et le confronte à l'EnclaveRegistry pour ce produit (SDK verifyEnclaveKeys) : clé X25519
- * = celle inscrite, enclave active au bloc de tête. Refait quand l'adresse ou le produit change (et sur `recheck`).
- * Lectures seulement : aucune transaction, aucune signature.
+ * Reads {enclaveUrl}/pubkeys and checks it against the EnclaveRegistry for this product (SDK verifyEnclaveKeys): the X25519
+ * key must be the registered one and the enclave active at the head block. Rerun when the address or the product changes
+ * (and on `recheck`). Reads only: no transaction, no signature.
  */
 export function useVerifiedEnclave(arc: ArcClient | null, enclaveUrl: string, productId: string | bigint): [EnclaveCheck, () => void] {
-  // le refus est gardé tel quel et mis en phrase à l'affichage : il suit la langue du site sans relire la chaîne
+  // the refusal is kept as is and put into words at display time: it follows the site's language without re-reading the chain
   const [check, setCheck] = useState<RawCheck>({ state: "idle" });
   const [nonce, setNonce] = useState(0);
   const url = enclaveUrl.trim();
@@ -166,7 +165,7 @@ export function useVerifiedEnclave(arc: ArcClient | null, enclaveUrl: string, pr
         .catch((e: any) => { if (alive) setCheck({ state: "bad", error: e, reason: e?.reason }); });
     }, 400);
     return () => { alive = false; clearTimeout(timer); };
-  }, [pub, url, pid, nonce]); // `arc` change quand le wallet se connecte ; seule sa lecture de la chaîne (pub) compte ici
+  }, [pub, url, pid, nonce]); // `arc` changes when the wallet connects; only its chain read (pub) matters here
   const shown: EnclaveCheck = check.state === "bad" ? { state: "bad", message: explainError(check.error), reason: check.reason } : check;
   return [shown, () => setNonce((n) => n + 1)];
 }

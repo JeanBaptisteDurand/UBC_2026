@@ -1,12 +1,12 @@
-/** api.ts — lecture d'état via notre API (http), pas via des rafales de lectures RPC dans le navigateur.
- *  L'API lit la chaîne une fois côté serveur (avec cache) ; ici on révive les bigint des vues du SDK (pile v2 : fenêtres
- *  de validité des enclaves en blocs, paliers déjà payés des primes, enclave et prix verrouillés des sessions). */
+/** api.ts — reads state through the ArcHive HTTP API instead of bursts of RPC reads in the browser.
+ *  The API reads the chain once on the server (cached); this file revives the bigints of the SDK views (v2.1 stack:
+ *  enclave validity windows in blocks, bounty tiers already paid, the enclave and price locked by each session). */
 import type { EnclaveView, ProductView, BountyRow } from "@arcvault/sdk";
 import { API_URL } from "./config";
 import { msg, show, type Msg } from "./msg";
 
-/** Une session de l'adresse connectée. v2 : l'enclave, l'opérateur, le prix et l'échéance sont verrouillés à l'ouverture
- *  (absents d'une API encore en v1 : champs facultatifs). */
+/** A session of the connected address. The enclave, the operator, the price and the expiry are locked when it opens
+ *  (optional fields: older API responses omit them). */
 export type Session = {
   id: bigint; productId: bigint; deposit: bigint; paid: bigint; closed: boolean;
   enclave?: string; operator?: string; price?: bigint; expiresAt?: bigint; paidUnits?: bigint; verdictWritten?: boolean;
@@ -19,7 +19,7 @@ async function get<T>(path: string): Promise<T> {
 }
 
 const B = (x: unknown): bigint => BigInt(String(x ?? "0"));
-/** Révive en bigint les champs nommés (chaînes décimales dans le JSON de l'API). */
+/** Revives the named fields as bigints (decimal strings in the API's JSON). */
 function bigs<T>(o: any, keys: string[]): T {
   const out = { ...o };
   for (const k of keys) out[k] = B(o?.[k]);
@@ -34,8 +34,8 @@ export async function fetchProducts(): Promise<ProductView[]> {
   }));
 }
 
-/** 19/11 : l'état d'une clé d'enclave dit par l'API (active, retirée par son opérateur, invalidée, expirée) ; absent d'une
- *  API plus ancienne. */
+/** The state of an enclave key as reported by the API (active, withdrawn by its operator, invalidated, expired); absent
+ *  from older API responses. */
 export type EnclaveStatus = "active" | "retired" | "invalidated" | "expired";
 export type Enclave = EnclaveView & { status?: EnclaveStatus; statusReason?: string };
 
@@ -48,14 +48,14 @@ export async function fetchEnclaves(): Promise<Enclave[]> {
   }));
 }
 
-/** 19/11 : une prime, à l'un des DEUX niveaux : ouvert (SealedBounty) ou vérifié (SealedBountyVerified, produit 7). Les
- *  numéros existent aux deux niveaux (n° 2 ouvert et n° 2 vérifié) : une prime se désigne par son niveau ET son numéro.
- *  `paidOut` : USDC réellement versés (somme des BountyPaid) ; `paidAmount` est le champ on-chain (palier réservé ou payé
- *  depuis l'armement), qui reste à 0,5 après une réclamation RÉFUTÉE : il ne prouve aucun paiement. */
+/** A bounty at one of the TWO levels: open (SealedBounty) or verified (SealedBountyVerified, product 7). Numbers exist
+ *  at both levels (open #2 and verified #2), so a bounty is identified by its level AND its number.
+ *  `paidOut`: the USDC actually paid (the sum of BountyPaid); `paidAmount` is the on-chain field (the tier reserved or
+ *  paid since arming), which stays at 0.5 after a REFUTED claim: it proves no payment. */
 export type BountyLevel = "open" | "verified";
 export type Bounty = BountyRow & {
   level: BountyLevel; contract: string; address?: string;
-  /** null : API d'avant ce champ (rien n'est alors affiché comme payé) */
+  /** null: an older API without this field (nothing is then shown as paid) */
   paidOut: bigint | null; claimsAccepted: number; claimsRefuted: number;
 };
 export const bountyKey = (b: Pick<Bounty, "level" | "id">) => `${b.level}:${b.id.toString()}`;
@@ -70,26 +70,26 @@ export async function fetchBounties(): Promise<Bounty[]> {
   }));
 }
 
-/** /stats. `settledUsdc` : tout ce qui est réglé (sessions + appels x402) ; les champs facultatifs viennent de l'API du 9/11
- *  (pile v2.1 : appels payés x402 à part, verdicts sautés ou sans objet). */
+/** /stats. `settledUsdc`: everything settled (sessions + x402 calls); older API responses omit the optional fields
+ *  (v2.1 stack: paid x402 calls counted apart, skipped or not-applicable verdicts). */
 export interface Stats {
   enclaves: number; enclavesActive: number; products: string; productsActive?: number; sessions: number; settlements: number;
   settledUsdc: string; refundedUsdc: string; x402Calls: number; verdicts: number;
   bounties: number; bountyPool: string; bountiesPaid: number; bountyPaidUsdc: string; head: string;
   sessionSettledUsdc?: string; x402SettledUsdc?: string; verdictsSkipped?: number; verdictsNotApplicable?: number;
-  /** 19/11 : primes des deux niveaux, celles qu'on peut chasser maintenant, réclamations réfutées, cautions saisies */
+  /** bounties at both levels, the ones that can be hunted now, refuted claims, seized bonds */
   bountiesOpen?: number; claimsRefuted?: number; bondSlashedUsdc?: string;
 }
-/** Un événement de /activity ; `label` : son libellé anglais (API du 9/11), le site écrit le sien dans sa langue. */
+/** An event from /activity; `label`: its English label from the API, while the site writes its own in its language. */
 export interface ActivityEvent { contract: string; name: string; args: Record<string, string | number>; block: number; tx: string; ts?: string; logIndex?: number; label?: string }
-/** L'issue du verdict ERC-8004 de la session que montre la chaîne de preuves (API du 9/11) ; 19/11 : « no_verdict_rail »,
- *  un produit dont le rail n'écrit pas de verdict (appel payé x402, produit gratuit). */
+/** The outcome of the ERC-8004 verdict of the session shown by the proof chain; "no_verdict_rail": a product whose rail
+ *  writes no verdict (a paid x402 call, a free product). */
 export type VerdictStatus = "written" | "not_applicable" | "skipped" | "none" | "pending" | "no_verdict_rail";
-/** 19/11 : le rail de règlement du produit de l'enclave montrée. */
+/** The settlement rail of the product of the enclave shown. */
 export type ProofRail = "session" | "x402" | "bounty" | "free" | "other";
 export interface Proof {
-  /** L'image affichée au maillon 1 : celle du manifeste de l'auteur, mais seulement si `manifestVerified` (keccak256 du
-   *  manifeste = manifestHash on-chain) ; sinon l'image par défaut de l'API, qui ne prouve rien. */
+  /** The image shown at link 1: the one from the author's manifest, but only if `manifestVerified` (the keccak256 of the
+   *  manifest equals the on-chain manifestHash); otherwise the API's default image, which proves nothing. */
   image: string; manifestURI?: string; manifestVerified?: boolean; imageSource?: "manifest" | "deployments" | "unknown";
   enclave: (Omit<EnclaveView, "productId" | "expiresAt"> & { productId: string; expiresAt: string; status?: EnclaveStatus }) | null;
   registerTx: string | null; settleTx: string | null; settleUsdc: string | null; settleSession: string | null;
@@ -103,49 +103,49 @@ export interface Proof {
 export interface IndexStatus { lastBlock: number; head: number; lagBlocks: number | null; events: number; syncing: boolean; lastSyncAt: number | null; lastError: string | null; fromBlock?: number }
 export const fetchStats = () => get<Stats>("/stats");
 export const fetchActivity = (limit = 12) => get<ActivityEvent[]>(`/activity?limit=${limit}`);
-/** la chaîne de preuves de l'enclave d'inférence ; 19/11 : celle d'une clé d'enclave donnée (?signer=) */
+/** the proof chain of the inference enclave, or of a given enclave key (?signer=) */
 export const fetchProof = (signer?: string) => get<Proof>(signer ? `/proof?signer=${signer}` : "/proof");
 
-// ---------- opérateurs : machines, appairage, clés arcop_ ----------
+// ---------- operators: machines, pairing, arcop_ keys ----------
 export interface MachineCheck { id: string; label: string; ok: boolean; detail: string }
-/** Une machine vue par l'API. Sans lecture signée (`restricted`) : pas de nom (`hostnameHidden`), pas d'adresse http://IP,
- *  ni diagnostic ni journaux ; avec la signature de lecture : tout (détail : diagnostic et journaux). */
+/** A machine as seen by the API. Without a signed read (`restricted`): no name (`hostnameHidden`), no http://IP address,
+ *  no diagnostics and no logs; with the read signature: everything (details: diagnostics and logs). */
 export interface Machine {
   machineId: string; operator: string; hostname: string; mode: string; version: string; productId: string | null;
   enclaveUrl: string | null; signer: string | null; status: string; online: boolean; lastSeen: number | null;
   doctorOk: boolean | null; registered: boolean; failing?: string[]; hostnameHidden?: boolean; restricted?: boolean;
   doctor?: { ok: boolean; checks: MachineCheck[] } | null; logs?: string[];
-  /** Provenance explicite (API à jour) : « code » = appairée par code (le compte confirmé sur la machine), « key » =
-   *  ajoutée ou reprise par une clé arcop_ libre ; null ou absent : machine d'avant ce champ (le site la déduit). */
+  /** Explicit origin: "code" = paired by code (the account confirmed on the machine), "key" = added or taken over with a
+   *  free arcop_ key; null or absent: a machine registered before this field existed (the site infers it). */
   pairedBy?: "code" | "key" | null;
-  /** l'adresse qui a approuvé (celle du compte), et la clé libre (keyId) d'une machine « key » */
+  /** the address that approved it (the account's), and the free key (keyId) of a "key" machine */
   approvedBy?: string | null; viaKey?: string | null; pairedAt?: number | null;
 }
-/** `restricted` : vue publique (libellé générique) ; les vrais libellés demandent la lecture signée */
+/** `restricted`: the public view (generic label); the real labels require the signed read */
 export interface OperatorKey { keyId: string; label: string; machineId: string | null; createdAt: number; lastUsedAt: number | null; revoked: boolean; restricted?: boolean }
-/** Une signature du wallet sur un message EIP-4361 (signin.ts) : ce que l'API vérifie. */
+/** A wallet signature on an EIP-4361 message (signin.ts): what the API verifies. */
 export type Signed = { address: string; message: string; signature: string };
 /** Nonce de GET /auth/nonce : usage unique, 5 minutes ; « Issued At » reprend issuedAt. */
 export interface SignInNonce { nonce: string; issuedAt: string; expiresAt: string; domain?: string; uri?: string; chainId?: number }
 
-/** Erreur de l'API : son statut HTTP, son code stable et ses valeurs (le site traduit par eux : errors.ts), et son texte
- *  (la phrase française de l'API ; ou, `localized`, une phrase écrite par le site : son message, remis en mots dans la
- *  langue du moment à l'affichage). */
+/** An API error: its HTTP status, its stable code and its values (the site translates from them: errors.ts), and its
+ *  text (the API's own sentence; or, when `localized`, a sentence written by the site, put back into words in the
+ *  current language when it is displayed). */
 export class ApiError extends Error {
   constructor(
     message: string, readonly status: number, readonly code?: string,
     readonly params: Record<string, unknown> = {}, readonly localized: Msg | null = null,
   ) { super(message); this.name = "ApiError"; }
 }
-/** Une erreur dont la phrase est celle du site (pas celle de l'API). */
+/** An error whose sentence is the site's (not the API's). */
 const siteError = (m: Msg, status: number) => new ApiError(show(m), status, undefined, {}, m);
-/** L'erreur d'une réponse de l'API ({ error, code, params }) ; une API d'avant les codes n'a que `error`. */
+/** The error of an API response ({ error, code, params }); an older API without codes only sends `error`. */
 function apiErrorOf(j: any, path: string, status: number): ApiError {
   const code = typeof j?.code === "string" ? j.code : undefined;
   const params = j?.params && typeof j.params === "object" && !Array.isArray(j.params) ? j.params : {};
   return new ApiError(typeof j?.error === "string" ? j.error : `api ${path}: ${status}`, status, code, params);
 }
-/** La signature n'est plus acceptée (échue, déjà servie, ou API redémarrée) : à refaire. */
+/** The signature is no longer accepted (expired, already used, or the API restarted): sign again. */
 const SPENT = new Set(["signature_used", "signature_expired", "nonce_unknown", "nonce_expired", "bad_signature"]);
 export const isSignatureSpent = (e: unknown) =>
   e instanceof ApiError && (e.code ? SPENT.has(e.code) : e.status === 401 || e.status === 409);
@@ -156,35 +156,35 @@ async function send<T>(path: string, body: unknown): Promise<T> {
   if (!res.ok) throw apiErrorOf(j, path, res.status);
   return j as T;
 }
-/** GET dont le refus porte le message de l'API (« code inconnu ou expiré… ») plutôt qu'un simple statut */
+/** A GET whose refusal carries the API's message ("unknown or expired code…") rather than a bare status */
 async function getOrExplain<T>(path: string): Promise<T> {
   const res = await fetch(`${API_URL.replace(/\/$/, "")}${path}`);
   const j = await res.json().catch(() => ({}));
   if (!res.ok) throw apiErrorOf(j, path, res.status);
   return j as T;
 }
-/** seuls ces trois champs partent avec une requête signée */
+/** only these three fields are sent with a signed request */
 const sig = (s: Signed): Signed => ({ address: s.address, message: s.message, signature: s.signature });
 
 export async function fetchNonce(): Promise<SignInNonce> {
   const res = await fetch(`${API_URL.replace(/\/$/, "")}/auth/nonce`, { cache: "no-store" });
   const j = await res.json().catch(() => ({})) as any;
-  // une API d'avant les nonces (route absente) : la phrase du site, dans sa langue, sans préfixe « ArcHive API (404) »
+  // an older API without nonces (route missing): the site's sentence, in its language, without the "ArcHive API (404)" prefix
   if (res.status === 404 && typeof j.code !== "string") throw siteError(msg("err.nonce404"), 404);
   if (!res.ok) throw apiErrorOf(j, "/auth/nonce", res.status);
   if (typeof j.nonce !== "string" || typeof j.issuedAt !== "string") throw siteError(msg("err.unreadable", { status: res.status }), res.status);
   return j as SignInNonce;
 }
 export const fetchMachines = (operator: string) => get<Machine[]>(`/machines?operator=${operator}`);
-/** la liste complète de l'opérateur (vrais noms, adresses d'enclave), sur signature de lecture */
+/** the operator's full list (real names, enclave addresses), behind a read signature */
 export const fetchMachinesSigned = (s: Signed) => send<Machine[]>("/machines/list", sig(s));
-/** diagnostic et journaux d'une machine, sur signature de lecture */
+/** a machine's diagnostics and logs, behind a read signature */
 export const fetchMachineDetail = (id: string, s: Signed) => send<Machine>(`/machines/${id}/detail`, sig(s));
 export const fetchPairing = (code: string) => getOrExplain<{ userCode: string; hostname: string; hostnameHidden?: boolean; mode: string; version: string; expiresAt: number }>(`/pair/${encodeURIComponent(code)}`);
 export const approvePairing = (userCode: string, s: Signed) => send<{ ok: boolean; machineId: string; hostname: string }>("/pair/approve", { userCode, ...sig(s) });
 export const removeMachine = (id: string, s: Signed) => send<{ ok: boolean }>(`/machines/${id}/remove`, sig(s));
 export const fetchOperatorKeys = (address: string) => get<OperatorKey[]>(`/operator/keys?address=${address}`);
-/** les clés de l'opérateur avec leurs vrais libellés, sur signature de lecture */
+/** the operator's keys with their real labels, behind a read signature */
 export const fetchOperatorKeysSigned = (s: Signed) => send<OperatorKey[]>("/operator/keys/list", sig(s));
 export const createOperatorKey = (label: string, s: Signed) => send<{ key: string; keyId: string; masked: string }>("/operator/keys", { label, ...sig(s) });
 export const revokeOperatorKey = (keyId: string, s: Signed) => send<{ ok: boolean }>(`/operator/keys/${keyId}/revoke`, sig(s));
@@ -199,7 +199,7 @@ export async function fetchSessions(owner: string): Promise<Session[]> {
   }));
 }
 
-/** 10/11 : les deux niveaux d'opérateur (GET /levels de l'API). */
+/** The two operator levels (GET /levels on the API). */
 export interface LevelsView {
   enabled: boolean;
   contracts?: { machineRegistry: string; proofOfCloudAuditor: string; ed25519Verifier: string; policyEnclaves: string; sealedBountyVerified: string };
