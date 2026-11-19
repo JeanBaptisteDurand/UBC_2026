@@ -332,8 +332,8 @@ export function RentActs({ label }: { label?: string } = {}) {
         ) : null}
       </Step>
       <Step n={3} part="rent" el="rent.quai" st={stOf(2, sts[2])} t={w('r.s3')} d={w('r.s3d')} note={S.on && (S.at(2) || S.past(2)) ? { tone: S.past(2) ? 'ok' : 'muted', text: w('r.dm.agent', { q: REC.quoteBytes, n: REC.events }) } : null} active={active === 2} copilot="install">
-        {/* the install command's box, for the copilot (copy): a wrapper without a box of its own */}
-        <div className="na-cmds">{cmds.map((c, i) => (i === 0 ? <div key={c} data-copilot="install-cmd" style={{ display: 'contents' }}><Cmd cmd={c} /></div> : <Cmd key={c} cmd={c} />))}</div>
+        {/* the install command's box, for the assistant's tours (install-cmd): a box of its own, so a tour can light it */}
+        <div className="na-cmds">{cmds.map((c, i) => (i === 0 ? <div key={c} className="na-cmd1" data-copilot="install-cmd"><Cmd cmd={c} /></div> : <Cmd key={c} cmd={c} />))}</div>
       </Step>
       <Step n={4} part="rent" el="rent.quai" st={stOf(3, p.st)} t={w('r.s4')} d={w('r.s4d')} note={S.on ? (S.past(3) ? { tone: 'ok', text: w('r.dm.pair') } : null) : p.note} active={active === 3} copilot="pair">
         <div className="na-row">

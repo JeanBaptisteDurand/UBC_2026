@@ -47,6 +47,8 @@
 .acts .na-note .tlink { font-size: 13px; }
 .acts .net-wallet .na-note { margin-left: 0; }
 .acts .na-cmds { display: grid; gap: 8px; width: 100%; }
+/* the first command carries the assistant's install-cmd marker: a real box (a tour highlights it), as narrow as the rest */
+.na-cmds > .na-cmd1 { min-width: 0; max-width: 100%; display: grid; gap: 8px; }
 .acts .na-cmds .cmd { max-width: 34em; }
 .acts .na-ans { max-width: 34em; padding: 14px 16px; background: var(--panel); box-shadow: inset 2px 0 0 var(--green); }
 .acts .na-ans-t { margin: 0 0 8px; font-size: 15px; line-height: 1.55; color: var(--ink); white-space: pre-wrap; }
