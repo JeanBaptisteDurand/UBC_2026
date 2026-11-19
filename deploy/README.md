@@ -8,7 +8,7 @@ They run in Intel TDX VMs at Phala Cloud (see "Enclaves" below).
 
 | Path | What | Source |
 |---|---|---|
-| `/`, `/network.html`, `/service.html?p=<n>`, `/doc.html`, `/space.html`, `/use.html`, `/rent.html`, `/publish.html` | The marketplace site, with the AskHive panel | `frontend/` |
+| `/`, `/network.html`, `/service.html?p=<n>`, `/doc.html`, `/space.html`, `/bridge.html` (`/use.html`, `/rent.html` and `/publish.html` redirect to the Network page) | The marketplace site, with the AskHive panel | `frontend/` |
 | `/console/` (hash routes `#/vue`, `#/ruche`, `#/produits`, `#/primes`, `#/playground`, `#/operateur`, `#/developpeurs`…) | The console: wallet, sessions, keys, bounties, operators, publishing, CCTP, developer docs | `web/` |
 | `/datacenter/` | The 3D server room (live data and a replay of recorded events) | `web/public/datacenter/` |
 | `/api/*` | The read API and its own index of contract events | `services/api` |

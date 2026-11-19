@@ -19,7 +19,7 @@
 # REPLACE_WITH_PUSHED_DIGEST, ce fichier n'est pas déployable (aucun registre ne sert ce condensat) et ne se mesure pas.
 services:
   copilot-enclave:
-    image: ghcr.io/jeanbaptistedurand/archive-copilot-enclave@sha256:eeb889b054e021ff17ee933873080403965623f4f36693986f2d780b269bf5dd
+    image: ghcr.io/jeanbaptistedurand/archive-copilot-enclave@sha256:22a18ce87d4ec47a37b526f431e208dab057f4db7170ff8d4fdb2983e95327ec
     ports:
       - "8808:8808"
     environment:

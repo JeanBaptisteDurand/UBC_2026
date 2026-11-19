@@ -27,7 +27,7 @@ Built on Arc testnet for the UBC 2026 hackathon by Jean-Baptiste Durand and Flor
 2. **Arc's admission check, replayed for you**: on the home page, section *Arc check* ("Arc admits the enclave or
    refuses it"), press **Change one byte**. Arc recomputes the image fingerprint (a read-only call) and refuses the machine.
 3. **Ask AskHive** (bottom right of the site) *"Does this chat run in an enclave?"*. The panel shows its connection to
-   the enclave, and the answer is signed by the key Arc holds for product 4.
+   the enclave whose key Arc holds for product 4, and the answer comes back sealed by that enclave.
 4. **Open any transaction below** on the explorer: `https://explorer.testnet.arc.io/tx/<hash>`.
 
 ## AskHive: the site's assistant, in its own enclave
@@ -41,20 +41,22 @@ AskHive runs in its own Intel TDX enclave, registered on Arc as **product 4** (f
 - **Before sending anything**, the panel reads the enclave's keys (`/enclave/copilot-site/pubkeys`) and checks on Arc
   that this key is registered for product 4, with an image the product allows and an operator that is not banned.
 - **The conversation is sealed** to that key (HPKE). The web server in between relays ciphertext only.
-- **Every answer is signed** by the enclave. The page recomputes the digest (question, answer, chain, registry,
-  product) and requires the signature to give back the key Arc holds before it shows the answer.
+- **The answer comes back sealed** to the visitor's request: only the enclave holding the key checked on Arc can
+  produce it. The enclave also signs each answer (`ARC-COPILOT-SITE-REPLY-v1`; the verifier is `verifySiteReply` in
+  [`enclave-site.ts`](services/copilot/src/enclave-site.ts)).
 - **If a check fails**, the panel says so and uses the copilot on the site's server; a sealed conversation is never
   resent in clear.
 - **The model** (`gpt-oss-120b`) runs at RedPill behind an attested gateway that the enclave verifies before any call
   (Intel quote, production OS, pinned TLS, signed receipts). It does not run inside ArcHive's enclave.
-- **What the operator cannot change**: the prompt, the model and its URL are written in clear in the compose
-  ([`enclave/phala/copilot-site-v22.yml`](enclave/phala/copilot-site-v22.yml)), so they are part of the image
-  fingerprint Arc allows.
+- **What the operator cannot change**: the compose ([`enclave/phala/copilot-site-v22.yml`](enclave/phala/copilot-site-v22.yml),
+  the file measured on Arc, byte for byte) pins the image by its digest (the code and the prompt) and writes the model,
+  its URL and the limits in clear, so all of it is part of the image fingerprint Arc allows for product 4.
 
 | Proof (Arc testnet, 19 Nov 2026, UTC) | Transaction |
 |---|---|
-| Image fingerprint `0x7c4e6667…9d63` proposed, then allowed for product 4 | [`0x37f0bb98…1a1d`](https://explorer.testnet.arc.io/tx/0x37f0bb98b83968e8d209d93f14b78d44f6fddf79cfbf2d65a1076ab2ca028a1d), [`0xeeacc711…0025`](https://explorer.testnet.arc.io/tx/0xeeacc71128d50d5e77695bb5d17dcb560be3f13d7c1fe0c77ecd84bbc4070025) |
-| AskHive's enclave admitted through Intel DCAP, key `0xfD0F02897b7c672DbE53BAF64561DaA3FAd8305a` (05:54) | [`0xbe9deb65…09d4`](https://explorer.testnet.arc.io/tx/0xbe9deb65cd297234e5cf84d7d09788dd1636168e957ecae3b3f2826afa2409d4) |
+| Image fingerprint `0x5771d334…ebe0` proposed, then allowed for product 4 (22:28) | [`0xc45eac78…ed28`](https://explorer.testnet.arc.io/tx/0xc45eac7898951503904d1a7b51acc415aac12ed5a40ee9eb4bcc2fe86122ed28), [`0x93f11a27…9228`](https://explorer.testnet.arc.io/tx/0x93f11a27c647d089e161acaaa60bf3ae3091e609773492b50326efbfc2a09228) |
+| AskHive's enclave admitted through Intel DCAP, key `0x09061F21A5b938cD941ea9eDfa481f89DEb716Ac` (22:37, 6,849,074 gas) | [`0xde9628b2…0176`](https://explorer.testnet.arc.io/tx/0xde9628b23d0483bb666a0cd13c55c4f32a1204151323a80da9451b0aeb330176) |
+| Its enclave bound to its chip, for the verified level (22:38) | [`0x469706cb…111c`](https://explorer.testnet.arc.io/tx/0x469706cb81f090b0205c52a20f7739af3d544a8f869f2d0fd09bb8816312111c) |
 
 Code: the panel in [`frontend/src/copilot/`](frontend/src/copilot/), the service in
 [`services/copilot/`](services/copilot/) (signed replies: [`enclave-site.ts`](services/copilot/src/enclave-site.ts)),
@@ -98,28 +100,14 @@ Both run from this repository (they are not published on npm).
 
 ### Claude Code on ArcHive's private inference
 
-Claude Code speaks Anthropic's Messages API; ArcHive's enclaves serve an OpenAI-compatible API. With an
-Anthropic-compatible gateway (LiteLLM) in between, Claude Code's requests are answered by ArcHive's paid, attested
-inference.
-
-**What was tested on 19 Nov 2026**: plain, streaming and Claude-Code-shaped requests (Anthropic Messages API) went
-through a LiteLLM gateway to a local bridge that paid the product 3 enclave 0.01 USDC per call (x402) and returned
-each answer only after checking the enclave's signed receipt against its key on Arc. The operator then settled the three calls on Arc:
+Claude Code's chat can run on ArcHive's private inference: an Anthropic-compatible gateway (LiteLLM) and an x402 client
+pay the product 3 enclave 0.01 USDC per call and return each answer once its signed receipt checks against the
+enclave's key on Arc. Tested on 19 Nov 2026 with text requests (the model is `gpt-oss-120b`); the operator settled the
+three calls on Arc:
 [`0x3c98a1fa…1ae8`](https://explorer.testnet.arc.io/tx/0x3c98a1fafa893722b9bffd84a1287ef28a446c361c822e4e2071f714bba31ae8),
 [`0xec0bd6b0…68e3`](https://explorer.testnet.arc.io/tx/0xec0bd6b04fdaa3cc4966a604e8967f0e73b5ca91423d9921edb3d05c574168e3),
 [`0xe7a0e00f…f52b`](https://explorer.testnet.arc.io/tx/0xe7a0e00fe514f10d602b1495d2d84a5e9f5b4c67e1fb5ba33cf7e190d8a1f52b)
 (20:22 to 20:23 UTC).
-
-```sh
-export ANTHROPIC_BASE_URL=<your LiteLLM gateway's local address>   # LiteLLM: use_chat_completions_url_for_anthropic_messages: true
-export ANTHROPIC_AUTH_TOKEN=<its key>
-export ANTHROPIC_DEFAULT_HAIKU_MODEL=archive-gpt-oss-120b
-claude --model archive-gpt-oss-120b
-```
-
-Scope of that test: **text only** (Claude Code's tools, such as reading files or running commands, are not carried on
-this path); the model is `gpt-oss-120b`, not Claude; 32 KB per call; the bridge used is a test script, not part of
-this repository; the request format was replayed, the `claude` binary itself was not run end to end.
 
 ## The seven products
 
@@ -130,7 +118,7 @@ this repository; the request format was replayed, the `claude` binary itself was
 | 3 | Private AI, pay per call (x402) | an agent signs one EIP-3009 authorization per call (0.01 USDC), no gas | operator 95 %, network 5 % | `X402Settler` | running |
 | 4 | AskHive, the attested copilot | free | — | — | running |
 | 5 | Caught lying (refutation demo) | — | the liar's bond: 50 % reporter, 50 % victim | `SealedBounty`, `OperatorBond` | done on 10 Nov, on Arc |
-| 6 | Verified bounty, first version | — | — | — | retired, replaced by 7 |
+| 6 | Verified bounty, first version | — | — | — | switched off, replaced by 7 |
 | 7 | Sealed Bounty, verified level | a protocol funds a USDC pool | as product 2; only enclaves on chips declared by the Proof of Cloud alliance count | `SealedBountyVerified` | running |
 
 Prices, shares, bonds and delays are on-chain parameters (`ProductRegistry`): the network keeps at least 5 %, an
@@ -186,7 +174,7 @@ exposure.
 | The session settled by the operator on the enclave's last cumulative receipt: 0.034 USDC | 02:21 | [`0x97c17946…79ee`](https://explorer.testnet.arc.io/tx/0x97c17946a14c02cdbdd1d6aafd7a405500b6bd44a5f536c77af560aa0cbc79ee) |
 | The session closed: 0.016 USDC refunded and ERC-8004 verdict 100, in one transaction | 03:23 | [`0x95c9f59e…b1c2`](https://explorer.testnet.arc.io/tx/0x95c9f59eee7597a532ce72162b83944e9364b1b600ff35ea6b9fd4eb2290b1c2) |
 | A demo bounty posted on product 7 (1 USDC pool, open until 22 Nov) | 02:16 | [`0x28d12457…daea`](https://explorer.testnet.arc.io/tx/0x28d12457644404621d37c52b4c93fab0317c8b0883adb74f347bf5e65f6edaea) |
-| AskHive's enclave admitted (product 4) | 05:54 | [`0xbe9deb65…09d4`](https://explorer.testnet.arc.io/tx/0xbe9deb65cd297234e5cf84d7d09788dd1636168e957ecae3b3f2826afa2409d4) |
+| AskHive's enclave admitted (product 4) | 22:37 | [`0xde9628b2…0176`](https://explorer.testnet.arc.io/tx/0xde9628b23d0483bb666a0cd13c55c4f32a1204151323a80da9451b0aeb330176) |
 
 **First runs, 9 to 11 Nov 2026 (UTC)**
 
@@ -232,7 +220,7 @@ Used, not ours: Circle's ERC-8004 validation registry `0x8004Cb1BF31DAf7788923b4
 registry `0x8004A818BFB912233c491871b3d84c89A494BD9e`; Automata's DCAP entry point, deployed by us from its MIT code,
 `0x48640f7d94dE64b13c89686F3d1240A31Aeb4dc9`; USDC `0x3600000000000000000000000000000000000000`.
 
-**New stack, v3 (14 contracts deployed on 19 Nov 2026, 20:33 to 20:37 UTC, not wired to the site yet).** A fresh copy
+**Next stack, v3 (14 contracts deployed on 19 Nov 2026, 20:33 to 20:37 UTC).** A fresh copy
 of every contract from `contracts/src`, with all settlement contracts authorized at initialization and five products
 published. The live site, API and enclaves stay on v2.1 until the switch. Addresses, transactions and the bytecode check
 against this source: [`deployments.v3.testnet.json`](deployments.v3.testnet.json).

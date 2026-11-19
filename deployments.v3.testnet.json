@@ -345,6 +345,6 @@
   "verification": {
     "bytecode": "2026-11-19 20:45 UTC: the runtime code of all 14 v3 contracts equals the local build of contracts/src with contracts/foundry.toml (solc 0.8.28, via-IR, evm prague, 200 runs), immutables and metadata masked (eth_getCode vs forge artifacts).",
     "wiring": "read back on-chain: OperatorBond.registry = EnclaveRegistry; isSettlement true for SessionPay, SealedBounty, X402Settler, SealedBountyVerified; VerdictLog.isCaller true for SessionPay, SealedBounty, SealedBountyVerified; SealedBountyVerified.enclaves = PolicyEnclaves; productCount 5, products 1-5 Active; MachineRegistry.policyOf(5) = (1, [ProofOfCloudAuditor]); operator bond 10 USDC, agentId 897812, VerdictLog approved on the ERC-8004 identity.",
-    "differenceWithV21": "SealedBounty runtime is 19,930 B on v3 vs 17,642 B on v2.1 (same selectors; 17,642 B is the size of an evm=cancun build of the same source): test the enclaves against v3 before the switch."
+    "differenceWithV21": "SealedBounty runtime is 19,930 B on v3 vs 17,642 B on v2.1 (same source and selectors; 17,642 B is the size of an evm=cancun build of that source)."
   }
 }
