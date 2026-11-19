@@ -9,17 +9,17 @@ import { fmtNum, fmtUnix, t, tx } from "../i18n";
 
 const DCAP = testnet.attestation === "dcap";
 
-/** Un maillon de la chaîne de preuves : une alvéole qui s'allume quand le fait est prouvé on-chain. Sur téléphone, les
- *  maillons forment une liste (l'alvéole à gauche, le texte à côté) ; plus large, une grille, comme avant. */
+/** A link of the proof chain: a hexagonal cell that lights up when the fact is proven on-chain. On a phone, the links
+ *  form a list (the cell on the left, the text beside it); wider, a grid. */
 function Link_({ n, title, what, proven, last, children }: { n: number; title: string; what: string; proven: boolean; last?: boolean; children: ReactNode }) {
   return (
     <li className="relative flex items-start gap-3 sm:flex-col sm:gap-2">
-      {/* trait vers le maillon suivant (sur une ligne, en très grand écran : à 1024 px, trois maillons par ligne) */}
+      {/* line to the next link (on one row, on a very large screen: at 1024 px, three links per row) */}
       {!last && <span aria-hidden className={`absolute left-11 top-[21px] hidden h-px w-[calc(100%-44px+24px)] xl:block ${proven ? "bg-good/60" : "bg-edge"}`} />}
       <span className={`hex relative z-10 grid h-11 w-11 shrink-0 place-items-center font-mono text-[13px] font-medium ${proven ? "bg-good text-ink" : "bg-edge text-muted"}`}>{n}</span>
       <div className="flex min-w-0 flex-col items-start gap-1 sm:gap-2">
         <div className="text-[14px] font-semibold leading-snug">{title}</div>
-        {/* une raison longue (octets d'un revert, adresse) passe à la ligne au lieu d'élargir la page */}
+        {/* a long reason (revert bytes, an address) wraps instead of widening the page */}
         <p className="expl max-w-full text-[12px] leading-snug text-muted [overflow-wrap:anywhere]">{what}</p>
         <div className="min-h-[18px] max-w-full">{children}</div>
       </div>
@@ -27,11 +27,11 @@ function Link_({ n, title, what, proven, last, children }: { n: number; title: s
   );
 }
 
-/** La chaîne de preuves d'une enclave (/proof : l'enclave d'inférence ; /proof?signer= : une autre, depuis la Ruche).
- *  19/11 : chaque maillon s'allume sur SA preuve, lue sur Arc. Le maillon 1 est l'image épinglée par le manifeste de
- *  l'auteur (manifestVerified : keccak256 du manifeste = manifestHash on-chain) ; à défaut, l'empreinte de l'image et
- *  de sa composition rejouée sur Arc à l'inscription (EnclaveImage), dite comme telle ; à défaut, rien n'est montré.
- *  Les maillons 5 et 6 suivent le rail du produit : session, appel payé (x402), prime, ou gratuit. */
+/** The proof chain of an enclave (/proof: the inference enclave; /proof?signer=: another one, from the Hive).
+ *  Each link lights up on ITS proof, read on Arc. Link 1 is the image pinned by the author's manifest (manifestVerified:
+ *  the keccak256 of the manifest equals the on-chain manifestHash); failing that, the fingerprint of the image and of
+ *  its composition replayed on Arc at registration (EnclaveImage), described as such; failing that, nothing is shown.
+ *  Links 5 and 6 follow the product's rail: session, paid call (x402), bounty, or free. */
 export function ProofChain({ p }: { p: Proof | null }) {
   const pinned = p?.manifestVerified === true;
   const digest = pinned ? p?.image?.split("@")[1] ?? null : null;
@@ -67,9 +67,9 @@ export function ProofChain({ p }: { p: Proof | null }) {
   );
 }
 
-/** Le maillon 6 en mots : le verdict écrit ; sinon (API du 9/11, pile v2.1) pourquoi la session montrée n'en a pas —
- *  close sans paiement (sans objet), écriture sautée (avec la raison), fermée sans verdict, ou encore ouverte ; 19/11 :
- *  un rail qui n'écrit pas de verdict (appel payé, gratuit), ou une prime pas encore payée. */
+/** Link 6 in words: the verdict written; otherwise (v2.1 stack) why the session shown has none: closed without payment
+ *  (not applicable), write skipped (with the reason), closed without a verdict, or still open; or a rail that writes no
+ *  verdict (paid call, free), or a bounty not paid yet. */
 function verdictWhat(p: Proof | null): string {
   if (p?.verdictAgentId) return t("ov.l6.what", { agent: p.verdictAgentId, score: String(p.verdictResponse) });
   const id = p?.verdictSession ?? "?";
@@ -77,8 +77,8 @@ function verdictWhat(p: Proof | null): string {
   switch (p?.verdictStatus) {
     case "no_verdict_rail": return t("ov.l6.noVerdictRail");
     case "not_applicable": return t("ov.l6.na", { id });
-    // la raison est remise en mots ICI, depuis les octets du revert (skipReason, dans la langue du site) : jamais la
-    // phrase anglaise de l'API ; une API sans les octets donne sa raison décodée (« Nom(args) ») ou rien
+    // the reason is put into words HERE, from the revert bytes (skipReason, in the site's language): never the API's
+    // English sentence; an API without the bytes gives its decoded reason ("Name(args)") or nothing
     case "skipped": return t("ov.l6.skipped", { id, reason: skippedReason(p) });
     case "none": return t("ov.l6.noneClosed", { id });
     case "pending": return t("ov.l6.pending", { id });
@@ -86,8 +86,8 @@ function verdictWhat(p: Proof | null): string {
   return t("ov.l6.none");
 }
 
-/** La raison d'un verdict sauté, dans la langue du site : d'après ses octets (verdictReasonData, API du 9/11) ; à défaut,
- *  les deux phrases connues de l'API (revert vide, données illisibles) traduites, ou une erreur nommée telle quelle. */
+/** Why a verdict was skipped, in the site's language: from its bytes (verdictReasonData); failing that, the API's two
+ *  known sentences (empty revert, unreadable data) translated, or a named error as is. */
 function skippedReason(p: Proof): string {
   if (typeof p.verdictReasonData === "string") return skipReason(p.verdictReasonData);
   const r = p.verdictReason ?? "";
@@ -96,7 +96,7 @@ function skippedReason(p: Proof): string {
   return /^0x[0-9a-fA-F]*$/.test(r) ? skipReason(r) : r;
 }
 
-/** Le libellé et le détail d'un événement des contrats, dans la langue du site (un hash court ne se coupe pas). */
+/** The label and detail of a contract event, in the site's language (a short hash is never split). */
 const LABEL: Record<string, (a: Record<string, any>) => [string, ReactNode]> = {
   EnclaveRegistered: (a) => [t(DCAP ? "ev.EnclaveRegistered.dcap" : "ev.EnclaveRegistered.dev"), t("common.product", { id: a.productId })],
   SessionOpened: (a) => [t("ev.SessionOpened", { id: a.sessionId }), t("ev.d.deposit", { amt: usdc(a.deposit) })],
@@ -135,7 +135,7 @@ const LABEL: Record<string, (a: Record<string, any>) => [string, ReactNode]> = {
   RequestHashSalted: () => [t("ev.RequestHashSalted"), ""],
   ManifestURIUpdateProposed: (a) => [t("ev.ManifestURIUpdateProposed", { id: a.productId }), t("ev.d.applyAt", { uri: String(a.manifestURI ?? ""), when: fmtUnix(BigInt(String(a.applyAt ?? "0"))) })],
   ManifestURIUpdated: (a) => [t("ev.ManifestURIUpdated", { id: a.productId }), String(a.manifestURI ?? "")],
-  // 19/11 : la caution des opérateurs et les deux niveaux (second index de l'API)
+  // the operators' bond and the two levels (the API's second index)
   Bonded: (a) => [t("ev.Bonded"), t("ev.d.amountOp", { amt: usdc(a.amount), op: short(String(a.operator)) })],
   UnbondRequested: (a) => [t("ev.UnbondRequested"), t("ev.d.amountOp", { amt: usdc(a.amount), op: short(String(a.operator)) })],
   Withdrawn: (a) => [t("ev.Withdrawn"), t("ev.d.amountOp", { amt: usdc(a.amount), op: short(String(a.operator)) })],
@@ -158,12 +158,12 @@ function Kpis({ s }: { s: Stats | null }) {
     [t("ov.kpi.products"), s ? `${s.productsActive ?? s.products}` : "—"],
     [t("ov.kpi.sessions"), s ? fmtNum(s.sessions) : "—"],
     [t("ov.kpi.settled"), s ? usdc(s.settledUsdc) : "—"],
-    // paiement à l'appel (X402Settler) : appels réglés, et leur montant quand l'API le donne (9/11)
+    // pay per call (X402Settler): settled calls, and their amount when the API gives it
     [t("ov.kpi.x402"), s ? fmtNum(s.x402Calls ?? 0) : "—", s?.x402SettledUsdc !== undefined ? usdc(s.x402SettledUsdc) : undefined],
     [t("ov.kpi.verdicts"), s ? fmtNum(s.verdicts) : "—"],
     [t("ov.kpi.bountiesPaid"), s ? fmtNum(s.bountiesPaid) : "—"],
   ];
-  // une grille de 2 (téléphone) ou 4 colonnes : 1 px d'écart sur le fond du cadre trace les séparations, sur 2 ou 4 lignes
+  // a grid of 2 (phone) or 4 columns: a 1 px gap over the frame's background draws the separators, on 2 or 4 rows
   return (
     <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-edge bg-edge sm:grid-cols-4">
       {items.map(([k, v, sub], i) => (
@@ -195,9 +195,9 @@ function Action({ icon: Icon, title, text, onClick }: { icon: any; title: string
 export default function Overview({ go }: { go: (r: string) => void }) {
   const [s, setS] = useState<Stats | null>(null);
   const [p, setP] = useState<Proof | null>(null);
-  // null : lecture en cours ; [] : lue, et VIDE (un déploiement neuf n'a encore rien émis) — jamais confondus
+  // null: loading; []: read, and EMPTY (a fresh deployment has emitted nothing yet), never confused
   const [act, setAct] = useState<ActivityEvent[] | null>(null);
-  // les erreurs sont gardées telles quelles et mises en mots à l'affichage (elles suivent la langue du site)
+  // errors are kept as is and put into words at display time (they follow the site's language)
   const [err, setErr] = useState<unknown>(null);
   const [actErr, setActErr] = useState<unknown>(null);
   useEffect(() => {
@@ -238,17 +238,17 @@ export default function Overview({ go }: { go: (r: string) => void }) {
             {(act ?? []).map((e, i) => {
               const known = Object.prototype.hasOwnProperty.call(LABEL, e.name);
               const [label, base]: [string, ReactNode] = known ? LABEL[e.name]!(e.args) : [e.name, ""];
-              // 19/11 : une prime au niveau vérifié a ses propres numéros (contrat du produit 7) : le détail le dit
+              // a verified-level bounty has its own numbers (product 7's contract): the detail says so
               const lvl = e.contract === "SealedBountyVerified" ? t("ev.d.verifiedLevel") : "";
               const detail: ReactNode = lvl ? (base ? <>{base}, {lvl}</> : lvl) : base;
               const block = fmtNum(e.block);
               return (
                 <li key={`${e.tx}-${i}`} className="flex flex-col items-start gap-1 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                  {/* le titre passe à la ligne plutôt que d'être coupé ; le hash court reste sur une ligne (sous le titre,
-                      sur téléphone : ses boutons de 44 px n'y écrasent pas le texte) */}
+                  {/* the title wraps rather than being cut; the short hash stays on one line (under the title on a phone, so
+                      its 44 px buttons do not squeeze the text) */}
                   <div className="min-w-0">
                     <div className="break-words text-[13px] leading-snug">{label}</div>
-                    {/* un long détail (adresse d'un manifeste) passe à la ligne au lieu de passer sous le hash */}
+                    {/* a long detail (a manifest's address) wraps instead of running under the hash */}
                     <div className="text-[12px] text-muted [overflow-wrap:anywhere]">{detail ? tx("ov.activity.detailBlock", { detail, n: block }) : t("common.block", { n: block })}</div>
                   </div>
                   <Hex value={e.tx} kind="tx" n={4} />
