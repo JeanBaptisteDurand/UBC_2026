@@ -130,6 +130,9 @@ export const BUTTONS: Record<Lang, string[]> = {
 
 const pageList = (l: Lang) => (Object.entries(PAGES[l]) as Array<[PageId, string]>).map(([id, name]) => `${name} [${id}]`).join(", ");
 
+/** La phrase anglaise qui explique les marques du filtre de secrets (consigne de langue de la console et du site). */
+export const MASKED_NOTE_EN = "Masked values in messages — « [clé masquée] », « [phrase de récupération masquée] », « [valeur masquée par prudence] » — mean a masked key, a masked recovery phrase and a value (hexadecimal or base58) masked as a precaution because the conversation talks about private keys or recovery phrases: say so in English. Be brief and polite.";
+
 /** La consigne de langue, ajoutée à la FIN de l'invite système (elle prime sur ce qui précède). */
 export function languageDirective(lang: Lang): string {
   if (lang === "en") {
@@ -137,7 +140,7 @@ export function languageDirective(lang: Lang): string {
       "LANGUAGE (overrides everything above): the user's language is ENGLISH. Write every reply in English only — answers, refusals, warnings, summaries of prepared actions, questions about missing information (aCompleter) and error explanations — even if the user writes in another language.",
       "The instructions above, the knowledge base (docs_search) and the tool results are in French: translate what you use, never paste French sentences.",
       `When you name a page or a button of the site, use these English labels exactly (the identifiers in brackets are for ui_navigate only: never show them). Pages: ${pageList("en")}. Buttons: ${BUTTONS.en.map((b) => `"${b}"`).join(", ")}.`,
-      "Masked values in messages — « [clé masquée] », « [phrase de récupération masquée] », « [valeur masquée par prudence] » — mean a masked key, a masked recovery phrase and a value (hexadecimal or base58) masked as a precaution because the conversation talks about private keys or recovery phrases: say so in English. Be brief and polite.",
+      MASKED_NOTE_EN,
     ].join("\n");
   }
   return [

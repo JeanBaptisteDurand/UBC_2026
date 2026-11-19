@@ -46,7 +46,7 @@ import {
   originAllowed, type ChatBounds, type RateOptions,
 } from "./guard";
 import { scrubSecrets, redactLiterals } from "./secrets";
-import { DEFAULT_LANG, LANGS, T, langFromAcceptLanguage, languageDirective, resolveLang, userTextsOf, type Lang } from "./i18n";
+import { DEFAULT_LANG, LANGS, T, detectLang, langFromAcceptLanguage, languageDirective, resolveLang, userTextsOf, type Lang } from "./i18n";
 
 export interface LlmToolCall { id: string; type?: "function"; function: { name: string; arguments: string } }
 export interface LlmReply { content?: string | null; tool_calls?: LlmToolCall[] | null }
@@ -111,6 +111,31 @@ const OUTPUT_CHARS_PER_TOKEN = 4;
 const JSON_OVERHEAD = 1.25;
 const TURN_MARGIN = 1_000;
 
+/** Résultat d'un outil d'interface du site : l'entrée normalisée (le navigateur l'exécute), ou le refus et sa raison. */
+export type UiResult = ({ ok: true } & Record<string, unknown>) | { ok: false; error: string };
+/** Les outils d'interface d'UNE requête (page courante, actions déjà acceptées). */
+export interface UiSession { run(name: string, args: unknown): UiResult }
+/** Une entrée de `tools` dans la réponse du site, dans l'ordre d'exécution : l'outil, son libellé, son entrée ; `result`
+ *  pour les outils d'interface (l'écho validé) et les outils prepare (les données complètes, comme dans `actions`). */
+export interface SiteToolEntry { tool: string; label: string; input?: unknown; result?: unknown; inline?: true; inferred?: true }
+/** 16/11 : la surface « site » (COPILOT_SURFACE=site, implémentée par site.ts). Absente : la console, inchangée. */
+export interface SiteSurface {
+  /** Les outils d'interface : validés dans la boucle (jamais par executeTool), exécutés par le navigateur. */
+  uiTools: ReadonlySet<string>;
+  /** Le contexte `page` du corps de la requête : la ligne ajoutée à l'invite et la page de départ ; undefined s'il manque
+   *  ou s'il est invalide. */
+  pageContext(body: unknown): { line: string; page: string } | undefined;
+  /** Les outils d'interface d'une requête, à partir de la page affichée. */
+  uiSession(page: string | undefined): UiSession;
+  /** La consigne de langue de la surface (à la fin de l'invite, à la place de celle de la console) : `lang`, la langue du
+   *  site (libellés des pages et des boutons) ; `replyLang`, celle de la réponse (16/11 : celle de la question). */
+  languageDirective(lang: Lang, replyLang?: Lang): string;
+  /** Un appel d'interface écrit dans le texte au lieu d'être appelé : retiré du texte, rendu comme un appel. */
+  extractInline(text: string): { text: string; input?: Record<string, unknown> };
+  /** 16/11 : la page que la demande montre clairement (mots-clés), quand le modèle n'a rien montré ni préparé. */
+  intentNav?(q: string, lang: Lang): Record<string, unknown> | undefined;
+}
+
 /** Une requête chiffrée ouverte : son texte, et de quoi sceller LA réponse pour ce seul client. */
 export interface SealedRequest {
   plaintext: Uint8Array;
@@ -153,6 +178,10 @@ export interface CopilotAppOptions {
    *  x-archive-proxy-token (sinon 403 proxy_required) et X-Forwarded-For n'est cru que s'il est bon. Absent (VPS) :
    *  aucun jeton, X-Forwarded-For cru derrière un proxy local. */
   proxyToken?: string;
+  /** 16/11 : la surface « site » (panneau du front, /copilot-site/) : outils d'interface validés ici, contexte `page`
+   *  dit en une ligne de l'invite, consigne de langue du site, `tools` détaillé dans la réponse (SiteToolEntry), sans
+   *  `navigate`. Absente : la console, exactement comme avant. */
+  site?: SiteSurface;
 }
 
 const DEFAULT_PREPARE = ["session_prepare_open", "operator_prepare_bond", "operator_prepare_register", "bounty_prepare_create"];
@@ -193,7 +222,9 @@ export function createCopilotApp(o: CopilotAppOptions): Hono {
     // 6) plafond global quotidien (dépense du modèle)
     const g = limiter.hitGlobal();
     if (!g.ok) return { status: 429, body: { ...refusal(T(lang).globalCap, lang, "global_cap"), retryAfterSec: g.retryAfterSec }, retryAfterSec: g.retryAfterSec };
-    return { status: 200, body: await runChat(o, caps, chat.messages, chat.user, { dropped: chat.dropped, truncated: chat.truncated }, lang, sealed) };
+    // site : la page affichée (champ `page`), validée ; rien pour la console
+    const page = o.site ? o.site.pageContext(json) : undefined;
+    return { status: 200, body: await runChat(o, caps, chat.messages, chat.user, { dropped: chat.dropped, truncated: chat.truncated }, lang, sealed, page) };
   };
 
   // conversation chiffrée : ouverte par l'enclave ; tout ce qui suit repart scellé pour ce seul client
@@ -286,7 +317,7 @@ type ChatMsg = { role: "user" | "assistant"; content: string };
 
 async function runChat(
   o: CopilotAppOptions, caps: ToolCaps, history: ChatMsg[], user: Address | undefined, cut: { dropped: number; truncated: number },
-  lang: Lang = "fr", sealed = false,
+  lang: Lang = "fr", sealed = false, page?: { line: string; page: string },
 ) {
   const display = o.display ?? {};
   const prepare = new Set(o.prepareTools ?? DEFAULT_PREPARE);
@@ -296,13 +327,26 @@ async function runChat(
   const walletLine = user
     ? `\nWallet connecté de l'utilisateur : ${user} (adresse par défaut des outils prepare, de machines_list et de sessions_list).`
     : "\nAucun wallet connecté : les outils prepare renvoient des gabarits à compléter avec l'adresse de l'utilisateur.";
+  // site : la page affichée, en une ligne de valeurs validées (site.ts) ; jamais pour la console
+  const pageLine = o.site && page ? `\n${page.line}` : "";
   const cutLineOf = (dropped: number) => dropped || cut.truncated
     ? `\nNote : la conversation reçue a été raccourcie (${dropped} message(s) ancien(s) retiré(s), ${cut.truncated} message(s) tronqué(s)) ; ne prétends pas avoir lu ce qui manque.`
     : "";
   const note = o.systemNote ? `\n${o.systemNote({ sealed, lang })}` : "";
+  // site (16/11) : la réponse suit la langue du dernier message quand on la reconnaît (une question en français sur le
+  // site anglais reçoit une réponse en français) ; les libellés des pages restent ceux de l'écran. Le modèle suit mal une
+  // consigne souple (« réponds dans sa langue ») : la langue est décidée ici, et la consigne reste ferme.
+  // Un message de moins de 3 mots (« hello », « ok ») ne dit pas sa langue : la langue du site.
+  const lastUserText = history.filter((m) => m.role === "user").slice(-1)[0]?.content ?? "";
+  const longEnough = lastUserText.trim().split(/\s+/).filter(Boolean).length >= 3;
+  const replyLang: Lang = o.site && longEnough ? (detectLang(lastUserText) ?? lang) : lang;
+  const directive = o.site ? o.site.languageDirective(lang, replyLang) : languageDirective(lang);
   // la consigne de langue en DERNIER : elle prime sur l'invite (rédigée en français)
   const systemOf = (dropped: number): OpenAI.Chat.ChatCompletionMessageParam =>
-    ({ role: "system", content: `${o.system}${walletLine}${cutLineOf(dropped)}${note}\n${languageDirective(lang)}` });
+    ({ role: "system", content: `${o.system}${walletLine}${pageLine}${cutLineOf(dropped)}${note}\n${directive}` });
+  // site : les outils d'interface de cette requête (page courante, 3 actions au plus) et la liste détaillée des outils
+  const ui = o.site ? o.site.uiSession(page?.page) : null;
+  const siteTools: SiteToolEntry[] = [];
   // budget en JETONS estimés, premier appel compris : les messages les plus anciens tombent jusqu'à ce qu'il tienne
   const toolsTokens = estimateTokens(JSON.stringify(o.tools ?? []));
   let kept: ChatMsg[] = history;
@@ -349,6 +393,27 @@ async function runChat(
     });
   };
   const reply = (text: string, code?: string) => {
+    if (o.site && ui) {
+      // site : un appel écrit dans le texte devient un vrai ui_navigate (validé, dans la limite des 3 actions)
+      const fs = o.site.extractInline(text);
+      if (fs.input) {
+        const r = ui.run("ui_navigate", fs.input);
+        if (r.ok) siteTools.push({ tool: "ui_navigate", label: display.ui_navigate ?? "ui_navigate", input: fs.input, result: r, inline: true });
+      }
+      // 16/11 : filet — la demande montre clairement une page, et le modèle n'a rien montré ni préparé : on la montre
+      const shown = siteTools.some((t) => o.site!.uiTools.has(t.tool) && (t.result as { ok?: boolean } | undefined)?.ok === true);
+      if (!code && !shown && !actions.length && o.site.intentNav) {
+        const it = o.site.intentNav(lastUser, replyLang);
+        const r = it ? ui.run("ui_navigate", it) : undefined;
+        if (it && r?.ok) siteTools.push({ tool: "ui_navigate", label: display.ui_navigate ?? "ui_navigate", input: it, result: r, inferred: true });
+      }
+      return {
+        text: redactLiterals(cleanText(fs.text, lang), secrets).trim() || (actions.length ? M.actionReady : M.pageShown),
+        ...(code ? { code } : {}),
+        tools: siteTools, citations: [...citations], actions,
+        ...(refused ? { outilsNonExecutes: refused } : {}),
+      };
+    }
     const fx = extractInlineNav(text);
     return {
       text: redactLiterals(cleanText(fx.text, lang), secrets).trim() || (actions.length ? M.actionReady : M.pageShown),
@@ -403,16 +468,33 @@ async function runChat(
             // gpt-oss glisse parfois des jetons de canal dans le nom (« ui_navigate<|channel|>commentary ») : on les retire
             const name = String(tc.function.name ?? "").replace(/<\|[^|]*\|>.*$/s, "").replace(/&lt;\|.*$/s, "").trim();
             toolsUsed.push(display[name] ?? name);
+            // site : chaque outil exécuté entre dans `tools`, dans l'ordre
+            const entry: SiteToolEntry | undefined = o.site ? { tool: name, label: display[name] ?? name } : undefined;
+            if (entry) siteTools.push(entry);
+            const isUi = !!(ui && o.site?.uiTools.has(name));
             const room = Math.min(caps.maxResultChars, budgetLeft());
             try {
               const args = JSON.parse(tc.function.arguments || "{}");
-              if (name === "ui_navigate" && args?.page) navigate = String(args.page);
-              const { result, citations: cits } = await withDeadline(o.executeTool(name, args, user), deadline - Date.now(), name);
-              (cits ?? []).forEach((x) => citations.add(x));
-              const full = redactLiterals(JSON.stringify(result, bigintSafe) ?? "null", secrets);
-              if (prepare.has(name)) actions.push({ tool: name, input: args, result: JSON.parse(full) });
-              content = forModel(full, room);
+              if (entry) entry.input = args;
+              if (isUi) {
+                // site : un outil d'interface n'est que validé ici (le navigateur l'exécute) ; le modèle reçoit l'écho
+                const r = ui!.run(name, args);
+                entry!.result = r;
+                content = forModel(JSON.stringify(r), room);
+              } else {
+                if (name === "ui_navigate" && args?.page) navigate = String(args.page);
+                const { result, citations: cits } = await withDeadline(o.executeTool(name, args, user), deadline - Date.now(), name);
+                (cits ?? []).forEach((x) => citations.add(x));
+                const full = redactLiterals(JSON.stringify(result, bigintSafe) ?? "null", secrets);
+                if (prepare.has(name)) {
+                  const prepared = JSON.parse(full);
+                  actions.push({ tool: name, input: args, result: prepared });
+                  if (entry) entry.result = prepared;
+                }
+                content = forModel(full, room);
+              }
             } catch (e: any) {
+              if (entry && isUi && entry.result === undefined) entry.result = { ok: false, error: "arguments: invalid JSON" };
               content = forModel(JSON.stringify({ error: toolErrorText(e, secrets) }), room);
             }
           }
@@ -440,6 +522,7 @@ async function runChat(
     // le détail, filtré et sans les secrets du serveur, va au journal
     const f = modelFailure(e, lang);
     log(`[copilote] ${f.code} : ${redactLiterals(scrubSecrets(String(e?.message ?? e)), secrets).replace(/\s+/g, " ").slice(0, 300)}`);
+    if (o.site) return { text: `${f.text} (code ${f.code})`, code: f.code, tools: siteTools, citations: [...citations] };
     return { text: `${f.text} (code ${f.code})`, code: f.code, tools: [...new Set(toolsUsed)], citations: [...citations], navigate };
   }
 }

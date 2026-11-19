@@ -128,16 +128,24 @@ const actx = (ctx: ToolCtx): ActionCtx => ({
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 const STOP = new Set(["pour", "dans", "avec", "comment", "quoi", "quel", "quelle", "quels", "quelles", "pourquoi", "faire", "faut", "veux", "peux", "sont", "cette", "plus", "moins", "what", "does", "with", "the", "and"]);
 
+/** docs_search sur une base (celle de la console par défaut ; le site passe la sienne, site.ts) : score = nombre de mots
+ *  de la question présents (sans accents, pluriel retiré), meilleurs passages d'abord ; sans aucun, les deux premiers.
+ *  Les mots de 3 lettres ou moins sont ignorés, sauf ceux de `short` (le site : mcp, sdk…), gardés tels quels. */
+export function searchDocs(
+  query: unknown, corpus: ReadonlyArray<{ source: string; text: string; tags?: string }> = KB, short?: ReadonlySet<string>,
+): { result: unknown; citations: string[] } {
+  const words = norm(String(query ?? "")).split(/[^a-z0-9_]+/).filter((w) => (w.length > 3 || short?.has(w) === true) && !STOP.has(w))
+    .map((w) => (w.length > 3 ? w.replace(/(es|s|x)$/, "") : w));
+  const hits = corpus.map((k) => ({ k, score: words.filter((w) => norm(`${k.text} ${k.tags ?? ""}`).includes(w)).length }))
+    .filter((x) => x.score > 0).sort((a, b) => b.score - a.score).slice(0, 4).map((x) => x.k);
+  const list = hits.length ? hits : corpus.slice(0, 2);
+  return { result: list.map(({ source, text }) => ({ source, text })), citations: list.map((h) => h.source) };
+}
+
 export async function executeTool(name: string, input: any, ctx: ToolCtx): Promise<{ result: unknown; citations?: string[] }> {
   switch (name) {
-    case "docs_search": {
-      // score = nombre de mots de la question présents (sans accents, pluriel retiré), meilleurs passages d'abord
-      const words = norm(String(input.query ?? "")).split(/[^a-z0-9_]+/).filter((w) => w.length > 3 && !STOP.has(w)).map((w) => w.replace(/(es|s|x)$/, ""));
-      const hits = KB.map((k) => ({ k, score: words.filter((w) => norm(`${k.text} ${k.tags ?? ""}`).includes(w)).length }))
-        .filter((x) => x.score > 0).sort((a, b) => b.score - a.score).slice(0, 4).map((x) => x.k);
-      const list = hits.length ? hits : KB.slice(0, 2);
-      return { result: list.map(({ source, text }) => ({ source, text })), citations: list.map((h) => h.source) };
-    }
+    case "docs_search":
+      return searchDocs(input.query);
     case "products_list":
       // seuls les produits ACTIFS : un produit retiré ne doit jamais être proposé
       return { result: await productsList(ctx.arc, {}, actx(ctx)), citations: ["API ArcHive /products"] };
