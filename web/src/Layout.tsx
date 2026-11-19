@@ -176,7 +176,7 @@ export default function Layout({ route, go, onOpenCopilot, children }: { route: 
         </div>
       )}
 
-      {/* barre du haut */}
+      {/* top bar */}
       <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-edge bg-ink/85 px-4 py-3 backdrop-blur lg:px-8">
         <div className="flex min-w-0 items-center gap-3">
           {/* 44 × 44 px: the only navigation on a phone */}

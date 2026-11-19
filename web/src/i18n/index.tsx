@@ -93,7 +93,7 @@ export function tx<K extends TemplateKey>(key: K, vars: Record<Placeholders<En[K
 export function fmtNum(n: number | bigint, o?: Intl.NumberFormatOptions): string {
   return new Intl.NumberFormat(locale(), o).format(n);
 }
-/** short date and time from milliseconds, with the time zone (19/11: a deadline without its zone was ambiguous) */
+/** short date and time from milliseconds, with the time zone (a deadline without its zone would be ambiguous) */
 export function fmtDateTime(ms: number): string {
   return new Date(ms).toLocaleString(locale(), { year: "2-digit", month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" });
 }

@@ -125,7 +125,7 @@ export interface Machine {
 export interface OperatorKey { keyId: string; label: string; machineId: string | null; createdAt: number; lastUsedAt: number | null; revoked: boolean; restricted?: boolean }
 /** A wallet signature on an EIP-4361 message (signin.ts): what the API verifies. */
 export type Signed = { address: string; message: string; signature: string };
-/** Nonce de GET /auth/nonce : usage unique, 5 minutes ; « Issued At » reprend issuedAt. */
+/** Nonce from GET /auth/nonce: single use, 5 minutes; "Issued At" takes issuedAt. */
 export interface SignInNonce { nonce: string; issuedAt: string; expiresAt: string; domain?: string; uri?: string; chainId?: number }
 
 /** An API error: its HTTP status, its stable code and its values (the site translates from them: errors.ts), and its

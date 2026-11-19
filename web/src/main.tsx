@@ -24,7 +24,7 @@ function useLastWallet() {
     let alive = true;
     (async () => {
       let id: string | null = null;
-      try { id = (await config.storage?.getItem("recentConnectorId")) ?? null; } catch { /* stockage illisible : aucun */ }
+      try { id = (await config.storage?.getItem("recentConnectorId")) ?? null; } catch { /* unreadable storage: none */ }
       if (!alive || !id) return;
       const last = config.connectors.filter((c) => c.id === id);
       reconnect(config, last.length ? { connectors: last } : {}).catch(() => {});

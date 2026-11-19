@@ -134,7 +134,7 @@ export async function settlementOf(arc: ArcClient, c: PaidCallRef): Promise<Sett
         ...(/^\d+$/.test(String(hit.args.amount ?? "")) ? { amount: BigInt(String(hit.args.amount)) } : {}),
       };
     }
-  } catch { /* API muette : on relira */ }
+  } catch { /* silent API: read again on the next poll */ }
   return { state: "consumed" };
 }
 
