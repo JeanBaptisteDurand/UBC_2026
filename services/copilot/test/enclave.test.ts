@@ -317,6 +317,7 @@ test("la clé du modèle ne sort jamais, même scellée ; le wallet invalide n'e
 });
 
 test("configuration de l'enclave : requise, cohérente avec le fichier de déploiement, échoue fermé", () => {
+  // a fixed fixture: the v2 stack's deployments file, whose registry address is asserted below (the parsing is the same for v2.1)
   const v2 = readFileSync(new URL("../../../deployments.v2.testnet.json", import.meta.url), "utf8");
   const read = () => v2;
   const base = {
