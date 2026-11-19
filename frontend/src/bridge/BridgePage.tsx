@@ -21,7 +21,8 @@ import './bridge.css'
 try { setRpc('arc', new URL(RPC, location.href).href) } catch { /* keeps the default */ }
 
 type St = 'todo' | 'doing' | 'done' | 'fail'
-interface Note { tone: 'ok' | 'muted' | 'bad'; text: string; href?: string; hrefLabel?: string }
+/** sr: what the live region says instead of text (step 2's wait, once a minute), the visible text then stays silent */
+interface Note { tone: 'ok' | 'muted' | 'bad'; text: string; href?: string; hrefLabel?: string; sr?: string }
 interface Job {
   v: 1; owner: string; src: Net['key']; amount: string; maxFee: string; thr: number; t0: number
   approve?: Hex; burn?: Hex; burnOk?: boolean; tAtt?: number; message?: Hex; att?: Hex; mint?: Hex; minted?: string; relayed?: boolean
@@ -46,8 +47,17 @@ const waitOf = (n: Net) => bt(n.key === 'base-sepolia' ? 'wait.base-sepolia' : '
 const rangeOf = (n: Net) => { const w = n.wait ?? { from: 15, to: 19, upTo: 19 }; return bt(w.upTo > w.to ? 'range.up' : 'range', w) }
 /** seconds as "4 min 07 s" */
 const elapsed = (secs: number) => bt('elapsed', { m: Math.floor(secs / 60), s: String(secs % 60).padStart(2, '0') })
-const AMOUNT_RE = /^\d{0,9}([.,]\d{0,6})?$/
-const toUnits = (s: string): bigint | null => { if (!s || !AMOUNT_RE.test(s) || !/\d/.test(s)) return null; try { return parseUnits(s.replace(',', '.'), 6) } catch { return null } }
+// the amount: in French the comma is the decimal point (0,5); in English it groups thousands (1,000 is a thousand)
+const FR_RE = /^\d{0,9}([.,]\d{0,6})?$/
+const typing = (v: string) => (getLang() === 'fr' ? FR_RE : /^\d{0,9}(,\d{0,3}){0,3}(\.\d{0,6})?$/).test(v)
+const toUnits = (s: string): bigint | null => {
+  if (!s || !/\d/.test(s)) return null
+  const fr = getLang() === 'fr'
+  if (fr ? !FR_RE.test(s) : !/^(\d{0,9}|\d{1,3}(,\d{3}){1,3})(\.\d{0,6})?$/.test(s)) return null
+  try { return parseUnits(fr ? s.replace(',', '.') : s.replace(/,/g, ''), 6) } catch { return null }
+}
+/** an amount in units, as the field shows it (never toLocaleString: 1,000 would read back as 1 in French) */
+const plain = (units: string) => formatUnits(BigInt(units), 6)
 
 // ---------- the wallet ----------
 async function providerOf(): Promise<EIP1193Provider> {
@@ -111,7 +121,7 @@ export function BridgePage() {
       <a className="skip" href="#bridge" data-front-free>{bt('skip')}</a>
       <AppHeader page="bridge" section="nav.home" sectionText={bt('sec')} wallet={<HeaderWallet quiet />} />
       <main className="app work br" ref={main}>
-        <section className="app-top st-use">
+        <section className="app-top st-use" id={me ? undefined : 'bridge'}>
           <div className="app-top-in">
             <h1 className="h2 ttl app-h1"><span className="ttl-m"><span className="ttl-t">{bt('title')}</span></span><span className="ttl-rule" aria-hidden="true" /></h1>
             <p className="lede">{bt('lede')}</p>
@@ -146,7 +156,7 @@ function Bridge({ me }: { me: Address }) {
   const setJob = (j: Job | null) => { if (j) save(j); else drop(me); setJobS(j ? { ...j } : null) }
   const [srcKey, setSrcKey] = useState<Net['key']>(() => job?.src ?? 'eth-sepolia')
   const src = netByKey(job?.src ?? srcKey) ?? SOURCES[0]
-  const [amount, setAmount] = useState(() => (job && !job.burn ? fmt(job.amount).replace(/\s/g, '') : ''))
+  const [amount, setAmount] = useState(() => (job && !job.burn ? plain(job.amount) : ''))
   const [bals, setBals] = useState<Record<string, Bal>>({})
   // Circle's fee for a standard transfer from the chosen chain, read to check the "free" line (0; null: not read)
   const [stdFee, setStdFee] = useState<number | null | undefined>(undefined)
@@ -206,12 +216,41 @@ function Bridge({ me }: { me: Address }) {
     return () => { alive = false }
   }, [job?.burn]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // a mint sent before a reload, never confirmed on this page: wait for it now (or find it received on Arc)
+  useEffect(() => {
+    if (!job?.mint || job.minted || !job.message || run === 3) return
+    let alive = true
+    const j = job
+    setN3({ tone: 'muted', text: bt('n.minting') })
+    confirmed(ARC, j.mint!).then(() => { if (alive) minted(j, false) })
+      .catch(async (e) => {
+        if (!alive) return
+        if (await received(j.message!).catch(() => false)) { if (alive) minted(j, true); return }
+        if (!alive) return
+        setN3(await say(e, ARC, 3)); setJob({ ...j, mint: undefined })
+      })
+    return () => { alive = false }
+  }, [job?.mint]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const units = toUnits(amount)
   // the page sends nothing if Circle ever starts charging standard transfers on this route
   const notFree = typeof stdFee === 'number' && stdFee > 0
   const b = bals[src.key] ?? {}
   const started = !!job?.burn
   const done = !!job?.minted
+
+  // the step that is active, focused after Send or Receive (their button goes away)
+  const list = useRef<HTMLOListElement>(null)
+  const focusStep = (n: number) => window.setTimeout(() => list.current?.querySelector<HTMLElement>(`.br-step:nth-child(${n}) .br-h`)?.focus(), 0)
+  /** the USDC is on Arc: the job is done, the balances read again (the header wallet's too) */
+  function minted(j: Job, relayed: boolean) {
+    const d = decodeMessage(j.message!)
+    const v = d.amount - d.feeExecuted
+    setJob({ ...j, minted: v.toString(), ...(relayed ? { relayed: true } : {}) })
+    setN3({ tone: 'ok', text: relayed ? bt('n.already') : bt('n.done', { v: usd(v) }) })
+    setReload((r) => r + 1)
+    void engine().then((e) => e.refreshBalance()).catch(() => undefined)
+  }
 
   async function start() {
     if (run) return
@@ -221,6 +260,7 @@ function Bridge({ me }: { me: Address }) {
     if (b.gas === 0n) { setN1({ tone: 'bad', text: bt('gas.src', { gas: src.gas, net: src.name }), href: ETH_FAUCET[src.key], hrefLabel: bt(src.key === 'base-sepolia' ? 'faucet.base' : 'faucet.eth') }); return }
     const j: Job = { v: 1, owner: me, src: src.key, amount: units.toString(), maxFee: '0', thr: STANDARD, t0: Date.now() }
     setRun(1)
+    let atBurn = false
     try {
       const p = await providerOf()
       setN1({ tone: 'muted', text: bt('n.switch', { net: src.name }) })
@@ -230,11 +270,15 @@ function Bridge({ me }: { me: Address }) {
       const ah = await approveIfNeeded(w, src, units)
       if (ah) { j.approve = ah; setJob(j); setN1({ tone: 'muted', text: bt('n.approving', { net: src.name }) }); await confirmed(src, ah) }
       setN1({ tone: 'muted', text: bt('n.burn') })
+      atBurn = true
       const bh = await burn(w, src, units, me)
       j.burn = bh; j.t0 = Date.now(); setJob(j)
+      focusStep(1)
       // the confirmation is the effect above (it also serves a reload)
     } catch (e) {
-      setN1(await say(e, src, 1))
+      // the approval went through (now or on an earlier try) and the burn was declined: say so, not "nothing was sent"
+      const E = await engine().catch(() => null)
+      setN1(atBurn && (j.approve || job?.approve) && E?.isRefusal(e) ? { tone: 'bad', text: bt('e.refusedBurn') } : await say(e, src, 1))
     } finally { setRun(0) }
   }
 
@@ -243,7 +287,7 @@ function Bridge({ me }: { me: Address }) {
     const j = job
     setRun(3); setN3(null)
     try {
-      if (await received(j.message!)) { const d = decodeMessage(j.message!); setJob({ ...j, minted: (d.amount - d.feeExecuted).toString(), relayed: true }); setN3({ tone: 'ok', text: bt('n.already') }); setReload((r) => r + 1); return }
+      if (await received(j.message!)) { minted(j, true); focusStep(3); return }
       const gas = await gasOf(ARC, me).catch(() => null)
       if (gas === 0n) { setN3({ tone: 'bad', text: bt('gas.arc'), href: FAUCET, hrefLabel: bt('faucet') }); return }
       const p = await providerOf()
@@ -256,13 +300,11 @@ function Bridge({ me }: { me: Address }) {
       setJob(nj)
       setN3({ tone: 'muted', text: bt('n.minting') })
       await confirmed(ARC, h)
-      const d = decodeMessage(j.message!)
-      setJob({ ...nj, minted: (d.amount - d.feeExecuted).toString() })
-      setN3({ tone: 'ok', text: bt('n.done', { v: usd(d.amount - d.feeExecuted) }) })
-      setReload((r) => r + 1)
+      minted(nj, false)
+      focusStep(3)
     } catch (e) {
       // refused on Arc because someone received it meanwhile: it is done all the same
-      if (await received(j.message!).catch(() => false)) { const d = decodeMessage(j.message!); setJob({ ...j, minted: (d.amount - d.feeExecuted).toString(), relayed: true }); setN3({ tone: 'ok', text: bt('n.already') }); setReload((r) => r + 1) }
+      if (await received(j.message!).catch(() => false)) { minted(j, true); focusStep(3) }
       else { setN3(await say(e, ARC, 3)); setJob({ ...j, mint: undefined }) }
     } finally { setRun(0) }
   }
@@ -271,7 +313,7 @@ function Bridge({ me }: { me: Address }) {
 
   const s1: St = job?.burnOk ? 'done' : run === 1 || (job?.burn && !job.burnOk) ? 'doing' : n1?.tone === 'bad' ? 'fail' : 'todo'
   const s2: St = job?.att ? 'done' : job?.burnOk ? 'doing' : 'todo'
-  const s3: St = done ? 'done' : run === 3 ? 'doing' : job?.att ? (n3?.tone === 'bad' ? 'fail' : 'todo') : 'todo'
+  const s3: St = done ? 'done' : run === 3 || job?.mint ? 'doing' : job?.att ? (n3?.tone === 'bad' ? 'fail' : 'todo') : 'todo'
   const active = s1 !== 'done' ? 1 : s2 !== 'done' ? 2 : 3
   const secs = job?.burnOk && !job.att ? Math.max(0, Math.round((Date.now() - job.t0) / 1000)) : 0
   void tick
@@ -303,11 +345,11 @@ function Bridge({ me }: { me: Address }) {
           <div className="br-amt">
             <label className="na-f br-f" htmlFor="br-amount"><span className="lbl">{bt('amount')}</span></label>
             <div className="br-row">
-              <input id="br-amount" className="br-in mono tnum" inputMode="decimal" autoComplete="off" spellCheck={false} placeholder="0.5" value={started ? fmt(job!.amount).replace(/\s/g, '') : amount} disabled={started || run !== 0}
-                onChange={(e) => { const v = e.target.value.trim(); if (v === '' || AMOUNT_RE.test(v)) setAmount(v) }} aria-describedby="br-fee" />
+              <input id="br-amount" className="br-in mono tnum" inputMode="decimal" autoComplete="off" spellCheck={false} placeholder="0.5" value={started ? plain(job!.amount) : amount} disabled={started || run !== 0}
+                onChange={(e) => { const v = e.target.value.trim(); if (v === '' || typing(v)) setAmount(v) }} aria-describedby="br-fee" />
               <button type="button" className="btn btn-line br-max" disabled={started || run !== 0 || typeof b.usdc !== 'bigint' || b.usdc === 0n} onClick={() => typeof b.usdc === 'bigint' && setAmount(formatUnits(b.usdc, 6))}><span>{bt('max')}</span></button>
             </div>
-            {started && job!.maxFee !== '0' ? <p className="br-fee lbl muted" id="br-fee">{bt('fee.old', { fee: usd(job!.maxFee) })}</p> : (
+            {started && job!.maxFee !== '0' ? <p className="br-fee lbl muted" id="br-fee">{bt('fee.old', { fee: usd(job!.maxFee) })}</p> : notFree && !started ? <p className="br-fee lbl muted" id="br-fee">{bt('e.notfree', { net: src.name })}</p> : (
               <div className="br-fee" id="br-fee">
                 <p className="br-free">{bt('free')}</p>
                 <p className="lbl muted">{bt('free.d', { net: jSrc.name, wait: waitOf(jSrc) })}</p>
@@ -323,10 +365,10 @@ function Bridge({ me }: { me: Address }) {
         </div>
         <div className="br-steps">
           <h2 className="work-h">{bt('steps')}</h2>
-          <ol className="na-list" aria-label={bt('steps')}>
+          <ol className="na-list" aria-label={bt('steps')} ref={list}>
             <StepRow n={1} st={s1} on={active === 1} t={bt('s1.t', { net: jSrc.name })} d={bt('s1.d', { net: jSrc.name, gas: jSrc.gas })} note={n1}
               links={[{ net: jSrc, h: job?.approve, k: 'approve' }, { net: jSrc, h: job?.burn, k: 'depositForBurn' }]} />
-            <StepRow n={2} st={s2} on={active === 2} t={bt('s2.t')} d={bt('s2.d', { net: jSrc.name, wait: waitOf(jSrc) })} note={s2 === 'done' ? { tone: 'ok', text: bt('n.attested') } : s2 !== 'doing' ? null : iris?.err ? { tone: 'bad', text: bt('e.iris', { why: iris.err }) } : { tone: 'muted', text: bt(late ? 'n.late' : iris?.seen ? 'n.wait' : 'n.unseen', { t: elapsed(secs), range: rangeOf(jSrc) }) }}>
+            <StepRow n={2} st={s2} on={active === 2} t={bt('s2.t')} d={bt('s2.d', { net: jSrc.name, wait: waitOf(jSrc) })} note={s2 === 'done' ? { tone: 'ok', text: bt('n.attested') } : s2 !== 'doing' ? null : iris?.err ? { tone: 'bad', text: bt('e.iris', { why: iris.err }) } : { tone: 'muted', text: bt(late ? 'n.late' : iris?.seen ? 'n.wait' : 'n.unseen', { t: elapsed(secs), range: rangeOf(jSrc) }), sr: bt(late ? 'n.late' : iris?.seen ? 'n.wait' : 'n.unseen', { t: bt('elapsed.m', { m: Math.floor(secs / 60) }), range: rangeOf(jSrc) }) }}>
               {/* the wait against Circle's usual longest one (never full before the attestation) */}
               {s2 === 'doing' && job?.thr !== FAST ? <div className="br-wait" aria-hidden="true"><i style={{ transform: `scaleX(${Math.min(0.97, secs / (60 * (jSrc.wait?.upTo ?? 19))).toFixed(4)})` }} /></div> : null}
             </StepRow>
@@ -335,7 +377,7 @@ function Bridge({ me }: { me: Address }) {
               {job?.att && !done ? (
                 <>
                   <p className="lbl muted br-gas">{bt('arc.gas', { v: arc.gas === undefined ? bt('bal.reading') : arc.gas === null ? bt('bal.fail') : `${fmt(arc.gas, 18)} USDC` })}{arc.gas === 0n ? <> <a className="tlink" href={FAUCET} target="_blank" rel="noreferrer">{bt('faucet')}</a></> : null}</p>
-                  <button type="button" className="btn btn-main br-btn" onClick={receive} disabled={run !== 0}><span>{bt('mint.go')}</span></button>
+                  <button type="button" className="btn btn-main br-btn" onClick={receive} disabled={run !== 0 || !!job.mint}><span>{bt('mint.go')}</span></button>
                 </>
               ) : null}
               {done ? <p className="br-get">{bt('arc.now', { v: arc.usdc === undefined ? bt('bal.reading') : arc.usdc === null ? bt('bal.fail') : usd(arc.usdc) })}</p> : null}
@@ -351,13 +393,14 @@ function StepRow({ n, st, on, t, d, note, links, children }: { n: number; st: St
   const ls = (links ?? []).filter((l) => l.h)
   return (
     <li className="na br-step" data-st={st} data-on={on ? '1' : '0'}>
-      <div className="na-h br-h" aria-current={on ? 'step' : undefined}>
+      <div className="na-h br-h" aria-current={on ? 'step' : undefined} tabIndex={-1}>
         <span className="na-n tnum">{String(n).padStart(2, '0')}</span>
         <span className="na-t">{t}</span>
         <span className="na-st mono" data-st={st}>{bt(`st.${st}`)}</span>
       </div>
       <p className="na-d br-d">{d}</p>
-      {note ? <p className="na-note" data-tone={note.tone} role={note.tone === 'bad' ? 'alert' : 'status'}>{note.text}{note.href ? <> <a className="tlink" href={note.href} target="_blank" rel="noreferrer">{note.hrefLabel}</a></> : null}</p> : null}
+      {note && note.sr !== undefined ? <><p className="na-note" data-tone={note.tone} aria-hidden="true">{note.text}</p><p className="sr-only" role="status">{note.sr}</p></> : null}
+      {note && note.sr === undefined ? <p className="na-note" data-tone={note.tone} role={note.tone === 'bad' ? 'alert' : 'status'}>{note.text}{note.href ? <> <a className="tlink" href={note.href} target="_blank" rel="noreferrer">{note.hrefLabel}</a></> : null}</p> : null}
       {ls.length ? (
         <ul className="br-tx">
           {ls.map((l) => <li key={l.k}><a className="tlink mono" href={txLink(l.net, l.h)} target="_blank" rel="noreferrer"><span className="lbl">{l.k}</span> {short(l.h!, 4)}</a></li>)}

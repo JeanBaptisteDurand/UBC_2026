@@ -43,6 +43,11 @@
 .br-step .na-note { margin-left: calc(2ch + 12px); }
 .br-tx { list-style: none; margin: 4px 0 0 calc(2ch + 12px); padding: 0; display: flex; flex-wrap: wrap; gap: 0 20px; }
 .br-tx a, .br .na-note .tlink, .br-gas .tlink { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
+/* a faucet link in a note sits on its own line, under the sentence */
+.br .na-note .tlink { display: flex; width: fit-content; }
+/* a step's heading takes the focus after Send or Receive (BridgePage.tsx, focusStep) */
+.br .br-h:focus { outline: none; }
+.br .br-h:focus-visible { outline: 1px solid var(--acc); outline-offset: 4px; }
 .br-gas { margin: 0; }
 .br-how .br-p { margin: 0 0 12px; max-width: 40em; font-size: 15px; line-height: 1.55; color: var(--ink2); }
 .br-how .muted { color: var(--ink3); }
