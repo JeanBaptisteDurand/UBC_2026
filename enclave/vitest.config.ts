@@ -1,10 +1,10 @@
 import { defineConfig } from "vitest/config";
 
-// 11/11 : les tests d'INTÉGRATION (x402-proofs, bounty-dos-catch, bounty-relay) lancent de vrais forks arc-anvil et des
-// serveurs HTTP. Sous forte charge (plusieurs suites en parallèle, ou plusieurs agents sur la machine) ils peuvent
-// échouer sur un délai réseau/fork passager, et repassent au vert en isolation. 2 reprises rendent un run COMPLET fiable
-// sans ralentir le chemin normal (la reprise ne se déclenche qu'en cas d'échec) et sans masquer un vrai bug (qui, lui,
-// échoue les 3 fois). Les tests unitaires déterministes ne sont pas affectés.
+// The integration tests (x402-proofs, bounty-dos-catch, bounty-relay) start real anvil forks and HTTP servers. Under
+// heavy load (several suites in parallel on a busy machine) a transient network or fork delay can fail one of them, and
+// it passes again in isolation. Two retries make a full run reliable without slowing the normal path (a retry only
+// happens after a failure) and without hiding a real bug, which fails all three times. Deterministic unit tests are
+// not affected.
 export default defineConfig({
   test: {
     retry: 2,
