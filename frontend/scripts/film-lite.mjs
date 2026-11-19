@@ -6,6 +6,10 @@
 // positions). Every frame instead of one in 2 doubled the file and took that much bandwidth from the sharp frames.
 // Usage: node scripts/film-lite.mjs <film dir> [set ...] (needs sharp; the deploy runs it in a node:22-slim container)
 // Nothing is rewritten when lite.bin already matches the set's meta.bin (the build can call it every time).
+// Overrides (environment): DIV (reduction), Q (AVIF quality), NAME (output file, lite.bin by default), STEPS (fetch
+// order, 8,4,2 by default; 8,4,2,1 packs every frame, coarse to fine: the motion level, motion.bin). Without them the
+// output is byte-identical to before. With STEPS ending in 1, the file is checked once written (count = frames of the
+// set, fingerprint = meta.bin's): the script exits 1 if it does not match.
 // Format (little-endian): "FLT1", u32 count, u16 w, u16 h, u32 n (frames of the set), u32 meta.bin fingerprint,
 // count x (u32 frame, u32 length), then the images in that order.
 import sharp from 'sharp'
@@ -18,6 +22,10 @@ const sets = args.length ? args : ['desktop', 'phone']
 /** Reduction and quality per set: the light frame is shown scaled up, while the sharp one is on its way */
 const CFG = { desktop: { div: 3, q: 34 }, phone: { div: 3, q: 36 } }
 const FORCE = process.env.FORCE === '1', OUT = process.env.OUT
+const ENV_DIV = process.env.DIV ? Number(process.env.DIV) : 0, ENV_Q = process.env.Q ? Number(process.env.Q) : 0
+const NAME = process.env.NAME || 'lite.bin'
+const STEPS = (process.env.STEPS || '8,4,2').split(',').map(Number)
+if (!STEPS.length || STEPS.some((x) => !(x >= 1))) { console.error('STEPS: a list of steps, like 8,4,2 or 8,4,2,1'); process.exit(1) }
 sharp.concurrency(1)
 
 /** Fingerprint of meta.bin (film.ts computes the same): a pack made for another capture is never shown */
@@ -28,18 +36,18 @@ export function fingerprint(buf) {
 }
 function order(n) {
   const out = [], seen = new Uint8Array(n)
-  for (const s of [8, 4, 2]) for (let k = 0; k < n; k += s) if (!seen[k]) { seen[k] = 1; out.push(k) }
+  for (const s of STEPS) for (let k = 0; k < n; k += s) if (!seen[k]) { seen[k] = 1; out.push(k) }
   return out
 }
 
 for (const set of sets) {
-  const sd = join(dir, set), cfg = CFG[set] ?? CFG.desktop
+  const sd = join(dir, set), c0 = CFG[set] ?? CFG.desktop, cfg = { div: ENV_DIV || c0.div, q: ENV_Q || c0.q }
   const man = JSON.parse(readFileSync(join(sd, 'manifest.json'), 'utf8'))
   const fp = fingerprint(readFileSync(join(sd, 'meta.bin')))
-  const outF = join(OUT ? join(OUT, set) : sd, 'lite.bin')
+  const outF = join(OUT ? join(OUT, set) : sd, NAME)
   if (!FORCE && existsSync(outF)) {
     const h = readFileSync(outF).subarray(0, 20)
-    if (h.toString('latin1', 0, 4) === 'FLT1' && h.readUInt32LE(12) === man.n && h.readUInt32LE(16) === fp) { console.log(`${set}: lite.bin up to date`); continue }
+    if (h.toString('latin1', 0, 4) === 'FLT1' && h.readUInt32LE(12) === man.n && h.readUInt32LE(16) === fp) { console.log(`${set}: ${NAME} up to date`); continue }
   }
   const w = Math.round(man.w / cfg.div / 2) * 2, h = Math.round(man.h / cfg.div / 2) * 2
   const ord = order(man.n), imgs = new Array(ord.length)
@@ -61,5 +69,14 @@ for (const set of sets) {
   const all = Buffer.concat([head, ...imgs])
   mkdirSync(join(outF, '..'), { recursive: true })
   writeFileSync(outF + '.tmp', all); renameSync(outF + '.tmp', outF)
-  console.log(`${set}: ${ord.length} frames ${w}x${h} q${cfg.q}, ${(all.length / 1e6).toFixed(2)} MB (${(all.length / ord.length / 1e3).toFixed(1)} KB a frame), ${((Date.now() - t0) / 1000).toFixed(0)} s`)
+  if (STEPS[STEPS.length - 1] === 1) {
+    // every frame: the file must hold the whole set, for this capture
+    const b = readFileSync(outF), cnt = b.readUInt32LE(4)
+    let sum = 20 + cnt * 8
+    for (let i = 0; i < cnt; i++) sum += b.readUInt32LE(24 + i * 8)
+    const bad = b.toString('latin1', 0, 4) !== 'FLT1' ? 'magic' : cnt !== man.n ? `count ${cnt} != n ${man.n}` : b.readUInt32LE(12) !== man.n ? 'n' : b.readUInt32LE(16) !== fp ? 'fingerprint' : sum !== b.length ? `length ${b.length} != ${sum}` : ''
+    if (bad) { console.error(`${set}: ${NAME} check failed (${bad})`); process.exit(1) }
+    console.log(`${set}: ${NAME} checked (${cnt} frames = n, fingerprint ${fp.toString(36)})`)
+  }
+  console.log(`${set}: ${NAME} ${ord.length} frames ${w}x${h} q${cfg.q}, ${(all.length / 1e6).toFixed(2)} MB (${(all.length / ord.length / 1e3).toFixed(1)} KB a frame), ${((Date.now() - t0) / 1000).toFixed(0)} s`)
 }

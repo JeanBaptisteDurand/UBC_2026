@@ -7,6 +7,7 @@ import { startClock } from './clock'
 import { startLive } from './data/live'
 import { world } from './world'
 import { CONSOLE } from './data/endpoints'
+import { GATE } from './video/film'
 
 // The console lives under /console/: an old shared link to its pages ("/#/ruche", "/?testsigner=…#/vue"…) leads there,
 // with its parameters (test mode reads ?testsigner=). The console address comes from endpoints.ts
@@ -32,9 +33,10 @@ Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 1500))]).th
 })
 // The site copilot (src/copilot) mounts once the landing is ready (first film draw) and the browser is idle: nothing
 // more to load or render before the first screen
+// (?gate=1: right away, behind the film's loading gate, which waits for it, so that no first gesture lands on it)
 {
-  const W = window as unknown as { __frontReady?: boolean; requestIdleCallback?: (f: () => void, o?: { timeout: number }) => number }
-  const go = () => { void import('./copilot/mount').then((m) => m.mountCopilot()) }
+  const W = window as unknown as { __frontReady?: boolean; __copilotP?: Promise<unknown>; requestIdleCallback?: (f: () => void, o?: { timeout: number }) => number }
+  const go = () => { W.__copilotP = import('./copilot/mount').then((m) => m.mountCopilot()) }
   const wait = () => { if (W.__frontReady) { if (W.requestIdleCallback) W.requestIdleCallback(go, { timeout: 2000 }); else setTimeout(go, 500) } else setTimeout(wait, 250) }
-  setTimeout(wait, 250)
+  if (GATE) go(); else setTimeout(wait, 250)
 }
