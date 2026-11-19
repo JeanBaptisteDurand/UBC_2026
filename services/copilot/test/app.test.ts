@@ -52,7 +52,7 @@ function post(app: ReturnType<typeof makeApp>["app"], body: unknown, headers: Re
 }
 const ask = (content: string) => ({ messages: [{ role: "user", content }] });
 
-test("rôle system (ou developer, tool) refusé : 400, et le modèle n'est jamais appelé", async () => {
+test("system role (or developer, tool) refused: 400, and the model is never called", async () => {
   const m = scriptedLlm(() => ({ content: "x" }));
   const { app } = makeApp({}, m.llm);
   for (const role of ["system", "developer", "tool"]) {
@@ -67,7 +67,7 @@ test("rôle system (ou developer, tool) refusé : 400, et le modèle n'est jamai
   assert.equal(m.calls.length, 0);
 });
 
-test("le modèle ne reçoit que NOTRE invite système, puis les messages user/assistant (texte, bornés, filtrés)", async () => {
+test("the model receives only OUR system prompt, then the user/assistant messages (text, bounded, filtered)", async () => {
   const m = scriptedLlm(() => ({ content: "ok" }));
   const { app } = makeApp({}, m.llm);
   const msgs = Array.from({ length: 30 }, (_, i) => ({ role: i % 2 ? "assistant" : "user", content: `m${i}` }));
@@ -85,7 +85,7 @@ test("le modèle ne reçoit que NOTRE invite système, puis les messages user/as
   assert.ok(!last.includes(HEX) && last.includes(MASK_KEY) && last.includes(MASK_PHRASE), last);
 });
 
-test("corps > 64 Kio : 413 ; JSON seulement : 415 ; JSON invalide : 400", async () => {
+test("body > 64 KiB: 413; JSON only: 415; invalid JSON: 400", async () => {
   const m = scriptedLlm(() => ({ content: "x" }));
   const { app } = makeApp({}, m.llm);
   const big = await post(app, { messages: [{ role: "user", content: "x".repeat(70_000) }] });
@@ -96,7 +96,7 @@ test("corps > 64 Kio : 413 ; JSON seulement : 415 ; JSON invalide : 400", async 
   assert.equal(m.calls.length, 0);
 });
 
-test("CORS : seule l'origine du site est autorisée ; une autre origine est refusée côté serveur (403, sans appel au modèle)", async () => {
+test("CORS: only the site's origin is allowed; another origin is refused server-side (403, no model call)", async () => {
   const m = scriptedLlm(() => ({ content: "x" }));
   const { app } = makeApp({}, m.llm);
   const pre = await app.request("/chat", { method: "OPTIONS", headers: { origin: SITE, "access-control-request-method": "POST", "access-control-request-headers": "content-type" } });
@@ -117,7 +117,7 @@ test("CORS : seule l'origine du site est autorisée ; une autre origine est refu
   assert.equal(noOrigin.status, 200);
 });
 
-test("débit : 20 requêtes par minute et par IP (X-Forwarded-For de Caddy), puis 429 avec Retry-After ; une autre IP passe", async () => {
+test("rate: 20 requests per minute per IP (Caddy's X-Forwarded-For), then 429 with Retry-After; another IP gets through", async () => {
   const { app } = makeApp();
   const ip = "203.0.113.77";
   for (let i = 0; i < 20; i++) assert.equal((await post(app, ask(`q${i}`), { "x-forwarded-for": ip })).status, 200, `requête ${i + 1}`);
@@ -132,7 +132,7 @@ test("débit : 20 requêtes par minute et par IP (X-Forwarded-For de Caddy), pui
   assert.equal((await post(app2, ask("ok ?"), { "x-forwarded-for": ip })).status, 429);
 });
 
-test("plafond global quotidien : au-delà, 429 sans appel au modèle", async () => {
+test("global daily cap: beyond it, 429 with no model call", async () => {
   const m = scriptedLlm(() => ({ content: "x" }));
   const { app } = makeApp({ rate: { perMinute: 20, perDay: 300, globalPerDay: 2 } }, m.llm);
   assert.equal((await post(app, ask("1"))).status, 200);
@@ -143,7 +143,7 @@ test("plafond global quotidien : au-delà, 429 sans appel au modèle", async () 
   assert.equal(m.calls.length, 2);
 });
 
-test("plafond d'outils : 4 par tour, 10 par requête, 6 appels au modèle au plus ; chaque appel gardé reçoit une réponse", async () => {
+test("tool caps: 4 per round, 10 per request, at most 6 model calls; every kept call gets an answer", async () => {
   let id = 0;
   // un modèle « piloté » qui demande 7 outils à chaque tour, sans jamais s'arrêter
   const m = scriptedLlm((_n, req) => (req.tool_choice === "none"
@@ -173,7 +173,7 @@ test("plafond d'outils : 4 par tour, 10 par requête, 6 appels au modèle au plu
   assert.equal(turnsWithTools, 3, "3 tours d'outils (4 + 4 + 2) avant la réponse finale");
 });
 
-test("6 appels au modèle au plus, relance d'une réponse vide comprise", async () => {
+test("at most 6 model calls, a retry after an empty answer included", async () => {
   let id = 0;
   const m = scriptedLlm((_n, req) => (req.tool_choice === "none"
     ? { content: "" } // le modèle « pense » sans écrire
@@ -191,7 +191,7 @@ test("6 appels au modèle au plus, relance d'une réponse vide comprise", async 
   assert.equal(j2.text, "Réponse.");
 });
 
-test("résultats d'outils filtrés avant le modèle (journaux de machines compris) ; le navigateur garde l'action complète", async () => {
+test("tool results filtered before the model (machine logs included); the browser keeps the full action", async () => {
   let n = 0;
   const m = scriptedLlm((_k, req) => (n++ === 0
     ? { content: null, tool_calls: [
@@ -218,13 +218,13 @@ test("résultats d'outils filtrés avant le modèle (journaux de machines compri
   assert.equal(j.actions[0].result.autorisationEIP3009.message.nonce, nonce);
 });
 
-test("résultat d'outil trop long : borné pour le modèle, avec une marque explicite", () => {
+test("a tool result that is too long: bounded for the model, with an explicit mark", () => {
   const s = forModel(JSON.stringify({ rows: "x".repeat(50_000) }), 16_000);
   assert.ok(s.length <= 16_000);
   assert.match(s, /résultat tronqué à 16.000 caractères/);
 });
 
-test("sans clé de modèle : réponse explicite, aucun appel", async () => {
+test("no model key: an explicit answer, no call", async () => {
   const { app } = makeApp({ llm: null });
   const j = await (await post(app, ask("x"))).json() as any;
   assert.match(j.text, /Pas de clé OPENAI_API_KEY/);
@@ -258,7 +258,7 @@ const completion = (content: string) => ({
 });
 const callDocs = (id: string) => ({ id, type: "function" as const, function: { name: "docs_search", arguments: "{}" } });
 
-test("max_tokens à CHAQUE appel au modèle (2 000 par défaut, réglable), jusque dans la requête au fournisseur", async () => {
+test("max_tokens on EVERY model call (2,000 by default, configurable), down to the request to the provider", async () => {
   let id = 0;
   const m = scriptedLlm((n) => (n < 3 ? { content: null, tool_calls: [callDocs(`c${++id}`)] } : { content: "fin" }));
   const { app } = makeApp({}, m.llm);
@@ -279,7 +279,7 @@ test("max_tokens à CHAQUE appel au modèle (2 000 par défaut, réglable), jusq
   } finally { await p.close(); }
 });
 
-test("plafond CUMULÉ des résultats d'outils (40 000 caractères par requête) : au-delà, plus d'outil, réponse en texte", async () => {
+test("SUMMED cap on tool results (40,000 characters per request): beyond it, no more tools, a text answer", async () => {
   let id = 0;
   const executed: string[] = [];
   const m = scriptedLlm((_n, req) => (req.tool_choice === "none"
@@ -304,7 +304,7 @@ test("plafond CUMULÉ des résultats d'outils (40 000 caractères par requête) 
   assert.ok(sent <= 5_000, `${sent}`);
 });
 
-test("150 appels d'outils en un tour : 4 exécutés et renvoyés au modèle, les autres ni exécutés ni renvoyés", async () => {
+test("150 tool calls in one round: 4 run and returned to the model, the others neither run nor returned", async () => {
   let id = 0;
   const m = scriptedLlm((n) => (n === 1 ? { content: null, tool_calls: Array.from({ length: 150 }, () => callDocs(`c${++id}`)) } : { content: "Fini." }));
   const { app, executed } = makeApp({}, m.llm);
@@ -319,7 +319,7 @@ test("150 appels d'outils en un tour : 4 exécutés et renvoyés au modèle, les
   assert.equal(j.outilsNonExecutes, 146);
 });
 
-test("erreur du fournisseur : message générique et code au visiteur, jamais le texte du fournisseur ni la clé (journal filtré)", async () => {
+test("provider error: a generic message and a code for the visitor, never the provider's text or the key (filtered log)", async () => {
   // le fournisseur recopie la clé reçue dans son erreur 401 (cas mesuré par le vérificateur)
   for (const KEY of ["sk-proj-THIS-IS-THE-SERVER-PROVIDER-KEY-1234567890abcdef", "zz.unusual-provider-key-format.0123456789"]) {
     const p = await fakeProvider((_b, auth) => ({ status: 401, json: { error: { message: `Invalid API key provided: ${auth.replace(/^Bearer\s+/, "")}`, type: "invalid_request_error", code: "invalid_api_key" } } }));
@@ -340,7 +340,7 @@ test("erreur du fournisseur : message générique et code au visiteur, jamais le
   }
 });
 
-test("erreurs du modèle : un code par cas, aucun texte du fournisseur", () => {
+test("model errors: one code per case, no provider text", () => {
   const leak = "detail du fournisseur sk-proj-AAAA1111BBBB2222CCCC3333";
   for (const [e, code] of [
     [Object.assign(new Error(leak), { name: "TimeoutError" }), "modele_delai"],
@@ -358,7 +358,7 @@ test("erreurs du modèle : un code par cas, aucun texte du fournisseur", () => {
   }
 });
 
-test("erreur d'un outil : le message court part au modèle, sans URL ni secret du serveur", async () => {
+test("a tool error: the short message goes to the model, with no URL or server secret", async () => {
   const KEY = "zz-server-secret-0123456789";
   let n = 0;
   const m = scriptedLlm(() => (n++ === 0 ? { content: null, tool_calls: [{ id: "a", type: "function" as const, function: { name: "enclaves_status", arguments: "{}" } }] } : { content: `ok ${KEY}` }));
@@ -371,7 +371,7 @@ test("erreur d'un outil : le message court part au modèle, sans URL ni secret d
   assert.ok(!j.text.includes(KEY), "la réponse finale est expurgée aussi");
 });
 
-test("message de l'utilisateur qui parle de clé privée : la valeur 0x… n'arrive jamais au modèle", async () => {
+test("a user message about a private key: the 0x… value never reaches the model", async () => {
   const m = scriptedLlm(() => ({ content: "ok" }));
   const { app } = makeApp({}, m.llm);
   const H = "9c4f1e2d" + "ab".repeat(28);
@@ -387,7 +387,7 @@ test("message de l'utilisateur qui parle de clé privée : la valeur 0x… n'arr
 /** Taille d'entrée d'un appel, mesurée comme le vérificateur : messages et définitions d'outils, en JSON. */
 const inputSize = (req: LlmRequest) => JSON.stringify(req.messages).length + JSON.stringify(req.tools).length;
 
-test("9/11 : les SORTIES du modèle renvoyées au tour suivant (texte et arguments d'appels) comptent dans le plafond de l'historique", async () => {
+test("the model's OUTPUTS sent back at the next round (text and call arguments) count in the history cap", async () => {
   let id = 0;
   // un tour : 39 500 caractères de texte « intermédiaire » et un appel d'outil aux arguments de 600 caractères
   const m = scriptedLlm((_n, req) => (req.tool_choice === "none"
@@ -403,7 +403,7 @@ test("9/11 : les SORTIES du modèle renvoyées au tour suivant (texte et argumen
   assert.equal(j.text, "Fin.");
 });
 
-test("9/11 : budget d'ENTRÉE cumulé par requête (COPILOT_MAX_INPUT_CHARS) : il arrête les tours d'outils, et aucun appel ne le dépasse", async () => {
+test("summed INPUT budget per request (COPILOT_MAX_INPUT_CHARS): it stops tool rounds, and no call exceeds it", async () => {
   assert.equal(DEFAULT_CAPS.maxInputCharsPerRequest, 160_000);
   let id = 0;
   // plusieurs tours d'outils permis, jusqu'à ce que l'appel final ne tienne plus : le budget d'entrée décide, pas les autres plafonds
@@ -431,7 +431,7 @@ test("9/11 : budget d'ENTRÉE cumulé par requête (COPILOT_MAX_INPUT_CHARS) : i
   assert.ok(big.calls.map(inputSize).reduce((a, b) => a + b, 0) <= 30_000);
 });
 
-test("9/11 : pire cas avec la VRAIE invite et les VRAIS outils (preuves cost-worst et cost-xff du vérificateur) : entrée de la requête ≤ 160 000 caractères", async () => {
+test("worst case with the REAL prompt and the REAL tools (the reviewer's cost-worst and cost-xff cases): request input ≤ 160,000 characters", async () => {
   const OAI_TOOLS = TOOL_DEFS.map((t) => ({ type: "function" as const, function: { name: t.name, description: t.description, parameters: t.input_schema as any } }));
   const history = { messages: Array.from({ length: 5 }, (_, i) => ({ role: i % 2 ? "assistant" : "user", content: (i % 2 ? "a" : "u").repeat(3_990) })) };
   // cost-worst : 1 outil par tour (résultat ≈ 7,9 k car.), 6 000 car. de texte et 2 000 d'arguments par tour, 8 000 de réponse
@@ -456,7 +456,7 @@ test("9/11 : pire cas avec la VRAIE invite et les VRAIS outils (preuves cost-wor
   }
 });
 
-test("9/11 : DEBUG retiré de l'environnement ; le client openai ne journalise jamais ni en-têtes ni corps (preuve debug-log du vérificateur)", async () => {
+test("DEBUG removed from the environment; the openai client never logs headers or bodies (the reviewer's debug-log case)", async () => {
   const KEY = "rpk_TESTKEY_0123456789abcdefghijkl";
   const p = await fakeProvider(() => ({ status: 200, json: completion("réponse du modèle") }));
   const printed: string[] = [];
@@ -484,7 +484,7 @@ test("9/11 : DEBUG retiré de l'environnement ; le client openai ne journalise j
   assert.equal(stripProviderDebug(env), undefined);
 });
 
-test("9/11 : l'invite et la consigne anglaise nomment exactement les marques du filtre (le modèle sait les expliquer)", () => {
+test("the prompt and the English directive name the filter's marks exactly (the model can explain them)", () => {
   for (const mark of [MASK_KEY, MASK_PHRASE, MASK_CAUTION]) {
     assert.ok(COPILOT_SYSTEM.includes(`« ${mark} »`), mark);
     assert.ok(languageDirective("en").includes(`« ${mark} »`), mark);
@@ -493,7 +493,7 @@ test("9/11 : l'invite et la consigne anglaise nomment exactement les marques du 
   assert.match(COPILOT_SYSTEM, /NOUVELLE conversation qui ne parle pas de clé/);
 });
 
-test("9/11 au soir : budget d'entrée en JETONS estimés (preuve cost-unicode du vérificateur) : caractères denses bornés à 50 000 jetons par requête, premier appel compris", async () => {
+test("input budget in estimated TOKENS (the reviewer's cost-unicode case): dense characters bounded at 50,000 tokens per request, first call included", async () => {
   assert.equal(DEFAULT_CAPS.maxInputTokensPerRequest, 50_000);
   // estimation prudente, par unité UTF-16 : 0,3 jeton par caractère ASCII, 3 par autre caractère
   assert.equal(estimateTokens("a".repeat(1_000)), 300);

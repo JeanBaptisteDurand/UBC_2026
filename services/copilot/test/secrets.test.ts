@@ -14,7 +14,7 @@ const KEY = `0x${HEX}`;
 const ADDR = "0x1234567890123456789012345678901234567890";
 const fold = (w: string) => w.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 
-test("clés d'accès aek_ et clés opérateur arcop_ : masquées", () => {
+test("aek_ access keys and arcop_ operator keys: masked", () => {
   for (const s of ["ma clé aek_arctest_14_AbCdEfGh12345678", "arcop_82de3821_AbCdEfGh1234567890xyz", "ARCOP_KEY=arcop_82de3821_secretsecret"]) {
     const out = scrubSecrets(s);
     assert.ok(out.includes(MASK_KEY), s);
@@ -22,13 +22,13 @@ test("clés d'accès aek_ et clés opérateur arcop_ : masquées", () => {
   }
 });
 
-test("clé privée PEM : masquée", () => {
+test("PEM private key: masked", () => {
   const pem = "-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIBkg4LVWM9nuwNSk3yByxZpYRTBnVJk5oVDwQ8rUKTA7oAoGCCqGSM49\n-----END EC PRIVATE KEY-----";
   const out = scrubSecrets(`voici : ${pem} merci`);
   assert.equal(out, `voici : ${MASK_KEY} merci`);
 });
 
-test("0x + 64 hexadécimaux PRÈS d'un mot qui désigne un secret : masqué", () => {
+test("0x + 64 hex NEAR a word that names a secret: masked", () => {
   for (const s of [
     `voici ma clé : ${KEY}`,
     `mon wallet ${KEY}`,
@@ -52,7 +52,7 @@ test("0x + 64 hexadécimaux PRÈS d'un mot qui désigne un secret : masqué", ()
   }
 });
 
-test("hashes de transaction, bytes32 publics et valeurs sans libellé : jamais masqués", () => {
+test("transaction hashes, public bytes32 and unlabelled values: never masked", () => {
   for (const s of [
     KEY, // sans libellé
     `tx ${KEY}`,
@@ -71,7 +71,7 @@ test("hashes de transaction, bytes32 publics et valeurs sans libellé : jamais m
   ]) assert.equal(scrubSecrets(s), s, s);
 });
 
-test("phrase de récupération BIP-39 (12 à 24 mots d'une même liste) : masquée", () => {
+test("BIP-39 recovery phrase (12 to 24 words from one list): masked", () => {
   const cases = [
     "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", // vecteur de test BIP-39
     english.slice(100, 115).join(" "), // 15 mots
@@ -93,7 +93,7 @@ test("phrase de récupération BIP-39 (12 à 24 mots d'une même liste) : masqu�
   }
 });
 
-test("moins de 12 mots, mots de deux listes mêlées, prose : laissés", () => {
+test("fewer than 12 words, words from two mixed lists, prose: left alone", () => {
   const eleven = english.slice(0, 11).join(" ");
   assert.equal(scrubSecrets(eleven), eleven);
   const fr = new Set(french.map(fold)), en = new Set(english.map(fold));
@@ -108,7 +108,7 @@ test("moins de 12 mots, mots de deux listes mêlées, prose : laissés", () => {
   ]) assert.equal(scrubSecrets(s), s, s);
 });
 
-test("vrais textes : base de connaissances, événements on-chain, listes de l'API", () => {
+test("real texts: knowledge base, on-chain events, API lists", () => {
   for (const k of KB) assert.equal(scrubSecrets(k.text), k.text, k.source);
   assert.equal(scrubSecrets(VERIFICATION_STATE), VERIFICATION_STATE);
   for (const f of ["activity.json", "enclaves.json", "bounties.json", "products.json"]) {
@@ -120,7 +120,7 @@ test("vrais textes : base de connaissances, événements on-chain, listes de l'A
   for (const s of [JSON.stringify(typed), JSON.stringify(typed, null, 2)]) assert.equal(scrubSecrets(s), s);
 });
 
-test("idempotent, et un secret dans un résultat d'outil JSON reste un JSON valide", () => {
+test("idempotent, and a secret in a JSON tool result stays valid JSON", () => {
   const s = JSON.stringify({ logs: [`PRIVATE_KEY=${KEY}`, `tx ${KEY}`], mnemonic: english.slice(10, 22).join(" ") });
   const once = scrubSecrets(s);
   assert.equal(scrubSecrets(once), once);
@@ -140,7 +140,7 @@ const assertPhraseMasked = (s: string, label: string, scrub: (x: string) => stri
   assert.ok(visible.length === 0, `mots restés visibles (${label}) : ${visible.join(", ")}`);
 };
 
-test("phrase numérotée avec deux-points, « Mot n°1 : », « Word #1: », colonnes alignées : masquée", () => {
+test("phrase numbered with colons, \"Mot n°1 :\", \"Word #1:\", aligned columns: masked", () => {
   const cases: Array<[string, string]> = [
     ["« 1: »", W12.map((w, i) => `${i + 1}: ${w}`).join(" ")],
     ["« 1 : » une par ligne", W12.map((w, i) => `${i + 1} : ${w}`).join("\n")],
@@ -159,7 +159,7 @@ test("phrase numérotée avec deux-points, « Mot n°1 : », « Word #1: », col
   }
 });
 
-test("phrase avec UNE faute de frappe (en trop, oubliée, changée, inversée, au-delà des 4 premières lettres) : masquée", () => {
+test("phrase with ONE typo (extra, missing, changed, swapped, beyond the first 4 letters): masked", () => {
   const edits: Array<[string, (w: string) => string]> = [
     ["lettre en trop", (w) => `${w}x`],
     ["lettre oubliée", (w) => w.slice(0, -1)],
@@ -187,7 +187,7 @@ test("phrase avec UNE faute de frappe (en trop, oubliée, changée, inversée, a
   assert.equal(out, MASK_PHRASE);
 });
 
-test("les dix listes BIP-39 (anglais, français, espagnol, italien, portugais, tchèque, japonais, coréen, chinois) : masquées", () => {
+test("the ten BIP-39 lists (English, French, Spanish, Italian, Portuguese, Czech, Japanese, Korean, Chinese): masked", () => {
   const cases: Array<[string, string]> = [
     ["espagnol", spanish.slice(50, 62).join(" ")],
     ["italien", italian.slice(70, 82).join(" ")],
@@ -205,7 +205,7 @@ test("les dix listes BIP-39 (anglais, français, espagnol, italien, portugais, t
   }
 });
 
-test("pas de faux positif : prose en d'autres langues, code, journaux clé-valeur, fautes trop nombreuses", () => {
+test("no false positive: prose in other languages, code, key-value logs, too many typos", () => {
   for (const s of [
     "El operador deposita una garantía en USDC, alquila una máquina virtual y registra su enclave en la red de Arc para cobrar cada respuesta firmada.",
     "L'operatore deposita una cauzione in USDC, noleggia una macchina virtuale e registra la sua enclave sulla rete di Arc per incassare ogni risposta firmata.",
@@ -219,7 +219,7 @@ test("pas de faux positif : prose en d'autres langues, code, journaux clé-valeu
   ]) assert.equal(scrubSecrets(s), s, s.slice(0, 80));
 });
 
-test("clés de fournisseur (sk-…, sk-proj-…, rpk_…, Bearer, variables d'environnement) : masquées", () => {
+test("provider keys (sk-…, sk-proj-…, rpk_…, Bearer, environment variables): masked", () => {
   for (const [s, leak] of [
     ["Erreur : 401 Invalid API key provided: sk-proj-THIS-IS-THE-SERVER-PROVIDER-KEY-1234567890abcdef", "PROVIDER-KEY"],
     ["OPENAI_API_KEY=sk-abc123DEF456ghi789JKL012mno345", "abc123DEF456"],
@@ -243,7 +243,7 @@ test("clés de fournisseur (sk-…, sk-proj-…, rpk_…, Bearer, variables d'en
   ]) assert.equal(scrubSecrets(s), s, s);
 });
 
-test("message de l'UTILISATEUR qui parle de clé privée : toute valeur de 64 hex masquée, même si un mot public est plus proche", () => {
+test("a USER message about a private key: every 64-hex value masked, even when a public word is closer", () => {
   const H = "9c4f1e2d" + "ab".repeat(28);
   // les cas du vérificateur : le mot public (« publique », « hash », « tx ») est plus proche que « clé privée », ou le
   // libellé est loin, ou absent ; le filtre général (résultats d'outils) garde la règle du mot le plus proche
@@ -279,7 +279,7 @@ test("message de l'UTILISATEUR qui parle de clé privée : toute valeur de 64 he
   assert.ok(!mentionsSecret("la clé publique X25519") && !mentionsSecret("vérifie ma transaction"));
 });
 
-test("message de l'UTILISATEUR qui parle de sa phrase de récupération : reconnue dès 8 mots, deux fautes tolérées sur 12", () => {
+test("a USER message about their recovery phrase: recognised from 8 words, two typos tolerated in 12", () => {
   const eight = english.slice(500, 508).join(" ");
   assert.equal(scrubSecrets(`ma phrase de récupération commence par ${eight}`).includes(eight), true, "hors alerte : moins de 12 mots");
   assert.ok(!scrubUserMessage(`ma phrase de récupération commence par ${eight}`).includes(eight));
@@ -292,7 +292,7 @@ test("message de l'UTILISATEUR qui parle de sa phrase de récupération : reconn
   ]) assert.equal(scrubUserMessage(s), s);
 });
 
-test("secrets du serveur retirés quel que soit leur format (redactLiterals)", () => {
+test("the server's secrets removed whatever their format (redactLiterals)", () => {
   const k = "zZ-unusual-provider-format-0001";
   assert.equal(redactLiterals(`a ${k} b ${k}`, [k]), `a ${MASK_KEY} b ${MASK_KEY}`);
   assert.equal(redactLiterals("rien", [k, "", "court"]), "rien");
@@ -313,7 +313,7 @@ const WIF_C = "L1aW4aubDFB7yfras2S1mN3bqg9nwySY8nkoLmJebSLD5BWv3ENZ"; // 52 car.
 const WIF_U = "5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ"; // 51 car., non compressée
 const BYTES = `[${Array.from({ length: 64 }, (_, i) => (i * 37 + 11) % 256).join(",")}]`;
 
-test("9/11 : mode alerte — clé hex en paires, en groupes de 2 à 8 (0x ou non), sur plusieurs lignes : masquée", () => {
+test("alert mode: a hex key in pairs, in groups of 2 to 8 (0x or not), over several lines: masked", () => {
   for (const s of [
     `my private key is ${grouped(K64, 2)}`, `ma clé privée : ${grouped(K64, 4)}`, `private key 0x${grouped(K64, 4)}`,
     `private key ${grouped(K64, 3)}`, `private key ${grouped(K64, 6)}`, `seed phrase : ${grouped(K64, 2, ":")}`, `clé privée :\n${grouped(K64, 8, "\n")}`,
@@ -338,7 +338,7 @@ test("9/11 : mode alerte — clé hex en paires, en groupes de 2 à 8 (0x ou non
   assert.equal(scrubSecrets(`checksum ${grouped(K64, 4)}`), `checksum ${grouped(K64, 4)}`);
 });
 
-test("9/11 : mode alerte — clés base58 (Solana 87–88 car., WIF 51–52 car. commençant par 5, K ou L) et tableau d'octets : masqués", () => {
+test("alert mode: base58 keys (Solana 87-88 chars, WIF 51-52 chars starting with 5, K or L) and byte arrays: masked", () => {
   for (const [s, v] of [
     [`my solana private key: ${SOL}`, SOL], [`private key (WIF): ${WIF_C}`, WIF_C], [`clé privée bitcoin ${WIF_U}`, WIF_U],
     [`my phantom wallet private key export: ${SOL.slice(0, 87)}`, SOL.slice(0, 87)], [`solana keypair (private key) ${BYTES}`, BYTES.slice(1, 40)],
@@ -353,7 +353,7 @@ test("9/11 : mode alerte — clés base58 (Solana 87–88 car., WIF 51–52 car.
   for (const s of [`signature ${SOL}`, `wif ${WIF_C}`, `bytes ${BYTES}`]) assert.equal(scrubSecrets(s), s);
 });
 
-test("9/11 : phrase collée par « + » ou « . » (même sans mention) ; caractères invisibles dans les mots : masquée", () => {
+test("a phrase joined by \"+\" or \".\" (even with no mention); invisible characters inside words: masked", () => {
   const W = english.slice(100, 112);
   // (9/11 au soir : « seed » seul ne met plus en alerte ; « seed phrase » si)
   for (const s of [W.join("+"), W.join("."), `ma seed phrase : ${W.slice(0, 8).join(".")}`, W.map((w) => `${w.slice(0, 2)}​${w.slice(2)}`).join(" "), W.map((w) => `${w.slice(0, 1)}­${w.slice(1)}`).join(" ")]) {
@@ -368,7 +368,7 @@ test("9/11 : phrase collée par « + » ou « . » (même sans mention) ; caract
   ]) assert.equal(scrubUserMessage(s), s, s);
 });
 
-test("9/11 : CONVERSATION en mode alerte (scrubConversation) — un message de l'utilisateur qui parle de secret met toute la conversation en alerte", () => {
+test("CONVERSATION in alert mode (scrubConversation): a user message about a secret puts the whole conversation on alert", () => {
   const W = english.slice(100, 124);
   const u = (content: string) => ({ role: "user", content });
   const a = (content: string) => ({ role: "assistant", content });
@@ -390,7 +390,7 @@ test("9/11 : CONVERSATION en mode alerte (scrubConversation) — un message de l
   assert.deepEqual(again.messages, parts.messages);
 });
 
-test("9/11 : CONVERSATION en mode alerte — pas de faux positif sur une vraie conversation (anglais et français, questions courtes)", () => {
+test("CONVERSATION in alert mode: no false positive on a real conversation (English and French, short questions)", () => {
   const en = [
     "I think I lost my seed phrase, what can I do?", "Can you help?", "What about this?", "Any other way?", "you have any other idea?",
     "Then what?", "Where is the bounty page?", "How much does a private session cost per request?", "Show me the hive.",
@@ -421,7 +421,7 @@ const XPRV = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvN
 const ZPRV = "zprvAWgYBBk7JR8Gj6uAb6N9JvjCU9kwtKoz7EugoYvNqqnVTXwPj8vPjDZTJXGn7FJqLgaA9CHZtnYDYWW2CmEGSPBHn3T5XxR4tmyS9KSsnuz";
 const XPUB = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
 
-test("9/11 au soir : mode NORMAL — un hachage de transaction reste lisible, réponses du modèle comprises (« key registration », « Transaction of wallet 0x…: », « enclave key »)", () => {
+test("NORMAL mode: a transaction hash stays readable, model answers included (\"key registration\", \"Transaction of wallet 0x…:\", \"enclave key\")", () => {
   for (const s of [
     `the transaction for your key registration: ${TXH}`,
     `Transaction of wallet 0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B: ${TXH}`,
@@ -440,7 +440,7 @@ test("9/11 au soir : mode NORMAL — un hachage de transaction reste lisible, r�
   }
 });
 
-test("9/11 au soir : mode NORMAL — un mot ambigu (clé, key, wallet, MetaMask…) désigne encore un secret quand rien de public ne l'entoure", () => {
+test("NORMAL mode: an ambiguous word (clé, key, wallet, MetaMask…) still names a secret when nothing public surrounds it", () => {
   const H = "9c4f1e2d" + "ab".repeat(28);
   for (const s of [
     `voici ma clé : 0x${H}`, `mon wallet 0x${H}`, `my key: 0x${H}`, `Here is my key.\n0x${H}`, `{"keys":["0x${H}"]}`,
@@ -463,7 +463,7 @@ test("9/11 au soir : mode NORMAL — un mot ambigu (clé, key, wallet, MetaMask�
   for (const s of [`checksum ${grouped(K64, 4)}`, `signature ${SOL}`, `my wallet's last signature: ${SOL}`, `tx ${grouped(K64, 4)}`]) assert.equal(scrubSecrets(s), s, s);
 });
 
-test("9/11 au soir : clés étendues BIP-32 privées (xprv, zprv, tprv…) masquées dans tous les modes ; xpub lisible", () => {
+test("private BIP-32 extended keys (xprv, zprv, tprv…) masked in every mode; xpub readable", () => {
   const TPRV = `tprv${XPRV.slice(4)}`;
   for (const k of [XPRV, ZPRV, TPRV, `yprv${XPRV.slice(4)}`, `Zprv${XPRV.slice(4)}`]) {
     for (const s of [k, `my wallet master private key is ${k}`, `{"backup":"${k}"}`, `electrum: ${k} ok`]) {
@@ -479,7 +479,7 @@ test("9/11 au soir : clés étendues BIP-32 privées (xprv, zprv, tprv…) masqu
   }
 });
 
-test("9/11 au soir : l'ALERTE ne se déclenche que sur des formulations précises (pas sur « export », « seed », « secret key » seuls)", () => {
+test("the ALERT is triggered only by precise wordings (not by \"export\", \"seed\" or \"secret key\" alone)", () => {
   for (const s of [
     "how do I export my wallet history to CSV?", "I want to seed the liquidity pool", "can the ledger export my transactions?",
     "what is a secret key in RSA?", "export my metamask transactions", "the signing key of the enclave", "seed round of the project",
@@ -497,7 +497,7 @@ test("9/11 au soir : l'ALERTE ne se déclenche que sur des formulations précise
   ]) assert.ok(mentionsSecret(s), s);
 });
 
-test("9/11 au soir : ALERTE — clé coupée 32 + 32 entre deux messages (la 1re moitié dès le 1er message) ; adresse et petits nombres lisibles", () => {
+test("ALERT: a key split 32 + 32 across two messages (the first half from the first message); addresses and small numbers readable", () => {
   const u = (content: string) => ({ role: "user", content });
   const a = (content: string) => ({ role: "assistant", content });
   // les deux moitiés, dans une même conversation
