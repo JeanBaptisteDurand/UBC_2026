@@ -1,25 +1,25 @@
 /**
- * predicate.ts — le langage de prédicats v0 de la Prime scellée (O3).
+ * predicate.ts — the Sealed Bounty's predicate language, v0 (O3).
  *
- * Un prédicat décrit « qu'est-ce qui prouve l'exploit » : chute de solde, profit de l'attaquant,
- * lecture changée, invariant cassé. Son JSON canonique est haché (predicateHash) et épinglé on-chain :
- * l'enclave et le protocole parlent du même prédicat, sans ambiguïté.
+ * A predicate states "what proves the exploit": a balance drop, the attacker's profit, a changed read, a broken
+ * invariant. Its canonical JSON is hashed (predicateHash) and pinned on-chain: the enclave and the protocol talk about
+ * the same predicate, with no ambiguity.
  *
- * v2.1 bis (revue adverse du 9/11) — RÈGLES DÉTERMINISTES d'un prédicat (validatePredicate), les MÊMES que l'enclave
- * (enclave/src/services/predicate.ts) : un prédicat que le SDK refuse, aucune enclave ne le prouvera ; refusé ICI, il
- * n'atteint jamais createBounty (predicateHash lève) :
- *  P1 JSON pur : chaînes, nombres finis, booléens, null, tableaux, objets simples (rien d'autre) ;
- *  P2 bornes de TOUT le prédicat, champs annexes compris (ils entrent dans predicateHash) : imbrication ≤ MAX_DEPTH
- *     niveaux (racine = 1, une clause = 3), ≤ MAX_FIELDS champs (clés d'objets + éléments de tableaux), JSON canonique
- *     ≤ MAX_BYTES octets (UTF-8). Contrôle ITÉRATIF, sans récursion : un prédicat imbriqué sur des milliers de niveaux
- *     est refusé par la règle, jamais par une pile JavaScript épuisée (dont le seuil dépend de l'état du JIT) ;
- *  P3 combine = "AND" | "OR", 1 à 8 clauses ;
- *  P4 forme de chaque clause : type connu ; adresses 0x + 40 hexadécimaux ; min / value entiers décimaux ≥ 0
- *     (78 chiffres au plus) ou entiers sûrs ≥ 0 ; call hexadécimal pair ; op ∈ eq, neq, gt, lt.
- * Un prédicat qui viole une règle lève PredicateError (message FIXE, sans rien du contenu). Côté enclave : une soumission
- * est « non prouvée » ; une réclamation dont le rapport viole une règle est une faute prouvée (aucune enclave honnête ne
- * l'aurait signée). Toute AUTRE exception n'est jamais une faute (bounty.ts : 503, rien de signé).
- * Les prédicats valides gardent EXACTEMENT le même JSON canonique (même predicateHash) qu'avant ces règles.
+ * DETERMINISTIC RULES of a predicate (validatePredicate), added after the adversarial review of 2026-11-09 and the SAME
+ * as the enclave's (enclave/src/services/predicate.ts): a predicate the SDK refuses, no enclave will prove; refused
+ * HERE, it never reaches createBounty (predicateHash throws):
+ *  P1 pure JSON: strings, finite numbers, booleans, null, arrays, plain objects (nothing else);
+ *  P2 bounds on the WHOLE predicate, extra fields included (they enter predicateHash): nesting ≤ MAX_DEPTH levels
+ *     (root = 1, a clause = 3), ≤ MAX_FIELDS fields (object keys + array items), canonical JSON ≤ MAX_BYTES bytes
+ *     (UTF-8). An ITERATIVE check, with no recursion: a predicate nested thousands of levels deep is refused by the
+ *     rule, never by an exhausted JavaScript stack (whose limit depends on the JIT's state);
+ *  P3 combine = "AND" | "OR", 1 to 8 clauses;
+ *  P4 shape of each clause: a known type; addresses 0x + 40 hex digits; min / value decimal integers ≥ 0 (78 digits at
+ *     most) or safe integers ≥ 0; call is even-length hex; op ∈ eq, neq, gt, lt.
+ * A predicate that breaks a rule throws PredicateError (a FIXED message that copies nothing of the content). On the
+ * enclave side, a submission is "not proven"; a claim whose report breaks a rule is a proven fault (no honest enclave
+ * would have signed it). Any OTHER exception is never a fault (bounty.ts: 503, nothing signed).
+ * Valid predicates keep EXACTLY the same canonical JSON (same predicateHash) as before these rules.
  */
 import { type Address, type Hex, keccak256, toBytes, encodeAbiParameters } from "viem";
 
@@ -35,7 +35,7 @@ export interface Predicate {
   clauses: Clause[]; // 1..8
 }
 
-/** Bornes d'un prédicat (règle P2). */
+/** Bounds of a predicate (rule P2). */
 export const PREDICATE_MAX_DEPTH = 8;
 export const PREDICATE_MAX_FIELDS = 256;
 export const PREDICATE_MAX_BYTES = 16 * 1024;
@@ -43,7 +43,7 @@ export const PREDICATE_MAX_CLAUSES = 8;
 
 export type PredicateRule = "json" | "depth" | "fields" | "size" | "combine" | "clauses" | "clause";
 
-/** Un prédicat viole une règle déterministe (P1–P4). Le message est fixe : il ne recopie rien du prédicat. */
+/** A predicate breaks a deterministic rule (P1–P4). The message is fixed: it copies nothing of the predicate. */
 export class PredicateError extends Error {
   constructor(message: string, readonly rule: PredicateRule = "clause") {
     super(message);
@@ -63,14 +63,14 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
 }
 
 /**
- * Règles P1 et P2 sans récursion (pile explicite) : JSON pur, imbrication, nombre de champs, puis taille EXACTE du JSON
- * canonique (calculée seulement une fois l'imbrication bornée). Lève PredicateError.
+ * Rules P1 and P2 with no recursion (an explicit stack): pure JSON, nesting, number of fields, then the EXACT size of
+ * the canonical JSON (computed only once the nesting is bounded). Throws PredicateError.
  */
 export function checkPredicateBounds(p: unknown): void {
   if (!isPlainObject(p)) throw new PredicateError("prédicat : objet JSON attendu", "json");
   const stack: Array<[unknown, number]> = [[p, 1]];
   let fields = 0;
-  let chars = 0; // longueur UTF-16 des clés et des chaînes : minorant de la taille UTF-8 du JSON canonique
+  let chars = 0; // UTF-16 length of keys and strings: a lower bound of the canonical JSON's UTF-8 size
   while (stack.length > 0) {
     const [v, depth] = stack.pop()!;
     if (typeof v === "string") {
@@ -101,7 +101,7 @@ export function checkPredicateBounds(p: unknown): void {
     }
     if (chars > PREDICATE_MAX_BYTES) throw new PredicateError(`prédicat : JSON canonique de plus de ${PREDICATE_MAX_BYTES} octets`, "size");
   }
-  // imbrication bornée : la sérialisation (récursive) est sûre ; taille exacte en octets UTF-8
+  // nesting is bounded: the (recursive) serialization is safe; exact size in UTF-8 bytes
   if (new TextEncoder().encode(stableStringify(p as Json)).length > PREDICATE_MAX_BYTES) {
     throw new PredicateError(`prédicat : JSON canonique de plus de ${PREDICATE_MAX_BYTES} octets`, "size");
   }
@@ -155,7 +155,7 @@ function checkClause(c: unknown, i: number): void {
   }
 }
 
-/** Les règles P1–P4 ; lève PredicateError (message fixe). */
+/** Rules P1–P4; throws PredicateError (fixed message). */
 export function validatePredicate(p: Predicate): void {
   checkPredicateBounds(p);
   const o = p as unknown as Record<string, unknown>;
@@ -167,7 +167,7 @@ export function validatePredicate(p: Predicate): void {
   clauses.forEach(checkClause);
 }
 
-/** JSON canonique (clés triées) — la représentation hachée. */
+/** Canonical JSON (sorted keys): the hashed representation. */
 export function canonicalize(p: Predicate): string {
   validatePredicate(p);
   return stableStringify(p as unknown as Json);
@@ -177,9 +177,9 @@ export function predicateHash(p: Predicate): Hex {
   return keccak256(toBytes(canonicalize(p)));
 }
 
-/** Ce que le rejeu (fork) fournit à l'évaluateur, mesuré avant/après l'exécution du bundle. */
+/** What the replay (fork) gives the evaluator, measured before and after the bundle runs. */
 export interface EvalContext {
-  erc20Drop(token: Address, holder: Address): bigint; // solde avant − après (>= 0 si chute)
+  erc20Drop(token: Address, holder: Address): bigint; // balance before − after (>= 0 on a drop)
   nativeDrop(holder: Address): bigint;
   attackerProfit(token: Address): bigint; // final − capital, gas compris
   viewValue(target: Address, call: Hex, when: "before" | "after"): bigint;
@@ -188,10 +188,10 @@ export interface EvalContext {
 
 export interface EvalResult {
   satisfied: boolean;
-  loss: bigint; // perte mesurée (USDC/EURC/natif en v0)
+  loss: bigint; // measured loss (USDC/EURC/native in v0)
 }
 
-/** Évalue un prédicat VALIDE (validatePredicate d'abord : après lui, seules les mesures du contexte peuvent lever). */
+/** Evaluates a VALID predicate (validatePredicate first: after it, only the context's measurements can throw). */
 export function evaluate(p: Predicate, ctx: EvalContext): EvalResult {
   validatePredicate(p);
   let loss = 0n;
@@ -233,10 +233,10 @@ function evalClause(c: Clause, ctx: EvalContext): [boolean, bigint] {
   }
 }
 
-// --- JSON canonique (tri des clés) ---
+// --- canonical JSON (sorted keys) ---
 type Json = string | number | boolean | null | Json[] | { [k: string]: Json };
 
-/** Récursif, mais appelé seulement sur un JSON d'imbrication bornée (checkPredicateBounds) ; inchangé depuis la v0. */
+/** Recursive, but only called on JSON of bounded nesting (checkPredicateBounds); unchanged since v0. */
 function stableStringify(v: Json): string {
   if (v === null || typeof v !== "object") return JSON.stringify(v);
   if (Array.isArray(v)) return "[" + v.map(stableStringify).join(",") + "]";
@@ -245,9 +245,9 @@ function stableStringify(v: Json): string {
 }
 
 /**
- * Vrai si une valeur JSON (issue de JSON.parse : sans cycle) imbrique objets et tableaux sur plus de `limit` niveaux ;
- * sans récursion, s'arrête au premier niveau de trop. Sert à refuser un rapport trop imbriqué AVANT toute sérialisation
- * récursive (JSON.stringify).
+ * True if a JSON value (from JSON.parse: no cycle) nests objects and arrays more than `limit` levels deep; with no
+ * recursion, it stops at the first level too many. Used to refuse a report nested too deep BEFORE any recursive
+ * serialization (JSON.stringify).
  */
 export function jsonDepthExceeds(v: unknown, limit: number): boolean {
   const stack: Array<[unknown, number]> = [[v, 1]];
@@ -261,8 +261,8 @@ export function jsonDepthExceeds(v: unknown, limit: number): boolean {
   return false;
 }
 
-/** Format d'une transaction d'exploit pour le rejeu de la Prime scellée : abi.encode(address to, uint256 value, bytes data),
- *  envoyée depuis l'adresse du chasseur (payee) dans un fork d'Arc au bloc N. Même définition que l'enclave. */
+/** Format of an exploit transaction for the Sealed Bounty replay: abi.encode(address to, uint256 value, bytes data),
+ *  sent from the hunter's address (payee) in a fork of Arc at block N. Same definition as the enclave's. */
 export const EXPLOIT_TX_PARAMS = [
   { name: "to", type: "address" }, { name: "value", type: "uint256" }, { name: "data", type: "bytes" },
 ] as const;
@@ -271,9 +271,9 @@ export function encodeExploitTx(tx: { to: Address; value?: bigint; data: Hex }):
   return encodeAbiParameters(EXPLOIT_TX_PARAMS, [tx.to, tx.value ?? 0n, tx.data]);
 }
 
-/** v2 : l'empreinte CANONIQUE d'un exploit, sur les OCTETS (la casse de l'hexadécimal ou l'écriture JSON n'y changent
- *  rien) : keccak256(abi.encode(keccak256(code d'attaque), [keccak256(tx) pour chaque tx])). Même formule que l'enclave
- *  (enclave/src/services/bounty.ts) : c'est l'empreinte de la réclamation, la clé de deliver(bountyId, empreinte, cP). */
+/** The CANONICAL fingerprint of an exploit, over the BYTES (hex case and JSON layout change nothing):
+ *  keccak256(abi.encode(keccak256(attack code), [keccak256(tx) for each tx])). Same formula as the enclave's
+ *  (enclave/src/services/bounty.ts): it is the claim's fingerprint, the key of deliver(bountyId, fingerprint, cP). */
 export function exploitFingerprint(bundle: { txs: Hex[]; attackCode?: Hex | null }): Hex {
   return keccak256(
     encodeAbiParameters(
