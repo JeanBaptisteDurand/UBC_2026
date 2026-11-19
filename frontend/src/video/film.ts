@@ -54,8 +54,9 @@ export function pickSet(): string {
   const src = document.querySelector<HTMLImageElement>('#poster img')?.currentSrc
   const m = src ? /\/film\/(\w+)\/f0000\./.exec(src) : null
   // Retina frames weigh 1.75 times the desktop ones and decode 2.25 times the pixels: under 8 Mbit/s announced (Chrome),
-  // the desktop set, sharp and in time, rather than Retina frames that arrive after the scroll
-  const fast = !CONN || (!SLOW && (CONN.downlink ?? 10) >= 8)
+  // the desktop set, sharp and in time, rather than Retina frames that arrive after the scroll. A browser that announces
+  // nothing (Safari, Firefox) counts as not fast: a Retina Mac in Safari gets the desktop set (?set=retina forces it)
+  const fast = !!CONN && !SLOW && (CONN.downlink ?? 0) >= 8
   if (m) return m[1] === 'retina' && !fast ? 'desktop' : m[1]
   if (PHONE) return 'phone'
   // Retina for a dense, wide screen with a mouse or trackpad only (index.html says the same): a tablet gets desktop
@@ -90,6 +91,8 @@ export const film = {
   level: 0, k: 1, decMs: 12, cap: 160, budget: LIGHT ? 100e6 : SET === 'retina' ? 480e6 : 300e6, bytes: 0, set: SET,
   /** Light frames received (light pass) */
   liteN: 0,
+  /** Download rate measured on the film pack (Mbit/s, 0 until measured; ?gate=1 path) */
+  rate: 0,
 }
 ;(window as unknown as { __film: typeof film }).__film = film
 ;(window as unknown as { __filmDbg: unknown }).__filmDbg = () => ({ bm: [...bm.keys()].sort((a, b) => a - b), dec: [...state].reduce((a, v, i) => (v === 1 ? a.concat(i) : a), [] as number[]), want: [...want.subarray(0, wantN)], pos: film.pos, shown: film.shown, def: film.def, jobs: jobs.size, busy: workers.map((w) => w.busy), sheets: sheets.map((x) => !!x), off: OFF, lite: { state: liteState, n: film.liteN, w: liteW, h: liteH, bm: bmLite.reduce((a, v) => a + v, 0) } })
