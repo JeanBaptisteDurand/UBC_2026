@@ -27,6 +27,13 @@ const Q = new URLSearchParams(location.search)
 // scripts); without it, each set's manifest.json is fetched
 try { (window as unknown as { __FILM_MAN?: unknown }).__FILM_MAN = JSON.parse(document.getElementById('film-man')?.textContent || 'null') } catch { /* manifest.json */ }
 export const PHONE = matchMedia('(max-width: 760px)').matches
+/** A phone, upright or sideways (a landscape phone gets the desktop frames, but a phone's memory and radio): the phone
+ *  decode budget, one worker, and a bounded network window */
+const LIGHT = PHONE || matchMedia('(pointer: coarse) and (max-height: 500px)').matches
+/** Phones fetch the film as the visitor moves through it: the frames within NET_WIN of the position (and the trip to the
+ *  first stop, and the shadow-track sheets), never the 2,500 frames at once; fewer on a data saver or a slow link */
+const CONN = (navigator as unknown as { connection?: { saveData?: boolean; effectiveType?: string } }).connection
+const NET_WIN = !LIGHT ? Infinity : CONN?.saveData || /(^|-)(2g|3g)$/.test(CONN?.effectiveType ?? '') ? 60 : 160
 const FIREFOX = /Firefox\//.test(navigator.userAgent)
 /** Off-thread mode: the first worker holds the canvas (OffscreenCanvas), keeps the frames and draws them; uploading
  *  frames to the GPU no longer goes through the main thread (?off=0: main-thread canvas) */
@@ -46,7 +53,8 @@ export function pickSet(): string {
   const m = src ? /\/film\/(\w+)\/f0000\./.exec(src) : null
   if (m) return m[1]
   if (PHONE) return 'phone'
-  return devicePixelRatio > 1.5 && innerWidth * devicePixelRatio > 2300 ? 'retina' : 'desktop'
+  // Retina for a dense, wide screen with a mouse or trackpad only (index.html says the same): a tablet gets desktop
+  return devicePixelRatio > 1.5 && innerWidth * devicePixelRatio > 2300 && matchMedia('(pointer: fine)').matches ? 'retina' : 'desktop'
 }
 export let SET = pickSet()
 const ROOT = `${import.meta.env.BASE_URL}film/`
@@ -71,7 +79,7 @@ export const film = {
   /** Geometry counter: changes when the frame shown, the framing or the zoom change */
   geo: 0,
   /** Fallback level (0: none; 2: one frame in k in flight; 3: Retina brought down to desktop; 4: shadow track in flight) */
-  level: 0, k: 1, decMs: 12, cap: 160, budget: PHONE ? 100e6 : SET === 'retina' ? 480e6 : 300e6, bytes: 0, set: SET,
+  level: 0, k: 1, decMs: 12, cap: 160, budget: LIGHT ? 100e6 : SET === 'retina' ? 480e6 : 300e6, bytes: 0, set: SET,
 }
 ;(window as unknown as { __film: typeof film }).__film = film
 ;(window as unknown as { __filmDbg: unknown }).__filmDbg = () => ({ bm: [...bm.keys()].sort((a, b) => a - b), dec: [...state].reduce((a, v, i) => (v === 1 ? a.concat(i) : a), [] as number[]), want: [...want.subarray(0, wantN)], pos: film.pos, shown: film.shown, def: film.def, jobs: jobs.size, busy: workers.map((w) => w.busy), sheets: sheets.map((x) => !!x), off: OFF })
@@ -120,7 +128,8 @@ function measure() {
   firstStopK = 0
   segs()
   const st = (window as unknown as { __stops?: () => { y: number }[] }).__stops?.()
-  if (st && st.length > 1) firstStopK = Math.min(m.n - 1, Math.ceil(posAt(st[1].y, 0)) + 2)
+  // the first trips are fetched first: with a held section, the first stop may not move the film at all
+  if (st && st.length > 1) firstStopK = Math.min(m.n - 1, Math.ceil(Math.max(...st.slice(1, 3).map((x) => posAt(x.y, 0)))) + 2)
 }
 // ---- The film advances at a steady screen speed between two stops ----
 // Frames are laid at constant screen motion (6 px): the frame index IS the on-screen motion. Between two scroll stops
@@ -238,7 +247,7 @@ function predict(): number {
 
 // ---- Decoding workers ----
 type Job = { k: number; sheet: boolean; half: boolean; wi: number }
-const NW = FIREFOX && Q.get('fw') !== '1' ? 0 : PHONE ? 1 : 2
+const NW = FIREFOX && Q.get('fw') !== '1' ? 0 : LIGHT ? 1 : 2
 const workers: { w: Worker; busy: number }[] = []
 const jobs = new Map<number, Job>()
 let jobId = 0, decN = 0, decSum = 0, t0dec = 0
@@ -403,8 +412,22 @@ function fetchOne(url: string, hi: boolean, ok: (b: Blob | null) => void) {
   const type = MIME[url.slice(url.lastIndexOf('.') + 1)] ?? ''
   fetch(url, { priority: hi ? 'high' : 'low' } as RequestInit).then((r) => (r.ok ? r.blob() : null)).then((b) => (b && type && b.type !== type ? b.slice(0, b.size, type) : b)).catch(() => null).then(ok)
 }
+/** Phones: the frames left far behind give their memory back (fetched again if the visitor returns there) */
+let prunedAt = -1e9
+function prune() {
+  if (!LIGHT || Math.abs(film.pos - prunedAt) < 40) return
+  prunedAt = film.pos
+  const keep = NET_WIN * 2.5
+  for (let k = 0; k < blobs.length; k++) {
+    if (blobs[k] && Math.abs(k - film.pos) > keep && state[k] !== 1 && !fetching.has(k)) { blobs[k] = null; nLoaded-- }
+  }
+  film.loaded = nLoaded
+}
 function pump() {
   const m = film.man; if (!m || allLoaded) return
+  // nothing is fetched for a hidden tab (the frames come back with it, through the next refresh)
+  if (document.hidden) return
+  prune()
   const sh = m.sh
   while (fetching.size + sheetFetch.size < MAXF) {
     // 1. The sheets (the first one first)
@@ -422,7 +445,7 @@ function pump() {
     }
     if (k < 0) {
       const c = Math.round(film.pos)
-      for (let d = 0; d < m.n && k < 0; d++) {
+      for (let d = 0; d < Math.min(m.n, NET_WIN) && k < 0; d++) {
         const a = c + d * dir, b = c - d * dir
         if (a >= 0 && a < m.n && !blobs[a] && !fetching.has(a)) k = a
         else if (b >= 0 && b < m.n && !blobs[b] && !fetching.has(b)) k = b

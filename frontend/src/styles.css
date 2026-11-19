@@ -869,3 +869,6 @@ html.veil-none body::after { display: none; }
 @media (max-width: 374px) { .hd-drawer .hd-drawer-x { display: flex; } }
 /* Phones: the replayed demo link of the hero reads at 15 px and is 44 px tall for the thumb */
 @media (max-width: 760px) { .hero-live:is(.hero *, .end *) { font-size: 15px; min-height: 44px; } }
+/* The footer's last line scrolls clear of the floating AskHive button (copilot.css: 48 px tall at 40 px from the edge,
+   44 px at 16 px on phones), which otherwise covered the credits at the end of every page */
+.foot { padding-bottom: calc(var(--launch-clear) + 16px + env(safe-area-inset-bottom)); }
