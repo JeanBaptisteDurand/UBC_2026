@@ -12,7 +12,7 @@ import {
   type ChatMessage, type Completion, type InferenceClient, type Receipt, type ReceiptVerification, type SessionKey,
 } from './sdk'
 import { arc, needFunds, requireSecure, waitOk, UserFacing } from './wallet'
-import { apiGet, type SessionRow } from './jbapi'
+import { apiGet, type SessionRow } from './archive-api'
 import { x } from './strings-x'
 
 export { maskAek, serializeReceipt }

@@ -7,7 +7,7 @@
 import { createSiweMessage } from 'viem/siwe'
 import { testnet } from './sdk'
 import { arc, UserFacing } from './wallet'
-import { apiGet, ApiError, type Nonce } from './jbapi'
+import { apiGet, ApiError, type Nonce } from './archive-api'
 import { x } from './strings-x'
 
 export type SignedAction =

@@ -18,7 +18,7 @@ import { RoomStage, type Plate } from './RoomStage'
 import { reveal, grow } from '../ui/motion'
 // the action of a sheet: the signed flows (wallet engine, SDK) load with the sheet, not with the page
 const UseBlock = lazy(() => import('./UseBlock'))
-import './vit-jb.css'
+import './vit-chapters.css'
 import './vitrine.css'
 
 /** the call and the room's hint as a touch screen and a stacked page read them (the shared table, i18n.ts, has the

@@ -8,7 +8,7 @@
 //   about 5.7 M gas); and its removal (retire).
 import type { Address, Hex } from 'viem'
 import { arc, waitOk, UserFacing } from './wallet'
-import { apiGet, apiPost, type Machine, type OperatorKey } from './jbapi'
+import { apiGet, apiPost, type Machine, type OperatorKey } from './archive-api'
 import { signAction, type Signed } from './siwe'
 import { isNetErr } from '../../data/endpoints'
 import { x } from './strings-x'

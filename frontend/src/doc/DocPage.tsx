@@ -12,7 +12,7 @@ import { C } from '../data/facts'
 import { useSettlementAuth, useOpenBounties } from './arc'
 import { DOC, type Chapter } from './content'
 import { useDt } from './strings'
-import './doc-jb.css'
+import './doc-chapters.css'
 import './doc.css'
 import { reveal } from '../ui/motion'
 

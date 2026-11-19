@@ -1,6 +1,6 @@
 /* Doc page. A stage the height of the window under the header: the reading column on the left (scrolls inside itself,
    reading blur, accent titles like Network's focus titles), the server and the chapter index on the right. The chapter
-   styles are in doc-jb.css (scoped to .doc-r); the overrides that fit them into the column are at the end. */
+   styles are in doc-chapters.css (scoped to .doc-r); the overrides that fit them into the column are at the end. */
 .doc { --docw: clamp(560px, 50vw, 860px); }
 .doc-stage { position: relative; height: calc(100svh - var(--hd)); min-height: 600px; display: grid; grid-template-columns: var(--docw) minmax(0, 1fr); overflow: hidden;
   background: radial-gradient(90% 80% at 78% 40%, rgb(30 44 78 / 0.35), transparent 70%), linear-gradient(to bottom, rgb(14 17 23), rgb(10 12 16)); }
