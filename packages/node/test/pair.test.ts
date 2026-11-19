@@ -47,9 +47,9 @@ function tty(args: string[], home: string) {
       }
     },
     async exit(ms = 20_000): Promise<number | null> {
-      const late = sleep(ms).then(() => "délai" as const);
+      const late = sleep(ms).then(() => "timeout" as const);
       const r = await Promise.race([exited, late]);
-      if (r === "délai") throw new Error(`la CLI ne s'est pas arrêtée ; écran :\n${screen()}`);
+      if (r === "timeout") throw new Error(`the CLI did not exit; screen:\n${screen()}`);
       return r;
     },
     stop: () => void child.kill(),
@@ -75,7 +75,7 @@ function cli(args: string[], home: string, o: { input?: string; env?: Record<str
 const home = () => join(mkdtempSync(join(tmpdir(), "archive-node-test-")), ".archive");
 const INTRUDER = "0x1111111111111111111111111111111111111111";
 
-test("terminal : une Entrée tapée pendant l'attente ne compte pas ; « y » après la question garde la clé (0600, masquée)", { skip: NO_PTY }, async () => {
+test("terminal: an Enter typed while waiting does not count; \"y\" after the question keeps the key (0600, masked)", { skip: NO_PTY }, async () => {
   const api = await startMockApi({ poll: ["pending", "pending", "approved"] });
   const h = home();
   const t = tty(["pair", "--api", api.url], h);
@@ -117,7 +117,7 @@ test("terminal : une Entrée tapée pendant l'attente ne compte pas ; « y » ap
   }
 });
 
-test("terminal : « y » tapé d'avance ne répond pas à la question ; l'intrus est refusé sur « n », sa clé révoquée", { skip: NO_PTY }, async () => {
+test("terminal: a \"y\" typed ahead does not answer the question; the intruder is refused on \"n\", its key revoked", { skip: NO_PTY }, async () => {
   const api = await startMockApi({ operator: INTRUDER, poll: ["pending", "pending", "approved"] });
   const h = home();
   const t = tty(["pair", "--api", api.url], h);
@@ -143,7 +143,7 @@ test("terminal : « y » tapé d'avance ne répond pas à la question ; l'intrus
   }
 });
 
-test("terminal : Entrée seule, « no », « non » ou réponse quelconque = non ; Ctrl+D = non ; Ctrl+C = annulé (130) ; la clé est révoquée", { skip: NO_PTY }, async () => {
+test("terminal: Enter alone, \"no\", \"non\" or any other answer = no; Ctrl+D = no; Ctrl+C = cancelled (130); the key is revoked", { skip: NO_PTY }, async () => {
   for (const [keys, code, re] of [
     ["\r", 1, /Pairing refused\./],
     ["no\r", 1, /Pairing refused\./],
@@ -169,7 +169,7 @@ test("terminal : Entrée seule, « no », « non » ou réponse quelconque = non
   }
 });
 
-test("terminal : « YES » et, pour les habitués, « oui » gardent la clé", { skip: NO_PTY }, async () => {
+test("terminal: \"YES\" and the French \"oui\" keep the key", { skip: NO_PTY }, async () => {
   for (const keys of ["YES\r", "oui\r"]) {
     const api = await startMockApi();
     const h = home();
@@ -188,7 +188,7 @@ test("terminal : « YES » et, pour les habitués, « oui » gardent la clé", {
   }
 });
 
-test("hors terminal (tube, script, « echo y | ») : la réponse n'est jamais lue ; --operator ou --yes exigé avant tout code", async () => {
+test("no terminal (pipe, script, \"echo y |\"): the answer is never read; --operator or --yes required before any code", async () => {
   for (const input of ["y\n", "yes\n", "o\n", "\n", ""]) {
     const api = await startMockApi();
     const h = home();
@@ -206,7 +206,7 @@ test("hors terminal (tube, script, « echo y | ») : la réponse n'est jamais lu
   }
 });
 
-test("automatisation : --operator n'accepte que ce compte ; --yes accepte sans question", async () => {
+test("automation: --operator accepts only that account; --yes accepts without a question", async () => {
   // le bon compte (casse indifférente) : accepté sans question
   let api = await startMockApi();
   let h = home();
@@ -250,7 +250,7 @@ test("automatisation : --operator n'accepte que ce compte ; --yes accepte sans q
   assert.match(bad.stderr, /--operator: invalid address/);
 });
 
-test("l'API ne dit pas quel compte a approuvé : clé refusée par prudence", async () => {
+test("the API does not say which account approved: the key is refused as a precaution", async () => {
   const api = await startMockApi({ operator: null });
   const h = home();
   try {
@@ -264,7 +264,7 @@ test("l'API ne dit pas quel compte a approuvé : clé refusée par prudence", as
   }
 });
 
-test("code expiré, code déjà servi, demande inconnue", async () => {
+test("expired code, code already used, unknown request", async () => {
   for (const [poll, re] of [
     [["pending", "expired"], /expired/],
     [["consumed"], /already used/],
@@ -281,7 +281,7 @@ test("code expiré, code déjà servi, demande inconnue", async () => {
   }
 });
 
-test("API sans appairage (404) ou injoignable : message clair, pas de pile", async () => {
+test("API without pairing (404) or unreachable: a clear message, no stack trace", async () => {
   const api = await startMockApi({ startMissing: true });
   try {
     const r = await cli(["pair", "--api", api.url, "--yes"], home());
@@ -319,7 +319,7 @@ test("API sans appairage (404) ou injoignable : message clair, pas de pile", asy
   assert.ok(!/at .*\.ts:\d+/.test(down.stderr), "pas de pile d'appels");
 });
 
-test("up refuse une machine sans TDX sans --demo, et sans appairage ; la clé ne passe jamais en argument", async () => {
+test("up refuses a machine without TDX unless --demo, and without pairing; the key is never passed as an argument", async () => {
   if (process.platform === "linux") return; // une machine de test Linux peut avoir TDX
   const h = home();
   const noTdx = await cli(["up"], h);
@@ -355,7 +355,7 @@ test("up refuse une machine sans TDX sans --demo, et sans appairage ; la clé ne
   assert.match(badEnv.stderr, /ARCHIVE_KEY: invalid operator key/);
 });
 
-test("un fichier de configuration abîmé donne une consigne, pas une pile", async () => {
+test("a damaged configuration file gives an instruction, not a stack trace", async () => {
   const h = home();
   const r0 = await cli(["--version"], h);
   assert.equal(r0.code, 0);
@@ -366,7 +366,7 @@ test("un fichier de configuration abîmé donne une consigne, pas une pile", asy
   assert.match(r.stderr, /unreadable: delete it/);
 });
 
-test("aide : --yes et --operator documentés pour pair, --key-file et ARCHIVE_KEY pour up", async () => {
+test("help: --yes and --operator documented for pair, --key-file and ARCHIVE_KEY for up", async () => {
   const pair = await cli(["pair", "--help"], home());
   assert.equal(pair.code, 0);
   assert.match(pair.stdout, /HIVE-XXXX-XXXX/);

@@ -1,5 +1,5 @@
-/** mock-api.ts — une fausse API ArcHive (appairage, refus d'appairage, battements de cœur) pour les tests. Ses refus ont
- *  la forme de ceux de la vraie API : { error (français), code (stable), params? }. */
+/** mock-api.ts — a test double of the ArcHive API (pairing, pairing rejection, heartbeats). Its refusals have the shape
+ *  of the real API's: { error (text), code (stable), params? }. */
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 
@@ -79,7 +79,7 @@ export async function startMockApi(o: MockOptions = {}): Promise<MockApi> {
   return state;
 }
 
-// lancement direct (essais à la main) : tsx test/mock-api.ts [approved|expired|consumed|start404]
+// direct run (manual testing): tsx test/mock-api.ts [approved|expired|consumed|start404]
 if (process.argv[1]?.endsWith("mock-api.ts")) {
   const scenario = process.argv[2] ?? "approved";
   const api = await startMockApi(
