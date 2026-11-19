@@ -32,7 +32,7 @@ function rep(byteHex: string, n: number): Hex {
   return ("0x" + byteHex.repeat(n)) as Hex;
 }
 
-// --- vérité-terrain calculée avec `cast` (Foundry 1.4.1), l'encodeur ABI de Solidity ---
+// --- ground truth computed with `cast` (Foundry 1.4.1), Solidity's ABI encoder ---
 const REG = "0x0000000000000000000000000000000000000001" as Address;
 const OP = "0x0000000000000000000000000000000000000002" as Address;
 const SG = "0x0000000000000000000000000000000000000003" as Address;
@@ -40,8 +40,8 @@ const X = rep("11", 32);
 const RD0_GROUND = "0xcc91a62ef1a78b7d2dc3dcf5943e0074e60aa1bc0a1db24745c835b9093bcd15";
 const WL_GROUND = "0x2c536fc29eaa072a966d04b88d837cf9671844ca034e25a4a1377d1556f4cbcc";
 
-describe("binding (cross-langage avec Solidity)", () => {
-  it("REPORTDATA[0:32] == vérité-terrain cast", () => {
+describe("binding (cross-language with Solidity)", () => {
+  it("REPORTDATA[0:32] == cast ground truth", () => {
     const rd0 = computeReportData0({
       chainId: 5042002n,
       registry: REG,
@@ -53,7 +53,7 @@ describe("binding (cross-langage avec Solidity)", () => {
     expect(rd0.toLowerCase()).toBe(RD0_GROUND);
   });
 
-  it("workloadId == vérité-terrain cast", () => {
+  it("workloadId == cast ground truth", () => {
     const wl = computeWorkloadId({
       mrtd: rep("aa", 48),
       rtmr0: rep("b0", 48),
@@ -68,7 +68,7 @@ describe("binding (cross-langage avec Solidity)", () => {
   });
 });
 
-describe("eip712 (le digest du kit == la méthode des contrats)", () => {
+describe("eip712 (the kit's digest == the contracts' method)", () => {
   const dom = { chainId: 5042002, verifyingContract: "0x00000000000000000000000000000000000000AA" as Address };
   const receipt: Receipt = {
     productId: 1n,
@@ -84,7 +84,7 @@ describe("eip712 (le digest du kit == la méthode des contrats)", () => {
     anchorBlock: 999n,
   };
 
-  it("hashTypedData == keccak(0x1901 ‖ domainSeparator ‖ structHash) à la Solidity", () => {
+  it("hashTypedData == keccak(0x1901 ‖ domainSeparator ‖ structHash), as in Solidity", () => {
     const DOMAIN_TYPEHASH = keccak256(
       toBytes("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
     );
@@ -142,14 +142,14 @@ describe("eip712 (le digest du kit == la méthode des contrats)", () => {
     expect(viemDigest).toBe(manual);
   });
 
-  it("signe et recouvre un reçu", async () => {
+  it("signs and recovers a receipt", async () => {
     const keys = generateEnclaveKeys();
     const sig = await signReceipt(keys.signerPrivateKey, dom, receipt);
     const rec = await recoverReceiptSigner(dom, receipt, sig);
     expect(rec.toLowerCase()).toBe(keys.signer.toLowerCase());
   });
 
-  it("signe et recouvre une réclamation", async () => {
+  it("signs and recovers a claim", async () => {
     const keys = generateEnclaveKeys();
     const claim: Claim = {
       bountyId: 1n,
@@ -170,22 +170,22 @@ describe("eip712 (le digest du kit == la méthode des contrats)", () => {
 });
 
 describe("keys + hpke", () => {
-  it("deux démarrages => deux paires de clés différentes", () => {
+  it("two start-ups => two different key pairs", () => {
     const a = generateEnclaveKeys();
     const b = generateEnclaveKeys();
     expect(a.signer).not.toBe(b.signer);
     expect(a.x25519PublicKey).not.toBe(b.x25519PublicKey);
   });
 
-  it("HPKE : seal puis open rend le clair", async () => {
+  it("HPKE: seal then open returns the plaintext", async () => {
     const keys = generateEnclaveKeys();
-    const msg = new TextEncoder().encode("requête d'inférence chiffrée");
+    const msg = new TextEncoder().encode("encrypted inference request");
     const sealed = await seal(toBytes(keys.x25519PublicKey), msg);
     const back = await open(keys.x25519PrivateKey, sealed.enc, sealed.ciphertext);
-    expect(new TextDecoder().decode(back)).toBe("requête d'inférence chiffrée");
+    expect(new TextDecoder().decode(back)).toBe("encrypted inference request");
   });
 
-  it("HPKE : mauvaise clé => échec de déchiffrement", async () => {
+  it("HPKE: wrong key => decryption fails", async () => {
     const a = generateEnclaveKeys();
     const b = generateEnclaveKeys();
     const sealed = await seal(toBytes(a.x25519PublicKey), new Uint8Array([1, 2, 3]));
@@ -194,7 +194,7 @@ describe("keys + hpke", () => {
 });
 
 describe("EnclaveKit.attest (mock local)", () => {
-  it("produit un quote mock dont le REPORTDATA lie les clés et l'ancre", async () => {
+  it("produces a mock quote whose REPORTDATA binds the keys and the anchor", async () => {
     const kit = new EnclaveKit({ productId: 1n, chainId: 5042002, registry: REG, mockBlockHash: true });
     const out = await kit.attest({ operator: OP, anchorR: 999n });
     expect(out.mock).toBe(true);
@@ -205,7 +205,7 @@ describe("EnclaveKit.attest (mock local)", () => {
       { chainId: 5042002n, registry: REG, productId: 1n, operator: OP, signer: kit.keys.signer, x25519: kit.keys.x25519PublicKey },
       anchorHash,
     );
-    // le quote mock = concat(marker(12o) ‖ reportData(64o), keccak(...)) ; on relit le reportData
+    // the mock quote = concat(marker(12 bytes) ‖ reportData(64 bytes), keccak(...)); the reportData is read back
     const embedded = ("0x" + out.quote.slice(2 + 24, 2 + 24 + 128)) as Hex;
     expect(embedded.toLowerCase()).toBe(expectedReportData.toLowerCase());
     expect(out.quote).toBe(getQuoteMock(expectedReportData).quote);

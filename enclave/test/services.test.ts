@@ -40,7 +40,7 @@ class FakeReader implements SessionReader {
 
 class FakeLlama implements LlamaClient {
   async infer() {
-    return { text: "réponse", tokensIn: 10, tokensOut: 20 };
+    return { text: "answer", tokensIn: 10, tokensOut: 20 };
   }
 }
 
@@ -50,8 +50,8 @@ class FakeBlocks implements BlockSource {
   }
 }
 
-describe("InferenceGateway (O2)", () => {
-  /** v2 bis : session LIÉE à l'enclave `kit` (seule celle-ci la sert), échéance lointaine. */
+describe("InferenceGateway (private inference)", () => {
+  /** A session bound to the enclave `kit` (only that enclave serves it), with a distant expiry. */
   function session(kit: EnclaveKit, deposit: bigint, price: bigint): SessionView {
     return {
       owner: HOLDER,
@@ -61,13 +61,13 @@ describe("InferenceGateway (O2)", () => {
       deposit,
       price,
       paidUnits: 0n,
-      expiresAt: 4_000_000_000n, // an 2096
+      expiresAt: 4_000_000_000n, // year 2096
       closed: false,
       enclave: kit.keys.signer,
     };
   }
 
-  it("100 requêtes => reçus cumulatifs croissants, chacun signé par l'enclave", async () => {
+  it("100 requests => increasing cumulative receipts, each signed by the enclave", async () => {
     const kit = newKit();
     const gw = new InferenceGateway(kit, { sessionPay: SESSIONPAY, modelHash: MODEL }, new FakeReader(session(kit, 10_000_000n, 1n)), new FakeLlama(), new FakeBlocks());
     let prev = 0n;
@@ -84,10 +84,10 @@ describe("InferenceGateway (O2)", () => {
     expect(prev).toBe(3000n);
   });
 
-  it("session vide => 402 insufficient_session_balance", async () => {
+  it("empty session => 402 insufficient_session_balance", async () => {
     const kit = newKit();
     const gw = new InferenceGateway(kit, { sessionPay: SESSIONPAY, modelHash: MODEL }, new FakeReader(session(kit, 100n, 1n)), new FakeLlama(), new FakeBlocks());
-    // 30 unités/req, prix 1, dépôt 100 : req 1,2,3 passent (30,60,90), req 4 (120) -> 402
+    // 30 units/req, price 1, deposit 100: req 1,2,3 pass (30,60,90), req 4 (120) -> 402
     for (let i = 1n; i <= 3n; i++) expect((await gw.handle(1n, i, "p", {})).status).toBe(200);
     const res = await gw.handle(1n, 4n, "p", {});
     expect(res.status).toBe(402);
@@ -95,20 +95,20 @@ describe("InferenceGateway (O2)", () => {
   });
 });
 
-describe("predicate (O3)", () => {
+describe("predicate (Sealed Bounty)", () => {
   const pred: Predicate = {
     combine: "OR",
     clauses: [{ type: "ERC20_DROP", token: TOKEN, holder: HOLDER, min: "1000000" }],
   };
 
-  it("canonicalisation indépendante de l'ordre des clés + hash stable", () => {
+  it("canonicalization independent of key order + stable hash", () => {
     const a = canonicalize(pred);
     const reordered = { clauses: pred.clauses, combine: pred.combine } as Predicate;
     expect(canonicalize(reordered)).toBe(a);
     expect(predicateHash(pred)).toBe(predicateHash(reordered));
   });
 
-  it("évalue une chute de solde", () => {
+  it("evaluates a balance drop", () => {
     const ctx: EvalContext = {
       erc20Drop: () => 5_000_000n,
       nativeDrop: () => 0n,
@@ -121,13 +121,13 @@ describe("predicate (O3)", () => {
     expect(r.loss).toBe(5_000_000n);
   });
 
-  it("pickTier choisit le plus haut palier atteint", () => {
+  it("pickTier picks the highest tier reached", () => {
     expect(pickTier([1_000_000n, 10_000_000n, 100_000_000n], 50_000_000n)).toBe(1);
     expect(pickTier([1_000_000n], 10n)).toBe(-1);
   });
 });
 
-describe("BountyService (O3)", () => {
+describe("BountyService (Sealed Bounty)", () => {
   const pred: Predicate = {
     combine: "OR",
     clauses: [{ type: "ERC20_DROP", token: TOKEN, holder: HOLDER, min: "1000000" }],
@@ -141,7 +141,7 @@ describe("BountyService (O3)", () => {
   }
   class FakeCipher implements ProtocolCipher {
     async recompute(bundle: { cP: Hex }): Promise<Hex> {
-      return bundle.cP; // reproductible (bouchon)
+      return bundle.cP; // reproducible (stub)
     }
   }
   class FakeFork implements ForkRunner {
@@ -179,7 +179,7 @@ describe("BountyService (O3)", () => {
     return seal(toBytes(kit.keys.x25519PublicKey), bytes);
   }
 
-  it("soumission valide => réclamation prouvée et signée par l'enclave", async () => {
+  it("valid submission => claim proven and signed by the enclave", async () => {
     const kit = newKit();
     const cP = ("0x" + "cc".repeat(40)) as Hex;
     const reader = new FakeBountyReader({ predicateHash: predicateHash(pred), protocolX25519: ("0x" + "00".repeat(32)) as Hex, tierMinLoss: [1_000_000n, 10_000_000n], deadline: 9_000_000n });
@@ -190,14 +190,14 @@ describe("BountyService (O3)", () => {
     expect(res.status).toBe("proven");
     if (res.status === "proven") {
       expect(res.claim.loss).toBe(5_000_000n);
-      expect(res.claim.tier).toBe(0); // 5e6 >= 1e6 mais < 10e6
+      expect(res.claim.tier).toBe(0); // 5e6 >= 1e6 but < 10e6
       expect(res.claim.blockN).toBe(1000n); // 1002 - 2
       const rec = await recoverClaimSigner({ chainId: CHAIN, verifyingContract: SEALED }, res.claim, res.signature);
       expect(rec.toLowerCase()).toBe(kit.keys.signer.toLowerCase());
     }
   });
 
-  it("prédicat mal apparié => non prouvé", async () => {
+  it("mismatched predicate => not proven", async () => {
     const kit = newKit();
     const reader = new FakeBountyReader({ predicateHash: ("0x" + "99".repeat(32)) as Hex, protocolX25519: ("0x" + "00".repeat(32)) as Hex, tierMinLoss: [1_000_000n], deadline: 9_000_000n });
     const svc = new BountyService(kit, { sealedBounty: SEALED }, reader, new FakeCipher(), new FakeFork(), blocks, () => 1_000_000n);

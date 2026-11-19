@@ -16,21 +16,21 @@ const USDC = "0x3600000000000000000000000000000000000000" as Address;
 const SETTLER = "0x00000000000000000000000000000000000000bb" as Address;
 const CHAIN = 5042002;
 
-describe("deterministic-seal (cP reproductible)", () => {
-  it("même (clé, message, r) => même cP, et le protocole déchiffre sans r", () => {
-    const proto = generateEnclaveKeys(); // sert de clé protocole X25519
+describe("deterministic-seal (reproducible cP)", () => {
+  it("same (key, message, r) => same cP, and the protocol decrypts without r", () => {
+    const proto = generateEnclaveKeys(); // serves as the protocol's X25519 key
     const msg = new TextEncoder().encode("bundle d'exploit");
     const r = new Uint8Array(32).fill(7);
 
     const cP1 = deterministicSeal(toBytes(proto.x25519PublicKey), msg, r);
     const cP2 = deterministicSeal(toBytes(proto.x25519PublicKey), msg, r);
-    expect(cP1).toBe(cP2); // reproductible : deux enclaves signent le même hash
+    expect(cP1).toBe(cP2); // reproducible: two enclaves sign the same hash
 
     const back = deterministicOpen(proto.x25519PrivateKey, cP1);
     expect(new TextDecoder().decode(back)).toBe("bundle d'exploit");
   });
 
-  it("r différent => cP différent ; mauvaise clé => échec", () => {
+  it("different r => different cP; wrong key => failure", () => {
     const proto = generateEnclaveKeys();
     const other = generateEnclaveKeys();
     const msg = new Uint8Array([1, 2, 3]);
@@ -41,7 +41,7 @@ describe("deterministic-seal (cP reproductible)", () => {
   });
 });
 
-describe("x402 (couche HTTP)", () => {
+describe("x402 (HTTP layer)", () => {
   const payerPk = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d" as Hex;
   const account = privateKeyToAccount(payerPk);
 
@@ -57,7 +57,7 @@ describe("x402 (couche HTTP)", () => {
     }).accepts[0]!;
   }
 
-  it("challenge -> X-PAYMENT encode/decode -> facilitateur vérifie la signature EIP-3009", async () => {
+  it("challenge -> X-PAYMENT encode/decode -> the facilitator verifies the EIP-3009 signature", async () => {
     const r = req();
     const nonce = ("0x" + "7a".repeat(32)) as Hex;
     const validBefore = 2_000_000_000n;
@@ -77,7 +77,7 @@ describe("x402 (couche HTTP)", () => {
     expect(v.ok).toBe(true);
   });
 
-  it("montant insuffisant => refus", async () => {
+  it("insufficient amount => refused", async () => {
     const r = req();
     const nonce = ("0x" + "7b".repeat(32)) as Hex;
     const payload = await buildPayerAuthorization(
@@ -88,14 +88,14 @@ describe("x402 (couche HTTP)", () => {
       nonce,
       2_000_000_000n,
     );
-    // le service exige plus que ce que le payeur a signé
+    // the service asks for more than the payer signed
     const stricter = { ...r, maxAmountRequired: "2000000" };
     const v = await facilitatorVerify(payload, stricter, CHAIN, 1_000_000_000n);
     expect(v.ok).toBe(false);
     expect(v.reason).toBe("montant");
   });
 
-  it("signataire != from => refus", async () => {
+  it("signer != from => refused", async () => {
     const r = req();
     const nonce = ("0x" + "7c".repeat(32)) as Hex;
     const payload = await buildPayerAuthorization(
