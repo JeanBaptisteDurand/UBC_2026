@@ -64,6 +64,10 @@ export function showGate(onEnter: () => void) {
   const root = document.getElementById('root')
   if (root) document.body.insertBefore(el, root); else document.body.appendChild(el)
   document.body.appendChild(pan)
+  // the gate is the loading state: the page-transition veil (ui/veil.ts, lifted on the first film frame otherwise)
+  // lifts now, so the first frame (the poster), the page and the loading panel show at once
+  const h = document.documentElement
+  if (!h.classList.contains('veil-off')) { h.classList.remove('veil-on'); h.classList.add('veil-off') }
 }
 export const gateShown = () => !!el
 /** Bytes so far and in all, the ETA in seconds (-1: not known yet), and whether the way in is offered */

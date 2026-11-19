@@ -76,7 +76,9 @@ html.wc .lm-plate, html.wc .lm-led { will-change: transform; }
    page; the scroll is locked while it shows */
 html.film-lock { overflow: hidden; scrollbar-gutter: stable; }
 #film-gate { position: fixed; inset: 0; z-index: 1; background: rgb(0 0 0 / 0.4); pointer-events: none; transition: opacity 200ms ease; }
-#film-gate-panel { position: fixed; left: 50%; bottom: calc(48px + env(safe-area-inset-bottom)); z-index: 45; width: min(380px, calc(100vw - 32px)); transform: translateX(-50%); padding: 16px; background: rgb(var(--bg-c) / 0.72); touch-action: none; transition: opacity 200ms ease; }
+#film-gate-panel { position: fixed; left: 50%; bottom: calc(48px + env(safe-area-inset-bottom)); z-index: 45; width: min(380px, calc(100vw - 32px)); transform: translateX(-50%); padding: 16px; background: rgb(var(--bg-c) / 0.88); touch-action: none; transition: opacity 200ms ease; }
+/* phones: the hero text fills the lower half, the panel sits in the film above it */
+@media (max-width: 760px) { #film-gate-panel { bottom: auto; top: calc(var(--hd) + 16px); } }
 #film-gate.fg-out, #film-gate-panel.fg-out { opacity: 0; pointer-events: none; }
 #film-gate-panel .fg-in { display: grid; gap: 14px; justify-items: start; color: var(--ink); }
 #film-gate-panel .fg-t { margin: 0; font: 500 15px/1.3 var(--sans); letter-spacing: 0.01em; }
