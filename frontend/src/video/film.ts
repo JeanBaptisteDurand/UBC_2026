@@ -1051,7 +1051,7 @@ function gotBmp(k: number, bmp: ImageBitmap) {
 }
 // ---- The gate: what it waits for, then open ----
 let gateT0 = 0, gateUiAt = 0, copDone = false, gateResolve: ((ok: boolean) => void) | null = null
-let restAt = 0, dK = -2, dB = -2, dA = -1, lastMetaPos = NaN
+let restAt = 0, dK = -2, dB = -2, dA = -1, lastMetaPos = NaN, tripWas = false, tripEnd = 0
 /** The first motion frames: every frame wanted at the position decoded (the ring and the way to the next stop), or
  *  the first 48 of them one second after the pack */
 function ringDecoded(now: number): boolean {
@@ -1122,7 +1122,10 @@ function tickM(dt: number, firstDraw: () => void) {
   if (dp > 0.02) restK = -1
   const moved = dp > 0.02 || !!step.trip
   if (moved) restAt = now
-  const rest = !moved && now - restAt >= 150
+  // a stop trip that has ended is a rest at once (its end is the stop); a free scroll counts as resting after 150 ms
+  if (tripWas && !step.trip) tripEnd = now
+  tripWas = !!step.trip
+  const rest = !moved && (now - restAt >= 150 || (tripEnd > 0 && now - tripEnd < 400))
   const stops = M.gate === 'stops'
   // the sharp layer goes the moment the image moves, in the same refresh as the motion draw
   if (moved && sharpOn && !stops) showSharp(false, false)
