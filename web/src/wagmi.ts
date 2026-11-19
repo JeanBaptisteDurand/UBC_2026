@@ -7,13 +7,13 @@ import { testSignerToken, makeTestProvider, TEST_ICON } from "./testWallet";
 import { safeStorage } from "./safeStorage";
 import { t } from "./i18n";
 
-// RainbowKit : MetaMask, Rainbow, Coinbase, WalletConnect, et tout wallet injecté.
-// WalletConnect exige un projectId réel (sinon seuls les wallets injectés marchent) : VITE_WC_PROJECT_ID.
+// RainbowKit: MetaMask, Rainbow, Coinbase, WalletConnect, and any injected wallet.
+// WalletConnect requires a real projectId (otherwise only injected wallets work): VITE_WC_PROJECT_ID.
 const projectId = (import.meta as any).env?.VITE_WC_PROJECT_ID ?? "archive_demo_project_id";
 
-// MODE TEST (Arc testnet) : visible seulement avec un jeton (voir testWallet.ts).
-// Le nom du wallet de test est lu une fois, dans la langue du chargement de la page (la config wagmi est créée une
-// fois, et RainbowKit recopie les noms des wallets à sa création).
+// TEST MODE (Arc testnet): visible only with a token (see testWallet.ts).
+// The test wallet's name is read once, in the language of the page load (the wagmi config is created once, and
+// RainbowKit copies the wallet names when it is created).
 const token = typeof window !== "undefined" ? testSignerToken() : null;
 const archiveTestWallet = (): Wallet => ({
   id: "archive-test-signer",
@@ -29,22 +29,22 @@ const archiveTestWallet = (): Wallet => ({
 
 export const isTestMode = !!token;
 
-/** Le portefeuille générique du navigateur (« Browser Wallet » de RainbowKit, montré quand aucun portefeuille n'est
- *  reconnu) : nommé dans la langue du chargement, comme le portefeuille de test (« Portefeuille du navigateur » sur le
- *  site français, où le reste de la fenêtre dit « portefeuille »). */
+/** The browser's generic wallet (RainbowKit's "Browser Wallet", shown when no wallet is recognised): named in the
+ *  language of the page load, like the test wallet (« Portefeuille du navigateur » on the French site, where the rest of
+ *  the window says « portefeuille »). */
 const browserWallet = (): Wallet => ({ ...injectedWallet(), name: t("wallet.browser.name") });
 
-/** Noms des groupes de la fenêtre de connexion. « Recommended » est l'un des noms que RainbowKit traduit lui-même dans
- *  la langue de son `locale` (il suit donc la langue du site sans rechargement : « Recommandé » en français) ; « Test
- *  (Arc testnet) » se lit pareil dans les deux langues. Un nom traduit ici serait figé à la création de la config. */
+/** Group names of the connect window. "Recommended" is one of the names RainbowKit translates itself into its `locale`
+ *  (so it follows the site's language without a reload: « Recommandé » in French); "Test (Arc testnet)" reads the same
+ *  in both languages. A name translated here would be frozen when the config is created. */
 const GROUP_RECOMMENDED = "Recommended";
 const GROUP_TEST = "Test (Arc testnet)";
 
-/** 19/11 (r2) : le connecteur WalletConnect de wagmi se préparait dès la création de la config (setup → getProvider) : il
- *  chargeait son SDK (≈ 230 ko compressés) et appelait les serveurs de WalletConnect à l'ouverture de chaque page, avant
- *  que la console soit utilisable, même pour un visiteur qui ne se connecte jamais. Il ne se prépare plus qu'au moment de
- *  se connecter (connect() branche lui-même ce que setup branchait) ou de reconnecter le portefeuille utilisé la dernière
- *  fois (main.tsx). Les portefeuilles injectés (extension) et Coinbase ne changent pas. */
+/** wagmi's WalletConnect connector is prepared only when it is needed: preparing it when the config is created
+ *  (setup → getProvider) would load its SDK (≈ 230 kB compressed) and call WalletConnect's servers on every page load,
+ *  before the console is usable, even for a visitor who never connects. It is prepared at connect time (connect()
+ *  wires what setup would) or to reconnect the wallet used last time (main.tsx). Injected wallets (extensions) and
+ *  Coinbase are unchanged. */
 const lazyWalletConnect = <W extends (...a: any[]) => Wallet>(w: W): W => ((...a: any[]) => {
   const wallet = w(...a);
   return {
@@ -65,7 +65,7 @@ export const config = getDefaultConfig({
   chains: [arcTestnet],
   transports: { [arcTestnet.id]: http() },
   ssr: false,
-  // stockage protégé : un navigateur qui bloque les données du site ne fait plus tomber la page (safeStorage.ts)
+  // guarded storage: a browser that blocks site data cannot bring the page down (safeStorage.ts)
   storage: createStorage({ storage: safeStorage }),
   wallets: [
     { groupName: GROUP_RECOMMENDED, wallets: [lazyWalletConnect(metaMaskWallet), lazyWalletConnect(rainbowWallet), coinbaseWallet, lazyWalletConnect(walletConnectWallet), browserWallet] },

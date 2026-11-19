@@ -1,13 +1,13 @@
-/** safeStorage.ts — le stockage du navigateur, sans jamais faire tomber la page.
- *  Quand le navigateur bloque les données du site (Chrome « ne pas autoriser les sites à enregistrer des données »,
- *  Safari avec tous les cookies bloqués), le simple accès à window.localStorage lève une SecurityError : wagmi
- *  (createConfig) et RainbowKit (effet au montage) y touchent sans try/catch, et la page restait blanche.
- *  - `safeStorage` : un Storage dont chaque accès est protégé (try/catch) ; ce qui est écrit reste aussi en mémoire,
- *    pour la durée de la page, si le navigateur refuse de le garder (bloqué, quota plein).
- *  - à l'import : si window.localStorage est illisible, il est remplacé par `safeStorage` (en mémoire seulement), pour
- *    les bibliothèques qui l'appellent directement. Ce module doit être importé AVANT wagmi et RainbowKit (main.tsx). */
+/** safeStorage.ts — the browser's storage, without ever bringing the page down.
+ *  When the browser blocks site data (Chrome's "don't allow sites to save data", Safari with all cookies blocked), merely
+ *  reading window.localStorage throws a SecurityError: wagmi (createConfig) and RainbowKit (an effect on mount) touch it
+ *  without try/catch, which would leave the page blank.
+ *  - `safeStorage`: a Storage whose every access is guarded (try/catch); what is written also stays in memory for the
+ *    life of the page if the browser refuses to keep it (blocked, quota full).
+ *  - on import: if window.localStorage is unreadable, it is replaced by `safeStorage` (memory only), for the libraries
+ *    that call it directly. This module must be imported BEFORE wagmi and RainbowKit (main.tsx). */
 
-/** le localStorage du navigateur, lu UNE fois ici (null s'il est bloqué) ; jamais relu après le remplacement */
+/** the browser's localStorage, read ONCE here (null if blocked); never read again after the replacement */
 const real: Storage | null = (() => {
   try {
     return typeof window !== "undefined" ? window.localStorage ?? null : null;
@@ -16,7 +16,7 @@ const real: Storage | null = (() => {
   }
 })();
 
-/** ce que la page a écrit (null : effacé) ; prioritaire sur le navigateur, qui a pu refuser l'écriture */
+/** what the page wrote (null: removed); takes priority over the browser, which may have refused the write */
 const mem = new Map<string, string | null>();
 
 export const safeStorage: Storage = {
@@ -33,7 +33,7 @@ export const safeStorage: Storage = {
     try {
       real?.setItem(key, String(value));
     } catch {
-      /* bloqué ou plein : la valeur vit en mémoire le temps de la page */
+      /* blocked or full: the value lives in memory for the life of the page */
     }
   },
   removeItem(key: string): void {
@@ -41,7 +41,7 @@ export const safeStorage: Storage = {
     try {
       real?.removeItem(key);
     } catch {
-      /* rien à effacer côté navigateur */
+      /* nothing to remove on the browser side */
     }
   },
   clear(): void {
@@ -60,7 +60,7 @@ export const safeStorage: Storage = {
   },
 };
 
-/** les clés visibles : celles du navigateur (s'il répond) et celles écrites ici, moins les effacées */
+/** the visible keys: the browser's (if it answers) and those written here, minus the removed ones */
 function keys(): string[] {
   const out = new Set<string>();
   try {
@@ -72,7 +72,7 @@ function keys(): string[] {
   return [...out];
 }
 
-/** le navigateur accepte-t-il d'écrire ? (quota plein, mode privé d'anciens Safari : la lecture marche, l'écriture lève) */
+/** does the browser accept writes? (quota full, private mode of older Safari: reads work, writes throw) */
 function writable(s: Storage): boolean {
   try {
     const k = "archive.storage-probe";
@@ -84,15 +84,15 @@ function writable(s: Storage): boolean {
   }
 }
 
-/** Remplace window.localStorage s'il est illisible ou refuse d'écrire (une seule fois, à l'import) ; `safeStorage` lit
- *  alors encore le navigateur quand il répond. Rend vrai si le remplacement a eu lieu. */
+/** Replaces window.localStorage if it is unreadable or refuses writes (once, on import); `safeStorage` then still reads
+ *  the browser when it answers. Returns true if the replacement happened. */
 export function guardLocalStorage(): boolean {
   if (typeof window === "undefined" || (real && writable(real))) return false;
   try {
     Object.defineProperty(window, "localStorage", { configurable: true, enumerable: true, get: () => safeStorage });
     return true;
   } catch {
-    return false; // propriété non configurable : wagmi passe quand même par safeStorage (wagmi.ts)
+    return false; // non-configurable property: wagmi still goes through safeStorage (wagmi.ts)
   }
 }
 

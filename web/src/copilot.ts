@@ -1,40 +1,40 @@
-/** copilot.ts — le copilote ATTESTÉ, côté site (produit 4 de la v2.1), quand VITE_COPILOT_ENCLAVE_URL,
- *  VITE_COPILOT_PRODUCT_ID et VITE_COPILOT_OPERATOR sont posés (config.ts : ATTESTED_COPILOT) :
- *  - makeAttestedCopilot : le client du SDK (createAttestedCopilotClient). Il lit le RPC d'Arc DIRECTEMENT (le client
- *    public de wagmi, jamais notre API) pour vérifier la clé du copilote (inscrite pour ce produit, active, image encore
- *    autorisée, opérateur non radié, et actif chez l'opérateur attendu), chiffre la conversation vers elle et n'accepte
- *    qu'une réponse scellée pour CETTE requête ;
- *  - registrationTx : la transaction d'inscription de l'enclave (EnclaveRegistered au bloc où sa fenêtre a commencé),
- *    pour le lien du badge vers l'explorateur. Une lecture d'un seul bloc, gardée en mémoire ;
- *  - stripCitations : le texte d'un copilote (attesté ou du serveur) à l'affichage, sans les marques de citation brutes
- *    du modèle (les sources sont dans la ligne « sources »).
- *  Le badge « attested copilot · verified on Arc » ne se tire QUE d'une réponse authentifiée (authenticated === true) :
- *  la bulle (screens/FloatingCopilot.tsx) ne le montre jamais pour un refus en clair ni pour le copilote du serveur. */
+/** copilot.ts — the ATTESTED copilot on the site side (product 4 of v2.1), when VITE_COPILOT_ENCLAVE_URL,
+ *  VITE_COPILOT_PRODUCT_ID and VITE_COPILOT_OPERATOR are set (config.ts: ATTESTED_COPILOT):
+ *  - makeAttestedCopilot: the SDK client (createAttestedCopilotClient). It reads Arc's RPC DIRECTLY (wagmi's public
+ *    client, never the ArcHive API) to verify the copilot's key (registered for this product, active, image still
+ *    allowed, operator not struck off, and active under the expected operator), encrypts the conversation to it and
+ *    accepts only a reply sealed for THIS request;
+ *  - registrationTx: the enclave's registration transaction (EnclaveRegistered at the block where its window began),
+ *    for the badge's explorer link. A single-block read, kept in memory;
+ *  - stripCitations: a copilot's text (attested or server) at display time, without the model's raw citation marks
+ *    (the sources are in the "sources" line).
+ *  The "attested copilot · verified on Arc" badge comes ONLY from an authenticated reply (authenticated === true):
+ *  the bubble (screens/FloatingCopilot.tsx) never shows it for a clear-text refusal or for the server's copilot. */
 import { parseAbiItem, type Address, type Hex, type PublicClient } from "viem";
 import { createAttestedCopilotClient, testnet, type AttestedCopilotClient } from "@arcvault/sdk";
 import { ATTESTED_COPILOT } from "./config";
 
-/** Le client du copilote attesté, ou null s'il n'est pas configuré (la bulle parle alors au copilote du serveur). */
+/** The attested copilot's client, or null if it is not configured (the bubble then talks to the server's copilot). */
 export function makeAttestedCopilot(pub: PublicClient | undefined | null): AttestedCopilotClient | null {
   if (!ATTESTED_COPILOT || !pub) return null;
   return createAttestedCopilotClient({
     copilotUrl: ATTESTED_COPILOT.url,
     productId: ATTESTED_COPILOT.productId,
-    publicClient: pub as any, // deux copies de viem (site, SDK) : même version, types distincts
+    publicClient: pub as any, // two copies of viem (site, SDK): same version, distinct types
     deployment: testnet,
-    // obligatoire ici : l'enclave doit être active chez CET opérateur (pas seulement « une image autorisée »)
+    // required here: the enclave must be active under THIS operator (not just "an allowed image")
     expectedOperator: ATTESTED_COPILOT.operator,
   });
 }
 
-/** Une suite de marques de citation du modèle (【4:0†source】, 【{"source": …}】…), quelle que soit leur longueur, JSON
- *  et retours à la ligne compris, avec les espaces qui l'entourent. */
+/** A run of the model's citation marks (【4:0†source】, 【{"source": …}】…), whatever their length, JSON and line breaks
+ *  included, with the spaces around it. */
 const CITATIONS = /[ \t]*(?:【[^】]*】[ \t]*)+/g;
 
-/** Le texte d'un copilote sans les marques de citation brutes du modèle : le serveur ne retire que les courtes (80
- *  caractères au plus, sur une ligne) ; ici, toutes, à l'affichage seulement (le texte gardé et renvoyé au copilote
- *  reste tel qu'il est venu). Ce qui entourait une marque se recolle : rien en bord de ligne, après « ( » ni devant
- *  « . , ) » ; devant « : ; ! ? » », l'espace que le texte y avait mise ; entre deux mots, une espace. */
+/** A copilot's text without the model's raw citation marks: the server removes only the short ones (80 characters at
+ *  most, on one line); here, all of them, at display time only (the text kept and sent back to the copilot stays as it
+ *  came). What surrounded a mark is joined back: nothing at a line edge, after "(" or before ". , )"; before ": ; ! ? »",
+ *  the space the text had there; between two words, one space. */
 export function stripCitations(text: string): string {
   if (!text.includes("【")) return text;
   return text.replace(CITATIONS, (m: string, at: number, all: string) => {
@@ -51,8 +51,8 @@ const ENCLAVE_REGISTERED = parseAbiItem(
 );
 const registrations = new Map<string, Promise<Hex | null>>();
 
-/** La transaction qui a inscrit cette enclave : sa fenêtre de validité commence au bloc de son inscription (un
- *  renouvellement sans trou la garde), on lit donc EnclaveRegistered à ce seul bloc. null si introuvable (RPC muet). */
+/** The transaction that registered this enclave: its validity window starts at its registration block (a renewal
+ *  without a gap keeps it), so EnclaveRegistered is read at that single block. null if not found (silent RPC). */
 export function registrationTx(pub: PublicClient, signer: Address, fromBlock: bigint): Promise<Hex | null> {
   const key = `${signer.toLowerCase()}:${fromBlock}`;
   let p = registrations.get(key);
@@ -61,7 +61,7 @@ export function registrationTx(pub: PublicClient, signer: Address, fromBlock: bi
       .getLogs({ address: testnet.enclaveRegistry, event: ENCLAVE_REGISTERED, args: { signer }, fromBlock, toBlock: fromBlock })
       .then((logs) => (logs[0]?.transactionHash ?? null) as Hex | null)
       .catch(() => {
-        registrations.delete(key); // relu à la prochaine demande
+        registrations.delete(key); // read again on the next request
         return null;
       });
     registrations.set(key, p);

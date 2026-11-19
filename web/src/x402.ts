@@ -1,15 +1,16 @@
-/** x402.ts — côté site, l'inférence privée payée À L'APPEL (rail x402 ; produit 3 de la pile v2.1, réglé par X402Settler) :
- *  - readX402Price : le prix d'un appel LU SUR ARC (ProductRegistry.getProduct et isActive, au même bloc), et si ce produit
- *    se paie bien à l'appel (règlement = X402Settler du déploiement). C'est ce prix que la page affiche AVANT toute
- *    signature ;
- *  - makeX402 : le client du SDK (createX402Client) bridé à ce prix : maxAmount = le prix affiché (le SDK ne signe rien
- *    au-delà), et un portefeuille qui ne laisse passer QUE l'autorisation EIP-3009 d'un appel (ReceiveWithAuthorization,
- *    vers X402Settler, domaine de l'USDC d'Arc) d'au plus ce prix : une 2e garde, indépendante du SDK. Le portefeuille
- *    est celui qui est connecté (navigateur, ou portefeuille de test du site en mode test) ;
- *  - settlementOf / useSettlement : où en est le règlement d'un appel payé, lu sur la chaîne (USDC.authorizationState,
- *    puis l'événement CallSettled de X402Settler) ou, à défaut, dans l'activité indexée par l'API : en attente de
- *    l'opérateur, réglé (par quel opérateur, quelle transaction), consommé sans événement trouvé (annulé ?), ou échu sans
- *    règlement (rien n'a été prélevé). Lectures seulement. */
+/** x402.ts — on the site side, private inference paid PER CALL (x402 rail; product 3 of the v2.1 stack, settled by
+ *  X402Settler):
+ *  - readX402Price: the price of a call READ ON ARC (ProductRegistry.getProduct and isActive, at the same block), and
+ *    whether this product is really paid per call (settlement = the deployment's X402Settler). This is the price the
+ *    page shows BEFORE any signature;
+ *  - makeX402: the SDK client (createX402Client) capped at this price: maxAmount = the price shown (the SDK signs nothing
+ *    above it), and a wallet that lets through ONLY the EIP-3009 authorization of one call (ReceiveWithAuthorization,
+ *    to X402Settler, in the domain of Arc's USDC) of at most this price: a second guard, independent of the SDK. The
+ *    wallet is the connected one (the browser's, or the site's test wallet in test mode);
+ *  - settlementOf / useSettlement: where the settlement of a paid call stands, read on the chain
+ *    (USDC.authorizationState, then X402Settler's CallSettled event) or, failing that, in the activity indexed by the
+ *    API: waiting for the operator, settled (by which operator, in which transaction), consumed with no event found
+ *    (cancelled?), or expired without settlement (nothing was charged). Reads only. */
 import { useEffect, useState } from "react";
 import type { Address, Hex } from "viem";
 import {
@@ -22,22 +23,22 @@ import { MsgError, msg } from "./msg";
 
 const lower = (x: unknown) => String(x ?? "").toLowerCase();
 
-/** Le prix d'un appel, tel que lu sur Arc. */
+/** The price of a call, as read on Arc. */
 export interface X402Price {
   productId: bigint;
-  /** Prix d'un appel (unités de base d'USDC, 6 décimales) : Product.price × 1 unité. */
+  /** Price of a call (USDC base units, 6 decimals): Product.price × 1 unit. */
   price: bigint;
-  /** Bloc de la lecture (aussi le bloc à partir duquel chercher le règlement d'un appel payé ensuite). */
+  /** Block of the read (also the block from which to look for the settlement of a call paid afterwards). */
   block: bigint;
-  /** Le produit existe dans le registre (un identifiant inconnu rend une fiche vide : auteur et règlement nuls). */
+  /** The product exists in the registry (an unknown id returns an empty record: zero author and settlement). */
   exists: boolean;
-  /** Réglé par X402Settler : sinon ce produit ne se paie pas à l'appel. */
+  /** Settled by X402Settler: otherwise this product is not paid per call. */
   perCall: boolean;
   active: boolean;
   settlement: Address;
 }
 
-/** Le prix d'un appel du produit, lu sur Arc (getProduct et isActive au même bloc). */
+/** The price of a call of the product, read on Arc (getProduct and isActive at the same block). */
 export async function readX402Price(arc: ArcClient, productId: bigint): Promise<X402Price> {
   const block = await arc.pub.getBlockNumber();
   const [p, active] = (await Promise.all([
@@ -52,12 +53,12 @@ export async function readX402Price(arc: ArcClient, productId: bigint): Promise<
   };
 }
 
-/** Ce que la page affiche pendant un paiement : la signature demandée au portefeuille (montant), puis signée. */
+/** What the page shows during a payment: the signature requested from the wallet (amount), then signed. */
 export interface PayHooks { onSign?: (amount: bigint) => void; onSigned?: () => void }
 
-/** Le portefeuille du payeur, bridé : seule l'autorisation EIP-3009 d'UN appel (ReceiveWithAuthorization), vers
- *  X402Settler, sur l'USDC d'Arc (chainId et contrat du domaine), d'au plus `cap` (le prix affiché) atteint le
- *  portefeuille ; toute autre demande de signature est refusée AVANT (rien n'est signé). */
+/** The payer's wallet, capped: only the EIP-3009 authorization of ONE call (ReceiveWithAuthorization), to X402Settler,
+ *  on Arc's USDC (domain chainId and contract), of at most `cap` (the price shown) reaches the wallet; any other
+ *  signature request is refused BEFORE it (nothing is signed). */
 export function payingWallet<W extends object>(w: W, cap: bigint, hooks: PayHooks = {}): W {
   return new Proxy(w, {
     get(target, prop, receiver) {
@@ -81,7 +82,7 @@ export function payingWallet<W extends object>(w: W, cap: bigint, hooks: PayHook
   });
 }
 
-/** Le client x402 du SDK pour ce produit et cette enclave, avec le portefeuille connecté, plafonné au prix affiché. */
+/** The SDK's x402 client for this product and this enclave, with the connected wallet, capped at the price shown. */
 export function makeX402(arc: ArcClient, url: string, productId: bigint, cap: bigint, hooks?: PayHooks): X402Client {
   if (!arc.wallet) throw new MsgError(msg("err.connectWallet"));
   return createX402Client({
@@ -90,26 +91,26 @@ export function makeX402(arc: ArcClient, url: string, productId: bigint, cap: bi
   });
 }
 
-/** Un appel payé dont on suit le règlement : son payeur et son nonce EIP-3009 (commun à toutes ses autorisations). */
+/** A paid call whose settlement is followed: its payer and its EIP-3009 nonce (shared by all its authorizations). */
 export interface PaidCallRef {
   payer: Address; nonce: Hex; productId: bigint;
-  /** Bloc à partir duquel chercher CallSettled (bloc d'ancrage du reçu, ou bloc lu avant l'appel). */
+  /** Block from which to look for CallSettled (the receipt's anchor block, or the block read before the call). */
   fromBlock: bigint;
-  /** Échéance de l'autorisation (la plus tardive) : au-delà, plus aucun règlement possible. */
+  /** Expiry of the authorization (the latest one): after it, no settlement is possible. */
   validBefore: bigint;
-  /** Montant autorisé (affiché si l'événement ne le dit pas). */
+  /** Authorized amount (shown if the event does not say it). */
   amount: bigint;
 }
 
 export type Settlement =
   | { state: "pending" }
   | { state: "settled"; tx: Hex; operator?: Address; amount?: bigint }
-  /** autorisation consommée, mais aucun CallSettled trouvé (annulée par le payeur, ou événement pas encore lisible) */
+  /** authorization consumed, but no CallSettled found (cancelled by the payer, or the event not readable yet) */
   | { state: "consumed" }
-  /** jamais réglée avant son échéance : rien n'a été prélevé */
+  /** never settled before its expiry: nothing was charged */
   | { state: "expired" };
 
-/** Où en est le règlement de cet appel : lu sur Arc, puis dans l'activité de l'API si la chaîne ne donne pas l'événement. */
+/** Where the settlement of this call stands: read on Arc, then in the API's activity if the chain does not give the event. */
 export async function settlementOf(arc: ArcClient, c: PaidCallRef): Promise<Settlement> {
   const used = (await arc.pub.readContract({
     address: testnet.usdc, abi: usdcAuthAbi, functionName: "authorizationState", args: [c.payer, c.nonce],
@@ -123,7 +124,7 @@ export async function settlementOf(arc: ArcClient, c: PaidCallRef): Promise<Sett
     });
     const hit = logs.find((l) => lower(l.args.nonce) === nonce);
     if (hit) return { state: "settled", tx: hit.transactionHash as Hex, operator: hit.args.operator as Address | undefined, amount: hit.args.amount };
-  } catch { /* plage refusée ou RPC limité : l'activité indexée par l'API */ }
+  } catch { /* range refused or RPC rate-limited: fall back to the activity indexed by the API */ }
   try {
     const hit = (await fetchActivity(100)).find((e) => e.name === "CallSettled" && lower(e.args?.nonce) === nonce);
     if (hit) {
@@ -137,9 +138,9 @@ export async function settlementOf(arc: ArcClient, c: PaidCallRef): Promise<Sett
   return { state: "consumed" };
 }
 
-/** Suit le règlement d'un appel payé : relu toutes les 3 s, puis toutes les 8 s, jusqu'à un état final (réglé, échu ; ou
- *  consommé sans événement après quelques lectures). L'erreur d'une lecture est gardée telle quelle (mise en mots à
- *  l'affichage) ; la lecture suivante l'efface. */
+/** Follows the settlement of a paid call: read again every 3 s, then every 8 s, until a final state (settled, expired;
+ *  or consumed without an event after a few reads). A read's error is kept as is (put into words at display time); the
+ *  next read clears it. */
 export function useSettlement(arc: ArcClient | null, ref: PaidCallRef | null): { s: Settlement | null; err: unknown } {
   const [s, setS] = useState<Settlement | null>(null);
   const [err, setErr] = useState<unknown>(null);
