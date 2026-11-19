@@ -5,35 +5,36 @@ import {IVerdictLog} from "./interfaces/IVerdictLog.sol";
 import {IValidationRegistry} from "./interfaces/IERC8004.sol";
 
 /// @title VerdictLog — v2
-/// @notice Écrit chaque verdict vérifié dans le registre de validation ERC-8004 de Circle.
-///         Le même contrat demande et répond : il est le validateur, et il n'écrit 100 (vérifié et payé)
-///         qu'après que le contrat de règlement appelant a vérifié l'attestation et la signature
-///         (cas « oracle TEE » prévu par l'ERC). 0 = faute saisie.
+/// @notice Writes each verified verdict to Circle's ERC-8004 validation registry.
+///         The same contract requests and responds: it is the validator, and it writes 100 (verified and paid) only
+///         after the calling settlement contract has checked the attestation and the signature (the "TEE oracle"
+///         case foreseen by the ERC). 0 = slashed fault.
 ///
-///         v2 (revue adverse du 7/11) : `owner` est un paramètre (multisig sur mainnet, jamais la clé de
-///         déploiement) ; le DÉPLOYEUR câble les appelants UNE fois pendant le déploiement (initialize), puis n'a
-///         plus aucun pouvoir ; tout nouvel appelant, proposé par le propriétaire, attend CALLER_DELAY (8 jours) :
-///         une clé seule ne peut plus écrire de faux « 100 » ou « 0 » dans ERC-8004. Le retrait reste immédiat.
+///         v2 (after an adversarial review): `owner` is a parameter (a multisig on mainnet, never the deployment
+///         key); the DEPLOYER wires the callers ONCE during the deployment (initialize), then has no power left; any
+///         new caller, proposed by the owner, waits CALLER_DELAY (8 days): a single key can no longer write a false
+///         "100" or "0" to ERC-8004. Removal stays immediate.
 ///
-///         Prérequis hors de ce contrat (script/CLI) : l'opérateur enregistre son identité sur le
-///         registre d'identité (il en est propriétaire) puis `setApprovalForAll(VerdictLog, true)` pour
-///         que VerdictLog puisse faire la demande de validation en son nom. L'approbation suffit (VERIFIED : code de
-///         référence ValidationRegistryUpgradeable 2.0.0 — propriétaire, isApprovedForAll ou getApproved —, et fork
-///         d'Arc testnet du 9/11 : VerdictLog v2 écrit pour l'agent 897812 de l'opérateur).
+///         Prerequisite outside this contract (script/CLI): the operator registers its identity in the identity
+///         registry (it owns it), then calls `setApprovalForAll(VerdictLog, true)` so that VerdictLog can make the
+///         validation request on its behalf. The approval is enough (verified against the reference code of
+///         ValidationRegistryUpgradeable 2.0.0, which accepts the owner, isApprovedForAll or getApproved, and on a
+///         fork of Arc testnet, where VerdictLog v2 wrote for the operator's agent 897812).
 ///
-///         v2.1 bis (revue adverse du 9/11) — le registre de Circle n'a qu'UN espace de requestHash pour tout le monde
-///         (« exists » quel que soit l'agent), et nos requestHash se calculent d'avance (session connue dès l'ouverture,
-///         prime dès l'acceptation…). Un tiers, avec un agent créé librement, pouvait donc occuper celui d'un futur
-///         verdict : le verdict sautait pour toujours. Désormais, si la demande sous `requestHash` échoue, VerdictLog la
-///         refait sous un hash SALÉ par le hash du bloc précédent (saltedHash), inconnu avant ce bloc : impossible à
-///         occuper d'avance. RequestHashSalted(requestHash, salé) le dit ; Recorded porte le hash RÉELLEMENT écrit (les
-///         indexeurs lisent Recorded, ils ne recalculent pas le hash). Un verdict ne s'écrit qu'UNE fois par requestHash
-///         (recordedAs ; sinon AlreadyRecorded, comme le « exists » du registre), salé ou non.
-///         Limites (hors de portée de ce contrat) : un attaquant qui passe AVANT nous dans le MÊME bloc peut encore
-///         calculer et occuper le hash salé ; et ERC-8004 laisse le propriétaire d'un agent refuser toute demande pour
-///         son agent (approbation retirée, agent cédé, setAgentId(0)) : un verdict de FAUTE (0) n'est donc jamais garanti
-///         dans ERC-8004. La faute, elle, est établie par nos contrats (OperatorBond.banned, EquivocationSlashed,
-///         ClaimRefuted) et le verdict sauté reste tracé (VerdictSkipped).
+///         v2.1b (after a second adversarial review): Circle's registry has only ONE requestHash space for everyone
+///         ("exists" whatever the agent), and our requestHashes can be computed in advance (a session is known from
+///         its opening, a bounty from its acceptance...). A third party, with a freely created agent, could therefore
+///         take the one of a future verdict, and the verdict was skipped forever. Now, if the request under
+///         `requestHash` fails, VerdictLog makes it again under a hash SALTED with the previous block's hash
+///         (saltedHash), unknown before this block, so it cannot be taken in advance. RequestHashSalted(requestHash,
+///         salted) says so; Recorded carries the hash ACTUALLY written (indexers read Recorded, they do not recompute
+///         the hash). A verdict is written only ONCE per requestHash (recordedAs; otherwise AlreadyRecorded, like the
+///         registry's "exists"), salted or not.
+///         Limits (out of this contract's reach): an attacker that goes BEFORE us in the SAME block can still compute
+///         and take the salted hash; and ERC-8004 lets an agent's owner refuse any request for its agent (approval
+///         withdrawn, agent transferred, setAgentId(0)), so a FAULT verdict (0) is never guaranteed in ERC-8004. The
+///         fault itself is established by our contracts (OperatorBond.banned, EquivocationSlashed, ClaimRefuted) and
+///         the skipped verdict stays on record (VerdictSkipped).
 contract VerdictLog is IVerdictLog {
     uint64 public constant CALLER_DELAY = 8 days;
 
@@ -42,18 +43,18 @@ contract VerdictLog is IVerdictLog {
     address public immutable deployer;
     bool public initialized;
 
-    mapping(address => bool) public isCaller; // C5, C6 (et chemins de saisie)
+    mapping(address => bool) public isCaller; // SessionPay, SealedBounty (and slashing paths)
     mapping(address => uint64) public callerApplyAt;
-    /// @notice v2.1 bis : pour chaque requestHash reçu d'un appelant, le requestHash RÉELLEMENT écrit dans ERC-8004 (le
-    ///         même, ou le hash salé s'il était pris) ; zéro tant que rien n'est écrit. Un verdict ne s'écrit qu'une fois.
+    /// @notice v2.1b: for each requestHash received from a caller, the requestHash ACTUALLY written to ERC-8004 (the
+    ///         same one, or the salted hash if it was taken); zero while nothing is written. A verdict is written once.
     mapping(bytes32 requestHash => bytes32 written) public recordedAs;
 
-    /// @notice `requestHash` = le hash RÉELLEMENT écrit dans le registre de validation (v2.1 bis : salé s'il le fallait).
+    /// @notice `requestHash` = the hash ACTUALLY written to the validation registry (v2.1b: salted if it had to be).
     event Recorded(uint256 indexed agentId, bytes32 indexed requestHash, uint8 response, string tag);
     event CallerProposed(address indexed caller, uint64 applyAt);
     event CallerAuthorized(address indexed caller);
     event CallerRemoved(address indexed caller);
-    /// @notice v2.1 bis : `requestHash` était pris (ou refusé) dans le registre ; le verdict est écrit sous `saltedHash`.
+    /// @notice v2.1b: `requestHash` was taken (or refused) in the registry; the verdict is written under `saltedHash`.
     event RequestHashSalted(bytes32 indexed requestHash, bytes32 indexed saltedHash);
 
     error NotOwner();
@@ -63,7 +64,7 @@ contract VerdictLog is IVerdictLog {
     error AlreadyInitialized();
     error NoPendingCaller();
     error TooEarly();
-    /// @notice v2.1 bis : un verdict est déjà écrit pour ce requestHash (voir recordedAs).
+    /// @notice v2.1b: a verdict is already written for this requestHash (see recordedAs).
     error AlreadyRecorded();
 
     modifier onlyOwner() {
@@ -78,7 +79,7 @@ contract VerdictLog is IVerdictLog {
         deployer = msg.sender;
     }
 
-    /// @notice Câblage initial, UNE seule fois, par le déployeur pendant le déploiement : les contrats de règlement.
+    /// @notice Initial wiring, ONCE, by the deployer during the deployment: the settlement contracts.
     function initialize(address[] calldata callers) external {
         if (msg.sender != deployer) revert NotDeployer();
         if (initialized) revert AlreadyInitialized();
@@ -90,7 +91,7 @@ contract VerdictLog is IVerdictLog {
         }
     }
 
-    /// @notice Propose un nouvel appelant ; autorisé seulement après CALLER_DELAY.
+    /// @notice Proposes a new caller; authorized only after CALLER_DELAY.
     function proposeCaller(address caller) external onlyOwner {
         if (caller == address(0)) revert BadParams();
         uint64 applyAt = uint64(block.timestamp) + CALLER_DELAY;
@@ -98,7 +99,7 @@ contract VerdictLog is IVerdictLog {
         emit CallerProposed(caller, applyAt);
     }
 
-    /// @notice Autorise un appelant proposé, une fois le délai écoulé (n'importe qui peut l'appeler).
+    /// @notice Authorizes a proposed caller once the delay has passed (anyone can call it).
     function applyCaller(address caller) external {
         uint64 applyAt = callerApplyAt[caller];
         if (applyAt == 0) revert NoPendingCaller();
@@ -108,7 +109,7 @@ contract VerdictLog is IVerdictLog {
         emit CallerAuthorized(caller);
     }
 
-    /// @notice Retrait IMMÉDIAT d'un appelant (frein d'urgence).
+    /// @notice IMMEDIATE removal of a caller (emergency brake).
     function removeCaller(address caller) external onlyOwner {
         isCaller[caller] = false;
         delete callerApplyAt[caller];
@@ -128,13 +129,13 @@ contract VerdictLog is IVerdictLog {
         if (!isCaller[msg.sender]) revert NotCaller();
         if (requestHash == bytes32(0)) revert BadParams();
         if (recordedAs[requestHash] != bytes32(0)) revert AlreadyRecorded();
-        // VerdictLog est le validateur nommé : il demande, puis répond, dans la même transaction.
+        // VerdictLog is the named validator: it requests, then responds, in the same transaction.
         bytes32 h = requestHash;
         try validation.validationRequest(address(this), agentId, requestURI, h) {}
         catch {
-            // v2.1 bis : hash pris (occupé d'avance dans l'espace commun du registre) ou demande refusée : nouvelle
-            // demande sous le hash salé, inconnu avant ce bloc. Si elle échoue aussi (agent qui n'approuve plus
-            // VerdictLog, registre en panne), son revert remonte à l'appelant (VerdictSkipped). Rien n'est recopié ici.
+            // v2.1b: hash taken (in advance, in the registry's shared space) or request refused: a new request under
+            // the salted hash, unknown before this block. If it fails too (an agent that no longer approves VerdictLog,
+            // a registry failure), its revert goes up to the caller (VerdictSkipped). Nothing is copied here.
             h = saltedHash(requestHash);
             validation.validationRequest(address(this), agentId, requestURI, h);
             emit RequestHashSalted(requestHash, h);
@@ -144,7 +145,7 @@ contract VerdictLog is IVerdictLog {
         emit Recorded(agentId, h, response, tag);
     }
 
-    /// @notice v2.1 bis : le hash sous lequel `record` écrit, DANS CE BLOC, un verdict dont `requestHash` est pris :
+    /// @notice v2.1b: the hash under which `record` writes, IN THIS BLOCK, a verdict whose `requestHash` is taken:
     ///         keccak256(abi.encode(requestHash, blockhash(block.number - 1))).
     function saltedHash(bytes32 requestHash) public view returns (bytes32) {
         return keccak256(abi.encode(requestHash, blockhash(block.number - 1)));

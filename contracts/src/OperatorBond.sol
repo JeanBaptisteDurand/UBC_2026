@@ -6,73 +6,73 @@ import {IIdentityRegistry} from "./interfaces/IERC8004.sol";
 import {UsdcPayer} from "./lib/UsdcPayer.sol";
 
 /// @title OperatorBond — v2
-/// @notice La caution en USDC d'un opérateur. Ce qu'elle garantit, exactement :
-///         - elle BORNE LE DÉBIT : sur la foi des enclaves d'un opérateur, les contrats de règlement autorisés
-///           (C5/C6) ne libèrent jamais plus de la moitié de sa caution disponible sur TOUTE période de 24 h, tous
-///           produits confondus, ni plus que le plafond `exposureCap` de chaque produit (trois seaux de 12 h : une
-///           exposition compte entre 24 h et 36 h) ;
-///         - elle est SAISIE en entier sur une faute PROUVÉE on-chain : équivocation (SessionPay, SealedBounty) ou
-///           réclamation de prime réfutée par un contre-rejeu d'enclaves d'autres opérateurs (SealedBounty.refute) ;
-///         - elle reste bloquée UNBOND_DELAY après la dernière exposition (le temps de prouver une faute).
-///         Ce qu'elle NE fait PAS : un reçu d'inférence gonflé par une enclave forgée n'est pas prouvable ; la
-///         caution en limite le débit, elle ne le rembourse pas.
+/// @notice An operator's USDC bond. What it guarantees, exactly:
+///         - it BOUNDS THE OUTFLOW: on the word of an operator's enclaves, the authorized settlement contracts
+///           (SessionPay, SealedBounty) never release more than half of its free bond over ANY 24-hour period, all
+///           products together, nor more than the `exposureCap` of each product (three 12-hour buckets: an exposure
+///           counts for between 24 and 36 hours);
+///         - it is SLASHED in full for a fault PROVEN on chain: equivocation (SessionPay, SealedBounty) or a bounty
+///           claim refuted by a counter-replay from the enclaves of other operators (SealedBounty.refute);
+///         - it stays locked for UNBOND_DELAY after the last exposure (the time to prove a fault).
+///         What it does NOT do: an inference receipt inflated by a forged enclave cannot be proven; the bond limits
+///         the outflow, it does not refund it.
 ///
-///         v2 (revue adverse du 7/11) :
-///         - plus de clé toute-puissante. Le DÉPLOYEUR câble une seule fois, pendant le déploiement (initialize),
-///           le registre d'enclaves et les contrats de règlement — avant toute caution, donc sans rien à prendre —
-///           puis n'a plus aucun pouvoir. Le propriétaire (multisig 2-sur-3, passé au constructeur) ne peut ajouter
-///           un contrat de règlement qu'après SETTLEMENT_DELAY = UNBOND_DELAY + 1 jour (chaque opérateur a le temps
-///           de partir) ; il peut en RETIRER un immédiatement (frein d'urgence) ;
-///         - exposition sur 24 h GLISSANTES et règle « ½ caution » GLOBALE par opérateur (v1 : fenêtre fixe et par
-///           produit → toute la caution passait en une seconde, et N produits = N × ½ caution) ;
-///         - la caution minimale d'un produit est RÉSERVÉE par clé d'enclave inscrite (une caution de 100 USDC ne
-///           couvre plus dix enclaves) ; seule la caution libre se retire ;
-///         - `setAgentId` exige d'être propriétaire (ou approuvé) de l'agent ERC-8004.
+///         v2 (after an adversarial review):
+///         - no more all-powerful key. The DEPLOYER wires the enclave registry and the settlement contracts once,
+///           during the deployment (initialize), before any bond exists and so with nothing to take, then has no
+///           power left. The owner (a 2-of-3 multisig, passed to the constructor) can add a settlement contract only
+///           after SETTLEMENT_DELAY = UNBOND_DELAY + 1 day (every operator has time to leave); it can REMOVE one at
+///           once (emergency brake);
+///         - exposure over a ROLLING 24 hours and a GLOBAL "half the bond" rule per operator (v1: a fixed window per
+///           product, so the whole bond could go in one second, and N products = N × half the bond);
+///         - a product's minimum bond is RESERVED per registered enclave key (a 100 USDC bond no longer covers ten
+///           enclaves); only the free bond can be withdrawn;
+///         - `setAgentId` requires being the owner (or an approved address) of the ERC-8004 agent.
 contract OperatorBond is IOperatorBond, UsdcPayer {
     uint64 public constant UNBOND_DELAY = 7 days;
-    /// @notice Fenêtre de la règle « ½ caution » et du plafond produit : 24 h glissantes.
+    /// @notice Window of the "half the bond" rule and of the product cap: a rolling 24 hours.
     uint64 public constant WINDOW = 24 hours;
-    /// @notice Taille d'un seau. Trois seaux : toute exposition compte entre 24 h et 36 h ; sur TOUTE période de
-    ///         24 h, jamais plus de ½ caution (ni plus que le plafond produit).
+    /// @notice Size of a bucket. Three buckets: any exposure counts for between 24 and 36 hours; over ANY 24-hour
+    ///         period, never more than half the bond (nor more than the product cap).
     uint64 public constant BUCKET = 12 hours;
-    /// @notice Délai avant qu'un NOUVEAU contrat de règlement soit autorisé (après le câblage initial).
+    /// @notice Delay before a NEW settlement contract is authorized (after the initial wiring).
     uint64 public constant SETTLEMENT_DELAY = UNBOND_DELAY + 1 days;
 
-    address public immutable owner; // multisig : ajout à délai, retrait immédiat d'un contrat de règlement
-    address public immutable deployer; // câble une seule fois pendant le déploiement, puis plus rien
-    address public immutable treasury; // fonds du réseau (part de saisie sans victime)
-    IIdentityRegistry public immutable identity; // registre d'identité ERC-8004 (propriété des agentId)
+    address public immutable owner; // multisig: adds a settlement contract after a delay, removes one at once
+    address public immutable deployer; // wires once during the deployment, then nothing
+    address public immutable treasury; // network funds (the share of a slash with no victim)
+    IIdentityRegistry public immutable identity; // ERC-8004 identity registry (ownership of agentIds)
 
-    /// @notice EnclaveRegistry autorisé à réserver / libérer la caution des clés d'enclave (fixé à l'initialisation).
+    /// @notice EnclaveRegistry allowed to reserve / release the bond of enclave keys (set at initialization).
     address public registry;
     bool public initialized;
 
-    /// @dev Trois seaux de 12 h dans UN emplacement : `epoch` = index du seau courant (timestamp / BUCKET).
+    /// @dev Three 12-hour buckets in ONE slot: `epoch` = index of the current bucket (timestamp / BUCKET).
     struct Ring {
         uint64 epoch;
-        uint64 a0; // seau courant
-        uint64 a1; // seau précédent
-        uint64 a2; // seau d'avant
+        uint64 a0; // current bucket
+        uint64 a1; // previous bucket
+        uint64 a2; // the one before
     }
 
     mapping(address => uint256) private _bond;
     mapping(address => uint256) private _pendingUnbond;
     mapping(address => uint64) public unbondableAt;
-    /// @notice Dernière exposition prise sur la foi des enclaves de l'opérateur (aucun retrait avant + UNBOND_DELAY).
+    /// @notice Last exposure taken on the word of the operator's enclaves (no withdrawal before + UNBOND_DELAY).
     mapping(address => uint64) public lastExposureAt;
-    mapping(address => Ring) private _opExposure; // global, par opérateur (règle « ½ caution »)
-    mapping(address => mapping(uint256 => Ring)) private _exposure; // par (opérateur, produit) (plafond produit)
+    mapping(address => Ring) private _opExposure; // global, per operator ("half the bond" rule)
+    mapping(address => mapping(uint256 => Ring)) private _exposure; // per (operator, product) (product cap)
     mapping(address => uint256) private _agentId;
-    /// @notice L'opérateur qui s'est lié à cet agent ERC-8004 (0 si aucun).
+    /// @notice The operator that bound itself to this ERC-8004 agent (0 if none).
     mapping(uint256 => address) public operatorOfAgent;
     mapping(address => bool) public banned;
     mapping(address => bool) public isSettlement;
-    /// @notice Contrat de règlement proposé → instant à partir duquel applySettlement l'autorise.
+    /// @notice Proposed settlement contract -> time from which applySettlement authorizes it.
     mapping(address => uint64) public settlementApplyAt;
 
-    mapping(address => uint256) public override reservedFor; // clé d'enclave → caution réservée
-    mapping(address => address) public reservedBy; // clé d'enclave → opérateur
-    mapping(address => uint256) public reservedTotal; // opérateur → total réservé
+    mapping(address => uint256) public override reservedFor; // enclave key -> reserved bond
+    mapping(address => address) public reservedBy; // enclave key -> operator
+    mapping(address => uint256) public reservedTotal; // operator -> total reserved
 
     event SettlementProposed(address indexed settlement, uint64 applyAt);
     event SettlementAuthorized(address indexed settlement);
@@ -85,7 +85,7 @@ contract OperatorBond is IOperatorBond, UsdcPayer {
     error NotRegistry();
     error Banned();
     error TooMuchExposure();
-    /// @notice v2 : le plafond d'exposition du produit (par opérateur, 24 h glissantes) serait dépassé.
+    /// @notice v2: the product's exposure cap (per operator, rolling 24 hours) would be exceeded.
     error ExposureCapExceeded();
     error UnbondLocked();
     error NothingToWithdraw();
@@ -94,7 +94,7 @@ contract OperatorBond is IOperatorBond, UsdcPayer {
     error AlreadyInitialized();
     error NoPendingSettlement();
     error TooEarly();
-    /// @notice v2 : l'appelant n'est ni propriétaire ni approuvé de cet agent dans le registre d'identité ERC-8004.
+    /// @notice v2: the caller is neither the owner nor approved for this agent in the ERC-8004 identity registry.
     error NotAgentOwner();
 
     modifier onlyOwner() {
@@ -112,8 +112,8 @@ contract OperatorBond is IOperatorBond, UsdcPayer {
         _;
     }
 
-    /// @param _owner    gouvernance (multisig 2-sur-3 sur Arc mainnet ; jamais la clé de déploiement)
-    /// @param _identity registre d'identité ERC-8004 (propriété des agentId)
+    /// @param _owner    governance (a 2-of-3 multisig on Arc mainnet; never the deployment key)
+    /// @param _identity ERC-8004 identity registry (ownership of agentIds)
     constructor(address _usdc, address _treasury, address _owner, address _identity) UsdcPayer(_usdc) {
         if (_treasury == address(0) || _owner == address(0) || _identity == address(0)) revert BadParams();
         owner = _owner;
@@ -122,10 +122,10 @@ contract OperatorBond is IOperatorBond, UsdcPayer {
         identity = IIdentityRegistry(_identity);
     }
 
-    // ---- câblage (une fois, au déploiement), puis autorisations à délai ----
+    // ---- wiring (once, at deployment), then delayed authorizations ----
 
-    /// @notice Câblage initial, UNE seule fois, par le déployeur et pendant le déploiement (aucune caution n'est
-    ///         encore déposée : il n'y a rien à prendre) : le registre d'enclaves et les contrats de règlement.
+    /// @notice Initial wiring, ONCE, by the deployer and during the deployment (no bond is deposited yet, so there is
+    ///         nothing to take): the enclave registry and the settlement contracts.
     function initialize(address _registry, address[] calldata settlements) external {
         if (msg.sender != deployer) revert NotDeployer();
         if (initialized) revert AlreadyInitialized();
@@ -139,8 +139,8 @@ contract OperatorBond is IOperatorBond, UsdcPayer {
         }
     }
 
-    /// @notice Propose un nouveau contrat de règlement ; il ne pourra saisir ou consommer une caution qu'après
-    ///         SETTLEMENT_DELAY (8 jours), plus long que UNBOND_DELAY : chaque opérateur peut partir avant.
+    /// @notice Proposes a new settlement contract; it can slash or consume a bond only after SETTLEMENT_DELAY
+    ///         (8 days), longer than UNBOND_DELAY: every operator can leave before.
     function proposeSettlement(address settlement) external onlyOwner {
         if (settlement == address(0)) revert BadParams();
         uint64 applyAt = uint64(block.timestamp) + SETTLEMENT_DELAY;
@@ -148,7 +148,7 @@ contract OperatorBond is IOperatorBond, UsdcPayer {
         emit SettlementProposed(settlement, applyAt);
     }
 
-    /// @notice Autorise un contrat de règlement proposé, une fois le délai écoulé (n'importe qui peut l'appeler).
+    /// @notice Authorizes a proposed settlement contract once the delay has passed (anyone can call it).
     function applySettlement(address settlement) external {
         uint64 applyAt = settlementApplyAt[settlement];
         if (applyAt == 0) revert NoPendingSettlement();
@@ -158,14 +158,14 @@ contract OperatorBond is IOperatorBond, UsdcPayer {
         emit SettlementAuthorized(settlement);
     }
 
-    /// @notice Retrait IMMÉDIAT d'un contrat de règlement (frein d'urgence : il ne fait que retirer un pouvoir).
+    /// @notice IMMEDIATE removal of a settlement contract (emergency brake: it only removes a power).
     function removeSettlement(address settlement) external onlyOwner {
         isSettlement[settlement] = false;
         delete settlementApplyAt[settlement];
         emit SettlementRemoved(settlement);
     }
 
-    // ---- caution ----
+    // ---- bond ----
 
     function bond(uint256 amount, Auth calldata auth) external {
         if (banned[msg.sender]) revert Banned();
@@ -181,7 +181,7 @@ contract OperatorBond is IOperatorBond, UsdcPayer {
         emit Bonded(msg.sender, amount);
     }
 
-    /// @notice Demande de retrait : seulement la caution LIBRE (ni en demande, ni réservée pour une enclave).
+    /// @notice Withdrawal request: only the FREE bond (neither requested already, nor reserved for an enclave).
     function requestUnbond(uint256 amount) external {
         if (amount > freeBond(msg.sender)) revert InsufficientBond();
         _pendingUnbond[msg.sender] += amount;
@@ -189,8 +189,8 @@ contract OperatorBond is IOperatorBond, UsdcPayer {
         emit UnbondRequested(msg.sender, amount, unbondableAt[msg.sender]);
     }
 
-    /// @notice Retrait UNBOND_DELAY après la demande ET UNBOND_DELAY après la dernière exposition : une faute
-    ///         prouvée dans ce délai (équivocation, réclamation réfutée) trouve toujours la caution.
+    /// @notice Withdrawal UNBOND_DELAY after the request AND UNBOND_DELAY after the last exposure: a fault proven
+    ///         within this delay (equivocation, refuted claim) always finds the bond.
     function withdraw() external {
         uint256 amount = _pendingUnbond[msg.sender];
         if (amount == 0) revert NothingToWithdraw();
@@ -201,14 +201,14 @@ contract OperatorBond is IOperatorBond, UsdcPayer {
         emit Withdrawn(msg.sender, amount);
     }
 
-    /// @notice Lie l'opérateur à SON agent ERC-8004 : il doit en être propriétaire, ou approuvé par le
-    ///         propriétaire, dans le registre d'identité. 0 = aucun agent.
+    /// @notice Binds the operator to ITS ERC-8004 agent: it must own it, or be approved by the owner, in the identity
+    ///         registry. 0 = no agent.
     function setAgentId(uint256 agentId) external {
         if (agentId != 0) {
             address agentOwner = identity.ownerOf(agentId);
             if (agentOwner != msg.sender && !identity.isApprovedForAll(agentOwner, msg.sender)) revert NotAgentOwner();
             address previous = operatorOfAgent[agentId];
-            if (previous != address(0) && previous != msg.sender) _agentId[previous] = 0; // l'agent change de main
+            if (previous != address(0) && previous != msg.sender) _agentId[previous] = 0; // the agent changes hands
             operatorOfAgent[agentId] = msg.sender;
         }
         uint256 old = _agentId[msg.sender];
@@ -217,12 +217,12 @@ contract OperatorBond is IOperatorBond, UsdcPayer {
         emit AgentIdSet(msg.sender, agentId);
     }
 
-    // ---- réservation de la caution minimale par clé d'enclave (appelé par l'EnclaveRegistry) ----
+    // ---- reservation of the minimum bond per enclave key (called by the EnclaveRegistry) ----
 
     /// @inheritdoc IOperatorBond
     function reserve(address operator, address signer, uint256 amount) external override onlyRegistry {
         if (banned[operator]) revert Banned();
-        if (reservedFor[signer] != 0 || amount == 0) return; // déjà réservée (renouvellement) ou rien à réserver
+        if (reservedFor[signer] != 0 || amount == 0) return; // already reserved (renewal) or nothing to reserve
         if (freeBond(operator) < amount) revert InsufficientBond();
         reservedFor[signer] = amount;
         reservedBy[signer] = operator;
@@ -242,7 +242,7 @@ contract OperatorBond is IOperatorBond, UsdcPayer {
         emit BondReleased(operator, signer, amount);
     }
 
-    // ---- exposition (appelé par C5/C6) ----
+    // ---- exposure (called by the settlement contracts) ----
 
     /// @inheritdoc IOperatorBond
     function consumeExposure(address operator, uint256 productId, uint256 amount, uint256 cap)
@@ -254,11 +254,11 @@ contract OperatorBond is IOperatorBond, UsdcPayer {
         if (amount > type(uint64).max) revert TooMuchExposure();
         uint64 e = uint64(block.timestamp / BUCKET);
 
-        // jamais plus de la moitié de la caution disponible sur 24 h glissantes, tous produits confondus
+        // never more than half of the free bond over a rolling 24 hours, all products together
         Ring memory g = _roll(_opExposure[operator], e);
         if (_sum(g) + amount > availableBond(operator) / 2) revert TooMuchExposure();
 
-        // ni plus que le plafond du produit pour ce couple (opérateur, produit), sur la même fenêtre glissante
+        // nor more than the product cap for this (operator, product) pair, over the same rolling window
         Ring memory p = _roll(_exposure[operator][productId], e);
         if (cap != 0 && _sum(p) + amount > cap) revert ExposureCapExceeded();
 
@@ -270,10 +270,10 @@ contract OperatorBond is IOperatorBond, UsdcPayer {
         emit ExposureConsumed(operator, productId, amount);
     }
 
-    // ---- saisie (appelé par un contrat de règlement qui a prouvé une faute) ----
+    // ---- slash (called by a settlement contract that proved a fault) ----
 
-    /// @notice Saisit TOUTE la caution de `operator`, bannit, et répartit :
-    ///         50 % au dénonciateur, 50 % à la victime si identifiable, sinon au fonds du réseau.
+    /// @notice Slashes ALL of `operator`'s bond, bans it, and splits it:
+    ///         50% to the reporter, 50% to the victim if identifiable, otherwise to the network fund.
     function slash(address operator, address reporter, address victim) external onlySettlement {
         uint256 seized = _bond[operator];
         _bond[operator] = 0;
@@ -288,7 +288,7 @@ contract OperatorBond is IOperatorBond, UsdcPayer {
         emit Slashed(operator, reporter, victim, seized);
     }
 
-    // ---- lectures ----
+    // ---- reads ----
 
     function bondOf(address operator) external view override returns (uint256) {
         return _bond[operator];
@@ -312,7 +312,7 @@ contract OperatorBond is IOperatorBond, UsdcPayer {
         return _sum(_roll(_opExposure[operator], uint64(block.timestamp / BUCKET)));
     }
 
-    /// @notice Date à partir de laquelle la demande de retrait en cours peut être retirée.
+    /// @notice Time from which the pending withdrawal request can be withdrawn.
     function withdrawableAt(address operator) public view returns (uint64) {
         uint64 a = unbondableAt[operator];
         uint64 last = lastExposureAt[operator];
@@ -324,9 +324,9 @@ contract OperatorBond is IOperatorBond, UsdcPayer {
         return _agentId[operator];
     }
 
-    // ---- interne ----
+    // ---- internal ----
 
-    /// @dev Fait avancer les seaux jusqu'au seau `e` (une exposition de plus de 36 h tombe).
+    /// @dev Advances the buckets up to bucket `e` (an exposure older than 36 hours drops out).
     function _roll(Ring memory r, uint64 e) private pure returns (Ring memory) {
         if (e == r.epoch) return r;
         if (e == r.epoch + 1) return Ring({epoch: e, a0: 0, a1: r.a0, a2: r.a1});

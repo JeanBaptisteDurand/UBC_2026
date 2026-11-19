@@ -9,16 +9,16 @@ import {IProductRegistry} from "./interfaces/IProductRegistry.sol";
 import {IEnclaveRegistry} from "./interfaces/IEnclaveRegistry.sol";
 import {IOperatorBond} from "./interfaces/IOperatorBond.sol";
 
-/// @title X402Settler — paiement à l'appel « x402 exact », lié à une preuve d'enclave
-/// @notice Deuxième rail de paiement, à côté des sessions prépayées (SessionPay). Pensé pour les agents :
-///         une requête = une transaction. Le client présente une autorisation EIP-3009 (en-tête
-///         `X-PAYMENT` du protocole x402) ET l'enclave présente un reçu d'appel signé. Le contrat
-///         encaisse exactement le montant dû, le répartit (opérateur / auteur / réseau), et prend
-///         l'exposition sur l'opérateur. Le `nonce` EIP-3009 lie le paiement au reçu (anti-rejeu).
+/// @title X402Settler — pay per call, "x402 exact" scheme, bound to an enclave proof
+/// @notice The second payment rail, next to prepaid sessions (SessionPay). Designed for agents: one request = one
+///         transaction. The client presents an EIP-3009 authorization (the x402 protocol's `X-PAYMENT` header)
+///         AND the enclave presents a signed call receipt. The contract collects exactly the amount due, splits it
+///         (operator / author / network), and takes the exposure on the operator. The EIP-3009 `nonce` binds the
+///         payment to the receipt (replay protection).
 ///
-///         Adaptation du schéma x402 « exact » : le `payTo` est CE contrat (il encaisse par
-///         `receiveWithAuthorization`, `to == msg.sender`), ce qui permet le split et la preuve
-///         d'enclave dans la même transaction. C'est l'atout du rail : paiement + preuve + partage, atomiques.
+///         An adaptation of the x402 "exact" scheme: `payTo` is THIS contract (it collects through
+///         `receiveWithAuthorization`, `to == msg.sender`), which allows the split and the enclave proof in the same
+///         transaction. That is the rail's strength: payment + proof + split, atomic.
 contract X402Settler is EIP712, UsdcPayer {
     using ECDSA for bytes32;
 
@@ -38,7 +38,7 @@ contract X402Settler is EIP712, UsdcPayer {
         bytes32 responseHash;
         uint128 units;
         uint64 anchorBlock;
-        bytes32 nonce; // = le nonce de l'autorisation EIP-3009 (lie paiement et reçu)
+        bytes32 nonce; // = the nonce of the EIP-3009 authorization (binds payment and receipt)
     }
 
     event CallSettled(
@@ -48,7 +48,7 @@ contract X402Settler is EIP712, UsdcPayer {
     error BadProduct();
     error InactiveEnclave();
     error ZeroAmount();
-    /// @notice v2 : le produit n'est pas réglé par CE contrat (Product.settlement).
+    /// @notice v2: the product is not settled by THIS contract (Product.settlement).
     error WrongSettlement();
 
     constructor(
@@ -64,33 +64,33 @@ contract X402Settler is EIP712, UsdcPayer {
         treasury = _treasury;
     }
 
-    /// @notice Règle un appel : vérifie le reçu d'enclave, encaisse par EIP-3009, répartit, prend l'exposition.
-    /// @param cr         le reçu d'appel signé par l'enclave
-    /// @param enclaveSig signature secp256k1 de l'enclave sur `cr`
-    /// @param auth       l'autorisation EIP-3009 du payeur (validAfter/validBefore/signature) ; le nonce = cr.nonce
+    /// @notice Settles a call: checks the enclave receipt, collects through EIP-3009, splits, takes the exposure.
+    /// @param cr         the call receipt signed by the enclave
+    /// @param enclaveSig the enclave's secp256k1 signature over `cr`
+    /// @param auth       the payer's EIP-3009 authorization (validAfter/validBefore/signature); the nonce = cr.nonce
     function settle(CallReceipt calldata cr, bytes calldata enclaveSig, Auth calldata auth) external {
         if (!products.isActive(cr.productId)) revert BadProduct();
         IProductRegistry.Product memory p = products.getProduct(cr.productId);
-        // v2 : seul un produit dont le règlement est CE contrat se paie à l'appel (revue adverse du 7/11)
+        // v2: only a product whose settlement is THIS contract is paid per call (after an adversarial review)
         if (p.settlement != address(this)) revert WrongSettlement();
 
         uint256 amount = uint256(cr.units) * p.price;
         if (amount == 0) revert ZeroAmount();
 
-        // preuve d'enclave : active au bloc d'ancrage, pour ce produit (fenêtre de validité, grâce comprise)
+        // enclave proof: active at the anchor block, for this product (validity window, grace included)
         address signer = _recover(cr, enclaveSig);
         address operator = enclaves.activeOperatorAt(signer, cr.productId, cr.anchorBlock);
         if (operator == address(0)) revert InactiveEnclave();
 
-        // encaissement x402 : le nonce EIP-3009 EST cr.nonce (un paiement = un reçu, non rejouable)
+        // x402 collection: the EIP-3009 nonce IS cr.nonce (one payment = one receipt, not replayable)
         usdc.receiveWithAuthorization(
             cr.payer, address(this), amount, auth.validAfter, auth.validBefore, cr.nonce, auth.signature
         );
 
-        // exposition prise sur la foi d'une seule enclave (bornée par C4 : ½ caution, plafond du produit)
+        // exposure taken on the word of one enclave (bounded by OperatorBond: half the bond, the product's cap)
         bond.consumeExposure(operator, cr.productId, amount, p.exposureCap);
 
-        // répartition
+        // split
         uint256 toOperator = amount * p.bpsOperator / 10_000;
         uint256 toAuthor = amount * p.bpsAuthor / 10_000;
         uint256 toNetwork = amount - toOperator - toAuthor;

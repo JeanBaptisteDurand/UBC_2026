@@ -9,71 +9,71 @@ import {History} from "./lib/History.sol";
 import {DstackEventLog} from "./lib/DstackEventLog.sol";
 
 /// @title EnclaveRegistry — v2
-/// @notice Inscrit une enclave seulement si son attestation passe Intel (C1 via le module) ET notre
-///         politique « on échoue fermé » (P1–P12). Dit à tout moment si une clé d'enclave était active
-///         pour un produit à un bloc donné (isActiveAt, activeOperatorAt), ce qui sert aux contrats de
-///         règlement (C5/C6).
+/// @notice Registers an enclave only if its attestation passes Intel's signature check (through the attestation
+///         module) AND our fail-closed policy. Tells at any time whether an enclave key was active for a product at
+///         a given block (isActiveAt, activeOperatorAt), which the settlement contracts rely on.
 ///
-///         v2 — la validité se compte en BLOCS (la durée d'un bloc dépend de la chaîne) :
-///         - une inscription ouvre une fenêtre [fromBlock, untilBlock] de VALIDITY_BLOCKS blocs (P10) ;
-///         - un reçu n'est valable que s'il est ancré DANS une fenêtre ; la grâce (GRACE_BLOCKS) permet
-///           seulement de le régler après la fin de la fenêtre, jamais d'ancrer des blocs plus récents ;
-///         - le renouvellement par le même opérateur, pour le même produit et sans trou, PROLONGE la fenêtre
-///           en cours : les reçus et réclamations ancrés avant le renouvellement restent réglables ;
-///         - sinon (trou, autre produit, autre opérateur) l'ancienne fenêtre est gardée comme « précédente »
-///           pendant sa grâce : l'historique est borné à deux fenêtres (en cours + précédente) ;
-///         - un autre opérateur ne peut pas s'approprier une enclave encore valide ou en grâce.
+///         v2: validity is counted in BLOCKS (the block time depends on the chain):
+///         - a registration opens a window [fromBlock, untilBlock] of VALIDITY_BLOCKS blocks;
+///         - a receipt is valid only if it is anchored INSIDE a window; the grace period (GRACE_BLOCKS) only lets it
+///           be settled after the window ends, never anchor more recent blocks;
+///         - a renewal by the same operator, for the same product and with no gap, EXTENDS the current window:
+///           receipts and claims anchored before the renewal stay settleable;
+///         - otherwise (a gap, another product, another operator) the old window is kept as the "previous" one
+///           during its grace period: the history is bounded to two windows (current + previous);
+///         - another operator cannot take over an enclave that is still valid or in its grace period.
 ///
-///         v2 bis (revue adverse du 7/11) :
-///         - une clé d'enclave est liée À VIE à son premier couple (opérateur, produit) : la réinscrire ailleurs,
-///           ou la reprendre après la grâce, est refusé (SignerBoundElsewhere). Une preuve d'équivocation reste
-///           donc recevable contre le bon opérateur (les clés honnêtes sont éphémères : rien n'est perdu) ;
-///         - une image retirée du produit invalide ses enclaves SANS grâce (invalidate ou
-///           invalidateRetiredWorkload) : le frein d'urgence freine ;
-///         - la caution minimale du produit est RÉSERVÉE pour chaque clé inscrite (OperatorBond.reserve), et
-///           libérée au retrait ou à l'invalidation.
+///         v2b (after an adversarial review):
+///         - an enclave key is bound FOR LIFE to its first (operator, product) pair: registering it elsewhere, or
+///           taking it back after the grace period, is refused (SignerBoundElsewhere). A proof of equivocation
+///           therefore still reaches the right operator (honest keys are ephemeral, so nothing is lost);
+///         - an image retired from the product invalidates its enclaves WITHOUT grace (invalidate or
+///           invalidateRetiredWorkload): the emergency brake brakes;
+///         - the product's minimum bond is RESERVED for each registered key (OperatorBond.reserve), and released on
+///           retirement or invalidation.
 ///
-///         v2.1 — empreinte d'IMAGE (dstack/Phala) : chez dstack, RTMR3 contient des événements propres à l'INSTANCE
-///         (instance-id, app-id) ; l'empreinte complète (workloadId, qui inclut RTMR3) changeait donc à chaque
-///         redémarrage de la VM. Avec un journal RTMR3 au format DstackEventLog.FORMAT_V1, le registre REJOUE RTMR3
-///         (SHA-384 en EVM), exige qu'il redonne celui du quote, lit compose-hash et os-image-hash, et accepte
-///         l'empreinte d'image keccak256(mrtd ‖ rtmr0 ‖ rtmr1 ‖ rtmr2 ‖ compose-hash ‖ os-image-hash ‖ xfam ‖
-///         tdAttributes) si le produit l'autorise. L'empreinte complète reste acceptée (compatibilité v2) : sans
-///         journal, avec un journal d'un autre format (ignoré, comme en v2), ou si l'image n'est pas autorisée.
-///         L'identifiant retenu (image ou complet) est celui que stocke Enclave.workloadId : le retirer du produit
-///         invalide l'enclave sans grâce (invalidateRetiredWorkload).
+///         v2.1: IMAGE fingerprint (dstack/Phala). Under dstack, RTMR3 holds events specific to the INSTANCE
+///         (instance-id, app-id), so the full fingerprint (workloadId, which includes RTMR3) changed at every reboot
+///         of the VM. With an RTMR3 event log in the DstackEventLog.FORMAT_V1 format, the registry REPLAYS RTMR3
+///         (SHA-384 in the EVM), requires it to match the quote's, reads compose-hash and os-image-hash, and accepts
+///         the image fingerprint keccak256(mrtd ‖ rtmr0 ‖ rtmr1 ‖ rtmr2 ‖ compose-hash ‖ os-image-hash ‖ xfam ‖
+///         tdAttributes) if the product allows it. The full fingerprint is still accepted (v2 compatibility): with
+///         no event log, with an event log in another format (ignored, as in v2), or if the image is not allowed.
+///         The identifier kept (image or full) is the one stored in Enclave.workloadId: retiring it from the product
+///         invalidates the enclave without grace (invalidateRetiredWorkload).
 ///
-///         v2.1 bis (revue adverse du 9/11) : attestedOperator(signer, productId) dit si une clé FAIT FOI MAINTENANT
-///         (primitive onlyAttested) : en plus d'activeOperatorAt, opérateur non radié, produit actif et image encore
-///         autorisée — un retrait d'image ou de produit coupe tout de suite, sans attendre invalidateRetiredWorkload.
-///         Les reçus et réclamations ancrés restent régis par activeOperatorAt (inchangé).
+///         v2.1b (after a second adversarial review): attestedOperator(signer, productId) tells whether a key is
+///         TRUSTED NOW (the onlyAttested primitive): on top of activeOperatorAt, the operator is not banned, the
+///         product is active and the image is still allowed, so retiring an image or a product cuts off at once,
+///         without waiting for invalidateRetiredWorkload. Anchored receipts and claims are still governed by
+///         activeOperatorAt (unchanged).
 contract EnclaveRegistry is IEnclaveRegistry {
     IAttestationModule public immutable module;
     IProductRegistry public immutable products;
     IOperatorBond public immutable bond;
 
-    /// @notice Validité d'une attestation, en blocs ; réattestation ensuite (P10).
+    /// @notice Validity of an attestation, in blocks; the enclave attests again afterwards.
     uint64 public immutable VALIDITY_BLOCKS;
-    /// @notice Délai, en blocs après la fin d'une fenêtre, pour régler un reçu ancré DANS cette fenêtre.
+    /// @notice Time, in blocks after a window ends, to settle a receipt anchored INSIDE that window.
     uint64 public immutable GRACE_BLOCKS;
-    /// @notice Durée de bloc estimée (ms) au déploiement. Ne sert qu'à l'horodatage INDICATIF `expiresAt`
-    ///         (affichage, planification des renouvellements) : la règle, elle, est en blocs.
+    /// @notice Estimated block time (ms) at deployment. Used only for the INDICATIVE `expiresAt` timestamp (display,
+    ///         renewal planning): the rule itself is in blocks.
     uint64 public immutable BLOCK_TIME_MS;
 
-    /// @dev Préimage du domaine de REPORTDATA[0:32] (P6). L'enclave (O1) calcule le même.
+    /// @dev Domain preimage of REPORTDATA[0:32]. The enclave computes the same.
     string private constant RD_TAG = "ARC-ENCLAVE-v1";
 
     mapping(address signer => Enclave) private _enclaves;
-    mapping(address signer => Window) private _previous; // fenêtre précédente, gardée pour sa grâce
-    mapping(bytes32 quoteHash => bool) public quoteSeen; // P9 : un quote ne sert qu'une fois
-    /// @notice v2 : la clé est liée à vie à son premier opérateur et à son premier produit.
+    mapping(address signer => Window) private _previous; // previous window, kept for its grace period
+    mapping(bytes32 quoteHash => bool) public quoteSeen; // a quote is used only once
+    /// @notice v2: the key is bound for life to its first operator and its first product.
     mapping(address signer => address) public boundOperator;
     mapping(address signer => uint256) public boundProduct;
-    /// @notice v2 : clé invalidée sans grâce (image retirée) ; plus rien ne se règle, plus de réinscription.
+    /// @notice v2: key invalidated without grace (image retired); nothing settles any more, no re-registration.
     mapping(address signer => bool) public killed;
 
-    /// @dev option P4 : exiger SEPT_VE_DISABLE (bit 28 de tdAttributes). Paramètre du constructeur
-    ///      (le script mainnet l'exige par défaut, le script testnet non).
+    /// @dev Optional check: require SEPT_VE_DISABLE (bit 28 of tdAttributes). A constructor parameter
+    ///      (the mainnet script requires it by default, the testnet script does not).
     bool public immutable requireSeptVeDisable;
 
     error NotOperator();
@@ -91,21 +91,21 @@ contract EnclaveRegistry is IEnclaveRegistry {
     error UnknownEnclave();
     error QuoteMismatch();
     error StillValid();
-    /// @notice La clé d'enclave est tenue par un AUTRE opérateur, encore valide ou en grâce, jusqu'au bloc
-    ///         `freeFromBlock` − 1. Seul cet opérateur peut la renouveler ou la retirer.
+    /// @notice The enclave key is held by ANOTHER operator, still valid or in its grace period, until block
+    ///         `freeFromBlock` - 1. Only that operator can renew or retire it.
     error EnclaveHeldByOtherOperator(address operator, uint256 freeFromBlock);
-    /// @notice Paramètres de déploiement invalides (validité ou durée de bloc nulle).
+    /// @notice Invalid deployment parameters (zero validity or block time).
     error BadParams();
-    /// @notice v2 : la clé est déjà liée (à vie) à un autre opérateur ou à un autre produit.
+    /// @notice v2: the key is already bound (for life) to another operator or another product.
     error SignerBoundElsewhere();
-    /// @notice v2 : la clé a été invalidée sans grâce (image retirée) ; elle ne se réinscrit plus.
+    /// @notice v2: the key was invalidated without grace (image retired); it can no longer be registered.
     error EnclaveKilled();
-    /// @notice v2.1 : le journal RTMR3 fourni ne redonne pas le RTMR3 du quote.
+    /// @notice v2.1: the given RTMR3 event log does not reproduce the quote's RTMR3.
     error Rtmr3Mismatch();
 
-    /// @param _validityBlocks validité d'une attestation en blocs (Arc : 170 000 ≈ 24 h à ≈ 508 ms/bloc)
-    /// @param _graceBlocks    délai de règlement après la fin d'une fenêtre, en blocs (0 = aucun délai)
-    /// @param _blockTimeMs    durée de bloc estimée en ms, pour `expiresAt` seulement (Arc : ≈ 508)
+    /// @param _validityBlocks validity of an attestation in blocks (Arc: 170,000 ≈ 24 h at ≈ 508 ms per block)
+    /// @param _graceBlocks    settlement time after a window ends, in blocks (0 = none)
+    /// @param _blockTimeMs    estimated block time in ms, for `expiresAt` only (Arc: ≈ 508)
     constructor(
         address _module,
         address _products,
@@ -134,68 +134,68 @@ contract EnclaveRegistry is IEnclaveRegistry {
         bytes32 x25519,
         bytes calldata eventLog
     ) external override {
-        // P8 : l'opérateur est l'appelant (par construction) et il a au moins la caution minimale du produit
+        // the operator is the caller (by construction) and holds at least the product's minimum bond
         address operator = msg.sender;
 
         IProductRegistry.Product memory p = products.getProduct(productId);
         if (p.state != IProductRegistry.State.Active) revert ProductNotActive();
         if (bond.availableBond(operator) < p.minBond) revert OperatorUnderbonded();
-        // v2 : une NOUVELLE clé réserve la caution minimale du produit sur la caution libre de l'opérateur
+        // v2: a NEW key reserves the product's minimum bond out of the operator's free bond
         if (bond.reservedFor(signer) == 0 && bond.freeBond(operator) < p.minBond) revert OperatorUnderbonded();
         if (killed[signer]) revert EnclaveKilled();
 
-        // pas d'appropriation : une clé tenue par un AUTRE opérateur, encore valide ou en grâce, est refusée
-        // (sinon ses reçus en attente deviendraient impayables et le tiers encaisserait sur la VM d'autrui).
-        // Le renouvellement par le même opérateur reste permis.
+        // no takeover: a key held by ANOTHER operator, still valid or in its grace period, is refused
+        // (otherwise its pending receipts would become unpayable and the third party would earn on someone else's VM).
+        // A renewal by the same operator is still allowed.
         _checkNotHeldByOther(signer, operator);
 
-        // v2 : liaison À VIE (opérateur, produit) — ni déplacement vers un autre produit, ni reprise après la grâce
+        // v2: binding FOR LIFE (operator, product): no move to another product, no takeover after the grace period
         address bound = boundOperator[signer];
         if (bound != address(0) && (bound != operator || boundProduct[signer] != productId)) {
             revert SignerBoundElsewhere();
         }
 
-        // P9 : quote jamais vu
+        // a quote never seen before
         bytes32 quoteHash = keccak256(quote);
         if (quoteSeen[quoteHash]) revert QuoteReused();
 
-        // C1 (via le module) + découpe du corps
+        // Intel's signature check (through the module) + parsing of the body
         IAttestationModule.Measurements memory m = module.verify(quote, eventLog);
 
-        // P1 : succès, version 4/5, corps TD10/TD15
+        // success, version 4/5, TD10/TD15 body
         if (!m.ok || (m.version != 4 && m.version != 5)) revert QuoteInvalid();
         if (m.bodyType != 2 && m.bodyType != 3) revert NotTdx();
 
-        // P2 : TCB OK, ou SW_HARDENING_NEEDED si tous les avis sont dans la liste blanche du produit
+        // TCB OK, or SW_HARDENING_NEEDED if every advisory is on the product's allowlist
         if (!_tcbAllowed(productId, m)) revert TcbNotAllowed();
 
-        // P3 : bit DEBUG de tdAttributes à 0 (bit de poids faible du 1er octet, LE)
-        //      (vu sur le vrai quote de nos VM Phala : tdAttributes = 0x10000000, DEBUG = 0)
+        // DEBUG bit of tdAttributes at 0 (least significant bit of the 1st byte, LE)
+        // (seen on the real quote of our Phala VMs: tdAttributes = 0x10000000, DEBUG = 0)
         if (uint8(m.tdAttributes[0]) & 0x01 != 0) revert DebugEnclave();
 
-        // P4 (option) : bit 28 SEPT_VE_DISABLE = bit 4 du 4e octet (LE)
+        // (optional) bit 28 SEPT_VE_DISABLE = bit 4 of the 4th byte (LE)
         if (requireSeptVeDisable && (uint8(m.tdAttributes[3]) & 0x10 == 0)) revert SeptVeNotDisabled();
 
-        // P5 : image autorisée pour ce produit (C3). v2.1 : avec un journal RTMR3 au format FORMAT_V1, l'empreinte
-        //      d'IMAGE (stable d'un redémarrage à l'autre) ; sinon, ou si elle n'est pas autorisée, l'empreinte complète.
+        // image allowed for this product (ProductRegistry). v2.1: with an RTMR3 event log in the FORMAT_V1 format, the
+        // IMAGE fingerprint (stable across reboots); otherwise, or if it is not allowed, the full fingerprint.
         bytes32 workloadId = _admittedWorkload(productId, signer, m, eventLog);
 
-        // P6 : REPORTDATA[0:32] lie chaîne, registre, produit, opérateur, clés
+        // REPORTDATA[0:32] binds the chain, the registry, the product, the operator and the keys
         bytes32 rd0 = _w(m.reportData, 0);
         bytes32 expected = keccak256(
             abi.encode(RD_TAG, block.chainid, address(this), productId, operator, signer, x25519)
         );
         if (rd0 != expected) revert ReportDataMismatch();
 
-        // P7 : REPORTDATA[32:64] == hash du bloc d'ancrage R, R dans la fenêtre EIP-2935
+        // REPORTDATA[32:64] == hash of the anchor block R, with R inside the EIP-2935 window
         bytes32 rd1 = _w(m.reportData, 32);
-        bytes32 anchorHash = History.blockHashAt(anchorR); // revert AnchorTooOld hors fenêtre
+        bytes32 anchorHash = History.blockHashAt(anchorR); // reverts AnchorTooOld outside the window
         if (rd1 != anchorHash) revert AnchorHashMismatch();
 
-        // fenêtre de validité (prolongée si renouvellement sans trou, sinon l'ancienne est archivée)
+        // validity window (extended on a renewal with no gap, otherwise the old one is archived)
         (uint64 fromBlock, uint64 untilBlock) = _nextWindow(signer, productId, operator);
 
-        // inscription
+        // registration
         uint64 nowTs = uint64(block.timestamp);
         uint64 expiresAt = nowTs + uint64(uint256(VALIDITY_BLOCKS) * BLOCK_TIME_MS / 1000);
         _enclaves[signer] = Enclave({
@@ -219,7 +219,7 @@ contract EnclaveRegistry is IEnclaveRegistry {
             boundOperator[signer] = operator;
             boundProduct[signer] = productId;
         }
-        bond.reserve(operator, signer, p.minBond); // sans effet au renouvellement (déjà réservée)
+        bond.reserve(operator, signer, p.minBond); // no effect on a renewal (already reserved)
 
         emit EnclaveRegistered(signer, productId, operator, workloadId, expiresAt);
     }
@@ -230,13 +230,13 @@ contract EnclaveRegistry is IEnclaveRegistry {
         if (e.signer == address(0)) revert UnknownEnclave();
         if (keccak256(quote) != e.quoteHash) revert QuoteMismatch();
 
-        // v2 : image retirée du produit → invalidation SANS grâce
+        // v2: image retired from the product -> invalidation WITHOUT grace
         if (!products.isWorkloadAllowed(e.productId, e.workloadId)) {
             _kill(signer, e);
             return;
         }
 
-        // revérification avec le collatéral ACTUEL (rechargé par le Registrar)
+        // check again against the CURRENT collateral (reloaded by the Registrar)
         IAttestationModule.Measurements memory m = module.verify(quote, "");
         bool stillGood = m.ok && (m.version == 4 || m.version == 5) && (m.bodyType == 2 || m.bodyType == 3)
             && _tcbAllowed(e.productId, m) && (uint8(m.tdAttributes[0]) & 0x01 == 0);
@@ -293,8 +293,8 @@ contract EnclaveRegistry is IEnclaveRegistry {
 
     /// @inheritdoc IEnclaveRegistry
     function attestedOperator(address signer, uint256 productId) external view override returns (address operator) {
-        // le bloc courant n'est jamais couvert par la fenêtre « précédente » (coupée avant la réinscription) : l'image en
-        // vigueur est celle de l'inscription en cours
+        // the current block is never covered by the "previous" window (cut before the re-registration): the image in
+        // force is the one of the current registration
         operator = activeOperatorAt(signer, productId, block.number);
         if (
             operator == address(0) || bond.banned(operator) || !products.isActive(productId)
@@ -336,9 +336,9 @@ contract EnclaveRegistry is IEnclaveRegistry {
         return last + GRACE_BLOCKS;
     }
 
-    /// @notice v2.1 : l'empreinte d'IMAGE d'une VM dstack, celle qu'un auteur autorise pour son produit
-    ///         (ProductRegistry : workloadIds de la proposition, ou proposeWorkload). Calculable avant tout lancement, à
-    ///         partir des mesures publiées de l'image dstack et du hash du docker-compose. mrtd et rtmr* : 48 octets.
+    /// @notice v2.1: the IMAGE fingerprint of a dstack VM, the one an author allows for their product
+    ///         (ProductRegistry: the proposal's workloadIds, or proposeWorkload). Computable before any launch, from
+    ///         the published measurements of the dstack image and the docker-compose hash. mrtd and rtmr*: 48 bytes.
     function imageIdOf(
         bytes calldata mrtd,
         bytes calldata rtmr0,
@@ -352,9 +352,9 @@ contract EnclaveRegistry is IEnclaveRegistry {
         return DstackEventLog.imageId(mrtd, rtmr0, rtmr1, rtmr2, composeHash, osImageHash, xfam, tdAttributes);
     }
 
-    /// @notice v2.1 : rejoue un journal RTMR3 (format DstackEventLog.FORMAT_V1) comme le fait registerEnclave :
-    ///         RTMR3 obtenu (48 octets, à comparer à celui du quote), et l'image lue avant « system-ready ».
-    ///         Pour les outils hors chaîne (vérifier un journal avant de payer l'inscription).
+    /// @notice v2.1: replays an RTMR3 event log (DstackEventLog.FORMAT_V1 format) as registerEnclave does: the RTMR3
+    ///         obtained (48 bytes, to compare with the quote's), and the image read before "system-ready".
+    ///         For off-chain tools (check an event log before paying for the registration).
     function replayEventLog(bytes calldata eventLog)
         external
         pure
@@ -364,11 +364,11 @@ contract EnclaveRegistry is IEnclaveRegistry {
         return (abi.encodePacked(r.rtmr3Hi, r.rtmr3Lo), r.imageKnown, r.composeHash, r.osImageHash);
     }
 
-    // ---- interne ----
+    // ---- internal ----
 
-    /// @dev v2.1 — P5. L'identifiant sous lequel l'enclave est admise : l'empreinte d'IMAGE si un journal RTMR3 au
-    ///      format FORMAT_V1 est fourni, redonne le RTMR3 du quote (sinon Rtmr3Mismatch), décrit l'image sans ambiguïté
-    ///      et que le produit l'autorise ; sinon l'empreinte complète (v2), qui doit alors être autorisée.
+    /// @dev v2.1. The identifier under which the enclave is admitted: the IMAGE fingerprint if an RTMR3 event log in
+    ///      the FORMAT_V1 format is given, reproduces the quote's RTMR3 (otherwise Rtmr3Mismatch), describes the image
+    ///      unambiguously and the product allows it; otherwise the full fingerprint (v2), which must then be allowed.
     function _admittedWorkload(
         uint256 productId,
         address signer,
@@ -392,8 +392,8 @@ contract EnclaveRegistry is IEnclaveRegistry {
         if (!products.isWorkloadAllowed(productId, full)) revert WorkloadNotAllowed();
     }
 
-    /// @dev Invalidation SANS grâce (image retirée) : plus aucun reçu ni réclamation de cette clé ne se règle,
-    ///      même ancré avant ; la clé ne se réinscrit plus ; sa caution réservée est libérée.
+    /// @dev Invalidation WITHOUT grace (image retired): no receipt or claim of this key settles any more, even one
+    ///      anchored before; the key can no longer be registered; its reserved bond is released.
     function _kill(address signer, Enclave storage e) private {
         killed[signer] = true;
         _deactivate(e);
@@ -401,7 +401,7 @@ contract EnclaveRegistry is IEnclaveRegistry {
         emit EnclaveInvalidated(signer, "workload-retired");
     }
 
-    /// @dev Refuse si `signer` est tenue par un autre opérateur dont la fenêtre est en cours ou en grâce.
+    /// @dev Reverts if `signer` is held by another operator whose window is current or in its grace period.
     function _checkNotHeldByOther(address signer, address operator) private view {
         Enclave storage cur = _enclaves[signer];
         if (cur.signer == address(0) || cur.operator == operator) return;
@@ -409,12 +409,12 @@ contract EnclaveRegistry is IEnclaveRegistry {
         if (block.number <= heldUntil) revert EnclaveHeldByOtherOperator(cur.operator, heldUntil + 1);
     }
 
-    /// @dev Calcule la fenêtre de la nouvelle inscription et archive l'ancienne si elle n'est pas prolongée.
-    ///      Prolongée = même opérateur, même produit, et pas de trou (inscription au plus tard au bloc qui
-    ///      suit la fin de la fenêtre en cours). Sinon la fenêtre en cours devient la précédente, coupée au
-    ///      bloc d'avant : ses reçus restent réglables pendant sa grâce. L'historique garde 2 fenêtres ; la
-    ///      plus ancienne n'est évincée que par une 3e inscription non prolongée (un autre opérateur ne le
-    ///      peut qu'après la grâce de la fenêtre en cours, cf. _checkNotHeldByOther).
+    /// @dev Computes the window of the new registration and archives the old one if it is not extended.
+    ///      Extended = same operator, same product, and no gap (registration at the latest at the block that follows
+    ///      the end of the current window). Otherwise the current window becomes the previous one, cut at the block
+    ///      before: its receipts stay settleable during its grace period. The history keeps 2 windows; the oldest is
+    ///      evicted only by a 3rd registration that is not an extension (another operator can do this only after the
+    ///      grace period of the current window, see _checkNotHeldByOther).
     function _nextWindow(address signer, uint256 productId, address operator)
         private
         returns (uint64 fromBlock, uint64 untilBlock)
@@ -427,7 +427,7 @@ contract EnclaveRegistry is IEnclaveRegistry {
         if (cur.signer == address(0)) return (fromBlock, untilBlock);
 
         if (cur.operator == operator && cur.productId == productId && nowBlock <= uint256(cur.untilBlock) + 1) {
-            fromBlock = cur.fromBlock; // renouvellement sans trou : rien de ce qui était valide ne se perd
+            fromBlock = cur.fromBlock; // renewal with no gap: nothing that was valid is lost
         } else {
             uint64 prevUntil = cur.untilBlock < nowBlock ? cur.untilBlock : nowBlock - 1;
             _previous[signer] = Window({
@@ -439,8 +439,8 @@ contract EnclaveRegistry is IEnclaveRegistry {
         }
     }
 
-    /// @dev Retrait ou invalidation au bloc D : les reçus ancrés à partir de D sont refusés ; ceux ancrés
-    ///      avant restent réglables pendant la grâce, comptée depuis D − 1.
+    /// @dev Retirement or invalidation at block D: receipts anchored from D on are refused; those anchored before
+    ///      stay settleable during the grace period, counted from D - 1.
     function _deactivate(Enclave storage e) private {
         if (!e.active) return;
         e.active = false;
@@ -448,7 +448,7 @@ contract EnclaveRegistry is IEnclaveRegistry {
         if (e.untilBlock > last) e.untilBlock = last;
     }
 
-    /// @dev Vrai si la fenêtre (wPid, from, until) couvre (pid, n) et que sa grâce court encore.
+    /// @dev True if the window (wPid, from, until) covers (pid, n) and its grace period is still running.
     function _covers(uint256 wPid, uint64 from, uint64 until, uint256 pid, uint256 n) private view returns (bool) {
         return wPid == pid && n >= from && n <= until && block.number <= uint256(until) + GRACE_BLOCKS;
     }
@@ -460,7 +460,7 @@ contract EnclaveRegistry is IEnclaveRegistry {
     {
         if (m.tcbStatus == 0) return true; // OK
         if (m.tcbStatus == 1) {
-            // SW_HARDENING_NEEDED : tous les avis doivent être dans la liste blanche du produit
+            // SW_HARDENING_NEEDED: every advisory must be on the product's allowlist
             for (uint256 i = 0; i < m.advisories.length; i++) {
                 if (!products.isAdvisoryAllowed(productId, m.advisories[i])) return false;
             }

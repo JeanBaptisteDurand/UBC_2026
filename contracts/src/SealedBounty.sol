@@ -13,62 +13,62 @@ import {IOperatorBond} from "./interfaces/IOperatorBond.sol";
 import {IVerdictLog} from "./interfaces/IVerdictLog.sol";
 
 /// @title SealedBounty — v2
-/// @notice Une prime payée sur la foi d'une PREUVE : une réclamation EIP-712 signée par une (ou k) enclave(s) active(s)
-///         du produit « Prime scellée » qui ont rejoué l'exploit dans un fork (hors-chaîne, O3). Le contrat ne fait que
-///         vérifier et payer : aucun exploit n'est exécuté on-chain, aucun vrai protocole n'est touché.
+/// @notice A bounty paid on a PROOF: an EIP-712 claim signed by one (or k) active enclave(s) of the "Sealed Bounty"
+///         product that replayed the exploit on a fork (off chain). The contract only verifies and pays: no exploit
+///         runs on chain and no real protocol is touched.
 ///
-///         v2 (revue adverse du 7/11) :
-///         - UN exploit n'est plus payé plusieurs fois : une prime paie au plus son palier le plus haut par
-///           « armement ». Un 2e paiement exige un palier STRICTEMENT supérieur (seule la différence est versée) et
-///           une réclamation ancrée APRÈS le dernier paiement ; le protocole réarme (reopen) une fois la faille
-///           corrigée. Changer la casse de l'hexadécimal (nouvelle empreinte) ne rapporte donc plus rien ;
-///         - l'exploit chiffré (cP) n'est jamais dans une transaction qui peut échouer pour une raison que le
-///           protocole contrôle : acceptClaim ne reçoit que son hash et RÉSERVE le paiement ; deliver(cP), appelable
-///           par n'importe qui, livre cP et paie (un transfert refusé devient un crédit à retirer, jamais un échec) ;
-///         - la mise en pause de la cible est bornée en gaz, sans recopie des données de retour (plus de « return
-///           bomb ») ; setPaused n'atteint pas les réclamations ancrées avant la pause ;
-///         - une réclamation fausse se RÉFUTE pendant REFUTE_WINDOW : un contre-rejeu signé par des enclaves
-///           d'opérateurs DISTINCTS, plus nombreux que ceux de la réclamation, saisit leurs cautions et annule le
-///           paiement s'il n'est pas encore livré ;
-///         - seul un produit réglé par CE contrat porte des primes ; k ≤ MAX_SIGS ; paliers strictement croissants ;
-///         - le verdict ERC-8004 exige son gaz (VERDICT_GAS) AVANT l'appel : envoyés au gaz minimal (eth_estimateGas),
-///           un paiement, une saisie ou une réfutation ne réussissent plus en sautant le verdict.
+///         v2 (after an adversarial review):
+///         - an exploit is no longer paid more than once: a bounty pays at most its highest tier per "arming". A
+///           second payout requires a STRICTLY higher tier (only the difference is paid) and a claim anchored AFTER
+///           the last payout; the protocol re-arms the bounty (reopen) once the flaw is fixed. Changing the case of
+///           the hexadecimal (a new fingerprint) therefore earns nothing;
+///         - the encrypted exploit (cP) never sits in a transaction that can fail for a reason the protocol
+///           controls: acceptClaim takes only its hash and RESERVES the payout; deliver(cP), callable by anyone,
+///           delivers cP and pays (a refused transfer becomes a credit to withdraw, never a failure);
+///         - pausing the target is gas-bounded and copies no return data (no more "return bomb"); setPaused does
+///           not reach claims anchored before the pause;
+///         - a false claim can be REFUTED during REFUTE_WINDOW: a counter-replay signed by enclaves of DISTINCT
+///           operators, more numerous than those of the claim, slashes their bonds and cancels the payout if it has
+///           not been delivered yet;
+///         - only a product settled by THIS contract carries bounties; k <= MAX_SIGS; tiers strictly increasing;
+///         - the ERC-8004 verdict requires its gas (VERDICT_GAS) BEFORE the call: sent with the minimal gas
+///           (eth_estimateGas), a payout, a slash or a refutation can no longer succeed by skipping the verdict.
 ///
-///         v2.1 : le requestHash ERC-8004 commence par (block.chainid, address(this)) (plus de collision entre
-///         déploiements) ; un verdict qui échoue malgré son gaz laisse VerdictSkipped(requestHash, raison).
+///         v2.1: the ERC-8004 requestHash starts with (block.chainid, address(this)) (no more collisions between
+///         deployments); a verdict that fails despite its gas leaves VerdictSkipped(requestHash, reason).
 ///
-///         v2.1 bis (revue adverse du 9/11) : la raison de VerdictSkipped est BORNÉE (RevertReason, 132 octets au plus) —
-///         `catch (bytes memory reason)` laissait un registre ERC-8004 hostile ou bogué bloquer le paiement d'une prime,
-///         la saisie et la réfutation, quel que soit le gaz ; le verdict d'équivocation porte l'OPÉRATEUR saisi (deux
-///         opérateurs qui équivoquent sur la même empreinte avaient le même requestHash : le verdict du second sautait).
+///         v2.1b (after a second adversarial review): the VerdictSkipped reason is BOUNDED (RevertReason, at most 132
+///         bytes). `catch (bytes memory reason)` let a hostile or buggy ERC-8004 registry block a bounty payout, the
+///         slash and the refutation, whatever the gas. The equivocation verdict names the slashed OPERATOR (two
+///         operators equivocating on the same fingerprint had the same requestHash, so the second verdict was skipped).
 contract SealedBounty is EIP712, UsdcPayer {
     using ECDSA for bytes32;
 
     bytes32 public constant CLAIM_TYPEHASH = keccak256(
         "Claim(uint256 bountyId,address payee,uint64 blockN,bytes32 blockHashN,bytes32 predicateHash,uint256 loss,uint8 tier,bytes32 fingerprint,bytes32 cPHash,uint64 deadline)"
     );
-    /// @notice v2 : le verdict d'un contre-rejeu sur une réclamation acceptée (`claimDigest` = son digest EIP-712).
+    /// @notice v2: the verdict of a counter-replay on an accepted claim (`claimDigest` = its EIP-712 digest).
     bytes32 public constant REFUTATION_TYPEHASH =
         keccak256("Refutation(bytes32 claimDigest,bool proven,uint256 loss,uint8 tier)");
 
     uint256 public constant MAX_SIGS = 5;
-    /// @notice v2 : gaz donné à `targetToPause.pause()` (borné ; aucune donnée de retour recopiée).
+    /// @notice v2: gas given to `targetToPause.pause()` (bounded; no return data is copied).
     uint256 public constant PAUSE_GAS = 100_000;
-    /// @dev Sélecteur de pause().
+    /// @dev Selector of pause().
     bytes4 private constant PAUSE_SELECTOR = 0x8456cb59;
-    /// @notice v2 : délai pour livrer cP après acceptClaim ; ensuite la réservation retourne au pool.
+    /// @notice v2: time to deliver cP after acceptClaim; after it, the reservation returns to the pool.
     uint64 public constant DELIVERY_WINDOW = 1 days;
-    /// @notice v2 : délai pour réfuter une réclamation acceptée (inférieur à OperatorBond.UNBOND_DELAY : la caution
-    ///         des signataires est encore là).
+    /// @notice v2: time to refute an accepted claim (shorter than OperatorBond.UNBOND_DELAY, so the signers' bonds
+    ///         are still there).
     uint64 public constant REFUTE_WINDOW = 3 days;
-    /// @notice v2 : nombre minimal d'opérateurs distincts derrière une réfutation (et plus que la réclamation).
+    /// @notice v2: minimum number of distinct operators behind a refutation (and more than behind the claim).
     uint256 public constant REFUTE_QUORUM = 2;
-    /// @notice v2 bis : gaz réservé au verdict ERC-8004 (VerdictLog → registre de validation de Circle : ≈ 238–260 k
-    ///         mesurés sur Arc testnet le 7/11). Sans cette réserve, un appel au gaz MINIMAL (eth_estimateGas cherche le
-    ///         plus petit gaz qui réussit) faisait échouer le verdict faute de gaz, échec avalé par le try/catch : la
-    ///         transaction réussissait SANS verdict (closeSession(13) sur Arc testnet, 7/11). Le try/catch ne couvre
-    ///         plus que les vraies pannes du registre. v2.1 bis : VerdictLog.record à froid, fork local d'Arc testnet
-    ///         (9/11, vrai registre) : 285 k (287 k avec le sel) ; la réserve tient.
+    /// @notice v2b: gas reserved for the ERC-8004 verdict (VerdictLog, then Circle's validation registry: about
+    ///         238-260k measured on Arc testnet). Without this reserve, a call sent with the MINIMAL gas
+    ///         (eth_estimateGas looks for the smallest gas that succeeds) made the verdict run out of gas, a failure
+    ///         swallowed by the try/catch: the transaction succeeded WITHOUT a verdict (seen with closeSession(13) on
+    ///         Arc testnet). The try/catch now covers only real registry failures. v2.1b: a cold VerdictLog.record on
+    ///         a local fork of Arc testnet (real registry) costs 285k (287k with the salt); the reserve holds.
     uint256 public constant VERDICT_GAS = 350_000;
 
     IProductRegistry public immutable products;
@@ -76,25 +76,25 @@ contract SealedBounty is EIP712, UsdcPayer {
     IOperatorBond public immutable bond;
     IVerdictLog public immutable verdict;
     address public immutable treasury;
-    uint16 public immutable networkBountyBps; // part réseau, en plus (ex. 1000 = 10 %)
-    uint16 public immutable operatorBountyBps; // part opérateur(s), en plus (ex. 500 = 5 %)
+    uint16 public immutable networkBountyBps; // network share, on top (e.g. 1000 = 10%)
+    uint16 public immutable operatorBountyBps; // operator share, on top (e.g. 500 = 5%)
 
-    /// @dev Les 10 premiers champs gardent l'ordre, le type et le sens de la v1 (un lecteur v1 les décode encore) ;
-    ///      v2 AJOUTE les 3 derniers.
+    /// @dev The first 10 fields keep the order, type and meaning of v1 (a v1 reader still decodes them);
+    ///      v2 ADDS the last 3.
     struct Bounty {
         address protocol;
         uint256 productId;
         bytes32 predicateHash;
         bytes32 protocolX25519;
-        uint256 singleCap; // au-delà (montant du palier), k signatures d'opérateurs différents
+        uint256 singleCap; // above it (the tier amount), k signatures from different operators
         uint8 k;
-        address targetToPause; // 0 si aucun
+        address targetToPause; // 0 if none
         uint64 deadline;
-        uint256 balance; // disponible (hors paiements réservés en attente de livraison)
+        uint256 balance; // available (excluding payouts reserved and awaiting delivery)
         bool paused;
-        uint256 paidAmount; // v2 : palier le plus haut déjà accordé depuis le dernier armement
-        uint64 lastPaidBlock; // v2 : bloc du dernier paiement (ou du réarmement) ; ancrage exigé APRÈS
-        uint64 pausedFromBlock; // v2 : la pause n'atteint que les réclamations ancrées à partir de ce bloc
+        uint256 paidAmount; // v2: highest tier already granted since the last arming
+        uint64 lastPaidBlock; // v2: block of the last payout (or of the re-arming); claims must be anchored AFTER it
+        uint64 pausedFromBlock; // v2: the pause reaches only claims anchored from this block on
     }
 
     struct Claim {
@@ -124,8 +124,8 @@ contract SealedBounty is EIP712, UsdcPayer {
         Auth auth;
     }
 
-    /// @notice v2 : verdict d'un contre-rejeu. `proven` faux = l'exploit ne se prouve pas (ou cP n'est pas
-    ///         l'exploit annoncé) ; sinon `loss`/`tier` mesurés par les enclaves qui réfutent.
+    /// @notice v2: the verdict of a counter-replay. `proven` false = the exploit does not prove out (or cP is not the
+    ///         announced exploit); otherwise `loss`/`tier` as measured by the refuting enclaves.
     struct Refutation {
         bytes32 claimDigest;
         bool proven;
@@ -133,24 +133,24 @@ contract SealedBounty is EIP712, UsdcPayer {
         uint8 tier;
     }
 
-    /// @notice v2 : paiement accepté (réservé), en attente de la livraison de cP.
+    /// @notice v2: an accepted (reserved) payout, awaiting the delivery of cP.
     struct Payout {
         address payee;
         uint8 tier;
         uint64 acceptedAt;
         bytes32 cPHash;
         bytes32 claimDigest;
-        uint256 amount; // au chasseur
-        uint256 netFee; // au réseau
-        uint256 opFee; // aux opérateurs signataires
-        address[] ops; // opérateurs DISTINCTS signataires
+        uint256 amount; // to the hunter
+        uint256 netFee; // to the network
+        uint256 opFee; // to the signing operators
+        address[] ops; // DISTINCT signing operators
     }
 
-    /// @notice v2 : trace d'une réclamation acceptée, pour une réfutation éventuelle.
+    /// @notice v2: record of an accepted claim, for a possible refutation.
     struct ClaimRecord {
         uint64 acceptedAt;
         bool refuted;
-        bytes32 opsHash; // keccak256(abi.encode(operateurs signataires))
+        bytes32 opsHash; // keccak256(abi.encode(signing operators))
     }
 
     uint256 public bountyCount;
@@ -160,7 +160,7 @@ contract SealedBounty is EIP712, UsdcPayer {
     mapping(uint256 => mapping(bytes32 => bool)) public fingerprintPaid;
     mapping(uint256 => mapping(bytes32 => Payout)) private _pending;
     mapping(bytes32 => ClaimRecord) public claimRecords;
-    /// @notice v2 : paiements dont le transfert a été refusé (ex. adresse bloquée) : à retirer (withdrawCredit).
+    /// @notice v2: payouts whose transfer was refused (e.g. a blocked address), to withdraw (withdrawCredit).
     mapping(address => uint256) public credit;
 
     bool private transient _entered;
@@ -171,15 +171,15 @@ contract SealedBounty is EIP712, UsdcPayer {
     event BountyPaid(uint256 indexed bountyId, address indexed payee, uint256 amount, uint8 tier);
     event RemainingWithdrawn(uint256 indexed bountyId, uint256 amount);
     event EquivocationSlashed(uint256 indexed bountyId, address indexed signer, address operator);
-    /// @notice v2 : réclamation acceptée, paiement réservé (la réclamation et ses opérateurs servent à la réfuter).
+    /// @notice v2: claim accepted, payout reserved (the claim and its operators are what a refutation needs).
     event ClaimAccepted(uint256 indexed bountyId, bytes32 indexed claimDigest, Claim claim, address[] operators, uint256 amount);
     event BountyReopened(uint256 indexed bountyId, uint64 fromBlock);
     event BountyPauseSet(uint256 indexed bountyId, bool paused, uint64 fromBlock);
     event UndeliveredCancelled(uint256 indexed bountyId, bytes32 indexed fingerprint, uint256 returned);
     event ClaimRefuted(uint256 indexed bountyId, bytes32 indexed claimDigest, address indexed reporter);
     event Credited(address indexed to, uint256 amount);
-    /// @notice v2.1 : l'écriture du verdict ERC-8004 a échoué (panne ou refus du registre) ; `reason` = données de revert,
-    ///         v2.1 bis : leurs 132 premiers octets au plus (RevertReason.MAX_LENGTH).
+    /// @notice v2.1: writing the ERC-8004 verdict failed (registry failure or refusal); `reason` = the revert data,
+    ///         v2.1b: at most its first 132 bytes (RevertReason.MAX_LENGTH).
     event VerdictSkipped(bytes32 indexed requestHash, bytes reason);
 
     error BadProduct();
@@ -198,15 +198,15 @@ contract SealedBounty is EIP712, UsdcPayer {
     error BadTierIndex();
     error LossTooLow();
     error NotEquivocation();
-    /// @notice v2 : l'échéance signée de la réclamation (TTL de l'enclave) est passée.
+    /// @notice v2: the claim's signed deadline (the enclave's TTL) has passed.
     error ClaimExpired();
-    /// @notice v2 : le produit n'est pas réglé par ce contrat (Product.settlement).
+    /// @notice v2: the product is not settled by this contract (Product.settlement).
     error WrongSettlement();
-    /// @notice v2 : k nul ou au-delà de MAX_SIGS (une telle prime ne serait jamais réclamable au-dessus de singleCap).
+    /// @notice v2: k is zero or above MAX_SIGS (such a bounty could never be claimed above singleCap).
     error BadK();
-    /// @notice v2 : ce palier (ou un plus haut) est déjà accordé depuis le dernier armement.
+    /// @notice v2: this tier (or a higher one) was already granted since the last arming.
     error TierAlreadyPaid();
-    /// @notice v2 : la réclamation est ancrée au plus tard au bloc du dernier paiement (ou du réarmement).
+    /// @notice v2: the claim is anchored at or before the block of the last payout (or of the re-arming).
     error AnchorBeforeLastPayout();
     error NothingToDeliver();
     error DeliveryWindowOpen();
@@ -216,11 +216,11 @@ contract SealedBounty is EIP712, UsdcPayer {
     error BadOps();
     error NotARefutation();
     error NeedMoreRefuters();
-    /// @notice v2 : un signataire de la réclamation ne peut pas la réfuter.
+    /// @notice v2: a signer of the claim cannot refute it.
     error RefuterIsClaimOperator();
-    /// @notice v2 : pas assez de gaz pour donner PAUSE_GAS à la cible (on n'affame pas la pause).
+    /// @notice v2: not enough gas to give PAUSE_GAS to the target (the pause is never starved).
     error NotEnoughGasForPause();
-    /// @notice v2 bis : pas assez de gaz pour le verdict ERC-8004 (VERDICT_GAS) : renvoyer avec plus de gaz.
+    /// @notice v2b: not enough gas for the ERC-8004 verdict (VERDICT_GAS): send again with more gas.
     error InsufficientGasForVerdict();
     error NothingToWithdraw();
     error Reentrancy();
@@ -256,7 +256,7 @@ contract SealedBounty is EIP712, UsdcPayer {
         if (products.getProduct(q.productId).settlement != address(this)) revert WrongSettlement();
         uint256 n = q.tierMinLoss.length;
         if (n == 0 || n != q.tierAmount.length || q.tierAmount[0] == 0) revert BadTiers();
-        // paliers strictement croissants (seuils ET montants) : le plus haut palier atteint est aussi le mieux payé
+        // strictly increasing tiers (thresholds AND amounts): the highest tier reached is also the best paid
         for (uint256 i = 1; i < n; i++) {
             if (q.tierMinLoss[i] <= q.tierMinLoss[i - 1] || q.tierAmount[i] <= q.tierAmount[i - 1]) revert BadTiers();
         }
@@ -294,9 +294,9 @@ contract SealedBounty is EIP712, UsdcPayer {
         emit BountyFunded(bountyId, amount);
     }
 
-    /// @notice Le protocole met sa prime en pause (ou la relance). v2 : la pause n'atteint que les réclamations
-    ///         ancrées À PARTIR du bloc de la pause ; une preuve déjà faite sur un bloc antérieur reste payable
-    ///         (le protocole ne peut pas « doubler » une réclamation vue dans la mempool).
+    /// @notice The protocol pauses its bounty (or resumes it). v2: the pause reaches only claims anchored FROM the
+    ///         block of the pause on; a proof already made on an earlier block stays payable (the protocol cannot
+    ///         front-run a claim seen in the mempool).
     function setPaused(uint256 bountyId, bool p) external {
         Bounty storage bnty = _bounties[bountyId];
         if (msg.sender != bnty.protocol) revert NotProtocol();
@@ -306,8 +306,8 @@ contract SealedBounty is EIP712, UsdcPayer {
         emit BountyPauseSet(bountyId, p, bnty.pausedFromBlock);
     }
 
-    /// @notice v2 : le protocole RÉARME sa prime (après correction de la faille) : les paliers redeviennent payables,
-    ///         pour des réclamations ancrées après ce bloc seulement.
+    /// @notice v2: the protocol RE-ARMS its bounty (after fixing the flaw): the tiers become payable again, only for
+    ///         claims anchored after this block.
     function reopen(uint256 bountyId) external {
         Bounty storage bnty = _bounties[bountyId];
         if (msg.sender != bnty.protocol) revert NotProtocol();
@@ -316,8 +316,8 @@ contract SealedBounty is EIP712, UsdcPayer {
         emit BountyReopened(bountyId, uint64(block.number));
     }
 
-    /// @notice v2 (recommandé) : vérifie tout et RÉSERVE le paiement ; cP n'est pas dans cette transaction (seul son
-    ///         hash, signé par les enclaves). Le paiement part avec deliver(bountyId, fingerprint, cP).
+    /// @notice v2 (recommended): checks everything and RESERVES the payout; cP is not in this transaction (only its
+    ///         hash, signed by the enclaves). The payout goes out with deliver(bountyId, fingerprint, cP).
     function acceptClaim(Claim calldata r, bytes[] calldata signatures) external nonReentrant {
         Payout memory po = _accept(r, signatures);
         Payout storage s = _pending[r.bountyId][r.fingerprint];
@@ -332,8 +332,9 @@ contract SealedBounty is EIP712, UsdcPayer {
         s.ops = po.ops;
     }
 
-    /// @notice v2 : livre cP (vérifié contre le hash réservé) et paie chasseur, réseau et opérateurs. Ouvert à tous :
-    ///         ne dépend d'aucun contrat du protocole ; un transfert refusé devient un crédit (withdrawCredit).
+    /// @notice v2: delivers cP (checked against the reserved hash) and pays the hunter, the network and the operators.
+    ///         Open to anyone and independent of the protocol's contracts; a refused transfer becomes a credit
+    ///         (withdrawCredit).
     function deliver(uint256 bountyId, bytes32 fingerprint, bytes calldata cP) external nonReentrant {
         Payout storage s = _pending[bountyId][fingerprint];
         if (s.payee == address(0)) revert NothingToDeliver();
@@ -343,16 +344,16 @@ contract SealedBounty is EIP712, UsdcPayer {
         _pay(bountyId, fingerprint, po, cP);
     }
 
-    /// @notice Vérifie tout, paie le chasseur et livre le chiffré au protocole — sinon revert (chemin v1, en une
-    ///         transaction). Déconseillé : si la transaction échoue (course avec une autre réclamation, plafond
-    ///         d'exposition…), cP reste lisible dans sa calldata. Préférer acceptClaim puis deliver.
+    /// @notice Checks everything, pays the hunter and delivers the ciphertext to the protocol, or reverts (the v1 path,
+    ///         in one transaction). Not recommended: if the transaction fails (a race with another claim, the exposure
+    ///         cap...), cP stays readable in its calldata. Prefer acceptClaim, then deliver.
     function claim(Claim calldata r, bytes[] calldata signatures, bytes calldata cP) external nonReentrant {
         if (keccak256(cP) != r.cPHash) revert CipherMismatch();
         Payout memory po = _accept(r, signatures);
         _pay(r.bountyId, r.fingerprint, po, cP);
     }
 
-    /// @notice v2 : un paiement réservé et jamais livré retourne au pool après DELIVERY_WINDOW (ouvert à tous).
+    /// @notice v2: a payout reserved and never delivered returns to the pool after DELIVERY_WINDOW (open to anyone).
     function cancelUndelivered(uint256 bountyId, bytes32 fingerprint) external nonReentrant {
         Payout storage s = _pending[bountyId][fingerprint];
         if (s.payee == address(0)) revert NothingToDeliver();
@@ -373,7 +374,7 @@ contract SealedBounty is EIP712, UsdcPayer {
         emit RemainingWithdrawn(bountyId, amount);
     }
 
-    /// @notice v2 : retire un paiement dont le transfert avait été refusé.
+    /// @notice v2: withdraws a payout whose transfer was refused.
     function withdrawCredit() external nonReentrant {
         uint256 amount = credit[msg.sender];
         if (amount == 0) revert NothingToWithdraw();
@@ -381,15 +382,14 @@ contract SealedBounty is EIP712, UsdcPayer {
         _payOut(msg.sender, amount);
     }
 
-    /// @notice Saisie pour ÉQUIVOCATION. Le rejeu est déterministe : mêmes entrées ⇒ même résultat. Donc
-    ///         seules deux réclamations aux MÊMES entrées (bountyId, blockN, blockHashN, payee,
-    ///         predicateHash, cPHash, fingerprint) mais aux SORTIES différentes (loss ou tier), signées par
-    ///         la même enclave du produit, prouvent la triche : saisie de la caution, radiation, victime
-    ///         identifiable = le protocole. Une enclave honnête signe légitimement des réclamations
-    ///         différentes pour le même exploit (autre bloc N, autre échéance, autre chasseur) : refus
-    ///         (NotEquivocation), aucune saisie. L'échéance (deadline) n'est ni une entrée ni une sortie.
-    ///         v2 : la clé est liée à vie à son (opérateur, produit) dans l'EnclaveRegistry : la déplacer ne fait
-    ///         plus échapper à la saisie.
+    /// @notice Slash for EQUIVOCATION. The replay is deterministic: same inputs, same result. So only two claims with
+    ///         the SAME inputs (bountyId, blockN, blockHashN, payee, predicateHash, cPHash, fingerprint) but DIFFERENT
+    ///         outputs (loss or tier), signed by the same enclave of the product, prove cheating: the bond is slashed,
+    ///         the operator is banned, and the identifiable victim is the protocol. An honest enclave legitimately
+    ///         signs different claims for the same exploit (another block N, another deadline, another hunter): they
+    ///         are refused (NotEquivocation) and nothing is slashed. The deadline is neither an input nor an output.
+    ///         v2: the key is bound for life to its (operator, product) in the EnclaveRegistry, so moving it no longer
+    ///         escapes the slash.
     function reportEquivocation(Claim calldata a, bytes calldata sigA, Claim calldata b, bytes calldata sigB)
         external
         nonReentrant
@@ -409,10 +409,10 @@ contract SealedBounty is EIP712, UsdcPayer {
 
         bond.slash(e.operator, msg.sender, bnty.protocol);
 
-        // v2 bis : gaz du verdict exigé avant l'appel ; le try/catch ne couvre qu'une panne du registre.
-        // v2.1 bis : le requestHash porte l'opérateur saisi — un verdict de faute PAR opérateur (deux opérateurs qui
-        // équivoquent sur la même empreinte n'entrent plus en collision ; un nouveau signalement contre le même
-        // opérateur ne réécrit pas : VerdictLog.AlreadyRecorded).
+        // v2b: the verdict's gas is required before the call; the try/catch covers only a registry failure.
+        // v2.1b: the requestHash names the slashed operator, one fault verdict PER operator (two operators equivocating
+        // on the same fingerprint no longer collide; a new report against the same operator does not overwrite:
+        // VerdictLog.AlreadyRecorded).
         uint256 agentId = bond.agentIdOf(e.operator);
         bytes32 requestHash = keccak256(
             abi.encode(block.chainid, address(this), "equivocation", a.bountyId, a.fingerprint, e.operator)
@@ -425,14 +425,13 @@ contract SealedBounty is EIP712, UsdcPayer {
         emit EquivocationSlashed(a.bountyId, signerA, e.operator);
     }
 
-    /// @notice v2 : RÉFUTE une réclamation acceptée (fausse preuve, par exemple d'une enclave forgée) dans les
-    ///         REFUTE_WINDOW qui suivent son acceptation. La réfutation porte sur le digest de la réclamation et
-    ///         donne un autre résultat (non prouvée, ou autre perte / autre palier) ; elle est signée par des enclaves
-    ///         actives du produit, d'opérateurs DISTINCTS, qui n'ont pas signé la réclamation, au moins REFUTE_QUORUM
-    ///         et STRICTEMENT plus nombreux que les opérateurs de la réclamation. Effets : chaque opérateur signataire
-    ///         de la réclamation est saisi (50 % au dénonciateur, 50 % au protocole) ; le paiement, s'il n'est pas
-    ///         encore livré, retourne au pool.
-    /// @param ops les opérateurs signataires de la réclamation, tels qu'émis par ClaimAccepted
+    /// @notice v2: REFUTES an accepted claim (a false proof, for example from a forged enclave) within the
+    ///         REFUTE_WINDOW that follows its acceptance. The refutation is about the claim's digest and gives another
+    ///         result (not proven, or another loss / another tier); it is signed by active enclaves of the product,
+    ///         from DISTINCT operators that did not sign the claim, at least REFUTE_QUORUM of them and STRICTLY more
+    ///         than the claim's operators. Effects: each operator that signed the claim is slashed (50% to the
+    ///         reporter, 50% to the protocol); the payout, if not delivered yet, returns to the pool.
+    /// @param ops the operators that signed the claim, as emitted by ClaimAccepted
     function refute(Claim calldata r, address[] calldata ops, Refutation calldata f, bytes[] calldata signatures)
         external
         nonReentrant
@@ -452,7 +451,7 @@ contract SealedBounty is EIP712, UsdcPayer {
 
         rec.refuted = true;
 
-        // le paiement n'est pas encore parti : il retourne au pool
+        // the payout has not gone out yet: it returns to the pool
         Payout storage s = _pending[r.bountyId][r.fingerprint];
         if (s.payee != address(0) && s.claimDigest == digest) {
             bnty.balance += s.amount + s.netFee + s.opFee;
@@ -465,10 +464,10 @@ contract SealedBounty is EIP712, UsdcPayer {
 
         uint256 agentId = bond.agentIdOf(ops[0]);
         bytes32 requestHash = keccak256(abi.encode(block.chainid, address(this), "refuted", r.bountyId, digest));
-        _requireVerdictGas(); // v2 bis
+        _requireVerdictGas(); // v2b
         try verdict.record(agentId, requestHash, "", digest, "", 0, "tdx-dcap/refuted") {}
         catch {
-            emit VerdictSkipped(requestHash, RevertReason.bounded()); // v2.1 bis : jamais tout le revert
+            emit VerdictSkipped(requestHash, RevertReason.bounded()); // v2.1b: never the whole revert data
         }
         emit ClaimRefuted(r.bountyId, digest, msg.sender);
     }
@@ -477,60 +476,60 @@ contract SealedBounty is EIP712, UsdcPayer {
         return _bounties[bountyId];
     }
 
-    /// @notice v2 : le paiement réservé pour (prime, empreinte), en attente de livraison (payee nul si aucun).
+    /// @notice v2: the payout reserved for (bounty, fingerprint), awaiting delivery (zero payee if none).
     function pendingOf(uint256 bountyId, bytes32 fingerprint) external view returns (Payout memory) {
         return _pending[bountyId][fingerprint];
     }
 
-    /// @notice v2 : digest EIP-712 d'une réclamation (ce que signent les enclaves, et ce que porte une réfutation).
+    /// @notice v2: EIP-712 digest of a claim (what the enclaves sign, and what a refutation refers to).
     function claimDigest(Claim calldata r) external view returns (bytes32) {
         return _hashTypedDataV4(_claimHash(r));
     }
 
-    // ---- interne ----
+    // ---- internal ----
 
-    /// @dev Vérifie la réclamation, applique les règles de paiement v2, prend l'exposition, met la cible en pause, et
-    ///      rend le paiement à verser (réservé : déjà retiré du solde de la prime).
+    /// @dev Checks the claim, applies the v2 payout rules, takes the exposure, pauses the target, and returns the
+    ///      payout to make (reserved: already taken out of the bounty's balance).
     function _accept(Claim calldata r, bytes[] calldata signatures) private returns (Payout memory po) {
         Bounty storage bnty = _bounties[r.bountyId];
         if (bnty.protocol == address(0)) revert BadProduct();
         if (bnty.paused && r.blockN >= bnty.pausedFromBlock) revert BountyPausedErr();
         if (block.timestamp > bnty.deadline) revert Expired();
-        // échéance SIGNÉE de la réclamation (TTL de l'enclave) : passée, la réclamation ne vaut plus rien
+        // the claim's SIGNED deadline (the enclave's TTL): once passed, the claim is worthless
         if (r.deadline < block.timestamp) revert ClaimExpired();
 
-        // palier atteint
+        // tier reached
         uint256 tierAmt = _tierPayout(r.bountyId, r.tier, r.loss);
 
         if (r.predicateHash != bnty.predicateHash) revert PredicateMismatch();
 
-        // ancrage sur un bloc récent (EIP-2935)
-        bytes32 h = History.blockHashAt(r.blockN); // revert AnchorTooOld hors fenêtre
+        // anchored on a recent block (EIP-2935)
+        bytes32 h = History.blockHashAt(r.blockN); // reverts AnchorTooOld outside the window
         if (h != r.blockHashN) revert AnchorMismatch();
 
         if (fingerprintPaid[r.bountyId][r.fingerprint]) revert AlreadyPaid();
-        // v2 : un exploit ne se paie pas deux fois — ancré après le dernier paiement, palier strictement supérieur
+        // v2: an exploit is not paid twice: anchored after the last payout, strictly higher tier
         if (r.blockN <= bnty.lastPaidBlock) revert AnchorBeforeLastPayout();
         if (tierAmt <= bnty.paidAmount) revert TierAlreadyPaid();
 
-        po.amount = tierAmt - bnty.paidAmount; // seule la différence avec le palier déjà accordé
+        po.amount = tierAmt - bnty.paidAmount; // only the difference with the tier already granted
         po.netFee = po.amount * networkBountyBps / 10_000;
         po.opFee = po.amount * operatorBountyBps / 10_000;
         uint256 total = po.amount + po.netFee + po.opFee;
         if (bnty.balance < total) revert PoolTooSmall();
 
-        // signatures d'enclaves actives au bloc N ; au-dessus du plafond d'une seule (montant du PALIER) : k
-        // opérateurs distincts
+        // signatures of enclaves active at block N; above the single-enclave cap (the TIER amount): k distinct
+        // operators
         po.claimDigest = _hashTypedDataV4(_claimHash(r));
         uint256 nOps;
         (po.ops, nOps) = _checkSigners(po.claimDigest, bnty.productId, r.blockN, signatures);
         if (tierAmt > bnty.singleCap && nOps < bnty.k) revert NeedMoreEnclaves();
         address[] memory ops = po.ops;
         assembly ("memory-safe") {
-            mstore(ops, nOps) // ne garder que les opérateurs distincts
+            mstore(ops, nOps) // keep only the distinct operators
         }
 
-        // ---- effets avant tout appel externe ----
+        // ---- effects before any external call ----
         fingerprintPaid[r.bountyId][r.fingerprint] = true;
         bnty.balance -= total;
         bnty.paidAmount = tierAmt;
@@ -542,8 +541,8 @@ contract SealedBounty is EIP712, UsdcPayer {
         claimRecords[po.claimDigest] =
             ClaimRecord({acceptedAt: uint64(block.timestamp), refuted: false, opsHash: keccak256(abi.encode(ops))});
 
-        // exposition répartie sur les opérateurs distincts : montant ÷ nOps chacun, borné par C4
-        // (½ caution disponible ET plafond d'exposition du produit, par opérateur, sur 24 h glissantes)
+        // exposure split over the distinct operators: amount / nOps each, bounded by OperatorBond
+        // (half of the free bond AND the product's exposure cap, per operator, over a rolling 24 hours)
         uint256 cap = products.getProduct(bnty.productId).exposureCap;
         uint256 per = po.amount / nOps;
         for (uint256 i = 0; i < nOps; i++) {
@@ -552,11 +551,11 @@ contract SealedBounty is EIP712, UsdcPayer {
 
         emit ClaimAccepted(r.bountyId, po.claimDigest, r, ops, po.amount);
 
-        // pause de la cible si le protocole a confié ce rôle au contrat (bornée, jamais bloquante)
+        // pause the target if the protocol gave this role to the contract (bounded, never blocking)
         _pauseTarget(bnty.targetToPause);
     }
 
-    /// @dev Livre cP (événement) et paie ; un transfert refusé devient un crédit (jamais un échec).
+    /// @dev Delivers cP (event) and pays; a refused transfer becomes a credit (never a failure).
     function _pay(uint256 bountyId, bytes32 fingerprint, Payout memory po, bytes calldata cP) private {
         emit ExploitDelivered(bountyId, cP);
         emit BountyPaid(bountyId, po.payee, po.amount, po.tier);
@@ -564,26 +563,27 @@ contract SealedBounty is EIP712, UsdcPayer {
         uint256 n = po.ops.length;
         uint256 opPer = po.opFee / n;
         _payOrCredit(po.payee, po.amount);
-        // le reste de la division de la part opérateurs va au réseau (rien ne reste bloqué)
+        // the remainder of the operator share's division goes to the network (nothing stays locked)
         _payOrCredit(treasury, po.netFee + (po.opFee - opPer * n));
         for (uint256 i = 0; i < n; i++) {
             _payOrCredit(po.ops[i], opPer);
         }
 
-        // verdict ERC-8004 : une panne du registre ne bloque pas le paiement ; v2 bis : le gaz du verdict est exigé
-        // avant l'appel (un appel au gaz minimal ne fait plus sauter le verdict)
+        // ERC-8004 verdict: a registry failure does not block the payout; v2b: the verdict's gas is required before the
+        // call (a call sent with the minimal gas no longer skips the verdict)
         uint256 agentId = bond.agentIdOf(po.ops[0]);
         bytes32 requestHash = keccak256(abi.encode(block.chainid, address(this), "bounty", bountyId, fingerprint));
         _requireVerdictGas();
         try verdict.record(agentId, requestHash, "", po.cPHash, "", 100, "tdx-dcap/sealed-bounty") {}
         catch {
-            emit VerdictSkipped(requestHash, RevertReason.bounded()); // v2.1 bis : jamais tout le revert
+            emit VerdictSkipped(requestHash, RevertReason.bounded()); // v2.1b: never the whole revert data
         }
     }
 
-    /// @dev Un transfert refusé (adresse bloquée, USDC en pause) devient un crédit. Un transfert AFFAMÉ (gaz minimal) ne
-    ///      le peut pas : après un manque de gaz dans l'appel, il ne reste que 1/64 du gaz, qui ne paie pas l'écriture du
-    ///      crédit — c'est toute la transaction qui échoue (vérifié par test_FIXED_v2_minimalGasDeliverPaysAndWritesVerdict).
+    /// @dev A refused transfer (blocked address, paused USDC) becomes a credit. A STARVED transfer (minimal gas)
+    ///      cannot: after running out of gas in the call, only 1/64 of the gas is left, which does not pay for
+    ///      writing the credit, so the whole transaction fails (checked by
+    ///      test_FIXED_v2_minimalGasDeliverPaysAndWritesVerdict).
     function _payOrCredit(address to, uint256 amount) private {
         if (amount == 0) return;
         try usdc.transfer(to, amount) returns (bool ok) {
@@ -593,8 +593,8 @@ contract SealedBounty is EIP712, UsdcPayer {
         emit Credited(to, amount);
     }
 
-    /// @dev Appel de pause() BORNÉ : PAUSE_GAS exactement (on exige de quoi le donner : un chasseur n'affame pas la
-    ///      pause), aucune donnée de retour recopiée (pas de « return bomb »), échec ignoré.
+    /// @dev BOUNDED call to pause(): exactly PAUSE_GAS (enough gas to give it is required, so a hunter cannot starve
+    ///      the pause), no return data copied (no "return bomb"), failure ignored.
     function _pauseTarget(address target) private {
         if (target == address(0)) return;
         if (gasleft() < PAUSE_GAS * 64 / 63 + 10_000) revert NotEnoughGasForPause();
@@ -606,7 +606,7 @@ contract SealedBounty is EIP712, UsdcPayer {
         }
     }
 
-    /// @dev v2 bis : exige le gaz du verdict ERC-8004 avant de l'appeler (voir VERDICT_GAS).
+    /// @dev v2b: requires the ERC-8004 verdict's gas before calling it (see VERDICT_GAS).
     function _requireVerdictGas() private view {
         if (gasleft() < VERDICT_GAS * 64 / 63 + 20_000) revert InsufficientGasForVerdict();
     }
@@ -618,9 +618,8 @@ contract SealedBounty is EIP712, UsdcPayer {
         return tierAmount[bountyId][tier];
     }
 
-    /// @dev Recouvre chaque signataire, exige une enclave active du produit au bloc N, et compte
-    ///      les opérateurs DISTINCTS (deux enclaves du même opérateur comptent une fois). Tous signent la
-    ///      même réclamation.
+    /// @dev Recovers each signer, requires an active enclave of the product at block N, and counts the DISTINCT
+    ///      operators (two enclaves of the same operator count once). They all sign the same claim.
     function _checkSigners(bytes32 digest, uint256 productId, uint64 blockN, bytes[] calldata signatures)
         private
         view
@@ -647,8 +646,8 @@ contract SealedBounty is EIP712, UsdcPayer {
         }
     }
 
-    /// @dev Opérateurs DISTINCTS derrière une réfutation : enclaves actives du produit MAINTENANT, aucune d'un
-    ///      opérateur signataire de la réclamation.
+    /// @dev DISTINCT operators behind a refutation: enclaves of the product active NOW, none from an operator that
+    ///      signed the claim.
     function _countRefuters(Refutation calldata f, uint256 productId, address[] calldata claimOps, bytes[] calldata sigs)
         private
         view
@@ -674,7 +673,7 @@ contract SealedBounty is EIP712, UsdcPayer {
         }
     }
 
-    /// @dev Les ENTRÉES d'une réclamation : tout ce que le rejeu déterministe prend en compte.
+    /// @dev The INPUTS of a claim: everything the deterministic replay takes into account.
     function _sameInputs(Claim calldata a, Claim calldata b) private pure returns (bool) {
         return a.bountyId == b.bountyId && a.blockN == b.blockN && a.blockHashN == b.blockHashN
             && a.payee == b.payee && a.predicateHash == b.predicateHash && a.cPHash == b.cPHash

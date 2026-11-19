@@ -4,24 +4,24 @@ pragma solidity ^0.8.28;
 import {IProductRegistry} from "./interfaces/IProductRegistry.sol";
 
 /// @title ProductRegistry
-/// @notice La place de marché des produits : qui peut tourner, à quel prix, avec quel partage,
-///         quelles images (workloadId) et quels avis TCB tolérés. Activation, changements de prix ET ajout
-///         d'image derrière un timelock (48 h sur Arc mainnet avec la pile v2, 0 sur testnet pour la démo, et on
-///         le dit). Le retrait d'une image fautive, lui, est immédiat.
+/// @notice The product marketplace: who may run a product, at what price, with what split, which images
+///         (workloadId) and which tolerated TCB advisories. Activation, price changes AND adding an image sit behind
+///         a timelock (48 hours on Arc mainnet with the v2 stack, 0 on testnet for the demo, and we say so).
+///         Retiring a faulty image takes effect at once.
 ///
-///         v2 (revue adverse du 7/11) :
-///         - l'ajout d'une image passe par le timelock (proposeWorkload → applyWorkload) : une image ne change
-///           plus l'unité facturée « dans le même bloc » ;
-///         - l'unité facturée (unitTokens, outWeight) est un champ du produit, fixé à la proposition et
-///           verrouillé dans chaque session (SessionPay) ;
-///         - la part du réseau est d'au moins 5 % (MIN_NETWORK_BPS), même sur un produit tiers.
+///         v2 (after an adversarial review):
+///         - adding an image goes through the timelock (proposeWorkload, then applyWorkload): an image no longer
+///           changes the billed unit "in the same block";
+///         - the billed unit (unitTokens, outWeight) is a field of the product, set in the proposal and locked in
+///           each session (SessionPay);
+///         - the network share is at least 5% (MIN_NETWORK_BPS), even on a third-party product.
 ///
-///         v2.1 : une mise à jour peut AUSSI changer manifestURI (proposeUpdateWithURI), derrière le même timelock ; le
-///         nouvel URI est public pendant l'attente (ManifestURIUpdateProposed, pendingManifestURI).
+///         v2.1: an update can ALSO change manifestURI (proposeUpdateWithURI), behind the same timelock; the new URI
+///         is public during the wait (ManifestURIUpdateProposed, pendingManifestURI).
 contract ProductRegistry is IProductRegistry {
-    /// @notice v2 : la redevance de l'auteur d'un produit est bornée à 30 % du prix.
+    /// @notice v2: a product author's royalty is capped at 30% of the price.
     uint16 public constant MAX_AUTHOR_BPS = 3000;
-    /// @notice v2 : la part du réseau est d'au moins 5 % du prix (aucun produit tiers ne la met à 0).
+    /// @notice v2: the network share is at least 5% of the price (no third-party product can set it to 0).
     uint16 public constant MIN_NETWORK_BPS = 500;
 
     uint64 public immutable timelock;
@@ -31,7 +31,7 @@ contract ProductRegistry is IProductRegistry {
     mapping(uint256 => string) public manifestURI;
     mapping(uint256 => mapping(bytes32 => bool)) private _workloadAllowed;
     mapping(uint256 => mapping(bytes32 => bool)) private _advisoryAllowed;
-    /// @notice v2 : image proposée → instant à partir duquel applyWorkload l'autorise (0 = rien en attente).
+    /// @notice v2: proposed image -> time from which applyWorkload allows it (0 = nothing pending).
     mapping(uint256 => mapping(bytes32 => uint64)) public workloadApplyAt;
 
     struct PendingUpdate {
@@ -45,7 +45,7 @@ contract ProductRegistry is IProductRegistry {
 
     mapping(uint256 => PendingUpdate) public pendingUpdate;
 
-    /// @notice v2.1 : nouveau manifestURI en attente, appliqué par applyUpdate avec le reste de la mise à jour.
+    /// @notice v2.1: pending new manifestURI, applied by applyUpdate with the rest of the update.
     struct PendingURI {
         bool set;
         string uri;
@@ -55,21 +55,21 @@ contract ProductRegistry is IProductRegistry {
 
     event ProductUpdateProposed(uint256 indexed productId, uint64 applyAt);
     event ProductUpdated(uint256 indexed productId, uint64 version);
-    /// @notice v2.1 : un changement de manifestURI est proposé (applicable à `applyAt`, avec la mise à jour).
+    /// @notice v2.1: a manifestURI change is proposed (applicable at `applyAt`, with the update).
     event ManifestURIUpdateProposed(uint256 indexed productId, string manifestURI, uint64 applyAt);
-    /// @notice v2.1 : manifestURI a changé (applyUpdate).
+    /// @notice v2.1: manifestURI changed (applyUpdate).
     event ManifestURIUpdated(uint256 indexed productId, string manifestURI);
 
     error NotAuthor();
     error BadState();
     error TooEarly();
     error BadShares();
-    /// @notice v2 : bpsAuthor au-dessus de MAX_AUTHOR_BPS (30 %).
+    /// @notice v2: bpsAuthor above MAX_AUTHOR_BPS (30%).
     error AuthorShareTooHigh();
-    /// @notice v2 : bpsNetwork sous MIN_NETWORK_BPS (5 %).
+    /// @notice v2: bpsNetwork below MIN_NETWORK_BPS (5%).
     error NetworkShareTooLow();
     error NoPendingUpdate();
-    /// @notice v2 : aucune image en attente pour ce produit (proposeWorkload d'abord).
+    /// @notice v2: no image pending for this product (call proposeWorkload first).
     error NoPendingWorkload();
 
     struct ProposeParams {
@@ -86,9 +86,9 @@ contract ProductRegistry is IProductRegistry {
         address settlement;
         bytes32 param;
         string[] advisoryIds;
-        /// @dev v2 : jetons-équivalent-entrée par unité (0 = 1, comportement v1).
+        /// @dev v2: input-equivalent tokens per unit (0 = 1, the v1 behavior).
         uint32 unitTokens;
-        /// @dev v2 : poids d'un jeton de sortie (0 = 1, comportement v1).
+        /// @dev v2: weight of an output token (0 = 1, the v1 behavior).
         uint32 outWeight;
     }
 
@@ -124,7 +124,7 @@ contract ProductRegistry is IProductRegistry {
         });
         manifestURI[productId] = q.manifestURI;
 
-        // les images de la proposition passent par le même timelock que l'activation du produit
+        // the images of the proposal go through the same timelock as the product's activation
         for (uint256 i = 0; i < q.workloadIds.length; i++) {
             _workloadAllowed[productId][q.workloadIds[i]] = true;
             emit WorkloadAdded(productId, q.workloadIds[i]);
@@ -144,8 +144,8 @@ contract ProductRegistry is IProductRegistry {
         emit ProductActivated(productId);
     }
 
-    /// @notice v2 : PROPOSE une image après coup ; elle n'est autorisée qu'après le timelock (applyWorkload).
-    ///         (v1 : addWorkload, effet immédiat, supprimé : l'image porte l'unité facturée et le code servi.)
+    /// @notice v2: PROPOSES an image afterwards; it is allowed only after the timelock (applyWorkload).
+    ///         (v1's immediate addWorkload is removed: the image carries the billed unit and the served code.)
     function proposeWorkload(uint256 productId, bytes32 workloadId) external {
         Product storage p = _products[productId];
         if (msg.sender != p.author) revert NotAuthor();
@@ -154,7 +154,7 @@ contract ProductRegistry is IProductRegistry {
         emit WorkloadProposed(productId, workloadId, applyAt);
     }
 
-    /// @notice v2 : autorise une image proposée, une fois le timelock écoulé (n'importe qui peut l'appeler).
+    /// @notice v2: allows a proposed image once the timelock has passed (anyone can call it).
     function applyWorkload(uint256 productId, bytes32 workloadId) external {
         uint64 applyAt = workloadApplyAt[productId][workloadId];
         if (applyAt == 0) revert NoPendingWorkload();
@@ -164,9 +164,9 @@ contract ProductRegistry is IProductRegistry {
         emit WorkloadAdded(productId, workloadId);
     }
 
-    /// @notice Retrait IMMÉDIAT d'une image fautive (pas de timelock) ; annule aussi une proposition en attente.
-    ///         v2 : les enclaves déjà inscrites avec cette image s'invalident ensuite (EnclaveRegistry
-    ///         .invalidateRetiredWorkload), sans délai de grâce.
+    /// @notice IMMEDIATE retirement of a faulty image (no timelock); also cancels a pending proposal.
+    ///         v2: the enclaves already registered with this image are then invalidated (EnclaveRegistry
+    ///         .invalidateRetiredWorkload), with no grace period.
     function retireWorkload(uint256 productId, bytes32 workloadId) external {
         Product storage p = _products[productId];
         if (msg.sender != p.author) revert NotAuthor();
@@ -175,14 +175,14 @@ contract ProductRegistry is IProductRegistry {
         emit WorkloadRetired(productId, workloadId);
     }
 
-    /// @notice Propose une mise à jour (manifeste, prix, paramètre), applicable après le timelock ; manifestURI ne change
-    ///         pas. Remplace toute proposition en attente (y compris un changement d'URI proposé avant).
+    /// @notice Proposes an update (manifest, price, parameter), applicable after the timelock; manifestURI does not
+    ///         change. Replaces any pending proposal (including a URI change proposed before).
     function proposeUpdate(uint256 productId, bytes32 manifestHash, uint256 price, bytes32 param) external {
         _proposeUpdate(productId, manifestHash, price, param);
         delete pendingManifestURI[productId];
     }
 
-    /// @notice v2.1 : comme proposeUpdate, et change AUSSI manifestURI, au même instant (même timelock).
+    /// @notice v2.1: like proposeUpdate, and ALSO changes manifestURI, at the same time (same timelock).
     function proposeUpdateWithURI(
         uint256 productId,
         bytes32 manifestHash,
@@ -239,7 +239,7 @@ contract ProductRegistry is IProductRegistry {
         p.state = State.Retired;
     }
 
-    // ---- lectures ----
+    // ---- reads ----
 
     function isWorkloadAllowed(uint256 productId, bytes32 workloadId) external view override returns (bool) {
         return _workloadAllowed[productId][workloadId];
