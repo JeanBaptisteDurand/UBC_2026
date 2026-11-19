@@ -1,0 +1,53 @@
+# 18/11 : copilote attesté, SURFACE « SITE » (pile v2.1, Arc testnet, produit 4) : le copilote du panneau du site de
+# Florent (le MÊME programme que /copilot-site/ sur le serveur : invite, outils d'interface rendus au navigateur, outils
+# prepare que le visiteur signe avec SON wallet, docs_search ; aucun outil qui dépense) dans SA PROPRE VM Intel TDX (image
+# système de PRODUCTION dstack-0.5.12, tdx.small, nœud prod9). La question arrive chiffrée vers l'enclave
+# (ARC-COPILOT-CHAT-v1) ; chaque réponse repart scellée pour la requête ET signée par la clé de l'enclave inscrite sur Arc
+# (ARC-COPILOT-SITE-REPLY-v1, services/copilot/src/enclave-site.ts). MODEL_ATTESTATION=aci : la passerelle du modèle
+# (RedPill) est VÉRIFIÉE par l'enclave avant tout appel (quote Intel, image système de production, TLS épinglé, reçus
+# exigés ; GET /model-attestation), sinon l'enclave refuse de démarrer.
+# TOUT ce qui suit est mesuré (compose-hash → empreinte d'image autorisée par l'auteur du produit 4), y compris la surface,
+# le modèle et son URL : un opérateur ne peut ni changer l'invite ni brancher un autre modèle sous le badge « attesté ».
+# Bornes d'entrée = celles du copilote du site sur le serveur (deploy/docker-compose.vps.yml, service copilot-site) : il
+# lit les données PUIS pilote les pages, un 2e tour d'outils doit rester permis ; coût borné par COPILOT_GLOBAL_PER_DAY.
+# Variables CHIFFRÉES (non mesurées, jamais écrites ici) : OPENAI_API_KEY (clé du fournisseur du modèle),
+# OPERATOR_ALLOWLIST (adresses publiques des opérateurs), COPILOT_PROXY_TOKEN (≥ 32 octets, hexadécimal : seul le proxy du
+# site peut poser des questions ; /attest, /pubkeys, /health et /model-attestation restent publics), et les identifiants
+# du registre d'images (DSTACK_DOCKER_REGISTRY, DSTACK_DOCKER_USERNAME, DSTACK_DOCKER_PASSWORD : script de lancement).
+# Jamais de DEBUG, d'env_file ni de NODE_OPTIONS ici (l'enclave refuse de démarrer avec DEBUG).
+# L'IMAGE : à remplacer par le condensat du push (docs/RUNBOOK-COPILOT-ENCLAVE.md, étape 2) ; tant que la ligne porte
+# REPLACE_WITH_PUSHED_DIGEST, ce fichier n'est pas déployable (aucun registre ne sert ce condensat) et ne se mesure pas.
+services:
+  copilot-enclave:
+    image: ghcr.io/jeanbaptistedurand/archive-copilot-enclave@sha256:eeb889b054e021ff17ee933873080403965623f4f36693986f2d780b269bf5dd
+    ports:
+      - "8808:8808"
+    environment:
+      - PORT=8808
+      - PRODUCT_ID=4
+      - CHAIN_ID=5042002
+      - REGISTRY=0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d
+      - DEPLOYMENTS=/app/deployments/deployments.v21.testnet.json
+      - RPC_URL=https://rpc.testnet.arc.io
+      - COPILOT_SURFACE=site
+      - OPENAI_BASE_URL=https://tee.redpill.ai/v1
+      - MODEL_ATTESTATION=aci
+      - MODEL_GATEWAY_OS_IMAGES=8db40cb23008d6213668b5816702d100b37b859a8a5bfd18d938ae3a1b3715bd
+      - COPILOT_MODEL=openai/gpt-oss-120b
+      - COPILOT_MAX_TOKENS=2000
+      - COPILOT_MAX_TOOL_CHARS=40000
+      - COPILOT_MAX_INPUT_TOKENS=120000
+      - COPILOT_MAX_INPUT_CHARS=320000
+      - COPILOT_RATE_PER_MINUTE=20
+      - COPILOT_RATE_PER_DAY=300
+      - COPILOT_GLOBAL_PER_DAY=1000
+      - ALLOWED_ORIGINS=https://archive.62-171-153-35.sslip.io
+      - ARCHIVE_API=https://archive.62-171-153-35.sslip.io/api
+      - ENCLAVE_URL=https://archive.62-171-153-35.sslip.io/enclave/inference
+      - ENCLAVE_PATH_PREFIXES=/enclave/inference,/enclave/bounty,/enclave/x402
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPERATOR_ALLOWLIST=${OPERATOR_ALLOWLIST}
+      - COPILOT_PROXY_TOKEN=${COPILOT_PROXY_TOKEN}
+    volumes:
+      - /var/run/dstack.sock:/var/run/dstack.sock
+    restart: unless-stopped

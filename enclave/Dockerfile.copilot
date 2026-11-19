@@ -2,9 +2,19 @@
 # (Phala dstack), avec le kit d'enclave : clés nées en mémoire, POST /attest (quote dstack lié à l'opérateur et au produit,
 # OPERATOR_ALLOWLIST), GET /pubkeys, conversation chiffrée (HPKE) en plus du mode clair.
 # Point d'entrée : services/copilot/src/enclave-server.ts. Configuration : services/copilot/src/enclave-config.ts.
+# v22 : la MÊME image sert la console ou le panneau du SITE (AskHive), selon COPILOT_SURFACE écrite en clair (donc mesurée)
+# dans le compose : enclave/phala/copilot-v21.yml (console), enclave/phala/copilot-site-v22.yml (site : réponses scellées
+# ET signées par la clé de l'enclave, services/copilot/src/enclave-site.ts).
 #
-# Construite depuis la RACINE du dépôt (le code vient de trois dossiers) :
-#   docker build --platform linux/amd64 -f enclave/Dockerfile.copilot -t ghcr.io/<compte>/archive-copilot-enclave:v21 .
+# Construite depuis la RACINE du dépôt (le code vient de trois dossiers), pour linux/amd64 (les VM TDX de Phala), sans
+# attestation de provenance (une image simple : un seul manifeste, son condensat est celui qu'épingle le compose) et avec
+# des horodatages fixés (SOURCE_DATE_EPOCH + rewrite-timestamp : deux constructions des mêmes sources donnent les mêmes
+# couches) :
+#   SOURCE_DATE_EPOCH=1794960000 docker buildx build --platform linux/amd64 -f enclave/Dockerfile.copilot \
+#     --provenance=false --sbom=false --build-arg SOURCE_DATE_EPOCH \
+#     --output type=docker,name=archive-copilot-enclave:v22-site,rewrite-timestamp=true .
+#   (pour publier l'image : même commande avec
+#    --output type=image,name=ghcr.io/<compte>/archive-copilot-enclave:v22-site,push=true,rewrite-timestamp=true)
 # enclave/Dockerfile.copilot.dockerignore n'envoie au constructeur QUE les sources et les fichiers de verrouillage
 # utiles : jamais .secrets/, .git/, ni les node_modules locaux.
 # Reproductible : base épinglée par condensat (la même que les services du VPS), dépendances figées par les fichiers de
