@@ -574,7 +574,7 @@ export async function productsList(arc: ArcClient, q: { all?: unknown } = {}, cx
   }));
   return {
     total: ps.length, actifs: ps.filter((p) => p.state === "Active").length, produits: rows,
-    source: `API ArcHive ${archiveBase(cx.apiBase)}/products (ProductRegistry.productCount + getProduct, lus on-chain par l'API)`,
+    source: `API ArcHive ${archiveBase(cx.apiBase)}/products (ProductRegistry.productCount + getProduct, read on-chain by the API)`,
   };
 }
 
