@@ -282,7 +282,7 @@ test("n° 8 : le site et l'API écrivent exactement les mêmes phrases, en angla
     assert.match(statement, /^ArcHive: [A-Za-z0-9 :/?#[\]@!$&'()*+,;=._~-]+$/, action.kind);
     assert.ok(statement.startsWith(ops.STATEMENT_PREFIX), action.kind);
   }
-  // ce que le jury lira dans son wallet
+  // ce que le signataire lira dans son wallet
   assert.equal(ops.STATEMENT.pair("HIVE-7K2P-QX9M"), "ArcHive: pair the machine showing code HIVE-7K2P-QX9M with my account");
   assert.equal(ops.STATEMENT.createKey(), "ArcHive: create an operator key (arcop_) that cannot spend funds");
   assert.equal(ops.STATEMENT.revokeKey("1a2b3c4d"), "ArcHive: revoke operator key arcop_1a2b3c4d");
