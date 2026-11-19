@@ -9,6 +9,7 @@ import { pageContext, isId, isAnchor, oneOf, TARGETS, STATES, KINDS, CONSOLE_ROU
 import { getLang } from '../i18n'
 import { ct } from './strings'
 import { COPILOT_SITE, MCP } from '../data/endpoints'
+import { askSealed, checkEnclave } from './enclave'
 
 // URLs come from data/endpoints.ts (jb profile: /copilot-site on the API origin)
 export const COPILOT_URL = COPILOT_SITE
@@ -136,6 +137,12 @@ const isNetwork = (e: unknown) => /^(Failed to fetch|Load failed|NetworkError|fe
 const isTimeout = (e: unknown) => (e as Error)?.name === 'TimeoutError' || (e as Error)?.name === 'AbortError'
 
 export async function ask(history: ChatTurn[], user: string | null): Promise<Answer> {
+  // AskHive in its enclave first (copilot/enclave.ts): sealed, its key checked on Arc. Where this page cannot seal
+  // (HTTP, another origin), or if the enclave does not answer, the ArcHive server copilot answers and the badge says so
+  try {
+    const s = await askSealed(history.slice(-MAX_MESSAGES), user, getLang() === 'fr' ? 'fr' : 'en')
+    if (s) return s.ok ? { ok: true, parsed: parseReply(s.reply) } : { ok: false, text: s.text }
+  } catch { void checkEnclave(true) /* the enclave is unreachable: the server copilot answers, the badge says so */ }
   let res: Response
   try {
     res = await fetch(`${COPILOT_URL}/chat`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: chatBody(history, user), signal: AbortSignal.timeout(180_000) })

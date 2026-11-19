@@ -4,6 +4,9 @@
 // user's wallet (cards.tsx), and the MCP card gives the same tools to an agent. Keyboard: focus stays in the panel
 // (Tab, Shift+Tab), Escape closes it and returns focus to the button. Phone (under 640 px): a full-width sheet,
 // collapsed while the copilot shows the site.
+import { AskHiveMark } from './AskHiveMark'
+import { useEnc, checkEnclave } from './enclave'
+import { EXPLORER } from '../data/endpoints'
 import { useEffect, useRef, useState, type KeyboardEvent as RKeyboardEvent } from 'react'
 import { useLang } from '../i18n'
 import { ct, suggestions } from './strings'
@@ -47,6 +50,50 @@ async function send(text: string) {
   // same lock (mount.tsx)
   setState((s) => ({ msgs: [...s.msgs, msg], busy: false, showing: p.ui.length > 0 }))
   if (p.ui.length) void play(id, p.ui).finally(() => setState({ showing: false }))
+}
+
+/** The enclave badge (JB's, 19/11): what AskHive runs on, read on Arc; a click opens the proof */
+function EnclaveBadge({ svc }: { svc?: string }) {
+  const lang = useLang()
+  const e = useEnc()
+  const [open, setOpen] = useState(false)
+  useEffect(() => { void checkEnclave() }, [])
+  const st = e.status === 'idle' ? 'checking' : e.status
+  const a = st === 'checking' ? ct('enc.checking') : ct(`enc.${st}.a` as never)
+  const b = st === 'checking' ? '' : ct(`enc.${st}.b` as never)
+  const k = e.keys
+  const ex = (kind: 'address' | 'block', v: string) => `${EXPLORER}/${kind}/${v}`
+  const sh = (v: string) => `${v.slice(0, 6)}…${v.slice(-4)}`
+  const time = k ? new Date(k.checkedAtMs).toLocaleTimeString(lang === 'fr' ? 'fr-FR' : 'en-US') : ''
+  return (
+    <div className={`cp-enc-w is-${st}`}>
+      <button type="button" className="cp-enc" aria-expanded={open} aria-controls="cp-proof" aria-label={`${a}${b ? `, ${b}` : ''}. ${ct('enc.aria')}`} disabled={st === 'checking'} onClick={() => setOpen(!open)}>
+        <svg className="cp-enc-lock" viewBox="0 0 10 12" width="10" height="12" aria-hidden="true"><path d="M2.5 5V3.5a2.5 2.5 0 0 1 5 0V5" fill="none" stroke="currentColor" strokeWidth="1.2" /><rect x="1" y="5" width="8" height="6.4" fill="currentColor" /></svg>
+        <span className="cp-enc-t"><span className="cp-enc-a">{a}</span>{b ? <span className="cp-enc-b">{b}</span> : null}</span>
+        <i className="cp-enc-x" aria-hidden="true" />
+      </button>
+      {open && st !== 'checking' ? (
+        <div id="cp-proof" className={`cp-proof ${st === 'on' ? '' : 'is-off'}`}>
+          <p className="cp-card-h lbl">{ct('enc.h')}</p>
+          {k ? (
+            <dl className="cp-proof-l">
+              <dt>{ct('enc.key')}</dt><dd><a className="cp-a mono" href={ex('address', k.signer)} target="_blank" rel="noreferrer">{sh(k.signer)}</a></dd>
+              <dt>{ct('enc.op')}</dt><dd><a className="cp-a mono" href={ex('address', k.operator)} target="_blank" rel="noreferrer">{sh(k.operator)}</a></dd>
+              <dt>{ct('enc.prod')}</dt><dd>{ct('enc.prod.v', { n: String(k.productId) })}</dd>
+              <dt>{ct('enc.reg')}</dt><dd><a className="cp-a mono" href={ex('block', String(k.fromBlock))} target="_blank" rel="noreferrer">{ct('enc.blk', { n: String(k.fromBlock) })}</a></dd>
+              <dt>{ct('enc.img')}</dt><dd className="mono">{sh(k.workloadId)}</dd>
+              <dt>{ct('enc.quote')}</dt><dd>{ct('enc.quote.v', { tcb: k.tcbStatus === 0 ? ct('enc.tcb.0') : ct('enc.tcb.n', { n: k.tcbStatus }) })}</dd>
+              <dt>{ct('enc.conv')}</dt><dd>{st === 'on' ? ct('enc.conv.on', { k: sh(k.x25519) }) : ct('enc.conv.clear')}</dd>
+              <dt>{ct('enc.model')}</dt><dd>{ct('enc.model.v')}</dd>
+              <dt>{ct('enc.checked')}</dt><dd className={st === 'on' ? 'cp-proof-ok' : ''}>{ct('enc.checked.v', { n: String(k.checkedAtBlock), t: time })}</dd>
+            </dl>
+          ) : <p className="cp-proof-p">{ct('enc.off.p', { why: ct(e.why === 'mismatch' ? 'enc.why.mismatch' : 'enc.why.unreachable') })}</p>}
+          {svc ? <p className="cp-proof-p">{ct('svc')} <a className="cp-svc-a" href={serviceHref(svc)}>{ct('svcL')}<span aria-hidden="true"> →</span></a></p> : null}
+          <div className="cp-proof-a"><button type="button" className="cp-ib" onClick={() => void checkEnclave(true)}>{ct('enc.again')}</button></div>
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 function WalletBar() {
@@ -207,7 +254,7 @@ export function Copilot() {
     if (!scrolled) return null
     return (
       <button ref={launch} type="button" className="btn btn-line cp-launch" aria-haspopup="dialog" aria-expanded="false" aria-label={ct('launch.aria')} onClick={() => setState({ open: true })} onKeyDown={(e) => e.stopPropagation()} data-ui data-front-free>
-        <span className="cp-mark" aria-hidden="true"><i /></span><span>{ct('launch')}</span>
+        <AskHiveMark size={30} /><span>{ct('launch')}</span>
       </button>
     )
   }
@@ -216,7 +263,7 @@ export function Copilot() {
     <section ref={panel} id="cp-panel" className={`cp-panel ${driving ? 'is-driving' : ''}`} data-sheet={sheet ? '1' : '0'} data-busy={locked ? '1' : '0'} role="dialog" aria-modal={sheet} aria-labelledby="cp-title" onKeyDown={onKey} data-ui data-front-free>
       <header className="cp-hd">
         <div className="cp-hd-r">
-        <h2 id="cp-title" className="cp-title"><span className="cp-mark" aria-hidden="true"><i /></span>{ct('title')}</h2>
+        <h2 id="cp-title" className="cp-title"><AskHiveMark size={28} />{ct('title')}</h2>
         <div className="cp-hd-b">
           {driving ? <button type="button" className="cp-ib" onClick={() => setState({ driving: false })}>{ct('driving.back')}</button> : (
             <>
@@ -227,9 +274,9 @@ export function Copilot() {
           <button type="button" className="cp-ib cp-close" onClick={() => { close(); setTimeout(() => launch.current?.focus({ preventScroll: true }), 30) }} aria-label={ct('close')}>×</button>
         </div>
         </div>
-        <p className="cp-sub">{driving ? ct('driving') : ct('sub')}</p>
+        {/* one line under the title (owner, 19/11): what AskHive runs on; the rest is in the proof it opens */}
+        {driving ? <p className="cp-sub">{ct('driving')}</p> : <EnclaveBadge svc={cpSvc} />}
         {/* the copilot's own service page (product read live: the active copilot product, not a replaced one) */}
-        {!driving && cpSvc ? <p className="cp-svc">{ct('svc')} <a className="cp-svc-a" href={serviceHref(cpSvc)}>{ct('svcL')}<span aria-hidden="true"> →</span></a></p> : null}
       </header>
       {driving ? null : (
         <>

@@ -169,3 +169,43 @@
 .cp-svc { margin: 6px 0 0; font-size: 12px; line-height: 1.45; color: var(--ink3, #96a0ab); }
 .cp-svc-a { white-space: nowrap; color: var(--arc-light, #9cc0ff); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, currentColor 40%, transparent); }
 .cp-svc-a:hover { text-decoration-color: currentColor; }
+
+/* The enclave badge and its proof (JB's, 19/11, from the shared server): AskHive's machine, read on Arc */
+.cp-enc-w { display: grid; gap: 4px; justify-items: start; min-width: 0px; margin: 6px 0px 0px 24px; }
+.cp-enc { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; min-height: 28px; margin: 0px; padding: 4px 10px; background: none; color: var(--ink2); font-size: 12px; line-height: 1.35; text-align: left; box-shadow: inset 0 0 0 1px var(--rule2); transition: box-shadow var(--t1) var(--productive),color var(--t1) var(--productive); }
+button.cp-enc { cursor: pointer; }
+button.cp-enc:hover, button.cp-enc:focus-visible { color: var(--ink); box-shadow: inset 0 0 0 1px rgb(var(--ink-c) / .34); }
+button.cp-enc:disabled { cursor: default; }
+.cp-enc-t { display: flex; flex-wrap: wrap; column-gap: 17px; min-width: 0px; overflow: hidden; }
+.cp-enc-a { min-width: 0px; }
+.cp-enc-b { position: relative; color: var(--ink3); white-space: nowrap; }
+.cp-enc-b::before { content: ""; position: absolute; left: -9px; top: 50%; width: 1px; height: 10px; margin-top: -5px; background: var(--rule2); }
+.cp-enc .cp-led { transform: none; }
+.cp-enc-lock { flex: 0 0 auto; display: block; color: var(--green); }
+.cp-enc-w.is-on .cp-enc { color: var(--ink); box-shadow: rgba(43, 226, 99, 0.42) 0px 0px 0px 1px inset; }
+.cp-enc-w.is-on button.cp-enc:hover, .cp-enc-w.is-on button.cp-enc:focus-visible { box-shadow: rgba(43, 226, 99, 0.7) 0px 0px 0px 1px inset; }
+.cp-enc-w.is-on .cp-enc-b { color: var(--green); }
+.cp-enc-w.is-checking .cp-enc { color: var(--ink3); box-shadow: inset 0 0 0 1px var(--rule); }
+.cp-enc-x { position: relative; flex: 0 0 auto; width: 8px; height: 8px; margin-left: 2px; opacity: 0.7; }
+.cp-enc-x::before, .cp-enc-x::after { content: ""; position: absolute; left: 0px; top: 3.5px; width: 8px; height: 1px; background: currentcolor; transition: transform var(--t1) var(--productive); }
+.cp-enc-x::after { transform: rotate(90deg); }
+.cp-enc[aria-expanded="true"] .cp-enc-x::after { transform: rotate(0deg); }
+button.cp-enc:disabled .cp-enc-x { display: none; }
+.cp-proof { justify-self: stretch; display: grid; gap: 8px; margin-top: 4px; padding: 10px 12px 12px; max-height: min(44svh, 360px); overflow: auto; overscroll-behavior: contain; background: var(--bg); box-shadow: inset 0 0 0 1px var(--rule),inset 2px 0 0 var(--green); scrollbar-width: thin; scrollbar-color: var(--ink3) transparent; animation: cp-note-in .28s var(--productive) both; }
+.cp-proof.is-off { box-shadow: inset 0 0 0 1px var(--rule),inset 2px 0 0 var(--amber); }
+.cp-proof .cp-card-h { margin: 0px; }
+.cp-proof-p { margin: 0px; font-size: 12px; line-height: 1.5; color: var(--ink2); }
+.cp-proof-l { display: grid; grid-template-columns: max-content minmax(0px, 1fr); gap: 5px 12px; margin: 0px; font-size: 12px; line-height: 1.45; }
+.cp-proof-l dt { color: var(--ink3); }
+.cp-proof-l dd { margin: 0px; min-width: 0px; color: var(--ink); overflow-wrap: anywhere; }
+.cp-proof-l .mono, .cp-proof-l .cp-a.mono { font-size: 12px; }
+.cp-proof-n { color: var(--ink3); }
+.cp-proof-ok { color: var(--green); }
+.cp-proof-a { display: flex; flex-wrap: wrap; gap: 4px; }
+.cp-enc-w.is-clear .cp-enc-b, .cp-enc-w.is-off .cp-enc-b { color: var(--amber); }
+.cp-enc-w.is-clear .cp-enc-lock, .cp-enc-w.is-off .cp-enc-lock { color: var(--amber); }
+@media (prefers-reduced-motion: reduce) { .cp-proof { animation: none; } .cp-enc-x::before, .cp-enc-x::after { transition: none; } }
+
+/* the badge is the single line under the title (owner, 19/11): it never wraps, the proof holds the rest */
+.cp-enc-t { flex-wrap: nowrap; white-space: nowrap; }
+.cp-enc-a { overflow: hidden; text-overflow: ellipsis; }

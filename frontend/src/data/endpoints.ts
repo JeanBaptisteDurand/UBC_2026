@@ -56,6 +56,9 @@ export const ENCLAVE = {
   get bountyVerified() { return pick('VITE_ENCLAVE_BOUNTY_VERIFIED') ?? `${encBase()}/bounty-verified` },
   /** Attested copilot (product 4): the proxy token is set by the API's nginx, so calls must go through it */
   get copilot() { return pick('VITE_ENCLAVE_COPILOT') ?? `${encBase()}/copilot` },
+  /** AskHive, the site copilot in its enclave (product 4, "site" surface): sealed conversation, key checked on Arc.
+   *  Always the API origin's path (its nginx sets the proxy token), never the dev relay */
+  get copilotSite() { return pick('VITE_ENCLAVE_COPILOT_SITE') ?? `${ROOT}/enclave/copilot-site` },
 }
 export type EnclaveKey = keyof typeof ENCLAVE
 
