@@ -25,9 +25,9 @@ export const DEMO_PARTS: DemoPart[] = [
   { id: 'answer', beat: 17, title: { en: 'The signed answer', fr: 'La réponse signée' },
     why: { en: 'The enclave signs its answer. The page checks the signature against the key Arc admitted: the answer came from the verified machine.', fr: 'L’enclave signe sa réponse. La page vérifie la signature avec la clé admise par Arc : la réponse vient bien de la machine vérifiée.' } },
   { id: 'payment', beat: 20, title: { en: 'The payment', fr: 'Le paiement' },
-    why: { en: 'One USDC signature pays the exact price, only for an answer the enclave signed. Arc splits it on chain: operator, author, network.', fr: 'Une signature en USDC paie le prix exact, seulement pour une réponse signée par l’enclave. Arc le partage sur la chaîne : opérateur, auteur, réseau.' } },
+    why: { en: 'You pay only for an answer the enclave signed, at the exact price, in USDC. Arc splits it between operator, author and network in the same transaction.', fr: 'Vous ne payez qu’une réponse signée par l’enclave, au prix exact, en USDC. Arc le partage entre opérateur, auteur et réseau dans la même transaction.' } },
   { id: 'verdict', beat: 22, title: { en: 'The verdict', fr: 'Le verdict' },
-    why: { en: 'Sessions and bounties end with a public verdict on Arc (ERC-8004): 100 = verified and paid, 0 = proven fault, the bond seized. Reputation no one can fake.', fr: 'Les sessions et les primes se terminent par un verdict public sur Arc (ERC-8004) : 100 = vérifié et payé, 0 = faute prouvée, la caution saisie. Une réputation que personne ne peut truquer.' } },
+    why: { en: 'Each operator gets a public track record in Circle’s ERC-8004 registry, written by the contracts, not by us: anyone can read it before trusting a machine.', fr: 'Chaque opérateur a un historique public dans le registre ERC-8004 de Circle, écrit par les contrats et non par nous : chacun peut le lire avant de faire confiance à une machine.' } },
 ]
 
 /** The part a beat belongs to (the last part starting at or before it). */
