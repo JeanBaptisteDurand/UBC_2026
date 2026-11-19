@@ -1,13 +1,13 @@
 /**
- * levels.ts — les DEUX NIVEAUX d'opérateur (décision de JB, 10/11/2026), côté client. Utilisable partout (navigateur
- * compris) ; la demande d'un jeton à l'alliance Proof of Cloud, qui exige Node, est dans proof-of-cloud.ts.
+ * levels.ts — the TWO operator LEVELS, client side. Usable anywhere (browser included); requesting a token from the
+ * Proof of Cloud alliance needs Node and lives in proof-of-cloud.ts.
  *
- *  - Niveau « ouvert » (0) : l'enclave est attestée par Intel et vérifiée par un contrat d'Arc ; l'opérateur a une caution.
- *  - Niveau « vérifié » (1) : en plus, la MACHINE (sa puce : PPID, lu dans le certificat PCK d'Intel du quote) est déclarée
- *    en datacenter connu par un VÉRIFICATEUR que le produit accepte. Le vérificateur sans confiance de référence est
- *    ProofOfCloudAuditor : il vérifie on-chain la signature de l'alliance Proof of Cloud (Phala, Secret, Nillion, iExec…).
- *  Chaque produit fixe son niveau minimum et ses vérificateurs (MachineRegistry.policyOf) ; les contrats de règlement
- *  branchés sur PolicyEnclaves l'appliquent ; ce module permet à l'acheteur de le lire et de l'afficher.
+ *  - "Open" level (0): the enclave is attested by Intel and verified by an Arc contract; the operator has a bond.
+ *  - "Verified" level (1): in addition, the MACHINE (its chip: the PPID, read from Intel's PCK certificate in the quote)
+ *    is declared to be in a known datacenter by a VERIFIER the product accepts. The reference trustless verifier is
+ *    ProofOfCloudAuditor: it checks the Proof of Cloud alliance's signature (Phala, Secret, Nillion, iExec…) on-chain.
+ *  Each product sets its minimum level and its verifiers (MachineRegistry.policyOf); the settlement contracts wired to
+ *  PolicyEnclaves enforce it; this module lets a buyer read it and display it.
  */
 import { decodeFunctionData, keccak256, parseAbi, type Address, type Hex, type PublicClient } from "viem";
 import { ed25519 } from "@noble/curves/ed25519";

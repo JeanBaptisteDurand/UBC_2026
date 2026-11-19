@@ -1,12 +1,12 @@
 /**
- * proof-of-cloud.ts — demander un JETON à l'alliance Proof of Cloud (NODE SEULEMENT : non exporté par index.ts ; importer
- * « @arcvault/sdk/src/proof-of-cloud »). Le flux est celui de github.com/proofofcloud/trust-server (get_jwt_token.sh) :
- * chaque serveur de confiance rend un nonce, puis chacun ajoute sa signature partielle ; le dernier rend le JWT cosigné
- * (EdDSA, clé commune publiée). Le jeton n'est délivré que si la machine du quote est sur la liste de l'alliance et non
- * révoquée. Il est VÉRIFIÉ ici (signature, quote) avant d'être rendu ; ProofOfCloudAuditor le revérifie on-chain.
- * TLS : le certificat du serveur de Secret a expiré le 7/09/2026 (VERIFIED le 10/11) ; les hôtes de `insecureHosts` sont
- * appelés sans vérifier leur certificat — sans risque pour l'intégrité, puisque le jeton final est vérifié par la clé de
- * l'alliance (au pire, un intermédiaire fait échouer la demande).
+ * proof-of-cloud.ts — requests a TOKEN from the Proof of Cloud alliance (NODE ONLY: not exported by index.ts; import
+ * "@arcvault/sdk/src/proof-of-cloud"). The flow is that of github.com/proofofcloud/trust-server (get_jwt_token.sh):
+ * each trust server returns a nonce, then each adds its partial signature; the last one returns the co-signed JWT
+ * (EdDSA, published shared key). The token is issued only if the quote's machine is on the alliance's list and not
+ * revoked. It is VERIFIED here (signature, quote) before it is returned; ProofOfCloudAuditor verifies it again on-chain.
+ * TLS: the Secret trust server's certificate expired on 2026-09-07; hosts in `insecureHosts` are called without
+ * certificate verification. Integrity does not rely on TLS: the final token is verified against the alliance's key
+ * (at worst, a man in the middle makes the request fail).
  */
 import { createHash } from "node:crypto";
 import { request as httpsRequest } from "node:https";

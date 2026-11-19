@@ -1,8 +1,8 @@
-/** client.ts — client principal (pile v2) : lectures + actions (opérateur, produit, session, prime).
- *  v2 : une session est verrouillée sur UNE enclave dont les clés sont vérifiées on-chain ; la Prime scellée se paie en
- *  deux temps (acceptClaim réserve, deliver livre cP et paie) ; l'inscription passe par le vrai DCAP (≈ 5,7 M gas) et
- *  le quote est contrôlé hors chaîne avant l'envoi ; les appels qui écrivent un verdict ERC-8004 partent avec une
- *  marge de gaz (le contrat exige VERDICT_GAS avant l'écriture). Les refus sont décodés en français (errors.ts). */
+/** client.ts — the main client: reads and actions (operator, product, session, bounty).
+ *  A session is locked to ONE enclave whose keys are verified on-chain; the Sealed Bounty pays in two steps
+ *  (acceptClaim reserves the payment, deliver hands over cP and pays); registration goes through Intel's DCAP
+ *  verification on Arc, and the quote is checked off-chain before it is sent; calls that write an ERC-8004 verdict
+ *  carry a gas margin (the contract requires VERDICT_GAS before the write). Reverts are decoded by name (errors.ts). */
 import {
   type Address, type Hex, type PublicClient, type WalletClient, type Account,
   getAddress, keccak256, toBytes, zeroAddress,
@@ -41,11 +41,11 @@ export interface ProductView {
   bpsOperator: number; bpsAuthor: number; bpsNetwork: number;
   minBond: bigint; exposureCap: bigint; settlement: Address; param: Hex;
   version: bigint; activatesAt: bigint; state: ProductState; manifestURI: string;
-  /** v2 : unité facturée (jetons-équivalent-entrée par unité) et poids d'un jeton de sortie, verrouillés à l'ouverture. */
+  /** Billed unit (input-token equivalents per unit) and the weight of an output token, locked when the session opens. */
   unitTokens: number; outWeight: number;
 }
 
-/** Une enclave du registre v2 (enclaveOf), avec son état au bloc de tête. */
+/** An enclave of the registry (enclaveOf), with its state at the head block. */
 export interface EnclaveView {
   signer: Address; x25519: Hex; operator: Address; productId: bigint; workloadId: Hex; fmspc: Hex;
   tcbStatus: number; quoteHash: Hex; anchorBlock: bigint; registeredAt: bigint;
@@ -62,11 +62,11 @@ export interface EnclaveView {
 export interface BountyRow {
   id: bigint; protocol: Address; productId: bigint; predicateHash: Hex; protocolX25519: Hex; singleCap: bigint; k: number;
   balance: bigint; deadline: bigint; paused: boolean; targetToPause: Address;
-  /** v2 : palier le plus haut déjà accordé depuis le dernier armement (un exploit n'est payé qu'une fois par palier). */
+  /** Highest tier already granted since the last arming (an exploit is paid only once per tier). */
   paidAmount: bigint;
-  /** v2 : bloc du dernier paiement ou réarmement ; une réclamation doit être ancrée APRÈS. */
+  /** Block of the last payment or re-arming; a claim must be anchored AFTER it. */
   lastPaidBlock: bigint;
-  /** v2 : la pause n'atteint que les réclamations ancrées à partir de ce bloc. */
+  /** The pause only affects claims anchored from this block on. */
   pausedFromBlock: bigint;
 }
 
@@ -110,7 +110,7 @@ export class ArcClient {
   }
 
   private signer(): Account {
-    if (!this.account || !this.wallet) throw new Error("walletClient/account requis pour cette action");
+    if (!this.account || !this.wallet) throw new Error("this action needs a walletClient and an account");
     return this.account;
   }
 
@@ -139,7 +139,7 @@ export class ArcClient {
   usdcBalance(a: Address) { return this.pub.readContract({ address: this.d.usdc, abi: usdcAbi, functionName: "balanceOf", args: [a] }) as Promise<bigint>; }
   bondOf(op: Address) { return this.pub.readContract({ address: this.d.operatorBond, abi: operatorBondAbi, functionName: "bondOf", args: [op] }) as Promise<bigint>; }
   availableBond(op: Address) { return this.pub.readContract({ address: this.d.operatorBond, abi: operatorBondAbi, functionName: "availableBond", args: [op] }) as Promise<bigint>; }
-  /** v2 : caution non réservée (chaque clé d'enclave inscrite réserve la caution minimale de son produit). */
+  /** Unreserved bond (each registered enclave key reserves its product's minimum bond). */
   freeBond(op: Address) { return this.pub.readContract({ address: this.d.operatorBond, abi: operatorBondAbi, functionName: "freeBond", args: [op] }) as Promise<bigint>; }
 
   async productCount(): Promise<bigint> {
@@ -165,7 +165,7 @@ export class ArcClient {
     return out;
   }
 
-  /** L'enclave inscrite pour ce signataire (struct v2 brute : signer nul si aucune). */
+  /** The enclave registered for this signer (raw struct: zero signer if none). */
   getEnclave(signer: Address) { return this.pub.readContract({ address: this.d.enclaveRegistry, abi: enclaveRegistryAbi, functionName: "enclaveOf", args: [signer] }) as Promise<any>; }
 
   /** Opérateur pour lequel ce signataire est actif sur ce produit à ce bloc (défaut : la tête) ; 0x0… sinon. */
@@ -186,7 +186,7 @@ export class ArcClient {
     return toEnclaveView(signer, e, op !== zeroAddress, head);
   }
 
-  /** Une session v2, typée (owner nul si inconnue). */
+  /** A session, typed (zero owner if unknown). */
   getSession(id: bigint): Promise<SessionInfo> { return readSession(this.pub, this.d, id); }
 
   async getBounty(id: bigint): Promise<BountyRow> {
@@ -211,7 +211,7 @@ export class ArcClient {
     return out;
   }
 
-  /** v2 : le paiement réservé pour (prime, empreinte), en attente de deliver. */
+  /** The payment reserved for (bounty, fingerprint), waiting for deliver. */
   async pendingOf(bountyId: bigint, fingerprint: Hex): Promise<PendingPayout> {
     const p = await this.pub.readContract({ address: this.d.sealedBounty, abi: sealedBountyAbi, functionName: "pendingOf", args: [bountyId, fingerprint] }) as any;
     return {
@@ -352,21 +352,21 @@ export class ArcClient {
       signal: AbortSignal.timeout(60_000),
     });
     const a = await res.json().catch(() => ({})) as { quote?: Hex; eventLog?: Hex; signer?: Address; x25519?: Hex; mock?: boolean; error?: string };
-    if (!res.ok || a.error || !a.quote || !a.signer || !a.x25519) throw new Error(`/attest : HTTP ${res.status} ${a.error ?? "réponse incomplète"}`);
-    if (a.mock) throw new Error("quote simulé : cette machine n'a pas Intel TDX ; le registre (vérification DCAP d'Intel) le refuserait");
+    if (!res.ok || a.error || !a.quote || !a.signer || !a.x25519) throw new Error(`/attest: HTTP ${res.status} ${a.error ?? "incomplete response"}`);
+    if (a.mock) throw new Error("simulated quote: this machine has no Intel TDX, so the registry (Intel DCAP verification) would refuse it");
     const m = parseTdxQuote(a.quote);
-    if (m.debug) throw new Error("enclave en mode DEBUG : le registre la refuserait (DebugEnclave)");
+    if (m.debug) throw new Error("enclave in DEBUG mode: the registry would refuse it (DebugEnclave)");
     const needSeptVe = await this.pub.readContract({ address: this.d.enclaveRegistry, abi: enclaveRegistryAbi, functionName: "requireSeptVeDisable" }) as boolean;
-    if (needSeptVe && !m.septVeDisabled) throw new Error("SEPT_VE_DISABLE absent du quote : le registre le refuserait (SeptVeNotDisabled)");
+    if (needSeptVe && !m.septVeDisabled) throw new Error("SEPT_VE_DISABLE missing from the quote: the registry would refuse it (SeptVeNotDisabled)");
     // v2.1 : empreinte d'IMAGE (journal RTMR3 rejoué par le registre) si le produit l'autorise ; sinon empreinte complète
     const plan = await planRegistrationLog(this.pub, { registry: this.d.enclaveRegistry, productRegistry: this.d.productRegistry, productId, quote: a.quote, rawEventLog: a.eventLog });
     if (!plan.admittedBy) {
-      const ask = plan.v21 && plan.imageId ? `empreinte d'image ${plan.imageId} (stable d'un redémarrage à l'autre)` : `workloadId ${plan.workloadId}`;
-      throw new Error(`image non autorisée pour le produit #${productId} : ${ask}${plan.note ? ` ; ${plan.note}` : ""} (l'auteur du produit doit la proposer puis l'appliquer : proposeWorkload → applyWorkload)`);
+      const ask = plan.v21 && plan.imageId ? `image id ${plan.imageId} (stable across restarts)` : `workloadId ${plan.workloadId}`;
+      throw new Error(`image not allowed for product #${productId}: ${ask}${plan.note ? `; ${plan.note}` : ""} (the product's author must propose it, then apply it: proposeWorkload → applyWorkload)`);
     }
     const rd0 = expectedReportData0({ chainId: this.d.chainId, registry: this.d.enclaveRegistry, productId, operator, signer: a.signer, x25519: a.x25519 });
     if (m.reportData.slice(0, 66).toLowerCase() !== rd0.toLowerCase()) {
-      throw new Error("REPORTDATA ne lie pas (chaîne, registre, produit, opérateur, clés) : l'enclave sert un autre produit ou un autre registre (ReportDataMismatch)");
+      throw new Error("REPORTDATA does not bind (chain, registry, product, operator, keys): the enclave serves another product or another registry (ReportDataMismatch)");
     }
     const tx = await this.write(this.d.enclaveRegistry, enclaveRegistryAbi, "registerEnclave", [productId, a.quote, anchorR, a.signer, a.x25519, plan.eventLog], true);
     return { tx, signer: a.signer, x25519: a.x25519, workloadId: plan.admittedBy === "image" ? plan.imageId! : plan.workloadId, admittedBy: plan.admittedBy };
@@ -409,7 +409,7 @@ export class ArcClient {
   }): Promise<{ tx: Hex; sessionId: bigint; sessionKey: SessionKey; enclave: Address; operator: Address; expiresAt: bigint; keys?: VerifiedEnclaveKeys }> {
     const life = params.expiresInSeconds ?? 86_400;
     if (life < SESSION_MIN_SECONDS + SESSION_EXPIRY_MARGIN_SECONDS || life > SESSION_MAX_SECONDS - SESSION_EXPIRY_MARGIN_SECONDS) {
-      throw new Error(`échéance de session : entre ${(SESSION_MIN_SECONDS + SESSION_EXPIRY_MARGIN_SECONDS) / 60} min et ${Math.floor((SESSION_MAX_SECONDS - SESSION_EXPIRY_MARGIN_SECONDS) / 86_400)} jours (SessionPay v2 refuse sinon : BadExpiry)`);
+      throw new Error(`session expiry: between ${(SESSION_MIN_SECONDS + SESSION_EXPIRY_MARGIN_SECONDS) / 60} min and ${Math.floor((SESSION_MAX_SECONDS - SESSION_EXPIRY_MARGIN_SECONDS) / 86_400)} days (SessionPay refuses otherwise: BadExpiry)`);
     }
     let keys: VerifiedEnclaveKeys | undefined;
     let enclave: Address;
@@ -419,12 +419,12 @@ export class ArcClient {
       enclave = keys.signer;
       operator = keys.operator;
       if (params.enclave && params.enclave.toLowerCase() !== enclave.toLowerCase()) {
-        throw new Error(`${params.enclaveUrl} sert l'enclave ${enclave}, pas ${params.enclave}`);
+        throw new Error(`${params.enclaveUrl} serves enclave ${enclave}, not ${params.enclave}`);
       }
     } else if (params.enclave) {
       enclave = params.enclave;
       operator = await this.activeOperatorAt(enclave, params.productId);
-      if (operator === zeroAddress) throw new Error(`l'enclave ${enclave} n'est pas active pour le produit #${params.productId} (InactiveEnclave)`);
+      if (operator === zeroAddress) throw new Error(`enclave ${enclave} is not active for product #${params.productId} (InactiveEnclave)`);
     } else if (params.operator) {
       // transition (appelants v1 qui ne donnent que l'opérateur) : son UNIQUE enclave active sur ce produit, lue dans le
       // registre. Le client d'inférence vérifiera de toute façon les clés de l'enclave contre la session avant d'envoyer.
@@ -437,10 +437,10 @@ export class ArcClient {
       enclave = mine[0]!.signer;
       operator = mine[0]!.operator;
     } else {
-      throw new Error("v2 : une session est verrouillée sur une enclave : donnez enclaveUrl (clés vérifiées on-chain) ou enclave (signataire)");
+      throw new Error("a session is locked to one enclave: give enclaveUrl (keys verified on-chain) or enclave (its signer)");
     }
     if (params.operator && params.operator.toLowerCase() !== operator.toLowerCase()) {
-      throw new Error(`l'enclave ${enclave} est active pour l'opérateur ${operator}, pas pour ${params.operator} (WrongOperator)`);
+      throw new Error(`enclave ${enclave} is active for operator ${operator}, not for ${params.operator} (WrongOperator)`);
     }
     const now = (await this.pub.getBlock()).timestamp;
     const expiresAt = now + BigInt(life);
@@ -479,7 +479,7 @@ export class ArcClient {
     singleCap: bigint; k: number; targetToPause: Address; deadline: bigint; funding: bigint;
   }): Promise<{ tx: Hex; bountyId: bigint }> {
     const n = q.tierMinLoss.length;
-    if (n === 0 || n !== q.tierAmount.length || q.tierAmount[0] === 0n) throw new Error("paliers : listes non vides et de même taille, premier montant > 0 (BadTiers)");
+    if (n === 0 || n !== q.tierAmount.length || q.tierAmount[0] === 0n) throw new Error("tiers: non-empty lists of the same length, first amount > 0 (BadTiers)");
     for (let i = 1; i < n; i++) {
       if (q.tierMinLoss[i]! <= q.tierMinLoss[i - 1]! || q.tierAmount[i]! <= q.tierAmount[i - 1]!) {
         throw new Error("paliers : seuils ET montants strictement croissants (BadTiers)");
@@ -527,7 +527,7 @@ export class ArcClient {
   async acceptAndDeliver(claim: Claim, signatures: Hex[], cP: Hex): Promise<{ acceptTx: Hex; deliverTx: Hex }> {
     const acceptTx = await this.acceptClaim(claim, signatures);
     const r = await this.pub.waitForTransactionReceipt({ hash: acceptTx, timeout: 180_000 });
-    if (r.status !== "success") throw new Error(`acceptClaim annulée on-chain (${acceptTx}) : rien n'est réservé, cP n'a pas été publié`);
+    if (r.status !== "success") throw new Error(`acceptClaim reverted on-chain (${acceptTx}): nothing is reserved, cP was not published`);
     const deliverTx = await this.deliver(claim.bountyId, claim.fingerprint, cP);
     return { acceptTx, deliverTx };
   }

@@ -1,15 +1,16 @@
-/** bounty.ts — le chemin du chasseur de la Prime scellée (pile v2), écrit une fois pour la CLI, les scripts et le site.
+/** bounty.ts — the hunter's path through the Sealed Bounty, written once and shared by the CLI, the scripts and the site.
  *
- *  1. cP = scellé DÉTERMINISTE (aléa r) vers la clé X25519 du PROTOCOLE, lue on-chain (Bounty.protocolX25519), sur la
- *     forme canonique que recalcule l'enclave (DeterministicProtocolCipher, enclave/src/services/bounty.ts) ;
- *  2. cE = HPKE vers la clé X25519 de l'ENCLAVE, VÉRIFIÉE on-chain (VerifiedEnclaveKeys, voir enclave-keys.ts) : jamais
- *     vers une clé lue sur /pubkeys sans contrôle, sinon le mandataire qui sert /pubkeys lirait l'exploit ;
- *  3. l'enclave rejoue et signe une réclamation ; on la contrôle (signataire = l'enclave vérifiée, cP, prédicat, payee,
- *     empreinte) AVANT de la soumettre : acceptClaim (réserve le paiement, cP hors transaction) puis deliver (livre cP, paie).
- *  Pour une prime à k enclaves : le même r, le même bloc N et la même échéance pour chacune → la même réclamation, k
+ *  1. cP = a DETERMINISTIC seal (randomness r) to the PROTOCOL's X25519 key, read on-chain (Bounty.protocolX25519), in
+ *     the canonical form the enclave recomputes (DeterministicProtocolCipher, enclave/src/services/bounty.ts);
+ *  2. cE = HPKE to the ENCLAVE's X25519 key, VERIFIED on-chain (VerifiedEnclaveKeys, see enclave-keys.ts): never to a
+ *     key read from /pubkeys without a check, or the proxy that serves /pubkeys could read the exploit;
+ *  3. the enclave replays the exploit and signs a claim; the claim is checked (signer = the verified enclave, cP,
+ *     predicate, payee, fingerprint) BEFORE it is submitted: acceptClaim (reserves the payment, cP kept out of the
+ *     transaction), then deliver (hands over cP, pays).
+ *  For a bounty with k enclaves: the same r, the same block N and the same deadline for each → the same claim, k
  *  signatures.
  *
- *  v2.1 : RÉFUTER une réclamation acceptée (SealedBounty.refute) — voir la section en fin de fichier. */
+ *  REFUTING an accepted claim (SealedBounty.refute): see the section at the end of the file. */
 import {
   type Address, type Hex, type PublicClient, decodeEventLog, encodeAbiParameters, encodeEventTopics, getAddress, hashTypedData,
   keccak256, recoverTypedDataAddress, toBytes, toHex, type TypedDataDomain, zeroAddress,
@@ -93,9 +94,9 @@ export async function sealExploitForEnclave(a: {
   enclave: VerifiedEnclaveKeys;
   /** 32 octets d'aléa pour cP (défaut : tiré ici). Le même pour les k enclaves d'une même réclamation. */
   r?: Uint8Array;
-  /** v2 : bloc N du rejeu, dans [tête − 256, tête − 2] (le même pour les k enclaves). */
+  /** Block N of the replay, in [head − 256, head − 2] (the same for the k enclaves). */
   blockN?: bigint;
-  /** v2 : échéance de la réclamation (s Unix), dans ]maintenant, maintenant + 10 min]. */
+  /** Deadline of the claim (Unix seconds), in ]now, now + 10 min]. */
   deadline?: bigint;
 }): Promise<SealedExploit> {
   assertVerifiedEnclaveKeys(a.enclave); // jamais de chiffrement vers une clé non confrontée à la chaîne
