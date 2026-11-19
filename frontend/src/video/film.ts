@@ -971,7 +971,8 @@ function sharpGet(k: number, dec: boolean) {
   }
   if (sFetch.has(k) || sFetch.size >= sInflight()) return
   sFetch.add(k)
-  fetchOne(name(k, m.ext), true, (bl) => { sFetch.delete(k); if (bl && !blobs[k]) blobs[k] = bl; if (bl && k === sharpWant) sharpGet(k, true) })
+  const s0 = SET
+  fetchOne(name(k, m.ext), true, (bl) => { sFetch.delete(k); if (s0 !== SET) return; if (bl && !blobs[k]) blobs[k] = bl; if (bl && k === sharpWant) sharpGet(k, true) })
 }
 function sharpDone(id: number, bmp: ImageBitmap | null) {
   const k = sJobs.get(id); sJobs.delete(id)
@@ -999,7 +1000,9 @@ function showSharp(on: boolean, fade: boolean) {
   cvS.style.opacity = on ? '1' : '0'
 }
 function sharpTick(rest: boolean, now: number, onFirstDraw: () => void) {
-  if (!cvS || !gS) return
+  // nothing sharp before the pack has reached its gate point (it gives the rate the sharp set is chosen on, and the
+  // link is the pack's until then), except on the way in without the motion film
+  if (!cvS || !gS || (!M.tPack && M.gate !== 'stops')) return
   const k = rest ? (restK >= 0 ? restK : Math.round(film.pos)) : landingK(now)
   if (k >= 0) { sharpWant = k; sharpGet(k, true) }
   if (rest && k >= 0 && (sharpK !== k || !sharpOn)) {
@@ -1088,7 +1091,7 @@ function gateTick(now: number, rest: boolean) {
   }
   if (packOk && !ringOk && now - M.tPack > 5000) { M.fail = 'ring'; gateResolve?.(false); gateResolve = null; return }
   // shown only if the film is not ready 400 ms after the mount (a return visit never sees it)
-  if (!gateShown() && now - gateT0 > 400 && !(ringOk && film.ready)) showGate(enterStops)
+  if (!gateShown() && ((now - gateT0 > 400 && !packOk) || (now - gateT0 > 1500 && !(ringOk && film.ready)))) showGate(enterStops)
   if (gateShown() && now - gateUiAt > 250) {
     gateUiAt = now
     const tot = M.head ? M.metaBytes + M.gateAt : 0, got = M.head ? M.metaBytes + Math.min(M.got, M.gateAt) : 0
