@@ -59,8 +59,8 @@ cd dcap-integration/arc-testnet
 ./run.sh measure   # gaz précompile vs Solidity + quotes altérés (gratuit)
 ```
 
-- Prérequis : forge/cast (`~/.aztec/current/bin`), python3, l'arbre `vendor/automata-dcap-attestation`
-  avec ses sous-modules. La clé est lue dans `.secrets/deployer.json` (`KEY_FILE`), jamais affichée.
+- Prérequis : Foundry (forge, cast), python3, et le dépôt d'Automata cloné dans `vendor/automata-dcap-attestation`
+  avec ses sous-modules (`git clone --recursive https://github.com/automata-network/automata-dcap-attestation`). La clé est lue dans `.secrets/deployer.json` (`KEY_FILE`), jamais affichée.
 - Pourquoi un plan puis un envoi tx par tx : la clé de déploiement est partagée avec d'autres outils ;
   `forge script --broadcast` fixe les nonces d'avance. Ici le plan (`forge script` sans `--broadcast`) est
   envoyé par `send_plan.py` (nonce relu à chaque tx, reçu vérifié). Les déploiements sont en CREATE2 :
@@ -107,7 +107,7 @@ P-256 `0x100` OK, fabrique CREATE2 et Daimo présents, plafond 30 M gaz par bloc
 - Avec le précompile, une signature invalide fait **revert** l'appel (le précompile renvoie vide et le
   `abi.decode` d'Automata échoue) au lieu de rendre `success = false`. Le refus reste « fermé » ;
   `EnclaveRegistry.registerEnclave` revert alors au lieu de recevoir `m.ok = false`.
-- `EnclaveRegistry` prend son module en `immutable` : pour passer du module de test au vrai, redéployer le
+- `EnclaveRegistry` prend son module en `immutable` : changer de module veut dire redéployer le
   registre avec `TdxAttestationModule` `0x26c1…51ca` (ou `contracts/script/Deploy.s.sol` avec
   `DCAP=0x48640f7d94de64b13c89686f3d1240a31aeb4dc9`).
 - Le quote vérifié ici est ancré (reportData[32:64]) au bloc 71 069 461 : trop vieux pour la fenêtre

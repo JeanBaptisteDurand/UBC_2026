@@ -1,6 +1,6 @@
 /**
- * Prime scellée v2.1 ter — déni de service et exceptions sans tri (vérification adverse du 9/11, scratchpad
- * verif-failclosed : e4-dos D1–D4, e7-amplification, e8-env-catch).
+ * Prime scellée v2.1 ter — déni de service et exceptions sans tri (vérification adverse du 9/11 : cas D1–D4,
+ * amplification, exceptions d'environnement).
  *  2. /v1/refute : le jeton du seau est pris APRÈS la forme du corps et claimRecords (réclamation vivante) ; les corps
  *     invalides ont leur propre limite par IP vue, qui ne prive jamais les demandes valides (preuve D1) ;
  *  3. /bounty/submit : débit limité ; même chiffré répété → même résultat sans relire la chaîne (preuve D2) ; prime et

@@ -103,7 +103,7 @@ library PckChip {
         // rejette pas les caractères hors alphabet (il lit alors la mémoire), donc deux contrats peuvent décoder le
         // MÊME PEM différemment. On exige un Base64 standard canonique : le décodage devient unique, égal à celui
         // qu'a fait Automata. Puis on exige UN SEUL certificat, sans octet ajouté. Sans ces deux contrôles, un
-        // opérateur pouvait faire lire au contrat un faux PPID (la puce d'un datacenter connu) — faille critique.
+        // opérateur pourrait faire lire au contrat un autre PPID que celui du certificat (la puce d'un datacenter connu).
         if (!_isCanonicalBase64(bytes(body))) revert PckFormat();
         der = Base64.decode(body);
         _requireSingleDerSequence(der);

@@ -186,7 +186,7 @@ contract SealedBountyTest is Base {
     // PLAN-BUILD §9 — tests négatifs ajoutés le 7/11 (réclamations, bloc N, enclaves, saisie).
     // Après setUp : enclaves `signer` (operator) et `signer2` (operator2) inscrites au bloc 1000,
     // bloc courant 1002, blockN = 1001, prime `bountyId` (palier 100 USDC, singleCap 200, k = 2).
-    // v2 : les anciens `test_BUG_*` sont devenus des `test_FIXED_*` (corrigés dans src, prouvés ici).
+    // v2 : les tests `test_FIXED_*` rejouent les cas de la revue adverse (corrigés dans src, prouvés ici).
     // Fenêtre de validité des enclaves : [1000, 5999], grâce jusqu'au bloc 9999 (cf. Base).
     // =====================================================================================
 
@@ -405,7 +405,7 @@ contract SealedBountyTest is Base {
         assertEq(validation.responses(), responsesBefore);
     }
 
-    /// FIXED (ex-BUG critique) : deux réclamations HONNÊTES du même exploit — l'enclave O3 choisit N = tête − 2
+    /// FIXED (revue adverse) : deux réclamations HONNÊTES du même exploit — l'enclave O3 choisit N = tête − 2
     /// et deadline = maintenant + TTL à CHAQUE soumission — ne sont plus une « équivocation » : refus, aucune
     /// saisie. Avant la correction, le chasseur (ou le protocole qui chasse sa propre prime) vidait la caution
     /// de n'importe quel opérateur du produit.
@@ -494,7 +494,7 @@ contract SealedBountyTest is Base {
         assertFalse(bond.banned(operator2));
     }
 
-    /// FIXED (ex-BUG faible) : claim() exige l'échéance SIGNÉE de la réclamation (deadline ≥ block.timestamp).
+    /// FIXED (revue adverse) : claim() exige l'échéance SIGNÉE de la réclamation (deadline ≥ block.timestamp).
     /// Le TTL de 10 min de l'enclave O3 a maintenant un effet.
     function test_FIXED_claimDeadlineEnforced() public {
         bytes memory cP = bytes("c");

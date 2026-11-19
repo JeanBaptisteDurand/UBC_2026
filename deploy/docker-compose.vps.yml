@@ -14,7 +14,7 @@ services:
   caddy:
     image: caddy:2-alpine@sha256:78bd35025c7ba85961dd149ae670315129954e77abe2383ac47c89106b35ade9
     ports: ["80:80", "443:443"]
-    # 10/11 : la passerelle du nœud d'Arc (/arc-rpc/) écoute sur le pont Docker de l'hôte (172.17.0.1:8810)
+    # option : la passerelle d'un nœud d'Arc (/arc-rpc/, deploy/arc-node) écoute sur le pont Docker de l'hôte (172.17.0.1:8810)
     extra_hosts: ["host.docker.internal:host-gateway"]
     volumes: ["/opt/archive/Caddyfile:/etc/caddy/Caddyfile:ro", "caddy_data:/data", "caddy_config:/config"]
     depends_on: ["web", "api", "copilot", "copilot-site", "mcp"]
@@ -166,7 +166,7 @@ services:
     tmpfs: ["/tmp:size=16m"]
     security_opt: ["no-new-privileges:true"]
     cap_drop: ["ALL"]
-  # 10/11 : Prime scellée AU NIVEAU VÉRIFIÉ (produit 6) : renouvelle par DCAP, relie l'enclave à sa machine après chaque
+  # Prime scellée AU NIVEAU VÉRIFIÉ (produit 7) : renouvelle par DCAP, relie l'enclave à sa machine après chaque
   # renouvellement, et redemande le jeton de l'alliance Proof of Cloud avant son expiration (niveau vérifié)
   registrar-bounty-verified:
     image: node:22-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d

@@ -1,7 +1,7 @@
 # Ce qui part sur le serveur (/opt/archive/src) : tout le code source, JAMAIS les secrets ni ce qui se reconstruit.
 # Règles lues dans l'ordre : la première qui correspond gagne.
 - .secrets/
-# fichiers vidés par iCloud, mis de côté le 10/11 (les lire bloque) : jamais envoyés
+# dossier local de fichiers mis de côté : jamais envoyé
 - .icloud-evicted/
 - .git/
 - node_modules/

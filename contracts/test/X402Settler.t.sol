@@ -152,7 +152,7 @@ contract X402SettlerTest is Base {
         vm.expectRevert(); // MockUSDC3009.BadSignature
         x402.settle(cr, sig, auth);
     }
-    /// FIXED v2 (revue adverse, critique) : X402Settler ne règle que les produits dont il est le contrat de règlement.
+    /// FIXED v2 (revue adverse) : X402Settler ne règle que les produits dont il est le contrat de règlement.
     function test_FIXED_revertWrongSettlement() public {
         uint256 sessionProduct = _proposeAndActivate(address(sessionPay), false, bytes32("model"), 1e6, 100e6, 0);
         X402Settler.CallReceipt memory cr = _callReceipt(keccak256("ws"), 10);

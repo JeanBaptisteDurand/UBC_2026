@@ -1,6 +1,6 @@
 /**
  * Prime scellée v2.1 quater — le relais durci avec les MOTEURS RÉELS (anvil ; arc-anvil si ARC_ANVIL_BIN), chaîne de base
- * anvil LOCALE (jamais Arc). Les preuves de la vérification du relais du 9/11 au soir (scratchpad verif-relay : r3-1a, r2,
+ * anvil LOCALE (jamais Arc). Les cas de la vérification du relais du 9/11 au soir (r3-1a, r2,
  * r3-1b, parentHash empoisonné), rejouées de bout en bout : BountyService.submit → AnvilForkRunner → relais strict → RPC du
  * fork MENTEUR (mandataire) → chaîne de base.
  *  - r3-1a : un bloc N au MÊME hash mais à l'horodatage décalé de +1 000 s faisait SIGNER une réclamation fausse (TIME_COIN

@@ -75,7 +75,7 @@ const open: Command = {
       if (ev) sessionId = ev.args.sessionId;
     } catch (e) {
       if (e instanceof RevertedOnChain) throw e; // rien d'ouvert : la clé ne vaut rien
-      info(`confirmation impossible ; la clé ci-dessous suppose la session #${sessionId} (à vérifier : arcvault session status ${sessionId})`);
+      info(`confirmation impossible ; la clé ci-dessous suppose la session #${sessionId} (vérifiez avec : arcvault session status ${sessionId})`);
       out(encodeAek(NET_TAG, sessionId, r.sessionKey.privateKey));
       throw e;
     }

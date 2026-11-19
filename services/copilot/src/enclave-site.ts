@@ -104,7 +104,7 @@ export function signingSealedChannel(kit: EnclaveKit, log: (line: string) => voi
   };
 }
 
-/** Vérifie la signature d'une réponse ouverte, comme le panneau (référence pour les tests, le runbook et tout client) :
+/** Vérifie la signature d'une réponse ouverte, comme le panneau (référence pour les tests et tout client) :
  *  digest recalculé à partir de la question SCELLÉE par ce client (enc, ciphertext) et du corps ouvert, puis la
  *  signature doit redonner la clé qu'Arc tient. Ne lève jamais. */
 export async function verifySiteReply(

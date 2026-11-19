@@ -3,8 +3,8 @@
  * Sert à chiffrer les requêtes/réponses d'inférence vers les clés d'enclave, et le bundle d'exploit.
  *
  * Note (O3) : la « Prime scellée » veut un cP reproductible par deux enclaves (même chiffré pour
- * le protocole). HPKE est randomisé (clé éphémère) ; la dérivation déterministe de cette clé à
- * partir de l'aléa r est un point ouvert [À VÉRIFIER] et ne vit pas dans ce module de base.
+ * le protocole). HPKE est randomisé (clé éphémère) : le chiffré déterministe, dérivé de l'aléa r, est dans
+ * kit/deterministic-seal.ts (DeterministicProtocolCipher de services/bounty.ts), pas dans ce module de base.
  */
 import { CipherSuite, DhkemX25519HkdfSha256, HkdfSha256 } from "@hpke/core";
 import { Chacha20Poly1305 } from "@hpke/chacha20poly1305";

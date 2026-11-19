@@ -48,7 +48,7 @@ const init: Command = {
     out("  2. Lier cet agentId à la caution (les verdicts ERC-8004 de vos enclaves lui sont attribués)");
     tx(testnet.operatorBond, `setAgentId(${agentId ?? "<agentId>"})`, agentId !== undefined ? encodeFunctionData({ abi: operatorBondAbi, functionName: "setAgentId", args: [agentId] }) : undefined, "--agent-id <n>");
     out("  3. Autoriser VerdictLog à demander les validations au nom de votre identité");
-    out("     [À VÉRIFIER, cf. VerdictLog.sol : l'approbation suffit-elle, ou VerdictLog doit-il détenir l'agentId ?]");
+    out("     (l'approbation suffit : c'est ainsi que VerdictLog écrit sur Arc testnet les verdicts de l'agent 897812)");
     tx(ERC8004_IDENTITY_TESTNET, `setApprovalForAll(${testnet.verdictLog}, true)`, encodeFunctionData({ abi: identityAbi, functionName: "setApprovalForAll", args: [testnet.verdictLog, true] }));
     out("  4. Déposer la caution (au moins la caution minimale du produit servi) : arcvault operator bond --amount <usdc>");
     out("  5. Déployer la VM TDX du produit, puis inscrire l'enclave : arcvault operator register --vm <url> --product <id>");

@@ -150,7 +150,7 @@ if (r.authenticated) {
         </Section>
       </div>
       <Section title={t("dev.mcp.title")} lead={t("dev.mcp.lead")}>
-        {/* 16/11 : le serveur MCP est en ligne (Streamable HTTP, sans état) : d'abord l'adresse, puis la variante locale */}
+        {/* le serveur MCP en ligne (Streamable HTTP, sans état) : d'abord l'adresse, puis la variante locale */}
         <Code>{`{
   "mcpServers": {
     "archive": { "url": "https://archive.62-171-153-35.sslip.io/mcp" }
@@ -163,8 +163,8 @@ claude mcp add --transport http archive https://archive.62-171-153-35.sslip.io/m
         <Code>{`{
   "mcpServers": {
     "archive": {
-      "command": "node",
-      "args": ["<${t("dev.mcp.repo")}>/deploy/mcp.mjs"],
+      "command": "npx",
+      "args": ["tsx", "<${t("dev.mcp.repo")}>/services/mcp/src/server.ts"],
       "env": { "ARCHIVE_API": "${api}" }
     }
   }

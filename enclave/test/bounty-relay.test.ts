@@ -1,6 +1,6 @@
 /**
  * Prime scellée v2.1 ter — RELAIS STRICT entre le moteur de rejeu et le RPC du fork (src/services/rpc-relay.ts).
- * Vérification adverse du 9/11 (scratchpad verif-failclosed : e1-blockhash-null, matrices, e7-amplification) : le moteur
+ * Vérification adverse du 9/11 (cas e1-blockhash-null, matrices, e7-amplification) : le moteur
  * prenait des réponses INVALIDES du RPC du fork pour des valeurs (bloc rendu null → BLOCKHASH = keccak256(""), « 0x » pour
  * une case de stockage → 0) et l'enclave signait. Règle d'or : une enclave ne signe JAMAIS un résultat qui dépend d'une
  * panne ou d'une réponse invalide du RPC : 503, rien de signé.

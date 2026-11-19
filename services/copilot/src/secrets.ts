@@ -43,7 +43,7 @@
  *    phrase, phrase de récupération, mnemonic, xprv/zprv/tprv…) : plus sur « export », « seed », « secret key » seuls ;
  *  - en alerte, tout morceau hexadécimal de 16 chiffres ou plus (lettres a-f ET chiffres ; une adresse 0x + 40 hex reste
  *    lisible) est masqué : une clé coupée 32 + 32 entre deux messages ne passe plus, même avant que la 2e moitié arrive.
- *  Limites connues : une phrase envoyée par morceaux de moins de 4 mots, ou coupée sans aucune mention ; une clé nue sans
+ *  Hors de portée : une phrase envoyée par morceaux de moins de 4 mots, ou coupée sans aucune mention ; une clé nue sans
  *  libellé ; une clé privée en base64. */
 import {
   czech, english, french, italian, japanese, korean, portuguese, simplifiedChinese, spanish, traditionalChinese,

@@ -50,8 +50,9 @@ const COMPOSE_V22 = here("../../../enclave/phala/copilot-site-v22.yml");
 const COMPOSE_V21 = here("../../../enclave/phala/copilot-v21.yml");
 const VPS_COMPOSE = here("../../../deploy/docker-compose.vps.yml");
 const DEPLOYMENTS_V21 = here("../../../deployments.v21.testnet.json");
-/** Le gabarit sauvegardé le 14/11 (dépôt UBC, note V) : absent d'un poste sans ce dépôt, le test qui le lit passe alors. */
-const V21_APP_COMPOSE = "/Users/beorlor/Documents/ubc/research/plan-reseau-enclaves-arc-2026-11-01/V-vm-phala-sauvegarde/archive-v21-copilot/app-compose.json";
+/** Le gabarit app-compose.json de la VM v21, sauvegardé hors du dépôt (V21_APP_COMPOSE=<chemin>) : sans lui, la partie
+ *  du test qui le lit est sautée. */
+const V21_APP_COMPOSE = process.env.V21_APP_COMPOSE ?? "";
 
 // ---------------------------------------------------------------- le compose, lu comme Phala le mesure
 
@@ -482,7 +483,7 @@ test("empreinte de la VM : JSON canonique de dstack, compose-hash de la v21 retr
   assert.equal(v21Deployed.composeHash, V21_COPILOT_VM.composeHash);
   const tmpl = { docker_compose_file: "a", pre_launch_script: "b", allowed_envs: ["OPENAI_API_KEY"] };
   assert.throws(() => appComposeFor(tmpl, "services:\n  x:\n    environment:\n      - COPILOT_PROXY_TOKEN=${COPILOT_PROXY_TOKEN}\n"), /allowed_envs/);
-  if (!existsSync(V21_APP_COMPOSE)) return; // le gabarit vit dans le dépôt UBC (note V)
+  if (!V21_APP_COMPOSE || !existsSync(V21_APP_COMPOSE)) return; // gabarit hors du dépôt (V21_APP_COMPOSE)
   const saved = JSON.parse(readFileSync(V21_APP_COMPOSE, "utf8")) as Record<string, unknown>;
   assert.equal(composeHashOf(saved), V21_COPILOT_VM.composeHash, "le compose_hash que Phala affichait pour la v21");
   assert.equal(composeHashOf(appComposeFor(saved, readFileSync(COMPOSE_V21, "utf8"))), V21_COPILOT_VM.composeHash, "le compose v21 du dépôt est celui qui tournait");

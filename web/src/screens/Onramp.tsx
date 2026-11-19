@@ -6,8 +6,8 @@ import { Card, Btn, Field, Stat, Mono, Badge, usdc } from "../ui";
 import { t, tx } from "../i18n";
 import { explainError } from "../errors";
 
-// Config par défaut (éditable). Les soldes se lisent partout ; le pont CCTP exige les adresses
-// tokenMessenger testnet par chaîne ([À VÉRIFIER]). Arc = domaine CCTP 26.
+// Config par défaut (éditable). Les soldes se lisent sur chaque chaîne ; le pont CCTP passe par le
+// TokenMessengerV2 de la chaîne source. Arc = domaine CCTP 26.
 // TokenMessengerV2 CCTP v2 testnet (adresse déterministe, code vérifié sur ces 3 chaînes).
 const CCTP_TOKEN_MESSENGER = "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA" as const;
 const DEFAULT_CHAINS: CctpChain[] = [

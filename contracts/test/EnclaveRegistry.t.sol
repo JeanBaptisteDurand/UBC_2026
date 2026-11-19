@@ -139,7 +139,7 @@ contract EnclaveRegistryTest is Base {
     // =====================================================================================
     // PLAN-BUILD §9 — tests négatifs ajoutés le 7/11 (inscription, REPORTDATA, rejeu, expiration).
     // Bloc courant = 1000 après setUp ; numéros de bloc en littéraux (l'optimiseur replie block.number).
-    // v2 : les anciens `test_BUG_*` sont devenus des `test_FIXED_*` (le bug est corrigé dans src et le
+    // v2 : les tests `test_FIXED_*` rejouent les cas de la revue adverse, corrigés dans src (le
     // test prouve le bon comportement). Validité en blocs : fenêtre [1000, 5999], grâce jusqu'au bloc 9999.
     // =====================================================================================
 
@@ -323,7 +323,7 @@ contract EnclaveRegistryTest is Base {
         assertEq(registry.activeOperatorAt(s, productId, 5999), address(0));
     }
 
-    /// FIXED (ex-BUG, SPEC-TECH C2 « vrai si l'enclave était active à ce bloc » ; C5 « enclave expirée au
+    /// FIXED (revue adverse ; spécification C2 « vrai si l'enclave était active à ce bloc » ; C5 « enclave expirée au
     /// bloc d'ancrage : refusé »). Une enclave EXPIRÉE et non réattestée n'est plus « active » pour des blocs
     /// produits APRÈS son expiration, même pendant la grâce : validité réelle = VALIDITY_BLOCKS, pas le double.
     function test_FIXED_expiredEnclaveNotActiveForBlocksAfterExpiry() public {
@@ -335,7 +335,7 @@ contract EnclaveRegistryTest is Base {
         assertFalse(registry.isActiveAt(s, productId, 7000), "bloc posterieur a l'expiration : jamais actif");
     }
 
-    /// FIXED (ex-BUG) : la réattestation par le même opérateur (`operator renew`, toutes les ≈ 24 h) PROLONGE
+    /// FIXED (revue adverse) : la réattestation par le même opérateur (`operator renew`, toutes les ≈ 24 h) PROLONGE
     /// la fenêtre en cours au lieu de la remplacer : les reçus et réclamations ancrés avant le renouvellement
     /// restent réglables.
     function test_FIXED_renewalKeepsReceiptsAnchoredBeforeRenewal() public {
@@ -405,7 +405,7 @@ contract EnclaveRegistryTest is Base {
         assertFalse(registry.isActiveAt(s, pid2, 2000));
     }
 
-    /// FIXED (ex-BUG, contrat rendu exploitable par le kit O1) : un autre opérateur cautionné, muni d'un
+    /// FIXED (revue adverse, scénario du kit O1) : un autre opérateur cautionné, muni d'un
     /// vrai quote liant SON adresse aux clés de l'enclave d'autrui, ne peut pas se l'approprier tant qu'elle
     /// est valide ou en grâce (erreur dédiée).
     function test_FIXED_otherOperatorCannotHijackLiveEnclave() public {

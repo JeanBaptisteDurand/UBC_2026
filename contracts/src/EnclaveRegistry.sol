@@ -170,7 +170,7 @@ contract EnclaveRegistry is IEnclaveRegistry {
         if (!_tcbAllowed(productId, m)) revert TcbNotAllowed();
 
         // P3 : bit DEBUG de tdAttributes à 0 (bit de poids faible du 1er octet, LE)
-        //      [À VÉRIFIER sur le quote de S1]
+        //      (vu sur le vrai quote de nos VM Phala : tdAttributes = 0x10000000, DEBUG = 0)
         if (uint8(m.tdAttributes[0]) & 0x01 != 0) revert DebugEnclave();
 
         // P4 (option) : bit 28 SEPT_VE_DISABLE = bit 4 du 4e octet (LE)

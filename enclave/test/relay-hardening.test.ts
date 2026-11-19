@@ -1,6 +1,6 @@
 /**
  * Prime scellée v2.1 quater — RELAIS STRICT contre un RPC du fork MENTEUR (src/services/rpc-relay.ts). Vérification du relais
- * du 9/11 au soir (scratchpad verif-relay : preuves r1-B, r1-E, r1-G ; r2 et r3-1a avec les moteurs réels :
+ * du 9/11 au soir (cas r1-B, r1-E, r1-G ; r2 et r3-1a avec les moteurs réels :
  * relay-hardening-engines.test.ts). Le relais seul, devant un RPC du fork scripté :
  *  1. en-tête LIÉ à son hash (politique « arc », défaut) : keccak256(RLP(21 champs d'en-tête d'Arc)) = hash, VÉRIFIÉ sur deux
  *     blocs réels consécutifs d'Arc testnet (71 609 813 et 71 609 814, lus le 9/11/2026 vers 23 h 40 sur rpc.testnet.arc.io,

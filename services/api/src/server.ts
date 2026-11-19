@@ -273,8 +273,8 @@ const IMAGE_OF = (() => {
   };
   walk(deploymentsV2);
   walk(deploymentsV21);
-  // 19/11 (r2) : les images inscrites après le dernier fichier de déploiement (docs/RUNBOOK-COPILOT-ENCLAVE.md, annexe D,
-  // VERIFIED : l'empreinte rejouée est égale à EnclaveRegistry.imageIdOf ; enclave/phala/copilot-site-v22.yml épingle ce
+  // les images inscrites après le dernier fichier de déploiement (VERIFIED : l'empreinte rejouée est égale à
+  // EnclaveRegistry.imageIdOf ; enclave/phala/copilot-site-v22.yml épingle ce
   // condensat) : le copilote du site en enclave (produit 4), image r2, inscrit le 19/11 (tx 0xbe9deb65…), clé 0xfD0F…305a
   m.set("0x7c4e666755be9d9443913f07e3f6265e6b12b5d3af73da6f5f889c1e70e39d63",
     "ghcr.io/jeanbaptistedurand/archive-copilot-enclave@sha256:eeb889b054e021ff17ee933873080403965623f4f36693986f2d780b269bf5dd");

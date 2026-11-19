@@ -1,6 +1,6 @@
 /**
- * Revue ADVERSE de l'enclave v2 (7/11/2026) — failles CORRIGÉES (v2 bis). Chaque ancien « BUG v2 » (qui échouait tant
- * que la faille existait, même convention que les `test_BUG_*` des contrats) est devenu un « FIXED v2 » qui rejoue le
+ * Revue ADVERSE de l'enclave v2 (7/11/2026), cas corrigés (v2 bis). Chaque « FIXED v2 » (même convention que les
+ * `test_FIXED_*` des contrats) rejoue le
  * MÊME scénario et prouve qu'il ne passe plus. Paramètres mainnet de F-economie-mainnet-2026-11-07 : UNIT_TOKENS=1000,
  * OUT_WEIGHT=4, prix 200 unités de base par unité.
  */
@@ -106,7 +106,7 @@ async function statusOf(p: Promise<unknown>): Promise<number> {
 }
 
 describe("adverse v2 — passerelle d'inférence : qui sert-elle, et qui paie ? (corrigé)", () => {
-  it("FIXED v2 (critique) : une session d'un AUTRE produit, ou au prix 0, est refusée (403) sans appel au modèle", async () => {
+  it("FIXED v2 : une session d'un AUTRE produit, ou au prix 0, est refusée (403) sans appel au modèle", async () => {
     const kit = chatKit();
     const llama = new TypicalLlama();
     // la Prime scellée de F §0.2 (produit 2, prix 0) ; côté contrat, SessionPay ne l'ouvre plus (ZeroPrice)
@@ -117,7 +117,7 @@ describe("adverse v2 — passerelle d'inférence : qui sert-elle, et qui paie ? 
     expect(llama.calls, "l'opérateur ne paie plus le modèle pour une session qui ne le paiera jamais").toBe(0);
   });
 
-  it("FIXED v2 (critique) : une session d'un autre opérateur, ou liée à une autre enclave, est refusée (403) sans appel au modèle", async () => {
+  it("FIXED v2 : une session d'un autre opérateur, ou liée à une autre enclave, est refusée (403) sans appel au modèle", async () => {
     const kit = chatKit();
     const llama = new TypicalLlama();
     const stranger = "0x000000000000000000000000000000000000dEaD" as Address; // aucune caution, aucune enclave

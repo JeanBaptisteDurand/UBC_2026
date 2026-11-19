@@ -18,15 +18,16 @@ notre module appelle bien `verifyAndAttestOnChain`. Arc a le précompile P-256 (
 (vérifiés indépendamment), donc le même bytecode tourne sur Arc, moins cher : 5,21 M gas avec le précompile contre
 6,92 M en P-256 Solidity (Daimo), −25 %, mesuré sur Arc testnet le 7/11.
 
-Ce qui était à faire, et qui est **fait le 7/11** (dossier `arc-testnet/`) :
+**Fait le 7/11** (dossier `arc-testnet/`) :
 - un **vrai quote d'une VM Phala TDX** dont le REPORTDATA porte NOTRE liaison (P6/P7) : c'est le quote de notre
   enclave d'inférence chez Phala (FMSPC `20A06F000000`, DEBUG = 0) ;
 - le **déploiement de toute la pile PCCS d'Automata sur Arc testnet**, collatéral d'Intel compris, et la
   vérification de ce quote **dans une transaction** : `0x142ed00e…0ce97` (5 125 014 gas, 0,1076 USDC, TCB à jour).
   Adresses : `deployments.dcap.testnet.json` ; mode d'emploi et entretien du collatéral : `arc-testnet/README.md`.
 
-Reste : brancher ce module dans un `EnclaveRegistry` (pile v2) et y inscrire l'enclave avec un quote frais (P7 :
-le quote doit pointer un bloc de moins de 8 191 blocs).
+Ensuite (piles v2, v2.1 et v3) : ce module est celui de l'`EnclaveRegistry`, et chaque inscription d'enclave passe par lui
+avec un quote frais (P7 : le quote pointe un bloc de moins de 8 191 blocs), par exemple la tx
+`0x199c985dee537cfe2948f6c721ad1bdd448d538ff08bc8e93a79036a25f33499` (9/11, 6 866 126 gas, rejeu RTMR3 compris).
 
 ## Reproduire
 

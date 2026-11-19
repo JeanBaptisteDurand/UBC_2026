@@ -72,8 +72,7 @@ export const usdcAuthAbi = parseAbi([
 ]);
 
 /** USDC (FiatToken v2.2, EIP-3009) : annulation d'une autorisation pas encore consommée, deux variantes (v, r, s ; bytes).
- *  [À VÉRIFIER sur Arc : receiveWithAuthorization « bytes » et authorizationState le sont ; cancelAuthorization est la
- *  même famille FiatToken v2.2 — le client essaie (v, r, s) puis bytes, en simulation d'abord.] */
+ *  Les deux variantes de FiatToken v2.2 : le client essaie (v, r, s) puis bytes, en simulation d'abord. */
 export const usdcCancelAbi = parseAbi([
   "function cancelAuthorization(address authorizer, bytes32 nonce, uint8 v, bytes32 r, bytes32 s)",
   "function cancelAuthorization(address authorizer, bytes32 nonce, bytes signature)",

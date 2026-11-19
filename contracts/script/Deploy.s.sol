@@ -14,8 +14,7 @@ import {X402Settler} from "../src/X402Settler.sol";
 
 /// @title Deploy — déploie et CÂBLE tout le réseau d'enclaves d'Arc (pile v2, cible : Arc MAINNET).
 /// @notice Prend les adresses externes (déjà sur la chaîne) par variables d'environnement. Les défauts
-///         sont les valeurs MAINNET (ubc/research/plan-reseau-enclaves-arc-2026-11-01/F-economie-mainnet
-///         -2026-11-07.md §0 et deploy/mainnet.env.example) :
+///         sont les valeurs MAINNET (deploy/mainnet.env.example) :
 ///   USDC                 l'USDC d'Arc (0x3600…0000)                                    — obligatoire
 ///   DCAP                 le vérificateur Automata DCAP (C1), déployé à part ; absent
 ///                        d'Arc mainnet au 7/11 : à déployer d'abord                    — obligatoire

@@ -34,8 +34,8 @@ contract ReturnBombTarget {
 }
 
 /// @title Revue ADVERSE de la pile v2 (7/11/2026) — failles CORRIGÉES (v2 bis)
-/// @notice Chaque ancien `test_BUG_v2_*` (qui échouait tant que la faille existait) est devenu un `test_FIXED_v2_*`
-///         qui rejoue le MÊME scénario d'attaque et prouve qu'il ne passe plus. Paramètres mainnet de
+/// @notice Chaque `test_FIXED_v2_*` vient de la revue adverse de la v2 :
+///         il rejoue le MÊME scénario d'attaque et prouve qu'il ne passe plus. Paramètres mainnet de
 ///         F-economie-mainnet-2026-11-07 §0.2 / §0.3 : inférence à 200 unités de base par unité, Prime scellée au
 ///         prix 0, caution minimale 100 USDC, pool de démo 60 USDC (palier 5 USDC, singleCap 50, k = 2).
 contract AdversarialV2Test is Base {
@@ -219,7 +219,7 @@ contract AdversarialV2Test is Base {
 
     // ============================================================ SessionPay / enclave d'inférence
 
-    /// CRITIQUE (corrigée) — SessionPay n'ouvre plus de session sur un produit qui n'est pas le sien ni au prix 0 : la
+    /// FIXED (revue adverse) — SessionPay n'ouvre plus de session sur un produit qui n'est pas le sien ni au prix 0 : la
     /// Prime scellée de F §0.2 (réglée par SealedBounty, prix 0) et un produit « gratuit » proposé par n'importe qui
     /// sont refusés ; une session désigne une enclave active du produit chez son opérateur (côté enclave, voir
     /// enclave/test/adversarial-v2.test.ts : refus 403 d'une session d'un autre produit ou d'un autre opérateur).

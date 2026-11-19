@@ -1,5 +1,5 @@
 /**
- * Prime scellée v2.1 bis — ÉCHEC FERMÉ (revue adverse du 9/11, preuves du scratchpad verif-refute : t2, t2b, jit, t4).
+ * Prime scellée v2.1 bis — ÉCHEC FERMÉ (revue adverse du 9/11 : cas t2, t2b, jit, t4).
  * Règle d'or : l'enclave ne signe JAMAIS (ni réclamation, ni réfutation) un résultat qui dépend d'une erreur de réseau, de
  * RPC, de délai ou d'environnement ; seules des règles DÉTERMINISTES, écrites et testées, donnent une « faute prouvée ».
  *  1. rejeu (anvil-fork.ts) : une lecture du prédicat refusée par le RPC du fork ne vaut jamais 0 ni « invariant non tenu »

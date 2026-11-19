@@ -945,7 +945,7 @@ export async function operatorPlan(arc: ArcClient, q: any, cx: ActionCtx = {}) {
   const bountyOf = chosen ? bountyContractOf(arc, chosen.settlement) : undefined;
   const bountyRail = !!bountyOf;
   const appCompose = [
-    "# app-compose (Phala Cloud dstack) — modèle : enclave/docker-compose.yml du dépôt",
+    "# app-compose (Phala Cloud dstack) — modèles : enclave/phala/*.yml du dépôt",
     "services:",
     "  produit:",
     "    image: <registre>/<image>@sha256:<digest>   # l'image du manifeste du produit (son workloadId doit être autorisé)",
@@ -971,7 +971,7 @@ export async function operatorPlan(arc: ArcClient, q: any, cx: ActionCtx = {}) {
       { n: 1, titre: "Un wallet et de l'USDC sur Arc", detail: "Le gas d'Arc se paie en USDC. Amène ton USDC d'autres chaînes par CCTP (page On-ramp)." },
       { n: 2, titre: "Choisir un produit", detail: "Ta part de chaque paiement = bpsOperator du produit ; il faut au moins sa caution minimale (voir produits)." },
       { n: 3, titre: "Déposer la caution (OperatorBond)", detail: "bond(montant, autorisation EIP-3009) en une transaction, ou approve puis bondFrom ; tu signes.", outil: "operator_prepare_bond" },
-      { n: 4, titre: "Louer une VM Intel TDX sur Phala Cloud (dstack)", detail: "Déployer l'app-compose ci-dessous (image épinglée par digest). Commande donnée par enclave/docker-compose.yml [À VÉRIFIER : CLI Phala].", commande: `phala deploy -c docker-compose.yml -t tdx.small --name archive-produit-${pid} -e PRODUCT_ID=${pid}` },
+      { n: 4, titre: "Louer une VM Intel TDX sur Phala Cloud (dstack)", detail: "Déployer l'app-compose ci-dessous avec le CLI de Phala Cloud (image épinglée par digest ; modèles : enclave/phala/*.yml).", commande: `phala deploy -c docker-compose.yml -t tdx.small --name archive-produit-${pid} -e PRODUCT_ID=${pid}` },
       { n: 5, titre: "Vérifier l'attestation de la VM", detail: "/attest rend un quote qui lie ton adresse d'opérateur, le produit et les clés de l'enclave (REPORTDATA) ; /pubkeys donne ses clés publiques.", commande: `curl -s -X POST https://<ta-vm>/attest -H 'content-type: application/json' -d '{"operator":"${op}","anchorR":"<bloc récent>"}'` },
       { n: 6, titre: "Inscrire l'enclave (registerEnclave)", detail: `Envoyée par TON adresse d'opérateur. La chaîne vérifie la signature d'Intel sur le quote (DCAP d'Automata, ≈ ${DCAP_REGISTER_GAS_ESTIMATE} gas), puis : pas de mode DEBUG, SEPT_VE_DISABLE, workloadId autorisé, TCB, REPORTDATA, ancrage de bloc (EIP-2935), quote jamais vu, caution libre ≥ minimum (chaque clé en réserve une).`, outil: "operator_prepare_register" },
       { n: 7, titre: "Renouveler", detail: `Une inscription vaut ${await blocksDuree(arc, validity)} (VALIDITY_BLOCKS) : réattester avant la fin (le service Registrar peut le faire) ; renouvelée sans trou, la fenêtre est prolongée. Ensuite ${await blocksDuree(arc, grace)} de grâce pour régler les anciens reçus. Une clé est liée à vie à son opérateur et à son produit.` },
@@ -985,7 +985,7 @@ export async function operatorPlan(arc: ArcClient, q: any, cx: ActionCtx = {}) {
       repartitionDeLaSaisie: "50 % au dénonciateur, 50 % à la victime (à la trésorerie du réseau s'il n'y a pas de victime).",
     },
     appCompose,
-    sources: ["OperatorBond.sol (UNBOND_DELAY, WINDOW, consumeExposure, reserve, slash)", "EnclaveRegistry.sol (VALIDITY_BLOCKS, GRACE_BLOCKS, politique P1–P12)", "enclave/phala/sealed-chat-v2.yml", "PLAN-BUILD §4.5"],
+    sources: ["OperatorBond.sol (UNBOND_DELAY, WINDOW, consumeExposure, reserve, slash)", "EnclaveRegistry.sol (VALIDITY_BLOCKS, GRACE_BLOCKS, politique P1–P12)", "enclave/phala/sealed-chat-v21.yml", "docs/OPERATORS.md"],
   };
 }
 
@@ -1256,7 +1256,7 @@ export async function productScaffold(arc: ArcClient, q: any) {
     `CMD ["node", "dist/${slug}.mjs"]`,
   ].join("\n");
   const compose = [
-    `# app-compose Phala Cloud (dstack, VM Intel TDX) — phala deploy -c docker-compose.yml -t tdx.small --name ${slug} [À VÉRIFIER : CLI Phala]`,
+    `# app-compose Phala Cloud (dstack, VM Intel TDX) — phala deploy -c docker-compose.yml -t tdx.small --name ${slug}`,
     "services:",
     `  ${slug}:`,
     `    image: ${image}   # TOUJOURS par digest : le workloadId en dépend`,
@@ -1408,7 +1408,7 @@ async function apiGet(base: string, path: string): Promise<ApiResult> {
     if (res.status === 404) {
       let msg = "";
       try { const j = JSON.parse(text); msg = String(j?.error ?? j?.message ?? ""); } catch { /* page 404 brute : route absente */ }
-      return { ok: false, status: 404, erreur: msg ? `L'API ArcHive répond 404 sur ${route} : ${msg}` : `L'API ArcHive (${base}) ne sert pas encore ${route} (404) : ces routes sont en cours de déploiement.` };
+      return { ok: false, status: 404, erreur: msg ? `L'API ArcHive répond 404 sur ${route} : ${msg}` : `L'API ArcHive (${base}) ne sert pas ${route} (404).` };
     }
     if (!res.ok) return { ok: false, status: res.status, erreur: `L'API ArcHive (${base}) a répondu ${res.status} sur ${route} : ${text.slice(0, 160)}` };
     try { return { ok: true, data: JSON.parse(text) }; } catch { return { ok: false, status: res.status, erreur: `Réponse non JSON de l'API ArcHive sur ${route}.` }; }
