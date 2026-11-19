@@ -55,8 +55,8 @@ export function useCopy(text: string, el: React.RefObject<Element | null>) {
 let moved = false
 for (const k of ['wheel', 'touchstart', 'keydown', 'pointerdown'] as const) addEventListener(k, () => { moved = true }, { capture: true, passive: true, once: true })
 /** Holds the section at the top of the screen while the page around it settles: readings that arrive above it push it
- *  down, a lazy part below it not loaded yet leaves the page too short to bring it up (publish.html#act landed 200 px
- *  low on a phone). It stops as soon as the visitor moves, when the copilot shows the site, and after 10 s. */
+ *  down, a lazy part below it not loaded yet leaves the page too short to bring it up (the old publish.html#act landed
+ *  200 px low on a phone). It stops as soon as the visitor moves, when the copilot shows the site, and after 10 s. */
 function holdOn(id: string) {
   if (moved) return
   let stop = false
@@ -81,7 +81,7 @@ function holdOn(id: string) {
   ro?.observe(document.body)
   const tm = window.setTimeout(end, 10000)
 }
-/** A link to a part of a page (use.html?act=3#act, space.html?tab=machines#keys): the page scrolls there once what sits
+/** A link to a part of a page (space.html?tab=machines#keys, space.html?tab=bounties#create): the page scrolls there once what sits
  *  above it has rendered, and holds it there while the rest arrives. The browser's own jump happens before the sections
  *  and the live readings arrive, and left the visitor at the top of the page. Without the readings (an API that does
  *  not answer), the jump still happens after a moment. */

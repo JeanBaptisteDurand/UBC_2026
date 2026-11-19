@@ -1,16 +1,17 @@
 // The copilot drives the site in front of the user: ui_navigate, ui_highlight and ui_demo, played in order. A small
-// copilot cursor glides to the target, the search is typed letter by letter into #cat-q, filters toggle, the page
-// scrolls to the section, a glowing ring and a bubble point at the element, the demo advances. Towards another page:
+// copilot cursor glides to the target, the page scrolls to the section, a glowing ring and a bubble point at the
+// element, the demo advances. Towards another page:
 // the remaining gestures are saved (state.ts, saveQueue), the page changes, and the panel resumes them on arrival.
 // Reduced motion (prefers-reduced-motion): everything is set at once, nothing glides.
-// Pages listen to two events: archive:catalog { q, state, kind } (UsePage) and archive:demo { action, step }
-// (DemoPage); without them, the driver goes through the controls themselves.
+// Use, Rent and Publish are the Network page's parts (network.html?focus=use|rent|publish): on that page the driver
+// switches the part in place, as the header does, and points at its steps (data-copilot). The Network page's 3D demo
+// is driven through its own controls.
 import { scrollTo as sectionScroll, getLenis } from '../clock'
 import { t, getLang, type TKey } from '../i18n'
 import { SLOTS, G } from '../data/wall'
 import { getLive } from '../data/live'
 import { ct } from './strings'
-import { pageOf, urlOf, netDemoOpen, type PageName } from './page'
+import { pageOf, urlOf, netDemoOpen, onNetworkPage, isNetPart, type PageName, type NetPart } from './page'
 import { serviceHref } from '../links'
 import type { UiStep, NavArgs, HlArgs, DemoArgs } from './api'
 
@@ -193,10 +194,28 @@ async function settle(el: Element, ms = 2000) {
   }
 }
 const inView = (b: Box) => b.y >= HD() + 4 && b.y + Math.min(b.h, innerHeight * 0.5) <= innerHeight - 24
+/** The element's nearest ancestor that scrolls by itself (the Network page's column on wide screens, where the 3D room
+ *  fills the window and only the column scrolls), or null: the page scrolls. */
+function scroller(el: Element): HTMLElement | null {
+  for (let p = el.parentElement; p && p !== document.body && p !== document.documentElement; p = p.parentElement) {
+    const o = getComputedStyle(p).overflowY
+    if ((o === 'auto' || o === 'scroll') && p.scrollHeight > p.clientHeight + 1) return p
+  }
+  return null
+}
 /** Brings an element on screen: smooth scroll (Lenis on the landing), or instant with reduced motion. */
 async function reveal(el: Element, center = false) {
   const b = boxOf(el)
   if (inView(b)) return
+  // inside a column that scrolls by itself, the column scrolls (the page around it does not move)
+  const box = scroller(el)
+  if (box) {
+    const r = box.getBoundingClientRect(), top = Math.max(r.top, HD())
+    const off = center ? Math.max(24, (Math.min(r.bottom, innerHeight) - top - b.h) / 2) : 32
+    box.scrollTo({ top: Math.max(0, box.scrollTop + (b.y - top) - off), behavior: reduced() ? 'auto' : 'smooth' })
+    await settle(el)
+    if (inView(boxOf(el))) return
+  }
   const lenis = getLenis()
   const off = HD() + (center ? Math.max(24, (innerHeight - HD() - b.h) / 2) : 32)
   if (lenis) lenis.scrollTo(el as HTMLElement, { offset: -off, duration: reduced() ? 0 : 1.2, immediate: reduced() })
@@ -211,9 +230,16 @@ async function toSection(el: HTMLElement) {
 
 // ---------------------------------------------------------------- targets
 
+/** On the Network page, the anchors of the old Use, Rent and Publish pages that a part still has in another form
+ *  (earlier answers of the assistant name them): their "do it here" section and their path are the part's steps,
+ *  the page itself is the part's panel, the catalog is the part's way to Services. */
+const NET_ALIAS: Readonly<Record<string, string>> = { act: '#panel .net-acts', path: '#panel .net-acts', use: '#panel', rent: '#panel', publish: '#panel', catalog: '#panel .net-go-cat' }
 function anchorEl(id: string): HTMLElement | null {
-  return document.getElementById(id) ?? document.querySelector<HTMLElement>(`[data-copilot="${id}"]`)
+  // the tours' own names first (data-copilot: a part's steps), then ids: the header's wallet button is #connect, the
+  // step a tour means by connect is the part's first step
+  return document.querySelector<HTMLElement>(`[data-copilot="${id}"]`) ?? document.getElementById(id)
     ?? document.getElementById(`${id}-h`)?.closest<HTMLElement>('section') ?? document.querySelector<HTMLElement>(`[data-sec="${id}"]`)
+    ?? (onNetworkPage() && NET_ALIAS[id] ? document.querySelector<HTMLElement>(NET_ALIAS[id]) : null)
 }
 /** A section's name for the log: its title (the text read by screen readers), otherwise its anchor. */
 function labelOf(el: HTMLElement, id: string): string {
@@ -292,72 +318,53 @@ function resolve(target: string): Spot | null {
   return { el: part, rect: () => contentBox(part), label: labelOf(el, target) }
 }
 
-// ---------------------------------------------------------------- the catalog (Use page)
+// ---------------------------------------------------------------- the Network page's parts (Use, Rent, Publish)
 
-const fire = (name: string, detail: unknown) => dispatchEvent(new CustomEvent(name, { detail }))
-/** Fallback without UsePage's listener: the value set like a keystroke (React reads the input event). */
-function setNative(el: HTMLInputElement | HTMLSelectElement, v: string) {
-  const proto = el instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype
-  Object.getOwnPropertyDescriptor(proto, 'value')?.set?.call(el, v)
-  el.dispatchEvent(new Event(el instanceof HTMLSelectElement ? 'change' : 'input', { bubbles: true }))
-}
-async function setQuery(el: HTMLInputElement, v: string) {
-  fire('archive:catalog', { q: v })
-  await nextFrame()
-  if (el.value !== v) setNative(el, v)
-}
-async function typeQuery(q: string, hooks: DriveHooks) {
-  const el = await waitFor(() => document.getElementById('cat-q') as HTMLInputElement | null, 4000)
-  if (!el || el.value === q) return
-  await glideTo(boxOf(el))
-  el.classList.add('cp-typing')
-  let cur = el.value
-  if (reduced()) await setQuery(el, q)
-  else {
-    // whatever does not start the new search is erased, then the search is typed letter by letter
-    while (cur && !q.startsWith(cur)) { cur = cur.slice(0, -1); await setQuery(el, cur); await sleep(24) }
-    for (let k = cur.length; k < q.length; k++) { cur = q.slice(0, k + 1); await setQuery(el, cur); await sleep(48 + Math.random() * 46) }
-  }
-  await sleep(260)
-  el.classList.remove('cp-typing')
-  hooks.log(q ? ct('step.search', { q }) : ct('step.clear'))
-}
-const STATE_KEY: Record<string, TKey> = { all: 'app.f.all' as TKey, green: 'app.f.running' as TKey, amber: 'app.f.idle' as TKey, red: 'app.f.retired' as TKey }
-async function setState(state: string, hooks: DriveHooks) {
-  const idx = ['all', 'green', 'amber', 'red'].indexOf(state)
-  const chip = document.querySelectorAll<HTMLButtonElement>('.chips-st .chip')[idx]
-  if (chip) { await glideTo(boxOf(chip)); await press() }
-  fire('archive:catalog', { state })
-  await nextFrame(); await nextFrame()
-  if (chip && chip.getAttribute('aria-pressed') !== 'true') chip.click()
-  hooks.log(ct('step.state', { f: t(STATE_KEY[state] ?? ('app.f.all' as TKey)) }))
-}
-async function setKind(kind: string, hooks: DriveHooks) {
-  const sel = document.getElementById('cat-k') as HTMLSelectElement | null
-  if (sel) { await glideTo(boxOf(sel)); await press() }
-  fire('archive:catalog', { kind })
-  await nextFrame(); await nextFrame()
-  if (sel && sel.value !== kind && [...sel.options].some((o) => o.value === kind)) setNative(sel, kind)
-  hooks.log(ct('step.kind', { k: kind === 'all' ? t('app.f.all' as TKey) : t(`svc.${kind}` as TKey) }))
+/** What a gesture asks, in the site's structure. The Network page's views: a part (network, section use, rent or
+ *  publish) is that part's page, its 3D demo (section demo) the demo. The old Use page's catalog, with its filters
+ *  (query, state, kind), is the Services page: an earlier answer that filters the catalog on a type of service opens
+ *  that family there (one of its products), a number its product. */
+const FAMILY_OF_KIND: Readonly<Record<string, string>> = { ai: '1', x402: '3', bounty: '2', copilot: '4' }
+function canon(a: NavArgs): NavArgs {
+  const why = a.reason ? { reason: a.reason } : {}
+  if (a.page === 'network' && (isNetPart(a.section) || a.section === 'demo')) return { page: a.section, ...why }
+  if (a.page !== 'use' || a.productId || (a.query === undefined && !a.state && !a.kind)) return a
+  const n = /^#?(\d{1,10})$/.exec(a.query?.trim() ?? '')?.[1]
+  const productId = n ?? (a.kind ? FAMILY_OF_KIND[a.kind] : undefined)
+  return { page: 'service', ...(productId ? { productId } : {}), ...why }
 }
 
+/** A view of the Network page: a part (use, rent, publish), what runs on Arc, CCTP, or the overview. */
+type NetView = NetPart | 'arc' | 'cctp' | 'ensemble'
+/** The Network view a gesture asks for, or null (another page). */
+function netViewOf(a: NavArgs): NetView | null {
+  if (isNetPart(a.page)) return a.page
+  if (a.page !== 'network') return null
+  return a.section === 'arc' || a.section === 'cctp' ? a.section : 'ensemble'
+}
+/** The view the Network page shows (#col data-col; the address before the column is drawn). */
+const netViewNow = () => document.getElementById('col')?.getAttribute('data-col') ?? new URLSearchParams(location.search).get('focus') ?? 'ensemble'
+/** On the Network page: opens one of its views in place, with the buttons the header itself clicks (MainNav), then
+ *  waits for it (a part: its steps). false: no such button (the address is used instead). */
+async function toView(v: NetView): Promise<boolean> {
+  const b = document.querySelector<HTMLButtonElement>(v === 'ensemble' ? '#panel .back[data-view="ensemble"]' : `#choices button[data-view="${v}"]`)
+  if (!b) return false
+  b.click()
+  const ok = await waitFor(() => document.querySelector(isNetPart(v) ? `#col[data-col="${v}"] .net-acts[data-part="${v}"]` : `#col[data-col="${v}"]`), 4000)
+  await sleep(reduced() ? 0 : 420) // the column brings the view's content in (motion M2)
+  return !!ok
+}
+
+/** The Use part: the steps of a paid call. A service given (?p=, urlOf) is the one the call is for: its step (pick) is
+ *  pointed at; otherwise the section asked, if any. */
 async function applyUse(a: NavArgs, hooks: DriveHooks) {
-  if (!(await waitFor(() => document.getElementById('cat-q'), 6000))) return
-  // a service panel open over the catalog closes first (its Back button)
-  const back = document.querySelector<HTMLButtonElement>('.sheet.on .svc-x')
-  if (back) { await glideTo(boxOf(back)); await press(); back.click(); await sleep(reduced() ? 60 : 520) }
-  const tools = document.querySelector('.cat-tools')
-  if (tools && (a.query !== undefined || a.state || a.kind)) await reveal(tools)
-  if (a.query !== undefined) await typeQuery(a.query, hooks)
-  if (a.state) await setState(a.state, hooks)
-  if (a.kind) await setKind(a.kind, hooks)
   if (a.productId) {
-    const row = await waitFor(() => document.querySelector<HTMLElement>(`[data-pid="${a.productId}"]`)?.closest<HTMLElement>('li'), 6000)
-    if (row) {
-      await reveal(row, true)
-      await glideTo(boxOf(row))
+    const el = await waitFor(() => anchorEl('pick'), 4000)
+    if (el) {
+      await reveal(el, true)
+      await glideTo(boxOf(el))
       hooks.log(ct('step.row', { id: a.productId }))
-      await ring(() => contentBox(row), a.reason, 2200)
+      await ring(() => contentBox(el), a.reason, 2200)
     } else hooks.log(ct('step.missing', { t: ct('target.product', { id: a.productId }) }))
   } else if (a.section) await scrollToSection(a.section, hooks)
 }
@@ -373,7 +380,8 @@ async function scrollToSection(id: string, hooks: DriveHooks) {
 // ---------------------------------------------------------------- the three tools
 
 /** Returns true if the page changes (the rest resumes on the new page). */
-async function navigate(a: NavArgs, rest: UiStep[], hooks: DriveHooks): Promise<boolean> {
+async function navigate(asked: NavArgs, rest: UiStep[], hooks: DriveHooks): Promise<boolean> {
+  const a = canon(asked)
   const here = pageOf()
   if (a.reason) caption(a.reason)
   if (a.page === 'datacenter' || a.page === 'console') {
@@ -385,25 +393,41 @@ async function navigate(a: NavArgs, rest: UiStep[], hooks: DriveHooks): Promise<
     location.assign(urlOf(a.page, a))
     return true
   }
-  const target = a.page === 'service' && !a.productId ? 'use' : a.page
-  // the demo is the Network page's 3D demo (network.html?focus=demo): on that page, it starts in place
-  if (target === 'demo' && here === 'network') { await netDemo({ action: 'play' }, hooks); return false }
+  const target = a.page
+  // the demo is the Network page's 3D demo (network.html?focus=demo): on that page, whatever it shows, it starts in place
+  if (target === 'demo' && onNetworkPage()) { await netDemo({ action: 'play' }, hooks); return false }
   const q = new URLSearchParams(location.search)
-  const same = here === target && (target !== 'service' || q.get('p') === a.productId) && (target !== 'doc' || !a.section || q.get('c') === a.section)
-  if (!same) {
+  const pid = q.get('p') ?? undefined
+  const href = urlOf(target, a)
+  /** the menu link, if on screen, is "clicked" by the copilot cursor */
+  const opening = async () => {
     hooks.log(ct('step.open', { page: ct(`page.${target}` as 'page.home') }))
-    // the menu link, if on screen, is "clicked" by the copilot cursor
-    const href = urlOf(target, a)
     const link = [...document.querySelectorAll<HTMLAnchorElement>('.hd-nav a, .hd-drawer a')].find((x) => x.getAttribute('href') === href && x.getBoundingClientRect().width > 0)
     if (link) { await glideTo(boxOf(link)); await press() }
     else await sleep(reduced() ? 0 : 300)
+  }
+  // on the Network page, a view of it (a part, what runs on Arc, CCTP, the overview) opens in place, as the header
+  // does: the 3D room stays, and the rest plays on the part's steps. A service to call (?p=) opens the Use part again
+  const view = netViewOf(a)
+  if (view && onNetworkPage() && (target !== 'use' || !a.productId || pid === a.productId)) {
+    if (netViewNow() !== view) {
+      await opening()
+      if (!(await toView(view))) { hooks.leave(target, rest); location.assign(href); return true }
+    }
+    if (target === 'use') await applyUse(a, hooks)
+    else if (a.section && isNetPart(target)) await scrollToSection(a.section, hooks)
+    return false
+  }
+  const same = here === target && (target !== 'service' || pid === a.productId) && (target !== 'use' || !a.productId || pid === a.productId)
+    && (target !== 'doc' || !a.section || q.get('c') === a.section)
+  if (!same) {
+    await opening()
     // the demo opens on the Network page (?focus=demo starts it there): the rest resumes on that page
     hooks.leave(target === 'demo' ? 'network' : target, rest)
     location.assign(href)
     return true
   }
-  if (here === 'use') await applyUse(a, hooks)
-  else if (a.section) await scrollToSection(a.section, hooks)
+  if (a.section) await scrollToSection(a.section, hooks)
   else if (here === 'home' && a.productId) await highlight({ target: `product:${a.productId}`, note: a.reason }, hooks)
   return false
 }
@@ -419,17 +443,6 @@ async function highlight(a: HlArgs, hooks: DriveHooks) {
   // the ring lasts 2.6 s; the next gesture starts a little before it fades
   const done = ring(s.rect, a.note)
   await Promise.race([done, sleep(2100)])
-}
-
-async function demo(a: DemoArgs, hooks: DriveHooks) {
-  const nav = await waitFor(() => document.querySelector<HTMLElement>('.demo-nav'), 4000)
-  const btns = nav ? [...nav.querySelectorAll<HTMLButtonElement>(':scope > .btn')] : []
-  const target = a.action === 'next' || a.action === 'play' ? btns[btns.length - 1] : a.action === 'prev' ? btns[0]
-    : a.action === 'goto' ? nav?.querySelector<HTMLElement>(`.dot[data-n="${a.step}"]`) : nav
-  if (target) { await reveal(target); await glideTo(boxOf(target)); await press() }
-  fire('archive:demo', a)
-  hooks.log(a.action === 'goto' ? ct('step.demo.goto', { n: a.step ?? 1 }) : ct(`step.demo.${a.action}` as 'step.demo.play'))
-  await sleep(reduced() ? 50 : 500)
 }
 
 /** The Network page's 3D demo (network/demo.ts): opened with its own button (the Demo view), then driven with its
@@ -482,10 +495,9 @@ async function run(steps: UiStep[], hooks: DriveHooks) {
       if (s.tool === 'ui_navigate') { if (await navigate(s.args, steps.slice(i), hooks)) return }
       else if (s.tool === 'ui_highlight') await highlight(s.args, hooks)
       else if (s.tool === 'ui_demo') {
-        // the demo is the Network page's 3D demo (the old /demo.html keeps its own player): go there first
-        const here = pageOf()
-        if (here === 'network') await netDemo(s.args, hooks)
-        else if (here === 'demo') await demo(s.args, hooks)
+        // the demo is the Network page's 3D demo: on that page (whatever part it shows) it plays in place, elsewhere
+        // the Network page opens on it first
+        if (onNetworkPage()) await netDemo(s.args, hooks)
         else if (await navigate({ page: 'demo' }, steps.slice(i), hooks)) return
       }
     }

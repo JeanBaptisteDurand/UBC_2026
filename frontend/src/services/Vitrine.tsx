@@ -12,7 +12,7 @@ import { isSupersededRow } from '../app/catalog'
 import { ServiceDetail } from '../app/ServiceDetail'
 import { API_DIRECT } from '../data/endpoints'
 import { num, usdc, pct } from '../data/fmt'
-import { link, networkFor } from '../links'
+import { link, networkFor, consoleFor } from '../links'
 import { VIT, type VitChapter } from './vit-content'
 import { RoomStage, type Plate } from './RoomStage'
 import { reveal, grow } from '../ui/motion'
@@ -468,7 +468,7 @@ export function Vitrine() {
     const isOn = cur === target
     return { key: `p${r.p.id}`, title: r.name, sub: t(sub), unit: '', led: r.led === 'off' ? 'off' : r.led, on: isOn, dim: !!cur && !isOn, label: `${r.name}, ${t(sub)}`, open: () => open(isOn ? null : target) }
   })
-  if (over) plates.push({ key: 'more', title: `+${over}`, sub: t('vit.more.s'), unit: '', led: 'off', on: false, dim: !!cur, label: t('vit.more.s'), open: () => { location.href = link.use } })
+  if (over) plates.push({ key: 'more', title: `+${over}`, sub: t('vit.more.s'), unit: '', led: 'off', on: false, dim: !!cur, label: t('vit.more.s'), open: () => { location.href = consoleFor() } })
   while (plates.length < cap) {
     const k = plates.length
     plates.push({ key: `slot${k}`, title: t('plate.off'), sub: t('plate.sub.off'), unit: '', led: 'off', on: cur === SLOT, dim: !!cur && cur !== SLOT, label: `${t('plate.off')}, ${t('plate.sub.off')}`, open: () => open(cur === SLOT ? null : SLOT) })

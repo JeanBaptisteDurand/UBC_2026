@@ -1,8 +1,5 @@
-// Entry point of the publish page.
-import '../styles.css'
-import './app.css'
-import { t } from '../i18n'
-import { bootPage } from './parts'
-import { PublishPage } from './PublishPage'
+// Entry point of the old Publish page: publishing a service is now the Publish part of the Network page
+// (network.html?focus=publish), where its steps (connect, manifest, fingerprint, propose, activate) are signed in place.
+import { toNetwork } from './toNetwork'
 
-bootPage(<PublishPage />, t('pp.doc'))
+toNetwork('publish')
