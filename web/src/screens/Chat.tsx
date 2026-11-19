@@ -14,19 +14,19 @@ import { fail, isFailure, msg, show, type Msg as Note } from "../msg";
 import { fmtNum, fmtUnix, getLang, t, tx, useLang } from "../i18n";
 
 type Msg = ChatMessage & { receipt?: Receipt; verified?: boolean };
-/** Le dernier reçu d'une session : la preuve de ce qui est dû, réglable on-chain par n'importe qui (SessionPay.settle). */
+/** A session's latest receipt: the proof of what is owed, settleable on-chain by anyone (SessionPay.settle). */
 export interface LastReceipt { receipt: Receipt; signature: Hex; signer: string; verified: boolean }
-/** 402 : la session ne couvre pas la requête. `pending` : l'enclave garde une réponse déjà calculée (pendingSeq). */
+/** 402: the session does not cover the request. `pending`: the enclave keeps an answer already computed (pendingSeq). */
 export interface Refill { pending: boolean; cost?: bigint; messages: ChatMessage[] }
 interface OpenSession { id: bigint; enclave: string; operator: string; expiresAt: bigint }
 
-/** Recharge suggérée : de quoi couvrir largement la réponse en attente, 1 USDC au moins. */
+/** Suggested top-up: enough to cover the pending answer comfortably, 1 USDC at least. */
 function suggestRefill(cost?: bigint): string {
   const need = cost ? Number(cost) / 1e6 : 0;
   return String(Math.max(1, Math.ceil(need * 2)));
 }
 
-/** 402 de l'enclave : recharger la session (topUp), puis rejouer — la réponse gardée, ou le message refusé. */
+/** The enclave's 402: top up the session (topUp), then replay: the kept answer, or the refused message. */
 export function RefillBox({ arc, sessionId, refill, onRefilled }: { arc: ArcClient | null; sessionId: bigint; refill: Refill; onRefilled: () => Promise<void> }) {
   const [amount, setAmount] = useState(() => suggestRefill(refill.cost));
   const [note, setNote] = useState<Note | null>(null);
@@ -59,8 +59,8 @@ export function RefillBox({ arc, sessionId, refill, onRefilled }: { arc: ArcClie
   );
 }
 
-/** Une vérification du reçu en mots : la phrase du SDK en français ; en anglais, la même, refaite depuis les données
- *  de la vérification (session, signataire, opérateur au bloc d'ancrage). */
+/** A receipt check in words: the SDK's sentence in French; in English, the same one, rebuilt from the check's data
+ *  (session, signer, operator at the anchor block). */
 function checkText(c: ReceiptCheck, v: ReceiptVerification, r: Receipt): string {
   if (getLang() === "fr") return c.fr;
   const s = v.session;
@@ -77,7 +77,7 @@ function checkText(c: ReceiptCheck, v: ReceiptVerification, r: Receipt): string 
   return c.fr;
 }
 
-/** Le dernier reçu et sa vérification on-chain, exactement comme SessionPay.settle la fera (lectures seulement). */
+/** The latest receipt and its on-chain check, exactly as SessionPay.settle will do it (reads only). */
 export function ReceiptPanel({ arc, last }: { arc: ArcClient | null; last: LastReceipt }) {
   const [v, setV] = useState<ReceiptVerification | null>(null);
   const [err, setErr] = useState<unknown>(null);
@@ -130,29 +130,29 @@ export default function Chat() {
   const [enclaveUrl, setEnclaveUrl] = useState(ENCLAVE_URL);
   const [deposit, setDeposit] = useState("2");
   const [session, setSession] = useState<OpenSession | null>(null);
-  const [ended, setEnded] = useState(false); // 410 : l'enclave ne sert plus cette session
+  const [ended, setEnded] = useState(false); // 410: the enclave no longer serves this session
   const [msgs, setMsgs] = useState<Msg[]>([]);
-  // null : la question d'exemple, dans la langue du moment (tant que l'utilisateur n'a rien tapé)
+  // null: the sample question, in the current language (until the user types something)
   const [typed, setInput] = useState<string | null>(null);
   const input = typed ?? t("chat.defaultPrompt");
-  // la ligne d'état : un message (clé et valeurs), mis en mots à l'affichage dans la langue du moment
+  // the status line: a message (key and values), put into words at display time in the current language
   const [status, setStatus] = useState<Note | null>(null);
   const [busy, setBusy] = useState(false);
   const [hive, setHive] = useState<{ encs: EnclaveView[]; infer: Set<string> } | null>(null);
   const [refill, setRefill] = useState<Refill | null>(null);
   const [last, setLast] = useState<LastReceipt | null>(null);
   const ic = useRef<InferenceClient | null>(null);
-  // v2 : la clé de l'enclave servie à cette adresse est confrontée à la chaîne AVANT toute ouverture de session
+  // the key of the enclave served at this address is checked against the chain BEFORE any session opens
   const [check, recheck] = useVerifiedEnclave(arc, enclaveUrl, productId);
 
-  // Repère lu par l'API (une fois) : les enclaves actives de la ruche et les produits d'inférence.
+  // Hint read from the API (once): the hive's active enclaves and the inference products.
   useEffect(() => {
     if (session) return;
     let alive = true;
     Promise.all([fetchEnclaves(), fetchProducts()]).then(([encs, prods]) => {
       const infer = new Set(prods.filter((p) => p.state === "Active" && p.settlement.toLowerCase() === testnet.sessionPay.toLowerCase()).map((p) => p.id.toString()));
       if (alive) setHive({ encs, infer });
-    }).catch(() => { /* repère facultatif : la vérification sur Arc suffit */ });
+    }).catch(() => { /* optional hint: the check on Arc is enough */ });
     return () => { alive = false; };
   }, [session]);
   const hint = useMemo(() => {
@@ -171,7 +171,7 @@ export default function Chat() {
     setStatus(msg("chat.opening"));
     try {
       const amount = parseUsdc(deposit, "what.deposit");
-      // la session est VERROUILLÉE sur l'enclave vérifiée : seuls ses reçus la paieront
+      // the session is LOCKED to the verified enclave: only its receipts will pay it
       const r = await arc.openSession({ productId: BigInt(productId.trim()), deposit: amount, enclaveUrl: url, enclave: check.keys.signer });
       setStatus(msg("order.sent", { id: r.sessionId }));
       await waitOk(arc, r.tx, "tx.openSession");
@@ -182,7 +182,7 @@ export default function Chat() {
     } catch (e) { setStatus(fail(e)); }
   }
 
-  /** Un appel à l'enclave (ou la réponse gardée après recharge) : la réponse et son reçu, ou le refus expliqué. */
+  /** A call to the enclave (or the answer kept after a top-up): the answer and its receipt, or the refusal explained. */
   async function ask(call: () => Promise<Completion>, messages: ChatMessage[]) {
     setBusy(true); setStatus(msg("chat.calling"));
     try {
