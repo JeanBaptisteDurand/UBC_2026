@@ -1,6 +1,7 @@
-/** v2.test.ts — la migration v2 du SDK : décodage des refus, vérification des clés d'enclave contre la chaîne (correctif
- *  de sécurité : jamais de chiffrement vers une clé de /pubkeys non confrontée à l'EnclaveRegistry), chiffrement de la
- *  Prime scellée, contrôle des réclamations, client d'inférence de bout en bout contre une enclave émulée, reçus. */
+/** v2.test.ts — the SDK against the v2 contracts (still the base of the live v2.1 stack): decoding of contract refusals,
+ *  enclave keys checked against the chain (never encrypt to a /pubkeys key that was not matched against the
+ *  EnclaveRegistry), Sealed Bounty encryption, claim checks, the inference client end to end against an emulated
+ *  enclave, receipts. */
 import { describe, it, expect } from "vitest";
 import {
   type Address, type Hex, encodeErrorResult, keccak256, toBytes, toHex, zeroAddress, parseAbi, concat, pad,

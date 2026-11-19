@@ -694,8 +694,8 @@ setInterval(() => {
 }, 60_000).unref();
 // préchauffage : la première visite ne paie pas la lecture à froid des événements (le second index lit en arrière-plan)
 idxLevels?.sync(0).catch((e) => console.warn("index (niveaux) :", (e as Error).message))
-  .then(() => idxLevels && console.log(`index des niveaux : ${idxLevels.status().events} événements jusqu'au bloc ${idxLevels.status().lastBlock}`));
+  .then(() => idxLevels && console.log(`levels index: ${idxLevels.status().events} events up to block ${idxLevels.status().lastBlock}`));
 idx.sync(0).catch((e) => console.warn("index :", (e as Error).message))
   .then(() => cached("proof", 15_000, computeProof))
-  .then(() => console.log(`cache préchauffé : ${idx.status().events} événements indexés jusqu'au bloc ${idx.status().lastBlock}`))
+  .then(() => console.log(`cache warmed: ${idx.status().events} events indexed up to block ${idx.status().lastBlock}`))
   .catch((e) => console.warn("préchauffage :", (e as Error).message));
