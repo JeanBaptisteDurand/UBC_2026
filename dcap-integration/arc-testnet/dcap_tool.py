@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
-"""Outils de la pile DCAP sur Arc (python3 -I, bibliothèque standard).
+"""Tools for the DCAP stack on Arc (python3 -I, standard library only).
 
-    dcap_tool.py decode-output <hex>                 décode la sortie d'Automata (verifyAndAttestOnChain)
-    dcap_tool.py decode-event <receipt.json>         décode AttestationSubmitted dans le reçu d'une vraie tx
-    dcap_tool.py addresses <plan.json>               adresses des contrats d'un plan forge (JSON)
-    dcap_tool.py env <deployments.json>              exports shell des adresses (pour refresh/add-eval)
+    dcap_tool.py decode-output <hex>                 decodes Automata's output (verifyAndAttestOnChain)
+    dcap_tool.py decode-event <receipt.json>         decodes AttestationSubmitted in the receipt of a real tx
+    dcap_tool.py addresses <plan.json>               contract addresses of a forge plan (JSON)
+    dcap_tool.py env <deployments.json>              shell exports of the addresses (for refresh/add-eval)
     dcap_tool.py record out=F plan=P txlog=L collateral=DIR results=DIR ...
     dcap_tool.py measure rpc=URL att=ADDR v4=ADDR quote_file=F artifact=V4QuoteVerifier.json out=F from=ADDR
-                 gaz réel d'Arc (eth_estimateGas) : précompile 0x100 contre P-256 Solidity (Daimo, par
-                 surcharge d'état du code du vérificateur) + quotes altérés (doivent être refusés)
+                 real gas on Arc (eth_estimateGas): precompile 0x100 against Solidity P-256 (Daimo, through a
+                 state override of the verifier's code) + altered quotes (which must be refused)
 """
 import json
 import os
 import subprocess
 import sys
 
-# ordre de l'enum TCBStatus d'Automata (helpers/FmspcTcbHelper.sol)
+# order of Automata's TCBStatus enum (helpers/FmspcTcbHelper.sol)
 TCB_STATUS = ["OK (UpToDate)", "TCB_SW_HARDENING_NEEDED", "TCB_CONFIGURATION_AND_SW_HARDENING_NEEDED",
               "TCB_CONFIGURATION_NEEDED", "TCB_OUT_OF_DATE", "TCB_OUT_OF_DATE_CONFIGURATION_NEEDED",
               "TCB_REVOKED", "TCB_UNRECOGNIZED"]
@@ -49,7 +49,7 @@ def decode_output(h):
          "fmspc": b[5:11].hex().upper()}
     body_len = {2: 584, 3: 648}.get(r["quoteBodyType"])
     if body_len is None:
-        r["note"] = "corps non TDX"
+        r["note"] = "not a TDX body"
         return r
     body = b[11:11 + body_len]
     for k, (o, n) in BODY.items():
@@ -146,9 +146,9 @@ def cmd_record(a):
         "updatedAt": a["date"],
         "deployer": a["owner"],
         "owner": a["owner"],
-        "note": "Pile DCAP d'Automata (MIT, contrats inchangés) déployée en CREATE2 (fabrique 0x4e59…) "
-                "par dcap-integration/arc-testnet/run.sh. P-256 = précompile 0x100 d'Arc. "
-                "Aucun mock : vérification réelle d'un quote TDX v4 de notre enclave Phala.",
+        "note": "Automata's DCAP stack (MIT, contracts unchanged) deployed with CREATE2 (factory 0x4e59…) "
+                "by dcap-integration/arc-testnet/run.sh. P-256 = Arc's precompile 0x100. "
+                "Real verification of a TDX v4 quote from ArcHive's Phala enclave.",
         "source": {
             "automataDcapAttestation": "vendor/automata-dcap-attestation @ " + a["dcap_commit"],
             "automataOnChainPccs": "evm/lib/automata-on-chain-pccs @ " + a["pccs_commit"],
@@ -174,8 +174,8 @@ def cmd_record(a):
     with open(a["out"], "w") as f:
         json.dump(out, f, indent=2, ensure_ascii=False)
         f.write("\n")
-    print(f"écrit {a['out']} : {len(contracts)} contrats, {len(txs)} tx de déploiement/collatéral, "
-          f"{out['totals']['usdcSpentTotal']} USDC au total")
+    print(f"wrote {a['out']}: {len(contracts)} contracts, {len(txs)} deployment/collateral txs, "
+          f"{out['totals']['usdcSpentTotal']} USDC in total")
 
 
 DAIMO = "c2b78104907F722DABAc4C69f826a522B2754De4"
@@ -199,7 +199,7 @@ def cmd_measure(a):
                 code[l["start"]:l["start"] + 32] = bytes(12) + bytes.fromhex(DAIMO)
                 n += 1
     if n == 0:
-        sys.exit("immutable P256_VERIFIER (0x100) introuvable dans le code du vérificateur")
+        sys.exit("immutable P256_VERIFIER (0x100) not found in the verifier's code")
     quote = open(a["quote_file"]).read().strip()
     rc, data = _cast("calldata", "verifyAndAttestOnChain(bytes)", quote)
     tx = json.dumps({"from": a["from"], "to": a["att"], "data": data})
@@ -210,18 +210,18 @@ def cmd_measure(a):
     g2 = int(json.loads(g2), 16) if rc2 == 0 else None
     q = bytes.fromhex(quote[2:])
     neg = {}
-    for label, off in (("reportData[0] modifie", 48 + 520), ("MRTD[0] modifie", 48 + 136),
-                       ("signature ECDSA du quote modifiee", 48 + 584 + 4)):
+    for label, off in (("reportData[0] altered", 48 + 520), ("MRTD[0] altered", 48 + 136),
+                       ("quote ECDSA signature altered", 48 + 584 + 4)):
         b = bytearray(q)
         b[off] ^= 1
         rc, out = _cast("call", a["att"], "verifyAndAttestOnChain(bytes)(bool,bytes)", "0x" + b.hex(), *rpc)
         if rc != 0:
-            neg[label] = "refuse : revert (" + out.splitlines()[-1][-120:] + ")"
+            neg[label] = "refused: revert (" + out.splitlines()[-1][-120:] + ")"
         else:
             ok, outb = (out.splitlines() + ["", ""])[:2]
-            neg[label] = "refuse : success=false" if ok == "false" else "ACCEPTE (anormal) : " + out[:80]
-    r = {"method": "eth_estimateGas sur Arc, même état ; Daimo = code du V4QuoteVerifier surchargé "
-                   "(immutable P256_VERIFIER 0x100 -> Daimo 0xc2b7…) le temps de l'estimation",
+            neg[label] = "refused: success=false" if ok == "false" else "ACCEPTED (abnormal): " + out[:80]
+    r = {"method": "eth_estimateGas on Arc, same state; Daimo = the V4QuoteVerifier's code overridden "
+                   "(immutable P256_VERIFIER 0x100 -> Daimo 0xc2b7…) for the estimate only",
          "estimateGasPrecompile0x100": g1, "estimateGasDaimoSolidity": g2,
          "differenceGas": (g2 - g1) if g2 else None, "p256VerificationsPerQuote": 5,
          "tamperedQuotes": neg}

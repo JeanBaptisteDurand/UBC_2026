@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
-# Pile DCAP d'Automata sur Arc : collatéral Intel, déploiement, vérification RÉELLE d'un quote TDX,
-# module ArcHive. Voir README.md (même dossier).
+# Automata's DCAP stack on Arc: Intel collateral, deployment, real verification of a TDX quote, and the ArcHive
+# module. See README.md (same folder).
 #
-#   ./run.sh fetch [--tcb-eval N]  collatéral Intel du quote de l'enclave (ENCLAVE_URL) -> collateral/
-#   ./run.sh install               copie le script forge + le collatéral dans l'arbre d'Automata (vendor/)
-#   ./run.sh plan                  exécution à sec sur un fork d'Arc (rien n'est envoyé) -> plan de tx
-#   ./run.sh send                  envoie le plan, une tx à la fois (send_plan.py) -> results/txs.jsonl
+#   ./run.sh fetch [--tcb-eval N]  Intel collateral for the enclave's quote (ENCLAVE_URL) -> collateral/
+#   ./run.sh install               copies the forge script and the collateral into Automata's tree (vendor/)
+#   ./run.sh plan                  dry run on a fork of Arc (nothing is sent) -> transaction plan
+#   ./run.sh send                  sends the plan, one tx at a time (send_plan.py) -> results/txs.jsonl
 #   ./run.sh deploy                install + plan + send + record
-#   ./run.sh verify                eth_call + VRAIE tx verifyAndAttestOnChain(quote) -> results/verify.json
-#   ./run.sh module                compile TdxAttestationModule (contracts/src, inchangé), déploie, eth_call verify
-#   ./run.sh measure               gaz réel : précompile 0x100 contre P-256 Solidity (Daimo) + quotes altérés (gratuit)
-#   ./run.sh record                écrit deployments.dcap.<réseau>.json à la racine du dépôt
-#   ./run.sh refresh               fetch + install + plan(refresh) + send + record (nouvelle TCB info, CRL…)
-#   ./run.sh add-eval N            nouveau numéro d'évaluation TCB : DAO versionnées N + collatéral N
+#   ./run.sh verify                eth_call + a real verifyAndAttestOnChain(quote) tx -> results/verify.json
+#   ./run.sh module                compiles TdxAttestationModule (contracts/src, unchanged), deploys it, eth_call verify
+#   ./run.sh measure               real gas: precompile 0x100 against Solidity P-256 (Daimo) + altered quotes (free)
+#   ./run.sh record                writes deployments.dcap.<network>.json at the repository root
+#   ./run.sh refresh               fetch + install + plan(refresh) + send + record (new TCB info, CRL…)
+#   ./run.sh add-eval N            new TCB evaluation number: versioned DAOs N + collateral N
 #
-# Réseau : NETWORK=testnet (défaut, 5042002) ou NETWORK=mainnet (5042, voir README).
-# Clé : KEY_FILE (défaut .secrets/deployer.json, champ privateKey) ; jamais affichée.
+# Network: NETWORK=testnet (default, 5042002) or NETWORK=mainnet (5042, see README).
+# Key: KEY_FILE (default .secrets/deployer.json, field privateKey); never printed.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -25,7 +25,7 @@ export PATH="$HOME/.aztec/current/bin:$PATH"
 
 NETWORK="${NETWORK:-testnet}"
 if [ "$NETWORK" = "mainnet" ]; then
-  RPC_URL="${RPC_URL:-https://rpc.mainnet.arc.io}"; CHAIN_ID=5042; EXPLORER="${EXPLORER:-}"   # explorateur mainnet : à renseigner
+  RPC_URL="${RPC_URL:-https://rpc.mainnet.arc.io}"; CHAIN_ID=5042; EXPLORER="${EXPLORER:-}"   # mainnet explorer URL: set EXPLORER
 else
   RPC_URL="${RPC_URL:-https://rpc.testnet.arc.io}"; CHAIN_ID=5042002; EXPLORER="${EXPLORER:-https://explorer.testnet.arc.io}"
 fi
@@ -48,7 +48,7 @@ owner() { python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["ad
   || cast wallet address --private-key "$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["privateKey"])' "$KEY_FILE")"; }
 pk() { python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["privateKey"])' "$KEY_FILE"; }
 OWNER="${OWNER:-$(owner)}"; export OWNER
-check_chain() { [ "$(cast chain-id --rpc-url "$RPC_URL")" = "$CHAIN_ID" ] || { echo "mauvaise chaîne"; exit 1; }; }
+check_chain() { [ "$(cast chain-id --rpc-url "$RPC_URL")" = "$CHAIN_ID" ] || { echo "wrong chain"; exit 1; }; }
 attestation() { python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["contracts"]["AutomataDcapAttestationFee"])' "$DEPLOYMENTS"; }
 
 cmd_fetch() { python3 -I "$HERE/fetch_collateral.py" --enclave-url "$ENCLAVE_URL" --out "$COLL" "$@"; }
@@ -57,27 +57,27 @@ cmd_install() {
   mkdir -p "$EVM/forge-script/arc" "$EVM/$ASSETS_REL"
   cp "$HERE/ArcTestnetDcap.s.sol" "$EVM/forge-script/arc/ArcTestnetDcap.s.sol"
   cp "$COLL"/*.der "$COLL"/*.json "$COLL"/quote.hex "$EVM/$ASSETS_REL/"
-  echo "installé : forge-script/arc/ArcTestnetDcap.s.sol + $ASSETS_REL/"
+  echo "installed: forge-script/arc/ArcTestnetDcap.s.sol + $ASSETS_REL/"
 }
 
-# plan <sig> : exécution locale sur un fork d'Arc ; aucun envoi (pas de --broadcast).
+# plan <sig>: local run on a fork of Arc; nothing is sent (no --broadcast).
 cmd_plan() {
   local sig="${1:-deploy()}" ev
   check_chain
   ev="$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["tcbEvaluationDataNumber"])' "$COLL/manifest.json")"
   ev="${TCB_EVAL:-$ev}"
-  rm -f "$PLAN_DIR/${sig%%\(*}-latest.json"   # jamais d'ancien plan renvoyé par erreur
+  rm -f "$PLAN_DIR/${sig%%\(*}-latest.json"   # never resend an old plan by mistake
   ( cd "$EVM" && COLLATERAL_DIR="$ASSETS_REL" SALT_TAG="$SALT_TAG" TCB_EVAL="$ev" \
       forge script "$SCRIPT" --sig "$sig" --rpc-url "$RPC_URL" --skip-simulation -vv \
-        --compute-units-per-second "${FORGE_CUPS:-30}" ${FORGE_EXTRA:-} )   # 9/11 : le RPC public d'Arc limite le débit (429)
+        --compute-units-per-second "${FORGE_CUPS:-30}" ${FORGE_EXTRA:-} )   # Arc's public RPC rate-limits requests (HTTP 429)
 }
 
-# send <sig> [label] : envoie le dernier plan de <sig>
+# send <sig> [label]: sends the latest plan of <sig>
 cmd_send() {
   local sig="${1:-deploy()}" label="${2:-deploy}"
   local name="${sig%%\(*}"
   local plan="$PLAN_DIR/${name}-latest.json"
-  if [ ! -f "$plan" ]; then echo "plan vide : rien à envoyer (tout est déjà à jour sur la chaîne)"; return 0; fi
+  if [ ! -f "$plan" ]; then echo "empty plan: nothing to send (everything is already up to date on-chain)"; return 0; fi
   cp "$plan" "$RES/plan-${label}.json"
   python3 -I "$HERE/send_plan.py" --plan "$plan" --log "$RES/txs.jsonl" --rpc-url "$RPC_URL" \
     --key-file "$KEY_FILE" --chain-id "$CHAIN_ID" --priority-gas-price "$PRIORITY_GAS_PRICE" \
@@ -96,18 +96,18 @@ cmd_verify() {
   check_chain
   local att quote; att="$(attestation)"; quote="$(cat "$COLL/quote.hex")"
   echo "AutomataDcapAttestationFee : $att"
-  # 1) eth_call : lecture de la sortie
+  # 1) eth_call: read the output
   cast call "$att" "verifyAndAttestOnChain(bytes)(bool,bytes)" "$quote" --rpc-url "$RPC_URL" > "$RES/verify-call.txt"
   local ok out; ok="$(sed -n 1p "$RES/verify-call.txt")"; out="$(sed -n 2p "$RES/verify-call.txt")"
   echo "eth_call : success = $ok"
-  [ "$ok" = "true" ] || { echo "raison : $(cast --to-ascii "$out")"; exit 1; }
+  [ "$ok" = "true" ] || { echo "reason: $(cast --to-ascii "$out")"; exit 1; }
   local est; est="$(cast estimate "$att" "verifyAndAttestOnChain(bytes)" "$quote" --rpc-url "$RPC_URL")"
   echo "eth_estimateGas : $est"
-  # 2) VRAIE transaction
+  # 2) the real transaction
   local h; h="$(cast send "$att" "verifyAndAttestOnChain(bytes)" "$quote" --private-key "$(pk)" --rpc-url "$RPC_URL" \
                  --priority-gas-price "$PRIORITY_GAS_PRICE" --async)"
   cast receipt "$h" --json --rpc-url "$RPC_URL" > "$RES/verify-receipt.json"
-  cp "$COLL/quote.hex" "$RES/verify-quote.hex"   # le quote exact vérifié (collateral/ peut être rafraîchi)
+  cp "$COLL/quote.hex" "$RES/verify-quote.hex"   # the exact quote verified (collateral/ may be refreshed later)
   python3 -I - "$RES" "$h" "$out" "$est" "$TOPIC_ATTESTATION" "$HERE/dcap_tool.py" "$att" <<'PY'
 import json, sys, importlib.util
 res, h, out, est, topic, tool, att = sys.argv[1:8]
@@ -131,7 +131,7 @@ PY
 cmd_module() {
   check_chain
   local att quote build; att="$(attestation)"; quote="$(cat "$COLL/quote.hex")"; build="$HERE/.module-build"
-  # source INCHANGÉE, réglages du projet (contracts/foundry.toml : solc 0.8.28, via-IR, prague) ; sorties à part
+  # unchanged source, the project's settings (contracts/foundry.toml: solc 0.8.28, via-IR, prague); separate output dir
   mkdir -p "$build"
   ( cd "$ROOT/contracts" && forge build src/attestation/TdxAttestationModule.sol \
       --out "$build/out" --cache-path "$build/cache" > "$build/build.log" 2>&1 ) || { cat "$build/build.log"; exit 1; }
@@ -157,14 +157,14 @@ names = ["ok", "version", "bodyType", "tcbStatus", "fmspc", "reportData", "mrtd"
          "mrConfigId", "xfam", "tdAttributes", "advisories"]
 mm = dict(zip(names, m))
 checks = {"ok": mm["ok"] is True or mm["ok"] == "true",
-          "mrtd == sortie DCAP": mm["mrtd"].lower() == v["mrTd"].lower(),
-          "rtmr0..3 == sortie DCAP": all(mm[f"rtmr{i}"].lower() == v[f"rtmr{i}"].lower() for i in range(4)),
-          "reportData == sortie DCAP": mm["reportData"].lower() == v["reportData"].lower(),
+          "mrtd == DCAP output": mm["mrtd"].lower() == v["mrTd"].lower(),
+          "rtmr0..3 == DCAP output": all(mm[f"rtmr{i}"].lower() == v[f"rtmr{i}"].lower() for i in range(4)),
+          "reportData == DCAP output": mm["reportData"].lower() == v["reportData"].lower(),
           "fmspc": mm["fmspc"].lower() == "0x" + v["fmspc"].lower(),
           "tcbStatus": int(mm["tcbStatus"]) == v["tcbStatus"]}
 gas = int(rc["gasUsed"], 16); price = int(rc["effectiveGasPrice"], 16)
 r = {"address": module, "constructorDcap": att,
-     "source": "contracts/src/attestation/TdxAttestationModule.sol (inchangé) — solc 0.8.28 via-IR prague (contracts/foundry.toml)",
+     "source": "contracts/src/attestation/TdxAttestationModule.sol (unchanged) — solc 0.8.28 via-IR prague (contracts/foundry.toml)",
      "tx": {"hash": h, "block": int(rc["blockNumber"], 16), "gasUsed": gas, "effectiveGasPriceWei": price,
             "costUsdc": round(gas * price / 1e18, 8)},
      "verifyEthCall": mm, "verifyEstimateGas": int(est), "checks": checks}
