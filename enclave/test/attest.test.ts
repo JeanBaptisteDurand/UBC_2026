@@ -1,6 +1,7 @@
 /**
- * /attest v2 (fix 2) : liste blanche des opérateurs (OPERATOR_ALLOWLIST) et refus si la clé de
- * l'enclave est déjà inscrite on-chain pour un autre opérateur (lu par le quorum RPC du kit).
+ * /attest: the operator allowlist (OPERATOR_ALLOWLIST), and a refusal when the enclave's key is already
+ * registered on-chain for another operator (read through the kit's RPC quorum).
+ * The server's messages are matched as the enclave image prints them.
  */
 import { describe, it, expect } from "vitest";
 import {
@@ -37,13 +38,13 @@ async function attest(app: ReturnType<typeof createAttestServer>, operator: stri
   });
 }
 
-/** Le REPORTDATA embarqué dans le quote mock (voir kit.test.ts). */
+/** The REPORTDATA embedded in the mock quote (see kit.test.ts). */
 function embeddedReportData(quote: Hex): Hex {
   return ("0x" + quote.slice(2 + 24, 2 + 24 + 128)) as Hex;
 }
 
-describe("fix 2 — OPERATOR_ALLOWLIST", () => {
-  it("définie : toute autre adresse est refusée (403) ; l'adresse permise obtient un quote lié à elle", async () => {
+describe("OPERATOR_ALLOWLIST", () => {
+  it("set: any other address is refused (403); the allowed address gets a quote bound to it", async () => {
     const kit = mockKit();
     const warnings: string[] = [];
     const app = createAttestServer(kit, {
@@ -56,7 +57,7 @@ describe("fix 2 — OPERATOR_ALLOWLIST", () => {
     expect(refused.status).toBe(403);
     expect(((await refused.json()) as { error: string }).error).toContain("non autorisé");
 
-    const res = await attest(app, OP.toLowerCase()); // la casse ne compte pas
+    const res = await attest(app, OP.toLowerCase()); // case does not matter
     expect(res.status).toBe(200);
     const out = (await res.json()) as { quote: Hex; signer: Address; mock: boolean };
     expect(out.signer).toBe(kit.keys.signer);
@@ -65,22 +66,22 @@ describe("fix 2 — OPERATOR_ALLOWLIST", () => {
       keccak256(pad(numberToHex(999n), { size: 32 })),
     );
     expect(embeddedReportData(out.quote).toLowerCase()).toBe(expected.toLowerCase());
-    expect(warnings).toEqual([]); // rien à signaler en mode strict
+    expect(warnings).toEqual([]); // nothing to report in strict mode
   });
 
-  it("OPERATOR_ALLOWLIST=* : mode développement EXPLICITE, quote pour n'importe quelle adresse, avec avertissement", async () => {
+  it("OPERATOR_ALLOWLIST=*: explicit development mode, a quote for any address, with a warning", async () => {
     const warnings: string[] = [];
     const app = createAttestServer(mockKit(), {
       operatorAllowlist: parseOperatorAllowlist("*"),
       registeredOperator: async () => zeroAddress,
       warn: (m) => warnings.push(m),
     });
-    expect(warnings.some((w) => w.includes("OPERATOR_ALLOWLIST=*"))).toBe(true); // au démarrage
+    expect(warnings.some((w) => w.includes("OPERATOR_ALLOWLIST=*"))).toBe(true); // at start-up
     expect((await attest(app, OTHER)).status).toBe(200);
-    expect(warnings.some((w) => w.includes("mode développement") && w.includes(OTHER))).toBe(true); // à chaque /attest
+    expect(warnings.some((w) => w.includes("mode développement") && w.includes(OTHER))).toBe(true); // on every /attest
   });
 
-  it("lecture de la variable (v2 bis, échoue fermé) : absente ou vide => personne ; * => développement ; adresse invalide => arrêt", async () => {
+  it("reading the variable (fails closed): unset or empty => nobody; * => development; invalid address => stop", async () => {
     expect(parseOperatorAllowlist(undefined)).toEqual([]);
     expect(parseOperatorAllowlist("")).toEqual([]);
     expect(parseOperatorAllowlist("*")).toBeNull();
@@ -92,12 +93,12 @@ describe("fix 2 — OPERATOR_ALLOWLIST", () => {
     expect(() => parseOperatorAllowlist("0x1234")).toThrow(/OPERATOR_ALLOWLIST/);
 
     const app = createAttestServer(mockKit(), { operatorAllowlist: parseOperatorAllowlist(""), registeredOperator: async () => zeroAddress, warn: () => {} });
-    expect((await attest(app, OP)).status).toBe(403); // définie mais vide : on échoue fermé
+    expect((await attest(app, OP)).status).toBe(403); // set but empty: fails closed
     const absent = createAttestServer(mockKit(), { operatorAllowlist: parseOperatorAllowlist(undefined), registeredOperator: async () => zeroAddress, warn: () => {} });
-    expect((await attest(absent, OP)).status).toBe(403); // absente : on échoue fermé aussi (v2 bis)
+    expect((await attest(absent, OP)).status).toBe(403); // unset: fails closed too
   });
 
-  it("entrées invalides => 400", async () => {
+  it("invalid inputs => 400", async () => {
     const app = createAttestServer(mockKit(), { operatorAllowlist: null, registeredOperator: async () => zeroAddress, warn: () => {} });
     expect((await attest(app, "pas-une-adresse")).status).toBe(400);
     expect((await attest(app, OP, "-1")).status).toBe(400);
@@ -105,8 +106,8 @@ describe("fix 2 — OPERATOR_ALLOWLIST", () => {
   });
 });
 
-describe("fix 2 — clé déjà inscrite on-chain pour un autre opérateur", () => {
-  it("inscrite pour un AUTRE opérateur : refus (409) ; pour le même : permis (réattestation)", async () => {
+describe("key already registered on-chain for another operator", () => {
+  it("registered for another operator: refused (409); for the same one: allowed (re-attestation)", async () => {
     const app = createAttestServer(mockKit(), { operatorAllowlist: null, registeredOperator: async () => OP, warn: () => {} });
     const refused = await attest(app, OTHER);
     expect(refused.status).toBe(409);
@@ -114,18 +115,18 @@ describe("fix 2 — clé déjà inscrite on-chain pour un autre opérateur", () 
     expect((await attest(app, OP)).status).toBe(200);
   });
 
-  it("lecture on-chain impossible : refus (503), on échoue fermé", async () => {
+  it("on-chain read impossible: refused (503), fails closed", async () => {
     const app = createAttestServer(mockKit(), {
       operatorAllowlist: [OP],
       registeredOperator: async () => {
-        throw new QuorumError("désaccord entre fournisseurs RPC");
+        throw new QuorumError("RPC providers disagree");
       },
       warn: () => {},
     });
     expect((await attest(app, OP)).status).toBe(503);
   });
 
-  /** Faux fournisseur RPC : tête donnée, réponse d'enclaveOf donnée ; note le bloc de chaque eth_call. */
+  /** Fake RPC provider: given head, given enclaveOf answer; records the block of each eth_call. */
   function fakeProvider(head: bigint, operatorOf: (signer: Address) => Address, seenBlocks: bigint[]) {
     return custom(
       {
@@ -150,27 +151,27 @@ describe("fix 2 — clé déjà inscrite on-chain pour un autre opérateur", () 
               },
             });
           }
-          throw new Error(`méthode inattendue ${method}`);
+          throw new Error(`unexpected method ${method}`);
         },
       },
       { retryCount: 0 },
     );
   }
 
-  it("lu par le quorum RPC du kit : enclaveOf(signer) AU MÊME BLOC (la tête commune) chez tous les fournisseurs", async () => {
+  it("read through the kit's RPC quorum: enclaveOf(signer) at the same block (the common head) from every provider", async () => {
     const seen: bigint[] = [];
     const rpc = new RpcQuorum([fakeProvider(120n, () => OP, seen), fakeProvider(118n, () => OP, seen)]);
     const kit = mockKit(rpc);
     expect(await kit.registeredOperator()).toBe(OP);
-    expect(seen).toEqual([118n, 118n]); // les deux lectures au bloc 118 = min(120, 118)
+    expect(seen).toEqual([118n, 118n]); // both reads at block 118 = min(120, 118)
 
-    // chemin complet, sans injection : le serveur interroge le kit
+    // full path, no injection: the server queries the kit
     const app = createAttestServer(kit, { operatorAllowlist: null, warn: () => {} });
     expect((await attest(app, OTHER)).status).toBe(409);
     expect((await attest(app, OP)).status).toBe(200);
   });
 
-  it("clé pas encore inscrite (operator = 0) : quote permis ; fournisseurs en désaccord : 503", async () => {
+  it("key not registered yet (operator = 0): quote allowed; providers disagree: 503", async () => {
     const kitFree = mockKit(new RpcQuorum([fakeProvider(50n, () => zeroAddress, []), fakeProvider(50n, () => zeroAddress, [])]));
     expect(await kitFree.registeredOperator()).toBe(zeroAddress);
     expect((await attest(createAttestServer(kitFree, { operatorAllowlist: [OP], warn: () => {} }), OP)).status).toBe(200);
@@ -180,7 +181,7 @@ describe("fix 2 — clé déjà inscrite on-chain pour un autre opérateur", () 
     expect((await attest(createAttestServer(kitLied, { operatorAllowlist: [OP], warn: () => {} }), OP)).status).toBe(503);
   });
 
-  it("sans RPC (développement local) : vérification on-chain impossible, quote permis avec avertissement", async () => {
+  it("no RPC (local development): on-chain check impossible, quote allowed with a warning", async () => {
     const warnings: string[] = [];
     const app = createAttestServer(mockKit(), { operatorAllowlist: [OP], warn: (m) => warnings.push(m) });
     expect((await attest(app, OP)).status).toBe(200);
