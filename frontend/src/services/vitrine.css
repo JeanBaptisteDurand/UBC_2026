@@ -52,7 +52,7 @@
 .vt-nb:hover:not(:disabled) { background: var(--chip2); }
 .vt-nb:disabled { opacity: 0.35; cursor: default; }
 .vt-kick { margin: 0 0 14px; font-size: 13px; color: var(--ink3); }
-.vt-nextch { display: grid; gap: 6px; width: 100%; margin: 64px 0 0; padding: 20px 0 0; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; box-shadow: inset 0 1px 0 var(--rule2); }
+.vt-nextch { display: grid; gap: 6px; width: 100%; margin: 64px 0 0; padding: 0; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
 .vt-nextch-t { font-size: 20px; font-weight: var(--w-head); transition: color var(--t2) var(--productive); }
 .vt-nextch:hover .vt-nextch-t { color: #9cc0ff; }
 .vt-acts { display: flex; flex-wrap: wrap; gap: 12px; margin: 32px 0 0; }
@@ -61,7 +61,7 @@
 .vt-slot-l { margin: 24px 0 0; font-size: 20px; color: var(--ink); }
 
 /* our live block after a family's chapter */
-.vt-livesec { margin: 56px 0 0; padding-top: 24px; box-shadow: inset 0 1px 0 var(--rule2); }
+.vt-livesec { margin: 48px 0 0; }
 .vt-live-h { display: flex; align-items: center; gap: 10px; margin: 0 0 16px; font-size: 13px; font-weight: 400; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink2); }
 .vt-r .vt-livesec .vit-dot { flex: none; }
 .vt .unfold .row, .js .vt .unfold .row { opacity: 1; transform: none; }
@@ -96,14 +96,18 @@
 .vt-fac:hover .lm-plate, .vt-fac:focus-visible .lm-plate, .vt-fac[data-on='1'] .lm-plate { opacity: 1; }
 .vt-fac:hover .lm-plate[data-st='off'] .lm-t, .vt-fac[data-on='1'] .lm-plate[data-st='off'] .lm-t { color: rgb(var(--c) / 0.45); }
 .vt-fac:hover .lm-plate:not([data-st='off'])::before, .vt-fac[data-on='1'] .lm-plate:not([data-st='off'])::before { background: radial-gradient(ellipse 60% 56% at 34% 40%, rgb(var(--c) / 0.3), rgb(var(--c) / 0.08) 55%, transparent 80%); }
-/* hover: the sled's edge catches the light, as if pulled a few millimetres */
-.vt-fac::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 240ms var(--productive);
-  box-shadow: inset 0 3px 0 rgb(220 232 255 / 0.22), inset 0 0 0 2px rgb(200 220 255 / 0.08); background: linear-gradient(180deg, rgb(200 220 255 / 0.06), transparent 40%); }
-.vt-fac:hover::after, .vt-fac:focus-visible::after { opacity: 1; }
+/* hover: the site's selection frame (a rule and two opposite corners, ui/Sel.tsx), drawn here in the plane of the
+   facade so it follows the sled in perspective, flush with its edges (1 screen px is about 3 px of a facade) */
+.vt-fac::after, .vt-fac::before { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 180ms var(--productive); }
+.vt-fac::after { box-shadow: inset 0 0 0 3px rgb(143 198 255 / 0.4); }
+.vt-fac::before { --a: 34px; --l: 4px; z-index: 1;
+  background: linear-gradient(var(--acc), var(--acc)) 0 0 / var(--a) var(--l) no-repeat, linear-gradient(var(--acc), var(--acc)) 0 0 / var(--l) var(--a) no-repeat,
+    linear-gradient(var(--acc), var(--acc)) 100% 100% / var(--a) var(--l) no-repeat, linear-gradient(var(--acc), var(--acc)) 100% 100% / var(--l) var(--a) no-repeat; }
+.vt-fac:hover::after, .vt-fac:hover::before, .vt-fac:focus-visible::after, .vt-fac:focus-visible::before, .vt-fac[data-on='1']::before { opacity: 1; }
 .vt-fac[data-on='1']::after { opacity: 1; box-shadow: inset 0 0 0 3px rgb(var(--c, 156 192 255) / 0.35); }
 .vt-fac[data-dim='1'] .lm-plate, .vt-fac[data-dim='1'] .lm-led { opacity: 0.32; }
 .vt-fac[data-dim='1']:hover .lm-plate { opacity: 0.9; }
-.vt-fac:focus-visible { outline: 4px solid var(--arc-elec); outline-offset: 4px; }
+.vt-fac:focus-visible { outline: none; }
 .vt-hint { position: absolute; right: 48px; bottom: 16px; margin: 0; font-size: 12px; color: var(--ink3); text-shadow: 0 1px 8px rgb(0 0 0 / 0.8); }
 /* the column's blur stays on its side of the rack */
 .vt .vt-col::before { inset: 0 -40px 0 0; }
@@ -144,21 +148,14 @@
 
 /* ---- a family's sheet: what it is, its action, the technical details folded */
 .vt-r .vt-head .vit-fam-hd { margin: 0; padding: 0; }
-.vt-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 20px 28px; margin: 28px 0 0; padding: 20px 0 0; box-shadow: inset 0 1px 0 var(--rule2); }
-.vt-facts > div { display: grid; gap: 6px; align-content: start; }
-.vt-facts dt { margin: 0; }
-.vt-facts dd { margin: 0; color: var(--ink); font-size: 16px; line-height: 1.5; text-wrap: pretty; }
-.vt-facts-p { display: block; font-size: 22px; line-height: 1.2; }
-.vt-facts-s { display: block; margin-top: 6px; font-size: 14px; color: var(--ink2); }
-.vt-facts-st { display: flex; align-items: center; gap: 10px; }
-.vt-use { margin: 40px 0 0; padding: 24px 24px 28px; background: rgb(var(--ink-c) / 0.035); box-shadow: inset 0 0 0 1px var(--rule2), inset 3px 0 0 var(--arc-elec); scroll-margin-top: 16px; }
+.vt-use { margin: 36px 0 0; padding: 24px 24px 28px; background: rgb(var(--ink-c) / 0.035); box-shadow: inset 3px 0 0 var(--arc-elec); scroll-margin-top: 16px; }
 .vt-sec-h { margin: 0 0 12px; font-size: 22px; line-height: 1.2; font-weight: var(--w-head); letter-spacing: var(--tr-head); color: var(--ink); }
 .vt-use-d { margin: 0 0 20px; max-width: 36em; font-size: 16px; line-height: 1.55; color: var(--ink2); text-wrap: pretty; }
 .vt-use-w { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 0 0 20px; }
 .vt-use-alt { margin: 20px 0 0; }
 .vt-use .act-sec, .vt-use .work-sec { margin: 0; padding: 0; box-shadow: none; }
 .vt-use .act-sec > h2, .vt-use .act-sec-h { font-size: 17px; }
-.vt-tech { margin: 40px 0 0; box-shadow: inset 0 1px 0 var(--rule2), inset 0 -1px 0 var(--rule2); }
+.vt-tech { margin: 40px 0 0; }
 .vt-tech-s { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; padding: 20px 32px 20px 0; cursor: pointer; list-style: none; position: relative; font-size: 18px; color: var(--ink); }
 .vt-tech-s::-webkit-details-marker { display: none; }
 .vt-tech-s::after { content: '+'; position: absolute; right: 4px; top: 16px; font-size: 22px; color: var(--ink2); }
@@ -166,3 +163,24 @@
 .vt-tech-s:focus-visible { outline: 1px solid var(--arc-elec); outline-offset: 2px; }
 .vt-tech > .vt-body { padding: 8px 0 32px; }
 .vt-tech > .vt-livesec { margin-top: 32px; }
+
+/* ---- the introduction: title, lede, the call to the room, then JB's sections one after the other (as on the landing) */
+.vt-cta { position: relative; isolation: isolate; display: flex; align-items: center; gap: 12px; margin: 32px 0 0; max-width: 34em; font-size: 15px; line-height: 1.45; color: var(--ink); }
+.vt-cta::before { content: ''; position: absolute; left: -11px; top: 50%; width: 40px; height: 40px; margin-top: -20px; z-index: -1; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, color-mix(in srgb, var(--arc-elec) 55%, transparent) 0, color-mix(in srgb, var(--arc-elec) 18%, transparent) 38%, transparent 70%);
+  filter: blur(3px); animation: hero-live 3.2s ease-in-out infinite; }
+.vt-cta > span { animation: live-text 3.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .vt-cta::before, .vt-cta > span { animation: none; } .vt-cta::before { opacity: 0.7; } }
+.vt-sec { margin: 120px 0 0; scroll-margin-top: 16px; }
+.vt-sec-k { display: flex; gap: 12px; margin: 0 0 20px; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink3); }
+.vt-sec-k span { color: var(--arc-light, #9cc0ff); }
+.vt-r .vt-sec .mk-kick { display: none; }
+@media (max-width: 760px) { .vt-sec { margin-top: 80px; } }
+
+/* ---- a sheet's title: the state LED before the name (the sled's own LED), then one line: state, price, who for */
+.vt-r .vt-head .vit-fam-name { display: flex; align-items: center; gap: 16px; }
+.vt-h-led { flex: none; width: 10px; height: 10px; }
+.vt-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 22px; margin: 20px 0 0; font-size: 15px; line-height: 1.5; color: var(--ink2); }
+.vt-meta-st { color: var(--ink); }
+.vt-meta-p { font-size: 17px; color: var(--ink); }
+.vt-meta-f .lbl { margin-right: 4px; color: var(--ink3); }

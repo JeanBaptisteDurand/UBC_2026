@@ -39,7 +39,7 @@ export default function UseBlock({ fam, pid, back }: { fam: string | null; pid: 
     <div className="vt-use-b acts">
       <p className="vt-use-d">{fam ? t('vit.ai.d') : t('vit.p.d')}</p>
       <Connect />
-      <UseActs label={t('vit.use')} onPick={back} />
+      <UseActs label={t('vit.use')} onPick={back} sheet />
       {fam === 'private-ai' ? <p className="vt-use-alt"><a className="tlink" href={space('sessions')}>{t('vit.ai.sess')}</a></p> : null}
     </div>
   )

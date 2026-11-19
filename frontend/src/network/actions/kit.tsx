@@ -57,11 +57,11 @@ export function useEngine(): Engine | null {
 
 // ---------- pieces ----------
 const ST_KEY: Record<St, WKey> = { todo: 'st.todo', doing: 'st.doing', done: 'st.done', fail: 'st.fail', soon: 'st.soon' }
-export function Step({ n, part, el, st, t, d, children, note, active }: { n: number; part: Part; el: string; st: St; t: string; d: string; children?: ReactNode; note?: Note | null; active?: boolean }) {
+export function Step({ n, num, part, el, st, t, d, children, note, active }: { n: number; num?: number; part: Part; el: string; st: St; t: string; d: string; children?: ReactNode; note?: Note | null; active?: boolean }) {
   return (
     <li className="na" data-st={st} data-on={active ? '1' : '0'}>
       <button type="button" className="na-h" onClick={() => play(part, n - 1, st, el, true)} aria-current={active ? 'step' : undefined}>
-        <span className="na-n tnum">{String(n).padStart(2, '0')}</span>
+        <span className="na-n tnum">{String(num ?? n).padStart(2, '0')}</span>
         <span className="na-t">{t}</span>
         <span className="na-st mono">{w(ST_KEY[st])}</span>
       </button>

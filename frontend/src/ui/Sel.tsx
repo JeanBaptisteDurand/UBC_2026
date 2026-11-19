@@ -12,7 +12,8 @@ export const SEL_PAD = 8
 const USABLE = 'a[href], button:not(:disabled), [role=switch], select, input:not([type=hidden]), summary'
 const target = (el: Element | null) => {
   const u = el?.closest?.(USABLE) as HTMLElement | null
-  if (!u || u.closest('.cursor')) return null
+  // the Services sleds draw their own frame in the plane of their facade (services/vitrine.css)
+  if (!u || u.closest('.cursor') || u.closest('[data-own-frame]')) return null
   return u
 }
 /** Frame margin around a target: 8 px, except the slot (the mirror button covers the slot to the pixel) */
@@ -51,7 +52,7 @@ function Frame({ kind }: { kind: 'hover' | 'focus' }) {
       let el: HTMLElement | null = null
       if (kind === 'focus') {
         const a = document.activeElement as HTMLElement | null
-        if (a && a !== document.body && a.matches(':focus-visible')) el = a
+        if (a && a !== document.body && a.matches(':focus-visible') && !a.closest('[data-own-frame]')) el = a
       } else if (P.fine && P.in && document.documentElement.dataset.cur !== '1') {
         el = target(document.elementFromPoint(P.x, P.y))
         // the target already has keyboard focus: a single frame

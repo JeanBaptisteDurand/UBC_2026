@@ -68,64 +68,41 @@ function Title({ text, acc }: { text: string; acc: string }) {
   )
 }
 
-function Intro({ open }: { open: (id: string) => void }) {
+/** the sections of the introduction, after JB's chapters (his "offer" board is left out: the sleds and their sheets
+ *  say it). "Build on it" is the MCP server and its SDK: it is named so. */
+const SECS = ['notary', 'compare', 'market', 'build', 'faq'] as const
+const isSec = (id: string) => (SECS as readonly string[]).includes(id) || id === 'offers'
+/** the families, in order: the sheets the arrows walk through */
+const FAMS = (all: VitChapter[]) => all.filter((c) => (FAM as readonly string[]).includes(c.id))
+const secHtml = (c: VitChapter) => {
+  const h = fixHtml(c.body)
+  if (c.id !== 'build') return h
+  // the section is the MCP server: its title says so
+  return h.replace(/<h2 aria-label="[^"]*" class="vt-h vit-h2" id="build-h">[\s\S]*?<span class="ttl-rule"/, '<h2 aria-label="MCP" class="vt-h vit-h2" id="build-h">MCP<span class="ttl-rule"')
+}
+
+function Intro({ root, to }: { root: React.RefObject<HTMLDivElement | null>; to: string | null }) {
   const lang = useLang()
   const L = VIT[lang === 'fr' ? 'fr' : 'en']
-  const stats = useLive((s) => s.stats)
-  const status = useLive((s) => s.status)
-  const fam = useFamState()
-  const idle = stats ? stats.enclavesActive === 0 : null
-  const go = (id: string) => (e: MouseEvent) => { if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); open(id) }
-  const figs: [string, string | null, string][] = stats ? [
-    [t('vit.fig.p'), num(stats.products, lang), t('vit.fig.p.s')],
-    [t('vit.fig.e'), num(stats.enclaves, lang), t('vit.fig.e.s', { a: num(stats.enclavesActive, lang) ?? '0' })],
-    [t('vit.fig.u'), usdc(stats.settledUsdc, lang), t('vit.fig.u.s', { b: usdc(stats.bountyPaidUsdc, lang) ?? '' })],
-    [t('vit.fig.v'), num(stats.verdicts, lang), t('vit.fig.v.s')],
-  ] : []
-  const more = L.chapters.filter((c) => !(FAM as readonly string[]).includes(c.id))
+  useLiveFill(root, 'intro')
+  // a link to a section (?c=market, or from a sheet) brings it to the top of the column
+  useEffect(() => { if (to && to !== 'offers') toTop(document.getElementById(`vt-s-${to}`)) }, [to])
+  const secs = SECS.map((id) => L.chapters.find((c) => c.id === id)).filter(Boolean) as VitChapter[]
   return (
     <section className="vt-intro" aria-labelledby="vt-h1">
       <Title text={L.hero.title} acc={L.hero.acc} />
       <p className="vt-lede">{L.hero.lede}</p>
-      <nav className="rk-in vt-shop" aria-label={t('vit.list')}>
-        <p className="rk-k"><span className="rk-k1">{L.shop.k1}</span><span className="rk-k2 mono">{L.shop.k2}</span></p>
-        <ol className="rk-list">
-          {L.rows.map((r) => {
-            const s = fam(r.id, r.lamp, r.word)
-            return (
-              <li key={r.id}>
-                <a className="rk-row" href={`?c=${r.id}`} data-lamp={s.lamp} onClick={go(r.id)}>
-                  <span className={`led${s.lamp === 'off' ? '' : ` led-${s.lamp}`}`} aria-hidden="true" />
-                  <span className="rk-name">{r.name}</span><span className="rk-word">{s.word}</span>
-                  <span className="rk-price mono">{r.price}</span><span className="rk-line">{r.line}</span>
-                </a>
-              </li>
-            )
-          })}
-        </ol>
-        {idle === null ? null : <p className="rk-note">{idle ? L.shop.note : t('vit.run', { a: stats!.enclavesActive, n: stats!.enclaves })}</p>}
-      </nav>
-      <section className="vit-live vt-live" aria-label={t('vit.src')}>
-        {stats ? (
-          <dl className="vit-figs">
-            {figs.map(([k, v, s]) => (
-              <div className="cote-in" key={k}><dt className="lbl"><span className="cote-l" aria-hidden="true" />{k}</dt><dd><span className="mono tnum vit-fig-v cote-v">{v ?? '—'}</span><span className="lbl vit-fig-s">{s}</span></dd></div>
-            ))}
-          </dl>
-        ) : <p className="lbl muted">{status === 'error' ? t('vit.down') : t('vit.reading')}</p>}
-        <div className="vit-live-f">
-          <p className="lbl vit-src"><span className={`vit-dot${stats ? ' is-live' : ''}`} aria-hidden="true" />{t('vit.src')}</p>
-          {idle ? <p className="vit-state"><span className="led led-amber" aria-hidden="true" /><span>{L.state.text} <a className="tlink vit-state-a" href={link.demo}>{L.state.link}</a></span></p> : null}
-        </div>
-      </section>
-      <nav className="vt-more" aria-labelledby="vt-more-h">
-        <p className="lbl vt-more-h" id="vt-more-h">{t('vit.more')}</p>
-        <ol>
-          {more.map((c) => (
-            <li key={c.id}><a href={`?c=${c.id}`} onClick={go(c.id)}><span className="vt-more-t">{c.t}</span>{c.plain.replace(/\.$/, '') !== c.t ? <span className="vt-more-p">{c.plain}</span> : null}</a></li>
-          ))}
-        </ol>
-      </nav>
+      {/* the call to the room, as on the landing: the sleds are the shop window */}
+      <p className="vt-cta">
+        <svg className="hero-ic" viewBox="0 0 20 20" aria-hidden="true"><rect x="2.4" y="3" width="15.2" height="4" rx="0.6" /><rect x="2.4" y="8" width="15.2" height="4" rx="0.6" /><rect x="2.4" y="13" width="15.2" height="4" rx="0.6" /><path d="M4.6 4.2 V5.8" className="hero-ic-led l1" /><path d="M4.6 9.2 V10.8" className="hero-ic-led l2" /><path d="M4.6 14.2 V15.8" className="hero-ic-led l3" /></svg>
+        <span>{t('vit.cta')}</span>
+      </p>
+      {secs.map((c, k) => (
+        <section className={`vt-sec is-${c.id}`} id={`vt-s-${c.id}`} key={c.id} aria-label={c.id === 'build' ? 'MCP' : c.t}>
+          <p className="mono vt-sec-k"><span>{String(k + 1).padStart(2, '0')}</span>{c.id === 'build' ? 'MCP' : c.t}</p>
+          <div className={`vt-body ${c.cls}`} dangerouslySetInnerHTML={{ __html: secHtml(c) }} />
+        </section>
+      ))}
     </section>
   )
 }
@@ -160,6 +137,7 @@ function useLiveFill(root: React.RefObject<HTMLDivElement | null>, key: string) 
 function splitFam(html: string, id: string) {
   const tpl = document.createElement('template'); tpl.innerHTML = html
   const hd = tpl.content.querySelector('.vit-fam-hd'); hd?.remove()
+  const nm = hd?.querySelector('.vit-fam-name'); if (nm) nm.insertAdjacentHTML('afterbegin', '<span class="vt-led-slot"></span>')
   // the recorded event is the "use" of the two families nothing can be bought from
   const pr = id === 'refutation' ? tpl.content.querySelector('.vit-refute') : id === 'retired' ? tpl.content.querySelector('.vit-proofs') : null
   pr?.remove()
@@ -187,12 +165,12 @@ function FamSheet({ c, act, back }: { c: VitChapter; act: boolean; back: () => v
   useEffect(() => { if (act) toTop(useRef_.current) }, [act, c.id])
   return (
     <>
-      <div className={`vt-body ${c.cls} vt-head`} dangerouslySetInnerHTML={{ __html: parts.head }} />
-      <dl className="vt-facts">
-        {parts.offer?.who ? <div><dt className="lbl">{t('vit.for')}</dt><dd>{parts.offer.who}</dd></div> : null}
-        {buy && (parts.offer?.price || row?.price) ? <div><dt className="lbl">{t('vit.price')}</dt><dd><span className="mono tnum vt-facts-p">{parts.offer?.price || row?.price}</span>{parts.offer?.priceS ? <span className="vt-facts-s">{parts.offer.priceS}</span> : null}</dd></div> : null}
-        {st ? <div><dt className="lbl">{t('vit.now')}</dt><dd className="vt-facts-st"><span className={`led${st.lamp === 'off' ? '' : ` led-${st.lamp}`}`} aria-hidden="true" />{st.word}</dd></div> : null}
-      </dl>
+      <div className={`vt-body ${c.cls} vt-head`} dangerouslySetInnerHTML={{ __html: st ? parts.head.replace('<span class="vt-led-slot"></span>', `<span class="led vt-h-led${st.lamp === 'off' ? '' : ` led-${st.lamp}`}" aria-hidden="true"></span>`) : parts.head }} />
+      <p className="vt-meta">
+        {st ? <span className="vt-meta-st">{st.word}</span> : null}
+        {buy && (parts.offer?.price || row?.price) ? <span className="mono tnum vt-meta-p" title={parts.offer?.priceS || undefined}>{row?.price || parts.offer?.price}</span> : null}
+        {parts.offer?.who ? <span className="vt-meta-f"><span className="lbl">{t('vit.for')}</span> {parts.offer.who}</span> : null}
+      </p>
       <section className="vt-use" id="vt-use" ref={useRef_} aria-labelledby="vt-use-h">
         <h3 className="vt-sec-h" id="vt-use-h">{buy ? t('vit.use') : t('vit.proof')}</h3>
         {buy ? <Suspense fallback={<p className="lbl muted">{t('vit.reading')}</p>}><UseBlock fam={c.id} pid={null} back={back} /></Suspense>
@@ -214,7 +192,7 @@ function FamSheet({ c, act, back }: { c: VitChapter; act: boolean; back: () => v
 
 function ChapterView({ c, i, n, go, close, root, act }: { c: VitChapter; i: number; n: number; go: (id: string) => void; close: () => void; root: React.RefObject<HTMLDivElement | null>; act: boolean }) {
   const lang = useLang()
-  const all = VIT[lang === 'fr' ? 'fr' : 'en'].chapters
+  const all = FAMS(VIT[lang === 'fr' ? 'fr' : 'en'].chapters)
   const body = useMemo(() => fixHtml(c.body), [c])
   useLiveFill(root, c.id)
   const fam = (FAM as readonly string[]).includes(c.id)
@@ -306,8 +284,9 @@ export function Vitrine() {
   // sleds in view (the still frames the top of the rack; RoomStage counts those clear of the column)
   const [cap, setCap] = useState(12)
   const col = useRef<HTMLDivElement>(null)
-  const all = L.chapters
-  const i = cur && cur !== SLOT ? all.findIndex((c) => c.id === cur) : -1
+  const all = FAMS(L.chapters)
+  const sec = cur && isSec(cur) ? cur : null
+  const i = cur && cur !== SLOT && !sec ? all.findIndex((c) => c.id === cur) : -1
   useEffect(() => { document.title = cur === SLOT ? `ArcHive. ${t('vit.slot')}` : i >= 0 ? `ArcHive. ${all[i].t}` : `ArcHive. ${t('vit.k')}` }, [cur, i, lang]) // eslint-disable-line react-hooks/exhaustive-deps
   const open = useCallback((id: string | null) => {
     setCur(id); setAct(false)
@@ -323,6 +302,8 @@ export function Vitrine() {
     if (!el) return
     // ?act=1: the sheet has already brought its action into view (child effects run first)
     if (first.current) { first.current = false; return }
+    // a section of the introduction: the column brings it to its top (Intro.tsx does it on the first load)
+    if (cur && isSec(cur)) { if (cur !== 'offers') toTop(el.querySelector<HTMLElement>(`#vt-s-${cur}`)); else el.scrollTop = 0; return }
     el.scrollTop = 0
     const h = el.querySelector<HTMLElement>('[data-vt-h], .vt-h')
     h?.setAttribute('tabindex', '-1'); h?.focus({ preventScroll: true })
@@ -380,7 +361,7 @@ export function Vitrine() {
           {cur === SLOT ? <SlotView close={() => open(null)} />
             : pOpen ? <ProductView pid={pOpen} name={pRow?.name ?? `#${pOpen}`} close={() => open(null)} act={act} />
               : i >= 0 ? <ChapterView c={all[i]} i={i} n={all.length} go={open} close={() => open(null)} root={col} act={act} />
-                : <Intro open={open} />}
+                : <Intro root={col} to={sec} />}
         </div>
       </aside>
       <section className="vt-list" aria-label={t('vit.servers')}>

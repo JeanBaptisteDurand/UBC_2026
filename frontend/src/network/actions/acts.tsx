@@ -20,7 +20,9 @@ import { useShow, useTyped, REC } from './showfill'
 const DemoBadge = () => <p className="na-demo-badge lbl" role="status">{w('show.badge')}</p>
 
 // ---------- Use ----------
-export function UseActs({ label, onPick }: { label?: string; onPick?: () => void } = {}) {
+/** sheet: the Services sheet of one service. The service is fixed and prefilled (no catalog, no change), the wallet
+ *  step is the sheet's own button, no CCTP block: the steps left are the key check, then paying and sending. */
+export function UseActs({ label, onPick, sheet = false }: { label?: string; onPick?: () => void; sheet?: boolean } = {}) {
   const lang = useLang()
   const s = useWallet()
   const E = useEngine()
@@ -118,24 +120,24 @@ export function UseActs({ label, onPick }: { label?: string; onPick?: () => void
     <>
       {S.on ? <DemoBadge /> : null}
       <ol className="na-list" aria-label={label} data-demo={S.on ? '1' : undefined}>
-        <ConnectStep part="use" el="use.guichet" k="u" active={active === 0} demo={S.on} />
-        <Step n={2} part="use" el="use.guichet" st={stOf(1, pid ? price.st : catOpen ? 'doing' : 'todo')} t={w('u.s2')} d={w('u.s2d')} note={S.on ? null : pid ? price.note : null} active={active === 1}>
+        {sheet ? null : <ConnectStep part="use" el="use.guichet" k="u" active={active === 0} demo={S.on} />}
+        {sheet ? null : <Step n={2} part="use" el="use.guichet" st={stOf(1, pid ? price.st : catOpen ? 'doing' : 'todo')} t={w('u.s2')} d={w('u.s2d')} note={S.on ? null : pid ? price.note : null} active={active === 1}>
           {S.on ? (S.at(1) || S.past(1) ? <p className="lbl na-kv na-pick"><span className="na-pick-n">{dRow ? `${dRow.name}, #${REC.pid}` : `#${REC.pid}`}</span> <span className="muted">{w('u.price')}</span> <span className="mono tnum">{dPrice}</span></p> : <p className="lbl muted na-kv">{w('u.none')}</p>)
             : row ? (
             <p className="lbl na-kv na-pick"><span className="na-pick-n">{`${row.name}, #${row.p.id}`}</span> <span className="muted">{w('u.price')}</span> <span className="mono tnum">{payable ? usdc(payable.price.toString(), lang) : price.st === 'doing' ? w('u.priceReading') : usdc(row.p.price, lang)}</span></p>
           ) : <p className="lbl muted na-kv">{w('u.none')}</p>}
           <button type="button" className="btn btn-line btn-s" id="u-pick" disabled={off} aria-expanded={catOpen} aria-controls="net-cat" onClick={() => { if (onPick) { onPick(); return } setUi({ catOpen: true }); play('use', 1, 'doing', 'use.guichet', false) }}><span>{row || (S.on && S.past(0)) ? w('u.change') : w('u.pickBtn')}</span></button>
-        </Step>
-        <Step n={3} part="use" el="link.useArc" st={stOf(2, key.st)} t={w('u.s3')} d={w('u.s3d')} note={S.on ? (S.past(2) ? { tone: 'ok', text: w('u.dm.key', { signer: short(REC.signer, 4), pid: REC.enclavePid }) } : S.at(2) ? { tone: 'muted', text: w('u.keyChecking') } : null) : key.note} active={active === 2}>
+        </Step>}
+        <Step n={3} num={sheet ? 1 : undefined} part="use" el="link.useArc" st={stOf(2, key.st)} t={w('u.s3')} d={w('u.s3d')} note={S.on ? (S.past(2) ? { tone: 'ok', text: w('u.dm.key', { signer: short(REC.signer, 4), pid: REC.enclavePid }) } : S.at(2) ? { tone: 'muted', text: w('u.keyChecking') } : null) : key.note} active={active === 2}>
           <Field label={w('u.url')} wide><input type="url" inputMode="url" spellCheck={false} value={S.on ? dUrl : url} readOnly={off} onChange={(e) => setUrl(e.target.value)} placeholder="https://" /></Field>
         </Step>
-        <Step n={4} part="use" el="link.useRent" st={stOf(3, send.st)} t={w('u.s4')} d={w('u.s4d')} note={S.on ? (S.past(3) ? { tone: 'ok', text: w('u.dm.sent') } : S.at(3) ? { tone: 'muted', text: w('u.dm.signing', { price: dPrice }) } : null) : send.note} active={active === 3}>
+        <Step n={4} num={sheet ? 2 : undefined} part="use" el="link.useRent" st={stOf(3, send.st)} t={w('u.s4')} d={w('u.s4d')} note={S.on ? (S.past(3) ? { tone: 'ok', text: w('u.dm.sent') } : S.at(3) ? { tone: 'muted', text: w('u.dm.signing', { price: dPrice }) } : null) : send.note ?? (sheet && price.st === 'fail' ? price.note : null)} active={active === 3}>
           <Field label={w('u.msg')} wide><input value={S.on ? dMsg : message} readOnly={off} onChange={(e) => setMsg(e.target.value)} /></Field>
           <button type="button" className="btn btn-main btn-s" id="u-send" onClick={go} disabled={off || !ready || !payable || key.st !== 'done' || send.st === 'doing' || !message.trim()}>
             <span>{S.on ? w('u.send', { price: dPrice }) : payable ? w('u.send', { price: usdc(payable.price.toString(), lang) ?? '' }) : w('u.sendPlain')}</span>
           </button>
         </Step>
-        <Step n={5} part="use" el="use.drone" st={stOf(4, answer ? 'done' : 'todo')} t={w('u.s5')} d={w('u.s5d')} active={active === 4}>
+        <Step n={5} num={sheet ? 3 : undefined} part="use" el="use.drone" st={stOf(4, answer ? 'done' : 'todo')} t={w('u.s5')} d={w('u.s5d')} active={active === 4}>
           {S.on ? (S.at(4) || S.past(4) ? (
             <div className="na-ans" data-demo="1">
               <p className="na-ans-t">{dAns}</p>
@@ -148,9 +150,9 @@ export function UseActs({ label, onPick }: { label?: string; onPick?: () => void
             </div>
           ) : null}
         </Step>
-        <Step n={6} part="use" el="link.useArc" st={stOf(5, settle.st)} t={w('u.s6')} d={w('u.s6d')} note={S.on ? (S.past(5) ? { tone: 'ok', text: w('u.dm.paid', { amount: usdc(REC.payAmount, lang) ?? '', block: REC.payBlock }), hash: REC.payTx } : null) : settle.note} active={active === 5} />
+        <Step n={6} num={sheet ? 4 : undefined} part="use" el="link.useArc" st={stOf(5, settle.st)} t={w('u.s6')} d={w('u.s6d')} note={S.on ? (S.past(5) ? { tone: 'ok', text: w('u.dm.paid', { amount: usdc(REC.payAmount, lang) ?? '', block: REC.payBlock }), hash: REC.payTx } : null) : settle.note} active={active === 5} />
       </ol>
-      <Cctp />
+      {sheet ? null : <Cctp />}
     </>
   )
 }
