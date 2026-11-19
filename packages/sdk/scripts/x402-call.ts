@@ -1,3 +1,5 @@
+// Operator script for Arc testnet: it reads its funded testnet key from .secrets/ at the repository root (git-ignored,
+// never committed). Run it from packages/sdk with `npx tsx scripts/x402-call.ts`.
 /**
  * x402-call.ts — paie N appels d'inférence À L'APPEL (x402, schéma « exact ») à la VRAIE enclave sealed-x402, comme un
  * agent : clé de l'enclave vérifiée on-chain, 402 géré par le SDK, autorisation EIP-3009 signée (le payeur n'envoie

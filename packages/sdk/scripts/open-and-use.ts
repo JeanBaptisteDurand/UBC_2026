@@ -1,3 +1,5 @@
+// Operator script for Arc testnet: it reads its funded testnet key from .secrets/ at the repository root (git-ignored,
+// never committed). Run it from packages/sdk with `npx tsx scripts/open-and-use.ts`.
 /** open-and-use.ts — ouvre une vraie session v2 sur l'enclave d'inférence et la consomme SANS la régler côté client :
  *  sert à prouver que le registrar de l'opérateur règle seul (reçus lus chez l'enclave). Usage : N=3 npx tsx scripts/open-and-use.ts */
 import { readFileSync } from "node:fs";

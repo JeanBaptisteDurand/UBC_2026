@@ -1,3 +1,5 @@
+// Operator script for Arc testnet: it reads its funded testnet key from .secrets/ at the repository root (git-ignored,
+// never committed). Run it from packages/sdk with `npx tsx scripts/erc8004-setup.ts`.
 /**
  * erc8004-setup.ts — rend les verdicts ERC-8004 « live » sur Arc testnet :
  *  1) l'opérateur crée son identité d'agent dans le registre d'identité ERC-8004 de Circle (si besoin)

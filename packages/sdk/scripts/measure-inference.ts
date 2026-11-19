@@ -1,3 +1,5 @@
+// Operator script for Arc testnet: it reads its funded testnet key from .secrets/ at the repository root (git-ignored,
+// never committed). Run it from packages/sdk with `npx tsx scripts/measure-inference.ts`.
 /**
  * measure-inference.ts — mesure la latence et le débit de l'IA privée, de bout en bout comme un client :
  * session ouverte on-chain, requêtes chiffrées (HPKE) vers la VRAIE enclave Intel TDX (Phala), reçus vérifiés,

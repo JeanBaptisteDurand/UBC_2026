@@ -1,3 +1,5 @@
+// Operator script for Arc testnet: it reads its funded testnet key from .secrets/ at the repository root (git-ignored,
+// never committed). Run it from packages/sdk with `npx tsx scripts/close-when-due.ts`.
 /** close-when-due.ts — attend que la session soit clôturable (pile v2 : échéance + SETTLE_GRACE, ou plus tôt si l'enclave
  *  liée ne peut plus rien régler), puis la clôt : reste remboursé au propriétaire et verdict écrit dans ERC-8004 (le SDK
  *  envoie avec la marge de gaz du verdict). Usage : SESSION=<id> npx tsx scripts/close-when-due.ts */

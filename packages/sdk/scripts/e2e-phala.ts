@@ -1,3 +1,5 @@
+// Operator script for Arc testnet: it reads its funded testnet key from .secrets/ at the repository root (git-ignored,
+// never committed). Run it from packages/sdk with `npx tsx scripts/e2e-phala.ts`.
 /**
  * e2e-phala.ts — bout-en-bout du produit d'inférence contre l'enclave TDX RÉELLE (Phala), pile v2 :
  *  1) (REGISTER=1 seulement) inscription par le SDK : /attest de l'enclave → VRAI quote lié à l'opérateur, contrôlé hors

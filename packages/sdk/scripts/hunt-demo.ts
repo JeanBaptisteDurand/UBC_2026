@@ -1,3 +1,5 @@
+// Operator script for Arc testnet: it reads its funded testnet key from .secrets/ at the repository root (git-ignored,
+// never committed). Run it from packages/sdk with `npx tsx scripts/hunt-demo.ts`.
 /**
  * hunt-demo.ts — le geste n° 3 de la démo (pile v2), joué de bout en bout comme le ferait le navigateur :
  *  0) la prime est lue ON-CHAIN (produit, clé X25519 du protocole) et les clés de l'enclave O3 sont VÉRIFIÉES on-chain

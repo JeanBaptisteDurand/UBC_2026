@@ -1,3 +1,5 @@
+// Operator script for Arc testnet: it reads its funded testnet key from .secrets/ at the repository root (git-ignored,
+// never committed). Run it from packages/sdk with `npx tsx scripts/infer-phala.ts`.
 /** infer-phala.ts — session + inférence réelle contre l'enclave TDX live (pile v2, déjà inscrite par DCAP).
  *  Les clés de l'enclave sont vérifiées on-chain avant tout chiffrement ; la session est verrouillée sur elle (son prix,
  *  son modèle et son unité aussi, lus au produit à l'ouverture).

@@ -1,3 +1,5 @@
+// Operator script for Arc testnet: it reads its funded testnet key from .secrets/ at the repository root (git-ignored,
+// never committed). Run it from packages/sdk with `npx tsx scripts/settle-real.ts`.
 /**
  * settle-real.ts — preuve de bout en bout du paiement sur la VRAIE enclave Intel TDX (Phala), pile v2 :
  * clés de l'enclave vérifiées on-chain → session ouverte et VERROUILLÉE sur cette enclave → requêtes chiffrées → dernier

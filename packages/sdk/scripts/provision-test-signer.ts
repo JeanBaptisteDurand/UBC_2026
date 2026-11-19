@@ -1,3 +1,5 @@
+// Operator script for Arc testnet: it reads its funded testnet key from .secrets/ at the repository root (git-ignored,
+// never committed). Run it from packages/sdk with `npx tsx scripts/provision-test-signer.ts`.
 /**
  * provision-test-signer.ts — MODE TEST : crée (une fois) le wallet serveur de test et son jeton, puis l'approvisionne
  * en USDC testnet depuis le wallet de déploiement. Écrit .secrets/test-signer.json (droits 0600) ; n'affiche que l'adresse.

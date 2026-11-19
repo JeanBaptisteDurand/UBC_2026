@@ -1,3 +1,5 @@
+// Operator script for Arc testnet: it reads its funded testnet key from .secrets/ at the repository root (git-ignored,
+// never committed). Run it from packages/sdk with `npx tsx scripts/demo-bounty.ts`.
 /**
  * demo-bounty.ts — publie une prime de démonstration ouverte (pile v2 : produit « Prime scellée » #2, cible DemoVault, testnet).
  * Le « protocole » reçoit une VRAIE paire X25519 : sa clé privée est écrite dans .secrets/demo-protocol-x25519.json
