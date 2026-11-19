@@ -9,40 +9,42 @@ interface ITimelocked {
     function timelock() external view returns (uint64);
 }
 
-/// @title MachineRegistry — les DEUX NIVEAUX d'opérateur d'ArcHive (10/11/2026)
-/// @notice - Niveau « ouvert » (0) : n'importe qui fait tourner une enclave ; le contrat d'Arc vérifie son attestation Intel
-///           et l'opérateur dépose une caution (EnclaveRegistry + OperatorBond, inchangés).
-///         - Niveau « vérifié » (1) : en plus, la MACHINE (sa puce, identifiée par le certificat PCK d'Intel : PPID) est
-///           déclarée en datacenter connu par un VÉRIFICATEUR que le produit accepte. Raison : les attaques physiques de
-///           2025 (TEE.fail, Battering RAM, Wiretap) extraient des clés d'attestation avec un accès physique au serveur.
-///         Le protocole n'impose aucun vérificateur et ne prend aucun péage : chacun peut déclarer des machines (son
-///         adresse est son identité de vérificateur) ; l'AUTEUR de chaque produit choisit le niveau minimum et les
-///         vérificateurs qu'il accepte, derrière le timelock du ProductRegistry. Un opérateur vérifié fixe son prix.
-///         Trois briques :
-///          1. bindMachine : lie une clé d'enclave à la puce qui l'héberge, à partir du quote que l'EnclaveRegistry a
-///             VÉRIFIÉ à l'inscription (keccak256(quote) = Enclave.quoteHash) ; PPID lu par PckChip, FMSPC recoupé avec
-///             celui qu'a extrait Automata. Un renouvellement change le quote : il faut relier (sinon, niveau ouvert) ;
-///          2. attestMachine / revokeMachine : les déclarations des vérificateurs (par exemple ProofOfCloudAuditor, qui
-///             vérifie on-chain la signature de l'alliance Proof of Cloud) ;
-///          3. proposePolicy / applyPolicy : la politique de chaque produit ; meetsPolicy la lit (PolicyEnclaves s'en
-///             sert pour les contrats de règlement).
+/// @title MachineRegistry — the TWO operator LEVELS of ArcHive
+/// @notice - "Open" level (0): anyone runs an enclave; the Arc contract verifies its Intel attestation and the
+///           operator deposits a bond (EnclaveRegistry + OperatorBond, unchanged).
+///         - "Verified" level (1): on top of that, the MACHINE (its chip, identified by Intel's PCK certificate: the
+///           PPID) is declared to be in a known datacenter by a VERIFIER that the product accepts. The reason: the
+///           physical attacks of 2025 (TEE.fail, Battering RAM, Wiretap) extract attestation keys with physical
+///           access to the server.
+///         The protocol imposes no verifier and takes no toll: anyone can declare machines (their address is their
+///         verifier identity); the AUTHOR of each product chooses the minimum level and the verifiers it accepts,
+///         behind the ProductRegistry timelock. A verified operator sets its own price.
+///         Three building blocks:
+///          1. bindMachine: binds an enclave key to the chip that hosts it, from the quote that the EnclaveRegistry
+///             VERIFIED at registration (keccak256(quote) = Enclave.quoteHash); the PPID is read by PckChip, and the
+///             FMSPC is cross-checked with the one Automata extracted. A renewal changes the quote: the key must be
+///             bound again (otherwise, open level);
+///          2. attestMachine / revokeMachine: the verifiers' declarations (for example ProofOfCloudAuditor, which
+///             verifies the Proof of Cloud alliance's signature on chain);
+///          3. proposePolicy / applyPolicy: each product's policy; meetsPolicy reads it (PolicyEnclaves uses it for
+///             the settlement contracts).
 contract MachineRegistry {
     uint8 public constant LEVEL_OPEN = 0;
     uint8 public constant LEVEL_VERIFIED = 1;
-    /// @notice Vérificateurs acceptés par un produit, au plus.
+    /// @notice Maximum number of verifiers a product accepts.
     uint256 public constant MAX_AUDITORS = 8;
 
     IEnclaveRegistry public immutable registry;
     IProductRegistry public immutable products;
 
     struct Binding {
-        bytes16 ppid; // puce de la machine (certificat PCK d'Intel)
-        bytes32 quoteHash; // quote de l'inscription liée (celui de la fenêtre en cours tant qu'il n'est pas renouvelé)
+        bytes16 ppid; // the machine's chip (Intel's PCK certificate)
+        bytes32 quoteHash; // quote of the bound registration (the current window's, as long as it is not renewed)
         uint64 boundAt;
     }
 
     struct Audit {
-        uint64 expiresAt; // horodatage ; au-delà, la déclaration ne vaut plus
+        uint64 expiresAt; // timestamp; beyond it, the declaration is no longer valid
         bool revoked;
     }
 
@@ -59,7 +61,7 @@ contract MachineRegistry {
     }
 
     mapping(address signer => Binding) private _binding;
-    /// @notice Déclaration d'un vérificateur sur une puce.
+    /// @notice A verifier's declaration about a chip.
     mapping(address auditor => mapping(bytes16 ppid => Audit)) public auditOf;
     mapping(uint256 productId => Policy) private _policy;
     mapping(uint256 productId => Pending) private _pending;
@@ -84,10 +86,11 @@ contract MachineRegistry {
         products = IProductRegistry(_products);
     }
 
-    // ---------------------------------------------------------------- 1. liaison enclave → machine
+    // ---------------------------------------------------------------- 1. binding an enclave to a machine
 
-    /// @notice Lie la clé d'enclave `signer` à la puce qui l'héberge. Ouvert à tous (rien à gagner à le faire pour
-    ///         autrui) : `quote` doit être exactement le quote que l'EnclaveRegistry a vérifié pour l'inscription en cours.
+    /// @notice Binds the enclave key `signer` to the chip that hosts it. Open to anyone (nothing to gain by doing it
+    ///         for someone else): `quote` must be exactly the quote that the EnclaveRegistry verified for the current
+    ///         registration.
     function bindMachine(address signer, bytes calldata quote) external returns (bytes16 ppid) {
         IEnclaveRegistry.Enclave memory e = registry.enclaveOf(signer);
         if (e.signer == address(0) || !e.active) revert NotActiveEnclave();
@@ -95,14 +98,14 @@ contract MachineRegistry {
         if (qh != e.quoteHash) revert NotRegisteredQuote();
         bytes6 fmspc;
         (ppid, fmspc) = PckChip.chipOf(quote);
-        // la même plate-forme que celle qu'a lue Automata dans ce même certificat
+        // the same platform as the one Automata read in this same certificate
         if (fmspc != e.fmspc) revert FmspcMismatch();
         _binding[signer] = Binding({ppid: ppid, quoteHash: qh, boundAt: uint64(block.timestamp)});
         emit MachineBound(signer, ppid, qh);
     }
 
-    /// @notice La puce liée à `signer` ; `current` faux si l'enclave n'est plus active ou a été réinscrite depuis
-    ///         (autre quote, peut-être une autre machine) : il faut alors relier.
+    /// @notice The chip bound to `signer`; `current` is false if the enclave is no longer active or was registered
+    ///         again since (another quote, perhaps another machine): it must then be bound again.
     function machineOf(address signer) public view returns (bytes16 ppid, bool current, uint64 boundAt) {
         Binding memory b = _binding[signer];
         if (b.ppid == bytes16(0)) return (bytes16(0), false, 0);
@@ -110,24 +113,24 @@ contract MachineRegistry {
         return (b.ppid, e.active && e.quoteHash == b.quoteHash, b.boundAt);
     }
 
-    // ---------------------------------------------------------------- 2. déclarations des vérificateurs
+    // ---------------------------------------------------------------- 2. the verifiers' declarations
 
-    /// @notice L'appelant (le vérificateur) déclare la puce `ppid` en datacenter connu jusqu'à `expiresAt`. `site` et
-    ///         `evidence` (lieu, preuve : URL, hash d'un rapport…) ne vivent que dans l'événement.
+    /// @notice The caller (the verifier) declares the chip `ppid` to be in a known datacenter until `expiresAt`. `site`
+    ///         and `evidence` (place, proof: a URL, the hash of a report...) live only in the event.
     function attestMachine(bytes16 ppid, uint64 expiresAt, string calldata site, string calldata evidence) external {
         if (ppid == bytes16(0) || expiresAt <= block.timestamp) revert BadAudit();
         auditOf[msg.sender][ppid] = Audit({expiresAt: expiresAt, revoked: false});
         emit MachineAttested(msg.sender, ppid, expiresAt, site, evidence);
     }
 
-    /// @notice L'appelant retire sa déclaration sur `ppid`, tout de suite.
+    /// @notice The caller withdraws its declaration about `ppid`, at once.
     function revokeMachine(bytes16 ppid, string calldata reason) external {
         auditOf[msg.sender][ppid].revoked = true;
         emit MachineRevoked(msg.sender, ppid, reason);
     }
 
-    /// @notice `signer` est-il, en ce moment, sur une machine déclarée par `auditor` (liaison à jour, déclaration en
-    ///         cours, non retirée) ?
+    /// @notice Is `signer` currently on a machine declared by `auditor` (up-to-date binding, declaration in force, not
+    ///         withdrawn)?
     function isVerified(address signer, address auditor) public view returns (bool) {
         (bytes16 ppid, bool current,) = machineOf(signer);
         if (!current) return false;
@@ -135,10 +138,10 @@ contract MachineRegistry {
         return !a.revoked && a.expiresAt > block.timestamp;
     }
 
-    // ---------------------------------------------------------------- 3. politique des produits
+    // ---------------------------------------------------------------- 3. the products' policies
 
-    /// @notice L'AUTEUR du produit propose sa politique : niveau minimum et vérificateurs acceptés (niveau 1 : au moins
-    ///         un). Appliquée après le timelock du ProductRegistry (les opérateurs et les acheteurs la voient venir).
+    /// @notice The product's AUTHOR proposes its policy: minimum level and accepted verifiers (level 1: at least one).
+    ///         Applied after the ProductRegistry timelock (operators and buyers see it coming).
     function proposePolicy(uint256 productId, uint8 minLevel, address[] calldata auditors) external {
         if (products.getProduct(productId).author != msg.sender) revert NotAuthor();
         if (minLevel > LEVEL_VERIFIED || auditors.length > MAX_AUDITORS) revert BadPolicy();
@@ -158,7 +161,7 @@ contract MachineRegistry {
         emit PolicyProposed(productId, minLevel, auditors, applyAt);
     }
 
-    /// @notice Applique la politique proposée, une fois le timelock écoulé (n'importe qui).
+    /// @notice Applies the proposed policy once the timelock has passed (anyone).
     function applyPolicy(uint256 productId) external {
         Pending storage p = _pending[productId];
         if (!p.exists) revert NoPendingPolicy();
@@ -187,11 +190,11 @@ contract MachineRegistry {
         return (p.exists, p.minLevel, p.auditors, p.applyAt);
     }
 
-    /// @notice Le premier vérificateur accepté par le produit qui vérifie `signer` en ce moment, ou zéro.
+    /// @notice The first verifier accepted by the product that currently verifies `signer`, or zero.
     function verifiedBy(uint256 productId, address signer) public view returns (address) {
         address[] storage list = _policy[productId].auditors;
         if (list.length == 0) return address(0);
-        (bytes16 ppid, bool current,) = machineOf(signer); // une seule lecture du registre, quel que soit le nombre de vérificateurs
+        (bytes16 ppid, bool current,) = machineOf(signer); // one registry read, whatever the number of verifiers
         if (!current) return address(0);
         for (uint256 i = 0; i < list.length; i++) {
             Audit memory a = auditOf[list[i]][ppid];
@@ -200,13 +203,13 @@ contract MachineRegistry {
         return address(0);
     }
 
-    /// @notice Niveau de `signer` au regard du produit : 1 si un vérificateur accepté par le produit le vérifie.
+    /// @notice Level of `signer` with respect to the product: 1 if a verifier accepted by the product verifies it.
     function levelOf(uint256 productId, address signer) external view returns (uint8) {
         return verifiedBy(productId, signer) != address(0) ? LEVEL_VERIFIED : LEVEL_OPEN;
     }
 
-    /// @notice `signer` remplit-il la politique du produit ? (niveau ouvert : toujours ; niveau vérifié : un vérificateur
-    ///         accepté le vérifie en ce moment). L'activité de l'enclave elle-même reste le travail du registre.
+    /// @notice Does `signer` meet the product's policy? (open level: always; verified level: an accepted verifier
+    ///         currently verifies it). Whether the enclave itself is active remains the registry's job.
     function meetsPolicy(uint256 productId, address signer) public view returns (bool) {
         if (_policy[productId].minLevel == LEVEL_OPEN) return true;
         return verifiedBy(productId, signer) != address(0);

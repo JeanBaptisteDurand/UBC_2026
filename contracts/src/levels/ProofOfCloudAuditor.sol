@@ -5,43 +5,44 @@ import {LibString} from "solady/utils/LibString.sol";
 import {Base64} from "solady/utils/Base64.sol";
 import {MachineRegistry} from "./MachineRegistry.sol";
 
-/// @notice Ed25519Verifier (contrat autonome, Smooth CryptoLib) : ce contrat-ci n'importe pas la bibliothèque, il l'appelle.
+/// @notice The standalone Ed25519Verifier (Smooth CryptoLib): this contract calls it and does not import the library.
 interface IEd25519Verifier {
     function weierstrass(uint256 x, uint256 y) external view returns (uint256 wx, uint256 wy);
     function verify(string calldata m, uint256 r, uint256 s, uint256[5] calldata extKpub) external view returns (bool);
 }
 
-/// @title ProofOfCloudAuditor — un VÉRIFICATEUR sans confiance : l'alliance Proof of Cloud, vérifiée sur la chaîne (10/11/2026)
-/// @notice L'alliance Proof of Cloud (Phala, Secret, Nillion, iExec, Automata, Flashbots, Oasis…) inspecte physiquement des
-///         machines en datacenter et tient la liste des puces vérifiées. Ses serveurs de confiance (Secret, Nillion,
-///         iExec : github.com/proofofcloud/trust-server) ne délivrent un jeton (JWT EdDSA cosigné à trois, clé commune
-///         publiée) QUE pour un quote dont la machine est sur leur liste et non révoquée ; le jeton porte le PPID
-///         (`machine_id`), le sha256 du quote et l'horodatage. Ce contrat vérifie la signature EdDSA de l'alliance SUR LA
-///         CHAÎNE (Smooth CryptoLib, auditée), puis déclare la puce au MachineRegistry, en son propre nom : un produit qui
-///         accepte CE vérificateur fait confiance à l'alliance, pas à nous ni à celui qui soumet le jeton.
-///         VÉRIFIÉ le 10/11/2026 : la machine de nos enclaves (PPID 62d54040…) est sur la liste ; jeton cosigné obtenu,
-///         signature valide pour la clé 5ea69fed… publiée dans proofofcloud/trust-server (public_info/public_key.txt).
-/// @dev    Une déclaration vaut VALIDITY à partir de l'horodatage du jeton ; il faut soumettre un jeton récent (MAX_AGE)
-///         et plus récent que le dernier. Limite (à dire) : une révocation par l'alliance n'arrive pas sur la chaîne avant
-///         l'expiration de la dernière déclaration (au plus VALIDITY) ; le retrait immédiat reste à l'auteur du produit
-///         (sa politique) ou aux autres vérificateurs.
+/// @title ProofOfCloudAuditor — a trustless VERIFIER: the Proof of Cloud alliance, verified on chain
+/// @notice The Proof of Cloud alliance (Phala, Secret, Nillion, iExec, Automata, Flashbots, Oasis...) physically
+///         inspects machines in datacenters and keeps the list of verified chips. Its trust servers (Secret, Nillion,
+///         iExec: github.com/proofofcloud/trust-server) issue a token (an EdDSA JWT co-signed by all three, with a
+///         published shared key) ONLY for a quote whose machine is on their list and not revoked; the token carries
+///         the PPID (`machine_id`), the sha256 of the quote and the timestamp. This contract verifies the alliance's
+///         EdDSA signature ON CHAIN (Smooth CryptoLib, audited), then declares the chip to the MachineRegistry, in its
+///         own name: a product that accepts THIS verifier trusts the alliance, not us and not whoever submits the
+///         token.
+///         VERIFIED: the machine of our enclaves (PPID 62d54040…) is on the list; a co-signed token was obtained, with
+///         a valid signature for the key 5ea69fed… published in proofofcloud/trust-server (public_info/public_key.txt).
+/// @dev    A declaration is valid for VALIDITY from the token's timestamp; the token submitted must be recent (MAX_AGE)
+///         and more recent than the last one. Known limit: a revocation by the alliance does not reach the chain
+///         before the last declaration expires (at most VALIDITY); immediate withdrawal is left to the product's
+///         author (its policy) or to the other verifiers.
 contract ProofOfCloudAuditor {
     MachineRegistry public immutable machines;
     IEd25519Verifier public immutable ed25519;
-    /// @notice Clé publique Ed25519 de l'alliance (32 octets, encodage RFC 8032).
+    /// @notice Ed25519 public key of the alliance (32 bytes, RFC 8032 encoding).
     bytes32 public immutable allianceKey;
-    uint256 private immutable _kx; // la même clé, forme de Weierstrass attendue par SCL_EIP6565
+    uint256 private immutable _kx; // the same key, in the Weierstrass form expected by SCL_EIP6565
     uint256 private immutable _ky;
 
     uint64 public constant MAX_AGE = 1 days;
     uint64 public constant MAX_SKEW = 5 minutes;
     uint64 public constant VALIDITY = 7 days;
 
-    /// @dev Corps de base Ed25519 : p = 2^255 - 19, d = -121665/121666.
+    /// @dev Ed25519 base field: p = 2^255 - 19, d = -121665/121666.
     uint256 private constant P = 0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffed;
     uint256 private constant D = 0x52036cee2b6ffe738cc740797779e89800700a4d4141d8ab75eb4dca135978a3;
 
-    /// @notice Horodatage du dernier jeton accepté pour chaque puce.
+    /// @notice Timestamp of the last token accepted for each chip.
     mapping(bytes16 ppid => uint64) public lastTimestamp;
 
     event ProofOfCloudToken(bytes16 indexed ppid, uint64 timestamp, uint64 expiresAt, bytes32 quoteSha256, string label);
@@ -51,15 +52,15 @@ contract ProofOfCloudAuditor {
     error BadSignature();
     error StaleToken();
 
-    /// @param _x, _y coordonnées affines (Edwards) de la clé, calculées hors chaîne ; vérifiées ici : sur la courbe, et
-    ///        leur encodage RFC 8032 redonne exactement `_key`.
+    /// @param _x, _y affine (Edwards) coordinates of the key, computed off chain; checked here: on the curve, and their
+    ///        RFC 8032 encoding gives back exactly `_key`.
     constructor(address _machines, address _ed25519, bytes32 _key, uint256 _x, uint256 _y) {
         if (_x >= P || _y >= P) revert BadKey();
         // -x² + y² = 1 + d·x²·y²  (mod p)
         uint256 x2 = mulmod(_x, _x, P);
         uint256 y2 = mulmod(_y, _y, P);
         if (addmod(P - x2, y2, P) != addmod(1, mulmod(D, mulmod(x2, y2, P), P), P)) revert BadKey();
-        // encodage : y sur 255 bits, bit de poids fort = parité de x, en petit-boutiste
+        // encoding: y on 255 bits, most significant bit = parity of x, little-endian
         if (bytes32(_reverse(_y | ((_x & 1) << 255))) != _key) revert BadKey();
         machines = MachineRegistry(_machines);
         ed25519 = IEd25519Verifier(_ed25519);
@@ -67,8 +68,8 @@ contract ProofOfCloudAuditor {
         (_kx, _ky) = IEd25519Verifier(_ed25519).weierstrass(_x, _y);
     }
 
-    /// @notice Soumet un jeton de l'alliance (ses trois parties : en-tête et contenu en base64url, signature de 64 octets).
-    ///         Ouvert à tous. Déclare la puce du jeton au MachineRegistry jusqu'à horodatage + VALIDITY.
+    /// @notice Submits a token of the alliance (its three parts: header and payload in base64url, a 64-byte signature).
+    ///         Open to anyone. Declares the token's chip to the MachineRegistry until timestamp + VALIDITY.
     function submit(string calldata header, string calldata payload, bytes calldata signature)
         external
         returns (bytes16 ppid, uint64 expiresAt)
@@ -81,7 +82,7 @@ contract ProofOfCloudAuditor {
             )
         ) revert BadSignature();
 
-        // le contenu est celui que l'alliance a signé : on peut le lire
+        // the payload is the one the alliance signed: it can be read
         string memory json = string(Base64.decode(payload));
         ppid = bytes16(uint128(_hexField(json, '"machine_id":"', 32)));
         uint64 ts = uint64(_uintField(json, '"timestamp":'));
@@ -100,16 +101,16 @@ contract ProofOfCloudAuditor {
         emit ProofOfCloudToken(ppid, ts, expiresAt, quoteSha, label);
     }
 
-    // ---------------------------------------------------------------- lecture du contenu (JSON signé par l'alliance)
+    // ---------------------------------------------------------------- reading the payload (JSON the alliance signed)
 
-    /// @dev Position de la valeur de `key` : la clé doit apparaître exactement une fois.
+    /// @dev Position of the value of `key`: the key must appear exactly once.
     function _at(string memory json, string memory key) private pure returns (uint256) {
         uint256 i = LibString.indexOf(json, key);
         if (i == LibString.NOT_FOUND || LibString.lastIndexOf(json, key) != i) revert BadToken();
         return i + bytes(key).length;
     }
 
-    /// @dev `n` chiffres hexadécimaux en minuscules suivis d'un guillemet.
+    /// @dev `n` lowercase hexadecimal digits followed by a double quote.
     function _hexField(string memory json, string memory key, uint256 n) private pure returns (uint256 v) {
         bytes memory b = bytes(json);
         uint256 i = _at(json, key);
@@ -124,7 +125,7 @@ contract ProofOfCloudAuditor {
         }
     }
 
-    /// @dev Un entier décimal (1 à 12 chiffres).
+    /// @dev A decimal integer (1 to 12 digits).
     function _uintField(string memory json, string memory key) private pure returns (uint256 v) {
         bytes memory b = bytes(json);
         uint256 i = _at(json, key);
@@ -137,7 +138,7 @@ contract ProofOfCloudAuditor {
         if (k == 0 || k > 12) revert BadToken();
     }
 
-    /// @dev Une chaîne sans échappement, d'au plus `max` octets.
+    /// @dev A string without escapes, of at most `max` bytes.
     function _stringField(string memory json, string memory key, uint256 max) private pure returns (string memory) {
         bytes memory b = bytes(json);
         uint256 i = _at(json, key);
@@ -149,7 +150,7 @@ contract ProofOfCloudAuditor {
         return LibString.slice(json, i, i + k);
     }
 
-    /// @dev Inverse l'ordre des 32 octets.
+    /// @dev Reverses the order of the 32 bytes.
     function _reverse(uint256 v) private pure returns (uint256 r) {
         for (uint256 i = 0; i < 32; i++) {
             r = (r << 8) | (v & 0xff);

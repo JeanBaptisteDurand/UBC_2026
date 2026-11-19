@@ -6,20 +6,21 @@ import {SCL_sha512} from "@solidity/hash/SCL_sha512.sol";
 import {ecGenMulmuladdB4W} from "@solidity/elliptic/SCL_mulmuladdX_fullgenW.sol";
 import {p, a, gx, gy, n} from "@solidity/fields/SCL_wei25519.sol";
 
-/// @title Ed25519Verifier — vérification de signatures Ed25519 (RFC 8032) sur Arc, par la Smooth CryptoLib (10/11/2026)
-/// @notice Contrat AUTONOME (compilé sans via_ir, comme la bibliothèque : voir foundry.toml) que les autres contrats appellent
-///         par l'interface IEd25519Verifier. `verify` est SCL_EIP6565.Verify_LE (commit d714e98 de get-smooth/crypto-lib,
-///         MIT, auditée par CryptoExperts et Veridise en 2024) recopiée ligne à ligne avec les fonctions INTERNES de la
-///         bibliothèque (aucune édition de liens) : HashInternal = SHA512_modq(R ‖ A ‖ M), edCompress = y + (x & 1) << 255.
-///         Testée sur les vecteurs de la RFC 8032 et sur un vrai jeton de l'alliance Proof of Cloud.
+/// @title Ed25519Verifier — Ed25519 signature verification (RFC 8032) on Arc, with Smooth CryptoLib
+/// @notice A STANDALONE contract (compiled without via_ir, like the library: see foundry.toml) that other contracts
+///         call through the IEd25519Verifier interface. `verify` is SCL_EIP6565.Verify_LE (commit d714e98 of
+///         get-smooth/crypto-lib, MIT, audited by CryptoExperts and Veridise in 2024), copied line by line with the
+///         library's INTERNAL functions (no linking): HashInternal = SHA512_modq(R ‖ A ‖ M),
+///         edCompress = y + (x & 1) << 255.
+///         Tested on the RFC 8032 vectors and on a real token from the Proof of Cloud alliance.
 contract Ed25519Verifier {
-    /// @notice La clé (x, y) d'Edwards, en forme de Weierstrass (celle qu'attend `verify`).
+    /// @notice The Edwards key (x, y), in Weierstrass form (the one `verify` expects).
     function weierstrass(uint256 x, uint256 y) external view returns (uint256 wx, uint256 wy) {
         return SCL_EIP6565.Edwards2WeierStrass(x, y);
     }
 
-    /// @notice Vrai si (r, s) est une signature Ed25519 de `m` par la clé `extKpub` : [wx, wy, 0, 0, clé], la clé en
-    ///         octets bruts (RFC 8032) lus comme un entier ; r et s aussi (les 32 + 32 octets de la signature).
+    /// @notice True if (r, s) is an Ed25519 signature of `m` by the key `extKpub`: [wx, wy, 0, 0, key], the key as raw
+    ///         bytes (RFC 8032) read as an integer; r and s too (the 32 + 32 bytes of the signature).
     function verify(string calldata m, uint256 r, uint256 s, uint256[5] calldata extKpub) external view returns (bool) {
         uint256[2] memory S;
         uint256 kpubC = extKpub[4];

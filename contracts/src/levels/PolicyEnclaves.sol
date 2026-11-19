@@ -5,15 +5,15 @@ import {IEnclaveRegistry} from "../interfaces/IEnclaveRegistry.sol";
 import {IOperatorBond} from "../interfaces/IOperatorBond.sol";
 import {MachineRegistry} from "./MachineRegistry.sol";
 
-/// @title PolicyEnclaves — l'EnclaveRegistry VU À TRAVERS la politique de niveau de chaque produit (10/11/2026)
-/// @notice Les contrats de règlement (SealedBounty, SessionPay, X402Settler, AttestedSigners) ne lisent le registre que par
-///         activeOperatorAt / isActiveAt / attestedOperator / enclaveOf. Déployés avec CET adaptateur à la place du registre,
-///         ils appliquent SANS changer une ligne de leur code la politique du produit : pour un produit au niveau
-///         « vérifié », une enclave dont la machine n'est pas déclarée par un vérificateur accepté n'est pas active (ses
-///         signatures ne comptent pas, ses reçus ne se règlent pas). Pour un produit au niveau « ouvert », rien ne change.
-///         Lecture seule : l'inscription et le retrait se font toujours sur le registre lui-même.
-/// @dev    La politique est lue MAINTENANT (au règlement), pas au bloc d'ancrage : une déclaration retirée ou expirée, ou une
-///         enclave réinscrite sans relier sa machine, cesse de compter tout de suite (plus strict, jamais plus large).
+/// @title PolicyEnclaves — the EnclaveRegistry SEEN THROUGH each product's level policy
+/// @notice The settlement contracts (SealedBounty, SessionPay, X402Settler, AttestedSigners) read the registry only
+///         through activeOperatorAt / isActiveAt / attestedOperator / enclaveOf. Deployed with THIS adapter in place of
+///         the registry, they apply the product's policy WITHOUT changing a line of their code: for a product at the
+///         "verified" level, an enclave whose machine is not declared by an accepted verifier is not active (its
+///         signatures do not count, its receipts do not settle). For a product at the "open" level, nothing changes.
+///         Read-only: registration and retirement are still done on the registry itself.
+/// @dev    The policy is read NOW (at settlement), not at the anchor block: a declaration withdrawn or expired, or an
+///         enclave registered again without binding its machine, stops counting at once (stricter, never looser).
 contract PolicyEnclaves is IEnclaveRegistry {
     IEnclaveRegistry public immutable base;
     MachineRegistry public immutable machines;
@@ -60,7 +60,7 @@ contract PolicyEnclaves is IEnclaveRegistry {
         return base.bond();
     }
 
-    // ---- écritures : sur le registre lui-même, jamais par l'adaptateur
+    // ---- writes: on the registry itself, never through the adapter
 
     function registerEnclave(uint256, bytes calldata, uint256, address, bytes32, bytes calldata) external pure override {
         revert UseBaseRegistry();
