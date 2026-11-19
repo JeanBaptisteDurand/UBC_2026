@@ -839,7 +839,7 @@ const M = {
   tPack: 0, tRing: 0, tOpen: 0, sMaxIn: 0, rT0: 0, rG0: 0,
 }
 let pw: Worker | null = null, sw: Worker | null = null
-let mStamp = new Uint32Array(0), mSV = 1, mDirty = true, mPos = NaN, heldFrom = NaN, lastDrawnPos = NaN
+let mStamp = new Uint32Array(0), mSV = 1, mDirty = true, mPos = NaN, heldFrom = NaN, lastDrawnPos = NaN, mShown = false
 const WG = window as unknown as { __filmGate?: string; __copilotP?: Promise<unknown>; __filmM?: unknown }
 /** The loading fraction for the header bar: meta.bin and the pack up to its gate point */
 export const gateFrac = () => (M.head ? Math.min(1, (M.metaBytes + Math.min(M.got, M.gateAt)) / (M.metaBytes + M.gateAt)) : 0.04)
@@ -1086,7 +1086,7 @@ function gateTick(now: number, rest: boolean) {
   const ringOk = packOk && ringDecoded(now)
   if (ringOk && !M.tRing) M.tRing = now
   if (M.gate === 'stops') {
-    if (ringOk && rest && film.ready && !REDUCED && !CONN?.saveData) { M.gate = 'open'; WG.__filmGate = 'open'; cv.style.opacity = '1'; mDirty = true }
+    if (ringOk && rest && film.ready && !REDUCED && !CONN?.saveData) { M.gate = 'open'; WG.__filmGate = 'open'; mShown = false; mDirty = true }
     return
   }
   if (packOk && !ringOk && now - M.tPack > 5000) { M.fail = 'ring'; gateResolve?.(false); gateResolve = null; return }
@@ -1141,7 +1141,8 @@ function tickM(dt: number, firstDraw: () => void) {
     pos = mPos
     if (mDirty || pickK !== dK || pickB !== dB || pickA !== dA) {
       ms = drawM(); mDirty = false; dK = pickK; dB = pickB; dA = pickA; film.drawn++
-      if (!film.ready) { cv.style.opacity = '1'; firstDraw() }
+      // the motion canvas shows from its first frame (the sharp layer may have been drawn before it)
+      if (!mShown) { mShown = true; cv.style.opacity = '1'; firstDraw() }
     }
   } else pos = lastMetaPos
   // the metadata of the drawn position (every frame has its own in meta.bin, even those not in the pack)
