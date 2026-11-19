@@ -1,8 +1,8 @@
-/** server.ts — serveur MCP du réseau d'enclaves en stdio, pour un agent local (Claude Desktop, Cursor, tout client MCP) :
- *  lectures (listes par l'index de l'API ArcHive, états on-chain), et actions PRÉPARÉES seulement. Ce serveur n'a aucune
- *  clé : il ne signe ni n'envoie rien ; tout ce qui dépense revient à l'utilisateur, qui signe dans son wallet. Le
- *  serveur et ses outils sont dans mcp-server.ts et tools.ts (logique partagée avec le copilote :
- *  services/copilot/src/arc-actions.ts) ; le même serveur est aussi offert en Streamable HTTP (http.ts). */
+/** server.ts — the ArcHive MCP server over stdio, for a local agent (Claude Desktop, Cursor, any MCP client): reads
+ *  (lists from the ArcHive API's index, on-chain state) and PREPARED actions only. This server holds no key: it neither
+ *  signs nor sends anything; whatever spends is left to the user, who signs in their own wallet. The server and its
+ *  tools are in mcp-server.ts and tools.ts (logic shared with the copilot: services/copilot/src/arc-actions.ts); the
+ *  same server is also offered over Streamable HTTP (http.ts). */
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createMcpContext } from "./tools";
 import { createMcpServer } from "./mcp-server";
@@ -12,4 +12,4 @@ const { arc, actx } = createMcpContext();
 const server = createMcpServer(arc, actx);
 
 await server.connect(new StdioServerTransport());
-console.error("serveur MCP arc-enclave-network prêt (stdio)");
+console.error("ArcHive MCP server ready (stdio)");

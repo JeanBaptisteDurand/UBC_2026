@@ -1,16 +1,16 @@
-/** http-app.ts — le serveur MCP du réseau d'enclaves en Streamable HTTP (spécification MCP 2025-03-26 et suivantes),
- *  SANS ÉTAT (CONTRACT.md §6) : ni session ni identifiant de session ; chaque POST reçoit un serveur MCP et un transport
- *  neufs (createMcpServer : les mêmes outils et la même logique que le serveur stdio) et une réponse JSON, jamais un flux
- *  SSE. http.ts le démarre ; les tests le montent sur un port libre.
- *  Routes : POST /mcp (JSON-RPC) ; GET et DELETE /mcp → 405 (pas de flux serveur, pas de session à fermer) ;
- *  OPTIONS → contrôle préalable CORS ; GET /mcp/health (et /health) → { ok: true } ; le reste → 404.
- *  Garde-fous, avant tout travail : débit par IP (429 + Retry-After ; l'IP est le DERNIER maillon de X-Forwarded-For,
- *  posé par Caddy, si le pair est un proxy local ou privé, sinon l'adresse du pair), requêtes simultanées bornées (503),
- *  JSON seulement (415), corps ≤ 64 Kio (413, annoncé ou compté au fil de la lecture), JSON invalide (400, -32700) ;
- *  délai par appel d'outil (createMcpServer). CORS ouvert (« * », sans identifiants) : l'API ne lit que des données
- *  publiques et ne prépare que des actions que l'utilisateur signe lui-même.
- *  Accept : un client qui accepte du JSON (ou tout, « *\/* », ou rien de dit) est servi en JSON ; la spécification
- *  demande application/json ET text/event-stream, le SDK le vérifie ensuite (406 sinon). */
+/** http-app.ts — the ArcHive MCP server over Streamable HTTP (MCP specification 2025-03-26 and later), STATELESS
+ *  (docs/COPILOT-SITE-CONTRACT.md §6): no session and no session id; each POST gets a fresh MCP server and transport
+ *  (createMcpServer: the same tools and logic as the stdio server) and a JSON response, never an SSE stream. http.ts
+ *  starts it; the tests mount it on a free port.
+ *  Routes: POST /mcp (JSON-RPC); GET and DELETE /mcp → 405 (no server stream, no session to close); OPTIONS → CORS
+ *  preflight; GET /mcp/health (and /health) → { ok: true }; anything else → 404.
+ *  Guards, before any work: per-IP rate limit (429 + Retry-After; the IP is the LAST hop of X-Forwarded-For, set by
+ *  Caddy, when the peer is a local or private proxy, otherwise the peer address), bounded concurrent requests (503),
+ *  JSON only (415), body ≤ 64 KiB (413, whether announced or counted while reading), invalid JSON (400, -32700);
+ *  per-tool-call timeout (createMcpServer). Open CORS ("*", no credentials): the server reads only public data and
+ *  prepares only actions that users sign themselves.
+ *  Accept: a client that accepts JSON (or anything, "*\/*", or says nothing) is served JSON; the specification asks for
+ *  application/json AND text/event-stream, and the SDK checks it next (406 otherwise). */
 import { createServer, type IncomingMessage, type ServerResponse, type Server as HttpServer } from "node:http";
 import { isIP } from "node:net";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
@@ -26,15 +26,15 @@ export const MCP_MAX_BODY_BYTES = 64 * 1024;
 export interface McpHttpOptions {
   arc: ArcClient;
   actx: ActionCtx;
-  /** Débit par IP (défaut : 60 par minute, 3 000 par jour, sans plafond global). */
+  /** Per-IP rate (default: 60 per minute, 3,000 per day, no global cap). */
   rate?: RateOptions;
-  /** Corps d'une requête, en octets (défaut 64 Kio). */
+  /** A request's body, in bytes (default 64 KiB). */
   maxBodyBytes?: number;
-  /** POST traités en même temps, au plus (défaut 16) ; au-delà, 503. */
+  /** POSTs handled at the same time, at most (default 16); beyond that, 503. */
   maxInflight?: number;
-  /** Délai d'un appel d'outil, en ms (défaut 45 000). */
+  /** Timeout of a tool call, in ms (default 45,000). */
   toolTimeoutMs?: number;
-  /** Journal des erreurs inattendues (défaut console.error) ; jamais de corps de requête. */
+  /** Log of unexpected errors (default console.error); request bodies are never logged. */
   log?: (line: string) => void;
 }
 
@@ -46,7 +46,7 @@ const PREFLIGHT = {
   "access-control-max-age": "600",
 } as const;
 
-/** Une erreur JSON-RPC sans id (la requête n'a pas été lue, ou n'a pas pu l'être). */
+/** A JSON-RPC error without an id (the request was not read, or could not be). */
 function rpcError(res: ServerResponse, status: number, code: number, message: string, headers: Record<string, string> = {}) {
   if (res.headersSent || res.destroyed) return;
   res.writeHead(status, { "content-type": "application/json", ...ALLOW_ORIGIN, ...headers });
@@ -67,8 +67,8 @@ function stripPort(s: string): string {
   return p ? p[1]! : s;
 }
 
-/** L'IP du client : le DERNIER maillon de X-Forwarded-For (Caddy le pose) quand la connexion vient d'un proxy local ou
- *  privé ; sinon (service exposé directement) l'adresse du pair, qu'un en-tête ne peut pas falsifier. */
+/** The client's IP: the LAST hop of X-Forwarded-For (set by Caddy) when the connection comes from a local or private
+ *  proxy; otherwise (service exposed directly) the peer address, which a header cannot forge. */
 export function clientIpOf(req: IncomingMessage): string {
   const peer = unmap(req.socket.remoteAddress ?? "");
   const xff = req.headers["x-forwarded-for"];
@@ -80,7 +80,7 @@ export function clientIpOf(req: IncomingMessage): string {
   return peer || "unknown";
 }
 
-/** Le corps, sans jamais dépasser `max` octets (Content-Length annoncé, puis compté au fil de la lecture). */
+/** The body, never more than `max` bytes (announced Content-Length, then counted while reading). */
 function readBody(req: IncomingMessage, max: number): Promise<{ ok: true; text: string } | { ok: false; status: 400 | 413 }> {
   const cl = req.headers["content-length"];
   if (cl !== undefined) {
@@ -108,7 +108,7 @@ function readBody(req: IncomingMessage, max: number): Promise<{ ok: true; text: 
   });
 }
 
-/** Accept pour le transport : un client qui accepte du JSON (ou tout, ou rien de dit) reçoit du JSON (enableJsonResponse). */
+/** Accept for the transport: a client that accepts JSON (or anything, or says nothing) gets JSON (enableJsonResponse). */
 function acceptFor(a: string | undefined): string {
   const v = (a ?? "").toLowerCase();
   if (v.includes("application/json") && v.includes("text/event-stream")) return a!;
@@ -116,7 +116,7 @@ function acceptFor(a: string | undefined): string {
   return a!;
 }
 
-/** Le serveur HTTP (pas encore à l'écoute). */
+/** The HTTP server (created, not listening yet). */
 export function createMcpHttpServer(o: McpHttpOptions): HttpServer {
   const limiter = new RateLimiter(o.rate ?? DEFAULT_MCP_RATE);
   const maxBody = o.maxBodyBytes ?? MCP_MAX_BODY_BYTES;
@@ -126,22 +126,22 @@ export function createMcpHttpServer(o: McpHttpOptions): HttpServer {
   let inflight = 0;
 
   const tooLarge = (res: ServerResponse, req: IncomingMessage) => {
-    // le reste du corps n'est pas lu : la connexion se ferme après la réponse
+    // the rest of the body is not read: the connection closes after the response
     res.once("finish", () => req.destroy());
     rpcError(res, 413, -32000, `Request body too large (${Math.round(maxBody / 1024)} KiB at most)`, { connection: "close" });
   };
 
   async function post(req: IncomingMessage, res: ServerResponse) {
-    // 1) débit par IP : chaque POST compte, même refusé ensuite
+    // 1) per-IP rate: every POST counts, even one refused later
     const v = limiter.hit(bucketOf(clientIpOf(req)));
     if (!v.ok) {
       return rpcError(res, 429, -32000, v.scope === "minute" ? "Too many requests: try again in a minute" : "Daily request quota reached for this IP", { "retry-after": String(v.retryAfterSec) });
     }
-    // 2) requêtes simultanées bornées (le RPC d'Arc répond 429 en rafale)
+    // 2) bounded concurrent requests (Arc's RPC answers 429 to bursts)
     if (inflight >= maxInflight) return rpcError(res, 503, -32000, "Server busy: try again in a moment", { "retry-after": "2" });
     inflight++;
     try {
-      // 3) JSON seulement ; 4) corps borné ; 5) JSON valide
+      // 3) JSON only; 4) bounded body; 5) valid JSON
       if (!/^application\/json\s*(;|$)/i.test(req.headers["content-type"] ?? "")) {
         return rpcError(res, 415, -32000, "Unsupported Media Type: Content-Type must be application/json");
       }
@@ -150,7 +150,7 @@ export function createMcpHttpServer(o: McpHttpOptions): HttpServer {
       let parsed: unknown;
       try { parsed = JSON.parse(body.text); } catch { return rpcError(res, 400, -32700, "Parse error: Invalid JSON"); }
 
-      // 6) MCP : un serveur et un transport neufs, sans session, réponse JSON
+      // 6) MCP: a fresh server and transport, no session, JSON response
       const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
       const server = createMcpServer(o.arc, o.actx, { toolTimeoutMs });
       try {
@@ -195,7 +195,7 @@ export function createMcpHttpServer(o: McpHttpOptions): HttpServer {
       rpcError(res, 500, -32603, "Internal error");
     });
   });
-  // une requête lente à arriver ne tient pas une connexion indéfiniment
+  // a slow request cannot hold a connection open forever
   srv.headersTimeout = 20_000;
   srv.requestTimeout = 30_000;
   srv.keepAliveTimeout = 5_000;

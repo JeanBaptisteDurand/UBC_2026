@@ -1,14 +1,12 @@
-/** tools.ts — les outils du serveur MCP du réseau d'enclaves (lectures, et actions PRÉPARÉES seulement), séparés de
- *  server.ts (le transport stdio) pour être testés. La logique est partagée avec le copilote
- *  (services/copilot/src/arc-actions.ts) :
- *  - les LISTES (produits, enclaves, primes, sessions d'un compte, activité) viennent de l'index de l'API ArcHive
- *    (ARCHIVE_API, délai de 8 s) ; API muette = « liste momentanément indisponible », jamais l'explorateur ni une liste
- *    partielle présentée comme complète (audit du 7/11, n° 7) ;
- *  - tout ce qui part vers l'agent (donc vers son LLM) passe par le filtre de secrets (audit n° 10) ;
- *  - les URL d'enclave (/attest, /pubkeys) ont les MÊMES gardes réseau que le copilote (restes du 8/11) : https, port
- *    443, chemin fixe, adresse publique résolue une fois, aucune redirection suivie, corps d'erreur jamais renvoyé.
- *    MCP_ALLOW_PRIVATE_URLS=1 (développement local : une VM du réseau local) permet le réseau privé, http et tout port,
- *    avec les mêmes autres gardes. */
+/** tools.ts — the tools of the ArcHive MCP server (reads, and PREPARED actions only), kept apart from server.ts (the
+ *  stdio transport) so they can be tested. The logic is shared with the copilot (services/copilot/src/arc-actions.ts):
+ *  - the LISTS (products, enclaves, bounties, an account's sessions, activity) come from the ArcHive API's index
+ *    (ARCHIVE_API, 8 s timeout); when the API does not answer, the tool says "list temporarily unavailable", never falls
+ *    back to the explorer and never presents a partial list as complete;
+ *  - everything sent to the agent (and so to its LLM) goes through the secrets filter;
+ *  - enclave URLs (/attest, /pubkeys) get the SAME network guards as the copilot: https, port 443, fixed path, public
+ *    address resolved once, no redirect followed, error body never returned. MCP_ALLOW_PRIVATE_URLS=1 (local
+ *    development: a VM on the local network) allows private networks, http and any port, with the other guards kept. */
 import { readFileSync } from "node:fs";
 import { createPublicClient, http, formatUnits, parseUnits } from "viem";
 import { arcTestnet, createArcClient, normalizeReceipt, testnet, deploymentFromJson, type ArcClient, type Deployment } from "@arcvault/sdk";
@@ -20,32 +18,32 @@ import {
 import { archiveBase, freshness, ListUnavailableError } from "../../copilot/src/archive-api";
 import { parsePrefixes } from "../../copilot/src/net-guard";
 
-/** 19/11 (audit de cohérence) : la pile lue par les outils, AVEC les niveaux (levels : SealedBountyVerified du produit 7).
- *  DEPLOYMENTS (chemin d'un deployments.*.json) si elle est donnée, sinon la pile v2.1 du SDK (`testnet`, niveaux compris),
- *  comme le copilote (services/copilot/src/copilot.ts). Sans elle, le produit 7 passait pour « contrat de règlement
- *  inconnu » et une prime du produit 7 se préparait sur SealedBounty (niveau ouvert) : faux. */
+/** The stack the tools read, WITH the levels (levels: SealedBountyVerified, product 7). DEPLOYMENTS (path to a
+ *  deployments.*.json) when given, otherwise the SDK's v2.1 stack (`testnet`, levels included), like the copilot
+ *  (services/copilot/src/copilot.ts). The levels let the tools recognise product 7's settlement contract and prepare its
+ *  bounties on SealedBountyVerified (verified level), not on SealedBounty (open level). */
 export function mcpDeployment(env: NodeJS.ProcessEnv = process.env): Deployment {
   const p = env.DEPLOYMENTS?.trim();
   const d = p ? deploymentFromJson(JSON.parse(readFileSync(p, "utf8"))) : testnet;
-  if (!d.levels?.sealedBountyVerified) console.warn("[mcp] pile sans niveaux (levels) : le produit 7 (SealedBountyVerified) ne sera pas reconnu");
+  if (!d.levels?.sealedBountyVerified) console.warn("[mcp] stack without levels: product 7 (SealedBountyVerified) will not be recognised");
   return d;
 }
 
-/** L'ancien SealedBountyVerified (produit 6), remplacé le 11/11 par 0x36a8… (produit 7) : il ne règle plus rien. */
+/** The former SealedBountyVerified (product 6), superseded by 0x36a8… (product 7): it no longer settles anything. */
 const SUPERSEDED_SBV = new Set(["0x242ca1c4d0a5a6fe5a806f215ca5f127422364d2"]);
 
-/** 19/11 : l'étiquette de règlement d'un produit, telle que l'agent doit la lire (produits 5, 6, 7 précisés). */
+/** A product's settlement label, as the agent should read it (products 5, 6 and 7 spelled out). */
 export function productRail(arc: ArcClient, id: string, settlement: string): string {
   const s = String(settlement).toLowerCase();
   if (arc.d.levels && s === arc.d.levels.sealedBountyVerified.toLowerCase()) return "SealedBountyVerified (Sealed Bounty, verified operator level)";
-  if (SUPERSEDED_SBV.has(s)) return "neutralized, replaced by #7 (the former SealedBountyVerified, replaced on 11/11: it settles nothing; the verified Sealed Bounty is product 7)";
-  if (id === "5" && s === arc.d.sealedBounty.toLowerCase()) return "SealedBounty (Sealed Bounty, open level): refutation demo (a lying enclave refuted, its bond slashed, 10/11)";
+  if (SUPERSEDED_SBV.has(s)) return "neutralized, replaced by #7 (the former SealedBountyVerified, replaced on 11 Nov 2026: it settles nothing; the verified Sealed Bounty is product 7)";
+  if (id === "5" && s === arc.d.sealedBounty.toLowerCase()) return "SealedBounty (Sealed Bounty, open level): refutation demo (a lying enclave refuted, its bond slashed, 10 Nov 2026)";
   if (s === arc.d.sealedBounty.toLowerCase()) return "SealedBounty (Sealed Bounty, open level)";
   const r = railOf(arc, settlement);
   return RAIL_EN[r] ?? r;
 }
 
-/** 20/11 : the copilot's French rail labels (services/copilot/src/arc-actions.ts, railOf), as this MCP server says them. */
+/** The copilot's French rail labels (services/copilot/src/arc-actions.ts, railOf), as this MCP server says them. */
 const RAIL_EN: Record<string, string> = {
   "SessionPay (session prépayée, reçus cumulatifs)": "SessionPay (prepaid session, cumulative receipts)",
   "X402Settler (paiement à l'appel, x402)": "X402Settler (pay per call, x402)",
@@ -55,9 +53,9 @@ const RAIL_EN: Record<string, string> = {
   "contrat de règlement inconnu": "unknown settlement contract",
 };
 
-/** 19/11 : les primes des DEUX niveaux, lues dans l'index de l'API (/bounties?level=all) : niveau ouvert (SealedBounty,
- *  produits 2 et 5) et niveau vérifié (SealedBountyVerified, produit 7). Un numéro seul ne désigne pas une prime (chaque
- *  contrat a son n° 1, n° 2…) : chaque ligne dit son niveau, son contrat et son adresse. API muette = liste indisponible. */
+/** The bounties of BOTH levels, read from the API's index (/bounties?level=all): open level (SealedBounty, products 2
+ *  and 5) and verified level (SealedBountyVerified, product 7). A number alone does not identify a bounty (each contract
+ *  has its own #1, #2…), so each row gives its level, its contract and its address. No API answer = list unavailable. */
 async function bountiesAllLevels(arc: ArcClient, actx: ActionCtx, onlyOpen: boolean) {
   const base = archiveBase(actx.apiBase);
   let j: unknown;
@@ -103,7 +101,7 @@ async function bountiesAllLevels(arc: ArcClient, actx: ActionCtx, onlyOpen: bool
   };
 }
 
-/** Champs d'un reçu d'inférence (EIP-712, SessionPay.settle) : entiers décimaux et bytes32. */
+/** The fields of an inference receipt (EIP-712, SessionPay.settle): decimal integers and bytes32. */
 const RECEIPT_UINTS = ["productId", "sessionId", "seq", "tokensIn", "tokensOut", "cumulativeUnits", "anchorBlock"] as const;
 const RECEIPT_HASHES = ["modelHash", "paramsHash", "requestHash", "responseHash"] as const;
 const RECEIPT_SCHEMA = {
@@ -116,7 +114,7 @@ const RECEIPT_SCHEMA = {
   required: [...RECEIPT_UINTS, ...RECEIPT_HASHES],
 };
 
-/** Vérifie la forme d'un reçu avant tout calcul : une erreur par champ (au lieu de « Cannot convert undefined to a BigInt »). */
+/** Checks a receipt's shape before any computation: one error per field (instead of "Cannot convert undefined to a BigInt"). */
 export function receiptErrors(r: unknown, sig: unknown): string[] {
   const errs: string[] = [];
   if (!r || typeof r !== "object" || Array.isArray(r)) errs.push("receipt: object expected");
@@ -175,14 +173,14 @@ export const TOOLS = [
   { name: "arc_machine_diagnostics", description: "Diagnostics of an operator's machine (ArcHive API): failed checks with the fix to apply, normal failures for the mode, recent log, attestation, on-chain registration. Read only.", inputSchema: { type: "object", properties: { machineId: { type: "string" } }, required: ["machineId"] } },
 ];
 
-/** Le client Arc et le contexte des actions d'un processus MCP local (stdio). */
+/** The Arc client and the action context of a local MCP process (stdio). */
 export function createMcpContext(env: NodeJS.ProcessEnv = process.env): { arc: ArcClient; actx: ActionCtx } {
-  // le RPC public d'Arc répond 429 en rafale : viem réessaie avec un délai croissant
-  // 19/11 : la pile AVEC les niveaux (produit 7 = SealedBountyVerified), comme le copilote
+  // Arc's public RPC answers 429 to bursts: viem retries with a growing delay
+  // the stack WITH the levels (product 7 = SealedBountyVerified), like the copilot
   const arc = createArcClient({ publicClient: createPublicClient({ chain: arcTestnet, transport: http(env.RPC_URL, { retryCount: 5, retryDelay: 400 }) }) as any, deployment: mcpDeployment(env) });
-  // Processus local (stdio) : il rend la calldata complète (un agent peut la passer telle quelle au wallet de
-  // l'utilisateur, qui signe). Une URL d'enclave piégée ne doit pas lui faire lire le réseau de l'utilisateur : mêmes
-  // gardes que le copilote, sauf MCP_ALLOW_PRIVATE_URLS=1 (lire le /attest d'une VM du réseau local, en développement).
+  // Local process (stdio): it returns the full calldata (an agent can pass it as is to the user's wallet, which signs).
+  // A malicious enclave URL must not make it read the user's network: same guards as the copilot, except with
+  // MCP_ALLOW_PRIVATE_URLS=1 (reading the /attest of a VM on the local network, in development).
   const actx: ActionCtx = {
     allowPrivateUrls: env.MCP_ALLOW_PRIVATE_URLS === "1",
     enclavePathPrefixes: parsePrefixes(env.ENCLAVE_PATH_PREFIXES),
@@ -193,7 +191,7 @@ export function createMcpContext(env: NodeJS.ProcessEnv = process.env): { arc: A
   return { arc, actx };
 }
 
-/** 20/11 : the action texts shared with the copilot (services/copilot/src/arc-actions.ts) name the copilot's own tools,
+/** The action texts shared with the copilot (services/copilot/src/arc-actions.ts) name the copilot's own tools,
  *  the site's old page names and the API's address inside the server: on this MCP server the tools are the arc_* ones,
  *  the pages are the site's current ones and the API is the public one. */
 const PUBLIC_API = (process.env.PUBLIC_API_URL || "https://archive.62-171-153-35.sslip.io/api").replace(/\/+$/, "");
@@ -210,7 +208,7 @@ export function publicText(s: string): string {
     .replace(/http:\/\/api:8809\/?/g, (m) => (m.endsWith("/") ? PUBLIC_API + "/" : PUBLIC_API));
 }
 
-/** 20/11 : a closed session has nothing left to use: its remainder is 0, and what it refunded at closing is shown as paid. */
+/** A closed session has nothing left to use: its remainder is 0, and what it refunded at closing is shown as paid. */
 function closedSessions(v: any): any {
   if (Array.isArray(v)) return v.map(closedSessions);
   if (!v || typeof v !== "object") return v;
@@ -225,7 +223,7 @@ function closedSessions(v: any): any {
   return o;
 }
 
-/** 20/11 : un prix lisible avec son unité, jamais un « 0.0001 USDC » nu : par jeton (session), par appel (x402), gratuit, ou payé par le pool d'une prime. */
+/** A readable price with its unit, never a bare "0.0001 USDC": per token (session), per call (x402), free, or paid from a bounty's pool. */
 function usdc2(x: bigint): string { const s = formatUnits(x, 6); const [i, f] = s.split("."); return f === undefined || f.length >= 2 ? s : `${i}.${f}0`; }
 export function readablePrice(arc: ArcClient, id: string, price: bigint, settlement: string, unitTokens = 1, outWeight = 1): string {
   const s = String(settlement).toLowerCase();
@@ -245,7 +243,7 @@ function readableOfListed(arc: ArcClient, p: any): string | undefined {
   try { return readablePrice(arc, String(p.id), parseUnits(String(p.pricePerUnit).replace(/\s*USDC\s*$/, ""), 6), String(p.settlement), Number(p.unitTokens ?? 1), Number(p.outWeight ?? 1)); } catch { return undefined; }
 }
 
-/** 20/11 : the price as a person reads it, first and plain ("0.10 USDC per 1,000 tokens (100 USDC per million tokens)",
+/** The price as a person reads it, first and plain ("0.10 USDC per 1,000 tokens (100 USDC per million tokens)",
  *  "0.01 USDC per call", "free", "paid from the poster's pool"); the on-chain value goes in pricePerUnitRaw, with its unit. */
 export function plainPrice(arc: ArcClient, id: string, price: bigint, settlement: string, unitTokens = 1): string {
   const s = String(settlement).toLowerCase();
@@ -302,7 +300,7 @@ async function run(arc: ArcClient, actx: ActionCtx, name: string, a: any): Promi
     case "arc_pricing": return pricing(arc, a);
     case "arc_verify_receipt": {
       let receipt: unknown = a.receipt;
-      if (typeof receipt === "string") { try { receipt = JSON.parse(receipt); } catch { /* signalé ci-dessous */ } }
+      if (typeof receipt === "string") { try { receipt = JSON.parse(receipt); } catch { /* reported below */ } }
       const errs = receiptErrors(receipt, a.signature);
       if (errs.length) throw new Error(`invalid receipt: ${errs.join("; ")}`);
       const v = await arc.verifyReceipt(normalizeReceipt(receipt), a.signature);
@@ -321,7 +319,7 @@ async function run(arc: ArcClient, actx: ActionCtx, name: string, a: any): Promi
   }
 }
 
-/** 20/11 : the output keys in English. The shared copilot code (arc-actions.ts) names them in French; values (and the
+/** The output keys in English. The shared copilot code (arc-actions.ts) names them in French; values (and the
  *  keys of EIP-712 typed data, files and contract parameters, already English) are kept as they are. A key whose English
  *  name is already taken in the same object stays as it was. Known French rail labels become English too. */
 const KEYS_EN: Record<string, string> = {
@@ -369,8 +367,8 @@ export function englishKeys(v: any, depth = 0): any {
 
 export type ToolOutput = { content: Array<{ type: "text"; text: string }>; isError?: boolean };
 
-/** Exécute un outil et rend sa sortie MCP : JSON lisible, secrets masqués ; une erreur est rendue à l'agent (isError)
- *  sans faire tomber le serveur. */
+/** Runs a tool and returns its MCP output: readable JSON, secrets masked; an error is returned to the agent (isError)
+ *  without bringing the server down. */
 export async function callTool(arc: ArcClient, actx: ActionCtx, name: string, args: unknown): Promise<ToolOutput> {
   const a = (args && typeof args === "object" ? args : {}) as any;
   try {

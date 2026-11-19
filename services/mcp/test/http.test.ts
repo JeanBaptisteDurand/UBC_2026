@@ -1,9 +1,9 @@
-/** http.test.ts — le serveur MCP en Streamable HTTP, sans état (CONTRACT.md §6), contre une fausse API ArcHive LOCALE et
- *  un faux client Arc (aucun appel réseau sortant) : initialize, tools/list et tools/call en HTTP ; pas d'identifiant de
- *  session ; 405 sur GET et DELETE ; 413 au-delà de 64 Kio (annoncé ou compté) ; 415, 400 ; contrôle préalable CORS ;
- *  /mcp/health ; débit par IP (dernier maillon de X-Forwarded-For) ; requêtes simultanées bornées ; délai d'outil ; le
- *  vrai client du SDK MCP en HTTP, et le serveur stdio toujours en état de marche.
- *  Lancer : cd services/mcp && npx tsx --test test/http.test.ts */
+/** http.test.ts — the MCP server over Streamable HTTP, stateless (docs/COPILOT-SITE-CONTRACT.md §6), against a fake
+ *  LOCAL ArcHive API and a fake Arc client (no outgoing network call): initialize, tools/list and tools/call over HTTP;
+ *  no session id; 405 on GET and DELETE; 413 above 64 KiB (announced or counted); 415, 400; CORS preflight;
+ *  /mcp/health; per-IP rate (last hop of X-Forwarded-For); bounded concurrent requests; tool timeout; the real MCP SDK
+ *  client over HTTP, and the stdio server still working.
+ *  Run: cd services/mcp && npx tsx --test test/http.test.ts */
 import test, { before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { request as httpRequest } from "node:http";
@@ -50,26 +50,26 @@ async function rpc(base: string, method: string, params?: unknown, headers: Reco
 }
 const INIT = { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "test", version: "1" } };
 
-test("initialize, notifications/initialized, tools/list et tools/call en HTTP, sans session", async () => {
+test("initialize, notifications/initialized, tools/list and tools/call over HTTP, no session", async () => {
   const base = await start();
   const init = await rpc(base, "initialize", INIT, { "mcp-protocol-version": "" });
   assert.equal(init.status, 200);
   assert.match(init.res.headers.get("content-type") ?? "", /^application\/json/);
-  assert.equal(init.res.headers.get("mcp-session-id"), null, "sans état : aucun identifiant de session");
+  assert.equal(init.res.headers.get("mcp-session-id"), null, "stateless: no session id");
   assert.equal(init.res.headers.get("access-control-allow-origin"), "*");
   assert.equal(init.json.result.protocolVersion, "2025-03-26");
   assert.deepEqual(init.json.result.serverInfo, { name: "archive", version: "0.0.5" });
   assert.ok(init.json.result.capabilities.tools);
   assert.match(init.json.result.instructions, /PREPARE actions only/);
-  // une notification seule : 202, sans corps
+  // a notification alone: 202, no body
   const note = await fetch(`${base}/mcp`, { method: "POST", headers: MCP_HEADERS, body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) });
   assert.equal(note.status, 202);
-  // tools/list sur un serveur neuf (sans état) : les mêmes outils que le serveur stdio
+  // tools/list on a fresh (stateless) server: the same tools as the stdio server
   const list = await rpc(base, "tools/list");
   assert.equal(list.status, 200);
   assert.deepEqual(list.json.result.tools.map((t: any) => t.name), TOOLS.map((t) => t.name));
   assert.equal(list.json.result.tools.length, 16);
-  // tools/call : une liste lue dans la fausse API, puis un outil qui échoue proprement sans réseau
+  // tools/call: a list read from the fake API, then a tool that fails cleanly without a network
   const products = await rpc(base, "tools/call", { name: "arc_products", arguments: {} });
   assert.equal(products.json.result.isError, undefined);
   assert.equal(JSON.parse(products.json.result.content[0].text).products.length, 2);
@@ -80,13 +80,13 @@ test("initialize, notifications/initialized, tools/list et tools/call en HTTP, s
   const unknown = await rpc(base, "tools/call", { name: "arc_nope", arguments: {} });
   assert.equal(unknown.json.result.isError, true);
   assert.match(unknown.json.result.content[0].text, /unknown tool: arc_nope/);
-  // deux requêtes simultanées, chacune son serveur
+  // two concurrent requests, each with its own server
   const [a, b] = await Promise.all([rpc(base, "tools/list"), rpc(base, "tools/list")]);
   assert.equal(a.status, 200);
   assert.equal(b.status, 200);
 });
 
-test("GET et DELETE /mcp : 405 (erreur JSON-RPC, en-tête Allow) ; /mcp/health ; chemin inconnu : 404", async () => {
+test("GET and DELETE /mcp: 405 (JSON-RPC error, Allow header); /mcp/health; unknown path: 404", async () => {
   const base = await start();
   for (const method of ["GET", "DELETE"]) {
     const r = await fetch(`${base}/mcp`, { method, headers: { accept: "text/event-stream" } });
@@ -102,11 +102,11 @@ test("GET et DELETE /mcp : 405 (erreur JSON-RPC, en-tête Allow) ; /mcp/health ;
   const h = await fetch(`${base}/mcp/health`);
   assert.equal(h.status, 200);
   assert.deepEqual(await h.json(), { ok: true });
-  assert.equal((await fetch(`${base}/mcp/`, { method: "GET" })).status, 405, "barre finale : la même route");
+  assert.equal((await fetch(`${base}/mcp/`, { method: "GET" })).status, 405, "trailing slash: the same route");
   assert.equal((await fetch(`${base}/other`)).status, 404);
 });
 
-test("contrôle préalable CORS : origine « * », en-têtes content-type, mcp-protocol-version, accept", async () => {
+test("CORS preflight: origin \"*\", headers content-type, mcp-protocol-version, accept", async () => {
   const base = await start();
   const r = await fetch(`${base}/mcp`, { method: "OPTIONS", headers: { origin: "https://claude.ai", "access-control-request-method": "POST", "access-control-request-headers": "content-type, mcp-protocol-version, accept" } });
   assert.equal(r.status, 204);
@@ -114,12 +114,12 @@ test("contrôle préalable CORS : origine « * », en-têtes content-type, mcp-p
   assert.match(r.headers.get("access-control-allow-methods") ?? "", /POST/);
   const allowed = (r.headers.get("access-control-allow-headers") ?? "").split(",").map((s) => s.trim());
   for (const h of ["content-type", "mcp-protocol-version", "accept"]) assert.ok(allowed.includes(h), h);
-  assert.equal(r.headers.get("access-control-allow-credentials"), null, "jamais d'identifiants");
+  assert.equal(r.headers.get("access-control-allow-credentials"), null, "never credentials");
   const post = await rpc(base, "tools/list", undefined, { origin: "https://claude.ai" });
   assert.equal(post.res.headers.get("access-control-allow-origin"), "*");
 });
 
-/** Un POST brut (Content-Length annoncé ou corps en morceaux), pour les cas que fetch ne sait pas faire. */
+/** A raw POST (announced Content-Length or a chunked body), for the cases fetch cannot do. */
 function rawPost(base: string, chunks: string[], headers: Record<string, string>): Promise<{ status: number; body: string; headers: Record<string, unknown> }> {
   return new Promise((resolve, reject) => {
     const u = new URL(`${base}/mcp`);
@@ -134,7 +134,7 @@ function rawPost(base: string, chunks: string[], headers: Record<string, string>
   });
 }
 
-test("corps > 64 Kio : 413 (Content-Length annoncé, ou compté au fil d'un envoi en morceaux) ; 415 ; JSON invalide : 400", async () => {
+test("body > 64 KiB: 413 (announced Content-Length, or counted during a chunked upload); 415; invalid JSON: 400", async () => {
   const base = await start();
   const big = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: { pad: "x".repeat(70 * 1024) } });
   const r1 = await fetch(`${base}/mcp`, { method: "POST", headers: MCP_HEADERS, body: big });
@@ -142,11 +142,11 @@ test("corps > 64 Kio : 413 (Content-Length annoncé, ou compté au fil d'un envo
   const j1 = await r1.json() as any;
   assert.equal(j1.error.code, -32000);
   assert.match(j1.error.message, /64 KiB at most/);
-  // sans Content-Length (transfer-encoding: chunked) : compté pendant la lecture
+  // without Content-Length (transfer-encoding: chunked): counted while reading
   const r2 = await rawPost(base, Array.from({ length: 10 }, () => "y".repeat(8 * 1024)), { ...MCP_HEADERS, "transfer-encoding": "chunked" });
   assert.equal(r2.status, 413);
   assert.match(r2.body, /too large/);
-  // juste sous la borne : accepté
+  // just under the limit: accepted
   const fits = JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list", params: { _meta: { pad: "z".repeat(60 * 1024) } } });
   assert.equal((await fetch(`${base}/mcp`, { method: "POST", headers: MCP_HEADERS, body: fits })).status, 200);
   const r3 = await fetch(`${base}/mcp`, { method: "POST", headers: { "content-type": "text/plain" }, body: "{}" });
@@ -156,7 +156,7 @@ test("corps > 64 Kio : 413 (Content-Length annoncé, ou compté au fil d'un envo
   assert.equal((await r4.json() as any).error.code, -32700);
 });
 
-test("Accept : un client qui accepte du JSON (ou tout, ou rien) est servi en JSON ; text/html seul : 406", async () => {
+test("Accept: a client that accepts JSON (or anything, or nothing) is served JSON; text/html alone: 406", async () => {
   const base = await start();
   for (const accept of ["", "*/*", "application/json"]) {
     const r = await rpc(base, "tools/list", undefined, { accept });
@@ -164,14 +164,14 @@ test("Accept : un client qui accepte du JSON (ou tout, ou rien) est servi en JSO
     assert.equal(r.json.result.tools.length, 16);
   }
   assert.equal((await rpc(base, "tools/list", undefined, { accept: "text/html" })).status, 406);
-  // version de protocole inconnue : refus du SDK
+  // unknown protocol version: refused by the SDK
   assert.equal((await rpc(base, "tools/list", undefined, { "mcp-protocol-version": "1999-01-01" })).status, 400);
 });
 
-test("débit par IP : dernier maillon de X-Forwarded-For (posé par Caddy) ; 429 avec Retry-After ; une autre IP passe", async () => {
+test("per-IP rate: last hop of X-Forwarded-For (set by Caddy); 429 with Retry-After; another IP gets through", async () => {
   const base = await start({ rate: { perMinute: 3, perDay: 100, globalPerDay: 0 } });
   const as = (xff: string) => rpc(base, "tools/list", undefined, { "x-forwarded-for": xff });
-  // le premier maillon (écrit par le client) ne compte pas : c'est le dernier, celui de Caddy
+  // the first hop (written by the client) does not count: the last one, Caddy's, does
   for (const first of ["1.1.1.1", "2.2.2.2", "3.3.3.3"]) assert.equal((await as(`${first}, 198.51.100.9`)).status, 200);
   const r = await as("4.4.4.4, 198.51.100.9");
   assert.equal(r.status, 429);
@@ -179,7 +179,7 @@ test("débit par IP : dernier maillon de X-Forwarded-For (posé par Caddy) ; 429
   assert.equal(r.json.error.code, -32000);
   assert.match(r.json.error.message, /Too many requests/);
   assert.equal((await as("198.51.100.10")).status, 200);
-  // un pair public n'est pas un proxy : son X-Forwarded-For est ignoré
+  // a public peer is not a proxy: its X-Forwarded-For is ignored
   const fake = (remoteAddress: string, xff?: string) => clientIpOf({ socket: { remoteAddress }, headers: xff ? { "x-forwarded-for": xff } : {} } as any);
   assert.equal(fake("172.18.0.5", "203.0.113.1, 198.51.100.7"), "198.51.100.7");
   assert.equal(fake("::ffff:127.0.0.1", "198.51.100.7:4431"), "198.51.100.7");
@@ -187,7 +187,7 @@ test("débit par IP : dernier maillon de X-Forwarded-For (posé par Caddy) ; 429
   assert.equal(fake("10.0.0.2", "not-an-ip"), "10.0.0.2");
 });
 
-test("requêtes simultanées bornées (503) ; un outil trop lent rend une erreur à temps", async () => {
+test("bounded concurrent requests (503); a tool that is too slow returns an error in time", async () => {
   api.set("/products", { body: defaultRoutes()["/products"]!.body, delayMs: 600 });
   const base = await start({ maxInflight: 1 });
   const [a, b] = await Promise.all([
@@ -204,10 +204,10 @@ test("requêtes simultanées bornées (503) ; un outil trop lent rend une erreur
   const r = await rpc(slow, "tools/call", { name: "arc_products", arguments: {} });
   assert.ok(Date.now() - t0 < 1_200, `${Date.now() - t0} ms`);
   assert.equal(r.json.result.isError, true);
-  assert.match(r.json.result.content[0].text, /n'a pas répondu en 0 s|did not answer in time/);
+  assert.match(r.json.result.content[0].text, /did not answer in time/);
 });
 
-test("le client MCP officiel (StreamableHTTPClientTransport) : connexion, liste et appel d'outil", async () => {
+test("the official MCP client (StreamableHTTPClientTransport): connect, list and call a tool", async () => {
   const base = await start();
   const client = new Client({ name: "archive-test", version: "1.0.0" });
   await client.connect(new StreamableHTTPClientTransport(new URL(`${base}/mcp`)));
@@ -223,7 +223,7 @@ test("le client MCP officiel (StreamableHTTPClientTransport) : connexion, liste 
   }
 });
 
-test("le serveur stdio marche toujours avec le SDK mis à jour (mêmes outils)", { timeout: 60_000 }, async () => {
+test("the stdio server still works with the updated SDK (same tools)", { timeout: 60_000 }, async () => {
   const client = new Client({ name: "archive-stdio-test", version: "1.0.0" });
   const transport = new StdioClientTransport({ command: process.execPath, args: ["--import", "tsx", "src/server.ts"], cwd: join(here, ".."), stderr: "pipe" });
   await client.connect(transport);
