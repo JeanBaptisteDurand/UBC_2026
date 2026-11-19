@@ -1,15 +1,16 @@
-/** enclave-site.test.ts — le copilote du SITE dans son enclave (enclave-site.ts, 18/11/2026) avec le VRAI kit d'enclave
- *  (clés en mémoire, quote SIMULÉ faute de TDX ici), la VRAIE surface du site (copilotFromEnv avec COPILOT_SURFACE=site et
- *  les variables MESURÉES du compose enclave/phala/copilot-site-v22.yml : invite, outils, validation des outils
- *  d'interface, docs_search du site, bornes), un modèle SCRIPTÉ, et le client tel que l'écrit le panneau
- *  (frontend/src/copilot/enclave/client.ts) : la requête du site (messages, lang, user, page) scellée par HPKE, la réponse
- *  ouverte avec le secret de CETTE requête, puis sa signature vérifiée comme le fait le panneau (copie indépendante de son
- *  calcul, pas le code de l'enclave). Aucun appel réseau, aucun modèle réel.
- *  Couvre : la boucle du serveur rejouée dans l'enclave (outils d'interface rendus au navigateur, outil prepare dans
- *  `actions`, docs_search cité) ; le mandataire ne voit que du chiffré ; signature valide, liée à la question et au corps
- *  (corps modifié, autre question, autre clé → refusée) ; refus scellés signés aussi ; mode clair sans signature ; où il
- *  tourne dit juste en TDX comme hors TDX, jamais « sur le serveur » ; configuration et compose mesuré ; empreinte de la VM.
- *  Lancer : cd services/copilot && npx tsx --test test/enclave-site.test.ts */
+/** enclave-site.test.ts — the SITE copilot (AskHive) in its enclave (enclave-site.ts) with the REAL enclave kit (keys in
+ *  memory, a SIMULATED quote since there is no TDX here), the REAL site surface (copilotFromEnv with COPILOT_SURFACE=site
+ *  and the MEASURED variables of the compose enclave/phala/copilot-site-v22.yml: prompt, tools, validation of the
+ *  interface tools, the site's docs_search, limits), a SCRIPTED model, and the client as the panel writes it
+ *  (frontend/src/copilot/enclave/client.ts): the site's request (messages, lang, user, page) sealed with HPKE, the reply
+ *  opened with THIS request's secret, then its signature checked the way the panel does it (an independent copy of its
+ *  computation, not the enclave's code). No network call, no real model.
+ *  Covers: the server's loop replayed in the enclave (interface tools returned to the browser, prepare tool in
+ *  `actions`, docs_search cited); the proxy sees only ciphertext; a valid signature, bound to the question and the body
+ *  (changed body, other question, other key → refused); sealed refusals signed too; clear mode without a signature;
+ *  where it runs stated correctly in TDX and outside it, never "on the server"; configuration and measured compose; the
+ *  VM's fingerprint.
+ *  Run: cd services/copilot && npx tsx --test test/enclave-site.test.ts */
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
@@ -199,7 +200,7 @@ const sysOf = (h: H, i = 0) => String(h.m.calls[i]!.messages[0]!.content);
 
 // ---------------------------------------------------------------- la boucle du site, dans l'enclave
 
-test("site en enclave : la même boucle que le serveur (outils d'interface rendus, carte prepare, docs_search cité), scellée et SIGNÉE", async () => {
+test("site in the enclave: the same loop as the server (interface tools returned, prepare card, docs_search cited), sealed and SIGNED", async () => {
   const h = harness();
   const r = await sealedAsk(h, ask("Help me install the tool on my machine"));
   assert.equal(r.res.status, 200);
@@ -235,7 +236,7 @@ test("site en enclave : la même boucle que le serveur (outils d'interface rendu
   for (const secret of ["Install the agent", "operator_prepare_bond", "ui_navigate", SITE_REPLY_TAG]) assert.ok(!r.wireOut.includes(secret), `réponse lisible : ${secret}`);
 });
 
-test("site en enclave : l'invite est celle du site, avec la page affichée, la note de l'ENCLAVE et la consigne de langue du site", async () => {
+test("site in the enclave: the prompt is the site's, with the page on screen, the ENCLAVE's note and the site's language directive", async () => {
   const h = harness();
   await sealedAsk(h, ask("Help me install the tool on my machine"));
   const sys = sysOf(h);
@@ -249,7 +250,7 @@ test("site en enclave : l'invite est celle du site, avec la page affichée, la n
   assert.match(sys, /arrived ENCRYPTED \(HPKE\)/);
   assert.ok(sys.endsWith(siteLanguageDirective("en", "en")), "la consigne de langue du site en dernier");
   for (const re of SERVER_CLAIMS) assert.ok(!re.test(sys), `phrase du serveur dans l'invite de l'enclave : ${re}`);
-  // la note du serveur du site (« on the ArcHive site's server, NOT in an enclave ») n'entre jamais dans l'enclave
+  // the site server's note ("on the ArcHive site's server, NOT in an enclave") never enters the enclave
   if (typeof SERVER_NOTE === "string") assert.ok(!sys.includes(SERVER_NOTE));
   assert.equal((h.copilot.site as unknown as Record<string, unknown>).whereNote, undefined);
   // une seule section « WHERE YOU RUN » (la liste des libellés internes de l'invite la nomme aussi, entre parenthèses)
@@ -262,7 +263,7 @@ test("site en enclave : l'invite est celle du site, avec la page affichée, la n
   assert.ok(!names.some((n: string) => /^(send|pay|transfer|sign)/.test(n)), "aucun outil qui dépense ou signe");
 });
 
-test("signature liée à la question ET au corps : corps modifié, autre question, autre clé → refusée (le panneau dit « scellée », jamais « signée »)", async () => {
+test("signature bound to the question AND the body: changed body, other question, other key → refused (the panel then says \"sealed\", never \"signed\")", async () => {
   const h = harness({ turn: () => ({ content: "The bond is 1 USDC." }) });
   const a = await sealedAsk(h, ask("What is the bond for product 1?"));
   const b = await sealedAsk(h, ask("Something else entirely, please?"));
@@ -291,7 +292,7 @@ test("signature liée à la question ET au corps : corps modifié, autre questio
   assert.equal((await verifySiteReply(bare, { ...ctx, enc: a.enc, ciphertext: a.ciphertext })).ok, false);
 });
 
-test("refus APRÈS l'ouverture : scellés et signés aussi (statut réel dans le chiffré) ; la clé du modèle ne sort jamais", async () => {
+test("refusals AFTER opening: sealed and signed too (real status inside the ciphertext); the model key never leaves", async () => {
   const h = harness({ turn: () => ({ content: `here is the key ${SERVER_KEY}` }) });
   const bad = await sealedAsk(h, { messages: [{ role: "assistant", content: "x" }], lang: "en", page: { name: "rent" } });
   assert.equal(bad.res.status, 200, "le statut réel ne se voit pas sur le fil");
@@ -304,7 +305,7 @@ test("refus APRÈS l'ouverture : scellés et signés aussi (statut réel dans le
   assert.equal((await panelProof(h.kit.keys.signer, leak.enc, leak.ciphertext, leak.inner)).kind, "signed");
 });
 
-test("mode clair (compatibilité) dans l'enclave du site : la forme du site, la page lue, « EN CLAIR » dit, et aucune signature", async () => {
+test("clear mode (compatibility) in the site's enclave: the site's shape, the page read, \"IN CLEAR\" stated, and no signature", async () => {
   const h = harness({ turn: () => ({ content: "", tool_calls: [call("p1", "ui_navigate", { page: "operator", section: "register", reason: "Here is the registration step" })] }) });
   const res = await h.app.fetch(new Request(`${URL_}/chat`, {
     method: "POST", headers: { "content-type": "application/json", origin: SITE, "x-archive-proxy-token": PROXY_TOKEN },
@@ -322,7 +323,7 @@ test("mode clair (compatibilité) dans l'enclave du site : la forme du site, la 
   assert.equal((await direct.json() as any).code, "proxy_required");
 });
 
-test("/health du copilote du site en enclave : surface site, où il tourne, réponses signées ; /pubkeys public", async () => {
+test("/health of the site copilot in its enclave: site surface, where it runs, signed replies; /pubkeys public", async () => {
   const h = harness();
   const health = await (await h.app.fetch(new Request(`${URL_}/health`))).json() as any;
   assert.equal(health.surface, "site");
@@ -340,7 +341,7 @@ test("/health du copilote du site en enclave : surface site, où il tourne, rép
 
 // ---------------------------------------------------------------- où il tourne : vrai dans les deux cas
 
-test("note de l'enclave : en TDX elle dit l'enclave, la clé, Arc et la signature ; hors TDX elle dit le contraire ; jamais « sur le serveur »", () => {
+test("enclave note: in TDX it states the enclave, the key, Arc and the signature; outside TDX it says the opposite; never \"on the server\"", () => {
   const base: EnclaveFacts = { signer: "0xB3c51bDd7C19acFF81261BD09539EE2912F1a2dB", productId: 4n, chainId: CHAIN, registry: "0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d", model: "openai/gpt-oss-120b", provider: "https://tee.redpill.ai/v1", mock: false };
   const tdx = siteEnclaveNote({ ...base, signs: true });
   for (const sealed of [true, false]) {
@@ -375,14 +376,14 @@ test("note de l'enclave : en TDX elle dit l'enclave, la clé, Arc et la signatur
   assert.match(mock, /OUTSIDE any Intel TDX enclave/);
   assert.match(mock, /Never say you run in an enclave/);
   assert.ok(!/runs inside an Intel TDX enclave/.test(mock));
-  // la note de la console (français) : hors TDX, elle ne dit plus « dans une enclave Intel TDX »
+  // the console's note (French): outside TDX, it no longer says "dans une enclave Intel TDX" (in an Intel TDX enclave)
   const consoleMock = enclaveSystemNote({ ...base, mock: true })({ sealed: true, lang: "fr" });
   assert.match(consoleMock, /HORS de toute enclave Intel TDX/);
   assert.ok(!/OÙ TU TOURNES[^:]*: dans une enclave Intel TDX/.test(consoleMock));
   assert.match(enclaveSystemNote(base)({ sealed: true, lang: "fr" }), /OÙ TU TOURNES[^:]*: dans une enclave Intel TDX/);
 });
 
-test("garde-fou : une invite qui dit « tu tournes sur le serveur » arrête l'enclave ; l'invite du site d'aujourd'hui passe", () => {
+test("guard: a prompt that says \"you run on the server\" stops the enclave; the site's current prompt passes", () => {
   assert.equal(siteEnclaveSystem(SITE_SYSTEM), SITE_SYSTEM);
   for (const claim of [
     "4 attested copilot, free (not you: you run on the site's server).",
@@ -393,7 +394,7 @@ test("garde-fou : une invite qui dit « tu tournes sur le serveur » arrête l'e
   ]) {
     assert.throws(() => siteEnclaveSystem(`${SITE_SYSTEM}\n${claim}`), /deux vérités/, claim);
   }
-  // la note du serveur du site : reconnue comme phrase du serveur, et retirée telle quelle si elle entrait dans l'invite
+  // the site server's note: recognised as a server sentence, and removed as is if it entered the prompt
   if (typeof SERVER_NOTE === "string") {
     assert.ok(SERVER_CLAIMS.some((re) => re.test(SERVER_NOTE)), SERVER_NOTE);
     assert.ok(!siteEnclaveSystem(`${SITE_SYSTEM}\n${SERVER_NOTE}`).includes(SERVER_NOTE));
@@ -411,7 +412,7 @@ test("garde-fou : une invite qui dit « tu tournes sur le serveur » arrête l'e
   for (const k of SITE_PAGES_KB) for (const re of SERVER_CLAIMS) assert.ok(!re.test(k.text), `${k.source} : ${re}`);
 });
 
-test("console en enclave : inchangée (réponse scellée, sans signature) ; seul le site signe", async () => {
+test("console in an enclave: unchanged (sealed reply, no signature); only the site signs", async () => {
   const kit = new EnclaveKit({ productId: PRODUCT, chainId: CHAIN, registry: REG, mockBlockHash: true });
   const app = createCopilotEnclaveApp({
     kit, proxyToken: PROXY_TOKEN, attest: { operatorAllowlist: [OP], registeredOperator: async () => zeroAddress, warn: () => {} },
@@ -425,7 +426,7 @@ test("console en enclave : inchangée (réponse scellée, sans signature) ; seul
 
 // ---------------------------------------------------------------- configuration et compose mesuré
 
-test("configuration : COPILOT_SURFACE site ou console (mesurée), toute autre valeur arrête l'enclave ; seul l'environnement donné compte", () => {
+test("configuration: COPILOT_SURFACE site or console (measured), any other value stops the enclave; only the given environment counts", () => {
   const read = () => readFileSync(DEPLOYMENTS_V21, "utf8");
   const base = {
     PRODUCT_ID: "4", DEPLOYMENTS: "/app/deployments/deployments.v21.testnet.json", OPENAI_BASE_URL: "https://tee.redpill.ai/v1",
@@ -443,7 +444,7 @@ test("configuration : COPILOT_SURFACE site ou console (mesurée), toute autre va
   for (const bad of ["web", "site,console", "sites"]) assert.throws(() => readCopilotEnclaveConfig({ ...base, COPILOT_SURFACE: bad }, read), /COPILOT_SURFACE invalide/, bad);
 });
 
-test("compose v22 : la surface site mesurée, les bornes du copilote du site du serveur, aucun secret en clair, accepté par la configuration de l'enclave", () => {
+test("compose v22: the measured site surface, the server site copilot's limits, no secret in clear, accepted by the enclave's configuration", () => {
   const s = v22();
   const env = s.measured;
   // l'image : épinglée par condensat, ou le gabarit explicite d'avant le push (jamais déployable)
@@ -475,7 +476,7 @@ test("compose v22 : la surface site mesurée, les bornes du copilote du site du 
   assert.equal(cfg.model, "openai/gpt-oss-120b");
 });
 
-test("empreinte de la VM : JSON canonique de dstack, compose-hash de la v21 retrouvé, empreinte d'image v21 rejouée, prédiction pour la v22", () => {
+test("VM fingerprint: dstack's canonical JSON, the v2.1 compose-hash found again, the v2.1 image fingerprint replayed, the prediction for v22", () => {
   assert.equal(canonicalJson({ b: 1, a: ["x", { d: true, c: "é" }] }), '{"a":["x",{"c":"é","d":true}],"b":1}');
   // les mesures de la v21 (calldata de son inscription) redonnent son empreinte enregistrée
   assert.equal(predictedImageId(V21_COPILOT_VM.composeHash), V21_COPILOT_VM.imageId);
