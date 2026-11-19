@@ -79,31 +79,31 @@ contract SessionPayTest is Base {
     }
 
     function test_settleFlowAndClose() public {
-        // reçu cumulatif n°1 : 10 unités
+        // cumulative receipt no. 1: 10 units
         SessionPay.Receipt memory r1 = _receipt(1, MODEL, keccak256("resp1"), 10);
         sessionPay.settle(r1, _sigReceipt(r1, signerPk));
-        assertEq(usdc.balanceOf(operator) + bond.bondOf(operator), 1_000_000e6 + 8e6); // 80% de 10e6 (caution déduite)
+        assertEq(usdc.balanceOf(operator) + bond.bondOf(operator), 1_000_000e6 + 8e6); // 80% of 10e6 (bond deducted)
         assertEq(usdc.balanceOf(treasury), 1e6);
 
-        // reçu cumulatif n°2 : 25 unités -> delta 15
+        // cumulative receipt no. 2: 25 units -> delta 15
         SessionPay.Receipt memory r2 = _receipt(2, MODEL, keccak256("resp2"), 25);
         sessionPay.settle(r2, _sigReceipt(r2, signerPk));
         SessionPay.Session memory s = sessionPay.getSession(sessionId);
         assertEq(s.paid, 25e6);
         assertEq(s.paidUnits, 25);
 
-        // fermeture après l'échéance + grâce : remboursement du reste + verdict
+        // close after the deadline + grace: the rest is refunded + verdict
         vm.warp(block.timestamp + 1 days + 1 hours + 1);
         uint256 userBefore = usdc.balanceOf(user);
         vm.prank(user);
         sessionPay.closeSession(sessionId);
         assertEq(usdc.balanceOf(user) - userBefore, 1000e6 - 25e6);
-        assertEq(validation.responses(), 1); // une entrée ERC-8004 écrite
+        assertEq(validation.responses(), 1); // one ERC-8004 entry written
     }
 
     function test_settleRevertForgedReceipt() public {
         SessionPay.Receipt memory r = _receipt(1, MODEL, keccak256("resp"), 10);
-        // signé par une clé qui n'est pas une enclave active
+        // signed by a key that is not an active enclave
         bytes memory badSig = _sigReceipt(r, userPk);
         vm.expectRevert(SessionPay.InactiveEnclave.selector);
         sessionPay.settle(r, badSig);
@@ -111,7 +111,7 @@ contract SessionPayTest is Base {
 
     function test_settleRevertModelMismatch() public {
         SessionPay.Receipt memory r = _receipt(1, keccak256("WRONG"), keccak256("resp"), 10);
-        bytes memory sig = _sigReceipt(r, signerPk); // signé avant d'armer expectRevert
+        bytes memory sig = _sigReceipt(r, signerPk); // signed before arming expectRevert
         vm.expectRevert(SessionPay.ModelMismatch.selector);
         sessionPay.settle(r, sig);
     }
@@ -119,14 +119,14 @@ contract SessionPayTest is Base {
     function test_settleRevertNotIncreasing() public {
         SessionPay.Receipt memory r1 = _receipt(1, MODEL, keccak256("resp1"), 10);
         sessionPay.settle(r1, _sigReceipt(r1, signerPk));
-        SessionPay.Receipt memory r2 = _receipt(2, MODEL, keccak256("resp2"), 10); // pas strictement croissant
+        SessionPay.Receipt memory r2 = _receipt(2, MODEL, keccak256("resp2"), 10); // not strictly increasing
         bytes memory sig2 = _sigReceipt(r2, signerPk);
         vm.expectRevert(SessionPay.NotIncreasing.selector);
         sessionPay.settle(r2, sig2);
     }
 
     function test_reportEquivocationSlashes() public {
-        // deux reçus de même (sessionId, seq) à réponses différentes, signés par la même enclave
+        // two receipts with the same (sessionId, seq) and different answers, signed by the same enclave
         SessionPay.Receipt memory a = _receipt(5, MODEL, keccak256("respA"), 10);
         SessionPay.Receipt memory b = _receipt(5, MODEL, keccak256("respB"), 10);
         bytes memory sigA = _sigReceipt(a, signerPk);
@@ -137,8 +137,8 @@ contract SessionPayTest is Base {
 
         assertTrue(bond.banned(operator));
         assertEq(bond.bondOf(operator), 0);
-        assertEq(usdc.balanceOf(address(this)) - reporterBefore, 500e6); // moitié au dénonciateur
-        assertEq(usdc.balanceOf(user), 1_000_000e6 - 1000e6 + 500e6); // moitié à la victime (propriétaire)
+        assertEq(usdc.balanceOf(address(this)) - reporterBefore, 500e6); // half to the reporter
+        assertEq(usdc.balanceOf(user), 1_000_000e6 - 1000e6 + 500e6); // half to the victim (the owner)
     }
 
     function test_rotateKey() public {
@@ -149,9 +149,9 @@ contract SessionPayTest is Base {
     }
 
     // =====================================================================================
-    // tests négatifs ajoutés le 7/11 (reçus, sessions, clés, plafonds, saisie).
-    // Bloc courant = 1000 après setUp (enclave `signer` inscrite à ce bloc) ; ancrages en littéraux.
-    // Signatures toujours calculées AVANT vm.expectRevert (le getter RECEIPT_TYPEHASH est un appel).
+    // Negative tests: receipts, sessions, keys, caps, slashing.
+    // Current block = 1000 after setUp (enclave `signer` registered at this block); anchors are literals.
+    // Signatures are always computed BEFORE vm.expectRevert (the RECEIPT_TYPEHASH getter is a call).
     // =====================================================================================
 
     function _receiptFor(uint256 sid, uint64 seq, uint128 cumUnits, uint64 anchor)
@@ -174,7 +174,7 @@ contract SessionPayTest is Base {
         });
     }
 
-    /// @dev Session sur l'enclave de l'opérateur (`signer` pour operator, `signer2Pk` pour operator2).
+    /// @dev Session on the operator's enclave (`signer` for operator, `signer2Pk` for operator2).
     function _openSession(uint256 ownerPk, address op, address key, uint256 deposit, uint256 cap, bytes32 nonce)
         internal
         returns (uint256 sid)
@@ -220,8 +220,8 @@ contract SessionPayTest is Base {
         sid = sessionPay.openSession(q);
     }
 
-    /// @dev v2.1 ter : la session `sid` (enclave `signer`) règle `units` unités. Une session qui n'a rien payé n'écrit plus
-    ///      de verdict à la fermeture : les tests du verdict de fermeture règlent d'abord.
+    /// @dev The session `sid` (enclave `signer`) settles `units` units. A session that paid nothing no longer writes
+    ///      a verdict when it closes: the closing-verdict tests settle first.
     function _settleUnits(uint256 sid, uint128 units) internal {
         SessionPay.Receipt memory r = _receiptFor(sid, 1, units, 1000);
         sessionPay.settle(r, _sigReceipt(r, signerPk));
@@ -235,61 +235,61 @@ contract SessionPayTest is Base {
         refund = usdc.balanceOf(owner) - before;
     }
 
-    /// §9 « reçu modifié » : un reçu authentique dont un champ est changé après signature est refusé.
+    /// Threat "altered receipt": a genuine receipt with a field changed after signing is rejected.
     function test_settleRevertModifiedReceipt() public {
         SessionPay.Receipt memory inflated = _receiptFor(sessionId, 1, 10, 1000);
-        bytes memory sig = _sigReceipt(inflated, signerPk); // signé par la vraie enclave
-        inflated.cumulativeUnits = 900; // l'opérateur gonfle le cumul après coup
-        vm.expectRevert(SessionPay.InactiveEnclave.selector); // la signature ne recouvre plus l'enclave
+        bytes memory sig = _sigReceipt(inflated, signerPk); // signed by the real enclave
+        inflated.cumulativeUnits = 900; // the operator inflates the total afterwards
+        vm.expectRevert(SessionPay.InactiveEnclave.selector); // the signature no longer recovers the enclave
         sessionPay.settle(inflated, sig);
 
         SessionPay.Receipt memory swapped = _receiptFor(sessionId, 1, 10, 1000);
         bytes memory sig2 = _sigReceipt(swapped, signerPk);
-        swapped.responseHash = keccak256("autre reponse"); // réponse substituée
+        swapped.responseHash = keccak256("autre reponse"); // substituted answer
         vm.expectRevert(SessionPay.InactiveEnclave.selector);
         sessionPay.settle(swapped, sig2);
         assertEq(sessionPay.getSession(sessionId).paid, 0);
     }
 
-    /// §9 « reçu d'une autre session » : un reçu authentique de la session B ne paie pas la session A.
+    /// Threat "receipt from another session": a genuine receipt of session B does not pay session A.
     function test_settleRevertReceiptFromOtherSession() public {
         uint256 sidB = _openSession(hunterPk, operator, makeAddr("skB"), 500e6, 0, keccak256("open-B"));
         SessionPay.Receipt memory rB = _receiptFor(sidB, 1, 300, 1000);
         bytes memory sigB = _sigReceipt(rB, signerPk);
 
         SessionPay.Receipt memory relabeled = _receiptFor(sidB, 1, 300, 1000);
-        relabeled.sessionId = sessionId; // rejoué contre la session A
+        relabeled.sessionId = sessionId; // replayed against session A
         vm.expectRevert(SessionPay.InactiveEnclave.selector);
         sessionPay.settle(relabeled, sigB);
 
-        // contre-épreuve : il ne paie que SA session
+        // counter-check: it pays only ITS session
         sessionPay.settle(rB, sigB);
         assertEq(sessionPay.getSession(sidB).paid, 300e6);
         assertEq(sessionPay.getSession(sessionId).paid, 0);
     }
 
-    /// §9 « reçu d'une autre session » (autre opérateur) : l'enclave d'un opérateur ne facture pas une
-    /// session servie par un autre opérateur, même pour le même produit.
+    /// Threat "receipt from another session" (another operator): one operator's enclave cannot bill a
+    /// session served by another operator, even for the same product.
     function test_settleRevertReceiptForOtherOperatorsSession() public {
         _bondOperator(op2Pk, 1000e6);
         _registerEnclave(productId, op2Pk, signer2Pk, "s2");
         uint256 sid2 = _openSession(hunterPk, operator2, makeAddr("sk-op2"), 500e6, 0, keccak256("open-op2"));
         SessionPay.Receipt memory r = _receiptFor(sid2, 1, 100, 1000);
-        bytes memory sig = _sigReceipt(r, signerPk); // enclave d'`operator`, pas d'`operator2`
+        bytes memory sig = _sigReceipt(r, signerPk); // enclave of `operator`, not of `operator2`
         vm.expectRevert(SessionPay.WrongOperator.selector);
         sessionPay.settle(r, sig);
     }
 
-    /// §9 « enclave expirée » (v2, en blocs) : fenêtre [1000, 5999], grâce jusqu'au bloc 9999. Un reçu
-    /// ancré APRÈS la fenêtre n'est jamais payé ; un reçu ancré DANS la fenêtre se règle pendant la grâce,
-    /// plus après (sans réattestation).
+    /// Threat "expired enclave" (in blocks): window [1000, 5999], grace until block 9999. A receipt
+    /// anchored AFTER the window is never paid; a receipt anchored INSIDE the window settles during the grace period,
+    /// not after (without re-attestation).
     function test_settleRevertExpiredEnclave() public {
         SessionPay.Receipt memory inWindow = _receiptFor(sessionId, 1, 10, 5999);
         SessionPay.Receipt memory afterExpiry = _receiptFor(sessionId, 2, 20, 6000);
         bytes memory sigIn = _sigReceipt(inWindow, signerPk);
         bytes memory sigAfter = _sigReceipt(afterExpiry, signerPk);
 
-        vm.roll(9999); // dernier bloc de la grâce
+        vm.roll(9999); // last block of the grace period
         vm.expectRevert(SessionPay.InactiveEnclave.selector);
         sessionPay.settle(afterExpiry, sigAfter);
 
@@ -298,28 +298,28 @@ contract SessionPayTest is Base {
         assertEq(sessionPay.getSession(sessionId).paid, 10e6);
         vm.revertToState(snap);
 
-        vm.roll(10_000); // grâce écoulée
+        vm.roll(10_000); // grace period over
         vm.expectRevert(SessionPay.InactiveEnclave.selector);
         sessionPay.settle(inWindow, sigIn);
     }
 
-    /// Correction 4 (bout en bout) : un renouvellement de l'enclave ne rend pas impayable le dernier reçu
-    /// d'une session ancré AVANT le renouvellement.
+    /// End to end: a renewal of the enclave does not make the last receipt of a session anchored
+    /// BEFORE the renewal unpayable.
     function test_settleReceiptAnchoredBeforeRenewal() public {
         SessionPay.Receipt memory r = _receiptFor(sessionId, 1, 10, 1005);
         bytes memory sig = _sigReceipt(r, signerPk);
         vm.roll(1010);
         bytes memory renewQuote = abi.encodePacked("quote-renew-sp");
-        bytes32 x25519 = keccak256(abi.encodePacked("x25519", bytes32("s1"))); // même dérivation que Base
+        bytes32 x25519 = keccak256(abi.encodePacked("x25519", bytes32("s1"))); // same derivation as Base
         module.setMeasurements(renewQuote, _measurements(productId, operator, signer, x25519, 1009, false));
         vm.prank(operator);
-        registry.registerEnclave(productId, renewQuote, 1009, signer, x25519, ""); // renouvellement à 1010
+        registry.registerEnclave(productId, renewQuote, 1009, signer, x25519, ""); // renewal at 1010
         sessionPay.settle(r, sig);
         assertEq(sessionPay.getSession(sessionId).paid, 10e6);
     }
 
-    /// §9 « enclave invalidée » : reçu ancré au bloc d'invalidation ou après → refus ; ancré avant → payé
-    /// (voulu : « non invalidée avant ce bloc »).
+    /// Threat "invalidated enclave": a receipt anchored at the invalidation block or after → rejected; anchored before → paid
+    /// (intended: "not invalidated before this block").
     function test_settleRevertInvalidatedEnclave() public {
         SessionPay.Receipt memory early = _receiptFor(sessionId, 1, 10, 1005);
         SessionPay.Receipt memory late = _receiptFor(sessionId, 2, 20, 1010);
@@ -327,8 +327,8 @@ contract SessionPayTest is Base {
         bytes memory sigLate = _sigReceipt(late, signerPk);
 
         vm.roll(1010);
-        bytes memory quote = abi.encodePacked("quote", bytes32("s1")); // quote d'inscription (Base)
-        IAttestationModule.Measurements memory bad; // le collatéral actuel ne le valide plus
+        bytes memory quote = abi.encodePacked("quote", bytes32("s1")); // registration quote (Base)
+        IAttestationModule.Measurements memory bad; // the current collateral no longer validates it
         module.setMeasurements(quote, bad);
         registry.invalidate(signer, quote); // deactivatedAtBlock = 1010
 
@@ -339,10 +339,10 @@ contract SessionPayTest is Base {
         assertEq(sessionPay.getSession(sessionId).paid, 10e6);
     }
 
-    /// §9 « requête signée par une clé révoquée ». La signature des REQUÊTES par la clé de session est
-    /// vérifiée DANS l'enclave (O2 lit `sessionKey` on-chain à chaque requête) : aucun chemin on-chain ne
-    /// l'accepte. On verrouille ici ce dont l'enclave dépend : après rotateKey la clé en cours change, la
-    /// clé révoquée ne peut ni reprendre la main ni régler quoi que ce soit.
+    /// Threat "request signed by a revoked key". The signature of REQUESTS by the session key is
+    /// checked INSIDE the enclave (the inference enclave reads `sessionKey` on chain for every request): no on-chain path
+    /// accepts it. This test locks what the enclave depends on: after rotateKey the current key changes, and the
+    /// revoked key can neither take control back nor settle anything.
     function test_rotateKeyRevokesOldKey() public {
         (address oldKey, uint256 oldKeyPk) = makeAddrAndKey("old-session-key");
         uint256 sid = _openSession(userPk, operator, oldKey, 100e6, 0, keccak256("open-rot"));
@@ -351,19 +351,19 @@ contract SessionPayTest is Base {
         sessionPay.rotateKey(sid, newKey);
         assertEq(sessionPay.getSession(sid).sessionKey, newKey);
 
-        // la clé révoquée (volée) ne peut pas se réinstaller : seule la propriétaire tourne la clé
+        // the revoked (stolen) key cannot reinstall itself: only the owner rotates the key
         vm.prank(oldKey);
         vm.expectRevert(SessionPay.NotOwner.selector);
         sessionPay.rotateKey(sid, oldKey);
 
-        // et elle n'a aucune autorité de règlement
+        // and it has no settlement authority
         SessionPay.Receipt memory r = _receiptFor(sid, 1, 10, 1000);
         bytes memory sig = _sigReceipt(r, oldKeyPk);
         vm.expectRevert(SessionPay.InactiveEnclave.selector);
         sessionPay.settle(r, sig);
     }
 
-    /// Révocation par closeSession : session close → plus de règlement ni de rotation.
+    /// Revocation by closeSession: closed session → no more settlement or rotation.
     function test_closedSessionRefusesSettleAndRotate() public {
         SessionPay.Receipt memory r = _receiptFor(sessionId, 1, 10, 1000);
         bytes memory sig = _sigReceipt(r, signerPk);
@@ -377,17 +377,17 @@ contract SessionPayTest is Base {
         sessionPay.rotateKey(sessionId, makeAddr("late-key"));
     }
 
-    /// §9 « session vide » : un reçu au-delà du dépôt ne paie jamais plus que le dépôt, et ne touche pas
-    /// aux dépôts des autres sessions (le contrat détient tous les dépôts en commun).
+    /// Threat "empty session": a receipt beyond the deposit never pays more than the deposit, and does not touch
+    /// the deposits of other sessions (the contract holds all deposits together).
     function test_settleEmptySessionNeverPaysBeyondDeposit() public {
         uint256 sid = _openSession(hunterPk, operator, makeAddr("sk-small"), 10e6, 0, keccak256("open-small"));
         uint256 poolBefore = usdc.balanceOf(address(sessionPay)); // 1000e6 (session A) + 10e6
 
-        SessionPay.Receipt memory over = _receiptFor(sid, 1, 15, 1000); // 15 USDC servis, 10 déposés
+        SessionPay.Receipt memory over = _receiptFor(sid, 1, 15, 1000); // 15 USDC served, 10 deposited
         sessionPay.settle(over, _sigReceipt(over, signerPk));
         assertEq(sessionPay.getSession(sid).paid, 10e6);
 
-        SessionPay.Receipt memory more = _receiptFor(sid, 2, 40, 1000); // session vide : plus rien
+        SessionPay.Receipt memory more = _receiptFor(sid, 2, 40, 1000); // empty session: nothing more
         sessionPay.settle(more, _sigReceipt(more, signerPk));
         assertEq(sessionPay.getSession(sid).paid, 10e6);
 
@@ -396,7 +396,7 @@ contract SessionPayTest is Base {
         assertEq(_closeAfterExpiry(sid, hunter), 0);
     }
 
-    /// Plafond de la clé (cap) : la session ne paie jamais au-delà de son plafond ; le reste est rendu.
+    /// Key cap: the session never pays beyond its cap; the rest is refunded.
     function test_settleRespectsSessionCap() public {
         uint256 sid = _openSession(hunterPk, operator, makeAddr("sk-cap"), 100e6, 30e6, keccak256("open-cap"));
         SessionPay.Receipt memory r = _receiptFor(sid, 1, 50, 1000);
@@ -405,8 +405,8 @@ contract SessionPayTest is Base {
         assertEq(_closeAfterExpiry(sid, hunter), 70e6);
     }
 
-    /// §9 « montant au-dessus du plafond d'une seule enclave » (C4) : un règlement ne libère pas plus de la
-    /// moitié de la caution disponible sur 24 h (caution 1 000 USDC → 500 au plus).
+    /// Threat "amount above the single-enclave cap": a settlement never releases more than
+    /// half of the available bond over 24 h (bond 1,000 USDC → at most 500).
     function test_settleRevertAboveSingleEnclaveExposure() public {
         SessionPay.Receipt memory r = _receiptFor(sessionId, 1, 600, 1000); // 600 USDC dus
         bytes memory sig = _sigReceipt(r, signerPk);
@@ -414,11 +414,11 @@ contract SessionPayTest is Base {
         sessionPay.settle(r, sig);
     }
 
-    /// §9 bout en bout (inférence) : 100 appels → 100 reçus cumulatifs → UN règlement → reste remboursé.
+    /// Threat, end to end (inference): 100 calls → 100 cumulative receipts → ONE settlement → rest refunded.
     function test_hundredCallsOneSettlement() public {
         SessionPay.Receipt memory last;
         for (uint64 i = 1; i <= 100; i++) {
-            last = _receiptFor(sessionId, i, uint128(i) * 3, 1000); // 3 unités par appel
+            last = _receiptFor(sessionId, i, uint128(i) * 3, 1000); // 3 units per call
         }
         uint256 opBefore = usdc.balanceOf(operator);
         sessionPay.settle(last, _sigReceipt(last, signerPk));
@@ -428,13 +428,13 @@ contract SessionPayTest is Base {
         assertEq(_closeAfterExpiry(sessionId, user), 700e6);
     }
 
-    /// §9 « écriture ERC-8004 refusée sur un chemin de saisie (la saisie passe quand même) ».
+    /// Threat "ERC-8004 write refused on a slashing path (the slashing still happens)".
     function test_slashGoesThroughWhenErc8004WriteFails() public {
         SessionPay.Receipt memory a = _receipt(5, MODEL, keccak256("respA"), 10);
         SessionPay.Receipt memory b = _receipt(5, MODEL, keccak256("respB"), 10);
         bytes memory sigA = _sigReceipt(a, signerPk);
         bytes memory sigB = _sigReceipt(b, signerPk);
-        validation.setShouldRevert(true); // le registre de validation ERC-8004 refuse l'écriture
+        validation.setShouldRevert(true); // the ERC-8004 validation registry refuses the write
 
         uint256 reporterBefore = usdc.balanceOf(address(this));
         sessionPay.reportEquivocation(a, sigA, b, sigB);
@@ -442,29 +442,29 @@ contract SessionPayTest is Base {
         assertTrue(bond.banned(operator));
         assertEq(bond.bondOf(operator), 0);
         assertEq(usdc.balanceOf(address(this)) - reporterBefore, 500e6);
-        assertEq(validation.responses(), 0); // aucune entrée écrite, et la saisie a eu lieu
+        assertEq(validation.responses(), 0); // no entry written, and the slashing took place
     }
 
     // =====================================================================================
-    // v2 — corrections 6, 7, 8, 10 (prix verrouillé, verdict par session, drapeau honnête, plafond produit)
+    // v2 fixes: locked price, verdict per session, honest flag, product cap
     // =====================================================================================
 
-    /// @dev Change le prix du produit par le chemin normal (proposeUpdate → timelock → applyUpdate).
+    /// @dev Changes the product's price through the normal path (proposeUpdate → timelock → applyUpdate).
     function _changePrice(uint256 newPrice) internal {
-        products.proposeUpdate(productId, keccak256("manifest"), newPrice, MODEL); // ce contrat est l'auteur
+        products.proposeUpdate(productId, keccak256("manifest"), newPrice, MODEL); // this contract is the author
         vm.warp(vm.getBlockTimestamp() + TIMELOCK + 1);
         products.applyUpdate(productId);
         assertEq(products.getProduct(productId).price, newPrice);
     }
 
-    /// Correction 6 : le prix est VERROUILLÉ à l'ouverture. Une hausse après l'ouverture ne requalifie pas
-    /// rétroactivement la session ; seules les sessions ouvertes après la hausse paient le nouveau prix.
+    /// The price is LOCKED when the session opens. A rise after the opening does not requalify
+    /// the session retroactively; only sessions opened after the rise pay the new price.
     function test_priceLockedAtOpen_increaseHasNoEffect() public {
         assertEq(sessionPay.getSession(sessionId).price, 1e6);
         SessionPay.Receipt memory r1 = _receiptFor(sessionId, 1, 10, 1000);
         sessionPay.settle(r1, _sigReceipt(r1, signerPk)); // 10 × 1 USDC
 
-        _changePrice(3e6); // le prix du produit triple après l'ouverture
+        _changePrice(3e6); // the product's price triples after the opening
 
         SessionPay.Receipt memory r2 = _receiptFor(sessionId, 2, 25, 1000);
         sessionPay.settle(r2, _sigReceipt(r2, signerPk));
@@ -476,24 +476,24 @@ contract SessionPayTest is Base {
         assertEq(sessionPay.getSession(sid2).price, 3e6, "une session ouverte apres la hausse paie le nouveau prix");
     }
 
-    /// Correction 6 : une baisse de prix ne fait plus revert le règlement suivant (v1 : dû = 15 × 0,5 = 7,5
-    /// < 10 déjà payés → soustraction négative, revert jusqu'à ce que le cumul rattrape).
+    /// A price cut no longer reverts the next settlement (before the fix: due = 15 × 0.5 = 7.5
+    /// < 10 already paid → negative subtraction, revert until the total caught up).
     function test_priceLockedAtOpen_decreaseDoesNotRevert() public {
         SessionPay.Receipt memory r1 = _receiptFor(sessionId, 1, 10, 1000);
-        sessionPay.settle(r1, _sigReceipt(r1, signerPk)); // 10e6 payés
+        sessionPay.settle(r1, _sigReceipt(r1, signerPk)); // 10e6 paid
 
         _changePrice(0.5e6);
 
         SessionPay.Receipt memory r2 = _receiptFor(sessionId, 2, 15, 1000);
         sessionPay.settle(r2, _sigReceipt(r2, signerPk));
-        assertEq(sessionPay.getSession(sessionId).paid, 15e6); // 15 × 1 USDC (prix verrouillé)
+        assertEq(sessionPay.getSession(sessionId).paid, 15e6); // 15 × 1 USDC (locked price)
     }
 
-    /// Correction 7 : le requestHash ERC-8004 du verdict d'une session porte son sessionId. Deux sessions du
-    /// même propriétaire sur le même produit écrivent deux entrées distinctes (v1 : le même hash).
+    /// The ERC-8004 requestHash of a session's verdict carries its sessionId. Two sessions of the
+    /// same owner on the same product write two distinct entries (before the fix: the same hash).
     function test_verdictRequestHashIncludesSessionId() public {
         uint256 sid2 = _openSession(userPk, operator, makeAddr("sk-2"), 100e6, 0, keccak256("open-2"));
-        _settleUnits(sessionId, 10); // v2.1 ter : deux sessions qui ont payé (sinon, aucun verdict)
+        _settleUnits(sessionId, 10); // two sessions that paid (otherwise, no verdict)
         _settleUnits(sid2, 10);
         vm.recordLogs();
         _closeAfterExpiry(sessionId, user);
@@ -508,24 +508,24 @@ contract SessionPayTest is Base {
         }
         assertEq(n, 2, "deux verdicts");
         assertTrue(hashes[0] != hashes[1], "deux sessions, deux requestHash");
-        // v2.1 : le requestHash commence par (block.chainid, address(this)) — mis à jour avec le changement voulu
+        // v2.1: the requestHash starts with (block.chainid, address(this)), updated with the intended change
         assertEq(hashes[0], keccak256(abi.encode(block.chainid, address(sessionPay), "session", sessionId, productId, user)));
         assertEq(hashes[1], keccak256(abi.encode(block.chainid, address(sessionPay), "session", sid2, productId, user)));
         assertTrue(sessionPay.getSession(sessionId).verdictWritten);
         assertTrue(sessionPay.getSession(sid2).verdictWritten);
     }
 
-    /// Correction 8 : sur le chemin d'équivocation, verdictWritten ne passe à vrai que si l'écriture ERC-8004
-    /// a réussi. La fermeture n'écrit jamais « 100 vérifié » pour un opérateur radié ; un nouveau
-    /// signalement de la même preuve retente le verdict de faute (la saisie, elle, ne prend plus rien).
+    /// On the equivocation path, verdictWritten becomes true only if the ERC-8004 write
+    /// succeeded. Closing never writes "100 verified" for a banned operator; a new
+    /// report of the same proof retries the fault verdict (the slashing itself takes nothing more).
     function test_equivocationVerdictFlagOnlyWhenWritten() public {
         SessionPay.Receipt memory a = _receipt(5, MODEL, keccak256("respA"), 10);
         SessionPay.Receipt memory b = _receipt(5, MODEL, keccak256("respB"), 10);
         bytes memory sigA = _sigReceipt(a, signerPk);
         bytes memory sigB = _sigReceipt(b, signerPk);
-        _settleUnits(sessionId, 10); // v2.1 ter : la session a payé ; c'est bien la radiation qui écarte le 100
+        _settleUnits(sessionId, 10); // the session paid; it is indeed the ban that rules out the 100
 
-        validation.setShouldRevert(true); // le registre ERC-8004 refuse l'écriture
+        validation.setShouldRevert(true); // the ERC-8004 registry refuses the write
         sessionPay.reportEquivocation(a, sigA, b, sigB);
         assertTrue(bond.banned(operator));
         assertFalse(sessionPay.getSession(sessionId).verdictWritten, "ecriture echouee : drapeau non pose");
@@ -536,17 +536,17 @@ contract SessionPayTest is Base {
         assertFalse(sessionPay.getSession(sessionId).verdictWritten);
 
         uint256 reporterBefore = usdc.balanceOf(address(this));
-        sessionPay.reportEquivocation(a, sigA, b, sigB); // nouveau signalement : retente le verdict de faute
+        sessionPay.reportEquivocation(a, sigA, b, sigB); // new report: retries the fault verdict
         assertEq(usdc.balanceOf(address(this)), reporterBefore, "rien a saisir une deuxieme fois");
         assertEq(validation.responses(), 1);
         assertTrue(sessionPay.getSession(sessionId).verdictWritten);
     }
 
-    /// Correction 8, contre-épreuve : écriture réussie → drapeau posé, pas de second verdict à la fermeture.
+    /// Counter-check: successful write → flag set, no second verdict at closing.
     function test_equivocationVerdictWrittenOnce() public {
         SessionPay.Receipt memory a = _receipt(5, MODEL, keccak256("respA"), 10);
         SessionPay.Receipt memory b = _receipt(5, MODEL, keccak256("respB"), 10);
-        _settleUnits(sessionId, 10); // v2.1 ter : la session a payé ; la fermeture n'ajoute pas de 100 après la faute
+        _settleUnits(sessionId, 10); // the session paid; closing does not add a 100 after the fault
         sessionPay.reportEquivocation(a, _sigReceipt(a, signerPk), b, _sigReceipt(b, signerPk));
         assertTrue(sessionPay.getSession(sessionId).verdictWritten);
         assertEq(validation.responses(), 1);
@@ -554,11 +554,11 @@ contract SessionPayTest is Base {
         assertEq(validation.responses(), 1);
     }
 
-    /// Correction 10 : le plafond d'exposition du produit (50 USDC par opérateur et par 24 h) s'applique en
-    /// plus de « ½ caution disponible » (500 USDC ici) ; la fenêtre suivante remet le compteur à zéro.
+    /// The product's exposure cap (50 USDC per operator per 24 h) applies on
+    /// top of "½ of the available bond" (500 USDC here); the next window resets the counter.
     function test_settleRespectsProductExposureCap() public {
         productId = _proposeAndActivate(address(sessionPay), false, MODEL, 1e6, 100e6, 50e6);
-        _registerEnclave(productId, opPk, 0x6161, "cap"); // enclave dédiée, bloc 1000
+        _registerEnclave(productId, opPk, 0x6161, "cap"); // dedicated enclave, block 1000
         uint256 sid =
             _openSessionWith(vm.addr(0x6161), hunterPk, operator, makeAddr("sk-cap-p"), 200e6, 0, keccak256("open-cap-p"));
 
@@ -571,17 +571,17 @@ contract SessionPayTest is Base {
         vm.expectRevert(OperatorBond.ExposureCapExceeded.selector); // 30 + 25 > 50
         sessionPay.settle(r2, sig2);
 
-        vm.warp(vm.getBlockTimestamp() + 36 hours + 1); // v2 : 24 h GLISSANTES, l'exposition compte ≤ 36 h
+        vm.warp(vm.getBlockTimestamp() + 36 hours + 1); // ROLLING 24 h: an exposure counts for ≤ 36 h
         sessionPay.settle(r2, sig2);
         assertEq(sessionPay.getSession(sid).paid, 55e6);
         assertEq(bond.exposureOf(operator, productId), 25e6);
     }
     // =====================================================================================
-    // v2 bis — revue adverse du 7/11 : produit et enclave de la session, échéance, modèle verrouillé
+    // Adversarial review of v2: the session's product and enclave, deadline, locked model
     // =====================================================================================
 
-    /// FIXED : une session ne s'ouvre que sur un produit réglé par SessionPay (ou les tentatives de la Prime
-    /// scellée), jamais au prix 0.
+    /// FIXED: a session opens only on a product settled by SessionPay (or the attempts of the Sealed
+    /// Bounty), never at price 0.
     function test_FIXED_openOnlyOnOwnProductsAtNonZeroPrice() public {
         uint256 x402Product = _proposeAndActivate(address(x402), false, MODEL, 1e6, 100e6, 0);
         productId = x402Product;
@@ -593,7 +593,7 @@ contract SessionPayTest is Base {
         vm.expectRevert(SessionPay.ZeroPrice.selector);
         this.openFor(signer, 10e6, keccak256("o-free"));
 
-        // tentatives payantes de la Prime scellée : produit réglé par SealedBounty, prix 0,01 USDC par tentative
+        // paid attempts of the Sealed Bounty: product settled by SealedBounty, price 0.01 USDC per attempt
         uint256 attempts = _proposeAndActivate(address(sealedBounty), true, bytes32(0), 10_000, 100e6, 0);
         (address bountyEnclave,) = _registerEnclave(attempts, opPk, 0x7171, "att");
         productId = attempts;
@@ -601,7 +601,7 @@ contract SessionPayTest is Base {
         assertEq(sessionPay.getSession(sid).price, 10_000);
     }
 
-    /// FIXED : l'enclave désignée doit être active pour ce produit, chez l'opérateur annoncé, cautionné et non radié.
+    /// FIXED: the named enclave must be active for this product, at the announced operator, bonded and not banned.
     function test_FIXED_openRequiresActiveEnclaveOfAnnouncedOperator() public {
         vm.expectRevert(SessionPay.InactiveEnclave.selector);
         this.openFor(makeAddr("pas-une-enclave"), 10e6, keccak256("o-none"));
@@ -609,7 +609,7 @@ contract SessionPayTest is Base {
         UsdcPayer.Auth memory auth = _usdcAuth(userPk, address(sessionPay), 10e6, keccak256("o-wrong-op"));
         SessionPay.OpenParams memory q = SessionPay.OpenParams({
             productId: productId,
-            operator: operator2, // l'enclave est celle d'`operator`
+            operator: operator2, // the enclave belongs to `operator`
             sessionKey: sessionKey,
             expiresAt: uint64(vm.getBlockTimestamp() + 1 days),
             deposit: 10e6,
@@ -621,7 +621,7 @@ contract SessionPayTest is Base {
         vm.expectRevert(SessionPay.WrongOperator.selector);
         sessionPay.openSession(q);
 
-        // opérateur radié (équivocation prouvée) : plus de nouvelle session
+        // banned operator (proven equivocation): no new session
         SessionPay.Receipt memory a = _receipt(5, MODEL, keccak256("respA"), 10);
         SessionPay.Receipt memory b = _receipt(5, MODEL, keccak256("respB"), 10);
         sessionPay.reportEquivocation(a, _sigReceipt(a, signerPk), b, _sigReceipt(b, signerPk));
@@ -629,7 +629,7 @@ contract SessionPayTest is Base {
         this.openFor(signer, 10e6, keccak256("o-banned"));
     }
 
-    /// FIXED : échéance dans [maintenant + 10 min, maintenant + 30 jours].
+    /// FIXED: deadline within [now + 10 min, now + 30 days].
     function test_FIXED_expiryBounded() public {
         uint64 nowTs = uint64(vm.getBlockTimestamp());
         vm.expectRevert(SessionPay.BadExpiry.selector);
@@ -642,18 +642,18 @@ contract SessionPayTest is Base {
         this.openUntil(nowTs + 30 days, keccak256("e-max"));
     }
 
-    /// FIXED : seule l'enclave liée à la session est payée ; une 2e enclave du même opérateur ne l'est pas.
+    /// FIXED: only the enclave bound to the session is paid; a 2nd enclave of the same operator is not.
     function test_FIXED_onlyBoundEnclaveIsPaid() public {
-        _registerEnclave(productId, opPk, 0x5353, "s3"); // 2e enclave d'`operator`, même produit
+        _registerEnclave(productId, opPk, 0x5353, "s3"); // 2nd enclave of `operator`, same product
         SessionPay.Receipt memory r = _receiptFor(sessionId, 1, 10, 1000);
         bytes memory sig = _sigReceipt(r, 0x5353);
         vm.expectRevert(SessionPay.WrongEnclave.selector);
         sessionPay.settle(r, sig);
-        sessionPay.settle(r, _sigReceipt(r, signerPk)); // l'enclave de la session : payée
+        sessionPay.settle(r, _sigReceipt(r, signerPk)); // the session's enclave: paid
         assertEq(sessionPay.getSession(sessionId).paid, 10e6);
     }
 
-    /// FIXED : le modèle est verrouillé à l'ouverture, comme le prix et l'unité.
+    /// FIXED: the model is locked when the session opens, like the price and the unit.
     function test_FIXED_modelAndUnitLockedAtOpen() public {
         SessionPay.Session memory s0 = sessionPay.getSession(sessionId);
         assertEq(s0.param, MODEL);
@@ -665,18 +665,18 @@ contract SessionPayTest is Base {
         vm.warp(vm.getBlockTimestamp() + TIMELOCK + 1);
         products.applyUpdate(productId);
 
-        SessionPay.Receipt memory r = _receiptFor(sessionId, 1, 10, 1000); // ancien modèle, session d'avant
+        SessionPay.Receipt memory r = _receiptFor(sessionId, 1, 10, 1000); // old model, session from before
         sessionPay.settle(r, _sigReceipt(r, signerPk));
         assertEq(sessionPay.getSession(sessionId).paid, 10e6);
 
         uint256 sid2 = _openSession(hunterPk, operator, makeAddr("sk-new-model"), 100e6, 0, keccak256("o-new"));
-        SessionPay.Receipt memory old = _receiptFor(sid2, 1, 10, 1000); // l'ancien modèle sur une session d'après
+        SessionPay.Receipt memory old = _receiptFor(sid2, 1, 10, 1000); // the old model on a session from after
         bytes memory sigOld = _sigReceipt(old, signerPk);
         vm.expectRevert(SessionPay.ModelMismatch.selector);
         sessionPay.settle(old, sigOld);
     }
 
-    /// v2 : la fermeture anticipée n'est permise que lorsque l'enclave liée ne peut plus rien régler.
+    /// Early closing is allowed only when the bound enclave can no longer settle anything.
     function test_closeEarlyOnlyWhenBoundEnclaveCanNoLongerSettle() public {
         uint256 sid = _openSessionUntil(
             signer, hunterPk, operator, makeAddr("sk-early"), 100e6, 0, keccak256("o-early"), uint64(vm.getBlockTimestamp() + 30 days)
@@ -685,21 +685,21 @@ contract SessionPayTest is Base {
         bytes memory sig = _sigReceipt(r, signerPk);
         vm.roll(1010);
         vm.prank(operator);
-        registry.retire(signer); // coupée à 1009, réglable jusqu'au bloc 1009 + grâce
+        registry.retire(signer); // cut at 1009, payable until block 1009 + grace
 
         vm.prank(hunter);
         vm.expectRevert(SessionPay.NotExpired.selector);
         sessionPay.closeSession(sid);
 
-        sessionPay.settle(r, sig); // l'opérateur règle pendant la grâce
+        sessionPay.settle(r, sig); // the operator settles during the grace period
         vm.roll(1009 + TEST_GRACE_BLOCKS + 1);
         vm.prank(hunter);
-        sessionPay.closeSession(sid); // plus rien de réglable : fermeture avant l'échéance
+        sessionPay.closeSession(sid); // nothing payable any more: closing before the deadline
         assertTrue(sessionPay.getSession(sid).closed);
         assertEq(sessionPay.getSession(sid).paid, 10e6);
     }
 
-    // ---- aides appelées par `this.` (pour vm.expectRevert sur l'appel au contrat) ----
+    // ---- helpers called through `this.` (for vm.expectRevert on the call to the contract) ----
 
     function openFor(address enclave, uint256 deposit, bytes32 nonce) external returns (uint256) {
         return _openSessionWith(enclave, userPk, operator, sessionKey, deposit, 0, nonce);
@@ -709,11 +709,11 @@ contract SessionPayTest is Base {
         return _openSessionUntil(signer, userPk, operator, sessionKey, 10e6, 0, nonce, expiresAt);
     }
     // =====================================================================================
-    // v2 bis — le verdict ERC-8004 ne saute plus au gaz minimal (eth_estimateGas). Confirmé sur Arc testnet le 7/11 :
-    // closeSession(13), limite 93 765 (estimation du portefeuille), aucun Recorded ; closeSession(3), 335 119, écrit.
+    // The ERC-8004 verdict is no longer skipped at the minimum gas (eth_estimateGas). Confirmed on Arc testnet:
+    // closeSession(13), limit 93,765 (the wallet's estimate), no Recorded; closeSession(3), 335,119, written.
     // =====================================================================================
 
-    /// FIXED : au gaz MINIMAL qui fait réussir closeSession — ce que choisit un portefeuille —, le verdict est écrit.
+    /// FIXED: at the MINIMUM gas that makes closeSession succeed (what a wallet picks), the verdict is written.
     function test_FIXED_v2_minimalGasCloseWritesVerdict() public {
         _emulateArcVerdictCost();
         SessionPay.Receipt memory r = _receipt(1, MODEL, keccak256("resp"), 10);
@@ -732,15 +732,15 @@ contract SessionPayTest is Base {
         assertEq(validation.responses(), before + 1, "verdict ecrit au gaz minimal");
     }
 
-    /// FIXED : un gaz juste au-dessus du chemin SANS verdict (ce qu'estimait le portefeuille avant le correctif) est
-    /// refusé (InsufficientGasForVerdict) : la session reste ouverte ; avec un gaz ample, elle se ferme avec son verdict.
+    /// FIXED: gas just above the path WITHOUT a verdict (what the wallet estimated before the fix) is
+    /// refused (InsufficientGasForVerdict): the session stays open; with ample gas, it closes with its verdict.
     function test_FIXED_v2_closeJustAboveNoVerdictPathReverts() public {
         _emulateArcVerdictCost();
-        _settleUnits(sessionId, 10); // v2.1 ter : la session a payé (sinon, la fermeture n'a aucun verdict à écrire)
+        _settleUnits(sessionId, 10); // the session paid (otherwise closing has no verdict to write)
         vm.warp(uint256(sessionPay.getSession(sessionId).expiresAt) + sessionPay.SETTLE_GRACE());
         bytes memory call = abi.encodeCall(SessionPay.closeSession, (sessionId));
 
-        // gaz consommé par le chemin SANS verdict (le registre refuse aussitôt : appelant retiré), puis annulé
+        // gas used by the path WITHOUT a verdict (the registry refuses at once: caller removed), then reverted
         uint256 snap = vm.snapshotState();
         verdict.removeCaller(address(sessionPay));
         vm.prank(user);
@@ -759,12 +759,12 @@ contract SessionPayTest is Base {
 
         uint256 before = validation.responses();
         vm.prank(user);
-        sessionPay.closeSession(sessionId); // gaz ample
+        sessionPay.closeSession(sessionId); // ample gas
         assertTrue(sessionPay.getSession(sessionId).closed);
         assertEq(validation.responses(), before + 1);
     }
 
-    /// FIXED : la saisie pour équivocation au gaz minimal écrit aussi son verdict de faute.
+    /// FIXED: slashing for equivocation at the minimum gas also writes its fault verdict.
     function test_FIXED_v2_minimalGasEquivocationWritesVerdict() public {
         _emulateArcVerdictCost();
         SessionPay.Receipt memory a = _receipt(5, MODEL, keccak256("respA"), 10);
@@ -781,15 +781,15 @@ contract SessionPayTest is Base {
         assertEq(validation.responses(), before + 1, "verdict de faute ecrit au gaz minimal");
     }
 
-    // ---- v2.1 : requestHash lié à la chaîne et au contrat ; VerdictSkipped quand l'écriture échoue ----
+    // ---- requestHash bound to the chain and the contract; VerdictSkipped when the write fails ----
 
-    /// v2.1 : le requestHash du verdict commence par (block.chainid, address(this)) : la même session (même numéro, même
-    /// propriétaire, même produit) d'un autre déploiement, ou sur une autre chaîne, n'écrit plus la même entrée.
+    /// The verdict's requestHash starts with (block.chainid, address(this)): the same session (same number, same
+    /// owner, same product) on another deployment, or on another chain, no longer writes the same entry.
     function test_v21_verdictRequestHashBoundToChainAndContract() public {
         bytes32 expected =
             keccak256(abi.encode(block.chainid, address(sessionPay), "session", sessionId, productId, user));
         assertTrue(expected != keccak256(abi.encode("session", sessionId, productId, user)), "differe de la v2");
-        _settleUnits(sessionId, 10); // v2.1 ter : la session a payé (sinon, aucun verdict)
+        _settleUnits(sessionId, 10); // the session paid (otherwise, no verdict)
         _warpPastClose(sessionId);
         vm.expectEmit(true, true, false, true, address(verdict));
         emit VerdictLog.Recorded(0, expected, 100, "tdx-dcap/inference");
@@ -797,9 +797,9 @@ contract SessionPayTest is Base {
         sessionPay.closeSession(sessionId);
         assertTrue(sessionPay.getSession(sessionId).verdictWritten);
 
-        // même contrat, autre chaîne : autre requestHash
+        // same contract, another chain: another requestHash
         uint256 sid2 = _openSession(userPk, operator, makeAddr("sk-chain"), 100e6, 0, keccak256("open-chain"));
-        _settleUnits(sid2, 10); // réglée AVANT le changement de chaîne (le domaine EIP-712 des reçus porte la chaîne)
+        _settleUnits(sid2, 10); // settled BEFORE the chain change (the EIP-712 domain of receipts carries the chain)
         vm.chainId(4242);
         bytes32 onOtherChain = keccak256(abi.encode(uint256(4242), address(sessionPay), "session", sid2, productId, user));
         _warpPastClose(sid2);
@@ -813,10 +813,10 @@ contract SessionPayTest is Base {
         vm.warp(uint256(sessionPay.getSession(sid).expiresAt) + sessionPay.SETTLE_GRACE());
     }
 
-    /// v2.1 : un verdict qui échoue malgré son gaz (registre ERC-8004 en panne) laisse une trace : VerdictSkipped, avec
-    /// le requestHash et la raison ; la fermeture rembourse quand même, le drapeau reste faux.
+    /// A verdict that fails despite its gas (ERC-8004 registry down) leaves a trace: VerdictSkipped, with
+    /// the requestHash and the reason; closing still refunds, and the flag stays false.
     function test_v21_closeEmitsVerdictSkippedWhenRegistryFails() public {
-        _settleUnits(sessionId, 10); // v2.1 ter : la session a payé (sinon, aucun verdict n'est tenté)
+        _settleUnits(sessionId, 10); // the session paid (otherwise no verdict is attempted)
         validation.setShouldRevert(true);
         bytes32 rh = keccak256(abi.encode(block.chainid, address(sessionPay), "session", sessionId, productId, user));
         _warpPastClose(sessionId);
@@ -829,14 +829,14 @@ contract SessionPayTest is Base {
         assertFalse(sessionPay.getSession(sessionId).verdictWritten);
     }
 
-    // ---- v2.1 ter : une session qui n'a rien payé n'a pas de verdict ----
+    // ---- a session that paid nothing has no verdict ----
 
-    /// @dev = SessionPay.VerdictNotApplicable (v2.1 ter), redéclaré : ce fichier compile aussi contre la v2.1 bis.
+    /// @dev = SessionPay.VerdictNotApplicable, redeclared so this file also compiles against the previous v2.1 sources.
     event VerdictNotApplicable(uint256 indexed sessionId);
 
-    /// v2.1 ter : fermée sans aucun règlement, la session rembourse tout et n'écrit aucun verdict, sans même le tenter (pas
-    /// de réserve VERDICT_GAS : le gaz minimal reste bien en dessous) ; VerdictNotApplicable(sessionId) le trace, juste
-    /// avant SessionClosed. v2.1 bis : un « 100 » ERC-8004 pour une session que personne n'a payée.
+    /// Closed without any settlement, the session refunds everything and writes no verdict, without even attempting it (no
+    /// VERDICT_GAS reserve: the minimum gas stays well below it); VerdictNotApplicable(sessionId) records it, just
+    /// before SessionClosed. Before the fix: an ERC-8004 "100" for a session nobody paid for.
     function test_v21ter_unpaidCloseRefundsAndWritesNoVerdict() public {
         _warpPastClose(sessionId);
         bytes memory call = abi.encodeCall(SessionPay.closeSession, (sessionId));
@@ -856,13 +856,13 @@ contract SessionPayTest is Base {
         assertFalse(sessionPay.getSession(sessionId).verdictWritten);
     }
 
-    /// v2.1 : même chose sur le chemin d'équivocation (la saisie a lieu ; le verdict de faute sauté est tracé).
+    /// Same on the equivocation path (the slashing happens; the skipped fault verdict is recorded).
     function test_v21_equivocationEmitsVerdictSkippedWhenRegistryFails() public {
         SessionPay.Receipt memory a = _receipt(5, MODEL, keccak256("respA"), 10);
         SessionPay.Receipt memory b = _receipt(5, MODEL, keccak256("respB"), 10);
         bytes memory sigA = _sigReceipt(a, signerPk);
         bytes memory sigB = _sigReceipt(b, signerPk);
-        verdict.removeCaller(address(sessionPay)); // VerdictLog refuse l'appelant (NotCaller)
+        verdict.removeCaller(address(sessionPay)); // VerdictLog refuses the caller (NotCaller)
         bytes32 rh = keccak256(abi.encode(block.chainid, address(sessionPay), "equivocation", sessionId, uint64(5)));
         vm.expectEmit(true, false, false, true, address(sessionPay));
         emit SessionPay.VerdictSkipped(rh, abi.encodeWithSelector(VerdictLog.NotCaller.selector));
