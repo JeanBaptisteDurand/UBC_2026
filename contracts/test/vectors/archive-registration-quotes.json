@@ -1,5 +1,5 @@
 {
- "source": "calldata des transactions registerEnclave de la pile v2.1 (deployments.v21.testnet.json, enclaves 1-4), lu le 10/11/2026 ; m\u00eame machine Phala prod9 (PPID 62d54040\u2026)",
+ "source": "calldata of the registerEnclave transactions of the v2.1 stack (deployments.v21.testnet.json, enclaves 1-4), read on 2026-11-10; all on the same Phala prod9 machine (PPID 62d54040\u2026)",
  "quotes": [
   {
    "enclave": "inference",
