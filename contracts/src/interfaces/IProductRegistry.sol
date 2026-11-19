@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-/// @title IProductRegistry (SPEC-TECH §C3) — la place de marché des produits
+/// @title IProductRegistry — la place de marché des produits
 interface IProductRegistry {
     enum State {
         None,

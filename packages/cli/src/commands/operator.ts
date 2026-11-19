@@ -1,4 +1,4 @@
-/** operator — devenir fournisseur d'enclave (PLAN-BUILD §4.5) : identité ERC-8004, caution, inscription
+/** operator — devenir fournisseur d'enclave : identité ERC-8004, caution, inscription
  *  et réattestation d'enclave, règlement des reçus, état. */
 import { encodeFunctionData, parseEventLogs, toFunctionSelector, type AbiFunction, type Address, type Hex } from "viem";
 import {
@@ -24,7 +24,7 @@ const init: Command = {
   description: [
     "N'envoie rien : affiche les étapes, avec destinataire et calldata de chaque transaction à signer dans votre",
     "portefeuille, et l'état actuel de l'adresse (lectures). Registre d'identité ERC-8004 d'Arc testnet :",
-    `${ERC8004_IDENTITY_TESTNET} (VERIFIED, SPEC-TECH §0 ; contracts/src/interfaces/IERC8004.sol).`,
+    `${ERC8004_IDENTITY_TESTNET} (VERIFIED ; contracts/src/interfaces/IERC8004.sol).`,
   ],
   options: [
     { name: "uri", value: "<agentURI>", desc: "URI de la fiche d'agent ERC-8004 de l'opérateur (pour la calldata de register)" },

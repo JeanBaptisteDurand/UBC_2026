@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-/// @title IOperatorBond (SPEC-TECH §C4) — la caution qui BORNE le débit d'une enclave forgée
+/// @title IOperatorBond — la caution qui BORNE le débit d'une enclave forgée
 /// @notice Ce que la caution fait, et ce qu'elle ne fait pas (revue adverse du 7/11) :
 ///         - elle borne ce qu'une enclave peut faire payer sur sa seule foi : ½ caution disponible sur 24 h
 ///           GLISSANTES, tous produits confondus, et le plafond `exposureCap` de chaque produit ;

@@ -9,7 +9,7 @@ import {IProductRegistry} from "./interfaces/IProductRegistry.sol";
 import {IEnclaveRegistry} from "./interfaces/IEnclaveRegistry.sol";
 import {IOperatorBond} from "./interfaces/IOperatorBond.sol";
 
-/// @title X402Settler (SPEC-TECH §C5 bis) — paiement à l'appel « x402 exact », lié à une preuve d'enclave
+/// @title X402Settler — paiement à l'appel « x402 exact », lié à une preuve d'enclave
 /// @notice Deuxième rail de paiement, à côté des sessions prépayées (SessionPay). Pensé pour les agents :
 ///         une requête = une transaction. Le client présente une autorisation EIP-3009 (en-tête
 ///         `X-PAYMENT` du protocole x402) ET l'enclave présente un reçu d'appel signé. Le contrat

@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 import {IOperatorBond} from "./IOperatorBond.sol";
 
-/// @title IEnclaveRegistry (SPEC-TECH §C2) — v2 : validité en blocs, historique borné des fenêtres
+/// @title IEnclaveRegistry — v2 : validité en blocs, historique borné des fenêtres
 /// @notice v2 (revue adverse du 7/11) : une clé d'enclave est liée À VIE à son premier couple (opérateur,
 ///         produit) ; une image retirée (ProductRegistry.retireWorkload) invalide ses enclaves SANS grâce.
 ///         v2.1 : empreinte d'IMAGE (dstack) — avec un journal RTMR3 au format DstackEventLog.FORMAT_V1, une enclave est

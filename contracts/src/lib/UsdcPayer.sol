@@ -6,7 +6,7 @@ import {IUSDC} from "../interfaces/IERC3009.sol";
 /// @title UsdcPayer — base commune pour encaisser de l'USDC
 /// @notice Deux chemins : EIP-3009 `receiveWithAuthorization` (signature, un seul appel) ou
 ///         `transferFrom` classique (après `approve`). Le destinataire est toujours ce contrat,
-///         donc `to == msg.sender` est respecté (condition d'Arc, VERIFIED SPEC-TECH §0).
+///         donc `to == msg.sender` est respecté (condition d'Arc, VERIFIED).
 abstract contract UsdcPayer {
     IUSDC public immutable usdc;
 

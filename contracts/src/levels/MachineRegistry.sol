@@ -9,7 +9,7 @@ interface ITimelocked {
     function timelock() external view returns (uint64);
 }
 
-/// @title MachineRegistry — les DEUX NIVEAUX d'opérateur d'ArcHive (décision de JB, 10/11/2026)
+/// @title MachineRegistry — les DEUX NIVEAUX d'opérateur d'ArcHive (10/11/2026)
 /// @notice - Niveau « ouvert » (0) : n'importe qui fait tourner une enclave ; le contrat d'Arc vérifie son attestation Intel
 ///           et l'opérateur dépose une caution (EnclaveRegistry + OperatorBond, inchangés).
 ///         - Niveau « vérifié » (1) : en plus, la MACHINE (sa puce, identifiée par le certificat PCK d'Intel : PPID) est

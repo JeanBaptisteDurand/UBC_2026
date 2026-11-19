@@ -137,7 +137,7 @@ contract EnclaveRegistryTest is Base {
     }
 
     // =====================================================================================
-    // PLAN-BUILD §9 — tests négatifs ajoutés le 7/11 (inscription, REPORTDATA, rejeu, expiration).
+    // tests négatifs ajoutés le 7/11 (inscription, REPORTDATA, rejeu, expiration).
     // Bloc courant = 1000 après setUp ; numéros de bloc en littéraux (l'optimiseur replie block.number).
     // v2 : les tests `test_FIXED_*` rejouent les cas de la revue adverse, corrigés dans src (le
     // test prouve le bon comportement). Validité en blocs : fenêtre [1000, 5999], grâce jusqu'au bloc 9999.

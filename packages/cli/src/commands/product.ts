@@ -1,4 +1,4 @@
-/** product — la place de marché (PLAN-BUILD §3.3) : lister, proposer depuis un manifeste, activer après le timelock. */
+/** product — la place de marché : lister, proposer depuis un manifeste, activer après le timelock. */
 import { readFileSync } from "node:fs";
 import { keccak256, parseEventLogs, type Address, type Hex } from "viem";
 import { productRegistryAbi, testnet } from "@arcvault/sdk";

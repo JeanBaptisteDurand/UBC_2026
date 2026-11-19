@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 import {IProductRegistry} from "./interfaces/IProductRegistry.sol";
 
-/// @title ProductRegistry (SPEC-TECH §C3)
+/// @title ProductRegistry
 /// @notice La place de marché des produits : qui peut tourner, à quel prix, avec quel partage,
 ///         quelles images (workloadId) et quels avis TCB tolérés. Activation, changements de prix ET ajout
 ///         d'image derrière un timelock (48 h sur Arc mainnet avec la pile v2, 0 sur testnet pour la démo, et on

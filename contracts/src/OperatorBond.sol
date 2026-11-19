@@ -5,7 +5,7 @@ import {IOperatorBond} from "./interfaces/IOperatorBond.sol";
 import {IIdentityRegistry} from "./interfaces/IERC8004.sol";
 import {UsdcPayer} from "./lib/UsdcPayer.sol";
 
-/// @title OperatorBond (SPEC-TECH §C4) — v2
+/// @title OperatorBond — v2
 /// @notice La caution en USDC d'un opérateur. Ce qu'elle garantit, exactement :
 ///         - elle BORNE LE DÉBIT : sur la foi des enclaves d'un opérateur, les contrats de règlement autorisés
 ///           (C5/C6) ne libèrent jamais plus de la moitié de sa caution disponible sur TOUTE période de 24 h, tous

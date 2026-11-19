@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-/// @title DemoVault (SPEC-TECH §C8) — CIBLE DE DÉMONSTRATION, VOLONTAIREMENT FAILLIBLE
+/// @title DemoVault — CIBLE DE DÉMONSTRATION, VOLONTAIREMENT FAILLIBLE
 /// @notice Bac à sable pour la démo de la Prime scellée : un petit coffre d'USDC avec UNE faille
 ///         simple et volontaire (un retrait sans contrôle d'accès). Ce contrat n'a aucune valeur
 ///         réelle et ne représente aucun vrai protocole ; il existe uniquement pour que l'enclave

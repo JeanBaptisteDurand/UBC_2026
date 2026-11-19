@@ -92,7 +92,7 @@ contract X402SettlerTest is Base {
         x402.settle(cr, sig2, auth);
     }
 
-    /// PLAN-BUILD §9 « enclave expirée » (v2, en blocs) : fenêtre [1000, 5999], grâce jusqu'au bloc 9999.
+    /// « enclave expirée » (v2, en blocs) : fenêtre [1000, 5999], grâce jusqu'au bloc 9999.
     /// Un reçu d'appel ancré APRÈS la fenêtre n'est jamais payé ; ancré DANS la fenêtre, il se règle pendant
     /// la grâce, plus après.
     function test_revertExpiredEnclave() public {

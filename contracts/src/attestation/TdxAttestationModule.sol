@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 import {IAttestationModule} from "../interfaces/IAttestationModule.sol";
 import {IAutomataDcap} from "../interfaces/IAutomataDcap.sol";
 
-/// @title TdxAttestationModule (SPEC-TECH §C2)
+/// @title TdxAttestationModule
 /// @notice Appelle le vérificateur DCAP d'Automata (C1) puis découpe le corps du quote TDX.
 ///         Format de sortie VERIFIED dans QuoteVerifierBase.serializeOutput d'Automata :
 ///           [0:2]  quoteVersion (BE)

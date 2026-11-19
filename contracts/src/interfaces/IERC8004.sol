@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 /// @title ERC-8004 v2.0.0 — registres de Circle sur Arc
-/// @notice Adresses VERIFIED (SPEC-TECH §0) :
+/// @notice Adresses VERIFIED :
 ///  mainnet  Identité 0x8004A169FB4a3325136EB29fA0ceB6D2e539a432
 ///           Réputation 0x8004BAa17C55a88189AE136b182e5fdA19dE9b63
 ///           Validation 0x8004Cc8439f36fd5F9F049D9fF86523Df6dAAB58

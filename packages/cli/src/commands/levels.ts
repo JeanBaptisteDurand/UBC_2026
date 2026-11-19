@@ -1,4 +1,4 @@
-/** levels — les DEUX NIVEAUX d'opérateur (décision de JB, 10/11/2026) dans la CLI :
+/** levels — les DEUX NIVEAUX d'opérateur (10/11/2026) dans la CLI :
  *   - opérateur : voir son niveau, lier son enclave à sa machine (PPID du certificat d'Intel), faire déclarer sa machine par
  *     l'alliance Proof of Cloud (jeton cosigné, vérifié on-chain par ProofOfCloudAuditor) ;
  *   - auteur de produit : fixer la politique (niveau minimum, vérificateurs acceptés ; timelock du ProductRegistry) ;

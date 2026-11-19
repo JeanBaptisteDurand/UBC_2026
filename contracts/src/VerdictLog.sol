@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 import {IVerdictLog} from "./interfaces/IVerdictLog.sol";
 import {IValidationRegistry} from "./interfaces/IERC8004.sol";
 
-/// @title VerdictLog (SPEC-TECH §C7) — v2
+/// @title VerdictLog — v2
 /// @notice Écrit chaque verdict vérifié dans le registre de validation ERC-8004 de Circle.
 ///         Le même contrat demande et répond : il est le validateur, et il n'écrit 100 (vérifié et payé)
 ///         qu'après que le contrat de règlement appelant a vérifié l'attestation et la signature

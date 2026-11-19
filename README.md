@@ -99,11 +99,12 @@ Both run from this repository (they are not published on npm).
 ### Claude Code on ArcHive's private inference
 
 Claude Code speaks Anthropic's Messages API; ArcHive's enclaves serve an OpenAI-compatible API. With an
-Anthropic-compatible gateway (LiteLLM) in between, Claude Code's chat runs on ArcHive's paid, attested inference.
+Anthropic-compatible gateway (LiteLLM) in between, Claude Code's requests are answered by ArcHive's paid, attested
+inference.
 
 **What was tested on 19 Nov 2026**: plain, streaming and Claude-Code-shaped requests (Anthropic Messages API) went
-through a LiteLLM gateway to a local bridge that paid the product 3 enclave 0.01 USDC per call (x402) and returned each answer only
-after checking the enclave's signed receipt against its key on Arc. The operator then settled the three calls on Arc:
+through a LiteLLM gateway to a local bridge that paid the product 3 enclave 0.01 USDC per call (x402) and returned
+each answer only after checking the enclave's signed receipt against its key on Arc. The operator then settled the three calls on Arc:
 [`0x3c98a1fa…1ae8`](https://explorer.testnet.arc.io/tx/0x3c98a1fafa893722b9bffd84a1287ef28a446c361c822e4e2071f714bba31ae8),
 [`0xec0bd6b0…68e3`](https://explorer.testnet.arc.io/tx/0xec0bd6b04fdaa3cc4966a604e8967f0e73b5ca91423d9921edb3d05c574168e3),
 [`0xe7a0e00f…f52b`](https://explorer.testnet.arc.io/tx/0xe7a0e00fe514f10d602b1495d2d84a5e9f5b4c67e1fb5ba33cf7e190d8a1f52b)
@@ -160,7 +161,7 @@ not market prices. Live values: `curl -s https://archive.62-171-153-35.sslip.io/
   declared in an inspected datacenter by the Proof of Cloud alliance, whose Ed25519 signature is verified on Arc.
   Product 7 requires it.
 
-**Bonds and slashing** (`OperatorBond`): each enclave reserves the product's minimum bond (1 USDC on testnet). On the
+**Bonds and slashing** (`OperatorBond`): each enclave reserves the product's minimum bond (1 USDC for the live products on testnet). On the
 word of an operator's enclaves, settlement contracts never release more than half of its free bond in any 24 hours. A
 fault proven on-chain (two signed answers to one request, or a bounty claim refuted by other operators' replays) seizes
 the whole bond: half to the reporter, half to the victim. A bond leaves 7 days after the request and after its last
@@ -293,34 +294,33 @@ included) to replay an exploit exactly; EIP-2935 block history lets a contract r
 Nothing to install to try it: the site, the API and the MCP server above are live on Arc testnet.
 
 ```sh
-# Contracts (Foundry): 30 Solidity files and their tests
-cd contracts
-forge install foundry-rs/forge-std@v1.17.0 OpenZeppelin/openzeppelin-contracts@v5.1.0 --no-git
-forge build && forge test
+# Each line runs from the repository root.
 
-# SDK, CLI and enclave kit (Node.js 22)
-cd packages/sdk && npm ci && npm test
-cd packages/cli && npm ci && npm run arcvault -- --help
-cd enclave && npm ci && npm test
+# Contracts (Foundry): 30 Solidity files, 253 tests
+(cd contracts && forge install foundry-rs/forge-std@v1.17.0 OpenZeppelin/openzeppelin-contracts@v5.1.0 --no-git && forge build && forge test)
 
-# Services: the read API, the copilot, the MCP server
-cd services/api && npm ci && npm start
-cd services/copilot && npm ci && npm test          # copy .env.example to .env to run it
-cd services/mcp && npm ci && npm start              # stdio; npm run start:http for Streamable HTTP
+# SDK and CLI (Node.js 22); the services and the CLI use packages/sdk by path, so install it first
+(cd packages/sdk && npm ci && npm test)
+(cd packages/cli && npm ci && npm run arcvault -- --help)
 
-# The site (reads the live API), http://localhost:5261
-cd frontend && npm ci && npm run dev
+# Enclave kit and products
+(cd enclave && npm ci --legacy-peer-deps && npm test)
 
-# The console
-cd web && npm ci && npm run dev
+# Services: the read API, the copilot (copy .env.example to .env to run it), the MCP server (stdio; start:http for HTTP)
+(cd services/api && npm ci && npm start)
+(cd services/copilot && npm ci && npm test)
+(cd services/mcp && npm ci && npm start)
+
+# The site (reads the live API) on http://localhost:5261, and the console
+(cd frontend && npm ci && npm run dev)
+(cd web && npm ci && npm run dev)
 
 # An operator machine (an Intel TDX VM)
 curl -fsSL https://archive.62-171-153-35.sslip.io/install.sh | sh
 archive-node doctor && archive-node pair && archive-node up --product 1 --tunnel
 ```
 
-The services depend on `packages/sdk` by path: run `npm ci` in `packages/sdk` first. Server deployment:
-[`deploy/README.md`](deploy/README.md). Intel's verifier on Arc: [`dcap-integration/`](dcap-integration/).
+Server deployment: [`deploy/README.md`](deploy/README.md). Intel's verifier on Arc: [`dcap-integration/`](dcap-integration/).
 
 ## Repository map
 

@@ -1,5 +1,5 @@
 /**
- * levels-setup.ts — met en place les DEUX NIVEAUX d'opérateur sur la pile v2.1 (décision de JB, 10/11/2026), sans rien
+ * levels-setup.ts — met en place les DEUX NIVEAUX d'opérateur sur la pile v2.1 (10/11/2026), sans rien
  * redéployer de l'existant :
  *   1. MachineRegistry       : liaison enclave → machine (PPID du certificat Intel), déclarations des vérificateurs,
  *                              politique de niveau de chaque produit ;

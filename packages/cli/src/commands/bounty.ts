@@ -1,4 +1,4 @@
-/** bounty — la Prime scellée à distance (PLAN-BUILD §4.3), pile v2 : chasseur (list, status, submit) et protocole
+/** bounty — la Prime scellée à distance, pile v2 : chasseur (list, status, submit) et protocole
  *  (create, reports). L'exploit en clair ne quitte cette machine que chiffré : cE vers une enclave dont la clé X25519
  *  est VÉRIFIÉE on-chain (SDK verifyEnclaveKeys : jamais la clé brute de /pubkeys), cP vers la clé X25519 du protocole
  *  lue on-chain. Paiement v2 en deux temps : acceptClaim (réserve, cP hors transaction) puis deliver (livre et paie).

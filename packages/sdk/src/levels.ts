@@ -1,5 +1,5 @@
 /**
- * levels.ts — les DEUX NIVEAUX d'opérateur (décision de JB, 10/11/2026), côté client. Utilisable partout (navigateur
+ * levels.ts — les DEUX NIVEAUX d'opérateur (10/11/2026), côté client. Utilisable partout (navigateur
  * compris) ; la demande d'un jeton à l'alliance Proof of Cloud, qui exige Node, est dans proof-of-cloud.ts.
  *
  *  - Niveau « ouvert » (0) : l'enclave est attestée par Intel et vérifiée par un contrat d'Arc ; l'opérateur a une caution.

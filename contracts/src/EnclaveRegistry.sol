@@ -8,7 +8,7 @@ import {IOperatorBond} from "./interfaces/IOperatorBond.sol";
 import {History} from "./lib/History.sol";
 import {DstackEventLog} from "./lib/DstackEventLog.sol";
 
-/// @title EnclaveRegistry (SPEC-TECH §C2) — v2
+/// @title EnclaveRegistry — v2
 /// @notice Inscrit une enclave seulement si son attestation passe Intel (C1 via le module) ET notre
 ///         politique « on échoue fermé » (P1–P12). Dit à tout moment si une clé d'enclave était active
 ///         pour un produit à un bloc donné (isActiveAt, activeOperatorAt), ce qui sert aux contrats de

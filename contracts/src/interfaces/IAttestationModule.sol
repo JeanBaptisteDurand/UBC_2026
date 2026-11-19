@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-/// @title IAttestationModule — module d'attestation interchangeable (SPEC-TECH §C2)
+/// @title IAttestationModule — module d'attestation interchangeable
 /// @notice Aujourd'hui TDX/DCAP (Automata). Demain Nitro ou SEV-SNP, sans toucher aux produits.
 ///         Le module vérifie un quote auprès du code tiers (C1) puis découpe le corps et
 ///         rend des mesures normalisées. TOUTE la politique de refus vit dans l'EnclaveRegistry (C2),

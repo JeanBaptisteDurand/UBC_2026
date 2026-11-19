@@ -17,7 +17,7 @@ export const NET_TAG = "arctest"; // préfixe réseau des clés aek_
 export const EIP2935_WINDOW = 8191n;
 export const SETTLE_GRACE_S = 3600n; // SessionPay.SETTLE_GRACE (1 h)
 export const ZERO: Address = "0x0000000000000000000000000000000000000000";
-/** Registre d'identité ERC-8004 d'Arc testnet — VERIFIED (SPEC-TECH §0, contracts/src/interfaces/IERC8004.sol). */
+/** Registre d'identité ERC-8004 d'Arc testnet — VERIFIED (contracts/src/interfaces/IERC8004.sol). */
 export const ERC8004_IDENTITY_TESTNET: Address = "0x8004A818BFB912233c491871b3d84c89A494BD9e";
 
 const transport = (rpc?: string) => http(rpc ?? DEFAULT_RPC, { retryCount: 5, retryDelay: 400, timeout: 30_000 });

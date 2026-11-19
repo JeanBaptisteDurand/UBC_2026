@@ -149,7 +149,7 @@ contract SessionPayTest is Base {
     }
 
     // =====================================================================================
-    // PLAN-BUILD §9 — tests négatifs ajoutés le 7/11 (reçus, sessions, clés, plafonds, saisie).
+    // tests négatifs ajoutés le 7/11 (reçus, sessions, clés, plafonds, saisie).
     // Bloc courant = 1000 après setUp (enclave `signer` inscrite à ce bloc) ; ancrages en littéraux.
     // Signatures toujours calculées AVANT vm.expectRevert (le getter RECEIPT_TYPEHASH est un appel).
     // =====================================================================================
@@ -319,7 +319,7 @@ contract SessionPayTest is Base {
     }
 
     /// §9 « enclave invalidée » : reçu ancré au bloc d'invalidation ou après → refus ; ancré avant → payé
-    /// (voulu : SPEC-TECH C2 « non invalidée avant ce bloc »).
+    /// (voulu : « non invalidée avant ce bloc »).
     function test_settleRevertInvalidatedEnclave() public {
         SessionPay.Receipt memory early = _receiptFor(sessionId, 1, 10, 1005);
         SessionPay.Receipt memory late = _receiptFor(sessionId, 2, 20, 1010);

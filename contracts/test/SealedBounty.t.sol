@@ -183,7 +183,7 @@ contract SealedBountyTest is Base {
     }
 
     // =====================================================================================
-    // PLAN-BUILD §9 — tests négatifs ajoutés le 7/11 (réclamations, bloc N, enclaves, saisie).
+    // tests négatifs ajoutés le 7/11 (réclamations, bloc N, enclaves, saisie).
     // Après setUp : enclaves `signer` (operator) et `signer2` (operator2) inscrites au bloc 1000,
     // bloc courant 1002, blockN = 1001, prime `bountyId` (palier 100 USDC, singleCap 200, k = 2).
     // v2 : les tests `test_FIXED_*` rejouent les cas de la revue adverse (corrigés dans src, prouvés ici).
@@ -321,7 +321,7 @@ contract SealedBountyTest is Base {
     }
 
     /// §9 « enclave invalidée » : réclamation ancrée au bloc d'invalidation ou après → refus ;
-    /// ancrée avant → payée (voulu, SPEC-TECH C2).
+    /// ancrée avant → payée (voulu).
     function test_claimRevertInvalidatedEnclave() public {
         bytes memory cP = bytes("c");
         uint64 dl = uint64(vm.getBlockTimestamp() + 10 minutes);

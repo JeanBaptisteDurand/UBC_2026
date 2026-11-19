@@ -1,4 +1,4 @@
-/** session — sessions prépayées SessionPay et clés d'accès aek_ (PLAN-BUILD §4.1). */
+/** session — sessions prépayées SessionPay et clés d'accès aek_. */
 import { parseEventLogs, type Address } from "viem";
 import { encodeAek, generateSessionKey, sessionCeiling, sessionPayAbi, testnet } from "@arcvault/sdk";
 import {

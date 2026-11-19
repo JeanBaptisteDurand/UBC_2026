@@ -11,7 +11,7 @@ import {IEnclaveRegistry} from "./interfaces/IEnclaveRegistry.sol";
 import {IOperatorBond} from "./interfaces/IOperatorBond.sol";
 import {IVerdictLog} from "./interfaces/IVerdictLog.sol";
 
-/// @title SessionPay (SPEC-TECH §C5) — v2
+/// @title SessionPay — v2
 /// @notice Sessions prépayées en USDC, servies contre une clé de session, payées sur le DERNIER reçu
 ///         cumulatif signé par l'enclave : une transaction par règlement, jamais par message.
 ///         v2 : le prix unitaire est VERROUILLÉ à l'ouverture (un changement de prix du produit ne touche

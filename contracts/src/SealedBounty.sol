@@ -12,7 +12,7 @@ import {IEnclaveRegistry} from "./interfaces/IEnclaveRegistry.sol";
 import {IOperatorBond} from "./interfaces/IOperatorBond.sol";
 import {IVerdictLog} from "./interfaces/IVerdictLog.sol";
 
-/// @title SealedBounty (SPEC-TECH §C6) — v2
+/// @title SealedBounty — v2
 /// @notice Une prime payée sur la foi d'une PREUVE : une réclamation EIP-712 signée par une (ou k) enclave(s) active(s)
 ///         du produit « Prime scellée » qui ont rejoué l'exploit dans un fork (hors-chaîne, O3). Le contrat ne fait que
 ///         vérifier et payer : aucun exploit n'est exécuté on-chain, aucun vrai protocole n'est touché.
