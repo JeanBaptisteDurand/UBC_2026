@@ -1,9 +1,10 @@
 /**
- * scripts/refute-demo.ts — ce qui se vérifie sans chaîne ni secret : l'importer ne lance rien ; les deux composes de la
- * démonstration (enclave/phala/refute-demo-*-v21.yml) sont contrôlés (image épinglée et unique, produit 5, adresses de la v2.1,
- * DEMO_FAULT mesurée pour l'enclave menteuse SEULEMENT, opérateurs en variables chiffrées) ; le manifeste public dit la faute
- * volontaire, la règle de réfutation et reprend les composes.
- * Le chemin on-chain du script (prime, réclamation menteuse, réfutation, saisie) : bounty-demo-fault-chain.test.ts.
+ * scripts/refute-demo.ts — what can be checked with no chain and no secret: importing it runs nothing; the demo's two
+ * compose files (enclave/phala/refute-demo-*-v21.yml) are checked (one pinned image, product 5, the v2.1 addresses,
+ * DEMO_FAULT measured for the lying enclave only, operators in encrypted variables); the public manifest states the
+ * deliberate fault and the refutation rule, and includes the compose files.
+ * The script's on-chain path (bounty, lying claim, refutation, seizure): bounty-demo-fault-chain.test.ts.
+ * The script's own error messages are matched as it prints them.
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
@@ -14,7 +15,7 @@ const D = JSON.parse(readFileSync(new URL("../../deployments.v21.testnet.json", 
 const K = D.contracts as Record<string, Address>;
 const X = D.external as Record<string, Address>;
 const text = (f: string) => readFileSync(new URL(`../phala/${f}`, import.meta.url), "utf8");
-/** 10/11 : les composes du dépôt sont ÉPINGLÉS sur l'image de la démonstration réellement jouée (celle du produit 2). */
+/** The repository's compose files are pinned to the image of the demo actually played (product 2's image). */
 const DIGEST = /@sha256:([0-9a-f]{64})/.exec(text(COMPOSE_FILES.liar))![1]!;
 const pinned = (t: string) => t.replaceAll("__BOUNTY_IMAGE__", DIGEST);
 const stack = { sealedBounty: K.SealedBounty!, registry: K.EnclaveRegistry!, chainId: Number(D.chainId) };
@@ -23,15 +24,15 @@ const load = (liar = pinned(text(COMPOSE_FILES.liar)), honest = pinned(text(COMP
   honest: parseCompose(COMPOSE_FILES.honest, honest),
 });
 
-describe("refute-demo.ts — composes et manifeste de la démonstration", () => {
-  it("les composes du dépôt : épinglés sur l'image jouée le 10/11 (celle du produit 2) ; un gabarit non épinglé est refusé", () => {
+describe("refute-demo.ts — the demo's compose files and manifest", () => {
+  it("the repository's compose files: pinned to the image played on 10 Nov 2026 (product 2's); an unpinned template is refused", () => {
     const p2 = parseCompose("sealed-bounty-v21.yml", text("sealed-bounty-v21.yml")).services["sealed-bounty"]!;
     expect(checkComposes(load(text(COMPOSE_FILES.liar), text(COMPOSE_FILES.honest)), stack)).toBe(p2.image);
     const tpl = (t: string) => t.replaceAll(DIGEST, "__BOUNTY_IMAGE__");
     expect(() => checkComposes(load(tpl(text(COMPOSE_FILES.liar)), tpl(text(COMPOSE_FILES.honest))), stack)).toThrow(/__BOUNTY_IMAGE__/);
   });
 
-  it("une fois l'image épinglée : une seule image, produit 5, DEMO_FAULT mesurée pour l'enclave menteuse seulement", () => {
+  it("once the image is pinned: one image, product 5, DEMO_FAULT measured for the lying enclave only", () => {
     const c = load();
     expect(checkComposes(c, stack)).toBe(`ghcr.io/jeanbaptistedurand/archive-sealed-bounty@sha256:${DIGEST}`);
     const liar = c.liar.services["sealed-bounty-liar"]!;
@@ -45,12 +46,12 @@ describe("refute-demo.ts — composes et manifeste de la démonstration", () => 
     expect(cc.measured.PORT).toBe("8813");
     expect(cc.ports).toEqual(["8813:8813"]);
     expect(b.ports).toEqual(["8803:8803"]);
-    // le reste comme le compose du produit 2 (mêmes RPC, même registre, même SealedBounty)
+    // the rest as in product 2's compose (same RPCs, same registry, same SealedBounty)
     const p2 = parseCompose("sealed-bounty-v21.yml", text("sealed-bounty-v21.yml")).services["sealed-bounty"]!.measured;
     for (const k of ["RPC_URL", "FORK_RPC_URL", "CHAIN_ID", "REGISTRY", "SEALEDBOUNTY"]) expect([liar.measured[k], b.measured[k], cc.measured[k]]).toEqual([p2[k], p2[k], p2[k]]);
   });
 
-  it("refus : faute absente ou chiffrée chez la menteuse, faute chez une honnête, deux images, autre produit, autre SealedBounty", () => {
+  it("refused: fault missing or encrypted on the liar, a fault on an honest one, two images, another product, another SealedBounty", () => {
     const liar = pinned(text(COMPOSE_FILES.liar)), honest = pinned(text(COMPOSE_FILES.honest));
     expect(() => checkComposes(load(liar.replace("      - DEMO_FAULT=inflate-loss\n", ""), honest), stack)).toThrow(/DEMO_FAULT=inflate-loss doit être mesurée/);
     expect(() => checkComposes(load(liar.replace("      - DEMO_FAULT=inflate-loss", "      - DEMO_FAULT=${DEMO_FAULT}"), honest), stack)).toThrow(/DEMO_FAULT/);
@@ -61,7 +62,7 @@ describe("refute-demo.ts — composes et manifeste de la démonstration", () => 
     expect(() => checkComposes(load(), { ...stack, sealedBounty: "0x0000000000000000000000000000000000000001" })).toThrow(/SEALEDBOUNTY/);
   });
 
-  it("le manifeste : démonstration, faute volontaire et mesurée, règle de réfutation, composes, jamais l'opérateur principal", () => {
+  it("the manifest: a demo, a deliberate and measured fault, the refutation rule, the compose files, never the main operator", () => {
     const ops = { A: "0x00000000000000000000000000000000000000a1", B: "0x00000000000000000000000000000000000000b2", C: "0x00000000000000000000000000000000000000c3" } as Record<"A" | "B" | "C", Address>;
     const m = buildManifest({
       composes: load(), operators: ops,
@@ -76,7 +77,7 @@ describe("refute-demo.ts — composes et manifeste de la démonstration", () => 
       ["sealed-bounty-liar", "inflate-loss"], ["sealed-bounty-b", null], ["sealed-bounty-c", null],
     ]);
     expect(m.operators.A.address).toBe(ops.A);
-    expect(JSON.stringify(m)).toContain(MAIN_OPERATOR); // nommé… pour dire qu'il ne participe pas
+    expect(JSON.stringify(m)).toContain(MAIN_OPERATOR); // named… to say that it does not take part
     expect(m.operators.neverUsed).toMatch(/takes no part/);
     expect(Object.values(ops)).not.toContain(MAIN_OPERATOR);
   });
