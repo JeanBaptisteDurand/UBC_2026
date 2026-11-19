@@ -29,9 +29,9 @@ export type TemplateKey = { [K in Key]: En[K] extends string ? K : never }[Key];
 
 const DICTS: Record<Lang, Dict> = { en, fr };
 const STORE_KEY = "archive.lang";
-/** 19/11 : la clé de la langue du site (le front de Florent, « archive-lang ») : un visiteur qui a choisi le français sur
- *  le site arrive dans une console en français. Elle est lue d'abord (le site ne l'écrit que sous son nom, la console
- *  écrit les deux : la plus récente des deux décisions gagne) ; l'ancienne clé de la console sert ensuite. */
+/** The language key of the landing site ("archive-lang"): a visitor who chose French on the site arrives in a French
+ *  console. It is read first (the site writes only its own key, the console writes both: the more recent of the two
+ *  choices wins); the console's older key comes next. */
 const SITE_KEY = "archive-lang";
 
 function stored(): Lang | null {

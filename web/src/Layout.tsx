@@ -18,8 +18,8 @@ function Brand() {
 }
 
 function Nav({ route, go, onPick }: { route: RouteId; go: (r: string) => void; onPick?: () => void }) {
-  // 19/11 : dans le tiroir (téléphone), chaque entrée fait au moins 44 px de haut (.tap, écran tactile) ; un lien ramène
-  // au site, d'où l'on vient presque toujours
+  // In the drawer (phone), each entry is at least 44 px tall (.tap, touch screen); a link leads back to the site,
+  // where visitors almost always come from
   return (
     <nav className="flex flex-col gap-3.5" aria-label={t("layout.navAria")}>
       <a href="/" className="tap flex items-center gap-2.5 rounded-lg px-3 py-[7px] text-[14px] text-muted transition hover:bg-raised hover:text-text">
@@ -44,7 +44,7 @@ function Nav({ route, go, onPick }: { route: RouteId; go: (r: string) => void; o
                       {routeLabel(r.id)}
                     </a>
                   </li>
-                  {/* une autre page du site (plein écran, même onglet) : la flèche le signale */}
+                  {/* another page of the site (full screen, same tab): the arrow shows it */}
                   {LINKS.filter((l) => l.after === r.id).map((l) => {
                     const LinkIcon = l.icon;
                     return (
@@ -67,7 +67,7 @@ function Nav({ route, go, onPick }: { route: RouteId; go: (r: string) => void; o
   );
 }
 
-/** Statut réseau en direct (bloc courant via notre API : aucun appel RPC depuis le navigateur). */
+/** Live network status (the current block through the ArcHive API: no RPC call from the browser). */
 function NetworkPill() {
   const [head, setHead] = useState<string>();
   const [ok, setOk] = useState(true);
@@ -87,8 +87,8 @@ function NetworkPill() {
   );
 }
 
-/** 16/11 : quand aucune enclave n'est active (VM en pause, pour limiter les coûts), un bandeau le dit sur toutes les pages,
- *  au lieu de laisser le visiteur découvrir des « HTTP 502 » (lu sur /api/stats, toutes les minutes). */
+/** When no enclave is active, a banner says so on every page instead of letting a visitor run into an HTTP 502
+ *  (reads /api/stats once a minute). */
 function PauseBanner() {
   useLang();
   const [paused, setPaused] = useState(false);
@@ -108,10 +108,10 @@ function PauseBanner() {
   );
 }
 
-/** Le nom de chaque langue, dans cette langue : on le reconnaît quelle que soit la langue affichée. */
+/** Each language's name in that language, so it is recognised whatever language is displayed. */
 const LANG_NAME = { en: "English", fr: "Français" } as const;
 
-/** Écran de téléphone (sous 640 px, le point « sm » de Tailwind) : la barre du haut se resserre. */
+/** Phone screen (under 640 px, Tailwind's "sm" breakpoint): the top bar tightens. */
 const NARROW = "(max-width: 639px)";
 function subscribeNarrow(f: () => void) {
   const mq = window.matchMedia?.(NARROW);
@@ -123,8 +123,8 @@ function useNarrow(): boolean {
   return useSyncExternalStore(subscribeNarrow, isNarrow, () => false);
 }
 
-/** EN | FR : la langue du site, gardée dans ce navigateur (anglais par défaut). Sur ordinateur, les deux boutons ; sur
- *  téléphone, un seul, qui porte l'autre langue (« FR » sur le site anglais) et passe à elle. */
+/** EN | FR: the site's language, kept in this browser (English by default). On a computer, both buttons; on a phone, a
+ *  single one that carries the other language ("FR" on the English site) and switches to it. */
 function LangToggle() {
   const lang = useLang();
   const other = LANGS.find((l) => l !== lang) ?? "en";
@@ -152,9 +152,9 @@ export default function Layout({ route, go, onOpenCopilot, children }: { route: 
   const narrow = useNarrow();
   const def = ROUTES.find((r) => r.id === route)!;
   return (
-    // min-h-dvh : la hauteur visible (sur iOS, 100vh est la grande hauteur, barre d'outils repliée)
+    // min-h-dvh: the visible height (on iOS, 100vh is the tall height, with the toolbar collapsed)
     <div className="min-h-dvh lg:pl-[248px]">
-      {/* barre latérale (ordinateur) */}
+      {/* sidebar (computer) */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-[248px] flex-col border-r border-edge bg-panel px-3 py-5 lg:flex">
         <a href="#/vue" onClick={(e) => { e.preventDefault(); go("vue"); }} className="mb-5 px-2"><Brand /></a>
         <div className="flex-1 overflow-y-auto"><Nav route={route} go={go} /></div>
@@ -168,7 +168,7 @@ export default function Layout({ route, go, onOpenCopilot, children }: { route: 
       {drawer && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <button aria-label={t("layout.closeMenu")} className="absolute inset-0 bg-black/60" onClick={() => setDrawer(false)} />
-          {/* le tiroir tient dans l'écran (y compris en paysage : sa liste défile) et respecte les bords arrondis de l'iPhone */}
+          {/* the drawer fits the screen (landscape included: its list scrolls) and respects the iPhone's rounded corners */}
           <aside className="absolute inset-y-0 left-0 flex w-[min(288px,86vw)] flex-col border-r border-edge bg-panel px-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] pl-[max(0.75rem,env(safe-area-inset-left))] pt-[max(1.25rem,env(safe-area-inset-top))]">
             <div className="mb-4 flex items-center justify-between px-2"><Brand /><button aria-label={t("layout.close")} onClick={() => setDrawer(false)} className="-m-2 grid h-11 w-11 place-items-center rounded-lg text-muted hover:text-text"><X size={20} /></button></div>
             <div className="flex-1 overflow-y-auto"><Nav route={route} go={go} onPick={() => setDrawer(false)} /></div>
@@ -179,9 +179,9 @@ export default function Layout({ route, go, onOpenCopilot, children }: { route: 
       {/* barre du haut */}
       <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-edge bg-ink/85 px-4 py-3 backdrop-blur lg:px-8">
         <div className="flex min-w-0 items-center gap-3">
-          {/* 44 × 44 px : la seule navigation sur téléphone */}
+          {/* 44 × 44 px: the only navigation on a phone */}
           <button aria-label={t("layout.openMenu")} className="-my-2 -ml-2.5 grid h-11 w-11 shrink-0 place-items-center rounded-lg text-muted hover:text-text lg:hidden" onClick={() => setDrawer(true)}><Menu size={22} /></button>
-          {/* sur téléphone, le nom de la page seul (la section est dans le menu) */}
+          {/* on a phone, the page name alone (the section is in the menu) */}
           <div className="min-w-0 truncate text-[14px]">
             <span className="hidden text-muted sm:inline">{groupLabel(def.group)}</span>
             <span className="mx-2 hidden text-edge sm:inline">/</span>
@@ -189,15 +189,15 @@ export default function Layout({ route, go, onOpenCopilot, children }: { route: 
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
-          {/* 19/11 : écran court (téléphone en paysage) : le copilote s'ouvre d'ici (le rond flottant y couvrait la fin des
-              lignes) ; ailleurs, ce bouton est caché (.copilot-top, index.css) */}
+          {/* short screen (phone in landscape): the copilot opens from here (the floating button would cover the end of the
+              lines); elsewhere this button is hidden (.copilot-top, index.css) */}
           <button type="button" onClick={onOpenCopilot} aria-label={t("copilot.open")} title={t("copilot.open")}
             className="copilot-top h-11 w-11 shrink-0 place-items-center rounded-lg border border-accent/50 bg-accent text-lg text-ink transition hover:brightness-110">
             <span aria-hidden="true">⬡</span>
           </button>
           <LangToggle />
           <NetworkPill />
-          {/* sur téléphone : « Connect » et l'avatar du compte, sur une ligne ; ailleurs, le libellé de RainbowKit et l'adresse */}
+          {/* on a phone: "Connect" and the account avatar, on one line; elsewhere, RainbowKit's label and the address */}
           <ConnectButton showBalance={false} label={narrow ? t("layout.connect") : undefined}
             accountStatus={{ smallScreen: "avatar", largeScreen: "address" }} chainStatus="icon" />
         </div>

@@ -32,11 +32,11 @@ function Page({ route, go }: { route: RouteId; go: (r: string) => void }) {
 }
 
 export default function App() {
-  // la langue est lue ici : la changer redessine toute l'application (sans démonter les pages ni perdre leur état)
+  // the language is read here: changing it redraws the whole app (without unmounting pages or losing their state)
   useLang();
   const [route, go] = useHashRoute();
   const [copilotOpen, setCopilotOpen] = useState(false);
-  // ⌘K / Ctrl+K ouvre ou ferme le copilote, depuis n'importe quelle page
+  // ⌘K / Ctrl+K opens or closes the copilot from any page
   useEffect(() => {
     const on = (e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setCopilotOpen((v) => !v); } };
     window.addEventListener("keydown", on);

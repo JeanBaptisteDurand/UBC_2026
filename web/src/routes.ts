@@ -5,8 +5,8 @@ import {
 } from "lucide-react";
 import { t, type StaticKey } from "./i18n";
 
-/** Le menu d'ArcHive : chaque capacité a UNE maison, regroupée par intention (comme une console SaaS).
- *  Les identifiants de route restent ceux d'origine (liens partagés, copilote) ; les libellés suivent la langue. */
+/** ArcHive's menu: each capability has ONE home, grouped by intent (like a SaaS console).
+ *  Route ids keep their original names (shared links, the copilot); the labels follow the language. */
 export type RouteId =
   | "vue" | "ruche" | "produits" | "primes"
   | "playground" | "cles" | "publier-prime"
@@ -32,8 +32,8 @@ export const ROUTES: RouteDef[] = [
 ];
 export const GROUPS: GroupId[] = ["explore", "use", "provide", "account", "build"];
 
-/** Les autres pages du site, hors de la console (même onglet) : la salle des serveurs en 3D (/datacenter/), où chaque
- *  baie est une enclave inscrite sur Arc. Chaque lien se range dans un groupe, juste après la page nommée par `after`. */
+/** The site's other pages, outside the console (same tab): the 3D server room (/datacenter/), where each rack is an
+ *  enclave registered on Arc. Each link sits in a group, right after the page named by `after`. */
 export interface LinkDef { href: string; icon: LucideIcon; group: GroupId; after: RouteId; label: StaticKey }
 export const LINKS: LinkDef[] = [
   { href: "/datacenter/", icon: Rotate3d, group: "explore", after: "ruche", label: "nav.datacenter" },
@@ -47,35 +47,35 @@ const ROUTE_LABEL: Record<RouteId, StaticKey> = {
 const GROUP_LABEL: Record<GroupId, StaticKey> = {
   explore: "nav.group.explore", use: "nav.group.use", provide: "nav.group.provide", account: "nav.group.account", build: "nav.group.build",
 };
-/** Le nom d'une page dans la langue du site (« Hive » / « Ruche »). */
+/** A page's name in the site's language ("Hive" / « Ruche »). */
 export const routeLabel = (id: RouteId): string => t(ROUTE_LABEL[id]);
-/** Le nom d'un groupe du menu dans la langue du site. */
+/** A menu group's name in the site's language. */
 export const groupLabel = (g: GroupId): string => t(GROUP_LABEL[g]);
 
 const IDS = new Set(ROUTES.map((r) => r.id));
-/** Anciennes pages (et pages du copilote) → nouvelles routes. */
+/** Older page names (and the copilot's page names) → current routes. */
 const ALIASES: Record<string, RouteId> = {
   home: "produits", accueil: "vue", hive: "ruche", use: "playground", rent: "operateur",
   onramp: "portefeuille", profile: "portefeuille", bounties: "primes", keys: "cles", developers: "developpeurs",
   overview: "vue", products: "produits", "post-bounty": "publier-prime", operator: "operateur", publish: "publier-produit", wallet: "portefeuille",
 };
-/** Vrai si `x` nomme une page du site (route actuelle ou ancien nom encore renvoyé par le copilote). */
+/** True if `x` names a page of the site (a current route, or an older name the copilot may still send). */
 const isAlias = (x: string): boolean => Object.prototype.hasOwnProperty.call(ALIASES, x);
 export const isKnownPage = (x: string): boolean => IDS.has(x as RouteId) || isAlias(x);
 export function resolveRoute(x?: string | null): RouteId {
   const k = (x ?? "").replace(/^#\/?/, "").split("?")[0] as RouteId;
   if (IDS.has(k)) return k;
-  // propriété propre seulement : « #/constructor » ou « toString » ne doivent pas tomber sur une propriété d'Object
+  // own property only: "#/constructor" or "toString" must not land on an Object property
   return isAlias(k) ? ALIASES[k]! : "vue";
 }
 
-/** Routage par hash (#/ruche) : liens partageables, bouton retour du navigateur. */
+/** Hash routing (#/ruche): shareable links, the browser's back button. */
 export function useHashRoute(): [RouteId, (r: string) => void] {
   const [route, setRoute] = useState<RouteId>(() => resolveRoute(window.location.hash));
   useEffect(() => {
-    // 19/11 : un lien « #/… » posé dans une page (panneau de la Ruche, phrase d'aide) change de page sans passer par go() :
-    // la page ouverte par un CLIC commence en haut, comme par le menu (elle s'ouvrait à la hauteur de défilement de
-    // l'ancienne, souvent tout en bas). Le bouton retour du navigateur, lui, garde la hauteur qu'il restaure.
+    // A "#/…" link placed in a page (Hive panel, help sentence) changes the page without going through go(): a page
+    // opened by a CLICK starts at the top, as from the menu (otherwise it would open at the previous page's scroll height,
+    // often at the very bottom). The browser's back button keeps the height it restores.
     let clickedAt = -Infinity;
     const onClick = (e: MouseEvent) => {
       if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
