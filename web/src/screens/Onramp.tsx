@@ -6,9 +6,9 @@ import { Card, Btn, Field, Stat, Mono, Badge, usdc } from "../ui";
 import { t, tx } from "../i18n";
 import { explainError } from "../errors";
 
-// Config par défaut (éditable). Les soldes se lisent sur chaque chaîne ; le pont CCTP passe par le
-// TokenMessengerV2 de la chaîne source. Arc = domaine CCTP 26.
-// TokenMessengerV2 CCTP v2 testnet (adresse déterministe, code vérifié sur ces 3 chaînes).
+// Default config (editable). Balances are read on each chain; the CCTP bridge goes through the source chain's
+// TokenMessengerV2. Arc = CCTP domain 26.
+// CCTP v2 testnet TokenMessengerV2 (deterministic address, code verified on these 3 chains).
 const CCTP_TOKEN_MESSENGER = "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA" as const;
 const DEFAULT_CHAINS: CctpChain[] = [
   { key: "arc", name: "Arc testnet", chainId: 5042002, rpcUrl: "https://rpc.testnet.arc.io", usdc: testnet.usdc, cctpDomain: 26, tokenMessenger: CCTP_TOKEN_MESSENGER },
@@ -16,8 +16,8 @@ const DEFAULT_CHAINS: CctpChain[] = [
   { key: "base-sepolia", name: "Base Sepolia", chainId: 84532, rpcUrl: "https://base-sepolia-rpc.publicnode.com", usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e", cctpDomain: 6, tokenMessenger: CCTP_TOKEN_MESSENGER },
 ];
 
-/** Ce qu'a rencontré la lecture d'un solde sur UNE chaîne, en nommant cette chaîne (un 429 d'Ethereum Sepolia n'est pas
- *  « le RPC d'Arc ») ; le message de viem (« HTTP request failed. ») n'est jamais montré tel quel. Le reste : explainError. */
+/** What reading a balance on ONE chain ran into, naming that chain (a 429 from Ethereum Sepolia is not "Arc's RPC");
+ *  viem's message ("HTTP request failed.") is never shown as is. The rest: explainError. */
 function chainError(e: unknown, chain: string): string {
   for (let x: any = e, n = 0; x && n < 12; x = x.cause, n++) {
     if (x?.name === "HttpRequestError") {
@@ -28,13 +28,13 @@ function chainError(e: unknown, chain: string): string {
   }
   return explainError(e);
 }
-/** Une phrase trop longue pour la ligne est coupée avec « … » (le texte entier reste dans l'infobulle). */
+/** A sentence too long for the line is cut with "…" (the full text stays in the tooltip). */
 const clip = (s: string, n = 90): string => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
 
 export default function Onramp() {
   const { address } = useAccount();
   const [owner, setOwner] = useState("");
-  // l'erreur d'une chaîne est gardée telle quelle et mise en mots à l'affichage (elle suit la langue du site)
+  // a chain's error is kept as is and put into words at display time (it follows the site's language)
   const [rows, setRows] = useState<Array<{ chain: CctpChain; balance?: bigint; error?: unknown }>>([]);
   const [loading, setLoading] = useState(false);
 
@@ -42,7 +42,7 @@ export default function Onramp() {
     const who = (owner || address) as Address;
     if (!who) return;
     setLoading(true); setRows([]);
-    // lecture résiliente, chaîne par chaîne
+    // resilient reads, chain by chain
     const out: Array<{ chain: CctpChain; balance?: bigint; error?: unknown }> = [];
     for (const chain of DEFAULT_CHAINS) {
       try { const res = await readUsdcBalances([chain], who); out.push({ chain, balance: res[0]?.balance }); }

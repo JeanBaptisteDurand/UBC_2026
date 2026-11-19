@@ -1,14 +1,14 @@
-/** X402Chat.tsx — l'IA privée PAYÉE À L'APPEL (rail x402, produit 3 de la pile v2.1) : ni session ni dépôt. Chaque message
- *  est un appel, chiffré pour l'enclave seule (sa clé confrontée à Arc) et payé par UNE signature EIP-3009 du prix exact
- *  LU SUR ARC, vers X402Settler (une signature, pas une transaction : pas de gas). Le prix est affiché AVANT toute
- *  signature et rien n'est signé au-delà (x402.ts : maxAmount du SDK, et un portefeuille bridé à ce prix).
- *  Chaque réponse arrive avec son reçu, vérifié par le SDK (signé par l'enclave vérifiée, pour ce payeur, ce montant, cette
- *  requête et ce texte), puis l'état de son règlement lu sur Arc : en attente → réglé par l'opérateur.
- *  Un appel payé resté sans réponse vérifiée (X402PaidCallError) est expliqué : la réponse peut être perdue alors que le
- *  paiement peut être réglé ; « reprendre » renvoie la MÊME requête avec la MÊME autorisation (aucune 2e facturation),
- *  tant que l'enclave peut encore la rendre ; un prix monté entre-temps n'est accepté que par un clic qui l'affiche.
- *  Tout échec d'avant le paiement (clé, prix, refus de l'enclave, signature refusée) remet le message dans le champ :
- *  rien n'a été signé. */
+/** X402Chat.tsx — private AI PAID PER CALL (x402 rail, product 3 of the v2.1 stack): no session, no deposit. Each
+ *  message is a call, encrypted for the enclave alone (its key checked against Arc) and paid by ONE EIP-3009 signature
+ *  for the exact price READ ON ARC, to X402Settler (a signature, not a transaction: no gas). The price is shown BEFORE
+ *  any signature and nothing is signed above it (x402.ts: the SDK's maxAmount, and a wallet capped at this price).
+ *  Each answer arrives with its receipt, verified by the SDK (signed by the verified enclave, for this payer, this
+ *  amount, this request and this text), then the state of its settlement read on Arc: pending → settled by the operator.
+ *  A paid call left without a verified answer (X402PaidCallError) is explained: the answer may be lost while the
+ *  payment may still be settled; "resume" sends the SAME request with the SAME authorization (never charged twice),
+ *  as long as the enclave can still return it; a price that rose in the meantime is accepted only by a click that
+ *  shows it. Any failure before payment (key, price, enclave refusal, signature refused) puts the message back in the
+ *  field: nothing was signed. */
 import { useEffect, useRef, useState } from "react";
 import { useAccount } from "wagmi";
 import { Loader2 } from "lucide-react";
@@ -22,19 +22,19 @@ import { explainError, paidCallText } from "../errors";
 import { MsgError, fail, failWith, isFailure, msg, show, type Msg as Note } from "../msg";
 import { fmtNum, fmtUnix, t, tx, useLang } from "../i18n";
 
-/** Ce qu'a payé un appel servi : son reçu vérifié par le SDK, et de quoi suivre son règlement. */
+/** What a served call paid: its receipt verified by the SDK, and what is needed to follow its settlement. */
 interface Paid {
   signer: string; operator: string; amount: bigint; anchorBlock: bigint;
   settleable: boolean; settleableUnknown: boolean; replay: boolean; ref: PaidCallRef;
 }
-/** Une ligne de la conversation. `unanswered` : un message payé resté sans réponse vérifiée (laissé tel quel). */
+/** A line of the conversation. `unanswered`: a paid message left without a verified answer (kept as is). */
 type Line = { role: "user" | "assistant"; content: string; paid?: Paid; unanswered?: PaidCallRef };
 type PriceState = { state: "idle" } | { state: "reading" } | { state: "ok"; p: X402Price } | { state: "bad"; error: unknown };
-/** Un appel payé sans réponse vérifiée : l'erreur du SDK (son `pending` sert à reprendre) et le suivi de son règlement. */
+/** A paid call without a verified answer: the SDK's error (its `pending` is used to resume) and its settlement tracking. */
 interface PaidFailure { err: any; ref: PaidCallRef }
 
-/** La conversation part entière à chaque appel et doit tenir dans la requête de l'enclave (32 Kio en clair par défaut,
- *  sel compris) : au plus 24 Kio de messages, les plus anciens retirés d'abord ; null si le dernier seul dépasse. */
+/** The whole conversation is sent with each call and must fit in the enclave's request (32 KiB in clear text by default,
+ *  salt included): at most 24 KiB of messages, the oldest removed first; null if the last one alone is too large. */
 const MAX_CONV_BYTES = 24 * 1024;
 function fitConversation(messages: ChatMessage[]): ChatMessage[] | null {
   const size = (m: ChatMessage[]) => new TextEncoder().encode(JSON.stringify(m)).length;
@@ -43,14 +43,14 @@ function fitConversation(messages: ChatMessage[]): ChatMessage[] | null {
   return size(kept) > MAX_CONV_BYTES ? null : kept;
 }
 
-/** Ce qui suit un appel payé : son payeur, son nonce (commun à toutes ses autorisations), l'échéance la plus tardive. */
+/** What follows a paid call: its payer, its nonce (shared by all its authorizations), the latest expiry. */
 function refOf(p: any, fromBlock: bigint): PaidCallRef {
   const auths: any[] = Array.isArray(p?.authorizations) && p.authorizations.length ? p.authorizations : [p?.authorization];
   const big = (pick: (a: any) => unknown) => auths.reduce((m: bigint, a) => { const v = pick(a); return typeof v === "bigint" && v > m ? v : m; }, 0n);
   return { payer: p.payer, nonce: p.nonce, productId: p.productId, fromBlock, validBefore: big((a) => a?.validBefore), amount: big((a) => a?.value) };
 }
 
-/** Le nom du contrat qui règle un produit (pour dire pourquoi il ne se paie pas à l'appel). */
+/** The name of the contract that settles a product (to say why it is not paid per call). */
 function settlementName(a: string): string {
   const x = a.toLowerCase();
   if (x === testnet.sessionPay.toLowerCase()) return "SessionPay";
@@ -83,7 +83,7 @@ function PriceView({ price, onRetry }: { price: PriceState; onRetry: () => void 
   );
 }
 
-/** Le règlement d'un appel payé, lu sur Arc (et relu jusqu'à un état final). */
+/** The settlement of a paid call, read on Arc (and read again until a final state). */
 function SettlementLine({ arc, r }: { arc: ArcClient | null; r: PaidCallRef }) {
   const { s, err } = useSettlement(arc, r);
   if (!s) {
@@ -114,7 +114,7 @@ function SettlementLine({ arc, r }: { arc: ArcClient | null; r: PaidCallRef }) {
   }
 }
 
-/** Le reçu d'un appel servi (vérifié par le SDK avant que le texte soit rendu) et son règlement. */
+/** The receipt of a served call (verified by the SDK before the text is rendered) and its settlement. */
 function PaidReceipt({ arc, p }: { arc: ArcClient | null; p: Paid }) {
   return (
     <div className="mt-1 space-y-1 text-[12px] text-muted">
@@ -133,15 +133,15 @@ function PaidReceipt({ arc, p }: { arc: ArcClient | null; p: Paid }) {
   );
 }
 
-/** Un appel payé sans réponse vérifiée : ce qui s'est passé (paidCallText, d'après les champs de l'erreur, sans redire le
- *  titre ; une réponse écartée parce qu'elle ne correspondait pas à son reçu est dite comme telle), où en est son
- *  règlement, et la reprise quand elle est encore possible. */
+/** A paid call without a verified answer: what happened (paidCallText, from the error's fields, without repeating the
+ *  title; an answer discarded because it did not match its receipt is described as such), where its settlement
+ *  stands, and the resume button while resuming is still possible. */
 function PaidCallBox({ arc, pf, busy, onResume, onDismiss }: {
   arc: ArcClient | null; pf: PaidFailure; busy: boolean; onResume: (acceptPrice?: bigint) => void; onDismiss: () => void;
 }) {
   const e = pf.err;
   const lost = e?.code === "enclave_changed";
-  // l'enclave ne garde la réponse que jusqu'à l'échéance de l'autorisation (et seulement si elle n'a pas redémarré)
+  // the enclave keeps the answer only until the authorization's expiry (and only if it has not restarted)
   const canResume = !lost && BigInt(Math.floor(Date.now() / 1000)) + 10n < pf.ref.validBefore;
   const newPrice: bigint | undefined = (e?.code === "price_increased" || e?.code === "price_above_cap") && typeof e?.newPrice === "bigint" ? e.newPrice : undefined;
   return (
@@ -161,8 +161,8 @@ function PaidCallBox({ arc, pf, busy, onResume, onDismiss }: {
   );
 }
 
-/** `active` : le mode est affiché (la clé de l'enclave n'est vérifiée qu'une fois le mode ouvert) ; `onPrice` : le prix
- *  d'un appel lu sur Arc (null s'il n'est pas payable), pour le libellé du choix de paiement. */
+/** `active`: the mode is shown (the enclave's key is verified only once the mode is open); `onPrice`: the price of a
+ *  call read on Arc (null if it cannot be paid), for the label of the payment choice. */
 export default function X402Chat({ active, onPrice }: { active: boolean; onPrice?: (price: bigint | null) => void }) {
   const arc = useArc();
   useLang();
@@ -174,17 +174,17 @@ export default function X402Chat({ active, onPrice }: { active: boolean; onPrice
   const [price, setPrice] = useState<PriceState>({ state: "idle" });
   const [priceNonce, setPriceNonce] = useState(0);
   const [lines, setLines] = useState<Line[]>([]);
-  // null : la question d'exemple, dans la langue du moment (tant que l'utilisateur n'a rien tapé)
+  // null: the sample question, in the current language (until the user types something)
   const [typed, setInput] = useState<string | null>(null);
   const input = typed ?? t("chat.defaultPrompt");
   const [status, setStatus] = useState<Note | null>(null);
   const [busy, setBusy] = useState(false);
   const [paidFail, setPaidFail] = useState<PaidFailure | null>(null);
-  // la clé de l'enclave servie à cette adresse, confrontée à la chaîne avant tout envoi (montrée, puis revérifiée par le SDK)
+  // the key of the enclave served at this address, checked against the chain before anything is sent (shown, then checked again by the SDK)
   const [check, recheck] = useVerifiedEnclave(seen ? arc : null, url, productId);
   const cache = useRef<{ key: string; wallet: unknown; client: X402Client } | null>(null);
 
-  // le prix d'un appel, lu sur Arc (après une courte pause pendant la saisie du produit)
+  // the price of a call, read on Arc (after a short pause while the product is being typed)
   const pub = arc?.pub;
   const pid = productId.trim();
   useEffect(() => {
@@ -206,7 +206,7 @@ export default function X402Chat({ active, onPrice }: { active: boolean; onPrice
   const urlOk = /^https?:\/\/\S+$/.test(url.trim());
   const canSend = !!wallet && !wrongNet && !!payable && urlOk && check.state === "ok" && !busy && !paidFail && !!input.trim();
 
-  /** Le client x402 (gardé tant que l'enclave, le produit, le plafond et le portefeuille ne changent pas). */
+  /** The x402 client (kept while the enclave, the product, the cap and the wallet do not change). */
   function clientFor(cap: bigint, enclaveUrl: string, product: bigint): X402Client {
     if (!arc?.wallet) throw new MsgError(msg("err.connectWallet"));
     const key = `${enclaveUrl.trim()}|${product}|${cap}`;
@@ -219,7 +219,7 @@ export default function X402Chat({ active, onPrice }: { active: boolean; onPrice
     return client;
   }
 
-  /** Un appel servi : la réponse (vérifiée par le SDK), son reçu et le suivi de son règlement. */
+  /** A served call: the answer (verified by the SDK), its receipt and its settlement tracking. */
   function answered(c: X402Completion, fromBlock: bigint) {
     const ref: PaidCallRef = {
       payer: c.receipt.payer, nonce: c.receipt.nonce, productId: c.receipt.productId,
@@ -243,7 +243,7 @@ export default function X402Chat({ active, onPrice }: { active: boolean; onPrice
     ];
     const messages = fitConversation(history);
     if (!messages) { setStatus(failWith(msg("x402.tooLong", { n: MAX_CONV_BYTES / 1024 }))); return; }
-    // le plafond : le prix AFFICHÉ (lu sur Arc) ; rien n'est signé au-delà
+    // the cap: the price SHOWN (read on Arc); nothing is signed above it
     const cap = payable.price;
     const fromBlock = payable.block;
     setLines((l) => [...l, { role: "user", content: text }]); setInput("");
@@ -253,20 +253,20 @@ export default function X402Chat({ active, onPrice }: { active: boolean; onPrice
       answered(c, fromBlock);
     } catch (e: any) {
       if (e?.name === "X402PaidCallError" && e.pending) {
-        // payé, sans réponse vérifiée : le message reste, l'encadré dit quoi faire
+        // paid, without a verified answer: the message stays, the box says what to do
         setPaidFail({ err: e, ref: refOf(e.pending, fromBlock) });
         setStatus(null);
       } else {
-        // rien n'a été signé (clé, prix, refus de l'enclave avant paiement, signature refusée) : le message revient
+        // nothing was signed (key, price, enclave refusal before payment, signature refused): the message comes back
         setLines((l) => l.slice(0, -1)); setInput(text);
         setStatus(fail(e));
-        if (e?.name === "X402ChallengeError") setPriceNonce((n) => n + 1); // le prix a pu changer : il est relu et affiché
+        if (e?.name === "X402ChallengeError") setPriceNonce((n) => n + 1); // the price may have changed: it is read again and shown
       }
     } finally { setBusy(false); }
   }
 
-  /** Reprend l'appel payé : la même requête, la même autorisation ; `acceptPrice` : le nouveau prix, accepté d'un clic
-   *  qui l'affichait (une autorisation fraîche à ce prix, même nonce : au plus une des deux peut être réglée). */
+  /** Resumes the paid call: the same request, the same authorization; `acceptPrice`: the new price, accepted by a click
+   *  that showed it (a fresh authorization at this price, same nonce: at most one of the two can be settled). */
   async function resume(acceptPrice?: bigint) {
     const pf = paidFail;
     if (!pf || !arc?.wallet || busy) return;
@@ -284,7 +284,7 @@ export default function X402Chat({ active, onPrice }: { active: boolean; onPrice
     } finally { setBusy(false); }
   }
 
-  /** Laisser l'appel payé : le message reste marqué « payé, sans réponse vérifiée », avec le suivi de son règlement. */
+  /** Leave the paid call: the message stays marked "paid, without a verified answer", with its settlement tracking. */
   function dismiss() {
     const pf = paidFail;
     if (!pf || busy) return;
@@ -336,8 +336,8 @@ export default function X402Chat({ active, onPrice }: { active: boolean; onPrice
           ))}
         </div>
         {paidFail && <PaidCallBox arc={arc} pf={paidFail} busy={busy} onResume={resume} onDismiss={dismiss} />}
-        {/* étroit (téléphone) : le bouton, au libellé long (« Payer 0,01 USDC et envoyer »), passe sous le champ, qui garde
-            toute la largeur ; à partir de 640 px, côte à côte */}
+        {/* narrow (phone): the button, with its long label ("Pay 0.01 USDC and send"), moves under the field, which keeps
+            the full width; from 640 px, side by side */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
           <div className="min-w-0 sm:flex-1"><Field label={t("chat.message")} value={input} onChange={setInput} /></div>
           <div className="flex justify-end sm:block">
