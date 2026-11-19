@@ -826,8 +826,11 @@ function downTier() {
 // default and the fallback (pack missing or wrong, worker error, no first frames): decided before the first gesture.
 const GATE_DEFAULT = false
 export const GATE = Q.get('gate') === '1' || (GATE_DEFAULT && Q.get('gate') !== '0' && !FIREFOX && !CONN?.saveData)
-/** The motion pack, next to the set's frames (Retina uses the desktop one); ?pack= overrides */
-const PACK = /^[\w.-]+$/.test(Q.get('pack') ?? '') ? Q.get('pack')! : 'lite.bin'
+/** The motion pack, next to the set's frames (Retina uses the desktop one); ?pack= overrides. motion.bin (10.3 MB
+ *  desktop, 10.5 MB phone, 960x600 and 390x844): the gate opens at the end of its one-in-2 layer (5.2 MB), the odd
+ *  frames keep streaming in the worker. Measured 20/11 at 3.5 Mbit/s: gate 15 s, 0% of moving refreshes more than 1
+ *  frame off; ?pack=lite.bin: gate 8 s, the same 0% with frames 2 apart at 640x400 */
+const PACK = /^[\w.-]+$/.test(Q.get('pack') ?? '') ? Q.get('pack')! : 'motion.bin'
 const M = {
   w: 0, h: 0, count: 0, total: 0, gateAt: 0, got: 0, ks: new Int32Array(0), ends: new Int32Array(0), pj: 0,
   present: new Uint8Array(0), head: false, done: false, cached: false, fail: '',
