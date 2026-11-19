@@ -377,7 +377,11 @@ describe("DEMO_FAULT — garde-fous", () => {
     for (const k of ["DEMO_FAULT", "OPERATOR_ALLOWLIST", "PRODUCT_ID", "PORT", "ANVIL_BIN"]) delete clean[k];
     return spawnSync(TSX, ["products/sealed-bounty/server.ts"], {
       cwd: ENCLAVE_DIR, encoding: "utf8", timeout: 60_000,
-      env: { ...clean, ANVIL_BIN: "/nonexistent/anvil-for-test", PORT: "0", ...env },
+      // the server requires its contract addresses (set and measured by the compose file) before any other check
+      env: {
+        ...clean, SEALEDBOUNTY: "0x182871d34438aB37a7FD4d8689f3e0812E447A9b", REGISTRY,
+        ANVIL_BIN: "/nonexistent/anvil-for-test", PORT: "0", ...env,
+      },
     });
   };
 
