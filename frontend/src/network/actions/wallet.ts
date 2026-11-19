@@ -20,6 +20,8 @@ export type { ArcClient }
 interface Announced { info: { uuid: string; name: string; icon?: string; rdns?: string }; provider: EIP1193Provider }
 const found = new Map<string, Announced>()
 let provider: EIP1193Provider | null = null
+/** The connected wallet's provider (the bridge page signs on other chains with it), null before a connection. */
+export const injected = () => provider
 
 function discover(): Promise<WalletInfo[]> {
   return new Promise((res) => {

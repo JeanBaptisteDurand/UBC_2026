@@ -143,9 +143,14 @@ function stepWheel(raw: number) {
   step.gPeak = Math.max(step.gPeak, mag)
   if (mag >= Math.max(3, 0.5 * step.gPeak)) step.sustain = now
 }
+/** Panels with their own scroll: the wheel scrolls them, not the page (AskHive's panel, dialogs, anything marked) */
+const OWN_SCROLL = '.cp-panel, [role="dialog"], [data-lenis-prevent]'
 const wheelNorm = (data: { deltaX: number; deltaY: number; event: WheelEvent | TouchEvent }) => {
   const e = data.event as WheelEvent
   if (!e || e.type !== 'wheel' || !lenis || e.ctrlKey) return true
+  // A wheel over a panel with its own scroll (AskHive's conversation, a dialog): that panel scrolls, never the page
+  // (JB, 19/11); Lenis then lets it through (its prevent option below)
+  if ((e.target as Element | null)?.closest?.(OWN_SCROLL)) return true
   const H = innerHeight || 800
   const raw = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * H : e.deltaY
   if (!raw) return true
@@ -207,7 +212,7 @@ export function startClock({ smooth = true }: { smooth?: boolean } = {}) {
   const lenisOn = q.get('lenis') !== '0'
   if (!REDUCED && smooth && lenisOn) {
     // Smooth scrolling with inertia; native inertia on touch
-    lenis = new Lenis({ lerp: 0.1, wheelMultiplier: 1, touchMultiplier: 1, autoRaf: false, smoothWheel: true, syncTouch: false, virtualScroll: wheelNorm })
+    lenis = new Lenis({ lerp: 0.1, wheelMultiplier: 1, touchMultiplier: 1, autoRaf: false, smoothWheel: true, syncTouch: false, virtualScroll: wheelNorm, prevent: (node) => node.matches?.(OWN_SCROLL) ?? false })
     lenis.on('scroll', ScrollTrigger.update)
     // Keyboard goes through the same profile (registered after the UI handlers: Escape, wall keyboard navigation)
     addEventListener('keydown', keyNorm)

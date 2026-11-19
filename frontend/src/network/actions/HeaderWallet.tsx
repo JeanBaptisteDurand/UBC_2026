@@ -10,7 +10,8 @@ import { useEngine } from './kit'
 import { spText } from '../../space/strings'
 
 // ---------- the wallet, in the header (top right, next to Console and the language) ----------
-export function HeaderWallet() {
+/** quiet: the popup does not open on its own on another network (the bridge page moves the wallet across chains) */
+export function HeaderWallet({ quiet = false }: { quiet?: boolean } = {}) {
   const lang = useLang()
   const s = useWallet()
   const E = useEngine()
@@ -31,7 +32,7 @@ export function HeaderWallet() {
   const connected = s.phase === 'connected' && !!s.address
   const wrong = connected && s.chainId !== ARC_ID
   // connected on another network: the popup opens on its own, with the Switch to Arc button in view
-  useEffect(() => { if (wrong) setOpen(true) }, [wrong])
+  useEffect(() => { if (wrong && !quiet) setOpen(true) }, [wrong, quiet])
   const busy = s.phase === 'loading' || s.phase === 'connecting'
   // no wallet in this browser, on a touch screen: browser extensions cannot be installed there, so the page offers
   // to open itself in a wallet app, or the demo, which needs no wallet

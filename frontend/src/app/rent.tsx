@@ -1,8 +1,5 @@
-// Entry point of the rent page.
-import '../styles.css'
-import './app.css'
-import { t } from '../i18n'
-import { bootPage } from './parts'
-import { RentPage } from './RentPage'
+// Entry point of the old Rent page: renting out a machine is now the Rent part of the Network page
+// (network.html?focus=rent), where its steps (connect, bond, install, pair, admit) are signed in place.
+import { toNetwork } from './toNetwork'
 
-bootPage(<RentPage />, t('r.doc'))
+toNetwork('rent')

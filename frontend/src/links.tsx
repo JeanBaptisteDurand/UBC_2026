@@ -5,27 +5,24 @@ import { num } from './data/fmt'
 import { C } from './data/facts'
 import type { Service } from './data/wall'
 
-// App pages: Use, Rent, Publish, the demo, plus Bounties, Sessions and Operator, which sign in place. The Hive,
-// Developers and Console pages live in the console. Every page sits under the build base (BASE_URL: "/" or a sub-path).
+// The site's places, one address each (Florent's structure): Network and its three parts (Use, Rent, Publish: their
+// steps, signed in place), Services (the catalog), Doc, and My space, whose tabs hold Bounties, Sessions and Machines.
+// The old addresses (use.html, rent.html, publish.html, demo.html, bounty.html, sessions.html, operator.html) only
+// redirect there. The Hive, Developers and Console pages live in the console. Every page sits under the build base
+// (BASE_URL: "/" or a sub-path).
 const B = import.meta.env.BASE_URL
+/** The Network page opened on one part: Use (a paid call), Rent (bring a machine), Publish (publish a service) */
+export const networkFor = (k: 'use' | 'rent' | 'publish') => `${B}network.html?focus=${k}`
 export const link = {
-  home: B, use: `${B}use.html`, demo: `${B}network.html?focus=demo`, rent: `${B}rent.html`, publish: `${B}publish.html`, network: `${B}network.html`,
-  bounty: `${B}bounty.html`, sessions: `${B}sessions.html`, operator: `${B}operator.html`, services: `${B}network.html?focus=use`, catalog: `${B}service.html`, doc: `${B}doc.html`,
+  home: B, network: `${B}network.html`, use: networkFor('use'), rent: networkFor('rent'), publish: networkFor('publish'), demo: `${B}network.html?focus=demo`,
+  catalog: `${B}service.html`, doc: `${B}doc.html`,
+  bounty: `${B}space.html?tab=bounties`, sessions: `${B}space.html?tab=sessions`, operator: `${B}space.html?tab=machines`,
   hive: `${CONSOLE}/#/ruche`, dev: `${CONSOLE}/#/developpeurs`, console: `${CONSOLE}/#/vue`, datacenter: DATACENTER,
 }
-/** The page that gathers Use, Rent and Publish, opened on one part */
-export const networkFor = (k: 'use' | 'rent' | 'publish') => `${B}network.html?focus=${k}`
 /** A service page in the app: its description, with a button to use it */
 export const serviceHref = (productId: string) => `${B}service.html?p=${encodeURIComponent(productId)}`
-/** Using a service: Network's Use part with that service picked (catalog open, service described) */
-export const useHref = (productId: string) => `${B}network.html?focus=use&p=${encodeURIComponent(productId)}`
-/** Where a service is used on this site: a bounty on the bounties page, session inference on the sessions page,
- *  pay-per-call in the Use action panel, the copilot in its bubble. */
-export const actFor = (s?: Service, productId?: string) =>
-  s === 'bounty' ? link.bounty
-    : s === 'ai' ? `${link.sessions}${productId ? `?p=${encodeURIComponent(productId)}` : ''}`
-      : s === 'copilot' ? '#copilot'
-        : `${link.use}${productId ? `?act=${encodeURIComponent(productId)}` : ''}#act`
+/** Using a service: Network's Use part with that service picked (its paid call; a service paid otherwise says where) */
+export const useHref = (productId: string) => `${networkFor('use')}&p=${encodeURIComponent(productId)}`
 /** Console screen for a service, kept for secondary links. The console Bounties page only reads SealedBounty;
  *  verified-level bounties (SealedBountyVerified) are listed under its products, as the console files them */
 const VERIFIED_RAILS = [C.SealedBountyVerified, C.SealedBountyVerifiedOld].map((a) => a.toLowerCase())

@@ -1,0 +1,61 @@
+/* The bridge page (BridgePage.tsx): the source chains and the amount on the left, the three steps on the right; one
+   column under 1000 px. Tap targets of at least 44 px, nothing wider than the screen from 320 px. */
+.br .br-btn { min-height: 48px; margin-top: 8px; }
+.br .br-who { margin: 24px 0 0; }
+.br-sec { overflow-wrap: anywhere; }
+.br-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px 64px; max-width: 1180px; }
+@media (min-width: 1000px) { .br-grid { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); } }
+.br-form, .br-steps { min-width: 0; }
+.br-form { display: grid; gap: 16px; align-content: start; justify-items: start; }
+.br-form > .work-h, .br-steps > .work-h { justify-self: stretch; margin-bottom: 8px; }
+.br-form .work-lede { margin: -8px 0 0; }
+.br-form .na-note, .br-steps .na-note { margin-left: 0; }
+.br-nets { display: grid; gap: 8px; width: 100%; max-width: 30em; }
+.br-net {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: baseline; width: 100%; min-height: 64px;
+  padding: 12px 16px; border: 0; border-radius: 0; background: var(--panel); color: var(--ink2); text-align: left; font: inherit;
+  box-shadow: inset 0 0 0 1px var(--rule2); cursor: pointer; transition: box-shadow var(--t2) var(--productive), color var(--t2) var(--productive);
+}
+.br-net:hover:not(:disabled), .br-net[aria-checked='true'] { color: var(--ink); }
+.br-net[aria-checked='true'] { box-shadow: inset 0 0 0 1px var(--ink), inset 3px 0 0 var(--acc); }
+.br-net:focus-visible { outline: 1px solid var(--acc); outline-offset: 3px; }
+.br-net:disabled { cursor: default; }
+.br-net:disabled:not([aria-checked='true']) { opacity: 0.5; }
+.br-net-n { font-weight: 600; font-size: 15px; }
+.br-net-v { font-size: 15px; color: var(--ink); text-align: right; }
+.br-net-g { grid-column: 1 / -1; }
+.br-amt { display: grid; gap: 8px; width: 100%; max-width: 30em; }
+.br-row { display: flex; gap: 8px; width: 100%; }
+.br-in {
+  flex: 1 1 auto; min-width: 0; height: 48px; box-sizing: border-box; padding: 0 14px; border: 0; border-radius: 0; background: var(--panel);
+  color: var(--ink); font-size: 18px; box-shadow: inset 0 -1px 0 var(--rule2); outline: none;
+}
+.br-in:focus-visible { box-shadow: inset 0 -2px 0 var(--acc); }
+.br-in:disabled { opacity: 0.7; }
+.br .br-max { flex: 0 0 auto; min-width: 64px; justify-content: center; }
+.br-fee, .br-get { margin: 0; }
+.br-get { font-size: 15px; color: var(--ink); }
+.br-arc { margin: 16px 0 0; width: 100%; max-width: 30em; }
+.br-arc > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; padding: 12px 0; box-shadow: inset 0 1px 0 var(--rule2); }
+.br-arc dd { margin: 0; color: var(--ink); }
+.br-steps .na-list { margin-top: 8px; }
+.acts .br-h { cursor: default; }
+.br-step .na-note { margin-left: calc(2ch + 12px); }
+.br-tx { list-style: none; margin: 4px 0 0 calc(2ch + 12px); padding: 0; display: flex; flex-wrap: wrap; gap: 0 20px; }
+.br-tx a, .br .na-note .tlink, .br-gas .tlink { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
+.br-gas { margin: 0; }
+.br-how .br-p { margin: 0 0 12px; max-width: 40em; font-size: 15px; line-height: 1.55; color: var(--ink2); }
+.br-how .muted { color: var(--ink3); }
+.br-resume { margin: 0; }
+@media (max-width: 760px) {
+  .acts .na-list { padding-left: 16px; }
+  .br-step .na-note, .br-tx, .acts .br-step .na-d, .acts .br-step .na-b { margin-left: 0; }
+  .acts .br-h { grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; }
+}
+/* the free line (every transfer is a standard one: 1 USDC sent = 1 USDC received), and the wait for Circle */
+.br-fee { display: grid; gap: 4px; margin: 0; }
+.br-fee p { margin: 0; }
+.br-free { font-size: 15px; color: var(--ink); }
+.br-wait { height: 2px; margin: 12px 0 0; max-width: 30em; background: var(--rule2); overflow: hidden; }
+.br-wait > i { display: block; height: 100%; background: var(--acc); transform-origin: 0 50%; transition: transform 1s linear; }
+@media (prefers-reduced-motion: reduce) { .br-wait > i { transition: none; } }

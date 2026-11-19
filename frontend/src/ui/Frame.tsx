@@ -11,7 +11,7 @@ import { world, setLock, useLock, useWallVersion, useLoupe } from '../world'
 import { G, SLOTS, NSLOTS, slotLabel, productLabel, priceText, reasonText, stateText, colX, type Sled } from '../data/wall'
 import { onTick, REDUCED, getLenis, step } from '../clock'
 import { openService, slotHref } from './ServicePanel'
-import { MainNav } from './MainNav'
+import { MainNav, BridgeNav } from './MainNav'
 import { useMenu, MenuButton, Drawer } from './Menu'
 import { HeaderWallet } from '../network/actions/HeaderWallet'
 import '../network/actions/actions.css'
@@ -74,6 +74,8 @@ export function Header({ loaded }: { loaded: number | (() => number) }) {
         <a className="logo" href={link.home} aria-label="ArcHive"><Logo /></a>
         <nav className="hd-nav" aria-label={t('nav.main')}>{nav}</nav>
         <div className="hd-side">
+          {/* the bridge, at the right next to the language and the wallet (hidden under 1100 px: it is in the menu) */}
+          <div className="hd-nav hd-br"><BridgeNav /></div>
           <button className="lang" onClick={() => setLang(lang === 'fr' ? 'en' : 'fr')} lang={lang === 'fr' ? 'en' : 'fr'} aria-label={t('lang.to')}>{lang === 'fr' ? 'EN' : 'FR'}</button>
           {/* the visitor's wallet, as on the app pages */}
           <HeaderWallet />
@@ -88,7 +90,7 @@ export function Header({ loaded }: { loaded: number | (() => number) }) {
         <span className="band-sec"><span ref={sec} className="sec-n">{t('sec.hero')}</span><span className="prog-pct mono tnum" ref={pct} aria-hidden="true">{lang === 'fr' ? '0\u00a0%' : '0%'}</span></span>
       </div>
       <div className="prog" aria-hidden="true"><div className="prog-bar" ref={bar} /></div>
-      {open ? <Drawer nav={nav} close={() => setOpen(false)} /> : null}
+      {open ? <Drawer nav={<MainNav page="home" drawer />} close={() => setOpen(false)} /> : null}
       <SelLayer />
     </header>
   )

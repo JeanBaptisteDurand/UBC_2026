@@ -262,3 +262,5 @@ html:not([data-cur='1']) .vt-fac:hover::after, html:not([data-cur='1']) .vt-fac:
   .vt-cta-d { display: none; }
   .vt-cta-m { display: inline; }
 }
+/* the market's line to the Doc's Tokenomics chapter (vit-content.ts) */
+.vt-r .mk-tok { margin: 12px 0 0; max-width: 36em; color: var(--ink2); }

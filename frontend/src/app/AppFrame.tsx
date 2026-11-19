@@ -12,12 +12,12 @@ import { SelLayer } from '../ui/Sel'
 import { PageCursor } from '../ui/PageCursor'
 import { reveal } from '../ui/motion'
 import { loadP, installPageExit } from '../ui/pageload'
-import { MainNav } from '../ui/MainNav'
+import { MainNav, BridgeNav } from '../ui/MainNav'
 import { useMenu, MenuButton, Drawer } from '../ui/Menu'
 import { HeaderWallet } from '../network/actions/HeaderWallet'
 import '../network/actions/actions.css'
 
-export type AppPage = 'use' | 'service' | 'demo' | 'rent' | 'publish' | 'network' | 'bounty' | 'sessions' | 'operator' | 'doc' | 'space'
+export type AppPage = 'use' | 'service' | 'demo' | 'rent' | 'publish' | 'network' | 'bounty' | 'sessions' | 'operator' | 'doc' | 'space' | 'bridge'
 
 /** replay: the replayed demo reads nothing live; the second row shows the recording */
 /** wallet: the visitor's wallet button, the same on every app page (the replayed demo has none). The copilot bubble
@@ -53,13 +53,16 @@ export function AppHeader({ page, section, sectionText, replay, wallet }: { page
   }), [])
   // motion rule M2 on arrival: the page's content rises block by block under a header that never moves (M1)
   useEffect(() => { requestAnimationFrame(() => reveal(document.querySelector('main'))) }, [])
-  const nav = <MainNav page={page === 'network' ? 'network' : page === 'service' ? 'catalog' : page === 'doc' ? 'doc' : 'other'} />
+  const navPage = page === 'network' ? 'network' : page === 'service' ? 'catalog' : page === 'doc' ? 'doc' : page === 'bridge' ? 'bridge' : 'other'
+  const nav = <MainNav page={navPage} />
   return (
     <header className="hd app-hd-bar" data-front-free>
       <div className="hd-row1">
         <a className="logo" href={link.home} aria-label="ArcHive"><Logo /></a>
         <nav className="hd-nav" aria-label={t('nav.main')}>{nav}</nav>
         <div className="hd-side">
+          {/* the bridge, at the right next to the language and the wallet (hidden under 1100 px: it is in the menu) */}
+          <div className="hd-nav hd-br"><BridgeNav current={page === 'bridge'} /></div>
           <button className="lang" onClick={() => setLang(lang === 'fr' ? 'en' : 'fr')} lang={lang === 'fr' ? 'en' : 'fr'} aria-label={t('lang.to')}>{lang === 'fr' ? 'EN' : 'FR'}</button>
           {walletEl}
           <MenuButton open={open} set={setOpen} />
@@ -83,7 +86,7 @@ export function AppHeader({ page, section, sectionText, replay, wallet }: { page
       </div>
       )}
       <div className="prog" aria-hidden="true"><div className="prog-bar" ref={bar} /></div>
-      {open ? <Drawer nav={nav} close={() => setOpen(false)} /> : null}
+      {open ? <Drawer nav={<MainNav page={navPage} drawer />} close={() => setOpen(false)} /> : null}
       <SelLayer />
       <PageCursor />
       <CopilotMount />

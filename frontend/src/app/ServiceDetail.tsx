@@ -317,7 +317,7 @@ export function ServiceDetail({ pid, inPanel = false, headingId, wide = false, b
         {none ? <p className="body">{t('d.none.hint')}</p> : null}
         {down ? <p className="body">{t('d.down')}</p> : null}
         {down ? <button className="btn btn-line btn-s" onClick={() => location.reload()}><span>{t('app.retry')}</span></button> : null}
-        {none ? <a className="tlink" href={link.use}>{t('d.back')}</a> : null}
+        {none ? <a className="tlink" href={link.catalog}>{t('d.back')}</a> : null}
       </div>
     )
   }

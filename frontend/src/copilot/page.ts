@@ -1,6 +1,6 @@
 // The open page, as the copilot receives it (page field): its name, and what the URL says (?p, ?q, ?state, ?kind,
 // the anchor). All values are bounded here: a name from the list, digits, 60 characters.
-import { link, serviceHref } from '../links'
+import { link, serviceHref, useHref } from '../links'
 import { CONSOLE, DATACENTER } from '../data/endpoints'
 
 export type PageName = 'home' | 'use' | 'service' | 'rent' | 'publish' | 'demo' | 'network' | 'doc' | 'space' | 'bounty' | 'sessions' | 'operator'
@@ -17,16 +17,32 @@ export const isId = (x: unknown): x is string => typeof x === 'string' && /^\d{1
 export const isAnchor = (x: unknown): x is string => typeof x === 'string' && /^[a-z][a-z0-9-]{0,39}$/.test(x)
 export const oneOf = <T extends string>(list: readonly T[], x: unknown): T | undefined => (typeof x === 'string' && (list as readonly string[]).includes(x) ? (x as T) : undefined)
 
-/** The front page served at this URL (/, /use.html, /service.html, /network.html…), or null outside the front (and for
- *  pages the server copilot does not know: Bounties, Sessions, Operator). Resolved under the build base. The Network
- *  page carries the site's demo (its 3D demo, network.html?focus=demo): the copilot plays it there. */
-export function pageOf(pathname = location.pathname): PageName | null {
+/** The Network page's three parts: Use, Rent and Publish are no pages of their own (use.html, rent.html and
+ *  publish.html only redirect), they are network.html?focus=use|rent|publish, whose panel holds their steps. */
+export const NET_PARTS = ['use', 'rent', 'publish'] as const
+export type NetPart = (typeof NET_PARTS)[number]
+export const isNetPart = (x: unknown): x is NetPart => typeof x === 'string' && (NET_PARTS as readonly string[]).includes(x)
+
+/** The file served at this URL (/, /service.html, /network.html…), under the build base, or null outside the front. */
+function fileOf(pathname: string): PageName | null {
   const base = import.meta.env.BASE_URL.replace(/\/+$/, '')
   const rel = base && pathname.startsWith(base) ? pathname.slice(base.length) || '/' : pathname
   const p = rel.replace(/\/index\.html$/, '/').replace(/\.html$/, '').replace(/\/+$/, '')
   if (p === '') return 'home'
   const m = /^\/(use|service|rent|publish|demo|network|doc|space|bounty|sessions|operator)$/.exec(p)
   return m ? (m[1] as PageName) : null
+}
+/** The Network page is open (network.html), whatever part it shows */
+export const onNetworkPage = (pathname = location.pathname) => fileOf(pathname) === 'network'
+/** The page open, as the copilot names it: the file served, except on the Network page opened on a part
+ *  (network.html?focus=rent), which is that part's page (rent): its steps carry the anchors of the copilot's tours
+ *  (data-copilot). The Network page also carries the site's demo (its 3D demo, network.html?focus=demo): the copilot
+ *  plays it there. */
+export function pageOf(pathname = location.pathname, search = location.search): PageName | null {
+  const f = fileOf(pathname)
+  if (f !== 'network') return f
+  const part = new URLSearchParams(search).get('focus')
+  return isNetPart(part) ? part : 'network'
 }
 
 /** The landing section at the middle of the screen (its anchor: top, use, rent, publish, invalid, protocol, arc, end). */
@@ -64,16 +80,22 @@ export function pageContext(): PageCtx | undefined {
   return out
 }
 
-/** The URL of a site page; catalog search and filters are typed on arrival. */
+/** The URL of a site page (Use, Rent and Publish: the Network page's parts). */
 export function urlOf(page: Target, a: { productId?: string; consoleRoute?: string; section?: string } = {}): string {
   // site URLs (link, build base), the console and the 3D room (data/endpoints.ts)
   switch (page) {
     case 'home': return link.home
-    case 'use': return link.use
-    case 'service': return a.productId ? serviceHref(a.productId) : link.use
+    // Use, Rent and Publish: the Network page opened on that part (Use with the service it calls, ?p=)
+    case 'use': return a.productId ? useHref(a.productId) : link.use
+    // Services is the catalog: a product's sheet (?p=), or the shop window itself
+    case 'service': return a.productId ? serviceHref(a.productId) : link.catalog
     // the Doc page opens one chapter at a time (doc.html?c=<chapter>)
     case 'doc': return isAnchor(a.section) ? `${link.doc}?c=${a.section}` : link.doc
     case 'space': return `${link.home}space.html`
+    // the Network page on one of its own views: what runs on Arc, CCTP
+    case 'network': return a.section === 'arc' || a.section === 'cctp' ? `${link.network}?focus=${a.section}` : link.network
+    // rent, publish (the Network page's parts), demo (the Network page's 3D demo), bounty, sessions, operator (the tabs
+    // of My space): links.tsx
     case 'datacenter': return DATACENTER
     case 'console': return `${CONSOLE}/#/${oneOf(CONSOLE_ROUTES, a.consoleRoute) ?? 'vue'}`
     default: return link[page]

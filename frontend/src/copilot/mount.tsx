@@ -1,4 +1,4 @@
-// Copilot mounting, one line per page entry (main, use, service, rent, publish, demo):
+// Copilot mounting, one line per page entry (main, network, service, doc, space):
 //   import('./copilot/mount').then((m) => m.mountCopilot())
 // A separate React root, attached to <body> (outside the page's own root). On arrival from a copilot navigation, the
 // remaining gestures (state.ts, takeQueue) resume once the page is ready, with the panel open.
@@ -20,7 +20,7 @@ export function mountCopilot() {
   void restore()
   // a page restored from the browser cache (Back) re-reads the tab's conversation
   addEventListener('pageshow', (e) => { if (e.persisted) reloadState() })
-  // a "#copilot" link (the catalog's Copilot service, links.tsx actFor) opens the panel
+  // a "#copilot" link (the Copilot service's "Use it") opens the panel
   const hash = () => { if (location.hash === '#copilot') { setState({ open: true }); history.replaceState(null, '', location.pathname + location.search) } }
   hash(); addEventListener('hashchange', hash)
   const q = takeQueue()
