@@ -824,10 +824,34 @@ function downTier() {
 // the image moves, the two neighbouring frames are blended at every speed, and the motion canvas has the pack's size.
 // The sharp frame is fetched and faded in over it (#film-sharp) only once the scroll rests. Today's film stays the
 // default and the fallback (pack missing or wrong, worker error, no first frames): decided before the first gesture.
+// ?rb=0 (comparison): the reading blur under the landing's text columns (styles.css, a backdrop-filter re-blurred on
+// every frame where the film moves under it) becomes a still shade (video.css). Measured 20/11 in headless Chromium,
+// 1440x900: with the blur the page renders at 30 frames per second while the film moves, without it at 60
+if (Q.get('rb') === '0') document.documentElement.classList.add('rb-off')
 const GATE_DEFAULT = false
 export const GATE = Q.get('gate') === '1' || (GATE_DEFAULT && Q.get('gate') !== '0' && !FIREFOX && !CONN?.saveData)
-/** The motion pack, next to the set's frames (Retina uses the desktop one); ?pack= overrides */
-const PACK = /^[\w.-]+$/.test(Q.get('pack') ?? '') ? Q.get('pack')! : 'lite.bin'
+/** The motion pack, next to the set's frames (Retina uses the desktop one); ?pack= overrides. motion.bin (10.3 MB
+ *  desktop, 10.5 MB phone, 960x600 and 390x844): the gate opens at the end of its one-in-2 layer (5.2 MB), the odd
+ *  frames keep streaming in the worker. Measured 20/11 at 3.5 Mbit/s: gate 15 s, 0% of moving refreshes more than 1
+ *  frame off; ?pack=lite.bin: gate 8 s, the same 0% with frames 2 apart at 640x400 */
+const PACK = /^[\w.-]+$/.test(Q.get('pack') ?? '') ? Q.get('pack')! : 'motion.bin'
+/** The pack starts as soon as this module runs, with meta.bin (preloaded by index.html), before the fonts and the
+ *  first render; mountMotion takes the worker over and replays what it said meanwhile (about a second earlier at the
+ *  gate) */
+const early = (() => {
+  if (!GATE || REDUCED || CONN?.saveData) return null
+  const man = (window as W).__FILM_MAN?.[SET]
+  if (!man) return null
+  const set = man.ysFrom ?? SET
+  const meta = fetch(`${ROOT}${set}/meta.bin`, { priority: 'high' } as RequestInit).then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null)
+  const e = { meta, w: null as Worker | null, q: [] as [number, MessageEvent][], t0: performance.now(), failed: false }
+  try { e.w = new Worker(new URL('./pack.worker.ts', import.meta.url), { type: 'module' }) } catch { return e }
+  // kept with their arrival time (the rate is measured on it)
+  e.w.onmessage = (m) => { e.q.push([performance.now(), m]) }
+  e.w.onerror = () => { e.failed = true }
+  void meta.then((buf) => { if (buf && e.w) { const fp = fingerprint(new Uint8Array(buf)); e.w.postMessage({ type: 'pack', url: `${ROOT}${set}/${PACK}?v=${fp.toString(36)}`, n: man.n, fp }) } })
+  return e
+})()
 const M = {
   w: 0, h: 0, count: 0, total: 0, gateAt: 0, got: 0, ks: new Int32Array(0), ends: new Int32Array(0), pj: 0,
   present: new Uint8Array(0), head: false, done: false, cached: false, fail: '',
@@ -843,8 +867,7 @@ let mStamp = new Uint32Array(0), mSV = 1, mDirty = true, mPos = NaN, heldFrom = 
 const WG = window as unknown as { __filmGate?: string; __copilotP?: Promise<unknown>; __filmM?: unknown }
 /** The loading fraction for the header bar: meta.bin and the pack up to its gate point */
 export const gateFrac = () => (M.head ? Math.min(1, (M.metaBytes + Math.min(M.got, M.gateAt)) / (M.metaBytes + M.gateAt)) : 0.04)
-function rateOn(got: number) {
-  const now = performance.now()
+function rateOn(got: number, now: number) {
   // the first 128 KB carry the request's round trip and the slow start
   if (got < 131072) return
   if (!M.rT) { M.rT = now; M.rG = got; return }
@@ -924,20 +947,22 @@ function evictM() {
   film.bytes = M.bytes
   if (out.length) pw?.postMessage({ type: 'evict', ks: out })
 }
-/** The motion frame(s) for position p: the two pack frames around it, blended at the fraction, at every speed;
- *  otherwise the nearest decoded frame within 3 (ahead first); otherwise nothing (the refresh holds) */
+/** The motion frame(s) for position p: the decoded frames on either side of it (at most 4 apart: the two pack frames
+ *  around it, or, while the odd frames of motion.bin are not decoded yet, the even ones), blended at the fraction, at
+ *  every speed; otherwise the nearest decoded frame within 3 (ahead first); otherwise nothing (the refresh holds) */
 function chooseM(p: number): boolean {
-  const [a, b] = bracket(p)
+  const n = film.man!.n, f = Math.min(n - 1, Math.max(0, Math.floor(p)))
+  let a = -1, b = -1
+  for (let k = f; k >= Math.max(0, f - 3); k--) if (M.bm.has(k)) { a = k; break }
+  for (let k = f + 1; k <= Math.min(n - 1, f + 4); k++) if (M.bm.has(k)) { b = k; break }
   pickB = -1; pickA = 0
-  if (a >= 0 && M.bm.has(a)) {
-    if (p - a < 1 / 128) { pickK = a; mPos = a; return true }
-    if (b >= 0 && M.bm.has(b)) {
-      const al = Math.round(((p - a) / (b - a)) * 64) / 64
-      pickK = a; if (al > 0) { pickB = b; pickA = al }
-      mPos = a + al * (b - a); return true
-    }
+  if (a >= 0 && p - a < 1 / 128) { pickK = a; mPos = a; return true }
+  if (b >= 0 && b - p < 1 / 128) { pickK = b; mPos = b; return true }
+  if (a >= 0 && b >= 0 && b - a <= 4) {
+    const al = Math.round(((p - a) / (b - a)) * 64) / 64
+    pickK = a; if (al > 0) { pickB = b; pickA = al }
+    mPos = a + al * (b - a); return true
   }
-  if (b >= 0 && M.bm.has(b) && b - p < 1 / 128) { pickK = b; mPos = b; return true }
   const t = Math.round(p)
   for (let d = 0; d <= 3; d++) {
     const x = t + d * dir, y = t - d * dir
@@ -957,9 +982,9 @@ function drawM(): number {
 }
 // ---- The sharp layer: fetched, decoded and faded in at rest only ----
 const sharpC = new Map<number, ImageBitmap>()
-let sharpMax = 6, sharpK = -1, sharpOn = false, sharpWant = -1, sharpUpTick = -1, tickN = 0, sId = 0
+let sharpMax = 6, sharpK = -1, sharpOn = false, sharpWant = -1, sharpUpTick = -1, tickN = 0, sId = 0, fadeK = -1, fadeT0 = 0, fadeU = 0
 const sFetch = new Set<number>(), sDec = new Set<number>(), sJobs = new Map<number, number>()
-let stopKs: number[] = [], stopKsOf: number[] | null = null
+let stopKs: number[] = [], stopKsOf: number[] | null = null, stopKsLim = -1
 const sInflight = () => (film.rate >= 8 ? 4 : 2)
 function sharpGet(k: number, dec: boolean) {
   const m = film.man!
@@ -1012,18 +1037,43 @@ function sharpTick(rest: boolean, now: number, onFirstDraw: () => void) {
       // one new sharp bitmap per display frame (Safari blocks on each upload)
       if (b && sharpUpTick !== tickN) {
         sharpUpTick = tickN
-        if (b.width === cvS.width) gS.drawImage(b, 0, 0); else gS.drawImage(b, 0, 0, cvS.width, cvS.height)
-        if (CAL) bands(gS, cvS.width, cvS.height, k)
+        // the way in without the motion film: the next stop's frame cross-fades over the one shown (250 ms)
+        if (M.gate === 'stops' && sharpOn && sharpK >= 0 && !REDUCED && !CONN?.saveData) { fadeK = k; fadeT0 = now; fadeU = 0 }
+        else {
+          fadeK = -1
+          if (b.width === cvS.width) gS.drawImage(b, 0, 0); else gS.drawImage(b, 0, 0, cvS.width, cvS.height)
+          if (CAL) bands(gS, cvS.width, cvS.height, k)
+        }
         sharpC.delete(k); sharpC.set(k, b)
         sharpK = k
         showSharp(true, !REDUCED && M.gate !== 'stops')
+        // the way in without the motion film: the motion frame under it goes once a sharp frame covers it
+        if (M.gate === 'stops' && cv.style.opacity !== '0') cv.style.opacity = '0'
         onFirstDraw()
       }
     }
   }
+  // the cross-fade: the new frame drawn over the canvas with a weight that makes the mix grow linearly with time
+  if (fadeK >= 0) {
+    const b = sharpC.get(fadeK)
+    if (!b || fadeK !== sharpK) fadeK = -1
+    else {
+      const u = Math.min(1, (now - fadeT0) / 250), al = u >= 1 ? 1 : (u - fadeU) / (1 - fadeU)
+      if (al > 0) { gS.globalAlpha = al; if (b.width === cvS.width) gS.drawImage(b, 0, 0); else gS.drawImage(b, 0, 0, cvS.width, cvS.height); gS.globalAlpha = 1; fadeU = u }
+      if (u >= 1) { if (CAL) bands(gS, cvS.width, cvS.height, fadeK); fadeK = -1 }
+    }
+  }
   // once the pack is in: the stops' sharp frames (desktop, the stop trips land there), then 2 frames around the rest
   if ((M.done || M.gate === 'stops') && sFetch.size < sInflight()) {
-    if (stopKsOf !== stopF) { stopKsOf = stopF; stopKs = PHONE ? [] : [...new Set(stopF.map((x) => Math.round(x)))] }
+    // with the top (Home) and the end of the page (End lands at Lenis's limit, 76 px below the last stop)
+    const lim = getLenis()?.limit ?? -1
+    if (stopKsOf !== stopF || lim !== stopKsLim) {
+      stopKsOf = stopF; stopKsLim = lim
+      const ks = stopF.map((x) => Math.round(x))
+      ks.push(Math.round(posAtQ(0)))
+      if (lim > 0) ks.push(Math.round(posAtQ(lim)))
+      stopKs = PHONE ? [] : [...new Set(ks)]
+    }
     for (const s of stopKs) { if (sFetch.size >= sInflight()) break; if (!blobs[s]) sharpGet(s, false) }
     if (rest && k >= 0) for (const d of [1, -1, 2, -2]) { if (sFetch.size >= sInflight()) break; if (!blobs[k + d]) sharpGet(k + d, false) }
   }
@@ -1051,7 +1101,20 @@ function gotBmp(k: number, bmp: ImageBitmap) {
 }
 // ---- The gate: what it waits for, then open ----
 let gateT0 = 0, gateUiAt = 0, copDone = false, gateResolve: ((ok: boolean) => void) | null = null
-let restAt = 0, dK = -2, dB = -2, dA = -1, lastMetaPos = NaN
+let restAt = 0, dK = -2, dB = -2, dA = -1, lastMetaPos = NaN, tripWas = false, tripEnd = 0
+/** The scroll stops (story.ts) as the film last mapped them: they appear as the sections mount, and they move when
+ *  Lenis updates its limit (250 ms after a change of page height). The mapping follows every change, and the gate
+ *  opens only on stops that have held for 3 refreshes (a return visit opened before they existed: its first trip ran
+ *  ahead on the linear page, then jumped back 27 to 45 frames when the mapping came) */
+let stSig = 0, stN = 0, stSame = 0, gateOkAt = 0
+function stopsCheck() {
+  const st = (window as unknown as { __stops?: () => { y: number }[] }).__stops?.()
+  let h = st ? st.length : 0
+  if (st) for (const x of st) h = (Math.imul(h, 31) + x.y) | 0
+  if (h === stSig) { stSame++; return }
+  stSig = h; stN = st ? st.length : 0; stSame = 0
+  if (stN >= 2) measure()
+}
 /** The first motion frames: every frame wanted at the position decoded (the ring and the way to the next stop), or
  *  the first 48 of them one second after the pack */
 function ringDecoded(now: number): boolean {
@@ -1073,8 +1136,9 @@ function openGate() {
 function enterStops() {
   if (M.gate !== 'wait') return
   M.gate = 'stops'; WG.__filmGate = 'stops'
-  cv.style.opacity = '0'
-  if (sharpOn) showSharp(true, false)
+  // the motion frame (or the poster) stays until the first sharp frame is drawn over it (sharpTick hides it then):
+  // the film area went blank for about 380 ms at 3.5 Mbit/s
+  if (sharpOn) { cv.style.opacity = '0'; showSharp(true, false) }
   lockScroll(false); closeGate()
   gateResolve?.(true); gateResolve = null
 }
@@ -1099,14 +1163,19 @@ function gateTick(now: number, rest: boolean) {
     updateGate(got, tot, eta, now - gateT0 > 3000 || eta > 20)
   }
   const k = Math.round(film.pos)
-  const sharpOk = ringOk && ((sharpOn && sharpK === k) || now - M.tRing > 3000)
+  // the first rest sharp, if it comes soon (motion.bin's odd frames are still streaming and share the link)
+  const sharpOk = ringOk && ((sharpOn && sharpK === k) || now - M.tRing > 800)
   const copOk = copDone || (M.tPack > 0 && now - M.tPack > 2000)
-  if (ringOk && sharpOk && copOk) openGate()
+  // and the stops held (at most 2 s more: the page then opens on what it has, the mapping follows later changes)
+  if (!(ringOk && sharpOk && copOk)) { gateOkAt = 0; return }
+  if (!gateOkAt) gateOkAt = now
+  if ((stN >= 2 && stSame >= 3) || now - gateOkAt > 2000) openGate()
 }
 function tickM(dt: number, firstDraw: () => void) {
   if (!film.man) return
   tickN++
   const now = performance.now()
+  stopsCheck()
   if (SY.length < 2 && UNI > 0 && (++segTry & 31) === 1) segs()
   const p = posAt(scrollY(), world.protoQ)
   if (p - lastPos > 0.5) { dir = 1; lastPos = p } else if (lastPos - p > 0.5) { dir = -1; lastPos = p }
@@ -1122,7 +1191,10 @@ function tickM(dt: number, firstDraw: () => void) {
   if (dp > 0.02) restK = -1
   const moved = dp > 0.02 || !!step.trip
   if (moved) restAt = now
-  const rest = !moved && now - restAt >= 150
+  // a stop trip that has ended is a rest at once (its end is the stop); a free scroll counts as resting after 150 ms
+  if (tripWas && !step.trip) tripEnd = now
+  tripWas = !!step.trip
+  const rest = !moved && (now - restAt >= 150 || (tripEnd > 0 && now - tripEnd < 400))
   const stops = M.gate === 'stops'
   // the sharp layer goes the moment the image moves, in the same refresh as the motion draw
   if (moved && sharpOn && !stops) showSharp(false, false)
@@ -1200,21 +1272,22 @@ async function mountMotion(man: Manifest, fp: number, metaBytes: number, onFirst
     onTick((_t, dt) => tickM(dt, firstDraw))
     return true
   }
-  try { pw = new Worker(new URL('./pack.worker.ts', import.meta.url), { type: 'module' }) } catch { pw = null }
+  if (early?.w) pw = early.w
+  else try { pw = new Worker(new URL('./pack.worker.ts', import.meta.url), { type: 'module' }) } catch { pw = null }
   let off: (() => void) | null = null
   if (pw) {
     type PM = { type: 'head'; w: number; h: number; count: number; total: number; gateAt: number; ks: Int32Array<ArrayBuffer>; ends: Int32Array<ArrayBuffer> } | { type: 'prog'; got: number } | { type: 'done'; cached: boolean } | { type: 'bmp'; k: number; bmp: ImageBitmap } | { type: 'fail'; why: string }
-    pw.onmessage = (e: MessageEvent<PM>) => {
+    const onMsg = (e: MessageEvent<PM>, at = performance.now()) => {
       const d = e.data
       if (d.type === 'head') {
-        M.w = d.w; M.h = d.h; M.count = d.count; M.total = d.total; M.gateAt = d.gateAt; M.ks = d.ks; M.ends = d.ends; M.head = true; M.tHead = performance.now()
+        M.w = d.w; M.h = d.h; M.count = d.count; M.total = d.total; M.gateAt = d.gateAt; M.ks = d.ks; M.ends = d.ends; M.head = true; M.tHead = at
         // the motion canvas has the pack's size: each frame drawn unscaled, the framing is CSS
         cv.width = d.w; cv.height = d.h; g.imageSmoothingQuality = 'low'; mDirty = true
         arrive()
-      } else if (d.type === 'prog') { M.got = d.got; if (!M.rT0 && d.got >= 131072) { M.rT0 = performance.now(); M.rG0 = d.got } rateOn(d.got); arrive() }
+      } else if (d.type === 'prog') { M.got = d.got; if (!M.rT0 && d.got >= 131072) { M.rT0 = at; M.rG0 = d.got } rateOn(d.got, at); arrive() }
       else if (d.type === 'done') {
         M.done = true; M.cached = d.cached
-        const now = performance.now()
+        const now = at
         // a pack read from a cache gives no rate: the last one measured on this browser
         if (d.cached || now - M.tHead < 300) { try { film.rate = Number(localStorage.getItem('film-rate')) || 0 } catch { /* none */ } }
         else {
@@ -1224,9 +1297,19 @@ async function mountMotion(man: Manifest, fp: number, metaBytes: number, onFirst
       } else if (d.type === 'bmp') gotBmp(d.k, d.bmp)
       else if (d.type === 'fail') M.fail = d.why || 'pack'
     }
+    pw.onmessage = onMsg
     pw.onerror = () => { M.fail = M.fail || 'worker' }
-    M.t0 = performance.now(); gateT0 = M.t0
-    pw.postMessage({ type: 'pack', url: `${ROOT}${man.ysFrom ?? set0}/${PACK}${VQ}`, n, fp })
+    gateT0 = performance.now()
+    if (early?.w === pw) {
+      // started early: what the worker has said so far, in order
+      M.t0 = early.t0
+      for (const [at, e] of early.q) onMsg(e as MessageEvent<PM>, at)
+      early.q.length = 0
+      if (early.failed) M.fail = M.fail || 'worker'
+    } else {
+      M.t0 = gateT0
+      pw.postMessage({ type: 'pack', url: `${ROOT}${man.ysFrom ?? set0}/${PACK}${VQ}`, n, fp })
+    }
     lockScroll(true)
     off = onTick((_t, dt) => tickM(dt, firstDraw))
     if (await new Promise<boolean>((r) => { gateResolve = r })) return true
@@ -1257,7 +1340,8 @@ export async function mountFilm(canvas: HTMLCanvasElement, onFirst: () => void) 
   // meta.bin is preloaded by index.html (same address, same mode): it is the critical path to the first draw. Its
   // content gives the film version (?v=, immutable on the server): the same capture keeps the same addresses from one
   // deploy to the next (its ETag changed at every build, so a return visit after a deploy fetched the whole film again)
-  const meta = await fetch(`${ROOT}${man.ysFrom ?? SET}/meta.bin`, { priority: 'high' } as RequestInit).then((r) => r.arrayBuffer())
+  const em = early ? await early.meta : null
+  const meta: ArrayBuffer = em ?? await fetch(`${ROOT}${man.ysFrom ?? SET}/meta.bin`, { priority: 'high' } as RequestInit).then((r) => r.arrayBuffer())
   const fp = fingerprint(new Uint8Array(meta))
   VQ = `?v=${fp.toString(36)}`
   film.man = man; film.total = man.n

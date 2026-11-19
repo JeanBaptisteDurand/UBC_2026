@@ -75,13 +75,22 @@ html.wc .lm-plate, html.wc .lm-led { will-change: transform; }
 /* ?gate=1: the loading screen while the film's motion level loads (gate.ts). Under the header and AskHive, over the
    page; the scroll is locked while it shows */
 html.film-lock { overflow: hidden; scrollbar-gutter: stable; }
-#film-gate { position: fixed; left: 0; right: 0; bottom: 0; top: var(--hd); z-index: 40; background: rgb(0 0 0 / 0.4); display: flex; align-items: flex-end; justify-content: center; padding: 0 16px calc(56px + env(safe-area-inset-bottom)); touch-action: none; transition: opacity 200ms ease; }
-#film-gate.fg-out { opacity: 0; pointer-events: none; }
-#film-gate .fg-in { width: min(380px, 100%); display: grid; gap: 14px; justify-items: start; color: var(--ink); }
-#film-gate .fg-t { margin: 0; font: 500 15px/1.3 var(--sans); letter-spacing: 0.01em; }
-#film-gate .fg-live { width: 100%; display: grid; gap: 8px; }
-#film-gate .fg-bar { position: relative; width: 100%; height: 2px; background: rgb(var(--ink-c) / 0.2); overflow: hidden; }
-#film-gate .fg-fill { position: absolute; inset: 0; background: var(--acc); transform-origin: 0 50%; transform: scaleX(0); transition: transform 250ms linear; }
-#film-gate .fg-n { margin: 0; display: flex; gap: 16px; color: var(--ink3); min-height: 1.45em; }
-#film-gate .fg-go[hidden] { display: none; }
-@media (prefers-reduced-motion: reduce) { #film-gate, #film-gate .fg-fill { transition: none; } }
+#film-gate { position: fixed; inset: 0; z-index: 1; background: rgb(0 0 0 / 0.4); pointer-events: none; transition: opacity 200ms ease; }
+#film-gate-panel { position: fixed; left: 50%; bottom: calc(48px + env(safe-area-inset-bottom)); z-index: 45; width: min(380px, calc(100vw - 32px)); transform: translateX(-50%); padding: 16px; background: rgb(var(--bg-c) / 0.88); touch-action: none; transition: opacity 200ms ease; }
+/* phones: the hero text fills the lower half, the panel sits in the film above it */
+@media (max-width: 760px) { #film-gate-panel { bottom: auto; top: calc(var(--hd) + 16px); } }
+#film-gate.fg-out, #film-gate-panel.fg-out { opacity: 0; pointer-events: none; }
+#film-gate-panel .fg-in { display: grid; gap: 14px; justify-items: start; color: var(--ink); }
+#film-gate-panel .fg-t { margin: 0; font: 500 15px/1.3 var(--sans); letter-spacing: 0.01em; }
+#film-gate-panel .fg-live { width: 100%; display: grid; gap: 8px; }
+#film-gate-panel .fg-bar { position: relative; width: 100%; height: 2px; background: rgb(var(--ink-c) / 0.2); overflow: hidden; }
+#film-gate-panel .fg-fill { position: absolute; inset: 0; background: var(--acc); transform-origin: 0 50%; transform: scaleX(0); transition: transform 250ms linear; }
+#film-gate-panel .fg-n { margin: 0; display: flex; gap: 16px; color: var(--ink3); min-height: 1.45em; }
+#film-gate-panel .fg-go[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) { #film-gate, #film-gate-panel, #film-gate-panel .fg-fill { transition: none; } }
+
+/* ?rb=0 (film.ts): the reading blur under the text columns (styles.css) as a still shade, same mask, no backdrop-filter:
+   nothing to re-blur on each moving frame of the film */
+@media (min-width: 761px) {
+  html.rb-off.film-page .txt::before, html.rb-off.film-page .end-in::before { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(var(--bg-c) / 0.42); animation: none; }
+}
