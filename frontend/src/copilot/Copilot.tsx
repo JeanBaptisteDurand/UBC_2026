@@ -11,6 +11,7 @@ import { useEffect, useRef, useState, type KeyboardEvent as RKeyboardEvent } fro
 import { useLang } from '../i18n'
 import { ct, suggestions, pageName } from './strings'
 import { Markdown, Code, short } from './markdown'
+import { Sources } from './sources'
 import { ActionCard, InfoCard, isInfo } from './cards'
 import { useCopilot, getState, setState, setCard, newId, logStep, saveQueue, setOwner, type Msg } from './state'
 import { ask, stripCitations, MCP_URL, type UiStep, type ChatTurn } from './api'
@@ -52,10 +53,12 @@ function Thinking() {
     return () => clearInterval(h)
   }, [])
   const step = sealed ? ct(secs < 1 ? 'think.seal' : 'think.enclave') : ct('think.server')
+  // after 3 s the seconds follow the step: "The enclave is answering, 3 s" (its ellipsis gives way to the comma)
+  const timed = secs >= 3
   return (
     <p className="cp-typing" role="status">
       <i /><i /><i />
-      <span className="cp-think">{step}{secs >= 3 ? <span className="cp-think-t mono"> · {secs} s</span> : null}</span>
+      <span className="cp-think">{timed ? step.replace(/…$/, '') : step}{timed ? <span className="cp-think-t">{ct('think.secs', { n: secs })}</span> : null}</span>
     </p>
   )
 }
@@ -216,8 +219,7 @@ function Message({ m }: { m: Msg }) {
       {m.content ? (m.local ? <p role="alert">{m.content}</p> : <Markdown text={stripCitations(m.content)} />) : null}
       {m.steps?.length ? <ul className="cp-steps mono" aria-label={ct('driving')}>{m.steps.map((x, i) => <li key={i}>{x}</li>)}</ul> : null}
       {m.cards?.map((c) => (isInfo(c) ? <InfoCard key={c.tool} c={c} /> : <ActionCard key={c.tool} c={c} cs={m.cardState?.[c.tool]} msgId={m.id} onAfter={(steps) => void play(m.id, steps)} />))}
-      {m.citations?.length ? <p className="cp-src mono">{ct('sources', { list: m.citations.join(', ') })}</p> : null}
-      {m.tools?.length ? <p className="cp-src mono">{ct('tools', { list: m.tools.join(', ') })}</p> : null}
+      {m.citations?.length ? <Sources ids={m.citations} /> : null}
     </li>
   )
 }
