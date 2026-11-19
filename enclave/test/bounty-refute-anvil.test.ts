@@ -1,13 +1,13 @@
 /**
- * Prime scellée v2.1 — RÉFUTATION avec un VRAI rejeu : AnvilForkRunner, moteur « anvil » (anvil ordinaire de Foundry +
- * émulation de l'USDC d'Arc), qui forke une chaîne LOCALE au bloc N. Ce n'est pas arc-anvil (binaire Linux d'Arc Foundry,
- * celui de l'image Dockerfile.bounty) ni Arc : la chaîne de base est un anvil de test lancé ici, avec un coffre vulnérable.
- * La réclamation est signée par une enclave A qui rejoue pour de vrai ; la chaîne de SealedBounty (claimRecords, fenêtre,
- * opérateurs) reste simulée (FakeChain) : on teste ici le contre-rejeu, pas le contrat.
- *  1. réclamation honnête → l'enclave B rejoue au même bloc N et CONFIRME (rien n'est signé) ;
- *  2. perte gonflée → B mesure la vraie perte et signe « prouvée, perte réelle » ;
- *  3. réclamation ancrée sur un bloc où le coffre n'était pas encore doté → B rejoue à CE bloc et signe « non prouvée ».
- * Ignoré si aucun anvil n'est installé (ANVIL_BIN, sinon ~/.foundry/bin/anvil).
+ * Sealed Bounty v2.1 — refutation with a real replay: AnvilForkRunner, "anvil" engine (Foundry's plain anvil + an
+ * emulation of Arc's USDC), which forks a local chain at block N. This is neither arc-anvil (Arc Foundry's Linux binary,
+ * the one in the Dockerfile.bounty image) nor Arc: the base chain is a test anvil started here, with a vulnerable vault.
+ * The claim is signed by an enclave A that really replays; the SealedBounty chain side (claimRecords, window,
+ * operators) stays simulated (FakeChain): this tests the counter-replay, not the contract.
+ *  1. honest claim → enclave B replays at the same block N and confirms (nothing is signed);
+ *  2. inflated loss → B measures the real loss and signs "proven, real loss";
+ *  3. claim anchored to a block where the vault was not funded yet → B replays at that block and signs "not proven".
+ * Skipped if no anvil is installed (ANVIL_BIN, otherwise ~/.foundry/bin/anvil).
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
@@ -40,7 +40,7 @@ const HUNTER = "0x000000000000000000000000000000000000c0de" as Address;
 const OP_A = getAddress("0x000000000000000000000000000000000000a001");
 const OP_B = getAddress("0x000000000000000000000000000000000000b002");
 const ETH = 10n ** 18n;
-/** Coffre vulnérable : CALL(gaz, CALLER, SELFBALANCE, 0, 0, 0, 0) — tout appel vide le coffre vers l'appelant. */
+/** Vulnerable vault: CALL(gas, CALLER, SELFBALANCE, 0, 0, 0, 0) — any call drains the vault to the caller. */
 const DRAIN = "0x600060006000600047335af100" as Hex;
 const R = ("0x" + "5a".repeat(32)) as Hex;
 
@@ -85,11 +85,11 @@ class FakeChain implements RefuteReader {
 
 const newKit = () => new EnclaveKit({ productId: PRODUCT, chainId: CHAIN, registry: "0x0000000000000000000000000000000000000001", mockBlockHash: true });
 
-describe.skipIf(!ANVIL)(`réfutation — rejeu RÉEL par anvil (moteur « anvil » : ${ANVIL ?? "absent"}, chaîne locale)`, () => {
+describe.skipIf(!ANVIL)(`refutation — real replay by anvil ("anvil" engine: ${ANVIL ?? "absent"}, local chain)`, () => {
   let base: ChildProcess | undefined;
   let url = "";
-  let N0 = 0n; // coffre pas encore doté
-  let N1 = 0n; // coffre doté de 7 (unités natives à 18 décimales)
+  let N0 = 0n; // vault not funded yet
+  let N1 = 0n; // vault funded with 7 (native units, 18 decimals)
 
   beforeAll(async () => {
     const port = await freePort();
@@ -106,7 +106,7 @@ describe.skipIf(!ANVIL)(`réfutation — rejeu RÉEL par anvil (moteur « anvil 
     }
     await rpc(url, "evm_mine");
     N0 = BigInt(await rpc(url, "eth_blockNumber"));
-    await rpc(url, "evm_mine"); // anvil_setCode/setBalance modifient l'état du DERNIER bloc : N0 reste vide
+    await rpc(url, "evm_mine"); // anvil_setCode/setBalance change the state of the latest block: N0 stays empty
     await rpc(url, "anvil_setCode", [VAULT, DRAIN]);
     await rpc(url, "anvil_setBalance", [VAULT, numberToHex(7n * ETH)]);
     await rpc(url, "evm_mine");
@@ -123,8 +123,8 @@ describe.skipIf(!ANVIL)(`réfutation — rejeu RÉEL par anvil (moteur « anvil 
   const runner = () => new AnvilForkRunner({ forkUrl: url, anvilBin: ANVIL, engine: "anvil", log: () => {}, timeoutMs: 60_000 });
   const blockHash = async (n: bigint) => (await rpc(url, "eth_getBlockByNumber", [numberToHex(n), false])).hash as Hex;
 
-  it("réclamation honnête confirmée ; perte gonflée → « prouvée, perte réelle » ; mauvais bloc N → « non prouvée »", async () => {
-    // l'enclave A prouve l'exploit pour de vrai (rejeu au bloc N1)
+  it("honest claim confirmed; inflated loss → \"proven, real loss\"; wrong block N → \"not proven\"", async () => {
+    // enclave A really proves the exploit (replay at block N1)
     const kitA = newKit();
     const forkA = runner();
     expect(forkA.engine).toBe("anvil");
@@ -139,7 +139,7 @@ describe.skipIf(!ANVIL)(`réfutation — rejeu RÉEL par anvil (moteur « anvil 
     expect(sub.status).toBe("proven");
     expect(sub.claim).toMatchObject({ blockN: N1, loss: 7n * ETH, tier: 1 });
 
-    // l'enclave B (autre opérateur) contre-rejoue avec son propre anvil
+    // enclave B (another operator) counter-replays with its own anvil
     const chain = new FakeChain();
     const kitB = newKit();
     chain.active.set(kitB.keys.signer.toLowerCase(), OP_B);
@@ -153,19 +153,19 @@ describe.skipIf(!ANVIL)(`réfutation — rejeu RÉEL par anvil (moteur « anvil 
     const signedBy = async (r: Extract<RefuteResult, { status: "refuted" }>) =>
       (await recoverAddress({ hash: refutationDigestOf(SEALED, r.refutation, CHAIN), signature: r.signature })).toLowerCase();
 
-    // 1. honnête : même perte, même palier → confirmée, rien de signé
+    // 1. honest: same loss, same tier → confirmed, nothing signed
     const ok = await ask(sub.claim);
     expect(ok.status).toBe("confirmed");
     expect(ok).not.toHaveProperty("signature");
     expect((ok as any).replay).toMatchObject({ replayed: true, satisfied: true, loss: 7n * ETH, tier: 1, blockN: N1 });
 
-    // 2. perte gonflée (même palier) → le vrai rejeu signe la perte réelle
+    // 2. inflated loss (same tier) → the real replay signs the real loss
     const inflated = (await ask({ ...sub.claim, loss: 9n * ETH })) as Extract<RefuteResult, { status: "refuted" }>;
     expect(inflated.status).toBe("refuted");
     expect(inflated.refutation).toMatchObject({ proven: true, loss: 7n * ETH, tier: 1 });
     expect(await signedBy(inflated)).toBe(kitB.keys.signer.toLowerCase());
 
-    // 3. même exploit ancré au bloc N0 (coffre vide) : le contre-rejeu à CE bloc ne prouve rien
+    // 3. the same exploit anchored to block N0 (empty vault): the counter-replay at that block proves nothing
     const early = (await ask({ ...sub.claim, blockN: N0, blockHashN: await blockHash(N0) })) as Extract<RefuteResult, { status: "refuted" }>;
     expect(early.status).toBe("refuted");
     expect(early.refutation).toMatchObject({ proven: false, loss: 0n, tier: 0 });
