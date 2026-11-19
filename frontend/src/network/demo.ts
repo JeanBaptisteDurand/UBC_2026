@@ -191,6 +191,11 @@ export function makeDemo(api: DemoApi) {
     side: () => sideK,
     lang() { if (open) { cur = -1; curPart = ''; texts() } },
     seek(t: number) { tl.pause(); tl.seek(t, false); syncPlay(); api.dirty() },
+    /** the player's own controls, for the assistant (the 'archive:demo' event, scene.ts) */
+    control(a: 'play' | 'pause' | 'next' | 'prev') {
+      if (!open) return
+      if (a === 'play') { if (tl.paused() || tl.progress() >= 1) act('play') } else if (a === 'pause') { if (!tl.paused()) act('play') } else act(a)
+    },
     /** the demo from the start of one of its parts (demo-parts.ts), playing (paused with reduced motion) */
     part(id: DemoPartId) {
       const P = DEMO_PARTS.find((q) => q.id === id); if (!P || !open) return

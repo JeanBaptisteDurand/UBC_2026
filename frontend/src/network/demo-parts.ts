@@ -2,7 +2,9 @@
 // (no three.js, no replay data): the assistant reads the ids and titles from here to open the demo at a part.
 //   - by the address: network.html?focus=demo&part=request
 //   - on the Network page: dispatchEvent(new CustomEvent('archive:demo', { detail: { part: 'request' } }))
-//     (or window.__s3d.demoPart('request') once the 3D room is ready)
+//     (or window.__s3d.demoPart('request') once the 3D room is ready); { action: 'play' | 'pause' | 'next' | 'prev' }
+//     drives the open player, { action: 'goto', step: 1 to 7 } opens the part by its number
+//   - the player tells each new part: window 'archive:demo-part' { part, beat }, and .s3d .dm[data-part]
 // Each part starts at a beat of the demo (BEATS in demo-strings.ts); the texts say what happens and why it matters.
 type Bi = { en: string; fr: string }
 

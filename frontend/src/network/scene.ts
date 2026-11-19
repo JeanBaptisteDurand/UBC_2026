@@ -46,7 +46,7 @@ import { dress } from './dressing'
 import { siteReady, CLIENT } from './screens'
 import { makeAtmo } from './atmo'
 import { makeDemo } from './demo'
-import { isDemoPart, type DemoPartId } from './demo-parts'
+import { DEMO_PARTS, isDemoPart, type DemoPartId } from './demo-parts'
 import { arcPanel } from './arcfocus'
 import { ARC_TITLE, ARC_INTRO, BEATS, clientAt, tr, type Actor, type DStep, type Shot, type Beat } from './demo-strings'
 
@@ -1539,7 +1539,16 @@ function openDemoAt(id: DemoPartId | null) {
   if (view !== 'demo') go('demo')
   if (id) demo.part(id)
 }
-addEventListener('archive:demo', (e) => { const p = (e as CustomEvent<{ part?: string } | undefined>).detail?.part; openDemoAt(isDemoPart(p) ? p : null) })
+// the assistant's event: { part } (an id of demo-parts.ts), or the old demo page's { action, step } (goto: the part by
+// its number, 1 to 7; play, pause, next, prev: the player's controls)
+addEventListener('archive:demo', (e) => {
+  const d = (e as CustomEvent<{ part?: string; action?: string; step?: number } | undefined>).detail ?? {}
+  const byStep = d.action === 'goto' && typeof d.step === 'number' ? DEMO_PARTS[Math.round(d.step) - 1]?.id : undefined
+  const p = isDemoPart(d.part) ? d.part : byStep ?? null
+  const wasOpen = view === 'demo'
+  openDemoAt(p)
+  if (!p && wasOpen && (d.action === 'play' || d.action === 'pause' || d.action === 'next' || d.action === 'prev')) demo.control(d.action)
+})
 document.addEventListener('visibilitychange', () => { if (reduced || freeze || !loop.rtl.paused()) return; if (document.hidden) loop.tl.pause(); else loop.tl.play() })
 
 /** The camera moves behind the shoulder of the part's actor; el: an island element to frame from that shoulder. */
