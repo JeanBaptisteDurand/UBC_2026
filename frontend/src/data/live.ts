@@ -161,9 +161,10 @@ async function pollBlock() {
 }
 
 async function pollLevels() {
-  if (busy & 8) return
-  busy |= 8
-  try { set({ levels: await json<Levels>('/levels') }) } catch { if (state.levels === undefined) set({ levels: null }) } finally { busy &= ~8 }
+  // its own busy bit (16): bit 8 is the chain poll's, sharing it let one silence the other
+  if (busy & 16) return
+  busy |= 16
+  try { set({ levels: await json<Levels>('/levels') }) } catch { if (state.levels === undefined) set({ levels: null }) } finally { busy &= ~16 }
 }
 
 let started = false

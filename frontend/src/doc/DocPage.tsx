@@ -12,6 +12,7 @@ import { DOC, type Chapter } from './content'
 import { useDt } from './strings'
 import './doc-jb.css'
 import './doc.css'
+import { reveal } from '../ui/motion'
 
 const ids = DOC.en.chapters.map((c) => c.id)
 const initial = () => { const c = new URLSearchParams(location.search).get('c'); return c && ids.includes(c) ? c : null }
@@ -154,6 +155,7 @@ export function DocPage() {
     if (!el) return
     el.scrollTop = 0
     if (first.current) { first.current = false; return }
+    requestAnimationFrame(() => reveal(el))
     el.querySelector<HTMLElement>('[data-doc-h]')?.focus({ preventScroll: true })
     if (matchMedia('(max-width: 1024px)').matches) el.closest('.doc-col')?.scrollIntoView({ block: 'start', behavior: 'smooth' })
   }, [cur])

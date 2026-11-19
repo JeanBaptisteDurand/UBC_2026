@@ -2042,7 +2042,7 @@ gl_FragColor.rgb = hfog(gl_FragColor.rgb, vWP);`)
   let po: PerformanceObserver | null = null
   try {
     po = new PerformanceObserver((l) => {
-      for (const e of l.getEntries() as (PerformanceEntry & { scripts?: { sourceURL: string; invoker: string; sourceFunctionName: string; duration: number }[] })[]) perf.loaf.push({ d: Math.round(e.duration), t: Math.round(e.startTime), s: (e.scripts ?? []).map((x) => `${x.invoker} ${x.sourceFunctionName} ${x.sourceURL.split('/').pop()} ${Math.round(x.duration)}`).join(' | ').slice(0, 300) })
+      for (const e of l.getEntries() as (PerformanceEntry & { scripts?: { sourceURL: string; invoker: string; sourceFunctionName: string; duration: number }[] })[]) perf.loaf.push({ d: Math.round(e.duration), t: Math.round(e.startTime), s: (e.scripts ?? []).map((x) => `${x.invoker} ${x.sourceFunctionName} ${x.sourceURL.split('/').pop()} ${Math.round(x.duration)}`).join(' | ').slice(0, 300) }); if (perf.loaf.length > 200) perf.loaf.splice(0, perf.loaf.length - 200)
     })
     po.observe({ type: 'long-animation-frame', buffered: true })
   } catch { /* browser without LoAF */ }

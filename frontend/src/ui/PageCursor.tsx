@@ -54,6 +54,9 @@ export function PageCursor() {
     addEventListener('pointerdown', mv, { passive: true })
     html.addEventListener('pointerleave', lv)
     const c4 = [0, 0, 22, 0, 22, 22, 0, 22], t4 = [0, 0, 0, 0, 0, 0, 0, 0]
+    // idle frames cost nothing: the hit test and the layout reads only run when the pointer, the scroll or the size
+    // changed, or while the cursor still moves (arming, converging); otherwise the frame returns at once
+    let lx = -1, ly = -1, lsy = -1, lw = 0, still = 0
     let first = true, armEl: HTMLElement | null = null, arming = 0, selEl: HTMLElement | null = null, tagW = 0, prevS = ''
     const sq = (x: number, y: number, w: number, h: number) => { t4[0] = x; t4[1] = y; t4[2] = x + w; t4[3] = y; t4[4] = x + w; t4[5] = y + h; t4[6] = x; t4[7] = y + h }
     const setSel = (el: HTMLElement | null) => {
@@ -69,6 +72,10 @@ export function PageCursor() {
       const show = P.inside && P.moved
       { const v = show ? '1' : '0'; if (html.dataset.cur !== v) html.dataset.cur = v }
       if (!show) { if (g.dataset.on !== '0') g.dataset.on = '0'; setSel(null); armEl = null; arming = 0; return }
+      const sy = scrollY + (document.querySelector('.vt-r')?.scrollTop ?? 0)
+      if (P.x === lx && P.y === ly && sy === lsy && innerWidth === lw && !(armEl && arming < 1) && still > 30) return
+      if (P.x !== lx || P.y !== ly || sy !== lsy || innerWidth !== lw) still = 0; else still++
+      lx = P.x; ly = P.y; lsy = sy; lw = innerWidth
       const S = 22
       sq(P.x - S / 2, P.y - S / 2, S, S)
       const under = document.elementFromPoint(P.x, P.y) as HTMLElement | null

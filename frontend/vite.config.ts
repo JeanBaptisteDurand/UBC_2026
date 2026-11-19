@@ -27,6 +27,18 @@ function rebase(base: string): Plugin {
   }
 }
 
+/** App pages: the entry script blocks the first render, so the header is on screen at the page's first frame and
+ *  stays in place across the page transition (design/MOTION.md, M1). The landing (film) keeps its own loading. */
+function renderBlocking(): Plugin {
+  return {
+    name: 'render-blocking-entry', enforce: 'post',
+    transformIndexHtml: { order: 'post', handler(html, ctx) {
+      if (/(^|\/)(index|tournage)\.html$/.test(ctx.filename)) return html
+      return html.replace(/<script type="module" crossorigin src=/g, '<script type="module" crossorigin blocking="render" src=')
+    } },
+  }
+}
+
 /** Video landing: the film manifests are inlined into the page (no request before the first draw); the Retina set
  *  reuses the desktop positions (ysFrom) */
 function filmManifests(): Plugin {
@@ -54,7 +66,7 @@ export default defineConfig(({ mode }) => {
   const base = (env.VITE_BASE ?? '/').replace(/\/?$/, '/')
   return {
   base,
-  plugins: [react(), rebase(base), filmManifests()],
+  plugins: [react(), rebase(base), filmManifests(), renderBlocking()],
   server: { port: PORT, strictPort: true, host: true, proxy: PROXY },
   preview: { port: PORT, strictPort: true, proxy: PROXY },
   build: {

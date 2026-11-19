@@ -2,6 +2,7 @@
 // clock without smooth scroll, live reading, __frontReady on the first reading).
 import { useState } from 'react'
 import { createRoot } from 'react-dom/client'
+import { flushSync } from 'react-dom'
 import { t, useLang, type TKey } from '../i18n'
 import { startClock } from '../clock'
 import { startLive, getLive, subscribeLive } from '../data/live'
@@ -49,7 +50,9 @@ export function bootPage(el: React.ReactElement, docTitle: string) {
   document.title = docTitle
   startLive({ levels: true })
   startClock({ smooth: false })
-  createRoot(document.getElementById('root')!).render(el)
+  // first render synchronous: the header is on screen at the page's first frame, so it stays in place across the
+// page transition (motion rule M1, ui/motion.ts)
+flushSync(() => createRoot(document.getElementById('root')!).render(el))
   const ready = () => { if (getLive().status !== 'loading') { off(); Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 1500))]).then(() => requestAnimationFrame(() => { w.__frontReady = true })) } }
   const off = subscribeLive(ready)
   ready()

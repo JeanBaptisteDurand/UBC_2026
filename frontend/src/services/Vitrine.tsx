@@ -14,6 +14,7 @@ import { num, usdc, pct } from '../data/fmt'
 import { link, networkFor } from '../links'
 import { VIT, type VitChapter } from './vit-content'
 import { RoomStage, type Plate } from './RoomStage'
+import { reveal, grow } from '../ui/motion'
 // the action of a sheet: the signed flows (wallet engine, SDK) load with the sheet, not with the page
 const UseBlock = lazy(() => import('./UseBlock'))
 import './vit-jb.css'
@@ -111,7 +112,7 @@ function Intro({ root, to }: { root: React.RefObject<HTMLDivElement | null>; to:
           return (
             <section className={`vt-sec is-${c.id}`} id={`vt-s-${c.id}`} key={c.id} data-open={isOpen ? '1' : '0'}>
               <h2 className="vt-sec-t">
-                <button type="button" className="vt-sec-b" aria-expanded={isOpen} aria-controls={`vt-sb-${c.id}`} onClick={() => setOpenId(isOpen ? null : c.id)}>
+                <button type="button" className="vt-sec-b" aria-expanded={isOpen} aria-controls={`vt-sb-${c.id}`} onClick={() => { setOpenId(isOpen ? null : c.id); if (!isOpen) requestAnimationFrame(() => grow(document.getElementById(`vt-sb-${c.id}`))) }}>
                   <span className="mono vt-sec-n">{String(k + 1).padStart(2, '0')}</span>
                   <span className="vt-sec-tx">{head(c) ? <><span className="mono vt-sec-l">{name(c)}</span><span className="vt-sec-h2">{head(c)}</span></> : <span className="vt-sec-h2">{name(c)}</span>}</span>
                   <span className="vt-sec-i" aria-hidden="true" />
@@ -321,6 +322,8 @@ export function Vitrine() {
     if (!el) return
     // ?act=1: the sheet has already brought its action into view (child effects run first)
     if (first.current) { first.current = false; return }
+    // motion rule M2 (ui/motion.ts): the new content of the column arrives block by block
+    requestAnimationFrame(() => reveal(el))
     // a section of the introduction: the column brings it to its top (Intro.tsx does it on the first load)
     if (cur && isSec(cur)) { if (cur !== 'offers') toTop(el.querySelector<HTMLElement>(`#vt-s-${cur}`)); else el.scrollTop = 0; return }
     el.scrollTop = 0

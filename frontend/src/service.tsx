@@ -2,6 +2,7 @@
 // place by the panel). Same content as the Use page panel, read live; a slot without a product keeps the wall card
 // (open slot, enclave with no product read).
 import { createRoot } from 'react-dom/client'
+import { flushSync } from 'react-dom'
 import { useEffect } from 'react'
 import './styles.css'
 import './app/app.css'
@@ -55,7 +56,9 @@ document.documentElement.classList.add('js', 'app-page')
 document.documentElement.dataset.title = 'ArcHive. Service'
 startLive({ levels: true })
 startClock({ smooth: false })
-createRoot(document.getElementById('root')!).render(<Service />)
+// first render synchronous: the header is on screen at the page's first frame, so it stays in place across the
+// page transition (motion rule M1, ui/motion.ts)
+flushSync(() => createRoot(document.getElementById('root')!).render(<Service />))
 const ready = () => { if (getLive().status !== 'loading') { off(); Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 1500))]).then(() => requestAnimationFrame(() => { w.__frontReady = true })) } }
 const off = subscribeLive(ready)
 ready()

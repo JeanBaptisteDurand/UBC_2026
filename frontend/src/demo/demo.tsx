@@ -1,6 +1,7 @@
 // Demo entry point (/demo.html): no network read on load, everything comes from replay.json. The same clock as the
 // rest of the app (GSAP ticker) for the title glow, without smooth scroll.
 import { createRoot } from 'react-dom/client'
+import { flushSync } from 'react-dom'
 import '../styles.css'
 import '../app/app.css'
 import './demo.css'
@@ -14,5 +15,7 @@ document.documentElement.classList.add('js', 'app-page', 'demo-page')
 document.documentElement.dataset.title = t('demo.doc')
 document.title = t('demo.doc')
 startClock({ smooth: false })
-createRoot(document.getElementById('root')!).render(<DemoPage />)
+// first render synchronous: the header is on screen at the page's first frame, so it stays in place across the
+// page transition (motion rule M1, ui/motion.ts)
+flushSync(() => createRoot(document.getElementById('root')!).render(<DemoPage />))
 Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 1500))]).then(() => requestAnimationFrame(() => { w.__frontReady = true }))

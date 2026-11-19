@@ -10,6 +10,7 @@ import { onTick } from '../clock'
 import { Logo } from '../ui/Logo'
 import { SelLayer } from '../ui/Sel'
 import { PageCursor } from '../ui/PageCursor'
+import { reveal } from '../ui/motion'
 import { MainNav } from '../ui/MainNav'
 import { HeaderWallet } from '../network/actions/HeaderWallet'
 import '../network/actions/actions.css'
@@ -37,12 +38,19 @@ export function AppHeader({ page, section, sectionText, replay, wallet }: { page
   const loadR = useRef(0)
   // loading: one third while awaiting the first response, two thirds at the API, full at the Arc block
   loadR.current = replay ? 1 : status === 'loading' ? 0.33 : block ? 1 : 0.66
+  // the page height is read only when the scroll, the size or the loading state changed (no layout read per frame)
+  const lastR = useRef('')
   useEffect(() => onTick(() => {
     const L = loadR.current
+    const key = `${scrollY}|${innerWidth}|${innerHeight}|${L}|${document.body.childElementCount}`
+    if (key === lastR.current) return
+    lastR.current = key
     const max = document.documentElement.scrollHeight - innerHeight
     const p = L < 1 ? L : max > 0 ? Math.min(1, Math.max(0, scrollY / max)) : 1
     if (bar.current) { bar.current.style.transform = `scaleX(${p.toFixed(4)})`; bar.current.dataset.load = L < 1 ? '1' : '0' }
   }), [])
+  // motion rule M2 on arrival: the page's content rises block by block under a header that never moves (M1)
+  useEffect(() => { requestAnimationFrame(() => reveal(document.querySelector('main'))) }, [])
   const nav = <MainNav page={page === 'network' ? 'network' : page === 'service' ? 'catalog' : page === 'doc' ? 'doc' : 'other'} />
   return (
     <header className="hd app-hd-bar" data-front-free>

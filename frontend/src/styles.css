@@ -693,3 +693,16 @@ html.veil-none body::after { display: none; }
 }
 @keyframes read-blur { from { opacity: 0.82; transform: translateX(-6px); } to { opacity: 1; transform: translateX(6px); } }
 @media (prefers-reduced-motion: reduce) { html.film-page .txt::before, html.film-page .end-in::before { animation: none; } }
+
+/* Motion rule M1 (ui/motion.ts, design/MOTION.md): from page to page the header never moves. A cross-document view
+   transition keeps it in place (its new state replaces the old at once); the old page fades out in 140 ms (M3) and
+   the new one's content arrives block by block (M2, ui/motion.ts reveal). */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition { navigation: auto; }
+  .hd { view-transition-name: site-hd; }
+  ::view-transition-group(site-hd), ::view-transition-old(site-hd), ::view-transition-new(site-hd) { animation: none; }
+  ::view-transition-old(site-hd) { display: none; }
+  ::view-transition-old(root) { animation: 140ms cubic-bezier(.22, 1, .36, 1) both vt-page-out; }
+  ::view-transition-new(root) { animation: none; }
+}
+@keyframes vt-page-out { to { opacity: 0; } }

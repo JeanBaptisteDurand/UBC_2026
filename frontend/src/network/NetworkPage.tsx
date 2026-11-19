@@ -13,6 +13,7 @@ import { useIn } from '../ui/gestures'
 import { Actions, HeaderWallet, CloseFocus } from './actions/Actions'
 import { w } from './actions/strings'
 import { setUi } from './actions/store'
+import { reveal } from '../ui/motion'
 
 const PARTS = [
   { k: 'use', label: 'cta.use', kind: 'btn-main' },
@@ -53,7 +54,8 @@ function PlayDemo() {
   const [st, setSt] = useState<{ st: 'idle' | 'on' | 'done'; k: number }>({ st: 'idle', k: -1 })
   useEffect(() => {
     const col = document.querySelector('#col'); if (!col) return
-    const read = () => { const v = col.getAttribute('data-col'); setPart(v === 'use' || v === 'rent' || v === 'publish' ? v : null); setSt({ st: 'idle', k: -1 }) }
+    let was = col.getAttribute('data-col')
+    const read = () => { const v = col.getAttribute('data-col'); if (v !== was) { was = v; requestAnimationFrame(() => reveal(col)) } setPart(v === 'use' || v === 'rent' || v === 'publish' ? v : null); setSt({ st: 'idle', k: -1 }) }
     read()
     const mo = new MutationObserver(read); mo.observe(col, { attributes: true, attributeFilter: ['data-col'] })
     const on = (e: Event) => { const d = (e as CustomEvent<{ st: 'idle' | 'on' | 'done'; k: number }>).detail; setSt({ st: d.st, k: d.k }) }

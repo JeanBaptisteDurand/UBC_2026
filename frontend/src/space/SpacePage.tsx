@@ -17,6 +17,7 @@ import { useWallet, onArc, engine, ARC_ID } from '../network/actions/store'
 import { useEngine, NoteLine, errNote, type Note, type Engine } from '../network/actions/kit'
 import { useSt, type SpKey } from './strings'
 import './space.css'
+import { reveal } from '../ui/motion'
 
 const TABS = ['bounties', 'sessions', 'machines', 'services'] as const
 type Tab = typeof TABS[number]
@@ -138,6 +139,7 @@ export function SpacePage() {
   const loaded = TABS.every((k) => owned[k] !== null)
   const pick = (k: Tab) => {
     setTab(k)
+    requestAnimationFrame(() => reveal(document.getElementById('sp-body')))
     const u = new URL(location.href); u.searchParams.set('tab', k); history.replaceState(history.state, '', u)
   }
   return (
