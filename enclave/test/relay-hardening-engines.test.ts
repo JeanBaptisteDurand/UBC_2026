@@ -1,16 +1,16 @@
 /**
- * Prime scellée v2.1 quater — le relais durci avec les MOTEURS RÉELS (anvil ; arc-anvil si ARC_ANVIL_BIN), chaîne de base
- * anvil LOCALE (jamais Arc). Les cas de la vérification du relais du 9/11 au soir (r3-1a, r2,
- * r3-1b, parentHash empoisonné), rejouées de bout en bout : BountyService.submit → AnvilForkRunner → relais strict → RPC du
- * fork MENTEUR (mandataire) → chaîne de base.
- *  - r3-1a : un bloc N au MÊME hash mais à l'horodatage décalé de +1 000 s faisait SIGNER une réclamation fausse (TIME_COIN
- *    paie si TIMESTAMP > T) : désormais 503, rien de signé ; TÉMOIN (headerPolicy « shape », l'ancien contrat) : signée ;
- *  - r2 / r3-1b : un bloc N sans baseFeePerGas (arc-anvil prenait une autre BASEFEE sans erreur) ou sans mixHash : 503 ;
- *  - parentHash empoisonné : BLOCKHASH(N − 2) forgé (BH_COIN paie si BLOCKHASH(numéro − 3) == SLOAD(0) = le hash forgé) :
- *    503 ; TÉMOIN « shape » : réclamation fausse signée ;
- *  - contrôle du démarrage : chaîne saine → les 6 points inchangés ; RPC dont les en-têtes ne redonnent pas leur hash →
- *    refus de démarrer, avec la raison.
- * Ignoré si aucun anvil n'est installé (ANVIL_BIN, sinon ~/.foundry/bin/anvil).
+ * Sealed Bounty v2.1 — the hardened relay with the real engines (anvil; arc-anvil if ARC_ANVIL_BIN), on a local anvil
+ * base chain (never Arc). The cases from the relay review of 9 Nov 2026 (r3-1a, r2, r3-1b, poisoned parentHash), replayed
+ * end to end: BountyService.submit → AnvilForkRunner → strict relay → the fork's lying RPC (a proxy) → base chain.
+ *  - r3-1a: a block N with the same hash but a timestamp shifted by +1,000 s used to get a false claim signed (TIME_COIN
+ *    pays if TIMESTAMP > T): now 503, nothing signed; control (headerPolicy "shape", the old contract): signed;
+ *  - r2 / r3-1b: a block N without baseFeePerGas (arc-anvil took another BASEFEE without an error) or without mixHash: 503;
+ *  - poisoned parentHash: a forged BLOCKHASH(N − 2) (BH_COIN pays if BLOCKHASH(number − 3) == SLOAD(0) = the forged hash):
+ *    503; control "shape": false claim signed;
+ *  - start-up check: healthy chain → the 6 checks unchanged; an RPC whose headers do not reproduce their hash →
+ *    refuses to start, with the reason.
+ * Skipped if no anvil is installed (ANVIL_BIN, otherwise ~/.foundry/bin/anvil).
+ * Labels and messages that the enclave code prints are matched as it prints them.
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
@@ -39,14 +39,14 @@ const SEALED = "0x00000000000000000000000000000000000000bb" as Address;
 const HUNTER = "0x000000000000000000000000000000000000c0de" as Address;
 const R = ("0x" + "5a".repeat(32)) as Hex;
 const USDC = "0x3600000000000000000000000000000000000000" as Address;
-/** USDC minimal d'une chaîne de base locale (0x3600…) : balanceOf(a) = solde natif / 1e12, comme sur Arc. */
+/** Minimal USDC of a local base chain (0x3600…): balanceOf(a) = native balance / 1e12, as on Arc. */
 const FAKE_USDC_CODE = "0x64e8d4a51000600435310460005260206000f3" as Hex;
 const TIME_COIN = "0x0000000000000000000000000000000000071e00" as Address;
 const BASEFEE_COIN = "0x000000000000000000000000000000000000bf00" as Address;
 const BH_COIN = "0x000000000000000000000000000000000000b400" as Address;
 /** BASEFEE_COIN : vide sa caisse vers l'appelant si BASEFEE == 0. */
 const BASEFEE_COIN_CODE = "0x4815600657005b600060006000600047335af100" as Hex;
-/** BH_COIN : vide sa caisse vers l'appelant si BLOCKHASH(numéro − 3) == SLOAD(0) (la transaction est minée au bloc N + 1 :
+/** BH_COIN: drains its till to the caller if BLOCKHASH(number − 3) == SLOAD(0) (the transaction is mined at block N + 1:
  *  BLOCKHASH(N − 2)). */
 const BH_COIN_CODE = "0x600343034060005414600d57005b600060006000600047335af100" as Hex;
 const protocol = generateEnclaveKeys();
@@ -59,7 +59,7 @@ async function rpc(url: string, method: string, params: unknown[] = []): Promise
   return j.result;
 }
 
-/** Un RPC du fork MENTEUR devant la chaîne de base : `lie(q, réponse réelle)` rend un résultat forgé, ou undefined (relayé). */
+/** The fork's lying RPC in front of the base chain: `lie(q, real answer)` returns a forged result, or undefined (relayed). */
 async function lyingRpc(target: string, lie: (q: any, real: any) => unknown) {
   let lies = 0;
   const one = async (q: any) => {
@@ -95,7 +95,7 @@ async function lyingRpc(target: string, lie: (q: any, real: any) => unknown) {
 const engines: Array<[string, string | undefined, "anvil" | "arc"]> = [["anvil", ANVIL, "anvil"], ["arc-anvil", ARC_ANVIL, "arc"]];
 
 for (const [ename, bin, engine] of engines) {
-  describe.skipIf(!ANVIL || !bin)(`relais durci — moteur réel « ${ename} » (chaîne de base locale)`, () => {
+  describe.skipIf(!ANVIL || !bin)(`hardened relay — real engine "${ename}" (local base chain)`, () => {
     let base: ChildProcess | undefined;
     let url = "";
     let N = 0n;
@@ -142,7 +142,7 @@ for (const [ename, bin, engine] of engines) {
     const runner = (forkUrl: string, headerPolicy?: HeaderPolicy) =>
       new AnvilForkRunner({ forkUrl, anvilBin: bin, engine, log: () => {}, timeoutMs: 90_000, ...(headerPolicy ? { headerPolicy } : {}) });
 
-    /** Une réclamation « la caisse de `coin` baisse » par le rejeu réel ; l'ancre est le VRAI hash du bloc N (quorum). */
+    /** A claim "the till of `coin` drops" by the real replay; the anchor is block N's real hash (quorum). */
     async function claim(coin: Address, forkUrl: string, headerPolicy?: HeaderPolicy): Promise<string> {
       const p: Predicate = { combine: "OR", clauses: [{ type: "NATIVE_DROP", holder: coin, min: "1" }] };
       const view: BountyView = { predicateHash: predicateHash(p), protocolX25519: protocol.x25519PublicKey, tierMinLoss: [1n], deadline: 9_999_999_999n };
@@ -164,17 +164,17 @@ for (const [ename, bin, engine] of engines) {
     const isBlock = (q: any, n: bigint) =>
       q?.method === "eth_getBlockByNumber" && typeof q.params?.[0] === "string" && /^0x[0-9a-fA-F]+$/.test(q.params[0]) && BigInt(q.params[0]) === n;
 
-    it("preuve r3-1a : bloc N au MÊME hash, horodatage +1 000 s (toutes les lectures) → 503 « anchor », rien de signé ; mensonge servi au moteur seul → 503 « relay » ; TÉMOIN « shape » : réclamation FAUSSE signée", async () => {
-      expect(await claim(TIME_COIN, url)).toBe("non prouvée"); // RPC sain : TIMESTAMP ≤ T
+    it("r3-1a: block N with the same hash, timestamp +1,000 s (every read) → 503 \"anchor\", nothing signed; lie served to the engine only → 503 \"relay\"; control \"shape\": false claim signed", async () => {
+      expect(await claim(TIME_COIN, url)).toBe("non prouvée"); // healthy RPC: TIMESTAMP ≤ T
       const shift = (real: any) => ({ ...real.result, timestamp: numberToHex(BigInt(real.result.timestamp) + 1000n) });
       const everywhere = await lyingRpc(url, (q, real) => (isBlock(q, N) && real.result ? shift(real) : undefined));
       let blockNReads = 0;
       const engineOnly = await lyingRpc(url, (q, real) => (isBlock(q, N) && real.result && ++blockNReads >= 2 ? shift(real) : undefined));
       try {
         expect(await claim(TIME_COIN, everywhere.url)).toBe("503 anchor");
-        expect(await claim(TIME_COIN, engineOnly.url)).toBe("503 relay"); // l'ancre (1re lecture) était saine
+        expect(await claim(TIME_COIN, engineOnly.url)).toBe("503 relay"); // the anchor (first read) was healthy
         expect(engineOnly.lies()).toBeGreaterThan(0);
-        // l'ancien contrat (forme seule) : le moteur prend l'horodatage forgé et l'enclave SIGNE une réclamation fausse
+        // the old contract (shape only): the engine takes the forged timestamp and the enclave signs a false claim
         expect(await claim(TIME_COIN, everywhere.url, "shape")).toBe("PROUVÉE, SIGNÉE");
       } finally {
         await everywhere.close();
@@ -182,9 +182,9 @@ for (const [ename, bin, engine] of engines) {
       }
     }, 240_000);
 
-    it("preuves r2 / r3-1b : bloc N sans baseFeePerGas, sans mixHash ou sans champs blob (réponses invalides pour Arc) → 503, rien de signé", async () => {
+    it("r2 / r3-1b: block N without baseFeePerGas, without mixHash or without blob fields (invalid answers for Arc) → 503, nothing signed", async () => {
       const healthy = await claim(BASEFEE_COIN, url);
-      expect(["non prouvée", "PROUVÉE, SIGNÉE"]).toContain(healthy); // anvil (--base-fee 0) paie, arc-anvil non : peu importe ici
+      expect(["non prouvée", "PROUVÉE, SIGNÉE"]).toContain(healthy); // anvil (--base-fee 0) pays, arc-anvil does not: irrelevant here
       for (const drop of [["baseFeePerGas"], ["mixHash"], ["blobGasUsed", "excessBlobGas", "parentBeaconBlockRoot"]]) {
         const proxy = await lyingRpc(url, (q, real) => {
           if (!isBlock(q, N) || !real.result) return undefined;
@@ -201,8 +201,8 @@ for (const [ename, bin, engine] of engines) {
       }
     }, 240_000);
 
-    it("parentHash empoisonné : N − 1 au bon hash mais au parentHash forgé, N − 2 au hash forgé → BLOCKHASH(N − 2) : 503, rien de signé ; TÉMOIN « shape » : réclamation FAUSSE signée", async () => {
-      expect(await claim(BH_COIN, url)).toBe("non prouvée"); // RPC sain : BLOCKHASH(N − 2) est le vrai hash
+    it("poisoned parentHash: N − 1 with the right hash but a forged parentHash, N − 2 with the forged hash → BLOCKHASH(N − 2): 503, nothing signed; control \"shape\": false claim signed", async () => {
+      expect(await claim(BH_COIN, url)).toBe("non prouvée"); // healthy RPC: BLOCKHASH(N − 2) is the real hash
       const proxy = await lyingRpc(url, (q, real) => {
         if (!real.result) return undefined;
         if (isBlock(q, N - 1n)) return { ...real.result, parentHash: FORGED };
@@ -218,7 +218,7 @@ for (const [ename, bin, engine] of engines) {
       }
     }, 240_000);
 
-    it("contrôle du démarrage (politique « arc », défaut) : chaîne saine → les 6 points ; RPC dont les en-têtes ne redonnent pas leur hash → refus de démarrer, raison « header »", async () => {
+    it("start-up check (\"arc\" policy, the default): healthy chain → the 6 checks; an RPC whose headers do not reproduce their hash → refuses to start, reason \"header\"", async () => {
       const st = await runner(url).selfTest();
       expect(st.checks).toEqual([
         "lecture directe : erreur", "stockage mal formé : erreur (relais)", "bloc rendu null : erreur (relais)",
