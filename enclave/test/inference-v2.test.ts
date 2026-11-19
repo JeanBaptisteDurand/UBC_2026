@@ -1,6 +1,6 @@
 /**
- * Passerelle d'inférence v2 : course sur seq (fix 1), dernier reçu (fix 3), unités v2 (fix 4),
- * plafond de session et délai du modèle.
+ * Inference gateway v2: the race on seq, the last receipt, v2 units, the session cap and the model timeout.
+ * Messages that the enclave code prints are matched as it prints them.
  */
 import { describe, it, expect } from "vitest";
 import { type Address, type Hex, toBytes } from "viem";
@@ -31,8 +31,8 @@ const DOMAIN = { chainId: CHAIN, verifyingContract: SESSIONPAY };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
- * v2 bis : l'enclave de ces tests. Chaque session de test lui est LIÉE (Session.enclave) : une passerelle ne sert
- * que les sessions de sa propre clé. Chaque passerelle garde son propre état de sessions.
+ * The enclave of these tests. Every test session is bound to it (Session.enclave): a gateway serves only the sessions
+ * of its own key. Each gateway keeps its own session state.
  */
 const KIT = new EnclaveKit({ productId: 1n, chainId: CHAIN, registry: "0x0000000000000000000000000000000000000001", mockBlockHash: true });
 
@@ -45,7 +45,7 @@ function session(over: Partial<SessionView> = {}): SessionView {
     deposit: 10_000_000_000n,
     price: 1n,
     paidUnits: 0n,
-    expiresAt: 4_000_000_000n, // an 2096 (v2 bis : une session échue n'est plus servie)
+    expiresAt: 4_000_000_000n, // year 2096 (an expired session is no longer served)
     closed: false,
     enclave: KIT.keys.signer,
     ...over,
@@ -61,7 +61,7 @@ class Reader implements SessionReader {
 
 const blocks: BlockSource = { current: async () => 1000n };
 
-/** Modèle factice : jetons fixés par requête, compteur d'appels. */
+/** Fake model: fixed tokens per request, call counter. */
 class FixedLlama implements LlamaClient {
   calls = 0;
   constructor(private tokensIn: number, private tokensOut: number) {}
@@ -76,12 +76,12 @@ function ok(r: Awaited<ReturnType<InferenceGateway["handle"]>>): InferenceOk {
   return r as InferenceOk;
 }
 
-describe("fix 1 — course sur seq : réservation atomique par session", () => {
-  it("N requêtes concurrentes => N seq distincts, cumul strictement croissant, reçus tous signés", async () => {
+describe("race on seq: atomic reservation per session", () => {
+  it("N concurrent requests => N distinct seqs, strictly increasing total, every receipt signed", async () => {
     const N = 25;
     let inFlight = 0;
     let maxInFlight = 0;
-    // la k-ième requête met (N − k) × 2 ms : sans verrou, les dernières finiraient les premières
+    // the k-th request takes (N − k) × 2 ms: without a lock, the last ones would finish first
     const llama: LlamaClient = {
       async infer(prompt: string) {
         const k = Number(prompt.slice(1));
@@ -100,8 +100,8 @@ describe("fix 1 — course sur seq : réservation atomique par session", () => {
     );
     const receipts = results.map((r) => ok(r).receipt);
 
-    expect(new Set(receipts.map((r) => r.seq.toString())).size).toBe(N); // N seq distincts
-    expect(maxInFlight).toBe(1); // jamais deux appels au modèle en même temps sur une session
+    expect(new Set(receipts.map((r) => r.seq.toString())).size).toBe(N); // N distinct seqs
+    expect(maxInFlight).toBe(1); // never two model calls at the same time on one session
 
     let prev = 0n;
     let expected = 0n;
@@ -109,8 +109,8 @@ describe("fix 1 — course sur seq : réservation atomique par session", () => {
     for (const [i, r] of receipts.entries()) {
       const k = i + 1;
       expect(r.seq).toBe(BigInt(k));
-      expect(r.cumulativeUnits > prev).toBe(true); // strictement croissant
-      expected += BigInt(10 + k + 5 + (k % 7)); // v1 : unités = jetons d'entrée + de sortie
+      expect(r.cumulativeUnits > prev).toBe(true); // strictly increasing
+      expected += BigInt(10 + k + 5 + (k % 7)); // v1: units = input + output tokens
       expect(r.cumulativeUnits).toBe(expected);
       prev = r.cumulativeUnits;
     }
@@ -121,7 +121,7 @@ describe("fix 1 — course sur seq : réservation atomique par session", () => {
     expect(gw.lastReceipt(1n)?.receipt.seq).toBe(BigInt(N));
   });
 
-  it("le même seq envoyé 10 fois en parallèle => UN seul reçu signé, les autres refusés (409) : pas d'équivocation", async () => {
+  it("the same seq sent 10 times in parallel => one signed receipt, the others refused (409): no equivocation", async () => {
     const llama: LlamaClient = {
       async infer(prompt: string) {
         await sleep(Math.floor(Math.random() * 10));
@@ -133,7 +133,7 @@ describe("fix 1 — course sur seq : réservation atomique par session", () => {
     const settled = await Promise.allSettled(Array.from({ length: 10 }, (_, i) => gw.handle(1n, 1n, `invite ${i}`, {})));
     const signed = settled.filter((s) => s.status === "fulfilled");
     const refused = settled.filter((s) => s.status === "rejected") as PromiseRejectedResult[];
-    expect(signed).toHaveLength(1); // un seul reçu pour (session 1, seq 1)
+    expect(signed).toHaveLength(1); // a single receipt for (session 1, seq 1)
     expect(refused).toHaveLength(9);
     for (const r of refused) {
       expect(r.reason).toBeInstanceOf(GatewayError);
@@ -142,7 +142,7 @@ describe("fix 1 — course sur seq : réservation atomique par session", () => {
     }
   });
 
-  it("le verrou est PAR session : une session bloquée n'empêche pas une autre d'avancer", async () => {
+  it("the lock is per session: a blocked session does not stop another one", async () => {
     let release!: () => void;
     const gate = new Promise<void>((r) => (release = r));
     const llama: LlamaClient = {
@@ -157,12 +157,12 @@ describe("fix 1 — course sur seq : réservation atomique par session", () => {
     const slow = gw.handle(1n, 1n, "lent", {}).then((r) => ((slowDone = true), r));
     const fast = ok(await gw.handle(2n, 1n, "rapide", {}));
     expect(fast.receipt.sessionId).toBe(2n);
-    expect(slowDone).toBe(false); // la session 1 attend toujours son modèle
+    expect(slowDone).toBe(false); // session 1 is still waiting for its model
     release();
     expect(ok(await slow).receipt.sessionId).toBe(1n);
   });
 
-  it("une panne du modèle libère le verrou sans consommer le seq", async () => {
+  it("a model failure releases the lock without consuming the seq", async () => {
     let n = 0;
     const llama: LlamaClient = {
       async infer() {
@@ -172,10 +172,10 @@ describe("fix 1 — course sur seq : réservation atomique par session", () => {
     };
     const gw = new InferenceGateway(KIT, { sessionPay: SESSIONPAY, modelHash: MODEL }, new Reader(session()), llama, blocks);
     await expect(gw.handle(1n, 1n, "p", {})).rejects.toThrow("panne amont");
-    expect(ok(await gw.handle(1n, 1n, "p", {})).receipt.seq).toBe(1n); // seq 1 rejoué sans risque : rien n'avait été signé
+    expect(ok(await gw.handle(1n, 1n, "p", {})).receipt.seq).toBe(1n); // seq 1 replayed safely: nothing had been signed
   });
 
-  it("délai du modèle dépassé => 504, appel annulé, verrou libéré, seq non consommé", async () => {
+  it("model timeout => 504, call aborted, lock released, seq not consumed", async () => {
     let aborted = false;
     let first = true;
     const llama: LlamaClient = {
@@ -183,7 +183,7 @@ describe("fix 1 — course sur seq : réservation atomique par session", () => {
         if (first) {
           first = false;
           signal?.addEventListener("abort", () => (aborted = true));
-          return new Promise(() => {}); // ne répond jamais
+          return new Promise(() => {}); // never answers
         }
         return Promise.resolve({ text: "ok", tokensIn: 1, tokensOut: 1 });
       },
@@ -199,8 +199,8 @@ describe("fix 1 — course sur seq : réservation atomique par session", () => {
   });
 });
 
-describe("fix 4 — unités v2 : UNIT_TOKENS et OUT_WEIGHT, arrondi sur le cumul", () => {
-  it("UNIT_TOKENS=1000, OUT_WEIGHT=4 : 40 000 jetons lus + 2 000 écrits => 48 unités", async () => {
+describe("v2 units: UNIT_TOKENS and OUT_WEIGHT, rounding on the running total", () => {
+  it("UNIT_TOKENS=1000, OUT_WEIGHT=4: 40,000 tokens read + 2,000 written => 48 units", async () => {
     const billing = billingFromEnv({ UNIT_TOKENS: "1000", OUT_WEIGHT: "4" });
     expect(billing).toEqual({ unitTokens: 1000n, outWeight: 4n });
     const gw = new InferenceGateway(
@@ -213,7 +213,7 @@ describe("fix 4 — unités v2 : UNIT_TOKENS et OUT_WEIGHT, arrondi sur le cumul
     expect(unitsForTokens(40_000n, 2_000n, billing)).toBe(48n);
   });
 
-  it("défauts = v1 (1 et 1) ; valeurs invalides refusées au démarrage", () => {
+  it("defaults = v1 (1 and 1); invalid values refused at start-up", () => {
     expect(billingFromEnv({})).toEqual({ unitTokens: 1n, outWeight: 1n });
     for (const bad of ["0", "-3", "1.5", "abc", ""]) {
       expect(() => billingFromEnv({ UNIT_TOKENS: bad })).toThrow(/UNIT_TOKENS/);
@@ -221,68 +221,68 @@ describe("fix 4 — unités v2 : UNIT_TOKENS et OUT_WEIGHT, arrondi sur le cumul
     }
   });
 
-  it("arrondi au-dessus sur le CUMUL, pas par requête (4 requêtes de 1,5 unité => 6, pas 8)", async () => {
-    // 1 100 lus + 100 écrits × 4 = 1 500 jetons-équivalent = 1,5 unité de 1 000
+  it("rounded up on the running total, not per request (4 requests of 1.5 units => 6, not 8)", async () => {
+    // 1,100 read + 100 written × 4 = 1,500 token-equivalents = 1.5 units of 1,000
     const gw = new InferenceGateway(
       KIT, { sessionPay: SESSIONPAY, modelHash: MODEL, unitTokens: 1000n, outWeight: 4n },
       new Reader(session()), new FixedLlama(1_100, 100), blocks,
     );
     const cum: bigint[] = [];
     for (let i = 1n; i <= 4n; i++) cum.push(ok(await gw.handle(1n, i, "p", {})).receipt.cumulativeUnits);
-    expect(cum).toEqual([2n, 3n, 5n, 6n]); // ceil(1,5) ceil(3) ceil(4,5) ceil(6) ; par requête ce serait 2,4,6,8
+    expect(cum).toEqual([2n, 3n, 5n, 6n]); // ceil(1.5) ceil(3) ceil(4.5) ceil(6); per request it would be 2,4,6,8
   });
 
-  it("cumulativeUnits strictement croissant même pour de toutes petites requêtes ; rattrapé ensuite par le cumul", async () => {
-    const llama = new FixedLlama(10, 5); // 30 jetons-équivalent = 0,03 unité
+  it("cumulativeUnits strictly increasing even for tiny requests; caught up later by the running total", async () => {
+    const llama = new FixedLlama(10, 5); // 30 token-equivalents = 0.03 units
     const gw = new InferenceGateway(
       KIT, { sessionPay: SESSIONPAY, modelHash: MODEL, unitTokens: 1000n, outWeight: 4n }, new Reader(session()), llama, blocks,
     );
     const cum: bigint[] = [];
     for (let i = 1n; i <= 3n; i++) cum.push(ok(await gw.handle(1n, i, "p", {})).receipt.cumulativeUnits);
-    expect(cum).toEqual([1n, 2n, 3n]); // au moins +1 unité par reçu
-    // une grosse requête ensuite : cumul = 90 + 3 000 = 3 090 => ceil = 4 (pas 3 + 4)
+    expect(cum).toEqual([1n, 2n, 3n]); // at least +1 unit per receipt
+    // a large request next: total = 90 + 3,000 = 3,090 => ceil = 4 (not 3 + 4)
     const big = { infer: async () => ({ text: "x", tokensIn: 3_000, tokensOut: 0 }) };
     (gw as any).llama = big;
     expect(ok(await gw.handle(1n, 4n, "p", {})).receipt.cumulativeUnits).toBe(4n);
   });
 
-  it("reprise : le reçu suivant dépasse toujours ce qui est déjà réglé on-chain (paidUnits)", async () => {
+  it("resume: the next receipt always exceeds what is already settled on-chain (paidUnits)", async () => {
     const reader = new Reader(session({ paidUnits: 100n }));
     const gw = new InferenceGateway(
       KIT, { sessionPay: SESSIONPAY, modelHash: MODEL, unitTokens: 1000n, outWeight: 4n }, reader, new FixedLlama(40_000, 2_000), blocks,
     );
-    expect(ok(await gw.handle(1n, 1n, "p", {})).receipt.cumulativeUnits).toBe(148n); // 100 déjà réglés + 48
-    reader.s.paidUnits = 500n; // défense (v2 bis : la session est liée à cette enclave) : la chaîne a réglé plus
-    expect(ok(await gw.handle(1n, 2n, "p", {})).receipt.cumulativeUnits).toBe(548n); // 500 + 48, toujours > paidUnits
+    expect(ok(await gw.handle(1n, 1n, "p", {})).receipt.cumulativeUnits).toBe(148n); // 100 already settled + 48
+    reader.s.paidUnits = 500n; // defence (the session is bound to this enclave): the chain settled more
+    expect(ok(await gw.handle(1n, 2n, "p", {})).receipt.cumulativeUnits).toBe(548n); // 500 + 48, still > paidUnits
   });
 });
 
-describe("402 : la passerelle ne sert jamais au-delà de ce que le contrat paiera", () => {
-  it("plafond de session (cap < dépôt) respecté ; un 402 ne consomme ni seq ni cumul", async () => {
+describe("402: the gateway never serves beyond what the contract will pay", () => {
+  it("session cap (cap < deposit) respected; a 402 consumes neither seq nor total", async () => {
     const reader = new Reader(session({ deposit: 1_000n, cap: 100n }));
     const gw = new InferenceGateway(KIT, { sessionPay: SESSIONPAY, modelHash: MODEL }, reader, new FixedLlama(10, 20), blocks);
     for (let i = 1n; i <= 3n; i++) ok(await gw.handle(1n, i, "p", {})); // 30, 60, 90
     const r = await gw.handle(1n, 4n, "p", {});
     expect(r.status).toBe(402);
-    if (r.status === 402) expect(r.balance).toBe(10n); // plafond 100 − 90
+    if (r.status === 402) expect(r.balance).toBe(10n); // cap 100 − 90
     expect(gw.lastReceipt(1n)?.receipt.seq).toBe(3n);
-    reader.s.cap = 0n; // plafond levé : le dépôt (1 000) redevient la limite
-    expect(ok(await gw.handle(1n, 4n, "p", {})).receipt.cumulativeUnits).toBe(120n); // seq 4 toujours libre
+    reader.s.cap = 0n; // cap lifted: the deposit (1,000) is the limit again
+    expect(ok(await gw.handle(1n, 4n, "p", {})).receipt.cumulativeUnits).toBe(120n); // seq 4 still free
   });
 
-  it("session épuisée => 402 AVANT d'appeler le modèle (l'opérateur ne paie pas l'amont pour rien)", async () => {
+  it("exhausted session => 402 before calling the model (the operator does not pay the upstream for nothing)", async () => {
     const llama = new FixedLlama(10, 20);
     const gw = new InferenceGateway(KIT, { sessionPay: SESSIONPAY, modelHash: MODEL }, new Reader(session({ deposit: 90n })), llama, blocks);
     for (let i = 1n; i <= 3n; i++) ok(await gw.handle(1n, i, "p", {}));
     expect(llama.calls).toBe(3);
     const r = await gw.handle(1n, 4n, "p", {});
     expect(r.status).toBe(402);
-    expect(llama.calls).toBe(3); // pas d'appel au modèle
+    expect(llama.calls).toBe(3); // no model call
   });
 });
 
-describe("fix 3 — GET /v1/session/:id/receipt (dernier reçu, HTTP)", () => {
-  it("rend { receipt, signature } du dernier reçu émis ; 404 sans reçu ; 400 si identifiant invalide ; 409 si seq rejoué", async () => {
+describe("GET /v1/session/:id/receipt (last receipt, HTTP)", () => {
+  it("returns { receipt, signature } of the last receipt issued; 404 with no receipt; 400 for an invalid id; 409 for a replayed seq", async () => {
     const kit = KIT;
     const sessionKey = privateKeyToAccount(generatePrivateKey());
     const reader = new Reader(session({ sessionKey: sessionKey.address }));
@@ -293,7 +293,7 @@ describe("fix 3 — GET /v1/session/:id/receipt (dernier reçu, HTTP)", () => {
     });
 
     async function chat(seq: bigint, prompt: string) {
-      const client = generateEnclaveKeys(); // clé X25519 éphémère du client
+      const client = generateEnclaveKeys(); // the client's ephemeral X25519 key
       const sealed = await seal(toBytes(kit.keys.x25519PublicKey), new TextEncoder().encode(prompt));
       const ciphertext = ("0x" + Buffer.from(sealed.ciphertext).toString("hex")) as Hex;
       const enc = ("0x" + Buffer.from(sealed.enc).toString("hex")) as Hex;
@@ -307,7 +307,7 @@ describe("fix 3 — GET /v1/session/:id/receipt (dernier reçu, HTTP)", () => {
       return { res, client };
     }
 
-    expect((await app.request("/v1/session/1/receipt")).status).toBe(404); // rien d'émis encore
+    expect((await app.request("/v1/session/1/receipt")).status).toBe(404); // nothing issued yet
 
     await chat(1n, "première question");
     const { res, client } = await chat(2n, "deuxième question");
@@ -319,11 +319,11 @@ describe("fix 3 — GET /v1/session/:id/receipt (dernier reçu, HTTP)", () => {
     const last = await app.request("/v1/session/1/receipt");
     expect(last.status).toBe(200);
     const body = (await last.json()) as { receipt: Record<string, string>; signature: Hex };
-    expect(body).toEqual({ receipt: out.receipt, signature: out.signature }); // le dernier, tel qu'il a été rendu
+    expect(body).toEqual({ receipt: out.receipt, signature: out.signature }); // the last one, as it was returned
     expect(body.receipt.seq).toBe("2");
     expect(body.receipt.cumulativeUnits).toBe("60");
 
-    // réglable : la signature est celle de l'enclave sur ce reçu (domaine SessionPay)
+    // settleable: the signature is the enclave's over this receipt (SessionPay domain)
     const r = body.receipt;
     const receipt: Receipt = {
       productId: BigInt(r.productId!), sessionId: BigInt(r.sessionId!), seq: BigInt(r.seq!), modelHash: r.modelHash as Hex,
