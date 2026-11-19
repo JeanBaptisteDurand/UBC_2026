@@ -15,11 +15,20 @@ export { exitFocus } from './kit'
 
 /** The part open in the column (scene.ts writes it to #col[data-col]). */
 function useView(): 'ensemble' | Part {
-  const [v, setV] = useState<'ensemble' | Part>(() => (document.querySelector('#col')?.getAttribute('data-col') as Part) ?? 'ensemble')
+  // on the first render #col is not in the page yet: the view the address gives (NetworkPage's F0), so a ?focus= page
+  // shows its steps at once instead of when the 3D scene writes data-col again
+  const [v, setV] = useState<'ensemble' | Part>(() => {
+    const c = document.querySelector('#col')?.getAttribute('data-col')
+    if (c) return c as Part
+    const f = new URLSearchParams(location.search).get('focus')
+    return (f === 'use' || f === 'rent' || f === 'publish' || f === 'cctp' || f === 'arc' || f === 'demo' ? f : 'ensemble') as Part
+  })
   useEffect(() => {
     const col = document.querySelector('#col'); if (!col) return
-    const mo = new MutationObserver(() => setV((col.getAttribute('data-col') as Part) ?? 'ensemble'))
+    const read = () => setV((col.getAttribute('data-col') as Part) ?? 'ensemble')
+    const mo = new MutationObserver(read)
     mo.observe(col, { attributes: true, attributeFilter: ['data-col'] })
+    read()
     return () => mo.disconnect()
   }, [])
   return v

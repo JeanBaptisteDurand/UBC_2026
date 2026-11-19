@@ -236,7 +236,7 @@ export function drawPubOverlay(s: Scr, st: number, hashK: number) {
   } else if (st >= 2) {
     text(g, tx('fingerprint', 'empreinte'), 24, 88, 18, INK3); text(g, hash, 24, 124, 22, st >= 4 ? GREEN : CORE, MONO, 600)
     rule(g, 24, 150, W - 48)
-    const L = st === 2 ? tx('proposed, sent to Arc', 'proposé, envoyé à Arc') : st === 3 ? tx('under review by the admins', 'en relecture par les admins') : st === 4 ? tx('accepted, WorkloadAdded', 'accepté, WorkloadAdded') : tx('image sent to the enclaves', 'image envoyée aux enclaves')
+    const L = st === 2 ? tx('proposed, sent to Arc', 'proposé, envoyé à Arc') : st === 3 ? tx('waiting for its protection delay', 'en attente de son délai de protection') : st === 4 ? tx('accepted, WorkloadAdded', 'accepté, WorkloadAdded') : tx('image sent to the enclaves', 'image envoyée aux enclaves')
     text(g, L, 24, 188, 19, st >= 4 ? GREEN : ELEC, MONO)
     if (st === 3) for (let i = 0; i < 3; i++) diode(g, 24 + i * 26, 214, OFF, 18, 6)
     if (st >= 4) diode(g, 24, 214, GREEN, 40, 6)

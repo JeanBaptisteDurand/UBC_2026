@@ -2,30 +2,22 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ArcHive. The demo, replayed</title>
-    <meta name="description" content="ArcHive step by step, replayed from a dated recording of Arc testnet: an author publishes, a sealed Intel TDX machine registers, Arc admits it and refuses it once one byte changes, a user pays in USDC." />
-    <meta name="robots" content="index, follow" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>ArcHive. How it works</title>
+    <meta name="description" content="The ArcHive demo plays on the Network page, in the 3D room: an author publishes, an Intel TDX enclave is checked by Arc, a user sends a sealed request and pays in USDC." />
+    <meta name="robots" content="noindex, follow" />
     <meta name="theme-color" content="#0b0d10" />
-    <meta property="og:title" content="ArcHive. The demo, replayed" />
-    <meta property="og:description" content="ArcHive step by step, replayed from a dated recording of Arc testnet." />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://archive.62-171-153-35.sslip.io/demo.html" />
-    <meta property="og:image" content="https://archive.62-171-153-35.sslip.io/og.jpg" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="canonical" href="https://archive.62-171-153-35.sslip.io/network.html?focus=demo" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="preload" href="/fonts/montserrat-wght.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href="/fonts/fragment-mono.woff2" as="font" type="font/woff2" crossorigin />
+    <noscript><meta http-equiv="refresh" content="0; url=network.html?focus=demo" /></noscript>
     <style>
-      @font-face { font-family: 'Montserrat'; src: url('/fonts/montserrat-wght.woff2') format('woff2'); font-weight: 100 900; font-display: block; }
-      :root { --brand: 'Montserrat'; }
-      html, body { background: #0b0d10; color: #e9edf1; margin: 0; }
+      html, body { background: #0b0d10; color: #e9edf1; margin: 0; font: 16px/1.5 ui-sans-serif, system-ui, sans-serif; }
+      p { margin: 0; padding: 120px 16px 0; text-align: center; }
+      a { color: #9cc0ff; }
     </style>
+    <script type="module" src="/src/demo/redirect.ts"></script>
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/demo/demo.tsx"></script>
+    <p><a href="network.html?focus=demo">The demo plays on the Network page</a></p>
   </body>
 </html>

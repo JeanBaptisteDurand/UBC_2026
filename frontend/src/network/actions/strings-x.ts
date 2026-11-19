@@ -35,8 +35,8 @@ const EN = {
   'b.enc.open': 'Bounty enclave', 'b.enc.verified': 'Verified bounty enclave',
   'b.slashFrom': 'The verified bounty can slash and write its verdicts from {when}.', 'b.slashDate': 'The verified bounty can slash and write its verdicts from 18/11, 23:00 UTC.',
   'b.list': 'Bounties', 'b.h.bounty': 'Bounty', 'b.h.protocol': 'Protocol', 'b.h.pool': 'Pool', 'b.h.deadline': 'Deadline', 'b.h.state': 'State', 'b.h.act': 'Action',
-  'b.row': 'Bounty {id}, product {p}', 'b.none': 'No bounty on this level yet.', 'b.st.open': 'open', 'b.st.expired': 'expired', 'b.st.paused': 'paused', 'b.st.paid': '{a} already paid',
-  'b.hunt': 'Hunt', 'b.verifiedNeedsWallet': 'The verified bounties are read on Arc. Connect your wallet to read them.',
+  'b.row': 'Bounty {id}, product {p}', 'b.none': 'No bounty on this level yet.', 'b.st.open': 'open', 'b.st.expired': 'expired', 'b.st.paused': 'paused', 'b.st.paid': '{a} already paid', 'b.st.refuted': 'claim refuted on Arc: nothing paid, the liar’s bond seized',
+  'b.hunt': 'Hunt', 'list.unread': 'The list could not be read.', 'list.reread': 'Read again',
   'b.noLevels': 'This deployment has no operator levels.',
   'b.credit': 'Credit', 'b.credit.text': 'A bounty payment of {a} could not be sent to you and is held as credit by the contract.', 'b.credit.btn': 'Withdraw the credit',
   'b.credit.signing': 'Confirm the withdrawal in your wallet', 'b.credit.done': '{a} withdrawn.',
@@ -120,7 +120,8 @@ const EN = {
   'lvl.title': 'Two operator levels', 'lvl.lede': 'Each product sets the level it requires. Read live on Arc through the ArcHive API.',
   'lvl.c.open': 'Open', 'lvl.c.open.d': 'The enclave is attested by Intel and verified by a contract on Arc. The operator posts a bond.',
   'lvl.c.verified': 'Verified', 'lvl.c.verified.d': 'On top of that, the machine chip is declared in a known datacenter by Proof of Cloud, checked on Arc.',
-  'lvl.live': 'Now: {n} verified enclaves on {m} machines.', 'lvl.none': 'The levels are not readable right now.', 'lvl.slash': 'The verified bounty can slash from {when}.',
+  'lvl.live': 'Now: {n} {encs} on {m} {machs}.', 'lvl.none': 'The levels are not readable right now.', 'lvl.slash': 'The verified bounty can slash from {when}.',
+  'lvl.enc1': 'verified enclave', 'lvl.encN': 'verified enclaves', 'lvl.m1': 'machine', 'lvl.mN': 'machines',
   'lvl.open': 'open', 'lvl.verified': 'verified', 'lvl.stale': 'binding to renew',
   'lvl.open.t': 'Attested by Intel, verified by Arc', 'lvl.verified.t': 'Machine declared by Proof of Cloud, checked on Arc', 'lvl.stale.t': 'The enclave was registered again: its machine must be bound again',
   'lvl.svc.requires': 'This service requires the verified level.', 'lvl.svc.some': 'Verified enclaves running it: {n}.', 'lvl.svc.open': 'Open level.',
@@ -140,6 +141,9 @@ const EN = {
   'cp.a.noEnclave': 'no active enclave was found', 'cp.a.incomplete': 'values are missing', 'cp.a.unknown': 'unknown action',
   'cp.a.sign': 'Sign with my wallet', 'cp.a.signing': 'Confirm in your wallet', 'cp.a.done': 'Done: {what}.', 'cp.a.checksFailed': 'A check failed: the transaction would be refused.',
   'cp.a.todo': 'To complete: {why}',
+  // copy buttons (parts.tsx) and the Rent proof of the latest paid call with the operator's share (RentPage)
+  'p.copyHold': 'Selected: press and hold to copy', 'p.copySel': 'Selected: copy it with your keyboard',
+  'r.p7s': 'Latest paid call, {a}, of which {s} to operator {o},',
 } as const
 
 const FR: Record<keyof typeof EN, string> = {
@@ -170,13 +174,13 @@ const FR: Record<keyof typeof EN, string> = {
   'b.enc.open': 'Enclave de la Prime', 'b.enc.verified': 'Enclave de la Prime vérifiée',
   'b.slashFrom': 'La Prime vérifiée peut saisir et écrire ses verdicts à partir du {when}.', 'b.slashDate': 'La Prime vérifiée peut saisir et écrire ses verdicts à partir du 18/11, 23 h UTC.',
   'b.list': 'Les primes', 'b.h.bounty': 'Prime', 'b.h.protocol': 'Protocole', 'b.h.pool': 'Pool', 'b.h.deadline': 'Échéance', 'b.h.state': 'État', 'b.h.act': 'Action',
-  'b.row': 'Prime {id}, produit {p}', 'b.none': 'Aucune prime à ce niveau pour l’instant.', 'b.st.open': 'ouverte', 'b.st.expired': 'échue', 'b.st.paused': 'en pause', 'b.st.paid': '{a} déjà payés',
-  'b.hunt': 'Chasser', 'b.verifiedNeedsWallet': 'Les primes vérifiées se lisent sur Arc. Connectez votre wallet pour les lire.',
+  'b.row': 'Prime {id}, produit {p}', 'b.none': 'Aucune prime à ce niveau pour l’instant.', 'b.st.open': 'ouverte', 'b.st.expired': 'échue', 'b.st.paused': 'en pause', 'b.st.paid': '{a} déjà payés', 'b.st.refuted': 'réclamation réfutée sur Arc : rien n’a été payé, la caution du menteur a été saisie',
+  'b.hunt': 'Chasser', 'list.unread': 'La liste n’a pas pu être lue.', 'list.reread': 'Relire',
   'b.noLevels': 'Ce déploiement n’a pas les niveaux d’opérateur.',
   'b.credit': 'Crédit', 'b.credit.text': 'Un paiement de prime de {a} n’a pas pu vous être envoyé, le contrat le garde en crédit.', 'b.credit.btn': 'Retirer le crédit',
   'b.credit.signing': 'Confirmez le retrait dans votre wallet', 'b.credit.done': '{a} retirés.',
   'b.c.title': 'Publier une prime', 'b.c.lede': 'Vous êtes le protocole. La règle de démonstration paie quand de l’USDC sort de DemoVault. Votre clé de protocole naît dans cette page et n’en sort que dans le fichier que vous téléchargez.',
-  'b.c.s1': 'Financer la prime', 'b.c.s1d': 'Un palier : une perte d’au moins 1 USDC paie 1 USDC, plus {fees} % de frais. Financez au moins {min}. Une autorisation EIP-3009, une transaction.',
+  'b.c.s1': 'Financer la prime', 'b.c.s1d': 'Un palier : une perte d’au moins 1 USDC paie 1 USDC, plus {fees} % de frais. Financez au moins {min}. Une autorisation EIP-3009, une transaction.',
   'b.c.s1d0': 'Un palier : une perte d’au moins 1 USDC paie 1 USDC, plus les frais réseau et opérateurs lus sur le contrat. Une autorisation EIP-3009, une transaction.',
   'b.f.product': 'Produit', 'b.f.funding': 'Financement (USDC)', 'b.f.hours': 'Ouverte pendant (heures)', 'b.c.btn': 'Signer et publier',
   'b.c.signing': 'Confirmez l’autorisation, puis la transaction, dans votre wallet', 'b.c.sent': 'Prime {id} envoyée, en attente d’un bloc.', 'b.c.done': 'Prime {id} publiée avec {a}.',
@@ -252,7 +256,8 @@ const FR: Record<keyof typeof EN, string> = {
   'lvl.title': 'Deux niveaux d’opérateur', 'lvl.lede': 'Chaque produit fixe le niveau qu’il exige. Lu en direct sur Arc par l’API d’ArcHive.',
   'lvl.c.open': 'Ouvert', 'lvl.c.open.d': 'L’enclave est attestée par Intel et vérifiée par un contrat d’Arc. L’opérateur dépose une caution.',
   'lvl.c.verified': 'Vérifié', 'lvl.c.verified.d': 'En plus, la puce de la machine est déclarée dans un datacenter connu par Proof of Cloud, contrôlé sur Arc.',
-  'lvl.live': 'Maintenant : {n} enclaves vérifiées sur {m} machines.', 'lvl.none': 'Les niveaux ne sont pas lisibles pour l’instant.', 'lvl.slash': 'La Prime vérifiée peut saisir à partir du {when}.',
+  'lvl.live': 'Maintenant : {n} {encs} sur {m} {machs}.', 'lvl.none': 'Les niveaux ne sont pas lisibles pour l’instant.', 'lvl.slash': 'La Prime vérifiée peut saisir à partir du {when}.',
+  'lvl.enc1': 'enclave vérifiée', 'lvl.encN': 'enclaves vérifiées', 'lvl.m1': 'machine', 'lvl.mN': 'machines',
   'lvl.open': 'ouvert', 'lvl.verified': 'vérifié', 'lvl.stale': 'liaison à refaire',
   'lvl.open.t': 'Attestée par Intel, vérifiée par Arc', 'lvl.verified.t': 'Machine déclarée par Proof of Cloud, contrôlée sur Arc', 'lvl.stale.t': 'L’enclave a été réinscrite : sa machine doit être liée à nouveau',
   'lvl.svc.requires': 'Ce service exige le niveau vérifié.', 'lvl.svc.some': 'Enclaves vérifiées qui le font tourner : {n}.', 'lvl.svc.open': 'Niveau ouvert.',
@@ -271,6 +276,8 @@ const FR: Record<keyof typeof EN, string> = {
   'cp.a.noEnclave': 'aucune enclave active trouvée', 'cp.a.incomplete': 'des valeurs manquent', 'cp.a.unknown': 'action inconnue',
   'cp.a.sign': 'Signer avec mon wallet', 'cp.a.signing': 'Confirmez dans votre wallet', 'cp.a.done': 'Fait : {what}.', 'cp.a.checksFailed': 'Une vérification a échoué : la transaction serait refusée.',
   'cp.a.todo': 'À compléter : {why}',
+  'p.copyHold': 'Sélectionné : appuyez longuement pour copier', 'p.copySel': 'Sélectionné : copiez-le au clavier',
+  'r.p7s': 'Dernier appel payé, {a}, dont {s} pour l’opérateur {o},',
 }
 
 export type XKey = keyof typeof EN

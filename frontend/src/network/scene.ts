@@ -46,6 +46,7 @@ import { dress } from './dressing'
 import { siteReady, CLIENT } from './screens'
 import { makeAtmo } from './atmo'
 import { makeDemo } from './demo'
+import { isDemoPart, type DemoPartId } from './demo-parts'
 import { arcPanel } from './arcfocus'
 import { ARC_TITLE, ARC_INTRO, BEATS, clientAt, tr, type Actor, type DStep, type Shot, type Beat } from './demo-strings'
 
@@ -719,7 +720,12 @@ function fitCentered(p: Pose): Pose {
   // (at most OV.dx of the free area) for the near orbits to clear the column; with the rotation, the far places of
   // the orbits leave the frame and come back, as before
   if (cr > 0) {
-    p.zoom *= OV.zk
+    // a free area narrower than it is tall (tablets in landscape, 1180 x 820): the camera comes less close and the A
+    // moves less to the right, so the signs at the right edge are not cut; from an aspect of 1 up (1280 and wider
+    // desktops) the frame is unchanged
+    const fa = THREE.MathUtils.clamp(((right - left) / Math.max(1, bottom - top) - 0.8) / 0.2, 0, 1)
+    const zk = 1 + (OV.zk - 1) * fa, dx = OV.dx * (0.3 + 0.7 * fa)
+    p.zoom *= zk
     const near = envelope(FIT_K)
     let hl = 0
     for (const d of [-SPIN / 2, 0, SPIN / 2]) {
@@ -729,12 +735,12 @@ function fitCentered(p: Pose): Pose {
         rig.project(vp.copy(q), o2); hl = Math.max(hl, cx - o2.x)
       }
     }
-    cx = Math.min(Math.max(cx, left + hl), cx + (right - left) * OV.dx); place()
+    cx = Math.min(Math.max(cx, left + hl), cx + (right - left) * dx); place()
     // the closer camera would crop the front room at the bottom: the frame centres, vertically, every place the
     // rooms can reach (with the column, the scene has room above it)
     // and on wide screens, where the height binds, the camera comes only as close as that whole height allows
     // (the CCTP sign included), never less close than the plain fit
-    const cc = corners(new THREE.Box3().setFromObject(CHAINS.group)), zmin = p.zoom / OV.zk
+    const cc = corners(new THREE.Box3().setFromObject(CHAINS.group)), zmin = p.zoom / zk
     for (let it = 0; it < 3; it++) {
       Object.assign(rig.pose, p); rig.user.az = 0; rig.user.el = 0; rig.user.zoom = 1; rig.apply()
       let y0 = Infinity, y1 = -Infinity
@@ -1219,10 +1225,20 @@ function go(v: View, opts: { el?: string | null; instant?: boolean } = {}) {
   if (v === 'ensemble') colHidden.clear()
   const url = new URL(location.href)
   if (v === 'ensemble') url.searchParams.delete('focus'); else url.searchParams.set('focus', v)
+  if (v !== 'demo') url.searchParams.delete('part') // the demo's part (demo-parts.ts) only means something in the demo
   history.replaceState(null, '', url)
   keyFor(v)
   if (prev === 'demo' && v !== 'demo') demoResize()
+  // the player hides the footer (demo.css) and gives it back on exit without any scroll: what follows the footer (the
+  // copilot button rises above it, Copilot.tsx) reads it again
+  if ((prev === 'demo') !== (v === 'demo')) requestAnimationFrame(() => dispatchEvent(new Event('scroll')))
+  // phones and tablets: the page scrolls (scene and column stacked), so a part opens at its top (title and close
+  // cross under the header), not at the scroll offset of the overview's buttons; the demo has its own fixed player
+  if (prev !== v && !opts.instant && v !== 'demo' && prev !== 'demo' && scrollY > 0 && pageScrolls()) scrollTo({ top: 0, behavior: 'auto' })
 }
+/** Phones and tablets: the scene and the column are stacked and the page itself scrolls (on wider screens the scene
+ *  fills the window and only the column scrolls). */
+function pageScrolls() { return matchMedia('(max-width: 1024px)').matches }
 
 // ---------- Left column: the three choices, or the step panel ----------
 const panel = $('#panel'), stepsEl = $('#steps'), choices = $('#choices')
@@ -1440,6 +1456,12 @@ canvas.addEventListener('pointerup', (e) => {
   const part = id ? (id === 'arc' ? 'arc' : id.startsWith('cctp') || id === 'title.cctp' ? 'cctp' : ISLAND_OF(id)) : null
   if (part && view !== part) { activeStep = null; go(part) }
 })
+// on touch screens the canvas lets vertical swipes scroll the page (touch-action: pan-y): the browser then cancels the
+// pointer, which ends a drag without a pick (otherwise the drag never ends and the overview stops turning)
+canvas.addEventListener('pointercancel', () => {
+  down = null
+  if (dragging) { dragging = false; canvas.classList.remove('is-drag'); scheduleReturn(); dirty = true }
+})
 addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return
   if (hover.api.id()) { hover.close(); dirty = true } else if (view !== 'ensemble') go('ensemble')
@@ -1473,12 +1495,16 @@ async function start() {
   if (renderer) await dress(W, people, renderer).catch(() => null)
   await Promise.race([siteReady(), new Promise((r) => setTimeout(r, 1500))]) // the site pages before the first frame
   dressed = true
-  const f = Q.get('focus')
+  // the view in the address now, not at load: the page answers taps before the scene (NetworkPage.tsx preGo) and
+  // go() keeps the address in step, so a part chosen while the room was loading stays chosen
+  const f = new URLSearchParams(location.search).get('focus')
   const v: View = f === 'use' || f === 'rent' || f === 'publish' || f === 'cctp' || f === 'arc' || f === 'demo' ? f : 'ensemble'
   const refus = Q.get('refus') === '1'
   if (freeze) { const len = refus ? REFUS_S : LOOP_S; clock = Q.has('t') ? Number(Q.get('t')) / 1000 : Number(Q.get('s')) * len; if (!reduced && v === 'ensemble') { orbT = clock; ccT = clock } }
   layout(); rig.apply(); titles(); cctpFrame(); computeLinks()
   resize(); go(v, { instant: true })
+  // ?focus=demo&part=request: the demo opens at that part (the assistant's links, demo-parts.ts)
+  { const pt = new URLSearchParams(location.search).get('part'); if (v === 'demo' && isDemoPart(pt)) demo.part(pt) }
   await document.fonts.load('400 20px "Fragment Mono"').catch(() => null)
   await document.fonts.load('600 20px Montserrat').catch(() => null)
   if (reduced) loop.still()
@@ -1502,6 +1528,18 @@ async function start() {
   stage.dataset.ready = '1'
   requestAnimationFrame(() => requestAnimationFrame(() => { window.__frontReady = true }))
 }
+/** The demo at one of its parts (the assistant: the 'archive:demo' event, window.__s3d.demoPart, ?part=). Before the
+ *  room is ready, the address keeps the ask and start() opens it. */
+function openDemoAt(id: DemoPartId | null) {
+  if (!dressed) {
+    const u = new URL(location.href); u.searchParams.set('focus', 'demo'); if (id) u.searchParams.set('part', id); else u.searchParams.delete('part')
+    history.replaceState(null, '', u); return
+  }
+  activeStep = null
+  if (view !== 'demo') go('demo')
+  if (id) demo.part(id)
+}
+addEventListener('archive:demo', (e) => { const p = (e as CustomEvent<{ part?: string } | undefined>).detail?.part; openDemoAt(isDemoPart(p) ? p : null) })
 document.addEventListener('visibilitychange', () => { if (reduced || freeze || !loop.rtl.paused()) return; if (document.hidden) loop.tl.pause(); else loop.tl.play() })
 
 /** The camera moves behind the shoulder of the part's actor; el: an island element to frame from that shoulder. */
@@ -1566,7 +1604,21 @@ const showEmit = (st: 'idle' | 'on' | 'done') => dispatchEvent(new CustomEvent('
 function showMark(k: number) {
   const li = Array.from(document.querySelectorAll<HTMLElement>('.net-acts .na')), j = k < 0 ? -1 : Math.min(k, li.length - 1)
   li.forEach((e, i) => { e.dataset.demo = i === j ? '1' : '0' })
-  if (j >= 0) li[j]?.scrollIntoView?.({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' })
+  // the marked step scrolls into view inside the column (wide screens); where the whole page scrolls (phones,
+  // tablets) the scene, which is the point of the show, stays in view and the Stop bar says which step plays
+  if (j >= 0 && !pageScrolls()) li[j]?.scrollIntoView?.({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' })
+}
+/** Phones and tablets: the show starts with the scene in view, under the header (and under the sticky Stop bar on phones,
+ *  where the bar comes before the scene). */
+function showScene() {
+  if (!pageScrolls()) return
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const hd = document.querySelector<HTMLElement>('.hd')?.getBoundingClientRect().bottom ?? 84
+    const bar = document.querySelector<HTMLElement>('.net-show'), st = stage.getBoundingClientRect()
+    const above = bar && bar.getBoundingClientRect().top < st.top ? bar.offsetHeight + 8 : 8
+    const top = Math.max(0, Math.round(st.top + scrollY - hd - above))
+    if (Math.abs(top - scrollY) > 4) scrollTo({ top, behavior: reduced ? 'auto' : 'smooth' })
+  }))
 }
 function showChain(list: Range[], done: () => void) {
   const r = list[0]
@@ -1590,6 +1642,7 @@ export function playShow(part: Part) {
   clearTimeout(autoT); stepCalled = true; lastStep = ''; extraFor = ''; activeStep = null
   show = { part, k: 0, on: true }
   showStage(part, 1)
+  showScene()
 }
 /** Stops the part's demo where it is; the step marks are cleared. */
 export function stopShow(emit = true) {
@@ -1621,6 +1674,8 @@ window.__s3d = {
   refusAt: (s: number) => { loop.seek(true, s % REFUS_S); render(performance.now()) },
   refus: playRefus,
   demoSeek: (t: number) => demo.seek(t), demoT: () => demo.t,
+  /** opens the demo at one of its parts (demo-parts.ts DEMO_PART_IDS) and plays from there */
+  demoPart: (id: DemoPartId) => openDemoAt(id),
   orbit: (t?: number) => { if (t !== undefined) { orbT = t; ccT = t; render(performance.now()) } return orbT },
   renderNow: () => render(performance.now()),
   // the probe for the overview frame: over n orbit times and the whole sway, the leftmost screen x reached by a

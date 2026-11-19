@@ -4,7 +4,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { short } from '../../data/fmt'
 import { tx as txUrl } from '../../links'
-import { useWallet, engine, onArc, ARC_ID, type WalletState } from './store'
+import { useWallet, engine, onArc, onPhone, ARC_ID, type WalletState } from './store'
 import { w, type WKey } from './strings'
 
 export type Part = 'use' | 'rent' | 'publish'
@@ -57,9 +57,10 @@ export function useEngine(): Engine | null {
 
 // ---------- pieces ----------
 const ST_KEY: Record<St, WKey> = { todo: 'st.todo', doing: 'st.doing', done: 'st.done', fail: 'st.fail', soon: 'st.soon' }
-export function Step({ n, num, part, el, st, t, d, children, note, active }: { n: number; num?: number; part: Part; el: string; st: St; t: string; d: string; children?: ReactNode; note?: Note | null; active?: boolean }) {
+/** copilot: the step's name for the copilot's guided tours (data-copilot, copilot/guide/registry.ts). */
+export function Step({ n, num, part, el, st, t, d, children, note, active, copilot }: { n: number; num?: number; part: Part; el: string; st: St; t: string; d: string; children?: ReactNode; note?: Note | null; active?: boolean; copilot?: string }) {
   return (
-    <li className="na" data-st={st} data-on={active ? '1' : '0'}>
+    <li className="na" data-st={st} data-on={active ? '1' : '0'} data-copilot={copilot}>
       <button type="button" className="na-h" onClick={() => play(part, n - 1, st, el, true)} aria-current={active ? 'step' : undefined}>
         <span className="na-n tnum">{String(num ?? n).padStart(2, '0')}</span>
         <span className="na-t">{t}</span>
@@ -90,12 +91,15 @@ export const errNote = (E: Engine | null, e: unknown): Note => {
 
 /** Step 1 of each part: connected on Arc. */
 export function connectSt(s: WalletState): St { return onArc(s) ? 'done' : s.phase === 'connecting' || s.phase === 'loading' || s.switching ? 'doing' : 'todo' }
-export function ConnectStep({ part, el, k, active, demo }: { part: Part; el: string; k: 'u' | 'r' | 'p'; active: boolean; demo?: boolean }) {
+export function ConnectStep({ part, el, k, active, demo, copilot }: { part: Part; el: string; k: 'u' | 'r' | 'p'; active: boolean; demo?: boolean; copilot?: string }) {
   const s = useWallet()
   // the part's demo: a simulated wallet, the visitor's own is neither read nor opened
-  if (demo) return <Step n={1} part={part} el={el} st="done" t={w(`${k}.s1` as WKey)} d={w(`${k}.s1d` as WKey)} note={{ tone: 'muted', text: w('dm.wallet') }} active={false} />
+  if (demo) return <Step n={1} part={part} el={el} st="done" t={w(`${k}.s1` as WKey)} d={w(`${k}.s1d` as WKey)} note={{ tone: 'muted', text: w('dm.wallet') }} active={false} copilot={copilot} />
   // a plain state, read in the header: the wallet button only lives up there
+  // no wallet on a touch screen: the way forward stays in the step (the header popover also offers the wallet apps)
   const note: Note = s.phase === 'connected' && s.chainId !== ARC_ID ? { tone: 'bad', text: w('e.wrongNet') }
-    : onArc(s) && s.address ? { tone: 'ok', text: w('s1.ok', { addr: short(s.address, 4) }) } : { tone: 'muted', text: s.note?.text ?? w('s1.need') }
-  return <Step n={1} part={part} el={el} st={connectSt(s)} t={w(`${k}.s1` as WKey)} d={w(`${k}.s1d` as WKey)} note={note} active={active} />
+    : onArc(s) && s.address ? { tone: 'ok', text: w('s1.ok', { addr: short(s.address, 4) }) }
+      : s.phase === 'none' && onPhone() ? { tone: 'muted', text: w('w.nonePhone'), href: `${import.meta.env.BASE_URL}demo.html`, hrefLabel: w('show.play') }
+        : { tone: 'muted', text: s.note?.text ?? w('s1.need') }
+  return <Step n={1} part={part} el={el} st={connectSt(s)} t={w(`${k}.s1` as WKey)} d={w(`${k}.s1d` as WKey)} note={note} active={active} copilot={copilot} />
 }

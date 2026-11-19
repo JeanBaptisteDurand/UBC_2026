@@ -1,6 +1,7 @@
 // Arc focus panel: what the protocol does on-chain, contract by contract
 // (demo-strings.ts). One collapsible block per contract: role, functions and
-// callers, events, rejections (error names from the code), v2.1 address linked to the Arc explorer.
+// callers, events, rejections (error names from the code), address linked to the Arc explorer (the 13 contracts in
+// service: the v2.1 deployment, then the verified operator level).
 import { addrUrl } from '../data/fmt'
 import { CONTRACTS, ARC_INTRO, UI, tr } from './demo-strings'
 

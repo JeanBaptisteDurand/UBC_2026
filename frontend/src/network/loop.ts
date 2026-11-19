@@ -17,13 +17,14 @@ import gsap from 'gsap'
 import { DRONE, DOCK, WALL_H, ISIZE, type World, type Link, type PartK, LINK_PART, PART, BELT, GATE, BIN, BAY, bayY, T_POS, FRONT, UNIT, RACK, STATE_HEX, C, DESK, DESK_H, PUSH, NRK, TARGET_I, NSEG } from './world'
 import { People, sitTyping, walking, holding, standing, type Pose } from './people'
 import { makeScreen, drawCatalog, drawSession, drawDock, drawPubOverlay, drawCard, type Scr } from './screens'
+import { AT } from './at'
 // A USDC packet's point is only used for hover (the hologram is drawn by scene.ts, ~22 px)
 const USDC_PX = 22
 
 export const LOOP_S = 50
 export const REFUS_S = 12
 export const CHECK = (S: Record<string, number>, refuse: boolean) => ({ n: refuse ? (S.verdict < 0 ? 2 : Math.floor(S.bars + 1e-4)) : Math.floor(S.bars + 1e-4), bad: refuse && S.verdict < 0, ok: S.verdict > 0 })
-export const AT = { manifest: 0.2, publish: 5.0, arrive: 5.2, quote: 14.4, compare: 15.0, seal: 18.0, carry: 20.4, insert: 24.4, key: 31.0, request: 34.4, answer: 38.4, pay: 45.3, end: 49.5 }
+export { AT } // the key times live in at.ts (the page reads them without three.js)
 const DEF: Record<string, number> = {
   pType: 0.35, pMouse: 0, pBack: 0, pUp: 0, manLines: 0, review: 0, pScr: 0, hashK: 0, card: 0,
   bu: 0, push: 0, pusher: 0, ledO: 0, ledG: 0, ledR: 0, sealS: 0, rackG: 0,

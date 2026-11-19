@@ -2,7 +2,7 @@
 // hive-data.json; no fact added.
 // Callouts: a title, then either a sentence of at most forty words, or at most three key-value rows. Each element
 // has a hand-written position in the overview scene.
-import { AT } from './loop'
+import { AT } from './at' // not './loop': the page reads these texts before three.js is loaded
 import { lg, type Lg } from './lang'
 
 export type Part = 'use' | 'rent' | 'publish'
@@ -33,7 +33,7 @@ const PARTS_I: Bi<Record<Part, PartText>> = {
     publish: { kicker: 'Publish a service', title: 'Publish your service', actor: 'The developer’s desk: three screens of code.', steps: [
       { t: 'Write the manifest', d: 'The image, the price, the shares.', el: 'publish.poste', at: AT.manifest },
       { t: 'Set the image fingerprint on Arc', d: 'ProductRegistry, WorkloadAdded: only enclaves running exactly this image can serve it.', el: 'link.publishArc', at: AT.publish },
-      { t: 'Review by the admins', d: 'For third-party services. Renting a machine stays automatic.', el: 'arc', at: AT.publish },
+      { t: 'Activation after the delay', d: 'Open to any author, with no review: the product turns Active once its protection delay has passed.', el: 'arc', at: AT.publish },
       { t: 'The machine runs the image', d: 'The published image goes to the operators’ machines; only that exact image can serve.', el: 'link.publishRent', at: 4.0 },
       { t: 'Revenue on every call', d: 'The author’s share comes back from Arc.', el: 'link.publishArc', at: AT.pay },
     ] },
@@ -57,7 +57,7 @@ const PARTS_I: Bi<Record<Part, PartText>> = {
     publish: { kicker: 'Publish a service', title: 'Publier son service', actor: 'Le bureau du développeur : trois écrans de code.', steps: [
       { t: 'Écrire le manifeste', d: 'L’image, le prix, les parts.', el: 'publish.poste', at: AT.manifest },
       { t: 'Fixer l’empreinte de l’image sur Arc', d: 'ProductRegistry, WorkloadAdded : seules les enclaves qui font tourner exactement cette image pourront le servir.', el: 'link.publishArc', at: AT.publish },
-      { t: 'Relecture par les administrateurs', d: 'Pour les services de tiers. Louer sa machine reste automatique.', el: 'arc', at: AT.publish },
+      { t: 'Activation après le délai', d: 'Ouvert à tout auteur, sans relecture : le produit devient Actif une fois son délai de protection écoulé.', el: 'arc', at: AT.publish },
       { t: 'La machine fait tourner l’image', d: 'L’image publiée part vers les machines des opérateurs ; seule cette image exacte peut servir.', el: 'link.publishRent', at: 4.0 },
       { t: 'Revenus à chaque appel', d: 'La part de l’auteur revient d’Arc.', el: 'link.publishArc', at: AT.pay },
     ] },

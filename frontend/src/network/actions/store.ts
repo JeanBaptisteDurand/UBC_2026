@@ -23,12 +23,15 @@ export const getWallet = () => st
 export function setWallet(p: Partial<WalletState>) { st = { ...st, ...p }; subs.forEach((f) => f()) }
 export const useWallet = () => useSyncExternalStore((f) => { subs.add(f); return () => { subs.delete(f) } }, () => st)
 export const onArc = (s: WalletState) => s.phase === 'connected' && s.chainId === ARC_ID
+/** A touch screen (phone, tablet): no browser extension can be installed there, a wallet app opens the page instead. */
+export const onPhone = () => { try { return matchMedia('(pointer: coarse)').matches } catch { return false } }
 
 // the engine, loaded once on the first click (lazy import: viem, the SDK and encryption only weigh there)
 type Engine = typeof import('./wallet')
 let engineP: Promise<Engine> | null = null
 export function engine(): Promise<Engine> {
-  if (!engineP) engineP = import('./wallet')
+  // a load that failed (the network dropped) is tried again on the next click instead of failing for good
+  if (!engineP) engineP = import('./wallet').catch((e) => { engineP = null; throw e })
   return engineP
 }
 
