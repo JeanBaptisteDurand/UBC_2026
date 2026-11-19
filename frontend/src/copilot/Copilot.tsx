@@ -12,7 +12,7 @@ import { useLang } from '../i18n'
 import { ct, suggestions } from './strings'
 import { Markdown, Code, short } from './markdown'
 import { ActionCard, InfoCard, isInfo } from './cards'
-import { useCopilot, getState, setState, setCard, newId, logStep, saveQueue, type Msg } from './state'
+import { useCopilot, getState, setState, setCard, newId, logStep, saveQueue, setOwner, type Msg } from './state'
 import { ask, stripCitations, MCP_URL, type UiStep, type ChatTurn } from './api'
 import { drive, type DriveHooks } from './driver'
 import { pageOf } from './page'
@@ -35,6 +35,29 @@ export function hooksFor(msgId: string): DriveHooks {
 }
 export function play(msgId: string, steps: UiStep[]) { return drive(steps, hooksFor(msgId)) }
 
+/** Answers that just arrived: they unfold block by block once (JB, 19/11: "the text pops all at once") */
+const fresh = new Set<string>()
+
+/** While AskHive answers (JB, 19/11: "nothing shows it is thinking"): the real steps of the round trip. Sealed to the
+ *  enclave: the question is sealed here first, then the enclave answers (its signature is checked on arrival). */
+function Thinking() {
+  useLang()
+  const sealed = useEnc().status === 'on'
+  const [secs, setSecs] = useState(0)
+  useEffect(() => {
+    const t0 = performance.now()
+    const h = setInterval(() => setSecs(Math.floor((performance.now() - t0) / 1000)), 250)
+    return () => clearInterval(h)
+  }, [])
+  const step = sealed ? ct(secs < 1 ? 'think.seal' : 'think.enclave') : ct('think.server')
+  return (
+    <p className="cp-typing" role="status">
+      <i /><i /><i />
+      <span className="cp-think">{step}{secs >= 3 ? <span className="cp-think-t mono"> · {secs} s</span> : null}</span>
+    </p>
+  )
+}
+
 async function send(text: string) {
   const content = text.trim().slice(0, 4000)
   if (!content || getState().busy || getState().showing) return
@@ -46,6 +69,8 @@ async function send(text: string) {
   if (!a.ok) { setState((s) => ({ msgs: [...s.msgs, { id, role: 'assistant', content: a.text, local: true }], busy: false })); return }
   const p = a.parsed
   const msg: Msg = { id, role: 'assistant', content: p.text || (p.cards.length || p.ui.length ? '' : ct('err.empty')), citations: p.citations, tools: p.toolNames, cards: p.cards }
+  fresh.add(id)
+  setTimeout(() => fresh.delete(id), 4000)
   if (a.sealed) { msg.sealed = true; setState((s) => ({ msgs: s.msgs.map((m) => (m.id === user.id ? { ...m, sealed: true } : m)) })) }
   if (!p.text && !p.cards.length && !p.ui.length) msg.local = true
   // gestures play before any new question (showing); if they change page, the resume on the new page keeps the
@@ -163,7 +188,7 @@ function Message({ m }: { m: Msg }) {
   useLang()
   if (m.role === 'user') return <li className="cp-m is-user"><span className="sr-only">{ct('you')}: </span><p>{m.content}</p></li>
   return (
-    <li className={`cp-m is-bot ${m.local ? 'is-err' : ''}`}>
+    <li className={`cp-m is-bot ${m.local ? 'is-err' : ''} ${fresh.has(m.id) ? 'is-fresh' : ''}`}>
       <span className="sr-only">{ct('copilot')}: </span>
       {m.content ? (m.local ? <p role="alert">{m.content}</p> : <Markdown text={stripCitations(m.content)} />) : null}
       {m.steps?.length ? <ul className="cp-steps mono" aria-label={ct('driving')}>{m.steps.map((x, i) => <li key={i}>{x}</li>)}</ul> : null}
@@ -186,6 +211,11 @@ export function Copilot() {
   const showing = useCopilot((s) => s.showing)
   // a question is waiting for the server, or the response's gestures are still playing: send nothing more
   const locked = busy || showing
+  // the conversation follows the connected wallet (state.ts setOwner): kept for it, back when it reconnects, off the
+  // screen when it leaves; nothing is decided while a wallet is connecting
+  const wal = useWallet()
+  const owner = wal.status === 'connected' ? wal.address ?? null : wal.status === 'idle' ? null : undefined
+  useEffect(() => { if (owner !== undefined) setOwner(owner) }, [owner])
   const [input, setInput] = useState('')
   const panel = useRef<HTMLElement>(null)
   const launch = useRef<HTMLButtonElement>(null)
@@ -307,7 +337,7 @@ export function Copilot() {
                 <ol className="cp-msgs" aria-live="polite" aria-relevant="additions">
                   {msgs.map((m) => <Message key={m.id} m={m} />)}
                 </ol>
-                {busy ? <p className="cp-typing" role="status"><i /><i /><i /><span className="sr-only">{ct('thinking')}</span></p> : null}
+                {busy ? <Thinking /> : null}
               </>
             )}
           </div>

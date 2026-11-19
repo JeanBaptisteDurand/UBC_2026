@@ -44,11 +44,50 @@ function load(): Pick<CopilotState, 'open' | 'msgs'> {
   } catch { /* storage missing or unreadable: a fresh conversation */ }
   return { open: false, msgs: [] }
 }
+/** The messages as stored: the last ones, without the one-time access keys of prepared cards */
+const slim = (msgs: Msg[]) => msgs.slice(-MAX_KEPT).map((m) => (m.cardState ? { ...m, cardState: Object.fromEntries(Object.entries(m.cardState).map(([k, v]) => [k, { ...v, aek: undefined }])) } : m))
 function save(s: CopilotState) {
   try {
-    const msgs = s.msgs.slice(-MAX_KEPT).map((m) => (m.cardState ? { ...m, cardState: Object.fromEntries(Object.entries(m.cardState).map(([k, v]) => [k, { ...v, aek: undefined }])) } : m))
-    sessionStorage.setItem(KEY, JSON.stringify({ v: 1, open: s.open, msgs }))
+    sessionStorage.setItem(KEY, JSON.stringify({ v: 1, open: s.open, msgs: slim(s.msgs) }))
   } catch { /* private browsing, quota: the conversation stays in memory */ }
+  keepForWallet(s)
+}
+
+// The wallet the conversation belongs to (JB, 19/11). Without a wallet, the conversation stays in the tab, as before.
+// With a wallet connected, it is also kept in this browser for that address (localStorage, 30 days) and comes back
+// when the same wallet connects again, in any tab; another wallet never sees it; disconnecting takes it off the screen;
+// "Start over" deletes it for that wallet too. It never leaves the browser.
+const WKEY = (a: string) => `archive-copilot-w:${a}`
+const W_TTL = 30 * 24 * 3600 * 1000
+let owner: string | null = null
+function keepForWallet(s: CopilotState) {
+  if (!owner) return
+  try {
+    if (!s.msgs.length) localStorage.removeItem(WKEY(owner))
+    else localStorage.setItem(WKEY(owner), JSON.stringify({ v: 1, at: Date.now(), msgs: slim(s.msgs) }))
+  } catch { /* storage refused: the conversation stays in the tab */ }
+}
+function keptFor(a: string): Msg[] {
+  try {
+    const j = JSON.parse(localStorage.getItem(WKEY(a)) ?? 'null')
+    if (j && j.v === 1 && Array.isArray(j.msgs) && Date.now() - Number(j.at ?? 0) < W_TTL) return j.msgs as Msg[]
+  } catch { /* nothing kept */ }
+  return []
+}
+/** Called with the connected address, or null once no wallet is connected (never while it is connecting). */
+export function setOwner(address: string | null) {
+  const a = address ? address.toLowerCase() : null
+  if (a === owner) return
+  const was = owner
+  owner = null
+  // the previous wallet's conversation leaves the screen (it stays kept for that wallet in this browser)
+  if (was) setState({ msgs: [], view: 'chat' })
+  if (!a) return
+  owner = a
+  // a conversation under way stays, now kept for this wallet; an empty one gets this wallet's last conversation back
+  const kept = keptFor(a)
+  if (!state.msgs.length && kept.length) setState({ msgs: kept, view: 'chat' })
+  else keepForWallet(state)
 }
 
 let state: CopilotState = { ...load(), view: 'chat', busy: false, driving: false, showing: false }
