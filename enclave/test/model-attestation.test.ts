@@ -1,9 +1,10 @@
 /**
- * Attestation du fournisseur du modèle (11/11/2026) : sur le VRAI rapport ACI de la passerelle de RedPill (pris le 10/11,
- * test/fixtures/redpill-aci-report.json), l'image système est lue dans le journal RTMR3 et doit être celle de production ;
- * un verdict non vérifié, une autre image ou un journal ambigu font refuser la passerelle ; la connexion est revérifiée
- * quand l'identité expire ; l'état public dit ce qui a été vérifié. (L'appel réel, avec TLS épinglé et reçu, a été essayé
- * le 10/11 contre https://tee.redpill.ai : identité vérifiée, gpt-oss-120b répond.)
+ * The model provider's attestation (11 Nov 2026): on RedPill's real ACI gateway report (taken on 10 Nov 2026,
+ * test/fixtures/redpill-aci-report.json), the OS image is read from the RTMR3 event log and must be the production one;
+ * an unverified verdict, another image or an ambiguous log makes the gateway refused; the connection is verified again
+ * when the identity expires; the public status says what was verified. (The real call, with pinned TLS and a receipt,
+ * was tried on 10 Nov 2026 against https://tee.redpill.ai: identity verified, gpt-oss-120b answers.)
+ * Messages that the enclave code prints are matched as it prints them.
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
@@ -43,13 +44,13 @@ function fakeConnection(o: { verified?: boolean; expiresAt?: number; fail?: unkn
   return conn;
 }
 
-describe("attestation du fournisseur du modèle", () => {
-  it("la passerelle réelle de RedPill tourne sur l'image système de production (journal RTMR3)", () => {
+describe("model provider attestation", () => {
+  it("RedPill's real gateway runs the production OS image (RTMR3 event log)", () => {
     expect(osImageHashOf(REPORT)).toBe(DSTACK_PROD_OS_0_5_12);
     expect(checkGatewayIdentity(identity(), [DSTACK_PROD_OS_0_5_12])).toBe(DSTACK_PROD_OS_0_5_12);
   });
 
-  it("refusée : verdict non vérifié, autre image système, journal sans image ou ambigu", () => {
+  it("refused: unverified verdict, another OS image, a log with no image or an ambiguous one", () => {
     expect(() => checkGatewayIdentity(identity({ verified: false }), [DSTACK_PROD_OS_0_5_12])).toThrow(ModelAttestationError);
     expect(() => checkGatewayIdentity(identity(), ["11".repeat(32)])).toThrow(/hors de la liste/);
     const noOs = clone(REPORT);
@@ -62,14 +63,14 @@ describe("attestation du fournisseur du modèle", () => {
     expect(osImageHashOf(twice)).toBeNull();
   });
 
-  it("MODEL_GATEWAY_OS_IMAGES : défaut dstack-0.5.12 de production ; liste mal formée refusée", () => {
+  it("MODEL_GATEWAY_OS_IMAGES: production dstack-0.5.12 by default; a malformed list is refused", () => {
     expect(osImagesFromEnv(undefined)).toEqual([DSTACK_PROD_OS_0_5_12]);
     expect(osImagesFromEnv(`0x${DSTACK_PROD_OS_0_5_12.toUpperCase()}, ${"ab".repeat(32)}`)).toEqual([DSTACK_PROD_OS_0_5_12, "ab".repeat(32)]);
     expect(() => osImagesFromEnv("1234")).toThrow();
     expect(() => osImagesFromEnv(",")).toThrow();
   });
 
-  it("ouverte : appel épinglé ; identité expirée → revérification puis nouvel essai ; état public", async () => {
+  it("open: pinned call; expired identity → verified again, then retried; public status", async () => {
     const expired = Object.assign(new Error("expired"), { code: "identity_expired" });
     const conn = fakeConnection({ fail: expired });
     const m = await AttestedModel.open({ baseUrl: "https://tee.redpill.ai/v1", osImages: [DSTACK_PROD_OS_0_5_12], connect: vi.fn(async () => conn) as any, refreshMs: 3_600_000 });
@@ -86,13 +87,13 @@ describe("attestation du fournisseur du modèle", () => {
     await m.close();
   });
 
-  it("une passerelle non vérifiée empêche l'ouverture (l'enclave ne démarre pas)", async () => {
+  it("an unverified gateway blocks opening (the enclave does not start)", async () => {
     await expect(AttestedModel.open({ baseUrl: "https://tee.redpill.ai/v1", osImages: [DSTACK_PROD_OS_0_5_12], connect: vi.fn(async () => fakeConnection({ verified: false })) as any }))
       .rejects.toThrow(/NON vérifiée/);
     expect((modelAttestationBody(undefined) as any).verified).toBe(false);
   });
 
-  it("identité arrivée à expiration avant l'appel : revérifiée d'abord", async () => {
+  it("identity expired before the call: verified again first", async () => {
     const conn = fakeConnection({ expiresAt: Date.now() - 1 });
     const m = await AttestedModel.open({ baseUrl: "https://tee.redpill.ai/v1", osImages: [DSTACK_PROD_OS_0_5_12], connect: vi.fn(async () => conn) as any, refreshMs: 3_600_000 });
     await m.fetch("https://tee.redpill.ai/v1/chat/completions", { method: "POST", body: "{}" });
@@ -100,43 +101,43 @@ describe("attestation du fournisseur du modèle", () => {
     await m.close();
   });
 
-  it("DURCISSEMENT #2 : nom et charge d'un événement RTMR3 sont liés à son digest (que le vérificateur de Phala ne refait pas)", () => {
+  it("hardening #2: an RTMR3 event's name and payload are bound to its digest (which Phala's verifier does not recompute)", () => {
     const log = JSON.parse(REPORT.attestation.evidence.event_log);
     const os = log.find((e: any) => e.event === "os-image-hash");
-    // la formule de dstack reproduit le vrai digest
+    // dstack's formula reproduces the real digest
     expect(dstackEventDigest(Number(os.event_type), "os-image-hash", os.event_payload)).toBe(String(os.digest).toLowerCase());
-    // charge de l'image réécrite en gardant le digest → refusée (même si elle valait une image acceptée)
+    // image payload rewritten while keeping the digest → refused (even if it named an accepted image)
     const f1 = clone(REPORT);
     const l1 = JSON.parse(REPORT.attestation.evidence.event_log);
     l1.find((e: any) => e.event === "os-image-hash").event_payload = "cd".repeat(32);
     f1.attestation.evidence.event_log = JSON.stringify(l1);
     expect(osImageHashOf(f1)).toBeNull();
-    // charge du compose réécrite en gardant le digest → checkGatewayIdentity refuse
+    // compose payload rewritten while keeping the digest → checkGatewayIdentity refuses
     const f2 = clone(REPORT);
     const l2 = JSON.parse(REPORT.attestation.evidence.event_log);
     l2.find((e: any) => e.event === "compose-hash").event_payload = "ef".repeat(32);
     f2.attestation.evidence.event_log = JSON.stringify(l2);
     expect(() => checkGatewayIdentity(identity({ report: f2 }), [DSTACK_PROD_OS_0_5_12])).toThrow(/compose non liée/);
-    // épinglage facultatif du compose : un compose authentique mais non épinglé est refusé
+    // optional compose pinning: an authentic but unpinned compose is refused
     expect(() => checkGatewayIdentity(identity(), [DSTACK_PROD_OS_0_5_12], ["00".repeat(32)])).toThrow(/hors de la liste épinglée/);
   });
 
-  it("DÉFENSE EN PROFONDEUR : le journal RTMR3 doit se replier sur le RTMR3 du quote (on ne croit pas la lib)", () => {
-    // le vrai journal se replie EXACTEMENT sur le RTMR3 du quote
+  it("defence in depth: the RTMR3 event log must fold into the quote's RTMR3 (the library is not trusted)", () => {
+    // the real log folds exactly into the quote's RTMR3
     expect(foldImr3(REPORT)).toBe(quoteRtmr3Of(REPORT));
-    // os-image réécrit AVEC un digest cohérent : boundEventPayload seul serait berné…
+    // os-image rewritten with a consistent digest: boundEventPayload alone would be fooled…
     const f = clone(REPORT);
     const log = JSON.parse(REPORT.attestation.evidence.event_log);
     const os = log.find((e: any) => e.event === "os-image-hash");
     os.event_payload = "cd".repeat(32);
     os.digest = dstackEventDigest(Number(os.event_type), "os-image-hash", os.event_payload);
     f.attestation.evidence.event_log = JSON.stringify(log);
-    expect(osImageHashOf(f)).toBe("cd".repeat(32)); // le couple (charge,digest) est cohérent → boundEventPayload accepte
-    // …mais le repli ne colle plus au RTMR3 du quote → checkGatewayIdentity refuse quand même
+    expect(osImageHashOf(f)).toBe("cd".repeat(32)); // the (payload, digest) pair is consistent → boundEventPayload accepts
+    // …but the fold no longer matches the quote's RTMR3 → checkGatewayIdentity still refuses
     expect(() => checkGatewayIdentity(identity({ report: f }), ["cd".repeat(32)])).toThrow(/ne se replie pas/);
   });
 
-  it("DURCISSEMENT #3 : revérification vers une passerelle rejetée → échec fermé (rien n'est envoyé)", async () => {
+  it("hardening #3: re-verification lands on a rejected gateway → fails closed (nothing is sent)", async () => {
     const conn: any = {
       baseURL: "https://tee.redpill.ai/v1",
       identity: identity(),
@@ -145,14 +146,14 @@ describe("attestation du fournisseur du modèle", () => {
       refresh: vi.fn(async () => {
         const bad = clone(REPORT);
         bad.attestation.evidence.event_log = JSON.stringify(JSON.parse(REPORT.attestation.evidence.event_log).filter((e: any) => e.event !== "os-image-hash"));
-        conn.identity = identity({ report: bad }); // image système absente → nos contrôles échouent
+        conn.identity = identity({ report: bad }); // no OS image → the checks fail
       }),
       close: vi.fn(async () => {}),
     };
     const m = await AttestedModel.open({ baseUrl: "x", osImages: [DSTACK_PROD_OS_0_5_12], connect: vi.fn(async () => conn) as any, refreshMs: 3_600_000 });
-    await m.refresh().catch(() => {}); // la revérification échoue et marque la passerelle NON saine
+    await m.refresh().catch(() => {}); // re-verification fails and marks the gateway unhealthy
     await expect(m.fetch("https://tee.redpill.ai/v1/chat/completions", { method: "POST", body: "{}" })).rejects.toThrow(/échec fermé/);
-    expect(conn.fetch).not.toHaveBeenCalled(); // rien n'a été envoyé à la passerelle rejetée
+    expect(conn.fetch).not.toHaveBeenCalled(); // nothing was sent to the rejected gateway
     expect(m.status().verified).toBe(false);
     await m.close();
   });
