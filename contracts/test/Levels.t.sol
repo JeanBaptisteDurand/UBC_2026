@@ -70,7 +70,7 @@ contract LevelsTest is Base {
         harness = new PckChipHarness();
     }
 
-    // ------------------------------------------------------------------ aides
+    // ------------------------------------------------------------------ helpers
 
     function _product() internal returns (uint256 id) {
         id = _proposeAndActivate(address(sealedBounty), true, bytes32(0), 1e6, 10e6, 0);
@@ -236,7 +236,7 @@ contract LevelsTest is Base {
         assertTrue(machines.isVerified(s, auditorA));
         assertFalse(machines.isVerified(s, auditorB), "each verifier speaks only for itself");
         vm.prank(auditorA);
-        machines.revokeMachine(ppid, "retrait");
+        machines.revokeMachine(ppid, "removal");
         assertFalse(machines.isVerified(s, auditorA));
         vm.prank(auditorA);
         machines.attestMachine(ppid, uint64(block.timestamp + 1 days), "OVH Roubaix", "nouvelle visite");
@@ -448,7 +448,7 @@ contract LevelsTest is Base {
         uint256 snap = vm.snapshotState();
         poc.submit(tokHeader, tokPayload, tokSig); // the real one passes
         vm.expectRevert(ProofOfCloudAuditor.StaleToken.selector);
-        poc.submit(tokHeader, tokPayload, tokSig); // rejeu
+        poc.submit(tokHeader, tokPayload, tokSig); // replay
         vm.revertToState(snap);
         vm.warp(tokTs + 1 days + 1);
         vm.expectRevert(ProofOfCloudAuditor.StaleToken.selector);

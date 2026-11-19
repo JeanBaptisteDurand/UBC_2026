@@ -173,7 +173,7 @@ contract ProductRegistryTest is Base {
         assertEq(p.param, bytes32("model2"));
         assertEq(p.version, 2);
         (set,) = products.pendingManifestURI(pid);
-        assertFalse(set, "plus rien en attente");
+        assertFalse(set, "nothing pending any more");
     }
 
     /// v2.1: a new proposal WITHOUT a URI replaces the previous one entirely: the URI proposed before is not applied

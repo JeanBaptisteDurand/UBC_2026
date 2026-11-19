@@ -127,7 +127,7 @@ abstract contract Base is Test {
         usdc.mint(protocol, 1_000_000e6);
     }
 
-    // ---------- aides mesures / workload ----------
+    // ---------- measurement / workload helpers ----------
 
     function _b48(bytes32 seed) internal pure returns (bytes memory) {
         return abi.encodePacked(seed, bytes16(seed));
@@ -264,7 +264,7 @@ abstract contract Base is Test {
         registry.registerEnclave(productId, quote, r, signer, x25519, "");
     }
 
-    // ---------- aides signatures ----------
+    // ---------- signature helpers ----------
 
     function _sign(uint256 pk, bytes32 digest) internal pure returns (bytes memory) {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);

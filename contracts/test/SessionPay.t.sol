@@ -825,7 +825,7 @@ contract SessionPayTest is Base {
         emit SessionPay.VerdictSkipped(rh, abi.encodeWithSignature("Error(string)", "validation down"));
         vm.prank(user);
         sessionPay.closeSession(sessionId);
-        assertEq(usdc.balanceOf(user) - before, 1000e6 - 10e6, "rembourse");
+        assertEq(usdc.balanceOf(user) - before, 1000e6 - 10e6, "refunded");
         assertFalse(sessionPay.getSession(sessionId).verdictWritten);
     }
 

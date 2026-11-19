@@ -346,7 +346,7 @@ contract SealedBountyTest is Base {
     /// Threat "amount above the single-enclave cap": two enclaves of the SAME operator, or the same
     /// signature twice, do not make k = 2 distinct operators.
     function test_needMoreEnclavesRevertSameOperatorTwice() public {
-        bountyId = _createBounty(50e6, 2, address(0)); // singleCap 50 < palier 100
+        bountyId = _createBounty(50e6, 2, address(0)); // singleCap 50 < tier 100
         (address signer3,) = _registerEnclave(productId, opPk, 0x5353, "s3"); // 2nd enclave of `operator`, block 1002
         assertEq(registry.enclaveOf(signer3).operator, operator);
         vm.roll(1004);
@@ -442,7 +442,7 @@ contract SealedBountyTest is Base {
         // honest resubmissions, or different inputs: never a proof, even if the output differs
         SealedBounty.Claim[] memory honest = new SealedBounty.Claim[](6);
         honest[0] = _claimAt(hunter, 1000, fp, 5e6, cph, dl); // another block N
-        honest[1] = _claimAt(makeAddr("hunter2"), 1001, fp, 5e6, cph, dl); // autre chasseur
+        honest[1] = _claimAt(makeAddr("hunter2"), 1001, fp, 5e6, cph, dl); // another hunter
         honest[2] = _claimAt(hunter, 1001, fp, 5e6, keccak256("c2"), dl); // another ciphertext
         honest[3] = _claimAt(hunter, 1001, fp, 5e6, cph, dl + 60); // everything the same, another deadline
         honest[4] = _claimAt(hunter, 1000, fp, 50e6, cph, dl); // another block N AND another loss
@@ -679,7 +679,7 @@ contract SealedBountyTest is Base {
     function test_FIXED_eachTierPaidOncePerArm() public {
         bountyId = _createTieredBounty(keccak256("tiered"));
         bytes memory cP = bytes("c");
-        SealedBounty.Claim memory t1 = _claimTier(1001, keccak256("exploit-a"), 60e6, 1); // palier 30
+        SealedBounty.Claim memory t1 = _claimTier(1001, keccak256("exploit-a"), 60e6, 1); // tier 30
         uint256 before = usdc.balanceOf(hunter);
         sealedBounty.claim(t1, _one(_sigClaim(t1, signerPk)), cP);
         assertEq(usdc.balanceOf(hunter) - before, 30e6);
@@ -905,7 +905,7 @@ contract SealedBountyTest is Base {
         (bool ok,) = address(sealedBounty).call{gas: g}(call);
         assertTrue(ok);
         assertEq(usdc.balanceOf(hunter) - hunterBefore, 100e6, "paid at the minimum gas");
-        assertEq(sealedBounty.credit(hunter), 0, "aucun transfert affame change en credit");
+        assertEq(sealedBounty.credit(hunter), 0, "no starved transfer turned into a credit");
         assertEq(validation.responses(), before + 1, "verdict written at the minimum gas");
     }
 

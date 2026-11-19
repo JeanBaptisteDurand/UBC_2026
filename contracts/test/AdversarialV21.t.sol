@@ -259,7 +259,7 @@ contract V21SessionPayTest is V21Helpers {
         assertTrue(found);
         bytes memory full = abi.encodeWithSignature("Error(string)", _longMessage());
         assertEq(full.length, 388);
-        assertEq(reason.length, 132, "tronquee a 132 octets");
+        assertEq(reason.length, 132, "truncated to 132 bytes");
         for (uint256 i = 0; i < 132; i++) {
             assertEq(reason[i], full[i]);
         }
@@ -458,7 +458,7 @@ contract V21SessionPayTest is V21Helpers {
         Vm.Log[] memory logs = vm.getRecordedLogs();
         uint256 notApplicable;
         for (uint256 i = 0; i < logs.length; i++) {
-            assertTrue(logs[i].emitter != address(verdict), "VerdictLog jamais appele");
+            assertTrue(logs[i].emitter != address(verdict), "VerdictLog never called");
             if (
                 logs[i].emitter == address(sessionPay) && logs[i].topics.length > 0
                     && logs[i].topics[0] == VerdictNotApplicable.selector
@@ -470,7 +470,7 @@ contract V21SessionPayTest is V21Helpers {
         assertEq(notApplicable, 3, "one record per session closed without settlement");
         (bool skipped,) = _skippedReason(logs, address(sessionPay));
         assertFalse(skipped, "aucun verdict tente");
-        assertEq(usdc.balanceOf(sock), 3e6, "depots rendus en entier");
+        assertEq(usdc.balanceOf(sock), 3e6, "deposits refunded in full");
         assertEq(strict.getAgentValidations(agent).length, 0, "aucun 100 fabrique");
     }
 
@@ -523,7 +523,7 @@ contract V21SessionPayTest is V21Helpers {
             assertTrue(logs[i].emitter != address(verdict), "no new write");
         }
         (bool skipped,) = _skippedReason(logs, address(sessionPay));
-        assertFalse(skipped, "aucune nouvelle tentative");
+        assertFalse(skipped, "no new attempt");
         assertEq(strict.getAgentValidations(agent).length, 2, "still a single fault verdict");
         (address v,,,) = strict.statusOf(_equivocationHash(6));
         assertEq(v, address(0));
@@ -879,10 +879,10 @@ contract V21AttestedTest is V21Helpers {
     /// FINDING 3 (fixed): the author RETIRES the image (retireWorkload, immediate effect). Before the fix: onlyAttested still accepted
     /// the enclave as long as nobody had called invalidateRetiredWorkload(key). Fixed: refused at once.
     function test_F3_retiredImage_refusedWithoutKillTransaction() public {
-        (bool ok,) = _submit(0, "avant");
+        (bool ok,) = _submit(0, "before");
         assertTrue(ok, "control: accepted before the retirement");
         products.retireWorkload(productId, _workloadId());
-        assertFalse(registry.killed(signer), "aucune transaction de kill");
+        assertFalse(registry.killed(signer), "no kill transaction");
         (bool ok2, bytes memory ret) = _submit(1, "after the image is retired");
         assertFalse(ok2, "refused as soon as the image is retired");
         assertEq(ret, abi.encodeWithSelector(AttestedSignersLib.NotAttested.selector, signer));
@@ -901,7 +901,7 @@ contract V21AttestedTest is V21Helpers {
     function test_F3_attestedOperatorView() public {
         assertEq(_attestedOperator(signer, productId), operator);
         assertEq(_attestedOperator(signer, productId + 1), address(0), "another product");
-        assertEq(_attestedOperator(user, productId), address(0), "cle hors enclave");
+        assertEq(_attestedOperator(user, productId), address(0), "key outside any enclave");
 
         uint256 snap = vm.snapshotState();
         products.retireWorkload(productId, _workloadId());

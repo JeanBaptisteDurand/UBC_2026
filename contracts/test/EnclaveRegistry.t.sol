@@ -409,7 +409,7 @@ contract EnclaveRegistryTest is Base {
     /// real quote that binds ITS address to someone else's enclave keys, cannot take it over while it
     /// is valid or in its grace period (dedicated error).
     function test_FIXED_otherOperatorCannotHijackLiveEnclave() public {
-        (address s,) = _registerEnclave(productId, opPk, signerPk, "s1"); // inscrite par `operator`
+        (address s,) = _registerEnclave(productId, opPk, signerPk, "s1"); // registered by `operator`
         _bondOperator(op2Pk, 1000e6);
         bytes memory hijackQuote = abi.encodePacked("quote-hijack"); // real quote obtained from /attest with operator2
         module.setMeasurements(hijackQuote, _measurements(productId, operator2, s, _x25519Of("s1"), 999, false));

@@ -54,7 +54,7 @@ contract AdversarialV2Test is Base {
         (signer,) = _registerEnclave(chatId, opPk, signerPk, "chat-a");
     }
 
-    // ------------------------------------------------------------------ aides
+    // ------------------------------------------------------------------ helpers
 
     /// @dev Opening parameters (the EIP-3009 authorization is signed here, BEFORE any vm.expectRevert).
     function _params(address enclave, uint256 pid, address op, uint64 expiresAt, uint256 deposit, bytes32 nonce)
@@ -482,7 +482,7 @@ contract AdversarialV2Test is Base {
         vm.prank(thief);
         bond.slash(operator, thief, thief);
         assertEq(usdc.balanceOf(operator), 1_000_000e6, "the honest operator's bond is back home");
-        assertEq(usdc.balanceOf(thief), 0, "rien a saisir");
+        assertEq(usdc.balanceOf(thief), 0, "nothing to seize");
     }
 
     /// PLAUSIBLE (fixed): `setAgentId` requires being the owner (or an approved address) of the ERC-8004 agent: a

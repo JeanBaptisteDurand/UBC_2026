@@ -45,7 +45,7 @@ contract AttestedSignersTest is Base {
         inbox = new AttestedInbox(registry, productId);
     }
 
-    // ---- aides ----
+    // ---- helpers ----
 
     function _items(uint256 n, bytes32 salt) internal pure returns (bytes32[] memory it) {
         it = new bytes32[](n);
@@ -164,7 +164,7 @@ contract AttestedSignersTest is Base {
         vm.prank(address(sessionPay)); // an authorized settlement contract that proved a fault
         bond.slash(operator, address(this), user);
         assertTrue(bond.banned(operator));
-        assertTrue(registry.isActiveAt(signer, productId, vm.getBlockNumber()), "toujours inscrite");
+        assertTrue(registry.isActiveAt(signer, productId, vm.getBlockNumber()), "still registered");
         bytes32[] memory items = _items(1, "lot-b");
         uint64 dl = _deadline();
         bytes memory sig = _sigBatch(signerPk, 0, items, dl);

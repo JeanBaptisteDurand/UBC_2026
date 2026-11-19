@@ -188,7 +188,7 @@ contract DstackImageRealVectorTest is Test, PhalaVector {
         dcap.setOutput(QUOTE, _dcapOutput(QUOTE));
     }
 
-    // ---- aides ----
+    // ---- helpers ----
 
     /// @dev What Automata returns for a verified TDX v4 quote: version (BE), TD10 body type = 2, TCB up to date (0),
     ///      FMSPC, a 584-byte body.
@@ -272,7 +272,7 @@ contract DstackImageRealVectorTest is Test, PhalaVector {
 
         emit log_named_uint("RTMR3 replay, 10 real events (library), gas", libGas);
         emit log_named_uint("RTMR3 replay, 10 real events (replayEventLog, external call), gas", callGas);
-        emit log_named_uint("journal encode FORMAT_V1, octets", log.length);
+        emit log_named_uint("event log encoded in FORMAT_V1, bytes", log.length);
     }
 
     /// The identifiers: the full fingerprint of the real quote, recomputed by the real module, is that of the deployed
@@ -387,7 +387,7 @@ contract DstackImageRealVectorTest is Test, PhalaVector {
         bytes memory q = _otherInstanceQuote(RTMR3_EVIL_THEN_APP_GOOD, s, x);
         bytes memory log = _log(evs);
         (bytes memory r3, bool known, bytes32 compose,) = registry.replayEventLog(log);
-        assertEq(r3, RTMR3_EVIL_THEN_APP_GOOD, "rejeu = Python");
+        assertEq(r3, RTMR3_EVIL_THEN_APP_GOOD, "replay = Python");
         assertTrue(known);
         assertEq(compose, sha256("evil-compose"), "the boot compose, not the application's");
 
@@ -452,7 +452,7 @@ contract DstackEventLogRulesTest is Base {
         _bondOperator(opPk, 1000e6);
     }
 
-    // ---- aides ----
+    // ---- helpers ----
 
     function _rtmr3(DstackEventLog.Event[] memory evs) internal pure returns (bytes memory) {
         bytes memory k = Sha384.K;
