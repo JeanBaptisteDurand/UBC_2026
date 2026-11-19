@@ -13,42 +13,42 @@ import {AttestedBatchVerifier} from "../src/demo/AttestedBatchVerifier.sol";
 import {AttestedSignersLib} from "../src/attested/AttestedSigners.sol";
 
 // =====================================================================================================================
-// Revue adverse de la v2.1 (9/11) — correctifs de la v2.1 bis, prouvés ici.
-//   FAILLE 1 (moyenne, préexistante) : requestHash ERC-8004 prévisible dans l'espace COMMUN du registre de Circle →
-//            occupé d'avance par un tiers, verdict sauté pour toujours. Corrigé dans VerdictLog (hash salé).
-//   FAILLE 2 (moyenne, régression v2.1) : `catch (bytes memory reason)` recopiait tout le revert → un registre hostile
-//            bloquait fermeture, saisie, paiement et réfutation à TOUS les gaz. Corrigé (RevertReason, 132 octets).
-//   FAILLE 3 (faible/moyenne) : onlyAttested acceptait une enclave dont l'image ou le produit était retiré, tant que
-//            personne n'avait appelé invalidateRetiredWorkload. Corrigé (EnclaveRegistry.attestedOperator).
-//   FAILLE 4 (faible) : SealedBounty — deux opérateurs qui équivoquent sur la même empreinte avaient le même requestHash.
-//            Corrigé (le requestHash porte l'opérateur).
-// Ce fichier compile AUSSI contre les sources de la v2.1 (aucun nouveau symbole n'y est référencé directement : événement
-// redéclaré, sélecteurs calculés, appels de bas niveau) : chaque test « F* » y échoue, et passe avec la v2.1 bis.
-// Les tests « limit_* » documentent ce qui reste hors de portée (ils passent avant comme après).
+// Adversarial review of v2.1: each fix is proven here. The v2.1 stack deployed on Arc testnet includes both rounds of fixes.
+//   FINDING 1 (medium, pre-existing): a predictable ERC-8004 requestHash in the SHARED space of Circle's registry →
+//            taken in advance by a third party, verdict skipped forever. Fixed in VerdictLog (salted hash).
+//   FINDING 2 (medium, v2.1 regression): `catch (bytes memory reason)` copied the whole revert → a hostile registry
+//            blocked closing, slashing, payment and refutation at ALL gas levels. Fixed (RevertReason, 132 bytes).
+//   FINDING 3 (low/medium): onlyAttested accepted an enclave whose image or product had been retired, as long as
+//            nobody had called invalidateRetiredWorkload. Fixed (EnclaveRegistry.attestedOperator).
+//   FINDING 4 (low): SealedBounty: two operators equivocating on the same fingerprint had the same requestHash.
+//            Fixed (the requestHash includes the operator).
+// This file ALSO compiles against the pre-fix v2.1 sources (no new symbol is referenced directly: event
+// redeclared, selectors computed, low-level calls): every "F*" test fails there, and passes with the first round of fixes.
+// The "limit_*" tests document what remains out of reach (they pass before and after).
 //
-// v2.1 ter (après les deux revues du 9/11), même discipline : les tests « F5 » et « F6 » compilent contre la v2.1 bis,
-// y échouent, et passent avec la v2.1 ter.
-//   FAILLE 5 : une session fermée SANS AUCUN règlement (paid == 0) écrivait un « 100 » ERC-8004 : un opérateur ouvrait
-//            des sessions depuis un portefeuille à lui et les fermait sans usage (dépôt rendu) pour se fabriquer des
-//            100/100 au seul prix du gaz. Corrigé : aucun verdict, ni tenté, et VerdictNotApplicable(sessionId).
-//   FAILLE 6 : verdictWritten servait à la fois au 100 de la fermeture et au 0 de la faute : une équivocation prouvée
-//            APRÈS la fermeture saisissait la caution sans jamais écrire le 0. Corrigé : drapeau propre au verdict de
-//            faute (faultVerdictWritten), un seul par session.
-// Depuis la v2.1 ter, la session de V21SessionPayTest est RÉGLÉE dès setUp (10 unités) : les tests du verdict de
-// fermeture portent sur une session qui a payé (sinon, plus de verdict à écrire).
+// Second round of fixes (after both reviews), same discipline: tests "F5" and "F6" compile against the first round,
+// fail there, and pass with the second round.
+//   FINDING 5: a session closed WITHOUT ANY settlement (paid == 0) wrote an ERC-8004 "100": an operator opened
+//            sessions from a wallet of its own and closed them unused (deposit refunded) to manufacture
+//            100/100 scores for the price of gas alone. Fixed: no verdict, not even attempted, and VerdictNotApplicable(sessionId).
+//   FINDING 6: verdictWritten served both the closing "100" and the fault "0": an equivocation proven
+//            AFTER the close seized the bond without ever writing the 0. Fixed: a flag of its own for the fault
+//            verdict (faultVerdictWritten), one per session.
+// Since the second round, the session of V21SessionPayTest is SETTLED in setUp (10 units): the tests of the closing
+// verdict concern a session that paid (otherwise there is no verdict to write).
 // =====================================================================================================================
 
-/// @dev Aides communes : registre ERC-8004 fidèle, registre hostile, préemption d'un hash, hash salé.
+/// @dev Shared helpers: a faithful ERC-8004 registry, a hostile registry, preemption of a hash, the salted hash.
 abstract contract V21Helpers is Base {
-    /// @dev = VerdictLog.RequestHashSalted (v2.1 bis), redéclaré pour compiler aussi contre la v2.1.
+    /// @dev = VerdictLog.RequestHashSalted (first round of fixes), redeclared so the file also compiles against pre-fix v2.1.
     event RequestHashSalted(bytes32 indexed requestHash, bytes32 indexed saltedHash);
 
     bytes4 internal constant ALREADY_RECORDED = bytes4(keccak256("AlreadyRecorded()"));
 
     StrictValidationRegistry internal strict;
 
-    /// @dev Le registre de validation de test devient le modèle fidèle de celui de Circle (même adresse : VerdictLog
-    ///      garde son immuable `validation`).
+    /// @dev The test validation registry becomes the faithful model of Circle's (same address: VerdictLog
+    ///      keeps its immutable `validation`).
     function _installStrictRegistry() internal {
         StrictValidationRegistry model = new StrictValidationRegistry(identity);
         vm.etch(address(validation), address(model).code);
@@ -59,7 +59,7 @@ abstract contract V21Helpers is Base {
         vm.etch(address(validation), address(new ReturnBombRegistry()).code);
     }
 
-    /// @dev L'opérateur crée son agent ERC-8004, approuve VerdictLog et s'y lie (prérequis documenté de VerdictLog).
+    /// @dev The operator creates its ERC-8004 agent, approves VerdictLog and links to it (a documented prerequisite of VerdictLog).
     function _linkAgent(uint256 operatorPk, string memory uri) internal returns (uint256 agentId) {
         vm.startPrank(vm.addr(operatorPk));
         agentId = identity.register(uri);
@@ -68,7 +68,7 @@ abstract contract V21Helpers is Base {
         vm.stopPrank();
     }
 
-    /// @dev Un inconnu occupe `h` d'avance : son agent (créé sans permission), lui-même validateur, réponse 0.
+    /// @dev A stranger takes `h` in advance: its agent (created without permission), itself the validator, response 0.
     function _preempt(bytes32 h) internal returns (address griefer, uint256 griefAgent) {
         griefer = makeAddr("griefer");
         vm.startPrank(griefer);
@@ -78,12 +78,12 @@ abstract contract V21Helpers is Base {
         vm.stopPrank();
     }
 
-    /// @dev = VerdictLog.saltedHash(h) dans le bloc courant.
+    /// @dev = VerdictLog.saltedHash(h) in the current block.
     function _salted(bytes32 h) internal view returns (bytes32) {
         return keccak256(abi.encode(h, blockhash(vm.getBlockNumber() - 1)));
     }
 
-    /// @dev La raison du premier VerdictSkipped(bytes32 indexed, bytes) émis par `emitter`.
+    /// @dev The reason of the first VerdictSkipped(bytes32 indexed, bytes) emitted by `emitter`.
     function _skippedReason(Vm.Log[] memory logs, address emitter)
         internal
         pure
@@ -121,13 +121,13 @@ contract V21SessionPayTest is V21Helpers {
         productId = _proposeAndActivate(address(sessionPay), false, MODEL, 1e6, 100e6, 100_000e6);
         (signer,) = _registerEnclave(productId, opPk, signerPk, "s1");
         sessionId = _openAs(userPk, 1000e6, keccak256("open"));
-        // v2.1 ter : la session a servi et payé (10 unités, 10 USDC) ; une session qui n'a rien payé n'a plus de verdict
-        // à la fermeture (FAILLE 5)
+        // second round: the session served and paid (10 units, 10 USDC); a session that paid nothing no longer has a verdict
+        // at closing (FINDING 5)
         SessionPay.Receipt memory r = _receipt(1, keccak256("resp1"));
         sessionPay.settle(r, _sigReceipt(r, signerPk));
     }
 
-    /// @dev Session de `ownerPk` sur l'enclave de l'opérateur, échéance dans un jour.
+    /// @dev Session of `ownerPk` on the operator's enclave, deadline in one day.
     function _openAs(uint256 ownerPk, uint256 deposit, bytes32 nonce) internal returns (uint256 sid) {
         UsdcPayer.Auth memory auth = _usdcAuth(ownerPk, address(sessionPay), deposit, nonce);
         SessionPay.OpenParams memory q = SessionPay.OpenParams({
@@ -200,9 +200,9 @@ contract V21SessionPayTest is V21Helpers {
 
     // ---- FAILLE 2 : return bomb ----
 
-    /// FAILLE 2 (corrigée) : registre ERC-8004 hostile dont le revert coûte ≈ 40 % du gaz reçu à recopier. v2.1 : la
-    /// fermeture échouait à TOUS les gaz (dépôt bloqué). v2.1 bis : elle rembourse et trace le verdict sauté (raison
-    /// bornée), à chaque gaz essayé.
+    /// FINDING 2 (fixed): a hostile ERC-8004 registry whose revert costs ≈ 40 % of the gas received to copy. Before the fix:
+    /// closing failed at ALL gas levels (deposit stuck). Fixed: it refunds and records the skipped verdict (bounded
+    /// reason), at every gas level tried.
     function test_F2_returnBombDoesNotBlockCloseSession() public {
         _installBombRegistry();
         _warpPastClose();
@@ -224,8 +224,8 @@ contract V21SessionPayTest is V21Helpers {
         }
     }
 
-    /// FAILLE 2 : le gaz MINIMAL de la fermeture sous registre hostile est fini et modeste (ce que trouve eth_estimateGas) :
-    /// le coût après l'échec du verdict ne dépend plus du revert de l'appelé.
+    /// FINDING 2: the MINIMUM gas of a close under a hostile registry is finite and modest (what eth_estimateGas finds):
+    /// the cost after the failed verdict no longer depends on the callee's revert.
     function test_F2_returnBomb_minimalCloseGasIsBounded() public {
         _installBombRegistry();
         _warpPastClose();
@@ -238,7 +238,7 @@ contract V21SessionPayTest is V21Helpers {
         emit log_named_uint("closeSession sous registre hostile, gaz minimal", g);
     }
 
-    /// FAILLE 2 : la saisie pour équivocation passe aussi sous registre hostile (v2.1 : bloquée à 30 M de gaz).
+    /// FINDING 2: slashing for equivocation also goes through under a hostile registry (before the fix: blocked at 30 M gas).
     function test_F2_returnBombDoesNotBlockEquivocationSlash() public {
         bytes memory call = _equivocationCall(5);
         _installBombRegistry();
@@ -248,7 +248,7 @@ contract V21SessionPayTest is V21Helpers {
         assertEq(bond.bondOf(operator), 0);
     }
 
-    /// FAILLE 2 : la raison de VerdictSkipped est le PRÉFIXE de 132 octets du revert (v2.1 : les 388 octets).
+    /// FINDING 2: the VerdictSkipped reason is the 132-byte PREFIX of the revert (before the fix: all 388 bytes).
     function test_F2_skippedReasonTruncatedTo132Bytes() public {
         vm.etch(address(validation), address(new LongReasonRegistry()).code);
         _warpPastClose();
@@ -265,9 +265,9 @@ contract V21SessionPayTest is V21Helpers {
         }
     }
 
-    // ---- FAILLE 1 : requestHash occupé d'avance ----
+    // ---- FINDING 1: requestHash taken in advance ----
 
-    /// Témoin (passe avant comme après) : sans attaque, le verdict 100 s'écrit sous le requestHash de la session.
+    /// Control (passes before and after): with no attack, the 100 verdict is written under the session's requestHash.
     function test_control_sessionVerdictUnderBaseHash() public {
         _installStrictRegistry();
         uint256 agent = _linkAgent(opPk, "operateur");
@@ -282,9 +282,9 @@ contract V21SessionPayTest is V21Helpers {
         assertTrue(sessionPay.getSession(sessionId).verdictWritten);
     }
 
-    /// FAILLE 1 (corrigée) : un inconnu occupe d'avance le requestHash de la session (calculable dès l'ouverture). v2.1 :
-    /// VerdictSkipped(« exists »), verdict perdu pour toujours. v2.1 bis : écrit sous le hash salé (RequestHashSalted),
-    /// pour l'agent de l'opérateur ; l'entrée de l'attaquant reste sous SON nom de validateur et ne compte pas pour nous.
+    /// FINDING 1 (fixed): a stranger takes the session's requestHash in advance (computable from the opening). Before the fix:
+    /// VerdictSkipped("exists"), verdict lost forever. Fixed: written under the salted hash (RequestHashSalted),
+    /// for the operator's agent; the attacker's entry stays under ITS own validator name and does not count for us.
     function test_F1_preemptedSessionVerdictWrittenUnderSaltedHash() public {
         _installStrictRegistry();
         uint256 agent = _linkAgent(opPk, "operateur");
@@ -311,8 +311,8 @@ contract V21SessionPayTest is V21Helpers {
         assertEq(mine[0], salted, "l'agent de l'operateur ne porte que notre verdict");
     }
 
-    /// FAILLE 1 + v2 bis : au gaz MINIMAL qui fait réussir la fermeture (ce que choisit eth_estimateGas), sous préemption,
-    /// le verdict salé est quand même écrit : la réserve VERDICT_GAS couvre aussi le chemin salé (v2.1 : sauté).
+    /// FINDING 1 (with the v2 gas reserve): at the MINIMUM gas that makes the close succeed (what eth_estimateGas picks), under preemption,
+    /// the salted verdict is still written: the VERDICT_GAS reserve also covers the salted path (before the fix: skipped).
     function test_F1_minimalGas_saltedVerdictStillWritten() public {
         _installStrictRegistry();
         uint256 agent = _linkAgent(opPk, "operateur");
@@ -334,8 +334,8 @@ contract V21SessionPayTest is V21Helpers {
         emit log_named_uint("closeSession sous preemption (sel), gaz minimal", g);
     }
 
-    /// FAILLE 1, verdict de FAUTE : l'opérateur occupe d'avance, avec son propre agent, le hash (session, seq) qu'il va
-    /// équivoquer. v2.1 : saisie faite, verdict 0 jamais écrit. v2.1 bis : écrit sous le hash salé.
+    /// FINDING 1, FAULT verdict: the operator takes in advance, with its own agent, the hash (session, seq) on which it is about
+    /// to equivocate. Before the fix: slashing done, verdict 0 never written. Fixed: written under the salted hash.
     function test_F1_preemptedSlashVerdictWrittenUnderSaltedHash() public {
         _installStrictRegistry();
         uint256 agent = _linkAgent(opPk, "operateur");
@@ -355,8 +355,8 @@ contract V21SessionPayTest is V21Helpers {
         assertTrue(has);
     }
 
-    /// FAILLE 1 : un attaquant qui nomme VerdictLog validateur de SON agent sous notre hash n'obtient aucun « 100 » :
-    /// VerdictLog ne répond jamais sous un hash qu'il n'a pas demandé ; le verdict va, salé, à l'agent de l'opérateur.
+    /// FINDING 1: an attacker who names VerdictLog as validator of ITS agent under our hash gets no "100":
+    /// VerdictLog never answers under a hash it did not request; the verdict goes, salted, to the operator's agent.
     function test_F1_preemptionNamingVerdictLog_noReputationTheft() public {
         _installStrictRegistry();
         uint256 agent = _linkAgent(opPk, "operateur");
@@ -383,9 +383,9 @@ contract V21SessionPayTest is V21Helpers {
         assertTrue(has);
     }
 
-    /// LIMITE documentée (inhérente à ERC-8004, passe avant comme après) : le propriétaire d'un agent peut refuser toute
-    /// demande pour son agent. L'opérateur qui retire l'approbation de VerdictLog avant de tricher empêche son verdict de
-    /// faute dans ERC-8004 ; la saisie et la radiation, elles, ont lieu, et le verdict sauté est tracé avec sa raison.
+    /// Documented LIMIT (inherent to ERC-8004, passes before and after): the owner of an agent can refuse any
+    /// request for its agent. An operator who withdraws VerdictLog's approval before cheating prevents its fault verdict
+    /// in ERC-8004; the slashing and the ban still happen, and the skipped verdict is recorded with its reason.
     function test_limit_operatorRevokesApproval_slashedButVerdictSkipped() public {
         _installStrictRegistry();
         _linkAgent(opPk, "operateur");
@@ -399,8 +399,8 @@ contract V21SessionPayTest is V21Helpers {
         assertFalse(sessionPay.getSession(sessionId).verdictWritten);
     }
 
-    /// LIMITE documentée : un attaquant qui passe AVANT nous dans le MÊME bloc peut calculer et occuper aussi le hash salé
-    /// (tout ce qu'un contrat calcule, un autre contrat du même bloc le calcule). La fermeture passe ; le verdict saute.
+    /// Documented LIMIT: an attacker who goes BEFORE us in the SAME block can also compute and take the salted hash
+    /// (whatever one contract computes, another contract in the same block can compute). The close goes through; the verdict is skipped.
     function test_limit_sameBlockFrontRunOfSaltedHash() public {
         _installStrictRegistry();
         _linkAgent(opPk, "operateur");
@@ -418,13 +418,13 @@ contract V21SessionPayTest is V21Helpers {
         assertFalse(sessionPay.getSession(sessionId).verdictWritten, "limite residuelle : verdict saute");
     }
 
-    // ---- v2.1 ter — FAILLE 5 : un « 100 » pour une session qui n'a rien payé ----
+    // ---- second round, FINDING 5: a "100" for a session that paid nothing ----
 
-    /// @dev = SessionPay.VerdictNotApplicable (v2.1 ter), redéclaré pour compiler aussi contre la v2.1 bis.
+    /// @dev = SessionPay.VerdictNotApplicable (second round), redeclared so the file also compiles against the first round.
     event VerdictNotApplicable(uint256 indexed sessionId);
 
-    /// @dev SessionPay.getSession(sid).faultVerdictWritten (v2.1 ter : 17e champ, ajouté à la fin), lu en bas niveau pour
-    ///      compiler aussi contre la v2.1 bis, où le champ n'existe pas (le test échoue alors ici).
+    /// @dev SessionPay.getSession(sid).faultVerdictWritten (second round: 17th field, added at the end), read at low level so
+    ///      the file also compiles against the first round, where the field does not exist (the test then fails here).
     function _faultVerdictWritten(uint256 sid) internal view returns (bool) {
         (bool ok, bytes memory ret) = address(sessionPay).staticcall(abi.encodeCall(SessionPay.getSession, (sid)));
         assertTrue(ok);
@@ -433,13 +433,13 @@ contract V21SessionPayTest is V21Helpers {
         return w[16] != bytes32(0);
     }
 
-    /// FAILLE 5 (corrigée) : l'opérateur ouvre, depuis un portefeuille à lui, des sessions sur sa propre enclave et les
-    /// ferme sans les utiliser. v2.1 bis : dépôt rendu en entier ET un « 100 » ERC-8004 par session, au seul prix du gaz.
-    /// v2.1 ter : remboursement intégral, aucune entrée ERC-8004 (VerdictLog n'est même pas appelé), VerdictNotApplicable.
+    /// FINDING 5 (fixed): the operator opens, from a wallet of its own, sessions on its own enclave and
+    /// closes them without using them. First round: deposit fully refunded AND an ERC-8004 "100" per session, for the price of gas alone.
+    /// Second round: full refund, no ERC-8004 entry (VerdictLog is not even called), VerdictNotApplicable.
     function test_F5_unpaidSessionsWriteNoVerdict() public {
         _installStrictRegistry();
         uint256 agent = _linkAgent(opPk, "operateur");
-        uint256 sockPk = 0x50C50C; // un portefeuille de l'opérateur
+        uint256 sockPk = 0x50C50C; // a wallet of the operator
         address sock = vm.addr(sockPk);
         usdc.mint(sock, 3e6);
         uint256[] memory sids = new uint256[](3);
@@ -474,21 +474,21 @@ contract V21SessionPayTest is V21Helpers {
         assertEq(strict.getAgentValidations(agent).length, 0, "aucun 100 fabrique");
     }
 
-    // ---- v2.1 ter — FAILLE 6 : drapeau partagé entre le « 100 » de la fermeture et le « 0 » de la faute ----
+    // ---- second round, FINDING 6: a flag shared between the closing "100" and the fault "0" ----
 
-    /// FAILLE 6 (corrigée) : équivocation prouvée APRÈS la fermeture, dont le 100 est déjà écrit. v2.1 bis : la caution
-    /// était saisie mais le 0 sautait sans trace (verdictWritten, partagé, déjà vrai). v2.1 ter : le 0 s'écrit, pour
-    /// l'agent de l'opérateur, à côté du 100.
+    /// FINDING 6 (fixed): equivocation proven AFTER the close, whose 100 is already written. First round: the bond
+    /// was seized but the 0 was skipped without a trace (verdictWritten, shared, already true). Second round: the 0 is written, for
+    /// the operator's agent, next to the 100.
     function test_F6_equivocationAfterCloseWritesSlashVerdict() public {
         _installStrictRegistry();
         uint256 agent = _linkAgent(opPk, "operateur");
-        bytes memory call = _equivocationCall(5); // reçus ancrés pendant la session
+        bytes memory call = _equivocationCall(5); // receipts anchored during the session
         _warpPastClose();
         vm.prank(user);
         sessionPay.closeSession(sessionId);
         assertTrue(sessionPay.getSession(sessionId).verdictWritten, "100 ecrit a la fermeture");
 
-        (bool ok,) = address(sessionPay).call(call); // faute prouvée APRÈS la fermeture
+        (bool ok,) = address(sessionPay).call(call); // fault proven AFTER the close
         assertTrue(ok);
         assertTrue(bond.banned(operator), "saisie faite");
         (address v, uint256 a, uint8 r, bool has) = strict.statusOf(_equivocationHash(5));
@@ -500,8 +500,8 @@ contract V21SessionPayTest is V21Helpers {
         assertTrue(_faultVerdictWritten(sessionId));
     }
 
-    /// FAILLE 6 : un seul verdict de faute par session. Signaler à nouveau la même preuve, puis une autre équivocation de
-    /// la même session, ne tente ni n'écrit plus rien (la saisie, recevable, ne prend plus rien).
+    /// FINDING 6: a single fault verdict per session. Reporting the same proof again, then another equivocation of
+    /// the same session, attempts and writes nothing more (the slashing, still admissible, takes nothing more).
     function test_F6_oneSlashVerdictPerSession() public {
         _installStrictRegistry();
         uint256 agent = _linkAgent(opPk, "operateur");
@@ -515,8 +515,8 @@ contract V21SessionPayTest is V21Helpers {
         assertEq(strict.getAgentValidations(agent).length, 2, "le 100 et un 0");
 
         vm.recordLogs();
-        (bool ok5,) = address(sessionPay).call(eq5); // la même preuve
-        (bool ok6,) = address(sessionPay).call(eq6); // une autre équivocation, même session
+        (bool ok5,) = address(sessionPay).call(eq5); // the same proof
+        (bool ok6,) = address(sessionPay).call(eq6); // another equivocation, same session
         assertTrue(ok5 && ok6);
         Vm.Log[] memory logs = vm.getRecordedLogs();
         for (uint256 i = 0; i < logs.length; i++) {
@@ -529,8 +529,8 @@ contract V21SessionPayTest is V21Helpers {
         assertEq(v, address(0));
     }
 
-    /// FAILLE 6 : le verdict de faute qui échoue après la fermeture (registre en panne) est tracé, puis retenté par un
-    /// nouveau signalement de la même preuve. v2.1 bis : jamais tenté (le drapeau était vrai depuis le 100).
+    /// FINDING 6: a fault verdict that fails after the close (registry down) is recorded, then retried by a
+    /// new report of the same proof. First round: never attempted (the flag had been true since the 100).
     function test_F6_failedSlashVerdictAfterCloseIsRetried() public {
         bytes memory call = _equivocationCall(5);
         _warpPastClose();
@@ -549,19 +549,19 @@ contract V21SessionPayTest is V21Helpers {
         assertFalse(_faultVerdictWritten(sessionId));
 
         validation.setShouldRevert(false);
-        (ok,) = address(sessionPay).call(call); // nouveau signalement : retente le verdict de faute
+        (ok,) = address(sessionPay).call(call); // new report: retries the fault verdict
         assertTrue(ok);
         assertEq(validation.responses(), 2, "le 0, au second signalement");
         assertTrue(_faultVerdictWritten(sessionId));
     }
 
-    /// FAILLE 5, avec une faute : session fermée sans règlement (aucun verdict), puis faute prouvée sur cette session : le
-    /// 0 s'écrit (la fermeture sans verdict ne pose aucun drapeau). v2.1 bis : la fermeture écrivait un 100 pour la
-    /// session vide, et ce 100 empêchait le 0.
+    /// FINDING 5, with a fault: a session closed without settlement (no verdict), then a fault proven on that session: the
+    /// 0 is written (a close without a verdict sets no flag). First round: the close wrote a 100 for the
+    /// empty session, and that 100 prevented the 0.
     function test_F5_unpaidClosedSessionStillGetsSlashVerdict() public {
         _installStrictRegistry();
         uint256 agent = _linkAgent(opPk, "operateur");
-        sessionId = _openAs(userPk, 5e6, keccak256("open-unpaid")); // les aides visent désormais cette session
+        sessionId = _openAs(userPk, 5e6, keccak256("open-unpaid")); // the helpers now target this session
         bytes memory call = _equivocationCall(7);
         _warpPastClose();
         vm.prank(user);
@@ -597,7 +597,7 @@ contract V21SealedBountyTest is V21Helpers {
         _registerEnclave(productId, opPk, signerPk, "s1");
         _registerEnclave(productId, op2Pk, signer2Pk, "s2");
         vm.roll(1002);
-        blockN = 1001; // littéral : via_ir replie block.number lu après vm.roll dans la même fonction
+        blockN = 1001; // literal: via_ir folds a block.number read after vm.roll in the same function
 
         uint256[] memory minLoss = new uint256[](1);
         minLoss[0] = 1e6;
@@ -675,14 +675,14 @@ contract V21SealedBountyTest is V21Helpers {
         return abi.encodeCall(SealedBounty.reportEquivocation, (a, _sigClaim(a, pk), b, _sigClaim(b, pk)));
     }
 
-    /// @dev v2.1 bis : requestHash du verdict de faute d'une équivocation de prime (porte l'opérateur).
+    /// @dev First round of fixes: requestHash of the fault verdict for a bounty equivocation (includes the operator).
     function _equivocationHash(bytes32 fp, address op) internal view returns (bytes32) {
         return keccak256(abi.encode(block.chainid, address(sealedBounty), "equivocation", bountyId, fp, op));
     }
 
     // ---- FAILLE 2 : return bomb ----
 
-    /// FAILLE 2 (corrigée) : paiement d'une prime (claim → _pay) sous registre hostile. v2.1 : bloqué à 2, 10 et 30 M de gaz.
+    /// FINDING 2 (fixed): paying a bounty (claim → _pay) under a hostile registry. Before the fix: blocked at 2, 10 and 30 M gas.
     function test_F2_returnBombDoesNotBlockBountyPayment() public {
         bytes memory cP = bytes("sealed-to-protocol");
         SealedBounty.Claim memory r = _claimAt(keccak256("fp-bomb"), 5e6, keccak256(cP));
@@ -695,7 +695,7 @@ contract V21SealedBountyTest is V21Helpers {
         assertTrue(sealedBounty.fingerprintPaid(bountyId, keccak256("fp-bomb")));
     }
 
-    /// FAILLE 2 : livraison (deliver) d'un paiement réservé, sous registre hostile.
+    /// FINDING 2: delivery (deliver) of a reserved payment, under a hostile registry.
     function test_F2_returnBombDoesNotBlockDeliver() public {
         bytes memory cP = bytes("sealed-2");
         bytes32 fp = keccak256("fp-bomb-2");
@@ -709,7 +709,7 @@ contract V21SealedBountyTest is V21Helpers {
         assertEq(usdc.balanceOf(hunter) - before, 100e6);
     }
 
-    /// FAILLE 2 : saisie pour équivocation de prime, sous registre hostile.
+    /// FINDING 2: slashing for a bounty equivocation, under a hostile registry.
     function test_F2_returnBombDoesNotBlockBountyEquivocationSlash() public {
         bytes memory call = _equivocationCall(keccak256("fp-eqb"), signerPk);
         _installBombRegistry();
@@ -718,7 +718,7 @@ contract V21SealedBountyTest is V21Helpers {
         assertTrue(bond.banned(operator));
     }
 
-    /// FAILLE 2 : réfutation d'une réclamation acceptée, sous registre hostile.
+    /// FINDING 2: refutation of an accepted claim, under a hostile registry.
     function test_F2_returnBombDoesNotBlockRefute() public {
         uint256 op3Pk = 0xC0C;
         usdc.mint(vm.addr(op3Pk), 1_000_000e6);
@@ -741,10 +741,10 @@ contract V21SealedBountyTest is V21Helpers {
         assertTrue(bond.banned(operator));
     }
 
-    // ---- FAILLE 1 côté prime ----
+    // ---- FINDING 1, bounty side ----
 
-    /// FAILLE 1 : le requestHash « bounty » est connu dès l'acceptation (ClaimAccepted), avant la livraison : un inconnu
-    /// l'occupe entre les deux. v2.1 : verdict 100 sauté. v2.1 bis : écrit sous le hash salé.
+    /// FINDING 1: the "bounty" requestHash is known from the acceptance (ClaimAccepted), before delivery: a stranger
+    /// takes it in between. Before the fix: 100 verdict skipped. Fixed: written under the salted hash.
     function test_F1_preemptedBountyVerdictWrittenUnderSaltedHash() public {
         _installStrictRegistry();
         uint256 agent = _linkAgent(opPk, "op1");
@@ -767,8 +767,8 @@ contract V21SealedBountyTest is V21Helpers {
         assertTrue(has);
     }
 
-    /// Le sel ne crée pas de doublon : signaler deux fois la même équivocation n'écrit qu'UN verdict de faute ; le second
-    /// appel est refusé par VerdictLog (AlreadyRecorded) et tracé.
+    /// The salt creates no duplicate: reporting the same equivocation twice writes only ONE fault verdict; the second
+    /// call is refused by VerdictLog (AlreadyRecorded) and recorded.
     function test_F1_noDuplicateSlashVerdictOnRepeatedReport() public {
         _installStrictRegistry();
         uint256 agent = _linkAgent(opPk, "op1");
@@ -783,10 +783,10 @@ contract V21SealedBountyTest is V21Helpers {
         assertEq(strict.getAgentValidations(agent).length, 1, "un seul verdict de faute");
     }
 
-    // ---- FAILLE 4 : collision entre opérateurs ----
+    // ---- FINDING 4: collision between operators ----
 
-    /// FAILLE 4 (corrigée) : deux opérateurs équivoquent sur la MÊME empreinte. v2.1 : même requestHash, le verdict de
-    /// faute du second sautait (« exists »). v2.1 bis : un verdict de faute par opérateur, chacun sous son agent.
+    /// FINDING 4 (fixed): two operators equivocate on the SAME fingerprint. Before the fix: same requestHash, the fault
+    /// verdict of the second was skipped ("exists"). Fixed: one fault verdict per operator, each under its own agent.
     function test_F4_twoOperatorsSameFingerprint_bothSlashVerdictsWritten() public {
         _installStrictRegistry();
         uint256 agent1 = _linkAgent(opPk, "op1");
@@ -813,8 +813,8 @@ contract V21SealedBountyTest is V21Helpers {
 // ------------------------------------------------------------------------------------------------------------ VerdictLog
 
 contract V21VerdictLogTest is V21Helpers {
-    /// VerdictLog v2.1 bis : un verdict par requestHash (AlreadyRecorded), hash nul refusé, sel seulement si le hash est
-    /// pris, et recordedAs dit sous quel hash le verdict est écrit.
+    /// VerdictLog after the fix: one verdict per requestHash (AlreadyRecorded), zero hash refused, salt only when the hash is
+    /// taken, and recordedAs tells under which hash the verdict is written.
     function test_writeOnce_saltOnlyWhenTaken() public {
         _installStrictRegistry();
         uint256 agent = _linkAgent(opPk, "op1");
@@ -876,8 +876,8 @@ contract V21AttestedTest is V21Helpers {
         return abi.decode(ret, (address));
     }
 
-    /// FAILLE 3 (corrigée) : l'auteur RETIRE l'image (retireWorkload, effet immédiat). v2.1 : onlyAttested acceptait
-    /// encore l'enclave tant que personne n'avait appelé invalidateRetiredWorkload(clé). v2.1 bis : refus immédiat.
+    /// FINDING 3 (fixed): the author RETIRES the image (retireWorkload, immediate effect). Before the fix: onlyAttested still accepted
+    /// the enclave as long as nobody had called invalidateRetiredWorkload(key). Fixed: refused at once.
     function test_F3_retiredImage_refusedWithoutKillTransaction() public {
         (bool ok,) = _submit(0, "avant");
         assertTrue(ok, "temoin : accepte avant le retrait");
@@ -888,8 +888,8 @@ contract V21AttestedTest is V21Helpers {
         assertEq(ret, abi.encodeWithSelector(AttestedSignersLib.NotAttested.selector, signer));
     }
 
-    /// FAILLE 3 : produit RETIRÉ par son auteur. v2.1 : ses enclaves restaient « attestées » jusqu'à la fin de leur
-    /// fenêtre. v2.1 bis : refus immédiat.
+    /// FINDING 3: product RETIRED by its author. Before the fix: its enclaves stayed "attested" until the end of their
+    /// window. Fixed: refused at once.
     function test_F3_retiredProduct_refused() public {
         products.retire(productId);
         (bool ok, bytes memory ret) = _submit(0, "produit retire");
@@ -897,7 +897,7 @@ contract V21AttestedTest is V21Helpers {
         assertEq(ret, abi.encodeWithSelector(AttestedSignersLib.NotAttested.selector, signer));
     }
 
-    /// FAILLE 3 : la lecture EnclaveRegistry.attestedOperator (v2.1 bis), cas par cas.
+    /// FINDING 3: the EnclaveRegistry.attestedOperator read (first round of fixes), case by case.
     function test_F3_attestedOperatorView() public {
         assertEq(_attestedOperator(signer, productId), operator);
         assertEq(_attestedOperator(signer, productId + 1), address(0), "autre produit");
@@ -913,13 +913,13 @@ contract V21AttestedTest is V21Helpers {
         assertEq(_attestedOperator(signer, productId), address(0), "produit retire");
         vm.revertToState(snap);
 
-        vm.prank(address(sessionPay)); // un contrat de règlement autorisé qui a prouvé une faute
+        vm.prank(address(sessionPay)); // an authorized settlement contract that proved a fault
         bond.slash(operator, address(this), user);
         assertEq(_attestedOperator(signer, productId), address(0), "operateur radie");
     }
 
-    /// Portée voulue (passe avant comme après) : les reçus et réclamations ANCRÉS restent régis par activeOperatorAt (v2,
-    /// frein par invalidateRetiredWorkload) ; seul ce qui fait foi MAINTENANT (onlyAttested) suit le retrait sans délai.
+    /// Intended scope (passes before and after): ANCHORED receipts and claims stay governed by activeOperatorAt (v2,
+    /// curbed by invalidateRetiredWorkload); only what counts NOW (onlyAttested) follows the retirement without delay.
     function test_anchoredSettlementSemanticsUnchanged() public {
         products.retireWorkload(productId, _workloadId());
         assertEq(registry.activeOperatorAt(signer, productId, vm.getBlockNumber()), operator);

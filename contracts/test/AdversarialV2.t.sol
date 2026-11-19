@@ -11,11 +11,11 @@ import {DemoVault} from "../src/demo/DemoVault.sol";
 import {UsdcPayer} from "../src/lib/UsdcPayer.sol";
 import {IAttestationModule} from "../src/interfaces/IAttestationModule.sol";
 
-/// @notice Cible de pause PIÉGÉE (« return bomb ») : `pause()` rend autant d'octets que son gaz le permet.
-///         SealedBounty recopie ces octets en mémoire après l'appel, avec le seul 1/64 de gaz qui lui reste.
+/// @notice BOOBY-TRAPPED pause target ("return bomb"): `pause()` returns as many bytes as its gas allows.
+///         SealedBounty copied those bytes into memory after the call, with only the 1/64 of gas it had left.
 contract ReturnBombTarget {
     function pause() external view {
-        // w mots de 32 o dont l'expansion mémoire (3w + w²/512) tient dans le gaz reçu
+        // w words of 32 bytes whose memory expansion (3w + w²/512) fits in the gas received
         uint256 w = _sqrt(gasleft() * 512) * 9 / 10;
         assembly {
             return(0, mul(w, 32))
@@ -33,18 +33,18 @@ contract ReturnBombTarget {
     }
 }
 
-/// @title Revue ADVERSE de la pile v2 (7/11/2026) — failles CORRIGÉES (v2 bis)
-/// @notice Chaque `test_FIXED_v2_*` vient de la revue adverse de la v2 :
-///         il rejoue le MÊME scénario d'attaque et prouve qu'il ne passe plus. Paramètres mainnet de
-///         F-economie-mainnet-2026-11-07 §0.2 / §0.3 : inférence à 200 unités de base par unité, Prime scellée au
-///         prix 0, caution minimale 100 USDC, pool de démo 60 USDC (palier 5 USDC, singleCap 50, k = 2).
+/// @title Adversarial review of the v2 stack: every finding replayed and shown FIXED
+/// @notice Each `test_FIXED_v2_*` comes from the adversarial review of v2 (the live stack on Arc testnet is v2.1):
+///         it replays the SAME attack scenario and proves it no longer succeeds. Mainnet parameters:
+///         inference at 200 base units per unit, Sealed Bounty at
+///         price 0, minimum bond 100 USDC, demo pool 60 USDC (5 USDC tier, singleCap 50, k = 2).
 contract AdversarialV2Test is Base {
     bytes32 constant MODEL = keccak256("Qwen2.5-1.5B-Instruct-Q4_K_M");
     bytes32 constant PREDICATE = keccak256("predicate-v0");
-    uint256 constant PRICE = 200; // F §0.2 : 0,0002 USDC par unité de 1 000 jetons-équivalent-entrée
+    uint256 constant PRICE = 200; // mainnet price: 0.0002 USDC per unit of 1,000 input-equivalent tokens
 
-    uint256 internal chatId; // produit d'inférence, réglé par SessionPay
-    address internal signer; // enclave d'inférence d'`operator`, inscrite au bloc 1000 (fenêtre [1000, 5999])
+    uint256 internal chatId; // inference product, settled by SessionPay
+    address internal signer; // inference enclave of `operator`, registered at block 1000 (window [1000, 5999])
     address internal sessionKey = makeAddr("sessionKey");
 
     function setUp() public override {
@@ -56,7 +56,7 @@ contract AdversarialV2Test is Base {
 
     // ------------------------------------------------------------------ aides
 
-    /// @dev Paramètres d'ouverture (l'autorisation EIP-3009 est signée ici, AVANT tout vm.expectRevert).
+    /// @dev Opening parameters (the EIP-3009 authorization is signed here, BEFORE any vm.expectRevert).
     function _params(address enclave, uint256 pid, address op, uint64 expiresAt, uint256 deposit, bytes32 nonce)
         internal
         view
@@ -75,7 +75,7 @@ contract AdversarialV2Test is Base {
         });
     }
 
-    /// @dev Session liée à l'enclave `signer` d'`operator`.
+    /// @dev Session bound to the `signer` enclave of `operator`.
     function _open(uint256 pid, address op, uint64 expiresAt, uint256 deposit, bytes32 nonce)
         internal
         returns (uint256 id)
@@ -125,12 +125,12 @@ contract AdversarialV2Test is Base {
         return _sign(pk, _typed(address(sessionPay), structHash));
     }
 
-    /// @dev Produit « Prime scellée » tel que prévu au lancement mainnet (F §0.2) : prix 0, déterministe.
+    /// @dev "Sealed Bounty" product as planned for the mainnet launch: price 0, deterministic.
     function _bountyProduct(uint256 minBond) internal returns (uint256 pid) {
         pid = _proposeAndActivate(address(sealedBounty), true, bytes32(0), 0, minBond, 0);
     }
 
-    /// @dev Prime à palier unique (perte ≥ 10 USDC → `tierAmount`), singleCap 50 USDC, k = 2 (F §0.3, démo).
+    /// @dev Single-tier bounty (loss ≥ 10 USDC → `tierAmount`), singleCap 50 USDC, k = 2 (demo).
     function _createBounty(uint256 pid, uint256 tierAmount, uint256 funding, address target, bytes32 nonce)
         internal
         returns (uint256 id)
@@ -200,7 +200,7 @@ contract AdversarialV2Test is Base {
         return keccak256(abi.encodePacked("x25519", salt));
     }
 
-    /// @dev (Ré)inscription d'une clé d'enclave existante avec un nouveau quote (ancre `r`).
+    /// @dev (Re)registration of an existing enclave key with a new quote (anchor `r`).
     function _reRegister(uint256 pid, uint256 opPk_, uint256 signerPk_, bytes32 salt, bytes memory quote, uint256 r)
         internal
     {
@@ -217,21 +217,21 @@ contract AdversarialV2Test is Base {
         return _sign(pk, _typed(address(sealedBounty), structHash));
     }
 
-    // ============================================================ SessionPay / enclave d'inférence
+    // ============================================================ SessionPay / inference enclave
 
-    /// FIXED (revue adverse) — SessionPay n'ouvre plus de session sur un produit qui n'est pas le sien ni au prix 0 : la
-    /// Prime scellée de F §0.2 (réglée par SealedBounty, prix 0) et un produit « gratuit » proposé par n'importe qui
-    /// sont refusés ; une session désigne une enclave active du produit chez son opérateur (côté enclave, voir
-    /// enclave/test/adversarial-v2.test.ts : refus 403 d'une session d'un autre produit ou d'un autre opérateur).
+    /// FIXED (adversarial review): SessionPay no longer opens a session on a product it does not settle, nor at price 0:
+    /// the Sealed Bounty product (settled by SealedBounty, price 0) and a "free" product proposed by anyone
+    /// are refused; a session names an active enclave of the product at its operator (enclave side, see
+    /// enclave/test/adversarial-v2.test.ts: a session of another product or another operator is refused with 403).
     function test_FIXED_v2_noFreeInferenceThroughForeignOrFreeProduct() public {
         uint64 exp = uint64(vm.getBlockTimestamp() + 1 days);
         uint256 bountyProduct = _bountyProduct(100e6);
         SessionPay.OpenParams memory q = _params(signer, bountyProduct, operator, exp, 1, keccak256("foreign"));
         vm.prank(user);
-        vm.expectRevert(SessionPay.ZeroPrice.selector); // produit de la Prime scellée au prix 0
+        vm.expectRevert(SessionPay.ZeroPrice.selector); // Sealed Bounty product at price 0
         sessionPay.openSession(q);
 
-        uint256 free = _proposeAndActivate(address(sessionPay), false, MODEL, 0, 100e6, 0); // « gratuit », sans permission
+        uint256 free = _proposeAndActivate(address(sessionPay), false, MODEL, 0, 100e6, 0); // "free", without permission
         q = _params(signer, free, operator, exp, 1, keccak256("free"));
         vm.prank(user);
         vm.expectRevert(SessionPay.ZeroPrice.selector);
@@ -243,15 +243,15 @@ contract AdversarialV2Test is Base {
         vm.expectRevert(SessionPay.WrongSettlement.selector);
         sessionPay.openSession(q);
 
-        // le bon produit, mais un « opérateur » quelconque (variante de la revue) : refusé, aucun reçu impayable
+        // the right product, but an arbitrary "operator" (a variant from the review): refused, no unpayable receipt
         q = _params(signer, chatId, makeAddr("adresse-quelconque"), exp, 10e6, keccak256("stranger"));
         vm.prank(user);
         vm.expectRevert(SessionPay.WrongOperator.selector);
         sessionPay.openSession(q);
     }
 
-    /// HAUTE (corrigée) — plus de session ouverte « déjà échue » : l'échéance est d'au moins 10 min ; la propriétaire ne
-    /// peut plus fermer avant l'échéance + 1 h (sauf enclave disparue) ; l'opérateur règle avant.
+    /// HIGH (fixed): no more session opened "already expired": the deadline is at least 10 min away; the owner can
+    /// no longer close before the deadline + 1 h (unless the enclave is gone); the operator settles first.
     function test_FIXED_v2_sessionCannotBeClosedBeforeOperatorCanSettle() public {
         uint64 past = uint64(vm.getBlockTimestamp() - 2 hours);
         SessionPay.OpenParams memory q = _params(signer, chatId, operator, past, 10e6, keccak256("past"));
@@ -263,7 +263,7 @@ contract AdversarialV2Test is Base {
         SessionPay.Receipt memory r = _rcpt(chatId, sid, 1, keccak256("resp"), 48_000, uint64(vm.getBlockNumber()));
         bytes memory sig = _sigRcpt(r, signerPk);
         vm.prank(user);
-        vm.expectRevert(SessionPay.NotExpired.selector); // même bloc que le service : refusé
+        vm.expectRevert(SessionPay.NotExpired.selector); // same block as the service: refused
         sessionPay.closeSession(sid);
 
         uint256 opBefore = usdc.balanceOf(operator);
@@ -271,11 +271,11 @@ contract AdversarialV2Test is Base {
         assertEq(usdc.balanceOf(operator) - opBefore, 48_000 * PRICE * 8000 / 10_000, "le service est paye (80 %)");
     }
 
-    /// HAUTE (corrigée) — une session est liée à UNE enclave : le reçu d'une 2e enclave du même opérateur est refusé
-    /// (WrongEnclave) et l'enclave B refuse de servir une session liée à A (côté enclave). Plus de service gratuit :
-    /// chaque session se règle en entier sur les reçus de SA enclave.
+    /// HIGH (fixed): a session is bound to ONE enclave: the receipt of a 2nd enclave of the same operator is refused
+    /// (WrongEnclave) and enclave B refuses to serve a session bound to A (enclave side). No more free service:
+    /// each session is settled in full on the receipts of ITS enclave.
     function test_FIXED_v2_sessionBoundToOneEnclave() public {
-        (address signerB,) = _registerEnclave(chatId, opPk, signer2Pk, "chat-b"); // 2e enclave d'`operator`
+        (address signerB,) = _registerEnclave(chatId, opPk, signer2Pk, "chat-b"); // 2nd enclave of `operator`
         uint256 sidA = _open(chatId, operator, uint64(vm.getBlockTimestamp() + 1 days), 10e6, keccak256("two-a"));
         SessionPay.OpenParams memory qb =
             _params(signerB, chatId, operator, uint64(vm.getBlockTimestamp() + 1 days), 10e6, keccak256("two-b"));
@@ -284,8 +284,8 @@ contract AdversarialV2Test is Base {
 
         uint64 anchor = uint64(vm.getBlockNumber());
         SessionPay.Receipt memory a = _rcpt(chatId, sidA, 1, keccak256("respA"), 1000, anchor); // enclave A
-        SessionPay.Receipt memory bOnA = _rcpt(chatId, sidA, 1, keccak256("respB"), 1000, anchor); // B sur la session A
-        SessionPay.Receipt memory b = _rcpt(chatId, sidB, 1, keccak256("respB"), 1000, anchor); // B sur SA session
+        SessionPay.Receipt memory bOnA = _rcpt(chatId, sidA, 1, keccak256("respB"), 1000, anchor); // B on session A
+        SessionPay.Receipt memory b = _rcpt(chatId, sidB, 1, keccak256("respB"), 1000, anchor); // B on ITS session
         bytes memory sigA = _sigRcpt(a, signerPk);
         bytes memory sigBOnA = _sigRcpt(bOnA, signer2Pk);
         bytes memory sigB = _sigRcpt(b, signer2Pk);
@@ -297,12 +297,12 @@ contract AdversarialV2Test is Base {
         assertEq(sessionPay.getSession(sidA).paid + sessionPay.getSession(sidB).paid, 2000 * PRICE, "2 000 servies, 2 000 payees");
     }
 
-    /// MOYENNE (corrigée) — le modèle est verrouillé à l'ouverture : un reçu émis avant le changement de modèle reste
-    /// réglable.
+    /// MEDIUM (fixed): the model is locked when the session opens: a receipt issued before the model change stays
+    /// payable.
     function test_FIXED_v2_paramUpdateKeepsOpenSessionsSettleable() public {
         uint256 sid = _open(chatId, operator, uint64(vm.getBlockTimestamp() + 30 days), 10e6, keccak256("param"));
         SessionPay.Receipt memory r = _rcpt(chatId, sid, 1, keccak256("resp"), 1000, uint64(vm.getBlockNumber()));
-        bytes memory sig = _sigRcpt(r, signerPk); // émis AVANT le changement de modèle
+        bytes memory sig = _sigRcpt(r, signerPk); // issued BEFORE the model change
 
         products.proposeUpdate(chatId, keccak256("manifest-v2"), PRICE, keccak256("Qwen3-8B"));
         vm.warp(vm.getBlockTimestamp() + TIMELOCK + 1);
@@ -313,28 +313,28 @@ contract AdversarialV2Test is Base {
         assertEq(sessionPay.getSession(sid).param, MODEL);
     }
 
-    /// MOYENNE (corrigée) — une image ajoutée passe par le timelock, et une session ouverte reste liée à SON enclave :
-    /// une image « 1 jeton = 1 unité » ne refacture jamais une session ouverte avant.
+    /// MEDIUM (fixed): an added image goes through the timelock, and an open session stays bound to ITS enclave:
+    /// a "1 token = 1 unit" image never re-bills a session opened before.
     function test_FIXED_v2_addWorkloadTimelockedAndSessionUnitLocked() public {
         uint256 sid = _open(chatId, operator, uint64(vm.getBlockTimestamp() + 30 days), 10e6, keccak256("unit"));
-        assertEq(sessionPay.getSession(sid).unitTokens, 1); // unité verrouillée (produit de test : 0 → 1)
+        assertEq(sessionPay.getSession(sid).unitTokens, 1); // unit locked (test product: 0 → 1)
 
         uint256 newSignerPk = 0x7171;
         address newSigner = vm.addr(newSignerPk);
         bytes32 x = _x25519Of("unit-1");
         IAttestationModule.Measurements memory m = _measurements(chatId, operator, newSigner, x, 999, false);
-        m.rtmr3 = _b48("rtmr3 UNIT_TOKENS=1"); // autre compose : autre unité
+        m.rtmr3 = _b48("rtmr3 UNIT_TOKENS=1"); // another compose: another unit
         bytes32 w2 = keccak256(
             abi.encodePacked(m.mrtd, m.rtmr0, m.rtmr1, m.rtmr2, m.rtmr3, m.mrConfigId, m.xfam, m.tdAttributes)
         );
-        products.proposeWorkload(chatId, w2); // plus d'effet immédiat
+        products.proposeWorkload(chatId, w2); // no immediate effect any more
         bytes memory q = abi.encodePacked("quote-unit-1");
         module.setMeasurements(q, m);
         vm.prank(operator);
         vm.expectRevert(EnclaveRegistry.WorkloadNotAllowed.selector);
-        registry.registerEnclave(chatId, q, 999, newSigner, x, ""); // même bloc : refusé
+        registry.registerEnclave(chatId, q, 999, newSigner, x, ""); // same block: refused
 
-        // même après le timelock, l'enclave de la nouvelle image ne règle pas la session ouverte avant
+        // even after the timelock, the enclave of the new image does not settle the session opened before
         vm.warp(vm.getBlockTimestamp() + TIMELOCK + 1);
         products.applyWorkload(chatId, w2);
         vm.roll(1001);
@@ -355,8 +355,8 @@ contract AdversarialV2Test is Base {
         assertEq(sessionPay.getSession(sid).paid, 48 * PRICE, "0,0096 USDC au prix verrouille, pas 9,6");
     }
 
-    /// MOYENNE (corrigée) — une clé est liée à vie à son (opérateur, produit) : la déplacer est refusé, la preuve
-    /// d'équivocation reste recevable et saisit la caution.
+    /// MEDIUM (fixed): a key is bound for life to its (operator, product): moving it is refused, the proof of
+    /// equivocation stays admissible and seizes the bond.
     function test_FIXED_v2_equivocationCannotBeEvadedByMovingKey() public {
         uint256 sid = _open(chatId, operator, uint64(vm.getBlockTimestamp() + 1 days), 10e6, keccak256("eq"));
         uint64 anchor = uint64(vm.getBlockNumber());
@@ -377,39 +377,39 @@ contract AdversarialV2Test is Base {
         assertEq(bond.bondOf(operator), 0);
     }
 
-    // ============================================================ Caution (OperatorBond)
+    // ============================================================ Bond (OperatorBond)
 
-    /// MOYENNE (corrigée) — « ½ caution par 24 h » est GLISSANTE et GLOBALE : ½ caution juste avant une limite de
-    /// fenêtre, puis ½ juste après, est refusé ; répartir sur un autre produit aussi.
+    /// MEDIUM (fixed): "½ bond per 24 h" is ROLLING and GLOBAL: ½ bond just before a window boundary,
+    /// then ½ just after, is refused; spreading it over another product is refused too.
     function test_FIXED_v2_exposureWindowSlidesAndIsGlobal() public {
-        _bondWithSelfAsSettlement(); // ce contrat de test joue un contrat de règlement
+        _bondWithSelfAsSettlement(); // this test contract plays a settlement contract
         _bondOperator(opPk, 1000e6);
         uint256 t0 = vm.getBlockTimestamp();
-        bond.consumeExposure(operator, chatId, 1, 0); // ouvre la fenêtre à t0
+        bond.consumeExposure(operator, chatId, 1, 0); // opens the window at t0
         vm.warp(t0 + 24 hours - 1);
-        bond.consumeExposure(operator, chatId, 500e6 - 1, 0); // ½ caution atteinte
-        vm.warp(t0 + 24 hours); // UNE seconde plus tard
+        bond.consumeExposure(operator, chatId, 500e6 - 1, 0); // ½ bond reached
+        vm.warp(t0 + 24 hours); // ONE second later
         vm.expectRevert(OperatorBond.TooMuchExposure.selector);
         bond.consumeExposure(operator, chatId, 500e6, 0);
-        vm.expectRevert(OperatorBond.TooMuchExposure.selector); // un autre produit ne rouvre pas de budget
+        vm.expectRevert(OperatorBond.TooMuchExposure.selector); // another product does not reopen a budget
         bond.consumeExposure(operator, chatId + 1, 500e6, 0);
     }
 
-    /// HAUTE (corrigée) — une fausse réclamation (enclave forgée, une seule signature) est payée, mais elle se RÉFUTE :
-    /// deux enclaves d'opérateurs distincts rejouent l'exploit, ne le prouvent pas, et signent la réfutation ; la
-    /// caution du tricheur est saisie (50 % au dénonciateur, 50 % au protocole). Sans réfutation, la caution reste
-    /// bloquée 7 jours après l'exposition (la fenêtre de réfutation, 3 jours, tient dedans).
+    /// HIGH (fixed): a false claim (forged enclave, a single signature) is paid, but it can be REFUTED:
+    /// two enclaves of distinct operators replay the exploit, fail to prove it, and sign the refutation; the
+    /// cheater's bond is seized (50 % to the reporter, 50 % to the protocol). Without a refutation, the bond stays
+    /// locked 7 days after the exposure (the 3-day refutation window fits inside).
     function test_FIXED_v2_forgedClaimRefutedAndCheaterSlashed() public {
         uint256 op3Pk = 0xC0C;
         address op3 = vm.addr(op3Pk);
         usdc.mint(op3, 100e6);
-        _bondOperator(op3Pk, 100e6); // caution minimale mainnet (F §0.2)
+        _bondOperator(op3Pk, 100e6); // mainnet minimum bond
         uint256 pid = _bountyProduct(100e6);
-        _registerEnclave(pid, op3Pk, 0x6363, "forged"); // la clé est au tricheur
-        _registerEnclave(pid, opPk, 0x6161, "honest-1"); // deux enclaves honnêtes d'opérateurs distincts
+        _registerEnclave(pid, op3Pk, 0x6363, "forged"); // the key belongs to the cheater
+        _registerEnclave(pid, opPk, 0x6161, "honest-1"); // two honest enclaves of distinct operators
         _bondOperator(op2Pk, 1000e6);
         _registerEnclave(pid, op2Pk, 0x6262, "honest-2");
-        uint256 bid = _createBounty(pid, 50e6, 100e6, address(0), keccak256("pilot")); // palier 50 = ½ caution
+        uint256 bid = _createBounty(pid, 50e6, 100e6, address(0), keccak256("pilot")); // tier 50 = ½ bond
         vm.roll(1002);
 
         bytes memory cP = bytes("aucun exploit");
@@ -418,7 +418,7 @@ contract AdversarialV2Test is Base {
         sealedBounty.claim(r, _one(_sigClaim(r, 0x6363)), cP);
         assertEq(usdc.balanceOf(hunter) - hunterBefore, 50e6, "fausse reclamation payee (le contrat ne peut le savoir)");
 
-        // le tricheur veut partir : sa caution est réservée à son enclave, puis bloquée 7 jours après l'exposition
+        // the cheater wants to leave: its bond is reserved for its enclave, then locked 7 days after the exposure
         vm.prank(op3);
         vm.expectRevert(OperatorBond.InsufficientBond.selector);
         bond.requestUnbond(100e6);
@@ -431,7 +431,7 @@ contract AdversarialV2Test is Base {
         vm.expectRevert(OperatorBond.UnbondLocked.selector);
         bond.withdraw();
 
-        // le protocole déchiffre cP (rien), fait rejouer par deux enclaves d'autres opérateurs, qui réfutent
+        // the protocol decrypts cP (nothing), has two enclaves of other operators replay it, and they refute
         bytes32 digest = sealedBounty.claimDigest(r);
         SealedBounty.Refutation memory f = SealedBounty.Refutation({claimDigest: digest, proven: false, loss: 0, tier: 0});
         bytes[] memory sigs = new bytes[](2);
@@ -454,8 +454,8 @@ contract AdversarialV2Test is Base {
         assertEq(usdc.balanceOf(op3) - before, 0, "50 USDC voles, 100 USDC de caution perdus");
     }
 
-    /// HAUTE (corrigée) — la clé de déploiement ne saisit plus rien : câblage une seule fois, puis tout nouveau contrat
-    /// de règlement attend 8 jours ; l'opérateur honnête retire sa caution avant.
+    /// HIGH (fixed): the deployer key no longer seizes anything: wiring happens once, then any new settlement
+    /// contract waits 8 days; the honest operator withdraws its bond first.
     function test_FIXED_v2_deployKeyCannotSeizeBonds() public {
         assertEq(bond.owner(), address(this), "proprietaire = ce contrat (multisig en production)");
         address thief = makeAddr("thief");
@@ -467,10 +467,10 @@ contract AdversarialV2Test is Base {
         bond.proposeSettlement(thief);
         vm.prank(thief);
         vm.expectRevert(OperatorBond.NotSettlement.selector);
-        bond.slash(operator, thief, thief); // pas dans le même bloc
+        bond.slash(operator, thief, thief); // not in the same block
 
         vm.prank(operator);
-        registry.retire(signer); // libère la réservation de son enclave
+        registry.retire(signer); // releases its enclave's reservation
         vm.prank(operator);
         bond.requestUnbond(1000e6);
         vm.warp(vm.getBlockTimestamp() + 7 days);
@@ -485,8 +485,8 @@ contract AdversarialV2Test is Base {
         assertEq(usdc.balanceOf(thief), 0, "rien a saisir");
     }
 
-    /// PLAUSIBLE (corrigée) — `setAgentId` exige d'être propriétaire (ou approuvé) de l'agent ERC-8004 : un opérateur
-    /// fautif ne fait plus inscrire sa saisie sous l'agentId d'un concurrent.
+    /// PLAUSIBLE (fixed): `setAgentId` requires being the owner (or an approved address) of the ERC-8004 agent: a
+    /// faulty operator can no longer have its slashing recorded under a competitor's agentId.
     function test_FIXED_v2_slashVerdictNotWrittenUnderBorrowedAgentId() public {
         vm.prank(operator);
         uint256 agent = identity.register("ipfs://operateur-honnete");
@@ -509,7 +509,7 @@ contract AdversarialV2Test is Base {
         bytes memory sigB = _sigRcpt(b, 0x5353);
 
         vm.expectEmit(true, true, false, true, address(verdict));
-        // v2.1 : requestHash lié à la chaîne et au contrat (mis à jour avec le changement voulu)
+        // v2.1: requestHash bound to the chain and to the contract (updated with the intended change)
         emit VerdictLog.Recorded(
             0,
             keccak256(abi.encode(block.chainid, address(sessionPay), "equivocation", sid, uint64(1))),
@@ -522,18 +522,18 @@ contract AdversarialV2Test is Base {
 
     // ============================================================ Registre
 
-    /// HAUTE (corrigée) — retirer une image fautive arrête ses enclaves : invalidate (avec quote) ou
-    /// invalidateRetiredWorkload (sans), sans grâce ; un reçu ancré après le retrait — ou même avant — ne se règle plus.
+    /// HIGH (fixed): retiring a faulty image stops its enclaves: invalidate (with the quote) or
+    /// invalidateRetiredWorkload (without), with no grace period; a receipt anchored after the retirement, or even before, no longer settles.
     function test_FIXED_v2_retiredWorkloadStopsItsEnclaves() public {
         uint256 sid = _open(chatId, operator, uint64(vm.getBlockTimestamp() + 1 days), 10e6, keccak256("retired"));
-        products.retireWorkload(chatId, _workloadId()); // l'auteur (ce contrat) retire l'image fautive
+        products.retireWorkload(chatId, _workloadId()); // the author (this contract) retires the faulty image
         assertFalse(products.isWorkloadAllowed(chatId, _workloadId()));
 
-        bytes memory quote = abi.encodePacked("quote", bytes32("chat-a")); // quote d'inscription (Base)
-        registry.invalidate(signer, quote); // plus de StillValid : l'image n'est plus autorisée
+        bytes memory quote = abi.encodePacked("quote", bytes32("chat-a")); // registration quote (Base)
+        registry.invalidate(signer, quote); // no more StillValid: the image is no longer allowed
         assertTrue(registry.killed(signer));
 
-        vm.roll(1500); // 500 blocs après le retrait de l'image
+        vm.roll(1500); // 500 blocks after the image was retired
         SessionPay.Receipt memory r = _rcpt(chatId, sid, 1, keccak256("resp"), 1000, 1499);
         bytes memory sig = _sigRcpt(r, signerPk);
         vm.expectRevert(SessionPay.InactiveEnclave.selector);
@@ -541,15 +541,15 @@ contract AdversarialV2Test is Base {
         assertFalse(registry.isActiveAt(signer, chatId, 1499), "enclave d'une image retiree : inactive");
         assertFalse(registry.isActiveAt(signer, chatId, 1000), "sans grace, meme pour un bloc anterieur");
 
-        vm.prank(user); // la session se ferme sans attendre l'échéance : plus rien n'est réglable
+        vm.prank(user); // the session closes without waiting for the deadline: nothing can be settled any more
         sessionPay.closeSession(sid);
     }
 
-    // ============================================================ Prime scellée
+    // ============================================================ Sealed Bounty
 
-    /// HAUTE (corrigée) — un même exploit n'est plus payé deux fois : changer la casse (autre empreinte) ne rapporte
-    /// rien. Ancré au même bloc : AnchorBeforeLastPayout ; ancré après : TierAlreadyPaid (côté enclave, l'empreinte
-    /// est aussi canonique : keccak256 des OCTETS des transactions).
+    /// HIGH (fixed): the same exploit is never paid twice: changing the hex case (another fingerprint) earns
+    /// nothing. Anchored at the same block: AnchorBeforeLastPayout; anchored after: TierAlreadyPaid (enclave side, the fingerprint
+    /// is canonical too: keccak256 of the transaction BYTES).
     function test_FIXED_v2_sameExploitNotPaidTwice() public {
         uint256 pid = _bountyProduct(100e6);
         _registerEnclave(pid, opPk, 0x6161, "bounty-a");
@@ -557,7 +557,7 @@ contract AdversarialV2Test is Base {
         vm.roll(1002);
 
         bytes32 fp1 = keccak256(bytes('["0xa9059cbb"]'));
-        bytes32 fp2 = keccak256(bytes('["0xA9059CBB"]')); // mêmes octets de transaction
+        bytes32 fp2 = keccak256(bytes('["0xA9059CBB"]')); // same transaction bytes
         bytes memory cP1 = bytes("cP-1");
         bytes memory cP2 = bytes("cP-2");
         SealedBounty.Claim memory r1 = _claim(bid, 1001, fp1, keccak256(cP1));
@@ -569,7 +569,7 @@ contract AdversarialV2Test is Base {
         (bool paidAgain,) = address(sealedBounty).call(abi.encodeCall(SealedBounty.claim, (r2, s2, cP2)));
         assertFalse(paidAgain, "le meme exploit (meme transaction, autre casse) n'est pas paye une 2e fois");
 
-        vm.roll(1010); // rejoué plus tard, ancré après le paiement : même palier, refusé
+        vm.roll(1010); // replayed later, anchored after the payout: same tier, refused
         SealedBounty.Claim memory r3 = _claim(bid, 1009, keccak256("fp-3"), keccak256(cP2));
         bytes[] memory s3 = _one(_sigClaim(r3, 0x6161));
         vm.expectRevert(SealedBounty.TierAlreadyPaid.selector);
@@ -577,9 +577,9 @@ contract AdversarialV2Test is Base {
         assertEq(sealedBounty.getBounty(bid).balance, 60e6 - 5.75e6, "un seul paiement sur le pool de demo");
     }
 
-    /// HAUTE (corrigée) — une cible de pause piégée (« return bomb ») ne bloque plus la réclamation : la pause reçoit un
-    /// gaz borné et ses données de retour ne sont pas recopiées. Et cP n'a plus à être dans la transaction qui peut
-    /// échouer : acceptClaim (hash seul) puis deliver.
+    /// HIGH (fixed): a booby-trapped pause target ("return bomb") no longer blocks the claim: the pause gets
+    /// bounded gas and its return data is not copied. And cP no longer has to be in the transaction that can
+    /// fail: acceptClaim (hash only), then deliver.
     function test_FIXED_v2_trappedPauseTargetCannotBlockClaim() public {
         uint256 pid = _bountyProduct(100e6);
         _registerEnclave(pid, opPk, 0x6161, "bounty-a");
@@ -607,7 +607,7 @@ contract AdversarialV2Test is Base {
             address(sealedBounty).call{gas: 30_000_000}(abi.encodeCall(SealedBounty.claim, (rt, st, cP)));
         assertTrue(okTrapped, "cible de pause piegee : la reclamation passe quand meme");
 
-        // en deux temps : la réservation ne porte que le hash de cP ; la livraison ne touche pas la cible
+        // in two steps: the reservation carries only the hash of cP; the delivery does not touch the target
         (bool okAccept,) =
             address(sealedBounty).call{gas: 30_000_000}(abi.encodeCall(SealedBounty.acceptClaim, (rt2, st2)));
         assertTrue(okAccept, "reservation sans cP, malgre la cible piegee");
