@@ -18,8 +18,8 @@ export const LEVEL_OPEN = 0 as const;
 export const LEVEL_VERIFIED = 1 as const;
 export type OperatorLevel = typeof LEVEL_OPEN | typeof LEVEL_VERIFIED;
 
-/** L'alliance Proof of Cloud (github.com/proofofcloud/trust-server) : ses serveurs de confiance et sa clé commune (VERIFIED
- *  le 10/11/2026 : public_info/peers_list.txt et public_info/public_key.txt). */
+/** The Proof of Cloud alliance (github.com/proofofcloud/trust-server): its trust servers and its shared key (from
+ *  public_info/peers_list.txt and public_info/public_key.txt, checked on 2026-11-10). */
 export const PROOF_OF_CLOUD = {
   allianceKey: "0x5ea69fede5bcf71054395b273bad67f67158c242d77945d436374020ece525cb" as Hex,
   peers: ["https://trust-server.scrtlabs.com", "https://trust-server.nillion.network", "https://trust-server.iex.ec"],
@@ -70,14 +70,14 @@ export const proofOfCloudAuditorAbi = parseAbi([
 const ZERO16 = "0x00000000000000000000000000000000";
 
 function levelsOf(d: Deployment) {
-  if (!d.levels) throw new Error("ce déploiement n'a pas les niveaux d'opérateur (section levels absente)");
+  if (!d.levels) throw new Error("this deployment has no operator levels (no levels section)");
   return d.levels;
 }
 
 export interface MachineInfo {
-  /** PPID de la machine (puce), ou null si l'enclave n'a jamais été liée. */
+  /** PPID of the machine (its chip), or null if the enclave was never bound. */
   ppid: Hex | null;
-  /** Liaison à jour : l'enclave est active et n'a pas été réinscrite depuis (sinon : relier). */
+  /** Binding up to date: the enclave is active and was not registered again since (otherwise: bind again). */
   current: boolean;
   boundAt: number;
 }
@@ -107,16 +107,16 @@ export async function readPolicy(pub: PublicClient, d: Deployment, productId: bi
 }
 
 export interface LevelReport {
-  /** Niveau au regard du vérificateur Proof of Cloud du déploiement (indépendant des politiques de produit). */
+  /** Level with respect to the deployment's Proof of Cloud verifier (independent of product policies). */
   verifiedByProofOfCloud: boolean;
   machine: MachineInfo;
-  /** Déclaration de l'alliance sur cette machine : fin (horodatage) et dernier jeton, si elle existe. */
+  /** The alliance's declaration for this machine: its end (timestamp) and latest token, if there is one. */
   proofOfCloud?: { expiresAt: number; revoked: boolean; lastTokenAt: number };
-  /** Si `productId` est donné : le niveau exigé par le produit, s'il est rempli, et par quel vérificateur. */
+  /** If `productId` is given: the level the product requires, whether it is met, and by which verifier. */
   product?: { productId: bigint; required: OperatorLevel; meets: boolean; verifiedBy: Address | null };
 }
 
-/** Tout ce qu'un acheteur (ou le site) affiche sur le niveau d'une enclave. */
+/** Everything a buyer (or the site) shows about an enclave's level. */
 export async function describeLevel(pub: PublicClient, d: Deployment, signer: Address, productId?: bigint): Promise<LevelReport> {
   const L = levelsOf(d);
   const machine = await readMachine(pub, d, signer);
@@ -137,15 +137,15 @@ export async function describeLevel(pub: PublicClient, d: Deployment, signer: Ad
   return { verifiedByProofOfCloud, machine, ...(proofOfCloud ? { proofOfCloud } : {}), ...(product ? { product } : {}) };
 }
 
-/** Le quote d'une transaction registerEnclave (calldata), pour le lier ensuite à sa machine (bindMachine). */
+/** The quote of a registerEnclave transaction (calldata), to bind it to its machine afterwards (bindMachine). */
 export async function quoteFromRegisterTx(pub: PublicClient, tx: Hex): Promise<Hex> {
   const t = await pub.getTransaction({ hash: tx });
   const { functionName, args } = decodeFunctionData({ abi: enclaveRegistryAbi, data: t.input });
-  if (functionName !== "registerEnclave") throw new Error(`${tx} n'est pas un registerEnclave`);
+  if (functionName !== "registerEnclave") throw new Error(`${tx} is not a registerEnclave`);
   return (args as readonly unknown[])[1] as Hex;
 }
 
-// ---------------------------------------------------------------- jeton de l'alliance (lecture, vérification)
+// ---------------------------------------------------------------- the alliance's token (reading, verification)
 
 export interface AllianceToken {
   header: string;
@@ -159,13 +159,13 @@ export interface AllianceToken {
 }
 
 const b64url = (s: string): Uint8Array => {
-  // atob : présent dans les navigateurs et dans Node ≥ 16 (pas de Buffer : ce module sert aussi le site)
+  // atob: available in browsers and in Node ≥ 16 (no Buffer: this module also serves the site)
   const b = s.replace(/-/g, "+").replace(/_/g, "/");
   const bin = atob(b + "=".repeat((4 - (b.length % 4)) % 4));
   return Uint8Array.from(bin, (c: string) => c.charCodeAt(0));
 };
 
-/** Découpe un JWT de l'alliance et VÉRIFIE sa signature EdDSA avec la clé publiée (lève sinon). */
+/** Splits an alliance JWT and VERIFIES its EdDSA signature with the published key (throws otherwise). */
 export function parseAllianceToken(jwt: string, allianceKey: Hex = PROOF_OF_CLOUD.allianceKey): AllianceToken {
   const parts = jwt.split(".");
   if (parts.length !== 3) throw new Error("jeton de l'alliance : trois parties attendues");
@@ -185,8 +185,8 @@ export function parseAllianceToken(jwt: string, allianceKey: Hex = PROOF_OF_CLOU
   };
 }
 
-/** Le quote de l'inscription EN COURS de `signer` (Enclave.quoteHash) : on remonte ses événements EnclaveRegistered, par
- *  tranches de `step` blocs (le RPC doit servir eth_getLogs sur cette largeur), jusqu'à `maxBack` blocs. */
+/** The quote of `signer`'s CURRENT registration (Enclave.quoteHash): its EnclaveRegistered events are walked back in
+ *  chunks of `step` blocks (the RPC must serve eth_getLogs over that width), up to `maxBack` blocks. */
 export async function findCurrentQuote(
   pub: PublicClient,
   d: Deployment,
@@ -198,7 +198,7 @@ export async function findCurrentQuote(
   const step = opts.step ?? 9_000n, maxBack = opts.maxBack ?? 2_000_000n;
   const head = await pub.getBlockNumber();
   const event = enclaveRegistryAbi.find((x) => x.type === "event" && x.name === "EnclaveRegistered");
-  if (!event) throw new Error("ABI : événement EnclaveRegistered absent");
+  if (!event) throw new Error("ABI: no EnclaveRegistered event");
   for (let to = head; to + maxBack > head && to > d.deployBlock; to -= step) {
     const from = to - step + 1n > d.deployBlock ? to - step + 1n : d.deployBlock;
     const logs = await pub.getLogs({ address: d.enclaveRegistry, event: event as any, args: { signer } as any, fromBlock: from, toBlock: to });
@@ -207,7 +207,7 @@ export async function findCurrentQuote(
       if (keccakHex(q) === want) return q;
     }
   }
-  throw new Error(`quote de l'inscription en cours introuvable pour ${signer}`);
+  throw new Error(`quote of the current registration not found for ${signer}`);
 }
 
 const keccakHex = (q: Hex) => keccak256(q).toLowerCase();
