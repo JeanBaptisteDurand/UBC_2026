@@ -32,8 +32,10 @@ export const PHONE = matchMedia('(max-width: 760px)').matches
 const LIGHT = PHONE || matchMedia('(pointer: coarse) and (max-height: 500px)').matches
 /** Phones fetch the film as the visitor moves through it: the frames within NET_WIN of the position (and the trip to the
  *  first stop, and the shadow-track sheets), never the 2,500 frames at once; fewer on a data saver or a slow link */
-const CONN = (navigator as unknown as { connection?: { saveData?: boolean; effectiveType?: string } }).connection
-const NET_WIN = !LIGHT ? Infinity : CONN?.saveData || /(^|-)(2g|3g)$/.test(CONN?.effectiveType ?? '') ? 60 : 160
+const CONN = (navigator as unknown as { connection?: { saveData?: boolean; effectiveType?: string; downlink?: number } }).connection
+/** A slow or metered link (data saver, 2g/3g, or under 3 Mbit/s announced by the browser) */
+const SLOW = !!CONN && (!!CONN.saveData || /(^|-)(2g|3g)$/.test(CONN.effectiveType ?? '') || (CONN.downlink ?? 10) < 3)
+const NET_WIN = !LIGHT ? Infinity : SLOW ? 60 : 160
 const FIREFOX = /Firefox\//.test(navigator.userAgent)
 /** Off-thread mode: the first worker holds the canvas (OffscreenCanvas), keeps the frames and draws them; uploading
  *  frames to the GPU no longer goes through the main thread (?off=0: main-thread canvas) */
@@ -51,15 +53,21 @@ export function pickSet(): string {
   if (FIREFOX && !PHONE) return 'desktop'
   const src = document.querySelector<HTMLImageElement>('#poster img')?.currentSrc
   const m = src ? /\/film\/(\w+)\/f0000\./.exec(src) : null
-  if (m) return m[1]
+  // Retina frames weigh 1.75 times the desktop ones and decode 2.25 times the pixels: under 8 Mbit/s announced (Chrome),
+  // the desktop set, sharp and in time, rather than Retina frames that arrive after the scroll
+  const fast = !CONN || (!SLOW && (CONN.downlink ?? 10) >= 8)
+  if (m) return m[1] === 'retina' && !fast ? 'desktop' : m[1]
   if (PHONE) return 'phone'
   // Retina for a dense, wide screen with a mouse or trackpad only (index.html says the same): a tablet gets desktop
-  return devicePixelRatio > 1.5 && innerWidth * devicePixelRatio > 2300 && matchMedia('(pointer: fine)').matches ? 'retina' : 'desktop'
+  return fast && devicePixelRatio > 1.5 && innerWidth * devicePixelRatio > 2300 && matchMedia('(pointer: fine)').matches ? 'retina' : 'desktop'
 }
 export let SET = pickSet()
 const ROOT = `${import.meta.env.BASE_URL}film/`
 let BASE = `${ROOT}${SET}/`
-const name = (k: number, ext: string) => `${BASE}f${String(k).padStart(4, '0')}.${ext}`
+/** ?v=<film version> on every frame and sheet: the ETag of meta.bin (new at every build), so the server can serve them
+ *  as immutable (a return visit reads the whole film from the disk cache, without one request per frame) */
+let VQ = ''
+const name = (k: number, ext: string) => `${BASE}f${String(k).padStart(4, '0')}.${ext}${VQ}`
 
 // ---- State ----
 export const film = {
@@ -404,12 +412,33 @@ function schedule() {
 
 // ---- Loading: the first frame (already there), the shadow-track sheets, the trip to the first stop, then everything
 // else by distance to the position, 6 requests at a time ----
-const MAXF = 6
+// Requests in flight: a frame weighs 30 to 50 KB, so with 6 in flight a 150 ms round trip capped the film at 30 frames per
+// second whatever the bandwidth (measured 19/11: 200 ms per frame from Austin); 16 on a computer, 10 on a phone, 6 on a
+// slow link (where more in flight only delays the urgent frames)
+const MAXF = SLOW ? 6 : LIGHT ? 10 : 16
 let nLoaded = 0
+/** Fetch order around the position: its neighbours first (ahead first), then the whole window coarse to fine (one frame
+ *  in 8, in 4, in 2, then all). A visitor who scrolls faster than the link always finds a sharp frame at most 2 frames
+ *  from the target (choose()) instead of the blurry shadow track or a held frame. Rebuilt when the position moves by
+ *  16 frames or the direction flips; a cursor skips what is loaded or in flight. */
+let order = new Int32Array(0), orderN = 0, orderAt = 0, orderC = -1e9, orderDir = 0
+function nextInOrder(n: number): number {
+  if (Math.abs(film.pos - orderC) > 16 || dir !== orderDir || order.length !== n) {
+    const c = Math.min(n - 1, Math.max(0, Math.round(film.pos))), win = Math.min(n, NET_WIN)
+    if (order.length !== n) order = new Int32Array(n)
+    orderC = film.pos; orderDir = dir; orderAt = 0; orderN = 0
+    const mark = new Uint8Array(n)
+    const put = (k: number) => { if (k >= 0 && k < n && !mark[k]) { mark[k] = 1; order[orderN++] = k } }
+    for (let d = 0; d <= 12; d++) { put(c + d * dir); put(c - d * dir) }
+    for (const s of [8, 4, 2, 1]) for (let d = 0; d < win; d++) { const a = c + d * dir, b = c - d * dir; if (a % s === 0) put(a); if (b >= 0 && b % s === 0) put(b) }
+  }
+  while (orderAt < orderN) { const q = order[orderAt]; if (!blobs[q] && !fetching.has(q)) return q; orderAt++ }
+  return -1
+}
 const MIME: Record<string, string> = { avif: 'image/avif', webp: 'image/webp', jpg: 'image/jpeg' }
 function fetchOne(url: string, hi: boolean, ok: (b: Blob | null) => void) {
   // The type is set from the extension (a static server may answer application/octet-stream)
-  const type = MIME[url.slice(url.lastIndexOf('.') + 1)] ?? ''
+  const path = url.split('?')[0], type = MIME[path.slice(path.lastIndexOf('.') + 1)] ?? ''
   fetch(url, { priority: hi ? 'high' : 'low' } as RequestInit).then((r) => (r.ok ? r.blob() : null)).then((b) => (b && type && b.type !== type ? b.slice(0, b.size, type) : b)).catch(() => null).then(ok)
 }
 /** Phones: the frames left far behind give their memory back (fetched again if the visitor returns there) */
@@ -435,22 +464,18 @@ function pump() {
     if (sh) for (let j = 0; j < sh.n; j++) if (!sheetBlobs[j] && !sheetFetch.has(j)) { sj = j; break }
     // Sheet 0 and the trip to the first stop go before the other sheets
     let k = -1
-    for (let i = 0; i < wantN; i++) { const q = want[i]; if (!blobs[q] && !fetching.has(q)) { k = q; break } }
+    // The path ahead (want, in time order); while travelling, one frame in 4 of it first, so that the slots in flight
+    // cover the whole trip
+    if (moving) for (let i = 0; i < wantN; i++) { const q = want[i]; if (q % 4 === 0 && !blobs[q] && !fetching.has(q)) { k = q; break } }
+    if (k < 0) for (let i = 0; i < wantN; i++) { const q = want[i]; if (!blobs[q] && !fetching.has(q)) { k = q; break } }
     if (k < 0 && sj > 0) for (let q = 0; q <= firstStopK; q++) if (!blobs[q] && !fetching.has(q)) { k = q; break }
     if (sj >= 0 && (sj === 0 || k < 0)) {
       sheetFetch.add(sj)
       const j = sj
-      fetchOne(`${ROOT}${sh!.dir}/s${String(j).padStart(2, '0')}.${sh!.ext}`, true, (b) => { sheetFetch.delete(j); sheetBlobs[j] = b; if (b) decodeSheet(j); pump() })
+      fetchOne(`${ROOT}${sh!.dir}/s${String(j).padStart(2, '0')}.${sh!.ext}${VQ}`, true, (b) => { sheetFetch.delete(j); sheetBlobs[j] = b; if (b) decodeSheet(j); pump() })
       continue
     }
-    if (k < 0) {
-      const c = Math.round(film.pos)
-      for (let d = 0; d < Math.min(m.n, NET_WIN) && k < 0; d++) {
-        const a = c + d * dir, b = c - d * dir
-        if (a >= 0 && a < m.n && !blobs[a] && !fetching.has(a)) k = a
-        else if (b >= 0 && b < m.n && !blobs[b] && !fetching.has(b)) k = b
-      }
-    }
+    if (k < 0) k = nextInOrder(m.n)
     if (k < 0) { if (!fetching.size && !sheetFetch.size && nLoaded >= m.n) allLoaded = true; return }
     const q = k
     fetching.add(q)
@@ -700,7 +725,13 @@ export async function mountFilm(canvas: HTMLCanvasElement, onFirst: () => void) 
   let man: Manifest = all?.[SET] ?? await fetch(`${BASE}manifest.json`).then((r) => r.json() as Promise<Manifest>)
   const src = man.ysFrom ? all?.[man.ysFrom] : undefined
   if (src) man = { ...man, ys: src.ys }
-  const meta = await fetch(`${ROOT}${man.ysFrom ?? SET}/meta.bin`, { priority: 'high' } as RequestInit).then((r) => r.arrayBuffer())
+  // meta.bin is preloaded by index.html (same address, same mode): it is the critical path to the first draw; its ETag
+  // gives the film version
+  const meta = await fetch(`${ROOT}${man.ysFrom ?? SET}/meta.bin`, { priority: 'high' } as RequestInit).then((r) => {
+    const v = (r.headers.get('etag') || r.headers.get('last-modified') || '').replace(/[^\w-]/g, '')
+    if (v) VQ = `?v=${v.slice(0, 40)}`
+    return r.arrayBuffer()
+  })
   film.man = man; film.total = man.n
   film.fl = new Float32Array(meta, 0, man.n * man.nf)
   film.by = new Uint8Array(meta, man.n * man.nf * 4, man.n * man.ns * 2)
