@@ -18,7 +18,7 @@ import { fmtNum, fmtTime, fmtUnix, t, tx, type StaticKey } from "../i18n";
 import { LevelsCard } from "./Levels";
 
 const WEB = typeof window !== "undefined" ? window.location.origin : "https://archive.62-171-153-35.sslip.io";
-/** Les contrôles d'archive-node doctor, nommés dans la langue du site (sinon le libellé envoyé par la machine). */
+/** The archive-node doctor checks, named in the site's language (otherwise the label sent by the machine). */
 const CHECK_LABEL: Record<string, StaticKey> = {
   os: "op.check.os", node: "op.check.node", docker: "op.check.docker", tdx_guest: "op.check.tdx_guest", tsm_report: "op.check.tsm_report",
   dstack_socket: "op.check.dstack_socket", clock: "op.check.clock", rpc: "op.check.rpc", api: "op.check.api", port: "op.check.port",
@@ -26,31 +26,31 @@ const CHECK_LABEL: Record<string, StaticKey> = {
 };
 const checkLabel = (id: string): string | undefined =>
   Object.prototype.hasOwnProperty.call(CHECK_LABEL, id) ? t(CHECK_LABEL[id]!) : undefined;
-/** L'état d'une machine (battement de l'agent) dans la langue du site. */
+/** A machine's state (the agent's heartbeat) in the site's language. */
 const STATUS_LABEL: Record<string, StaticKey> = {
   running: "op.m.status.running", starting: "op.m.status.starting", error: "op.m.status.error", stopped: "op.m.status.stopped", paired: "op.m.status.paired",
 };
 const statusLabel = (s: string): string => (Object.prototype.hasOwnProperty.call(STATUS_LABEL, s) ? t(STATUS_LABEL[s]!) : s);
 
-const PRODUCT = Number(INFERENCE_PRODUCT); // l'inférence privée de la pile v2 (produit 1)
-// Uniquement du VRAI matériel Intel TDX : pas de mode « sans TDX » (une attestation simulée ne prouve rien).
+const PRODUCT = Number(INFERENCE_PRODUCT); // private inference on the live stack (product 1)
+// Only REAL Intel TDX hardware: there is no "without TDX" mode (a simulated attestation proves nothing).
 const MODES = [
   { id: "cloud", title: "op.mode.cloud.title", text: "op.mode.cloud.text", product: PRODUCT, flags: "--tunnel" },
   { id: "bare", title: "op.mode.bare.title", text: "op.mode.bare.text", product: PRODUCT, flags: "--tunnel" },
   { id: "rent", title: "op.mode.rent.title", text: "op.mode.rent.text", product: PRODUCT, flags: "--tunnel" },
 ] as const satisfies ReadonlyArray<{ id: string; title: StaticKey; text: StaticKey; product: number; flags: string }>;
 
-/** D'où vient une machine : appairée par code (le compte confirmé sur la machine), ajoutée ou reprise par le battement
- *  d'une clé arcop_ libre (aucune confirmation sur la machine), ou inconnu (clés illisibles, ou encore en lecture).
- *  L'API le dit (champ pairedBy) ; pour une machine d'avant ce champ, le site le déduit des clés publiques. */
+/** Where a machine comes from: paired by code (the account confirmed on the machine), added or taken over by the
+ *  heartbeat of a free arcop_ key (no confirmation on the machine), or unknown (keys unreadable, or still loading).
+ *  The API says so (the pairedBy field); for a machine from before this field, the site infers it from the public keys. */
 type Origin = "pair" | "key" | "unknown" | "loading";
 
 export function CopyLine({ cmd }: { cmd: string }) {
   const [ok, setOk] = useState(false);
   return (
     <div className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-edge bg-ink px-3 py-2">
-      {/* 19/11 : sur téléphone, la commande passe à la ligne (rien de caché sous le bouton), entre ses mots d'abord (un mot
-          n'est coupé que s'il est plus long que la ligne : une URL) ; plus large, une ligne qui défile */}
+      {/* on a phone, the command wraps (nothing hidden under the button), between its words first (a word is split only
+          if it is longer than the line: a URL); wider, one line that scrolls */}
       <code className="min-w-0 whitespace-pre-wrap font-mono text-[12px] [overflow-wrap:anywhere] sm:overflow-x-auto sm:whitespace-nowrap sm:[overflow-wrap:normal]">{cmd}</code>
       <button aria-label={t("op.copyCmd")} title={t("op.copyCmd")} className="hexbtn -my-1.5 shrink-0 text-muted hover:text-text" onClick={() => { navigator.clipboard?.writeText(cmd); setOk(true); setTimeout(() => setOk(false), 1200); }}>
         {ok ? <Check size={14} /> : <Copy size={14} />}
@@ -59,7 +59,7 @@ export function CopyLine({ cmd }: { cmd: string }) {
   );
 }
 
-/** « hive-7k2p qx9m », « HIVE-7K2PQX9M », « 7K2P-QX9M » → « HIVE-7K2P-QX9M » (8 caractères depuis le durcissement du 7/11) ; "" sinon. */
+/** « hive-7k2p qx9m », « HIVE-7K2PQX9M », « 7K2P-QX9M » → « HIVE-7K2P-QX9M » (8 characters); "" otherwise. */
 export function normalizePairCode(raw: string): string {
   const s = raw.toUpperCase().replace(/\s+/g, "").trim();
   const m = s.match(/^(?:HIVE-?)?([A-Z0-9]{4})-?([A-Z0-9]{4})$/);
@@ -76,19 +76,19 @@ function AddMachine({ onPaired }: { onPaired: () => void }) {
   const [mode, setMode] = useState<(typeof MODES)[number]["id"]>("cloud");
   const [code, setCode] = useState(codeFromHash());
   const [found, setFound] = useState<{ hostname: string; mode: string; expiresAt: number } | null>(null);
-  // la ligne d'état : un message (clé et valeurs), mis en mots à l'affichage dans la langue du moment
+  // the status line: a message (key and values), put into words at display time in the current language
   const [out, setOut] = useState<Msg | null>(null);
   const [busy, setBusy] = useState(false);
-  // le compte qui vient d'approuver, en entier : la machine affiche le même avant de garder sa clé (« o » pour accepter)
+  // the account that has just approved, in full: the machine shows the same before keeping its key ("o" to accept)
   const [approved, setApproved] = useState<string | null>(null);
   const m = MODES.find((x) => x.id === mode)!;
   useEffect(() => {
     setFound(null);
-    setOut((o) => (isFailure(o) ? null : o)); // un nouveau code efface l'erreur du précédent (pas le message de réussite)
+    setOut((o) => (isFailure(o) ? null : o)); // a new code clears the previous one's error (not the success message)
     const c = normalizePairCode(code);
     if (!c) return;
     let alive = true;
-    // le nom de la machine n'est révélé qu'APRÈS votre signature (durcissement) : on n'affiche ici que son mode
+    // the machine's name is revealed only AFTER your signature (hardening): only its mode is shown here
     fetchPairing(c)
       .then((p) => { if (alive) setFound({ hostname: p.hostnameHidden ? "" : p.hostname, mode: p.mode, expiresAt: Number(p.expiresAt) }); })
       .catch((e) => { if (alive) setOut(fail(e)); });
@@ -99,20 +99,20 @@ function AddMachine({ onPaired }: { onPaired: () => void }) {
     if (!arc || busy) return;
     const c = normalizePairCode(code);
     if (!c) { setOut(failWith(msg("op.pair.badCode"))); return; }
-    const seen = found; // le code était en attente quand on l'a cherché
+    const seen = found; // the code was pending when it was looked up
     setBusy(true); setApproved(null);
     setOut(msg("op.pair.signing"));
     try {
       const s = await signAction(arc, { kind: "pair", code: c });
       const r = await approvePairing(c, s);
-      // la machine affiche l'adresse complète qui l'a approuvée (en minuscules, comme ici) et ne garde sa clé qu'après « o »
-      // (audit, faille n° 5) ; « n » la fait révoquer : un code approuvé par quelqu'un d'autre ne lui sert à rien
+      // the machine shows the full address that approved it (in lower case, as here) and keeps its key only after "o"
+      // (security review, finding #5); "n" has it revoked: a code approved by someone else is of no use to them
       setOut(msg("op.pair.approved", { host: r.hostname }));
       setApproved(s.address.toLowerCase());
       setCode(""); setFound(null); onPaired();
     } catch (e: any) {
-      // l'API dit elle-même « déjà approuvé par un autre compte » (409 pair_already_approved, traduit par son code) ;
-      // un code « inconnu ou expiré » (404) qui était en attente juste avant et a expiré depuis : on le dit ainsi
+      // the API itself says "already approved by another account" (409 pair_already_approved, translated by its code);
+      // an "unknown or expired" code (404) that was pending just before and has expired since is described that way
       if (e instanceof ApiError && e.status === 404 && (!e.code || e.code === "code_unknown") && seen && Date.now() >= seen.expiresAt) {
         setOut(failWith(msg("err.pairExpired")));
       } else setOut(fail(e));
@@ -135,7 +135,7 @@ function AddMachine({ onPaired }: { onPaired: () => void }) {
           {tx("op.add.rent", { link: <a className="text-accent hover:underline" href="https://cloud.phala.network" target="_blank" rel="noreferrer">Phala Cloud</a> })}
         </p>
       )}
-      {/* grid-cols-1 et min-w-0 : sur téléphone, une longue commande défile dans sa ligne au lieu d'élargir la page */}
+      {/* grid-cols-1 and min-w-0: on a phone, a long command scrolls in its line instead of widening the page */}
       <ol className="mt-4 grid grid-cols-1 gap-3">
         <li className="min-w-0"><div className="mb-1 text-[13px] text-muted">{t("op.add.s1")}</div><CopyLine cmd={`curl -fsSL ${WEB}/install.sh | sh`} /></li>
         <li className="min-w-0"><div className="mb-1 text-[13px] text-muted">{t("op.add.s2")}</div><CopyLine cmd="archive-node doctor" /></li>
@@ -166,7 +166,7 @@ function AddMachine({ onPaired }: { onPaired: () => void }) {
   );
 }
 
-/** La lecture réservée (une signature, 10 min) : ce que les lignes de « Vos machines » partagent. */
+/** The reserved read (one signature, 10 min): what the rows of "Your machines" share. */
 type ReadAccess = { read: Signed | null; unlock: () => void; spent: () => void };
 
 function OriginBadge({ origin, m }: { origin: Origin; m: Machine }) {
@@ -175,8 +175,8 @@ function OriginBadge({ origin, m }: { origin: Origin; m: Machine }) {
     origin === "pair" ? ["op.origin.pair", "op.origin.pairTitle", "good"]
       : origin === "key" ? ["op.origin.key", "op.origin.keyTitle", "warn"]
       : ["op.origin.unknown", "op.origin.unknownTitle", "muted"];
-  // l'API nomme l'adresse qui a approuvé (et la clé libre d'une machine « key ») ; sans ce champ, le badge seul.
-  // L'adresse courte et la clé ne se coupent jamais (la ligne passe à la ligne entre les mots, pas dans « 0x728bce…abf7 »)
+  // the API names the address that approved (and the free key of a "key" machine); without this field, the badge
+  // alone. The short address and the key are never split (the line wraps between words, not inside "0x728bce…abf7")
   const by = m.pairedBy && m.approvedBy ? <span className="whitespace-nowrap">{short(m.approvedBy)}</span> : null;
   const who = !by ? null : m.pairedBy === "key" && m.viaKey
     ? tx("op.origin.byKey", { key: <span className="whitespace-nowrap">{m.viaKey}</span>, addr: by })
@@ -193,10 +193,10 @@ function MachineRow({ m, origin, onChanged, freeBond, minBond, access }: { m: Ma
   const arc = useArc();
   const [note, setNote] = useState<Msg | null>(null);
   const [open, setOpen] = useState(false);
-  // une machine qui n'a pas été appairée par code : on demande confirmation avant de l'inscrire sous votre adresse
+  // a machine that was not paired by code: confirmation is asked before registering it under your address
   const [confirming, setConfirming] = useState(false);
   const ago = m.lastSeen ? Math.round((Date.now() - m.lastSeen) / 60000) : null;
-  // v2 : chaque nouvelle clé d'enclave réserve la caution minimale de son produit sur la caution LIBRE
+  // each new enclave key reserves its product's minimum bond from the FREE bond
   const bondOk = (freeBond ?? 0n) >= minBond;
   async function register(confirmed = false) {
     if (!arc || !m.enclaveUrl || !m.productId) return;
@@ -256,7 +256,7 @@ function MachineRow({ m, origin, onChanged, freeBond, minBond, access }: { m: Ma
   );
 }
 
-/** Diagnostic et journaux : réservés à l'opérateur, lus avec la signature de lecture (rafraîchis toutes les 15 s). */
+/** Diagnostics and logs: reserved to the operator, read with the read signature (refreshed every 15 s). */
 function MachineDetail({ m, access }: { m: Machine; access: ReadAccess }) {
   const { read } = access;
   const [d, setD] = useState<Machine | null>(null);
@@ -327,7 +327,7 @@ export default function Operator({ go }: { go: (r: string) => void }) {
   const [agentId, setAgentId] = useState<bigint>();
   const [mine, setMine] = useState<EnclaveView[] | null>(null);
   const [machines, setMachines] = useState<Machine[] | null>(null);
-  // les clés arcop_ de l'opérateur (vue publique : leur machine liée suffit) disent d'où vient chaque machine
+  // the operator's arcop_ keys (public view: their linked machine is enough) tell where each machine comes from
   const [opKeys, setOpKeys] = useState<OperatorKey[] | "error" | null>(null);
   const keyChecked = useRef(new Set<string>());
   const [minBonds, setMinBonds] = useState<Map<string, bigint>>(new Map());
@@ -336,13 +336,13 @@ export default function Operator({ go }: { go: (r: string) => void }) {
   const [agentInput, setAgentInput] = useState("");
   const [productId, setProductId] = useState(INFERENCE_PRODUCT.toString());
   const [enclaveUrl, setEnclaveUrl] = useState(ENCLAVE_URL);
-  // les lignes d'état : des messages (clé et valeurs), mis en mots à l'affichage dans la langue du moment
+  // the status lines: messages (key and values), put into words at display time in the current language
   const [status, setStatus] = useState<Msg | null>(null);
   const [idStatus, setIdStatus] = useState<Msg | null>(null);
   const [encStatus, setEncStatus] = useState<Msg | null>(null);
   const [regStatus, setRegStatus] = useState<Msg | null>(null);
   const [readMsg, setReadMsg] = useState<Msg | null>(null);
-  // lecture réservée : une signature (10 min, gardée en mémoire de la page) ouvre noms, diagnostics et journaux
+  // reserved read: one signature (10 min, kept in the page's memory) opens names, diagnostics and logs
   const read = useReadAccess(address);
   const readUntil = readExpiresAt(address);
 
@@ -354,12 +354,12 @@ export default function Operator({ go }: { go: (r: string) => void }) {
     setReadMsg(msg("keys.op.signRead"));
     try { await requestReadAccess(arc); setReadMsg(null); } catch (e) { setReadMsg(fail(e)); }
   }
-  function spent() { // l'API ne reconnaît plus la signature (échue, ou API redémarrée) : retour à la vue publique
+  function spent() { // the API no longer recognises the signature (expired, or the API restarted): back to the public view
     dropReadAccess();
     setReadMsg(msg("op.read.expired"));
   }
   const access = { read, unlock, spent };
-  /** la liste complète avec la lecture signée en cours, sinon la vue publique (noms masqués, sans adresse http://IP) */
+  /** the full list with the current signed read, otherwise the public view (names hidden, no http://IP address) */
   function loadMachines() {
     if (!address) return;
     const r = readSignature(address);
@@ -388,14 +388,14 @@ export default function Operator({ go }: { go: (r: string) => void }) {
   }
   useEffect(() => { refresh(); }, [arc, address]);
   useEffect(() => { setOpKeys(null); keyChecked.current = new Set(); }, [address]);
-  useEffect(() => { // les machines se rafraîchissent seules (battements de cœur toutes les 30 s), et dès que la lecture change
+  useEffect(() => { // the machines refresh on their own (heartbeats every 30 s), and as soon as the read changes
     if (!address) return;
     loadMachines();
     const timer = setInterval(loadMachines, 10_000);
     return () => clearInterval(timer);
   }, [address, read]);
-  // (API d'avant pairedBy) une machine apparue depuis la dernière lecture des clés (appairée dans un autre onglet, par
-  // exemple) : on relit les clés UNE fois pour elle, avant de dire qu'elle a été ajoutée sans code
+  // (an API without pairedBy) a machine that appeared since the last read of the keys (paired in another tab, for
+  // example): the keys are read again ONCE for it, before saying it was added without a code
   useEffect(() => {
     if (!machines || !Array.isArray(opKeys)) return;
     const bound = new Set(opKeys.map((k) => k.machineId).filter(Boolean));
@@ -403,7 +403,7 @@ export default function Operator({ go }: { go: (r: string) => void }) {
     if (fresh.length) { for (const m of fresh) keyChecked.current.add(m.machineId); loadKeys(); }
   }, [machines, opKeys]);
   const originOf = (m: Machine): Origin => {
-    // ce que l'API dit (pairedBy), sinon la déduction : une clé liée à la machine ne naît que d'un appairage par code
+    // what the API says (pairedBy), otherwise the inference: a key linked to the machine is born only from a pairing by code
     if (m.pairedBy === "code") return "pair";
     if (m.pairedBy === "key") return "key";
     if (opKeys === null) return "loading";
@@ -411,8 +411,8 @@ export default function Operator({ go }: { go: (r: string) => void }) {
     return opKeys.some((k) => k.machineId === m.machineId) ? "pair" : "key";
   };
 
-  const pending = bond !== undefined && avail !== undefined && bond > avail ? bond - avail : 0n; // demandé en retrait
-  const reserved = avail !== undefined && free !== undefined && avail > free ? avail - free : 0n; // réservé par les clés inscrites
+  const pending = bond !== undefined && avail !== undefined && bond > avail ? bond - avail : 0n; // requested for withdrawal
+  const reserved = avail !== undefined && free !== undefined && avail > free ? avail - free : 0n; // reserved by the registered keys
   const unlocked = unlockAt !== undefined && BigInt(Math.floor(Date.now() / 1000)) >= unlockAt;
   const minBondOf = (pid: string | null) => minBonds.get(pid ?? "") ?? 1_000_000n;
 
@@ -420,7 +420,7 @@ export default function Operator({ go }: { go: (r: string) => void }) {
     if (!arc) return;
     setStatus(msg("op.bond.signing"));
     try {
-      const hash = await arc.bond(parseUsdc(bondAmt, "what.bond"), "auth"); // EIP-3009 : une seule transaction
+      const hash = await arc.bond(parseUsdc(bondAmt, "what.bond"), "auth"); // EIP-3009: a single transaction
       setStatus(msg("op.bond.sent"));
       await waitOk(arc, hash, "tx.bond");
       setStatus(msg("op.bond.done", { tx: hash })); refresh();
@@ -601,7 +601,7 @@ export default function Operator({ go }: { go: (r: string) => void }) {
   );
 }
 
-/** Nombre entier d'un champ (unité facturée, poids de sortie), borné. `what` : la clé de son nom ("what.billingUnit"…). */
+/** An integer field (billed unit, output weight), bounded. `what`: the key of its name ("what.billingUnit"…). */
 function intField(v: string, what: StaticKey, max = 1_000_000): number {
   const s = v.trim();
   if (!/^\d+$/.test(s) || Number(s) < 1 || Number(s) > max) throw new MsgError(msg("pub.badInt", { what: msg(what), v, max: () => fmtNum(max) }));
