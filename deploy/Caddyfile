@@ -1,20 +1,20 @@
-# ArcHive (un seul projet depuis le 16/11) : le front de Florent à la racine, la console sous /console/, le copilote du site
-# (/copilot-site/) et le serveur MCP en HTTP (/mcp). Caddy ne relit ce fichier qu'à sa recréation : deploy.sh s'en charge.
-# ArcHive en HTTPS, une seule origine (le chiffrement HPKE du navigateur exige un contexte sécurisé).
-# Certificat obtenu et renouvelé automatiquement par Caddy (Let's Encrypt, sinon ZeroSSL).
-# Caddy remplace tout X-Forwarded-For reçu du client par l'IP réelle de la connexion (aucun proxy de confiance
-# n'est déclaré) : l'API s'en sert pour limiter le débit par IP.
+# ArcHive: the marketplace site at the root, the console under /console/, AskHive, the site copilot (/copilot-site/),
+# and the MCP server over HTTP (/mcp). Caddy rereads this file only when it is recreated: deploy.sh does that.
+# ArcHive over HTTPS, one origin (the browser's HPKE encryption needs a secure context).
+# The certificate is obtained and renewed automatically by Caddy (Let's Encrypt, otherwise ZeroSSL).
+# Caddy replaces any X-Forwarded-For sent by the client with the connection's real IP (no trusted proxy is declared):
+# the API uses it for its per-IP rate limit.
 #
-# arc-hive.xyz (A @ et www vers 62.171.153.35) sert le MÊME
-# site, l'adresse sslip.io reste servie telle quelle (enclaves, registrars, scripts d'opérateur et liens publiés
-# l'appellent). Deux réglages tant que tout n'est pas reconstruit sur le nouveau nom :
-#  - la console (/console/) est construite avec l'adresse sslip.io en dur (build.sh, PUBLIC_URL) : la CSP du nouveau nom
-#    bloquerait ses appels, on l'envoie donc sur sslip.io ;
-#  - les copilotes (serveur et enclave, ALLOWED_ORIGINS mesurée dans la VM) n'acceptent que l'origine sslip.io : Caddy
-#    leur présente l'origine https://arc-hive.xyz (notre propre site, même serveur) comme celle de sslip.io.
-#  Les signatures de wallet (EIP-4361 : appairage, clés d'opérateur) restent liées à sslip.io (WEB_URL de l'API) : sur le
-#  nouveau nom, le front affiche déjà « mauvais site » avec le lien de la console.
-#  Pour faire d'arc-hive.xyz le nom principal : PUBLIC_URL et WEB_URL, ALLOWED_ORIGINS des enclaves (au passage en v3).
+# arc-hive.xyz (A records @ and www to 62.171.153.35) and archive.62-171-153-35.sslip.io serve the SAME site; the
+# sslip.io address is the one the enclaves, the registrars, the operator scripts and the published links call, and the
+# console's origin:
+#  - the console (/console/) is built for the sslip.io address (build.sh, PUBLIC_URL), and its CSP would block its calls
+#    from the other name, so /console/ on arc-hive.xyz redirects to sslip.io;
+#  - the copilots (server and enclave; ALLOWED_ORIGINS is measured into the enclave image) accept the sslip.io origin,
+#    so Caddy forwards requests from https://arc-hive.xyz (the same site, on the same server) under that origin;
+#  - wallet signatures (EIP-4361: pairing, operator keys) are bound to sslip.io (the API's WEB_URL); on arc-hive.xyz the
+#    site says so and links to the console.
+#  Moving the primary name to arc-hive.xyz (PUBLIC_URL, WEB_URL, the enclaves' ALLOWED_ORIGINS) is part of the v3 cutover.
 www.arc-hive.xyz {
 	redir https://arc-hive.xyz{uri} permanent
 }
@@ -28,7 +28,7 @@ archive.62-171-153-35.sslip.io, arc-hive.xyz {
 	}
 	redir @console_newname https://archive.62-171-153-35.sslip.io{uri} 302
 
-	# API de lecture, appairage des machines, mode test (l'API borne aussi chaque route à 64 Kio)
+	# read API, machine pairing, test mode (the API also caps every route at 64 KiB)
 	handle_path /api/* {
 		request_body {
 			max_size 256KB
@@ -36,13 +36,13 @@ archive.62-171-153-35.sslip.io, arc-hive.xyz {
 		reverse_proxy api:8809
 	}
 
-	# copilote
+	# the console copilot
 	handle_path /copilot/* {
 		request_body {
 			max_size 512KB
 		}
 		reverse_proxy copilot:8808 {
-			# 20/11 : l'origine arc-hive.xyz (notre site) est présentée comme celle de sslip.io (voir en tête)
+			# requests from arc-hive.xyz are forwarded under the sslip.io origin, the one the copilots accept (see the header)
 			header_up Origin ^https://arc-hive\.xyz$ https://archive.62-171-153-35.sslip.io
 			transport http {
 				read_timeout 180s
@@ -50,9 +50,9 @@ archive.62-171-153-35.sslip.io, arc-hive.xyz {
 		}
 	}
 
-	# RPC public d'Arc testnet : même cible que le proxy de développement du front (frontend/vite.config.ts : /arc-rpc
-	# vers https://rpc.testnet.arc.io). Pour les preuves d'état, une passerelle vers un nœud d'Arc
-	# (deploy/arc-node/rpc-gate.mjs, host.docker.internal:8810) peut prendre sa place.
+	# Arc testnet's public RPC: the same target as the front's development proxy (frontend/vite.config.ts: /arc-rpc to
+	# https://rpc.testnet.arc.io). For state proofs, a gateway to an Arc archive node (deploy/arc-node/rpc-gate.mjs,
+	# host.docker.internal:8810) can take its place.
 	@arcrpc path /arc-rpc /arc-rpc/*
 	handle @arcrpc {
 		uri strip_prefix /arc-rpc
@@ -67,13 +67,13 @@ archive.62-171-153-35.sslip.io, arc-hive.xyz {
 		}
 	}
 
-	# le copilote du nouveau site (surface « site » : il pilote les pages du front de Florent)
+	# AskHive, the site copilot ("site" surface: it guides the visitor through the site's pages)
 	handle_path /copilot-site/* {
 		request_body {
 			max_size 512KB
 		}
 		reverse_proxy copilot-site:8808 {
-			# 20/11 : l'origine arc-hive.xyz (notre site) est présentée comme celle de sslip.io (voir en tête)
+			# requests from arc-hive.xyz are forwarded under the sslip.io origin, the one the copilots accept (see the header)
 			header_up Origin ^https://arc-hive\.xyz$ https://archive.62-171-153-35.sslip.io
 			transport http {
 				read_timeout 180s
@@ -81,7 +81,7 @@ archive.62-171-153-35.sslip.io, arc-hive.xyz {
 		}
 	}
 
-	# serveur MCP en HTTP (Streamable HTTP, sans état) : d'autres agents (Claude, Cursor…) utilisent nos outils
+	# MCP server over HTTP (Streamable HTTP, stateless): other agents (Claude, Cursor…) use ArcHive's tools
 	@mcp path /mcp /mcp/*
 	handle @mcp {
 		request_body {
@@ -90,11 +90,11 @@ archive.62-171-153-35.sslip.io, arc-hive.xyz {
 		reverse_proxy mcp:8812
 	}
 
-	# site + proxy des enclaves (/enclave/inference/, /enclave/bounty/) : nginx du conteneur web
+	# site + enclave proxy (/enclave/inference/, /enclave/bounty/…): the web container's nginx
 	handle {
-		# l'enclave du copilote (/enclave/copilot-site/, derrière nginx) filtre aussi l'origine
+		# the copilot's enclave (/enclave/copilot-site/, behind nginx) checks the origin too
 		reverse_proxy web:80 {
-			# 20/11 : l'origine arc-hive.xyz (notre site) est présentée comme celle de sslip.io (voir en tête)
+			# requests from arc-hive.xyz are forwarded under the sslip.io origin, the one the copilots accept (see the header)
 			header_up Origin ^https://arc-hive\.xyz$ https://archive.62-171-153-35.sslip.io
 		}
 	}
@@ -105,14 +105,14 @@ archive.62-171-153-35.sslip.io, arc-hive.xyz {
 		Referrer-Policy "strict-origin-when-cross-origin"
 		X-Frame-Options "DENY"
 		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
-		# Scripts : seulement ceux du site (aucun script en ligne, aucun tiers)  ; 'wasm-unsafe-eval' pour le décodeur
-		# meshopt de three.js (la scène 3D du front de Florent) : il compile du WebAssembly, pas de JavaScript (eval reste interdit). Connexions : le site lui-même (API,
-		# copilote, proxy des enclaves), le RPC et l'explorateur d'Arc, les enclaves chez Phala et derrière un tunnel
-		# cloudflared (inscription d'une machine : le navigateur lit son /attest), les RPC Sepolia et Base Sepolia de
-		# la page Portefeuille (CCTP), WalletConnect, Coinbase Wallet et le résolveur ENS de RainbowKit.
-		# Styles en ligne permis (RainbowKit injecte ses thèmes) ; images https (icônes de wallets) ; jamais cadré.
+		# Scripts: only the site's own (no inline script, no third party); 'wasm-unsafe-eval' for three.js's meshopt
+		# decoder (the site's 3D scene): it compiles WebAssembly, not JavaScript (eval stays forbidden). Connections: the
+		# site itself (API, copilots, enclave proxy), Arc's RPC and explorer, enclaves at Phala and behind a cloudflared
+		# tunnel (registering a machine: the browser reads its /attest), the Sepolia and Base Sepolia RPCs and Circle's
+		# Iris sandbox for CCTP transfers, WalletConnect, Coinbase Wallet and RainbowKit's ENS resolver.
+		# Inline styles allowed (RainbowKit injects its themes); https images (wallet icons); never framed.
 		Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://iris-api-sandbox.circle.com https://rpc.testnet.arc.io https://explorer.testnet.arc.io https://*.phala.network https://*.trycloudflare.com https://ethereum-sepolia-rpc.publicnode.com https://base-sepolia-rpc.publicnode.com https://*.walletconnect.com wss://*.walletconnect.com https://*.walletconnect.org wss://*.walletconnect.org https://enhanced-provider.rainbow.me https://api.wallet.coinbase.com wss://www.walletlink.org; frame-src https://verify.walletconnect.com https://verify.walletconnect.org; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
-		# ni version ni logiciel annoncés (Server de nginx ou de Caddy, Via du proxy)
+		# no software or version announced (nginx's or Caddy's Server header, the proxy's Via)
 		-Server
 		-Via
 	}

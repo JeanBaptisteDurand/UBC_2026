@@ -1,6 +1,6 @@
 #!/bin/sh
-# push.sh — depuis un poste de dev : envoie le code source sur le serveur (sans secrets ni dépendances), puis lance
-# le déploiement LÀ-BAS (construction depuis le code du serveur). Usage : ./deploy/push.sh  [hôte ssh, défaut ubc-vps]
+# push.sh — from a dev machine: sends the source code to the server (no secrets, no dependencies), then runs the
+# deployment THERE (built from the server's copy of the source). Usage: ./deploy/push.sh [ssh host, default ubc-vps]
 set -eu
 HOST="${1:-ubc-vps}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

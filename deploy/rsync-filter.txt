@@ -1,7 +1,7 @@
-# Ce qui part sur le serveur (/opt/archive/src) : tout le code source, JAMAIS les secrets ni ce qui se reconstruit.
-# Règles lues dans l'ordre : la première qui correspond gagne.
+# What goes to the server (/opt/archive/src): all the source code, NEVER the secrets nor anything that is rebuilt.
+# Rules are read in order: the first match wins.
 - .secrets/
-# dossier local de fichiers mis de côté : jamais envoyé
+# a local folder of set-aside files on a dev machine: never sent
 - .icloud-evicted/
 - .git/
 - node_modules/
@@ -16,7 +16,7 @@
 - .playwright-mcp/
 - .DS_Store
 - *.log
-# web/.env.local ne contient que l'identifiant WalletConnect (public, il finit dans le JavaScript du site)
+# web/.env.local holds only the WalletConnect project id (public: it ends up in the site's JavaScript)
 + /web/.env.local
 - .env
 - .env.local
