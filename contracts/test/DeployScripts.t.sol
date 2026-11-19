@@ -15,9 +15,9 @@ import {VerdictLog} from "../src/VerdictLog.sol";
 import {SealedBounty} from "../src/SealedBounty.sol";
 import {SessionPay} from "../src/SessionPay.sol";
 
-/// @notice Correction 12 : les scripts de déploiement v2. Défauts mainnet = F-économie §0.1 (TIMELOCK 48 h,
-///         plus jamais 300 s ; SEPT_VE exigé ; validité et grâce ≈ 24 h en blocs), câblage complet, et
-///         garde-fous (timelock court refusé sur mainnet, DCAP absent refusé, module simulé interdit sur mainnet).
+/// @notice The deployment scripts. Mainnet defaults (TIMELOCK 48 h, never 300 s again; SEPT_VE required; validity
+///         and grace ≈ 24 h in blocks), complete wiring, and guardrails (a short timelock is refused on mainnet,
+///         a missing DCAP verifier is refused, the testnet script with its simulated module is refused on mainnet).
 contract DeployScriptsTest is Test {
     uint256 constant ARC_MAINNET = 5042;
     uint256 constant ARC_TESTNET = 5042002;
@@ -34,8 +34,8 @@ contract DeployScriptsTest is Test {
         usdc = new MockUSDC3009();
         validation = new MockValidationRegistry();
         identity = new MockIdentityRegistry();
-        vm.etch(dcap, hex"00"); // un vérificateur DCAP « présent » : du code à l'adresse
-        vm.etch(treasury, hex"00"); // multisigs : du code à l'adresse
+        vm.etch(dcap, hex"00"); // a DCAP verifier that is "present": code at the address
+        vm.etch(treasury, hex"00"); // multisigs: code at the address
         vm.etch(owner, hex"00");
         vm.etch(realModule, hex"00");
     }
@@ -77,10 +77,10 @@ contract DeployScriptsTest is Test {
         });
     }
 
-    /// Les défauts du script mainnet sont les valeurs de F-économie §0.1 et de deploy/mainnet.env.example.
+    /// The mainnet script defaults are the values documented in deploy/mainnet.env.example.
     function test_mainnetDefaults() public {
         Deploy s = new Deploy();
-        assertEq(s.DEFAULT_TIMELOCK(), 172_800, "48 h, plus jamais 300 s");
+        assertEq(s.DEFAULT_TIMELOCK(), 172_800, "48 h, never 300 s again");
         assertEq(s.DEFAULT_NETWORK_BOUNTY_BPS(), 1000);
         assertEq(s.DEFAULT_OPERATOR_BOUNTY_BPS(), 500);
         assertTrue(s.DEFAULT_REQUIRE_SEPT_VE());
@@ -89,7 +89,7 @@ contract DeployScriptsTest is Test {
         assertEq(s.DEFAULT_BLOCK_TIME_MS(), 508);
     }
 
-    /// Déploiement mainnet avec les défauts : paramètres v2 transmis, droits câblés.
+    /// Mainnet deployment with the defaults: parameters passed through, permissions wired.
     function test_mainnetDeployWiresV2() public {
         vm.chainId(ARC_MAINNET);
         Deploy s = new Deploy();
@@ -112,7 +112,7 @@ contract DeployScriptsTest is Test {
         assertTrue(b.isSettlement(d.sealedBounty));
         assertTrue(b.isSettlement(d.x402));
         assertEq(b.treasury(), treasury);
-        // v2 bis : gouvernance = le multisig ; câblage fait une fois, verrouillé ; SessionPay facture les tentatives
+        // governance is the multisig; wiring is done once, then locked; SessionPay bills the bounty attempts
         assertEq(b.owner(), owner);
         assertTrue(b.initialized());
         assertEq(b.registry(), d.registry);
@@ -126,7 +126,7 @@ contract DeployScriptsTest is Test {
         assertEq(SealedBounty(d.sealedBounty).operatorBountyBps(), 500);
     }
 
-    /// Garde-fous du script mainnet : l'ancien défaut de 300 s est refusé sur Arc mainnet, un DCAP absent aussi.
+    /// Mainnet script guardrails: the old 300 s default is refused on Arc mainnet, and so is a missing DCAP verifier.
     function test_mainnetGuards() public {
         vm.chainId(ARC_MAINNET);
         Deploy s = new Deploy();
@@ -135,37 +135,37 @@ contract DeployScriptsTest is Test {
         Deploy.Config memory noDcap = _mainnetDefaults(s);
         noDcap.dcap = makeAddr("dcap-absent");
 
-        vm.expectRevert(bytes(unicode"TIMELOCK < 48 h refusé sur Arc mainnet"));
+        vm.expectRevert(bytes("TIMELOCK below 48 h is refused on Arc mainnet"));
         s.check(shortLock);
 
-        vm.expectRevert(bytes(unicode"DCAP : aucun code à cette adresse (déployer Automata DCAP d'abord)"));
+        vm.expectRevert(bytes("DCAP: no code at this address (deploy Automata DCAP first)"));
         s.check(noDcap);
 
-        // v2 bis : sur Arc mainnet, TREASURY et OWNER sont des multisigs (du code), ERC-8004 est présent
+        // on Arc mainnet, TREASURY and OWNER are multisigs (contract code) and ERC-8004 is present
         Deploy.Config memory eoaTreasury = _mainnetDefaults(s);
-        eoaTreasury.treasury = makeAddr("une-seule-cle");
-        vm.expectRevert(bytes(unicode"TREASURY : un multisig (du code) est exigé sur Arc mainnet"));
+        eoaTreasury.treasury = makeAddr("single-key");
+        vm.expectRevert(bytes("TREASURY must be a multisig (contract code) on Arc mainnet"));
         s.check(eoaTreasury);
         Deploy.Config memory eoaOwner = _mainnetDefaults(s);
-        eoaOwner.owner = makeAddr("cle-de-deploiement");
-        vm.expectRevert(bytes(unicode"OWNER : un multisig (du code) est exigé sur Arc mainnet"));
+        eoaOwner.owner = makeAddr("deployer-key");
+        vm.expectRevert(bytes("OWNER must be a multisig (contract code) on Arc mainnet"));
         s.check(eoaOwner);
         Deploy.Config memory noValidation = _mainnetDefaults(s);
-        noValidation.validation = makeAddr("validation-absente");
-        vm.expectRevert(bytes(unicode"ERC8004_VALIDATION : aucun code à cette adresse"));
+        noValidation.validation = makeAddr("validation-absent");
+        vm.expectRevert(bytes("ERC8004_VALIDATION: no code at this address"));
         s.check(noValidation);
 
-        // hors mainnet, un timelock court reste possible (répétition du déploiement sur testnet)
+        // outside mainnet, a short timelock stays possible (rehearsing the deployment on testnet)
         vm.chainId(ARC_TESTNET);
         s.check(shortLock);
     }
 
-    /// v2.1 ter : les défauts du script testnet. REQUIRE_SEPT_VE vaut 1, comme la pile v2 déployée le 7/11
-    /// (deployments.v2.testnet.json : « REQUIRE_SEPT_VE = 1 ») ; v2.1 bis : 0, et un oubli de la variable redéployait
-    /// un registre qui accepte des enclaves sans SEPT_VE_DISABLE.
+    /// Testnet script defaults. REQUIRE_SEPT_VE is 1, as in the stacks deployed on Arc testnet
+    /// (deployments.v2.testnet.json and deployments.v21.testnet.json: "REQUIRE_SEPT_VE = 1"); with a default of 0,
+    /// forgetting the variable would redeploy a registry that accepts enclaves without SEPT_VE_DISABLE.
     function test_testnetDefaults() public {
         DeployTestnet s = new DeployTestnet();
-        assertTrue(s.DEFAULT_REQUIRE_SEPT_VE(), "SEPT_VE_DISABLE exige par defaut");
+        assertTrue(s.DEFAULT_REQUIRE_SEPT_VE(), "SEPT_VE_DISABLE required by default");
         assertEq(s.DEFAULT_ATTESTATION_MODULE(), 0x26C1803dE523aC896Ba7F1787f1401ec792951ca);
         assertEq(s.DEFAULT_TIMELOCK(), 0);
         assertEq(s.DEFAULT_NETWORK_BOUNTY_BPS(), 1000);
@@ -175,15 +175,15 @@ contract DeployScriptsTest is Test {
         assertEq(s.DEFAULT_BLOCK_TIME_MS(), 509);
     }
 
-    /// Le script testnet (module d'attestation SIMULÉ) est interdit sur Arc mainnet ; sur testnet il déploie
-    /// la pile v2 avec ses défauts de démonstration.
+    /// The testnet script (which can deploy the simulated attestation module) is refused on Arc mainnet; on testnet it
+    /// deploys the stack with its testnet defaults.
     function test_testnetScript() public {
         DeployTestnet s = new DeployTestnet();
         DeployTestnet.Config memory c = _testnetDefaults(s);
 
         vm.chainId(ARC_MAINNET);
         vm.expectRevert(
-            bytes(unicode"DeployTestnet : module d'attestation SIMULÉ, interdit sur Arc mainnet (utiliser Deploy.s.sol)")
+            bytes("DeployTestnet is refused on Arc mainnet: it can deploy a simulated attestation module (use Deploy.s.sol)")
         );
         s.check(c);
 
@@ -192,27 +192,27 @@ contract DeployScriptsTest is Test {
         DeployTestnet.Deployed memory d = s.deploy(c);
         assertEq(ProductRegistry(d.products).timelock(), 0);
         EnclaveRegistry r = EnclaveRegistry(d.registry);
-        // v2 bis : par défaut, le VRAI module d'attestation (DCAP) déjà déployé sur Arc testnet
+        // by default, the REAL attestation module (DCAP) already deployed on Arc testnet
         assertEq(s.DEFAULT_ATTESTATION_MODULE(), 0x26C1803dE523aC896Ba7F1787f1401ec792951ca);
         assertEq(address(r.module()), realModule);
         assertEq(d.module, realModule);
         assertEq(r.VALIDITY_BLOCKS(), 170_000);
         assertEq(r.GRACE_BLOCKS(), 170_000);
         assertEq(r.BLOCK_TIME_MS(), 509);
-        assertTrue(r.requireSeptVeDisable(), "v2.1 ter : SEPT_VE_DISABLE exige par defaut");
+        assertTrue(r.requireSeptVeDisable(), "SEPT_VE_DISABLE required by default");
         assertTrue(OperatorBond(d.bond).isSettlement(d.x402));
         assertTrue(d.demoVault.code.length > 0);
 
-        // module absent : refusé ; module SIMULÉ seulement sur demande explicite (démonstration)
+        // a missing module is refused; the simulated module only on explicit request (demo)
         DeployTestnet.Config memory noModule = _testnetDefaults(s);
         noModule.module = makeAddr("module-absent");
-        vm.expectRevert(bytes(unicode"ATTESTATION_MODULE : aucun code à cette adresse"));
+        vm.expectRevert(bytes("ATTESTATION_MODULE: no code at this address"));
         s.check(noModule);
         DeployTestnet.Config memory demo = _testnetDefaults(s);
         demo.mockAttestation = true;
         demo.module = address(0);
         s.check(demo);
         DeployTestnet.Deployed memory dd = s.deploy(demo);
-        assertTrue(dd.module != realModule && dd.module.code.length > 0, "module simule deploye");
+        assertTrue(dd.module != realModule && dd.module.code.length > 0, "simulated module deployed");
     }
 }

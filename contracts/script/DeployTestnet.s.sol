@@ -13,38 +13,38 @@ import {SealedBounty} from "../src/SealedBounty.sol";
 import {X402Settler} from "../src/X402Settler.sol";
 import {DemoVault} from "../src/demo/DemoVault.sol";
 
-/// @title DeployTestnet — déploie TOUT le moteur (pile v2) sur Arc testnet, câblé, prêt à tourner en vrai.
-/// @notice v2 bis : par défaut, le registre se branche sur le VRAI module d'attestation déjà déployé sur Arc testnet
-///         (TdxAttestationModule → Automata DCAP + collatéral Intel, deployments.dcap.testnet.json, 7/11) : seules de
-///         vraies enclaves Intel TDX s'inscrivent. MOCK_ATTESTATION=1 déploie à la place le module SIMULÉ (machines
-///         de démonstration sans TDX — à dire) ; interdit sur Arc mainnet dans tous les cas.
-///         v2.1 ter : REQUIRE_SEPT_VE vaut 1 par défaut (v2.1 bis : 0), comme la pile v2 déployée le 7/11
-///         (deployments.v2.testnet.json) : oublier la variable n'affaiblit plus la politique d'inscription.
+/// @title DeployTestnet: deploys and wires the whole engine on Arc testnet, ready to run for real.
+/// @notice By default the registry uses the REAL attestation module already deployed on Arc testnet
+///         (TdxAttestationModule: Automata DCAP plus Intel collateral, deployments.dcap.testnet.json), so only genuine
+///         Intel TDX enclaves can register. MOCK_ATTESTATION=1 deploys a simulated module instead, for demo machines
+///         without TDX. This script is refused on Arc mainnet in every case.
+///         REQUIRE_SEPT_VE defaults to 1, as in the deployed testnet stacks (deployments.v2.testnet.json and
+///         deployments.v21.testnet.json), so leaving the variable unset never weakens the registration policy.
 ///
-/// Env obligatoires : USDC, ERC8004_VALIDATION, ERC8004_IDENTITY, TREASURY, OWNER. Facultatives (défauts testnet) :
-///   ATTESTATION_MODULE   0x26C1803dE523aC896Ba7F1787f1401ec792951ca (TdxAttestationModule réel, testnet)
-///   MOCK_ATTESTATION     0 (1 = module simulé, démonstration seulement)
-///   TIMELOCK             0 (démo : un produit s'active tout de suite, et on le dit)
+/// Required env: USDC, ERC8004_VALIDATION, ERC8004_IDENTITY, TREASURY, OWNER. Optional (testnet defaults):
+///   ATTESTATION_MODULE   0x26C1803dE523aC896Ba7F1787f1401ec792951ca (the real TdxAttestationModule on testnet)
+///   MOCK_ATTESTATION     0 (1 = simulated module, demo only)
+///   TIMELOCK             0 (on testnet a product activates at once; Deploy.s.sol requires at least 48 h on mainnet)
 ///   NETWORK_BOUNTY_BPS   1000 (10 %)        OPERATOR_BOUNTY_BPS  500 (5 %)
-///   REQUIRE_SEPT_VE      1 (exiger SEPT_VE_DISABLE, bit 28 de tdAttributes : le vrai quote de notre enclave Phala a
-///                        tdAttributes = 0x10000000). 0 affaiblit la politique : à ne demander qu'exprès (par ex.
-///                        MOCK_ATTESTATION=1 avec des mesures simulées sans ce bit, tdAttributes = 0), et à dire
-///   VALIDITY_BLOCKS      170 000 (≈ 24 h)   GRACE_BLOCKS         170 000 (≈ 24 h)
-///   BLOCK_TIME_MS        509 (mesuré le 7/11/2026 : 508,95 ms/bloc sur 1 000 000 de blocs du testnet,
-///                        506,7–515,8 ms sur les fenêtres de 172 800 blocs des 89 derniers jours ; donc
-///                        170 000 blocs ≈ 24,0–24,4 h sur le testnet)
+///   REQUIRE_SEPT_VE      1 (require SEPT_VE_DISABLE, bit 28 of tdAttributes; the real quote of our Phala enclave has
+///                        tdAttributes = 0x10000000). 0 relaxes the policy: use it only on purpose (for example with
+///                        MOCK_ATTESTATION=1 and simulated measurements without this bit, where tdAttributes = 0)
+///   VALIDITY_BLOCKS      170,000 (≈ 24 h)   GRACE_BLOCKS         170,000 (≈ 24 h)
+///   BLOCK_TIME_MS        509 (measured on 2026-11-07: 508.95 ms per block over 1,000,000 testnet blocks,
+///                        506.7–515.8 ms over each 172,800-block window of the previous 89 days; so
+///                        170,000 blocks ≈ 24.0–24.4 h on testnet)
 ///
-/// Usage :
+/// Usage:
 ///   forge script script/DeployTestnet.s.sol --rpc-url https://rpc.testnet.arc.io --broadcast --private-key $PK --legacy
 contract DeployTestnet is Script {
     uint256 public constant ARC_MAINNET_CHAIN_ID = 5042;
-    /// @notice TdxAttestationModule branché sur le vrai Automata DCAP d'Arc testnet (deployments.dcap.testnet.json).
+    /// @notice TdxAttestationModule wired to the real Automata DCAP verifier on Arc testnet (deployments.dcap.testnet.json).
     address public constant DEFAULT_ATTESTATION_MODULE = 0x26C1803dE523aC896Ba7F1787f1401ec792951ca;
 
-    uint64 public constant DEFAULT_TIMELOCK = 0; // démo
+    uint64 public constant DEFAULT_TIMELOCK = 0; // testnet: a product activates at once
     uint16 public constant DEFAULT_NETWORK_BOUNTY_BPS = 1000;
     uint16 public constant DEFAULT_OPERATOR_BOUNTY_BPS = 500;
-    bool public constant DEFAULT_REQUIRE_SEPT_VE = true; // v2.1 ter (v2.1 bis : false) ; = la pile v2 déployée
+    bool public constant DEFAULT_REQUIRE_SEPT_VE = true; // same policy as the deployed testnet stacks
     uint64 public constant DEFAULT_VALIDITY_BLOCKS = 170_000;
     uint64 public constant DEFAULT_GRACE_BLOCKS = 170_000;
     uint64 public constant DEFAULT_BLOCK_TIME_MS = 509;
@@ -55,7 +55,7 @@ contract DeployTestnet is Script {
         address identity;
         address treasury;
         address owner;
-        address module; // module d'attestation déjà déployé (ignoré si mockAttestation)
+        address module; // attestation module already deployed (ignored when mockAttestation is set)
         bool mockAttestation;
         uint64 timelock;
         uint16 networkBountyBps;
@@ -106,18 +106,18 @@ contract DeployTestnet is Script {
         c.blockTimeMs = uint64(vm.envOr("BLOCK_TIME_MS", uint256(DEFAULT_BLOCK_TIME_MS)));
     }
 
-    /// @notice Garde-fous : jamais le module d'attestation simulé sur Arc mainnet.
+    /// @notice Guardrails: this script, which can deploy the simulated attestation module, never runs on Arc mainnet.
     function check(Config memory c) public view {
         require(
             block.chainid != ARC_MAINNET_CHAIN_ID,
-            unicode"DeployTestnet : module d'attestation SIMULÉ, interdit sur Arc mainnet (utiliser Deploy.s.sol)"
+            "DeployTestnet is refused on Arc mainnet: it can deploy a simulated attestation module (use Deploy.s.sol)"
         );
-        require(c.treasury != address(0), unicode"TREASURY : adresse nulle");
-        require(c.owner != address(0), unicode"OWNER : adresse nulle");
-        require(c.identity != address(0), unicode"ERC8004_IDENTITY : adresse nulle");
-        require(c.validityBlocks > 0 && c.blockTimeMs > 0, unicode"VALIDITY_BLOCKS et BLOCK_TIME_MS doivent être > 0");
+        require(c.treasury != address(0), "TREASURY: zero address");
+        require(c.owner != address(0), "OWNER: zero address");
+        require(c.identity != address(0), "ERC8004_IDENTITY: zero address");
+        require(c.validityBlocks > 0 && c.blockTimeMs > 0, "VALIDITY_BLOCKS and BLOCK_TIME_MS must be > 0");
         if (!c.mockAttestation) {
-            require(c.module.code.length > 0, unicode"ATTESTATION_MODULE : aucun code à cette adresse");
+            require(c.module.code.length > 0, "ATTESTATION_MODULE: no code at this address");
         }
     }
 
@@ -151,7 +151,7 @@ contract DeployTestnet is Script {
         X402Settler x402 = new X402Settler(c.usdc, address(products), address(registry), address(bond), c.treasury);
         DemoVault demoVault = new DemoVault(c.usdc);
 
-        // câblage des droits, UNE fois, par la clé de déploiement
+        // permissions wired ONCE by the deployer key
         address[] memory settlements = new address[](3);
         settlements[0] = address(sessionPay);
         settlements[1] = address(sealedBounty);
@@ -181,7 +181,7 @@ contract DeployTestnet is Script {
         console2.log("GRACE_BLOCKS         ", uint256(c.graceBlocks));
         console2.log("BLOCK_TIME_MS        ", uint256(c.blockTimeMs));
         console2.log("REQUIRE_SEPT_VE      ", c.requireSeptVe);
-        console2.log(c.mockAttestation ? "Module SIMULE (demo)  " : "TdxAttestationModule ", d.module);
+        console2.log(c.mockAttestation ? "Simulated module     " : "TdxAttestationModule ", d.module);
         console2.log("OWNER                ", c.owner);
         console2.log("ProductRegistry      ", d.products);
         console2.log("OperatorBond         ", d.bond);

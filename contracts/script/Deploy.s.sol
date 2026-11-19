@@ -12,46 +12,46 @@ import {SessionPay} from "../src/SessionPay.sol";
 import {SealedBounty} from "../src/SealedBounty.sol";
 import {X402Settler} from "../src/X402Settler.sol";
 
-/// @title Deploy — déploie et CÂBLE tout le réseau d'enclaves d'Arc (pile v2, cible : Arc MAINNET).
-/// @notice Prend les adresses externes (déjà sur la chaîne) par variables d'environnement. Les défauts
-///         sont les valeurs MAINNET (deploy/mainnet.env.example) :
-///   USDC                 l'USDC d'Arc (0x3600…0000)                                    — obligatoire
-///   DCAP                 le vérificateur Automata DCAP (C1), déployé à part ; absent
-///                        d'Arc mainnet au 7/11 : à déployer d'abord                    — obligatoire
-///   ERC8004_VALIDATION   le registre de validation ERC-8004 de Circle (du code exigé)   — obligatoire
-///   ERC8004_IDENTITY     le registre d'identité ERC-8004 de Circle (propriété des agentId) — obligatoire
-///   TREASURY             le fonds du réseau (multisig 2-sur-3, jamais une seule clé ;
-///                        sur Arc mainnet : du code exigé à l'adresse)                    — obligatoire
-///   OWNER                la gouvernance de OperatorBond et VerdictLog (multisig 2-sur-3 ;
-///                        sur Arc mainnet : du code exigé, jamais la clé de déploiement)  — obligatoire
-///   TIMELOCK             délai d'activation d'un produit / d'un changement de prix, en s
-///                        (défaut 172 800 = 48 h ; refusé sous 48 h sur Arc mainnet)
-///   NETWORK_BOUNTY_BPS   part réseau des primes, en plus du palier (défaut 1000 = 10 %)
-///   OPERATOR_BOUNTY_BPS  part des enclaves vérificatrices, en plus (défaut 500 = 5 %)
-///   REQUIRE_SEPT_VE      exiger SEPT_VE_DISABLE (0/1, défaut 1 : le vrai quote de notre enclave
-///                        Phala a tdAttributes = 0x10000000, DEBUG = 0)
-///   VALIDITY_BLOCKS      validité d'une attestation, en blocs (défaut 170 000 ≈ 24 h)
-///   GRACE_BLOCKS         délai de règlement après la fin d'une fenêtre, en blocs (défaut 170 000 ≈ 24 h)
-///   BLOCK_TIME_MS        durée de bloc estimée, pour l'horodatage indicatif expiresAt (défaut 508)
+/// @title Deploy: deploys and wires the whole ArcHive enclave network (target: Arc mainnet).
+/// @notice Reads the external addresses (already on chain) from environment variables. The defaults are the
+///         mainnet values (deploy/mainnet.env.example):
+///   USDC                 Arc's USDC (0x3600…0000)                                          — required
+///   DCAP                 Automata's DCAP verifier, deployed separately (deploy it first on
+///                        a chain that does not have it yet)                                — required
+///   ERC8004_VALIDATION   Circle's ERC-8004 validation registry (code required)             — required
+///   ERC8004_IDENTITY     Circle's ERC-8004 identity registry (owner of the agentIds)       — required
+///   TREASURY             the network treasury (a 2-of-3 multisig, never a single key;
+///                        on Arc mainnet, code is required at the address)                  — required
+///   OWNER                governance of OperatorBond and VerdictLog (a 2-of-3 multisig;
+///                        on Arc mainnet, code is required and it is never the deployer key) — required
+///   TIMELOCK             activation delay of a new product or a price change, in seconds
+///                        (default 172,800 = 48 h; anything below 48 h is refused on Arc mainnet)
+///   NETWORK_BOUNTY_BPS   network share of a bounty, on top of the tier (default 1000 = 10 %)
+///   OPERATOR_BOUNTY_BPS  share of the verifying enclaves, on top of the tier (default 500 = 5 %)
+///   REQUIRE_SEPT_VE      require SEPT_VE_DISABLE (0/1, default 1: the real quote of our Phala
+///                        enclave has tdAttributes = 0x10000000, DEBUG = 0)
+///   VALIDITY_BLOCKS      validity of an attestation, in blocks (default 170,000 ≈ 24 h)
+///   GRACE_BLOCKS         settlement delay after a window ends, in blocks (default 170,000 ≈ 24 h)
+///   BLOCK_TIME_MS        estimated block time, for the indicative expiresAt timestamp (default 508)
 ///
-///   Durée de bloc mesurée le 7/11/2026 (cast block, écart de timestamps) : Arc mainnet 508,1 ms/bloc sur
-///   1 000 000 de blocs, 506,7–509,6 ms sur les fenêtres de 172 800 blocs des 89 derniers jours ; donc
-///   24 h ≈ 170 000 blocs (23,9–24,1 h).
+///   Block time measured on 2026-11-07 (cast block, timestamp differences): Arc mainnet 508.1 ms per block over
+///   1,000,000 blocks, 506.7–509.6 ms over each 172,800-block window of the previous 89 days; so
+///   24 h ≈ 170,000 blocks (23.9–24.1 h).
 ///
-/// v2 bis (revue adverse du 7/11) : la clé de déploiement câble OperatorBond et VerdictLog UNE fois pendant ce
-/// script (initialize), avant toute caution, puis n'a plus aucun pouvoir ; tout nouvel ajout passe par OWNER avec
-/// 8 jours de délai. SessionPay facture les tentatives de la Prime scellée (attemptsFor = SealedBounty).
+/// Wiring (hardened after an adversarial review): the deployer key wires OperatorBond and VerdictLog ONCE during
+/// this script (initialize), before any bond is posted, and holds no power afterwards; every later addition goes
+/// through OWNER with an 8-day delay. SessionPay bills the Sealed Bounty attempts (attemptsFor = SealedBounty).
 ///
-/// Usage : forge script script/Deploy.s.sol --rpc-url https://rpc.mainnet.arc.io --broadcast
+/// Usage: forge script script/Deploy.s.sol --rpc-url https://rpc.mainnet.arc.io --broadcast
 contract Deploy is Script {
     uint256 public constant ARC_MAINNET_CHAIN_ID = 5042;
 
-    uint64 public constant DEFAULT_TIMELOCK = 172_800; // 48 h (prix verrouillé à l'ouverture en v2)
+    uint64 public constant DEFAULT_TIMELOCK = 172_800; // 48 h (a session's price is locked when the session opens)
     uint64 public constant MIN_MAINNET_TIMELOCK = 172_800;
     uint16 public constant DEFAULT_NETWORK_BOUNTY_BPS = 1000;
     uint16 public constant DEFAULT_OPERATOR_BOUNTY_BPS = 500;
     bool public constant DEFAULT_REQUIRE_SEPT_VE = true;
-    uint64 public constant DEFAULT_VALIDITY_BLOCKS = 170_000; // ≈ 24 h à 508 ms/bloc
+    uint64 public constant DEFAULT_VALIDITY_BLOCKS = 170_000; // ≈ 24 h at 508 ms per block
     uint64 public constant DEFAULT_GRACE_BLOCKS = 170_000; // ≈ 24 h
     uint64 public constant DEFAULT_BLOCK_TIME_MS = 508;
 
@@ -93,7 +93,7 @@ contract Deploy is Script {
         _log(c, d);
     }
 
-    /// @notice Lit la configuration dans l'environnement ; les défauts sont les valeurs mainnet.
+    /// @notice Reads the configuration from the environment; the defaults are the mainnet values.
     function configFromEnv() public view returns (Config memory c) {
         c.usdc = vm.envAddress("USDC");
         c.dcap = vm.envAddress("DCAP");
@@ -110,24 +110,24 @@ contract Deploy is Script {
         c.blockTimeMs = uint64(vm.envOr("BLOCK_TIME_MS", uint256(DEFAULT_BLOCK_TIME_MS)));
     }
 
-    /// @notice Garde-fous avant tout envoi : refuse une configuration dangereuse.
+    /// @notice Guardrails checked before anything is sent: an unsafe configuration is refused.
     function check(Config memory c) public view {
-        require(c.dcap.code.length > 0, unicode"DCAP : aucun code à cette adresse (déployer Automata DCAP d'abord)");
-        require(c.treasury != address(0), unicode"TREASURY : adresse nulle");
-        require(c.owner != address(0), unicode"OWNER : adresse nulle");
-        require(c.identity != address(0), unicode"ERC8004_IDENTITY : adresse nulle");
-        require(c.validityBlocks > 0 && c.blockTimeMs > 0, unicode"VALIDITY_BLOCKS et BLOCK_TIME_MS doivent être > 0");
+        require(c.dcap.code.length > 0, "DCAP: no code at this address (deploy Automata DCAP first)");
+        require(c.treasury != address(0), "TREASURY: zero address");
+        require(c.owner != address(0), "OWNER: zero address");
+        require(c.identity != address(0), "ERC8004_IDENTITY: zero address");
+        require(c.validityBlocks > 0 && c.blockTimeMs > 0, "VALIDITY_BLOCKS and BLOCK_TIME_MS must be > 0");
         if (block.chainid == ARC_MAINNET_CHAIN_ID) {
-            require(c.timelock >= MIN_MAINNET_TIMELOCK, unicode"TIMELOCK < 48 h refusé sur Arc mainnet");
-            require(c.treasury.code.length > 0, unicode"TREASURY : un multisig (du code) est exigé sur Arc mainnet");
-            require(c.owner.code.length > 0, unicode"OWNER : un multisig (du code) est exigé sur Arc mainnet");
-            require(c.owner != msg.sender, unicode"OWNER : jamais la clé de déploiement sur Arc mainnet");
-            require(c.validation.code.length > 0, unicode"ERC8004_VALIDATION : aucun code à cette adresse");
-            require(c.identity.code.length > 0, unicode"ERC8004_IDENTITY : aucun code à cette adresse");
+            require(c.timelock >= MIN_MAINNET_TIMELOCK, "TIMELOCK below 48 h is refused on Arc mainnet");
+            require(c.treasury.code.length > 0, "TREASURY must be a multisig (contract code) on Arc mainnet");
+            require(c.owner.code.length > 0, "OWNER must be a multisig (contract code) on Arc mainnet");
+            require(c.owner != msg.sender, "OWNER must never be the deployer key on Arc mainnet");
+            require(c.validation.code.length > 0, "ERC8004_VALIDATION: no code at this address");
+            require(c.identity.code.length > 0, "ERC8004_IDENTITY: no code at this address");
         }
     }
 
-    /// @notice Déploie et câble la pile (appelée entre start/stopBroadcast par run, ou directement en test).
+    /// @notice Deploys and wires the stack (called by run between start/stopBroadcast, or directly from a test).
     function deploy(Config memory c) public returns (Deployed memory d) {
         TdxAttestationModule module = new TdxAttestationModule(c.dcap);
         ProductRegistry products = new ProductRegistry(c.timelock);
@@ -153,13 +153,13 @@ contract Deploy is Script {
             c.networkBountyBps,
             c.operatorBountyBps
         );
-        // SessionPay facture aussi les tentatives de la Prime scellée (sessions sur ses produits, prix > 0)
+        // SessionPay also bills the Sealed Bounty attempts (sessions on its products, price > 0)
         SessionPay sessionPay = new SessionPay(
             c.usdc, address(products), address(registry), address(bond), address(verdict), c.treasury, address(sealedBounty)
         );
         X402Settler x402 = new X402Settler(c.usdc, address(products), address(registry), address(bond), c.treasury);
 
-        // câblage des droits, UNE fois, par la clé de déploiement (aucune caution déposée à ce stade)
+        // permissions wired ONCE by the deployer key (no bond has been posted at this point)
         address[] memory settlements = new address[](3);
         settlements[0] = address(sessionPay);
         settlements[1] = address(sealedBounty);
