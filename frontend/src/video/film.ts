@@ -840,9 +840,10 @@ const early = (() => {
   if (!man) return null
   const set = man.ysFrom ?? SET
   const meta = fetch(`${ROOT}${set}/meta.bin`, { priority: 'high' } as RequestInit).then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null)
-  const e = { meta, w: null as Worker | null, q: [] as MessageEvent[], t0: performance.now(), failed: false }
+  const e = { meta, w: null as Worker | null, q: [] as [number, MessageEvent][], t0: performance.now(), failed: false }
   try { e.w = new Worker(new URL('./pack.worker.ts', import.meta.url), { type: 'module' }) } catch { return e }
-  e.w.onmessage = (m) => { e.q.push(m) }
+  // kept with their arrival time (the rate is measured on it)
+  e.w.onmessage = (m) => { e.q.push([performance.now(), m]) }
   e.w.onerror = () => { e.failed = true }
   void meta.then((buf) => { if (buf && e.w) { const fp = fingerprint(new Uint8Array(buf)); e.w.postMessage({ type: 'pack', url: `${ROOT}${set}/${PACK}?v=${fp.toString(36)}`, n: man.n, fp }) } })
   return e
@@ -862,8 +863,7 @@ let mStamp = new Uint32Array(0), mSV = 1, mDirty = true, mPos = NaN, heldFrom = 
 const WG = window as unknown as { __filmGate?: string; __copilotP?: Promise<unknown>; __filmM?: unknown }
 /** The loading fraction for the header bar: meta.bin and the pack up to its gate point */
 export const gateFrac = () => (M.head ? Math.min(1, (M.metaBytes + Math.min(M.got, M.gateAt)) / (M.metaBytes + M.gateAt)) : 0.04)
-function rateOn(got: number) {
-  const now = performance.now()
+function rateOn(got: number, now: number) {
   // the first 128 KB carry the request's round trip and the slow start
   if (got < 131072) return
   if (!M.rT) { M.rT = now; M.rG = got; return }
@@ -1244,17 +1244,17 @@ async function mountMotion(man: Manifest, fp: number, metaBytes: number, onFirst
   let off: (() => void) | null = null
   if (pw) {
     type PM = { type: 'head'; w: number; h: number; count: number; total: number; gateAt: number; ks: Int32Array<ArrayBuffer>; ends: Int32Array<ArrayBuffer> } | { type: 'prog'; got: number } | { type: 'done'; cached: boolean } | { type: 'bmp'; k: number; bmp: ImageBitmap } | { type: 'fail'; why: string }
-    const onMsg = (e: MessageEvent<PM>) => {
+    const onMsg = (e: MessageEvent<PM>, at = performance.now()) => {
       const d = e.data
       if (d.type === 'head') {
-        M.w = d.w; M.h = d.h; M.count = d.count; M.total = d.total; M.gateAt = d.gateAt; M.ks = d.ks; M.ends = d.ends; M.head = true; M.tHead = performance.now()
+        M.w = d.w; M.h = d.h; M.count = d.count; M.total = d.total; M.gateAt = d.gateAt; M.ks = d.ks; M.ends = d.ends; M.head = true; M.tHead = at
         // the motion canvas has the pack's size: each frame drawn unscaled, the framing is CSS
         cv.width = d.w; cv.height = d.h; g.imageSmoothingQuality = 'low'; mDirty = true
         arrive()
-      } else if (d.type === 'prog') { M.got = d.got; if (!M.rT0 && d.got >= 131072) { M.rT0 = performance.now(); M.rG0 = d.got } rateOn(d.got); arrive() }
+      } else if (d.type === 'prog') { M.got = d.got; if (!M.rT0 && d.got >= 131072) { M.rT0 = at; M.rG0 = d.got } rateOn(d.got, at); arrive() }
       else if (d.type === 'done') {
         M.done = true; M.cached = d.cached
-        const now = performance.now()
+        const now = at
         // a pack read from a cache gives no rate: the last one measured on this browser
         if (d.cached || now - M.tHead < 300) { try { film.rate = Number(localStorage.getItem('film-rate')) || 0 } catch { /* none */ } }
         else {
@@ -1270,7 +1270,7 @@ async function mountMotion(man: Manifest, fp: number, metaBytes: number, onFirst
     if (early?.w === pw) {
       // started early: what the worker has said so far, in order
       M.t0 = early.t0
-      for (const e of early.q) onMsg(e as MessageEvent<PM>)
+      for (const [at, e] of early.q) onMsg(e as MessageEvent<PM>, at)
       early.q.length = 0
       if (early.failed) M.fail = M.fail || 'worker'
     } else {
