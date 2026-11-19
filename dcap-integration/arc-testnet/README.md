@@ -1,7 +1,8 @@
 # Real Intel TDX verification on Arc testnet (Automata DCAP, PCCS on-chain)
 
-**Result (7 Nov 2026, chain 5042002):** the real TDX v4 quote of our Phala (dstack) enclave is verified **on Arc**, by
-Automata's DCAP stack (MIT, contracts unchanged), with Intel's collateral loaded on-chain. No mock.
+**Result (7 Nov 2026, chain 5042002):** the real TDX v4 quote of ArcHive's Phala (dstack) enclave is verified **on Arc**,
+by Automata's DCAP stack (MIT, contracts unchanged), with Intel's collateral loaded on-chain and the quote checked in a
+real Arc testnet transaction.
 
 | | |
 |---|---|
@@ -52,7 +53,7 @@ that is **−1.71 M gas (−25 %)** for the 5 ECDSA signatures of a quote.
 cd dcap-integration/arc-testnet
 ./run.sh fetch     # the enclave's quote (ENCLAVE_URL) and Intel PCS v4 collateral -> collateral/
 ./run.sh deploy    # installs the script in vendor/, dry-runs the plan on an Arc fork, sends it tx by tx, records it
-./run.sh verify    # eth_call, then a REAL verifyAndAttestOnChain(quote) transaction
+./run.sh verify    # eth_call, then a real verifyAndAttestOnChain(quote) transaction
 ./run.sh module    # compiles contracts/src/attestation/TdxAttestationModule.sol (unchanged), deploys it, eth_call
 ./run.sh measure   # precompile vs Solidity gas, and altered quotes (free)
 ```
@@ -61,10 +62,10 @@ cd dcap-integration/arc-testnet
   `vendor/automata-dcap-attestation` with its submodules
   (`git clone --recursive https://github.com/automata-network/automata-dcap-attestation`). The key is read from the file
   named by `KEY_FILE`, never printed.
-- Why a plan, then one transaction at a time: the deployment key is shared with other tools, and
-  `forge script --broadcast` fixes the nonces in advance. Here the plan (`forge script` without `--broadcast`) is sent by
-  `send_plan.py` (nonce read again for each transaction, receipt checked). Deployments use CREATE2: running `deploy`
-  again reuses what already exists.
+- Why a plan, then one transaction at a time: `forge script --broadcast` fixes every nonce in advance. Here the plan
+  (`forge script` without `--broadcast`) is sent by `send_plan.py` (nonce re-read before each transaction, receipt
+  checked), so the deployment stays correct even if the same account sends other transactions in the meantime.
+  Deployments use CREATE2: running `deploy` again reuses what already exists.
 - Forge's local EVM has no `0x100` precompile: for the local run of the plan only, Daimo's code is copied there
   (`vm.etch`), so the whole path (upserts and quote) is checked before anything is sent.
 
@@ -82,7 +83,8 @@ The DAOs refuse a duplicate or older collateral: those upserts are skipped in th
 **A new evaluation number.** `verifyAndAttestOnChain(quote)` uses Automata's "standard" number: the most recent one whose
 TCB recovery event is at least 12 months old (20 today). Number 21 (event of 10 Feb 2026) becomes standard around
 **10 Feb 2027**: before then, run `./run.sh add-eval 21` (2 versioned DAOs and their collateral, wired to the router).
-For policy P2: our Phala machine is UpToDate at 20, but **OutOfDate at 21** (TDX module `TDX_01` isvsvn 11 < 13) and
+For policy P2 (the TCB must be UpToDate; the policies are checked in `contracts/src/EnclaveRegistry.sol`): the Phala
+machine is UpToDate at 20, but **OutOfDate at 21** (TDX module `TDX_01` isvsvn 11 < 13) and
 **at 22** ("early", 11 Aug 2026: microcode, INTEL-SA-01404/01439/01442) until Phala updates the host.
 `verifyAndAttestOnChain(quote, n)` can also be called with any loaded number.
 
@@ -110,7 +112,8 @@ and Daimo present, 30 M gas per block. What changes:
   `TdxAttestationModule` `0x26c1…51ca` (or `contracts/script/Deploy.s.sol` with
   `DCAP=0x48640f7d94de64b13c89686f3d1240a31aeb4dc9`).
 - The quote verified here is anchored (reportData[32:64]) to block 71,069,461: too old for the EIP-2935 window
-  (8,191 blocks) of rule P7; `registerEnclave` asks the enclave for a fresh quote.
+  (8,191 blocks) of policy P7 (REPORTDATA[32:64] anchors a recent Arc block); `registerEnclave` asks the enclave for a
+  fresh quote.
 
 ## Files
 

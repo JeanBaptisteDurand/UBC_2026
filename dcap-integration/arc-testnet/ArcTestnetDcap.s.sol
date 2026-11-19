@@ -1,23 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-/// @title ArcTestnetDcap — déploie la pile DCAP d'Automata (PCCS on-chain + entrée + vérificateur V4)
-///        sur Arc et y charge le collatéral Intel d'UN quote TDX réel.
-/// @notice Contrats d'Automata utilisés tels quels (MIT, arbre vendored). Même assemblage que leur
-///         harnais de test (forge-test/utils/PCCSSetupBase.sol) : DAO « versionnées » par numéro
-///         d'évaluation TCB, PccsDependencyConfig, PCCSRouter, AutomataDcapAttestationFee, V4QuoteVerifier.
-///         Le vérificateur P-256 est choisi par l'outil d'Automata (P256Configuration.simulateVerify :
-///         appel réel au précompile 0x100 via RPC_URL, repli Daimo sinon).
-/// @dev Installé par dcap-integration/arc-testnet/run.sh dans evm/forge-script/arc/.
-///      Ce script sert de PLAN : on l'exécute SANS --broadcast (fork local d'Arc) ; la liste de
-///      transactions qu'il produit (broadcast/.../dry-run/<sig>-latest.json) est envoyée ensuite par
-///      send_plan.py, une transaction à la fois, nonce relu à chaque envoi (la clé est partagée).
-///      - Déploiements en CREATE2 (fabrique 0x4e59…) : adresses indépendantes du nonce ; un contrat
-///        déjà présent à l'adresse prévue est réutilisé (relance sans doublon).
-///      - L'EVM locale de forge (paris) n'a pas le précompile P-256 : pour la SEULE exécution locale,
-///        le code Solidity de Daimo (déjà déployé sur Arc) est copié à 0x100. Sur Arc, le vrai
-///        précompile répond.
-///      - Chaque upsert est d'abord joué à sec (snapshot + prank) : seuls ceux qui passent entrent au plan.
+/// @title ArcTestnetDcap — deploys Automata's DCAP stack (on-chain PCCS + entry point + V4 verifier)
+///        on Arc and loads the Intel collateral of one real TDX quote.
+/// @notice Automata's contracts are used unchanged (MIT, vendored tree), assembled as in their test
+///         harness (forge-test/utils/PCCSSetupBase.sol): DAOs versioned by TCB evaluation number,
+///         PccsDependencyConfig, PCCSRouter, AutomataDcapAttestationFee, V4QuoteVerifier.
+///         The P-256 verifier is chosen by Automata's tool (P256Configuration.simulateVerify: a real
+///         call to the 0x100 precompile through RPC_URL, with Daimo as the fallback).
+/// @dev Installed by dcap-integration/arc-testnet/run.sh into evm/forge-script/arc/.
+///      This script is a PLAN: it runs WITHOUT --broadcast (on a local Arc fork); the transaction list
+///      it produces (broadcast/.../dry-run/<sig>-latest.json) is then sent by send_plan.py one
+///      transaction at a time, re-reading the nonce before each send.
+///      - CREATE2 deployments (factory 0x4e59…): addresses do not depend on the nonce; a contract
+///        already at its expected address is reused (re-runs create no duplicates).
+///      - Forge's local EVM (paris) has no P-256 precompile: for the local run ONLY, Daimo's Solidity
+///        code (already deployed on Arc) is copied to 0x100. On Arc, the real precompile answers.
+///      - Every upsert is dry-run first (snapshot + prank): only the ones that pass enter the plan.
 
 import {console2} from "forge-std/console2.sol";
 import {stdJson} from "forge-std/StdJson.sol";
@@ -58,8 +57,8 @@ contract ArcTestnetDcap is P256Configuration {
     using JSONParserLib for JSONParserLib.Item;
     using LibString for string;
 
-    uint256 constant PCS_API_VERSION = 4; // identité QE TDX = PCS v4
-    uint256 constant ATTESTER_ROLE = 1; // _ROLE_0 des DAO Automata (OwnableRoles)
+    uint256 constant PCS_API_VERSION = 4; // TDX QE identity = PCS v4
+    uint256 constant ATTESTER_ROLE = 1; // _ROLE_0 of Automata's DAOs (OwnableRoles)
 
     address owner;
     string collateralDir;
@@ -84,13 +83,13 @@ contract ArcTestnetDcap is P256Configuration {
         address v4;
     }
 
-    // ------------------------------------------------------------------ entrées
+    // ------------------------------------------------------------------ entry points
 
     function run() public override {
         deploy();
     }
 
-    /// @notice Déploie (ou complète) toute la pile, charge le collatéral, vérifie le quote en local.
+    /// @notice Deploys (or completes) the whole stack, loads the collateral and verifies the quote locally.
     function deploy() public {
         _env();
         uint32 tcbEval = uint32(vm.envUint("TCB_EVAL"));
@@ -127,7 +126,7 @@ contract ArcTestnetDcap is P256Configuration {
         );
 
         vm.startBroadcast(owner);
-        // pas de lecteur public pour les écrivains autorisés : ré-accorder est idempotent et coûte ~30 k gas
+        // no public getter for authorized writers: re-granting is idempotent and costs ~30k gas
         AutomataDaoStorage(s.store).grantDao(s.pcsDao);
         AutomataDaoStorage(s.store).grantDao(s.pckDao);
         AutomataDaoStorage(s.store).grantDao(s.tcbEvalDao);
@@ -165,8 +164,8 @@ contract ArcTestnetDcap is P256Configuration {
         _localCheck(s.attestation);
     }
 
-    /// @notice Recharge le collatéral (nouvelle TCB info, identité QE, CRL…) dans une pile existante.
-    ///         Les upserts inchangés ou plus anciens sont sautés (joués à sec d'abord).
+    /// @notice Reloads the collateral (new TCB info, QE identity, CRL…) into an existing stack.
+    ///         Unchanged or older upserts are skipped (dry-run first).
     function refresh() public {
         _env();
         _upsertAll(
@@ -179,8 +178,8 @@ contract ArcTestnetDcap is P256Configuration {
         _localCheck(vm.envAddress("DCAP_ATTESTATION"));
     }
 
-    /// @notice Ajoute un numéro d'évaluation TCB (ex. quand le « standard » d'Automata passe de 20 à 21) :
-    ///         deux DAO versionnées neuves branchées au routeur, puis le collatéral de ce numéro.
+    /// @notice Adds a TCB evaluation number (e.g. when Automata's "standard" moves from 20 to 21):
+    ///         two new versioned DAOs wired to the router, then that number's collateral.
     function addTcbEval() public {
         _env();
         uint32 tcbEval = uint32(vm.envUint("TCB_EVAL"));
@@ -203,7 +202,7 @@ contract ArcTestnetDcap is P256Configuration {
         _upsertAll(pcsDao, vm.envAddress("TCB_EVAL_DAO"), enclaveIdDao, fmspcTcbDao, enclaveIdHelper);
     }
 
-    // ------------------------------------------------------------------ déploiement
+    // ------------------------------------------------------------------ deployment
 
     function _versionedDaos(
         address store,
@@ -256,7 +255,7 @@ contract ArcTestnetDcap is P256Configuration {
         }
     }
 
-    /// @dev CREATE2 via la fabrique déterministe (comme les scripts d'Automata) ; réutilise l'existant.
+    /// @dev CREATE2 through the deterministic factory (as in Automata's scripts); reuses an existing contract.
     function _create2(string memory name, bytes memory initCode) internal returns (address addr) {
         bytes32 salt = keccak256(abi.encodePacked(saltTag, ":", name));
         addr = vm.computeCreate2Address(salt, keccak256(initCode), CREATE2_FACTORY);
@@ -266,7 +265,7 @@ contract ArcTestnetDcap is P256Configuration {
         }
         vm.broadcast(owner);
         (bool ok,) = CREATE2_FACTORY.call(abi.encodePacked(salt, initCode));
-        require(ok && addr.code.length > 0, string.concat("CREATE2 echoue : ", name));
+        require(ok && addr.code.length > 0, string.concat("CREATE2 failed: ", name));
     }
 
     function _logStack(Stack memory s) internal pure {
@@ -287,7 +286,7 @@ contract ArcTestnetDcap is P256Configuration {
         console2.log("V4QuoteVerifier                 ", s.v4);
     }
 
-    // ------------------------------------------------------------------ collatéral
+    // ------------------------------------------------------------------ collateral
 
     function _env() internal {
         owner = vm.envAddress("OWNER");
@@ -295,14 +294,14 @@ contract ArcTestnetDcap is P256Configuration {
         saltTag = vm.envOr("SALT_TAG", string("archive-dcap-arc-v1"));
         p256 = vm.envOr("P256_VERIFIER", address(0));
         if (p256 == address(0)) {
-            // outil d'Automata : teste 0x100 (RIP-7212 / EIP-7951) puis Daimo, sur la vraie chaîne (RPC_URL)
+            // Automata's tool: tries 0x100 (RIP-7212 / EIP-7951), then Daimo, on the live chain (RPC_URL)
             p256 = simulateVerify();
         }
-        console2.log("P256 verifier retenu", p256);
+        console2.log("P256 verifier selected", p256);
         if (p256 == RIP7212_P256_PRECOMPILE && p256.code.length == 0) {
-            require(DAIMO_P256.code.length > 0, "Daimo absent : impossible de simuler 0x100 en local");
+            require(DAIMO_P256.code.length > 0, "Daimo missing: cannot simulate 0x100 locally");
             vm.etch(p256, DAIMO_P256.code);
-            console2.log("[local] 0x100 simule par le code Daimo (execution locale seulement)");
+            console2.log("[local] 0x100 simulated with Daimo's code (local run only)");
         }
     }
 
@@ -326,7 +325,7 @@ contract ArcTestnetDcap is P256Configuration {
         _try(
             pcsDao,
             abi.encodeCall(PcsDao.upsertRootCACrl, (vm.readFileBinary(string.concat(dir, "root_ca_crl.der")))),
-            "CRL de la racine"
+            "Root CA CRL"
         );
         _try(
             pcsDao,
@@ -343,28 +342,28 @@ contract ArcTestnetDcap is P256Configuration {
         _try(
             pcsDao,
             abi.encodeCall(PcsDao.upsertPckCrl, (pckCa, vm.readFileBinary(string.concat(dir, "pck_crl.der")))),
-            "CRL PCK"
+            "PCK CRL"
         );
         _try(
             tcbEvalDao,
             abi.encodeCall(TcbEvalDao.upsertTcbEvaluationData, (_readTcbEvalJson(string.concat(dir, "tdx_tcb_eval.json")))),
-            "numeros d'evaluation TCB TDX"
+            "TDX TCB evaluation numbers"
         );
         EnclaveIdentityJsonObj memory idJson = _readIdentityJson(string.concat(dir, "tdx_qe_identity.json"));
         (IdentityObj memory identity,) = EnclaveIdentityHelper(enclaveIdHelper).parseIdentityString(idJson.identityStr);
         _try(
             enclaveIdDao,
             abi.encodeCall(EnclaveIdentityDao.upsertEnclaveIdentity, (uint256(identity.id), PCS_API_VERSION, idJson)),
-            "identite du QE TDX"
+            "TDX QE identity"
         );
         _try(
             fmspcTcbDao,
             abi.encodeCall(FmspcTcbDao.upsertFmspcTcb, (_readTcbInfoJson(string.concat(dir, "tdx_tcb_info.json")))),
-            "TCB info TDX du FMSPC"
+            "TDX TCB info for the FMSPC"
         );
     }
 
-    /// @dev Joue l'appel à sec (état restauré), puis le met au plan seulement s'il passe.
+    /// @dev Dry-runs the call (state restored), then adds it to the plan only if it succeeds.
     function _try(address target, bytes memory data, string memory label) internal returns (bool) {
         uint256 snap = vm.snapshotState();
         vm.prank(owner);
@@ -373,18 +372,18 @@ contract ArcTestnetDcap is P256Configuration {
         uint256 used = g - gasleft();
         vm.revertToState(snap);
         if (!ok) {
-            console2.log(string.concat("[saute] ", label, " : revert (deja charge, plus ancien ou invalide)"));
+            console2.log(string.concat("[skip]  ", label, ": reverts (already loaded, older or invalid)"));
             console2.logBytes(ret);
             return false;
         }
         vm.broadcast(owner);
         (ok,) = target.call(data);
-        require(ok, string.concat("echec apres essai a sec : ", label));
-        console2.log(string.concat("[ok]    ", label, " - gas local ~"), used);
+        require(ok, string.concat("failed after a passing dry run: ", label));
+        console2.log(string.concat("[ok]    ", label, " - local gas ~"), used);
         return true;
     }
 
-    /// @dev Vérification locale (hors plan) du quote, avec le P-256 Solidity de Daimo à la place du précompile.
+    /// @dev Local check of the quote (outside the plan), with Daimo's Solidity P-256 in place of the precompile.
     function _localCheck(address attestation) internal {
         string memory path = string.concat(vm.projectRoot(), "/", collateralDir, "/quote.hex");
         bytes memory quote = vm.parseBytes(vm.readFile(path));
@@ -401,7 +400,7 @@ contract ArcTestnetDcap is P256Configuration {
         }
     }
 
-    // Lecteurs JSON : même logique que forge-test/utils/PCCSSetupBase.sol d'Automata (octets exacts signés par Intel).
+    // JSON readers: same logic as Automata's forge-test/utils/PCCSSetupBase.sol (the exact bytes Intel signed).
 
     function _readTcbInfoJson(string memory path) private view returns (TcbInfoJsonObj memory obj) {
         string memory data = vm.readFile(path);
