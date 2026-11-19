@@ -1,42 +1,45 @@
-/** x402.ts — l'inférence privée payée À L'APPEL (rail x402, schéma « exact ») : pas de session, un appel = une requête
- *  chiffrée + une autorisation EIP-3009 du montant exact, réglée ensuite par X402Settler.settle sur le reçu de l'enclave.
+/** x402.ts — private inference paid PER CALL (the x402 rail, "exact" scheme): no session, one call = one encrypted
+ *  request + an EIP-3009 authorization for the exact amount, settled afterwards by X402Settler.settle on the enclave's
+ *  receipt.
  *
- *  Client (createX402Client) :
- *   1. vérifie la clé de l'enclave sur la chaîne (verifyEnclaveKeys : clé X25519 inscrite, enclave active pour le produit) ;
- *   2. lit le produit on-chain : réglé par X402Settler, actif, prix d'un appel (Product.price × 1) ;
- *   3. chiffre la requête (salée) vers la clé VÉRIFIÉE ; le nonce EIP-3009 = engagement sur cette requête (x402CallNonce) ;
- *   4. gère le 402 : les exigences de l'enclave sont CONFRONTÉES à la chaîne (payTo = X402Settler du déploiement, asset =
- *      USDC, montant = prix on-chain) — un mandataire qui détourne le paiement ou gonfle le prix est refusé, rien n'est
- *      signé — puis signe l'autorisation (domaine EIP-712 de l'USDC pris dans le déploiement, pas dans le 402) ;
- *   5. vérifie le reçu : signé par l'enclave vérifiée, pour ce produit, ce payeur, ce nonce, une unité, le hash de la
- *      requête envoyée et celui du texte reçu (lié à la requête) ; sinon le texte n'est pas rendu ; `settleable` dit si
- *      X402Settler.settle accepterait ce reçu (enclave active au bloc d'ancrage).
- *  Après l'envoi payé (correctif du 9/11, preuves 1 et 2 du vérificateur) : une réponse arrive par un mandataire (proxy du
- *  site, CDN, passerelle Phala) qui peut la garder et renvoyer autre chose. Donc :
- *   - TOUT échec (402 quel qu'il soit, 409, 429, 5xx, délai, coupure, réponse qui ne se vérifie pas) renvoie d'abord la
- *     requête IDENTIQUE (même enveloppe, même autorisation) quelques fois avec un délai : l'enclave est idempotente et rend
- *     la réponse gardée si l'appel a été servi, sans 2e appel ni 2e reçu ;
- *   - une NOUVELLE autorisation n'est signée que si le prix LU ON-CHAIN a réellement changé (jamais sur la seule foi d'un
- *     402 non authentifié), et pour la MÊME requête : même nonce EIP-3009, donc au plus UNE des autorisations peut être
- *     consommée on-chain (un 409 « nonce_reused » dit alors laquelle l'enclave a servie : le client la renvoie) ;
- *   - JAMAIS À UN PRIX PLUS ÉLEVÉ sans accord explicite (9/11 au soir, preuve E3) : le plafond de l'appel (maxPrice) vaut
- *     le prix lu au début de l'appel ; un prix monté au-delà donne X402ChallengeError (avant tout paiement, rien n'est
- *     signé) ou X402PaidCallError « price_increased » (après), avec `newPrice` ; l'accepter :
- *     client.resume(err.pending, { renew: true, maxPrice: err.newPrice }). Un prix BAISSÉ est signé seul (moins cher) ;
- *   - si rien n'aboutit : X402PaidCallError. Elle ne dit JAMAIS « rien n'est dû » (l'appel a PU être servi et PEUT être
- *     réglé) et porte l'enveloppe, la clé éphémère et les autorisations : client.resume(err.pending) reprend (même
- *     requête), client.cancelAuthorization(err.pending) annule on-chain (USDC.cancelAuthorization) tant que rien n'est réglé.
- *     Après un redémarrage de l'enclave (code « enclave_changed »), la réponse est PERDUE : le message ne conseille plus
- *     resume, il dit que le paiement a pu être réglé quand même.
- *  Le règlement est fait par l'opérateur (X402SettlementQueue, services/registrar) ; le payeur peut aussi régler lui-même
- *  (settle) : le contrat ne paie que l'opérateur actif de l'enclave, l'auteur et le réseau. Le registrar signale à
- *  l'enclave ce qui est consommé par un message SIGNÉ de la clé de l'opérateur (EIP-712, x402AckTypes), en disant pour
- *  chaque appel s'il a été RÉGLÉ par X402Settler (reçu de sa transaction, ou événement CallSettled) ou consommé autrement
- *  (annulé) : seul un règlement rend le payeur « connu » de l'enclave. Il relève toute la file par pages, règle d'abord
- *  les appels que le solde de leur payeur couvre, et ne revérifie qu'un nombre borné d'appels « non couverts » par passage.
+ *  Client (createX402Client):
+ *   1. checks the enclave's key on the chain (verifyEnclaveKeys: registered X25519 key, enclave active for the product);
+ *   2. reads the product on-chain: settled by X402Settler, active, price of a call (Product.price × 1);
+ *   3. encrypts the (salted) request to the VERIFIED key; the EIP-3009 nonce = a commitment to this request
+ *      (x402CallNonce);
+ *   4. handles the 402: the enclave's requirements are CHECKED against the chain (payTo = the deployment's X402Settler,
+ *      asset = USDC, amount = the on-chain price); a proxy that diverts the payment or inflates the price is refused and
+ *      nothing is signed; then it signs the authorization (the USDC EIP-712 domain comes from the deployment, not from
+ *      the 402);
+ *   5. verifies the receipt: signed by the verified enclave, for this product, this payer, this nonce, one unit, the hash
+ *      of the request sent and that of the text received (bound to the request); otherwise the text is not returned;
+ *      `settleable` says whether X402Settler.settle would accept this receipt (enclave active at the anchor block).
+ *  After the paid send: an answer arrives through a proxy (the site's proxy, a CDN, the Phala gateway) that could keep
+ *  it and return something else. So:
+ *   - ANY failure (any 402, 409, 429, 5xx, timeout, cut connection, an answer that does not verify) first resends the
+ *     IDENTICAL request (same envelope, same authorization) a few times with a delay: the enclave is idempotent and
+ *     returns the kept answer if the call was served, with no second call and no second receipt;
+ *   - a NEW authorization is signed only if the price READ ON-CHAIN really changed (never on the word of an
+ *     unauthenticated 402), and for the SAME request: same EIP-3009 nonce, so at most ONE of the authorizations can be
+ *     used on-chain (a 409 "nonce_reused" then says which one the enclave served: the client resends it);
+ *   - NEVER AT A HIGHER PRICE without explicit consent: the call's cap (maxPrice) is the price read at the start of the
+ *     call; a price raised above it gives X402ChallengeError (before any payment, nothing is signed) or
+ *     X402PaidCallError "price_increased" (after), with `newPrice`; to accept it:
+ *     client.resume(err.pending, { renew: true, maxPrice: err.newPrice }). A LOWER price is signed on its own (cheaper);
+ *   - if nothing succeeds: X402PaidCallError. It NEVER says "nothing is owed" (the call MAY have been served and MAY be
+ *     settled) and carries the envelope, the ephemeral key and the authorizations: client.resume(err.pending) resumes
+ *     (same request), client.cancelAuthorization(err.pending) cancels on-chain (USDC.cancelAuthorization) as long as
+ *     nothing is settled. After an enclave restart (code "enclave_changed"), the answer is LOST: the message no longer
+ *     suggests resume, it says the payment may have been settled anyway.
+ *  Settlement is done by the operator (X402SettlementQueue, services/registrar); the payer can also settle (settle):
+ *  the contract only pays the enclave's active operator, the author and the network. The registrar tells the enclave
+ *  what was used by a message SIGNED with the operator's key (EIP-712, x402AckTypes), saying for each call whether it
+ *  was SETTLED by X402Settler (its transaction's receipt, or a CallSettled event) or used otherwise (cancelled): only a
+ *  settlement makes the payer "known" to the enclave. It reads the whole queue page by page, settles first the calls
+ *  their payer's balance covers, and checks again only a bounded number of "uncovered" calls per pass.
  *
- *  Ces constructions doivent rester identiques à celles de l'enclave (enclave/src/services/x402.ts) : un test croisé les
- *  vérifie (enclave/test/x402-e2e.test.ts). */
+ *  These constructions must stay identical to the enclave's (enclave/src/services/x402.ts): a cross test checks them
+ *  (enclave/test/x402-e2e.test.ts). */
 import {
   type Account, type Address, type Hex, type PublicClient, type TypedDataDomain, type WalletClient,
   encodeAbiParameters, getAddress, isAddress, keccak256, parseAbi, parseAbiItem, publicActions, recoverTypedDataAddress, toBytes, toHex,
