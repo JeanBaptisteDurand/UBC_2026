@@ -15,6 +15,7 @@ import { world } from '../world'
 import { onTick, scrollY, REDUCED, getLenis, step, tick } from '../clock'
 import { ORDER, PINNED, qStep, protoVel } from '../story'
 import { SLOTS, G, NSLOTS } from '../data/wall'
+import { lockScroll, showGate, updateGate, closeGate, gateShown } from './gate'
 
 export interface Sheets { dir: string; ext: string; every: number; cols: number; rows: number; tw: number; th: number; n: number }
 export interface Manifest {
@@ -93,17 +94,21 @@ export const film = {
   liteN: 0,
   /** Download rate measured on the film pack (Mbit/s, 0 until measured; ?gate=1 path) */
   rate: 0,
+  /** Sharp bitmaps kept for the rests (?gate=1 path) */
+  sharpN: 0,
 }
 ;(window as unknown as { __film: typeof film }).__film = film
 ;(window as unknown as { __filmDbg: unknown }).__filmDbg = () => ({ bm: [...bm.keys()].sort((a, b) => a - b), dec: [...state].reduce((a, v, i) => (v === 1 ? a.concat(i) : a), [] as number[]), want: [...want.subarray(0, wantN)], pos: film.pos, shown: film.shown, def: film.def, jobs: jobs.size, busy: workers.map((w) => w.busy), sheets: sheets.map((x) => !!x), off: OFF, lite: { state: liteState, n: film.liteN, w: liteW, h: liteH, bm: bmLite.reduce((a, v) => a + v, 0) } })
 
 // ---- Per-refresh log (measurement tools) ----
 const LOGN = 1 << 15
-const log = { n: 0, t: new Float64Array(LOGN), p: new Float32Array(LOGN), s: new Int16Array(LOGN), d: new Uint8Array(LOGN), ms: new Float32Array(LOGN), mv: new Uint8Array(LOGN), tk: new Float32Array(LOGN) }
+const log = { n: 0, t: new Float64Array(LOGN), p: new Float32Array(LOGN), s: new Int16Array(LOGN), d: new Uint8Array(LOGN), ms: new Float32Array(LOGN), mv: new Uint8Array(LOGN), tk: new Float32Array(LOGN), pos: new Float32Array(LOGN), kind: new Uint8Array(LOGN), held: new Uint8Array(LOGN) }
 ;(window as unknown as { __filmLog: unknown }).__filmLog = {
   reset: () => { log.n = 0 },
-  /** [t, target (fractional), shown, resolution, draw duration (ms), moving] from entry i */
-  read: (i = 0) => { const out: number[][] = []; for (let j = Math.max(i, log.n - LOGN); j < log.n; j++) { const q = j & (LOGN - 1); out.push([log.t[q], log.p[q], log.s[q], log.d[q], log.ms[q], log.mv[q], log.tk[q]]) } return out },
+  /** [t, target (fractional), shown, resolution, draw duration (ms), moving, tick, drawn position, kind (0 today's film,
+   *  1 motion level, 2 sharp frame at rest, ?gate=1), held (the drawn position stayed while the target moved by half a
+   *  frame or more)] from entry i */
+  read: (i = 0) => { const out: number[][] = []; for (let j = Math.max(i, log.n - LOGN); j < log.n; j++) { const q = j & (LOGN - 1); out.push([log.t[q], log.p[q], log.s[q], log.d[q], log.ms[q], log.mv[q], log.tk[q], log.pos[q], log.kind[q], log.held[q]]) } return out },
   get n() { return log.n },
 }
 
@@ -212,6 +217,9 @@ function measure() {
 // proportional to the page trip (whose curve starts and ends smoothly).
 const UNI = Q.has('uni') ? Number(Q.get('uni')) : 1
 let SY: number[] = [], SF: number[] = [], segTry = 0, protoIn: [number, number] = [Infinity, -Infinity]
+/** ?gate=1: film positions of the stops, ascending (their sharp frames are prefetched; at rest the way to the next one
+ *  is decoded first) */
+let stopF: number[] = []
 function segs() {
   SY = []; SF = []
   const m = film.man; if (!m || UNI <= 0) return
@@ -239,6 +247,8 @@ function segs() {
     const q = pr ? Math.min(1, Math.max(0, (y - pr[0]) / Math.max(1, pr[1] - innerHeight))) : 0
     SY.push(y); SF.push(posOf(filmYAt(y, q)))
   }
+  const qOf = (y: number) => (pr ? Math.min(1, Math.max(0, (y - pr[0]) / Math.max(1, pr[1] - innerHeight))) : 0)
+  stopF = st.map((x) => posAt(x.y, qOf(x.y))).sort((a, b) => a - b)
 }
 /** Film position (fractional index) for page position y and state queue q of the pinned page */
 function posAt(y: number, q: number): number {
@@ -283,8 +293,8 @@ function posOf(fy: number) {
 // Stop mode: the Lenis trip (start, destination, duration, curve); otherwise the Lenis smoothing (lerp 0.1: a damping
 // of 6 per second, frame-rate independent); pinned page 1: its state queue at bounded speed (story.ts, rateAt)
 const HZ = 1 / 60, HORIZON = 30
-const fut = new Float64Array(HORIZON + 1)
-function predict(): number {
+const fut = new Float64Array(49)
+function predict(HOR = HORIZON): number {
   const l = getLenis(), now = performance.now()
   let y = l ? l.animatedScroll : window.scrollY
   const tgt = l ? l.targetScroll : y
@@ -293,7 +303,7 @@ function predict(): number {
   const tr = step.trip
   fut[0] = film.pos
   let n = 0
-  for (let i = 1; i <= HORIZON; i++) {
+  for (let i = 1; i <= HOR; i++) {
     const t = now + i * HZ * 1000
     if (tr) { const u = Math.min(1, Math.max(0, (t - tr.t0) / (tr.dur * 1000))); y = tr.y0 + (tr.y1 - tr.y0) * tr.ease(u) }
     else y = tgt + (y - tgt) * Math.exp(-6 * HZ)
@@ -572,6 +582,8 @@ function decodeSheet(j: number) {
 
 // ---- Drawing ----
 let cv: HTMLCanvasElement, g: CanvasRenderingContext2D, dirty = true
+/** ?gate=1: the sharp layer over the motion canvas (#film-sharp), shown only at rest */
+let cvS: HTMLCanvasElement | null = null, gS: CanvasRenderingContext2D | null = null
 let zoom = 0, zx = 0, zy = 0, lastVW = 0, lastVH = 0
 function place() {
   const m = film.man; if (!m) return
@@ -583,14 +595,18 @@ function place() {
   film.ox = (vw - m.filmW * film.s) / 2
   // On phones the top of the frame is kept (the scene rises there above the text)
   film.oy = PHONE ? 0 : (vh - m.filmH * film.s) / 2
-  const st = cv.style
-  st.width = `${m.filmW * film.s}px`; st.height = `${m.filmH * film.s}px`
-  st.left = `${film.ox}px`; st.top = `${film.oy}px`
+  for (const c of cvS ? [cv, cvS] : [cv]) {
+    const st = c.style
+    st.width = `${m.filmW * film.s}px`; st.height = `${m.filmH * film.s}px`
+    st.left = `${film.ox}px`; st.top = `${film.oy}px`
+  }
   measure(); applyZoom(); film.geo++
 }
 function applyZoom() {
-  cv.style.transformOrigin = `${zx - film.ox}px ${zy - film.oy}px`
-  cv.style.transform = zoom > 0 ? `scale(${(1 + 0.14 * zoom).toFixed(5)})` : ''
+  for (const c of cvS ? [cv, cvS] : [cv]) {
+    c.style.transformOrigin = `${zx - film.ox}px ${zy - film.oy}px`
+    c.style.transform = zoom > 0 ? `scale(${(1 + 0.14 * zoom).toFixed(5)})` : ''
+  }
 }
 /** Film (capture CSS px) -> screen (CSS px), including the zoom toward the open service */
 export function toView(x: number, y: number): [number, number] {
@@ -681,8 +697,11 @@ function draw(): number {
   }
   // ?cal=1 (sync measurement): the index of the drawn frame, as 12 bands in the canvas; the layer sets its own in the
   // DOM (lames.ts), and the test bench compares both on the compositor frames
-  if (CAL) { const W = cv.width, H = cv.height; for (let b = 0; b < 12; b++) { g.fillStyle = (pickK >> b) & 1 ? '#fff' : '#000'; for (const y of [0.45, 0.6]) g.fillRect(Math.round(W * (0.3 + 0.4 * b / 12)), Math.round(H * y), Math.ceil(W * 0.4 / 12), Math.round(H * 0.04)) } }
+  if (CAL) bands(g, cv.width, cv.height, pickK)
   return performance.now() - t0
+}
+function bands(c: CanvasRenderingContext2D, W: number, H: number, k: number) {
+  for (let b = 0; b < 12; b++) { c.fillStyle = (k >> b) & 1 ? '#fff' : '#000'; for (const y of [0.45, 0.6]) c.fillRect(Math.round(W * (0.3 + 0.4 * b / 12)), Math.round(H * y), Math.ceil(W * 0.4 / 12), Math.round(H * 0.04)) }
 }
 
 // ---- Metadata of the frame shown ----
@@ -798,6 +817,433 @@ function downTier() {
   schedule()
 }
 
+// ---- Motion level behind a loading gate (?gate=1) ----
+// The film is drawn from a compact motion level that is complete in the browser before the first gesture: a pack
+// (lite.bin: one frame in 2 at a third of the size; motion.bin: every frame at half size), owned and decoded by its
+// own worker (pack.worker.ts) in the order of the path ahead. The scroll draws only from it: no frame is fetched while
+// the image moves, the two neighbouring frames are blended at every speed, and the motion canvas has the pack's size.
+// The sharp frame is fetched and faded in over it (#film-sharp) only once the scroll rests. Today's film stays the
+// default and the fallback (pack missing or wrong, worker error, no first frames): decided before the first gesture.
+const GATE_DEFAULT = false
+export const GATE = Q.get('gate') === '1' || (GATE_DEFAULT && Q.get('gate') !== '0' && !FIREFOX && !CONN?.saveData)
+/** The motion pack, next to the set's frames (Retina uses the desktop one); ?pack= overrides */
+const PACK = /^[\w.-]+$/.test(Q.get('pack') ?? '') ? Q.get('pack')! : 'lite.bin'
+const M = {
+  w: 0, h: 0, count: 0, total: 0, gateAt: 0, got: 0, ks: new Int32Array(0), ends: new Int32Array(0), pj: 0,
+  present: new Uint8Array(0), head: false, done: false, cached: false, fail: '',
+  bm: new Map<number, ImageBitmap>(), bytes: 0, budget: LIGHT ? 80e6 : 160e6,
+  gen: 0, sig: 0, wantSet: new Set<number>(), wantList: [] as number[],
+  rate: 0, rT: 0, rG: 0, t0: 0, tHead: 0, metaBytes: 0,
+  /** wait: behind the gate; open: motion film; stops: way in without the motion film; fallback: today's film */
+  gate: 'wait' as 'wait' | 'open' | 'stops' | 'fallback',
+  tPack: 0, tRing: 0, tOpen: 0, sMaxIn: 0, rT0: 0, rG0: 0,
+}
+let pw: Worker | null = null, sw: Worker | null = null
+let mStamp = new Uint32Array(0), mSV = 1, mDirty = true, mPos = NaN, heldFrom = NaN, lastDrawnPos = NaN
+const WG = window as unknown as { __filmGate?: string; __copilotP?: Promise<unknown>; __filmM?: unknown }
+/** The loading fraction for the header bar: meta.bin and the pack up to its gate point */
+export const gateFrac = () => (M.head ? Math.min(1, (M.metaBytes + Math.min(M.got, M.gateAt)) / (M.metaBytes + M.gateAt)) : 0.04)
+function rateOn(got: number) {
+  const now = performance.now()
+  // the first 128 KB carry the request's round trip and the slow start
+  if (got < 131072) return
+  if (!M.rT) { M.rT = now; M.rG = got; return }
+  const dt = (now - M.rT) / 1000
+  if (dt < 0.25) return
+  const inst = (got - M.rG) / dt
+  M.rate = M.rate ? M.rate + (inst - M.rate) * (1 - Math.exp(-dt / 1.5)) : inst
+  M.rT = now; M.rG = got
+  film.rate = Math.round(M.rate * 8 / 1e4) / 100
+}
+function arrive() {
+  while (M.pj < M.count && M.ends[M.pj] <= M.got) { M.present[M.ks[M.pj]] = 1; M.pj++ }
+  film.liteN = M.pj
+}
+/** The two pack frames around position p: the last one at or below p, the next one (-1: none within 8 frames) */
+function bracket(p: number): [number, number] {
+  const n = film.man!.n, f = Math.min(n - 1, Math.max(0, Math.floor(p)))
+  let a = f; while (a > 0 && !M.present[a] && f - a < 8) a--
+  if (!M.present[a]) a = -1
+  let b = f + 1; while (b < n - 1 && !M.present[b] && b - f < 8) b++
+  if (b >= n || !M.present[b]) b = -1
+  return [a, b]
+}
+const posAtQ = (y: number) => { const pr = liveTops.protocol; return posAt(y, pr ? Math.min(1, Math.max(0, (y - pr[0]) / Math.max(1, pr[1] - innerHeight))) : 0) }
+/** What the motion worker decodes, in order: moving, every 2nd frame over the next 0.8 s of the path, then the odd
+ *  ones (a slow decoder degrades to frames 2 apart, blended, never to a hold), then 12 behind; at rest, the ring
+ *  around the position, then the way to the next stop and to the previous one. Bounded by the memory budget. */
+function wantsM() {
+  const m = film.man!, n = m.n
+  if (!M.head || !pw) return
+  const maxF = Math.max(8, Math.floor(M.budget / (M.w * M.h * 4)) - 2)
+  mSV++
+  const list: number[] = []
+  const add = (k: number) => { if (k >= 0 && k < n && M.present[k] && mStamp[k] !== mSV && list.length < maxF) { mStamp[k] = mSV; list.push(k) } }
+  const nf = predict(48)
+  const travel = nf > 0 && Math.abs(fut[nf] - fut[0]) > 0.5
+  const k0 = Math.min(n - 1, Math.max(0, Math.floor(film.pos)))
+  const [a, b] = bracket(film.pos); add(a); add(b)
+  if (travel) {
+    const path: number[] = []
+    let last = k0
+    for (let i = 1; i <= nf; i++) {
+      const f = Math.min(n - 1, Math.max(0, Math.floor(fut[i])))
+      if (f > last) for (let k = last + 1; k <= Math.min(n - 1, f + 1); k++) path.push(k)
+      else if (f < last) for (let k = last - 1; k >= f; k--) path.push(k)
+      last = f
+    }
+    for (const k of path) if ((k & 1) === 0) add(k)
+    for (const k of path) add(k)
+    for (let i = 1; i <= 12; i++) add(k0 - i * dir)
+  } else {
+    for (let i = 1; i <= 16; i++) { add(k0 + i * dir); add(k0 + 1 - i * dir) }
+    const p = film.pos
+    const up = stopF.find((x) => x > p + 1), dn = [...stopF].reverse().find((x) => x < p - 1)
+    for (const s of dir >= 0 ? [up, dn] : [dn, up]) {
+      if (s === undefined) continue
+      const st = s > p ? 1 : -1, end = st > 0 ? Math.min(n - 1, Math.ceil(s) + 1) : Math.max(0, Math.floor(s) - 1)
+      for (let pass = 0; pass < 2; pass++) for (let k = k0; st > 0 ? k <= end : k >= end; k += st) if (pass || (k & 1) === 0) add(k)
+    }
+  }
+  let h = list.length
+  for (const k of list) h = (Math.imul(h, 31) + k) | 0
+  if (h === M.sig) return
+  M.sig = h; M.wantList = list; M.wantSet = new Set(list)
+  pw.postMessage({ type: 'want', gen: ++M.gen, ks: list })
+}
+function dropM(k: number) { const b = M.bm.get(k); if (!b) return; M.bytes -= b.width * b.height * 4; b.close(); M.bm.delete(k) }
+/** Over the budget: what is not wanted goes first, farthest first (behind counts as farther), then the end of the list */
+function evictM() {
+  if (M.bytes <= M.budget) return
+  const p = film.pos, out: number[] = []
+  const cand: number[] = []
+  for (const k of M.bm.keys()) if (!M.wantSet.has(k) && k !== pickK && k !== pickB) cand.push(k)
+  cand.sort((x, y) => score(y, p) - score(x, p))
+  for (const k of cand) { if (M.bytes <= M.budget) break; dropM(k); out.push(k) }
+  for (let i = M.wantList.length - 1; i >= 0 && M.bytes > M.budget; i--) { const k = M.wantList[i]; if (k !== pickK && k !== pickB && M.bm.has(k)) { dropM(k); out.push(k) } }
+  film.bytes = M.bytes
+  if (out.length) pw?.postMessage({ type: 'evict', ks: out })
+}
+/** The motion frame(s) for position p: the two pack frames around it, blended at the fraction, at every speed;
+ *  otherwise the nearest decoded frame within 3 (ahead first); otherwise nothing (the refresh holds) */
+function chooseM(p: number): boolean {
+  const [a, b] = bracket(p)
+  pickB = -1; pickA = 0
+  if (a >= 0 && M.bm.has(a)) {
+    if (p - a < 1 / 128) { pickK = a; mPos = a; return true }
+    if (b >= 0 && M.bm.has(b)) {
+      const al = Math.round(((p - a) / (b - a)) * 64) / 64
+      pickK = a; if (al > 0) { pickB = b; pickA = al }
+      mPos = a + al * (b - a); return true
+    }
+  }
+  if (b >= 0 && M.bm.has(b) && b - p < 1 / 128) { pickK = b; mPos = b; return true }
+  const t = Math.round(p)
+  for (let d = 0; d <= 3; d++) {
+    const x = t + d * dir, y = t - d * dir
+    if (M.bm.has(x)) { pickK = x; mPos = x; return true }
+    if (d && M.bm.has(y)) { pickK = y; mPos = y; return true }
+  }
+  return false
+}
+function drawM(): number {
+  const t0 = performance.now()
+  const A = M.bm.get(pickK)!
+  if (A.width === cv.width) g.drawImage(A, 0, 0); else g.drawImage(A, 0, 0, cv.width, cv.height)
+  const B = pickB >= 0 ? M.bm.get(pickB) : undefined
+  if (B) { g.globalAlpha = pickA; if (B.width === cv.width) g.drawImage(B, 0, 0); else g.drawImage(B, 0, 0, cv.width, cv.height); g.globalAlpha = 1 }
+  if (CAL) bands(g, cv.width, cv.height, Math.round(mPos))
+  return performance.now() - t0
+}
+// ---- The sharp layer: fetched, decoded and faded in at rest only ----
+const sharpC = new Map<number, ImageBitmap>()
+let sharpMax = 6, sharpK = -1, sharpOn = false, sharpWant = -1, sharpUpTick = -1, tickN = 0, sId = 0
+const sFetch = new Set<number>(), sDec = new Set<number>(), sJobs = new Map<number, number>()
+let stopKs: number[] = [], stopKsOf: number[] | null = null
+const sInflight = () => (film.rate >= 8 ? 4 : 2)
+function sharpGet(k: number, dec: boolean) {
+  const m = film.man!
+  if (k < 0 || k >= m.n || sharpC.has(k)) return
+  const b = blobs[k]
+  if (b) {
+    if (dec && sw && !sDec.has(k) && sDec.size < 2) { sDec.add(k); const id = ++sId; sJobs.set(id, k); sw.postMessage({ type: 'dec', id, k, sheet: false, blob: b }) }
+    return
+  }
+  if (sFetch.has(k) || sFetch.size >= sInflight()) return
+  sFetch.add(k)
+  fetchOne(name(k, m.ext), true, (bl) => { sFetch.delete(k); if (bl && !blobs[k]) blobs[k] = bl; if (bl && k === sharpWant) sharpGet(k, true) })
+}
+function sharpDone(id: number, bmp: ImageBitmap | null) {
+  const k = sJobs.get(id); sJobs.delete(id)
+  if (k === undefined) { bmp?.close(); return }
+  sDec.delete(k)
+  if (!bmp) return
+  sharpC.get(k)?.close(); sharpC.delete(k); sharpC.set(k, bmp)
+  // at most sharpMax bitmaps, least recently used first (never the one wanted now)
+  for (const old of sharpC.keys()) { if (sharpC.size <= sharpMax) break; if (old === sharpWant) continue; sharpC.get(old)!.close(); sharpC.delete(old) }
+  film.sharpN = sharpC.size
+}
+/** Where the scroll will rest: the end of the stop trip, or the Lenis target once it holds still */
+let lenT = NaN, lenTAt = 0
+function landingK(now: number): number {
+  const tr = step.trip
+  if (tr) return Math.round(posAtQ(tr.y1))
+  const l = getLenis(); if (!l) return -1
+  if (l.targetScroll !== lenT) { lenT = l.targetScroll; lenTAt = now; return -1 }
+  return now - lenTAt > 80 ? Math.round(posAtQ(lenT)) : -1
+}
+function showSharp(on: boolean, fade: boolean) {
+  if (!cvS) return
+  sharpOn = on
+  cvS.style.transition = on && fade ? 'opacity 120ms linear' : 'none'
+  cvS.style.opacity = on ? '1' : '0'
+}
+function sharpTick(rest: boolean, now: number, onFirstDraw: () => void) {
+  if (!cvS || !gS) return
+  const k = rest ? (restK >= 0 ? restK : Math.round(film.pos)) : landingK(now)
+  if (k >= 0) { sharpWant = k; sharpGet(k, true) }
+  if (rest && k >= 0 && (sharpK !== k || !sharpOn)) {
+    if (sharpK === k) showSharp(true, !REDUCED)
+    else {
+      const b = sharpC.get(k)
+      // one new sharp bitmap per display frame (Safari blocks on each upload)
+      if (b && sharpUpTick !== tickN) {
+        sharpUpTick = tickN
+        if (b.width === cvS.width) gS.drawImage(b, 0, 0); else gS.drawImage(b, 0, 0, cvS.width, cvS.height)
+        if (CAL) bands(gS, cvS.width, cvS.height, k)
+        sharpC.delete(k); sharpC.set(k, b)
+        sharpK = k
+        showSharp(true, !REDUCED && M.gate !== 'stops')
+        onFirstDraw()
+      }
+    }
+  }
+  // once the pack is in: the stops' sharp frames (desktop, the stop trips land there), then 2 frames around the rest
+  if ((M.done || M.gate === 'stops') && sFetch.size < sInflight()) {
+    if (stopKsOf !== stopF) { stopKsOf = stopF; stopKs = PHONE ? [] : [...new Set(stopF.map((x) => Math.round(x)))] }
+    for (const s of stopKs) { if (sFetch.size >= sInflight()) break; if (!blobs[s]) sharpGet(s, false) }
+    if (rest && k >= 0) for (const d of [1, -1, 2, -2]) { if (sFetch.size >= sInflight()) break; if (!blobs[k + d]) sharpGet(k + d, false) }
+  }
+}
+/** The sharp set, once, when the pack has given a rate: Retina only for a Retina screen on 10 Mbit/s or more */
+function decideSharpSet() {
+  const all = (window as W).__FILM_MAN
+  if (!all || Q.get('set') || PHONE || SET === 'phone') return
+  const screen = devicePixelRatio > 1.5 && innerWidth * devicePixelRatio > 2300 && matchMedia('(pointer: fine)').matches
+  const want = screen && film.rate >= 10 && all.retina ? 'retina' : 'desktop'
+  if (want !== SET && all[want]) {
+    SET = want; film.set = SET; BASE = `${ROOT}${SET}/`
+    const d = all[want]
+    film.man = { ...film.man!, w: d.w, h: d.h, ext: d.ext }
+    blobs.length = 0
+  }
+  sharpMax = SET === 'retina' ? 4 : 6
+  if (cvS && (cvS.width !== film.man!.w || cvS.height !== film.man!.h)) { cvS.width = film.man!.w; cvS.height = film.man!.h; sharpK = -1; showSharp(false, false) }
+}
+function gotBmp(k: number, bmp: ImageBitmap) {
+  if (M.bm.has(k) || !pw) { bmp.close(); return }
+  M.bm.set(k, bmp); M.bytes += bmp.width * bmp.height * 4; film.bytes = M.bytes
+  if (!M.wantSet.has(k) && M.bytes > M.budget) { dropM(k); film.bytes = M.bytes; pw.postMessage({ type: 'evict', ks: [k] }); return }
+  evictM()
+}
+// ---- The gate: what it waits for, then open ----
+let gateT0 = 0, gateUiAt = 0, copDone = false, gateResolve: ((ok: boolean) => void) | null = null
+let restAt = 0, dK = -2, dB = -2, dA = -1, lastMetaPos = NaN
+/** The first motion frames: every frame wanted at the position decoded (the ring and the way to the next stop), or
+ *  the first 48 of them one second after the pack */
+function ringDecoded(now: number): boolean {
+  const L = M.wantList
+  if (!L.length) return false
+  let i = 0
+  for (; i < L.length; i++) if (!M.bm.has(L[i])) break
+  return i === L.length || (i >= Math.min(48, L.length) && now - M.tPack > 1000)
+}
+function openGate() {
+  // the forced layouts of a first gesture happen here, behind the gate
+  measure(); document.elementFromPoint(innerWidth / 2, innerHeight / 2)
+  lockScroll(false); closeGate()
+  M.gate = 'open'; WG.__filmGate = 'open'; M.tOpen = performance.now()
+  gateResolve?.(true); gateResolve = null
+}
+/** The way in without the motion film: the sharp frame at each rest, nothing drawn in motion; the film takes over at a
+ *  rest once its frames are in */
+function enterStops() {
+  if (M.gate !== 'wait') return
+  M.gate = 'stops'; WG.__filmGate = 'stops'
+  cv.style.opacity = '0'
+  if (sharpOn) showSharp(true, false)
+  lockScroll(false); closeGate()
+  gateResolve?.(true); gateResolve = null
+}
+function gateTick(now: number, rest: boolean) {
+  if (M.gate === 'open' || M.gate === 'fallback') return
+  if (M.fail && M.gate === 'wait') { gateResolve?.(false); gateResolve = null; return }
+  const packOk = M.head && M.got >= M.gateAt
+  if (packOk && !M.tPack) { M.tPack = now; decideSharpSet() }
+  const ringOk = packOk && ringDecoded(now)
+  if (ringOk && !M.tRing) M.tRing = now
+  if (M.gate === 'stops') {
+    if (ringOk && rest && film.ready && !REDUCED && !CONN?.saveData) { M.gate = 'open'; WG.__filmGate = 'open'; cv.style.opacity = '1'; mDirty = true }
+    return
+  }
+  if (packOk && !ringOk && now - M.tPack > 5000) { M.fail = 'ring'; gateResolve?.(false); gateResolve = null; return }
+  // shown only if the film is not ready 400 ms after the mount (a return visit never sees it)
+  if (!gateShown() && now - gateT0 > 400 && !(ringOk && film.ready)) showGate(enterStops)
+  if (gateShown() && now - gateUiAt > 250) {
+    gateUiAt = now
+    const tot = M.head ? M.metaBytes + M.gateAt : 0, got = M.head ? M.metaBytes + Math.min(M.got, M.gateAt) : 0
+    const eta = M.rate > 0 && now - M.t0 > 500 ? Math.max(0, tot - got) / M.rate : -1
+    updateGate(got, tot, eta, now - gateT0 > 3000 || eta > 20)
+  }
+  const k = Math.round(film.pos)
+  const sharpOk = ringOk && ((sharpOn && sharpK === k) || now - M.tRing > 3000)
+  const copOk = copDone || (M.tPack > 0 && now - M.tPack > 2000)
+  if (ringOk && sharpOk && copOk) openGate()
+}
+function tickM(dt: number, firstDraw: () => void) {
+  if (!film.man) return
+  tickN++
+  const now = performance.now()
+  if (SY.length < 2 && UNI > 0 && (++segTry & 31) === 1) segs()
+  const p = posAt(scrollY(), world.protoQ)
+  if (p - lastPos > 0.5) { dir = 1; lastPos = p } else if (lastPos - p > 0.5) { dir = -1; lastPos = p }
+  const changed = p !== film.pos, dp = Math.abs(p - film.pos)
+  if (dt > 0) vel = vel * 0.6 + 0.4 * (p - film.pos) / Math.max(1 / 240, dt)
+  film.pos = p
+  // displayed position: the target; at rest, a glide to the nearest whole frame (as today)
+  if (dp > 0.02 || Math.abs(dpos - p) > 1.5) dpos = p
+  else {
+    if (restK < 0 || Math.abs(p - restK) > 0.6) restK = Math.round(p)
+    const r = restK; dpos += (r - dpos) * (1 - Math.exp(-Math.max(dt, 1 / 240) / 0.05)); if (Math.abs(r - dpos) < 1 / 64) dpos = r
+  }
+  if (dp > 0.02) restK = -1
+  const moved = dp > 0.02 || !!step.trip
+  if (moved) restAt = now
+  const rest = !moved && now - restAt >= 150
+  const stops = M.gate === 'stops'
+  // the sharp layer goes the moment the image moves, in the same refresh as the motion draw
+  if (moved && sharpOn && !stops) showSharp(false, false)
+  wantsM()
+  const wantZ = world.svc.open ? 1 : 0
+  const z0 = zoom
+  zoom = REDUCED ? wantZ : Math.min(1, Math.max(0, zoom + (wantZ ? dt : -dt) / 0.9))
+  world.svc.u = zoom
+  if (zoom > 0 && world.svc.slot >= 0 && z0 === 0) { const r = world.rects.get(world.svc.slot); if (r) { zx = r.x + r.w / 2; zy = r.y + r.h / 2 } }
+  if (!world.svc.open && zoom === 0) world.svc.slot = -1
+  let geoMoved = false
+  if (zoom !== z0) { applyZoom(); geoMoved = true }
+  let ms = 0, pos = NaN
+  if (stops) pos = sharpK >= 0 ? sharpK : NaN
+  else if (chooseM(dpos)) {
+    pos = mPos
+    if (mDirty || pickK !== dK || pickB !== dB || pickA !== dA) {
+      ms = drawM(); mDirty = false; dK = pickK; dB = pickB; dA = pickA; film.drawn++
+      if (!film.ready) { cv.style.opacity = '1'; firstDraw() }
+    }
+  } else pos = lastMetaPos
+  // the metadata of the drawn position (every frame has its own in meta.bin, even those not in the pack)
+  if (!Number.isNaN(pos) && pos !== lastMetaPos) {
+    const a = Math.floor(pos), f = pos - a
+    metaAt(a, f > 0 ? Math.min(film.man.n - 1, a + 1) : -1, f)
+    film.shown = Math.round(pos); film.def = 0
+    lastMetaPos = pos; geoMoved = true
+  }
+  if (geoMoved) { film.geo++; publish() }
+  if (!Number.isNaN(pos) && pos !== lastDrawnPos) { lastDrawnPos = pos; heldFrom = p }
+  const held = changed && !Number.isNaN(heldFrom) && Math.abs(p - heldFrom) >= 0.5 ? 1 : 0
+  sharpTick(rest, now, firstDraw)
+  if (sFetch.size > M.sMaxIn) M.sMaxIn = sFetch.size
+  const q = log.n & (LOGN - 1)
+  log.t[q] = now; log.p[q] = p; log.s[q] = film.shown; log.d[q] = 0; log.ms[q] = ms; log.mv[q] = changed || moved ? 1 : 0; log.tk[q] = tick.prev
+  log.pos[q] = Number.isNaN(pos) ? -1 : pos; log.kind[q] = sharpOn ? 2 : Number.isNaN(pos) ? 0 : 1; log.held[q] = held; log.n++
+  gateTick(now, rest)
+  film.version++
+  hooks.forEach((f) => f())
+}
+/** The motion path: false when the pack cannot be used (today's film then runs, before any gesture) */
+async function mountMotion(man: Manifest, fp: number, metaBytes: number, onFirst: () => void): Promise<boolean> {
+  const n = man.n, set0 = SET, man0 = film.man
+  M.present = new Uint8Array(n); mStamp = new Uint32Array(n); M.metaBytes = metaBytes
+  cvS = document.createElement('canvas'); cvS.className = 'film film-sharp'
+  cv.after(cvS)
+  cvS.width = man.w; cvS.height = man.h
+  gS = cvS.getContext('2d', { alpha: false })
+  g = cv.getContext('2d', { alpha: false, desynchronized: false })!; g.imageSmoothingQuality = 'low'
+  sharpMax = SET === 'retina' ? 4 : 6
+  try {
+    sw = new Worker(new URL('./decode.worker.ts', import.meta.url), { type: 'module' })
+    sw.onmessage = (e: MessageEvent<{ id: number; bmp?: ImageBitmap }>) => sharpDone(e.data.id, e.data.bmp ?? null)
+  } catch { sw = null }
+  world.pick = pick
+  place()
+  addEventListener('resize', place)
+  const ro = new ResizeObserver(() => measure()); ro.observe(document.body)
+  const wake = () => { if (document.visibilityState === 'visible') mDirty = true }
+  document.addEventListener('visibilitychange', wake); addEventListener('pageshow', wake)
+  film.pos = posAt(scrollY(), world.protoQ); lastPos = film.pos; dpos = film.pos
+  WG.__filmGate = 'wait'
+  if (WG.__copilotP) WG.__copilotP.then(() => { copDone = true }, () => { copDone = true }); else copDone = true
+  WG.__filmM = () => ({ gate: M.gate, fail: M.fail, head: M.head, got: M.got, gateAt: M.gateAt, total: M.total, arrived: M.pj, count: M.count, w: M.w, h: M.h, bm: M.bm.size, bytes: M.bytes, want: M.wantList.length, gen: M.gen, rate: film.rate, sharpN: sharpC.size, sharpK, sharpOn, sMaxIn: M.sMaxIn, t0: M.t0, tHead: M.tHead, tPack: M.tPack, tRing: M.tRing, tOpen: M.tOpen, cached: M.cached, done: M.done, set: SET, pack: PACK })
+  const firstDraw = () => {
+    if (film.ready) return
+    film.ready = true; world.sceneReady = true
+    const ps = document.getElementById('poster'); if (ps) ps.style.visibility = 'hidden'
+    onFirst()
+  }
+  // reduced motion or a data saver: no gate and no pack, the sharp frame at each rest
+  if (REDUCED || CONN?.saveData) {
+    M.gate = 'stops'; WG.__filmGate = 'stops'
+    onTick((_t, dt) => tickM(dt, firstDraw))
+    return true
+  }
+  try { pw = new Worker(new URL('./pack.worker.ts', import.meta.url), { type: 'module' }) } catch { pw = null }
+  let off: (() => void) | null = null
+  if (pw) {
+    type PM = { type: 'head'; w: number; h: number; count: number; total: number; gateAt: number; ks: Int32Array<ArrayBuffer>; ends: Int32Array<ArrayBuffer> } | { type: 'prog'; got: number } | { type: 'done'; cached: boolean } | { type: 'bmp'; k: number; bmp: ImageBitmap } | { type: 'fail'; why: string }
+    pw.onmessage = (e: MessageEvent<PM>) => {
+      const d = e.data
+      if (d.type === 'head') {
+        M.w = d.w; M.h = d.h; M.count = d.count; M.total = d.total; M.gateAt = d.gateAt; M.ks = d.ks; M.ends = d.ends; M.head = true; M.tHead = performance.now()
+        // the motion canvas has the pack's size: each frame drawn unscaled, the framing is CSS
+        cv.width = d.w; cv.height = d.h; g.imageSmoothingQuality = 'low'; mDirty = true
+        arrive()
+      } else if (d.type === 'prog') { M.got = d.got; if (!M.rT0 && d.got >= 131072) { M.rT0 = performance.now(); M.rG0 = d.got } rateOn(d.got); arrive() }
+      else if (d.type === 'done') {
+        M.done = true; M.cached = d.cached
+        const now = performance.now()
+        // a pack read from a cache gives no rate: the last one measured on this browser
+        if (d.cached || now - M.tHead < 300) { try { film.rate = Number(localStorage.getItem('film-rate')) || 0 } catch { /* none */ } }
+        else {
+          if (!M.rate && M.rT0 && now - M.rT0 > 50) { M.rate = (M.got - M.rG0) / ((now - M.rT0) / 1000); film.rate = Math.round(M.rate * 8 / 1e4) / 100 }
+          try { localStorage.setItem('film-rate', String(film.rate)) } catch { /* private window */ }
+        }
+      } else if (d.type === 'bmp') gotBmp(d.k, d.bmp)
+      else if (d.type === 'fail') M.fail = d.why || 'pack'
+    }
+    pw.onerror = () => { M.fail = M.fail || 'worker' }
+    M.t0 = performance.now(); gateT0 = M.t0
+    pw.postMessage({ type: 'pack', url: `${ROOT}${man.ysFrom ?? set0}/${PACK}${VQ}`, n, fp })
+    lockScroll(true)
+    off = onTick((_t, dt) => tickM(dt, firstDraw))
+    if (await new Promise<boolean>((r) => { gateResolve = r })) return true
+  }
+  // today's film, decided before the first gesture
+  off?.(); ro.disconnect(); document.removeEventListener('visibilitychange', wake); removeEventListener('pageshow', wake)
+  pw?.terminate(); pw = null; sw?.terminate(); sw = null
+  for (const b of M.bm.values()) b.close()
+  M.bm.clear(); M.bytes = 0; film.bytes = 0
+  for (const b of sharpC.values()) b.close()
+  sharpC.clear(); blobs.length = 0
+  cvS?.remove(); cvS = null; gS = null
+  lockScroll(false); closeGate()
+  SET = set0; film.set = SET; BASE = `${ROOT}${SET}/`; film.man = man0
+  cv.style.opacity = '0'; film.ready = false; film.shown = -1
+  const ps = document.getElementById('poster'); if (ps) ps.style.visibility = ''
+  M.gate = 'fallback'; WG.__filmGate = 'fallback'
+  console.warn(`film: motion level unavailable (${M.fail || 'worker'}), today's film`)
+  return false
+}
+
 export async function mountFilm(canvas: HTMLCanvasElement, onFirst: () => void) {
   cv = canvas; cv.style.opacity = '0'
   const all = (window as W).__FILM_MAN
@@ -813,6 +1259,8 @@ export async function mountFilm(canvas: HTMLCanvasElement, onFirst: () => void) 
   film.man = man; film.total = man.n
   film.fl = new Float32Array(meta, 0, man.n * man.nf)
   film.by = new Uint8Array(meta, man.n * man.nf * 4, man.n * man.ns * 2)
+  // ?gate=1: the motion level behind a loading gate; today's film below when its pack cannot be used
+  if (GATE && await mountMotion(man, fp, meta.byteLength, onFirst)) return
   state = new Uint8Array(man.n); stamp = new Uint32Array(man.n); bmLite = new Uint8Array(man.n)
   // the light pass, before any sharp frame (Retina uses the desktop file, like its positions)
   if (LITE_ON) void loadLite(`${ROOT}${man.ysFrom ?? SET}/lite.bin${VQ}`, man.n, fp)
@@ -897,7 +1345,8 @@ export async function mountFilm(canvas: HTMLCanvasElement, onFirst: () => void) 
     }
     if (geoMoved) { film.geo++; publish() }
     const q = log.n & (LOGN - 1)
-    log.t[q] = now; log.p[q] = p; log.s[q] = film.shown; log.d[q] = film.def; log.ms[q] = ms; log.mv[q] = changed || moving ? 1 : 0; log.tk[q] = tick.prev; log.n++
+    log.t[q] = now; log.p[q] = p; log.s[q] = film.shown; log.d[q] = film.def; log.ms[q] = ms; log.mv[q] = changed || moving ? 1 : 0; log.tk[q] = tick.prev
+    log.pos[q] = shownB >= 0 ? film.shown + shownA : film.shown; log.kind[q] = 0; log.held[q] = 0; log.n++
     film.version++
     hooks.forEach((f) => f())
   })

@@ -16,7 +16,7 @@ import { StateSection, Leads } from './sections/States'
 import { Protocol, ArcGate, End, Footer } from './sections/Story'
 import { t, useLang } from './i18n'
 
-import { mountFilm, film } from './video/film'
+import { mountFilm, film, GATE, gateFrac } from './video/film'
 import { mountLames } from './video/lames'
 import { mountRoomLeds } from './video/roomleds-film'
 import type { Wall } from './data/wall'
@@ -45,7 +45,7 @@ function pinToFilm(w: Wall): Wall {
 }
 
 /** The header loading bar: read by the header every frame, without a React render */
-const filmLoad = () => { const m = film.man; return m ? Math.min(1, 0.1 + 0.9 * film.loaded / Math.min(m.n, 40)) : 0.05 }
+const filmLoad = () => { if (GATE) return gateFrac(); const m = film.man; return m ? Math.min(1, 0.1 + 0.9 * film.loaded / Math.min(m.n, 40)) : 0.05 }
 
 const SECTIONS: Record<SecId, () => React.ReactElement> = {
   hero: () => <Hero />, use: () => <StateSection id="use" />, rent: () => <StateSection id="rent" />,
