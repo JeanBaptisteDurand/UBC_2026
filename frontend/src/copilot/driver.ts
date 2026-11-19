@@ -433,7 +433,6 @@ async function demo(a: DemoArgs, hooks: DriveHooks) {
 
 /** The Network page's 3D demo (network/demo.ts): opened with its own button (the Demo view), then driven with its
  *  own controls (play/pause, previous, next, the three chapters), clicked by the copilot cursor. Nothing else. */
-const small = () => matchMedia('(max-width: 640px), (max-height: 500px)').matches
 async function netDemo(a: DemoArgs, hooks: DriveHooks) {
   const root = () => document.querySelector<HTMLElement>('.s3d .dm')
   const click = async (el: HTMLElement) => { const b = boxOf(el); if (b.w && b.h) { await glideTo(b); await press() } el.click() }
@@ -455,8 +454,9 @@ async function netDemo(a: DemoArgs, hooks: DriveHooks) {
     : btn(a.action)
   if (el) await click(el)
   hooks.log(a.action === 'goto' ? ct('step.demo.goto', { n: a.step ?? 1 }) : ct(`step.demo.${a.action}` as 'step.demo.play'))
-  // on a small screen the panel would cover the scene: it steps aside (the AskHive button brings it back)
-  if (started && small()) hooks.hide?.()
+  // the demo takes the whole scene (its story on the left, its controls along the bottom): the panel steps aside once
+  // the demo starts, the AskHive button brings it back with this log
+  if (started || a.action === 'play') hooks.hide?.()
   await sleep(reduced() ? 50 : 500)
 }
 
