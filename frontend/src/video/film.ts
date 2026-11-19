@@ -924,20 +924,22 @@ function evictM() {
   film.bytes = M.bytes
   if (out.length) pw?.postMessage({ type: 'evict', ks: out })
 }
-/** The motion frame(s) for position p: the two pack frames around it, blended at the fraction, at every speed;
- *  otherwise the nearest decoded frame within 3 (ahead first); otherwise nothing (the refresh holds) */
+/** The motion frame(s) for position p: the decoded frames on either side of it (at most 4 apart: the two pack frames
+ *  around it, or, while the odd frames of motion.bin are not decoded yet, the even ones), blended at the fraction, at
+ *  every speed; otherwise the nearest decoded frame within 3 (ahead first); otherwise nothing (the refresh holds) */
 function chooseM(p: number): boolean {
-  const [a, b] = bracket(p)
+  const n = film.man!.n, f = Math.min(n - 1, Math.max(0, Math.floor(p)))
+  let a = -1, b = -1
+  for (let k = f; k >= Math.max(0, f - 3); k--) if (M.bm.has(k)) { a = k; break }
+  for (let k = f + 1; k <= Math.min(n - 1, f + 4); k++) if (M.bm.has(k)) { b = k; break }
   pickB = -1; pickA = 0
-  if (a >= 0 && M.bm.has(a)) {
-    if (p - a < 1 / 128) { pickK = a; mPos = a; return true }
-    if (b >= 0 && M.bm.has(b)) {
-      const al = Math.round(((p - a) / (b - a)) * 64) / 64
-      pickK = a; if (al > 0) { pickB = b; pickA = al }
-      mPos = a + al * (b - a); return true
-    }
+  if (a >= 0 && p - a < 1 / 128) { pickK = a; mPos = a; return true }
+  if (b >= 0 && b - p < 1 / 128) { pickK = b; mPos = b; return true }
+  if (a >= 0 && b >= 0 && b - a <= 4) {
+    const al = Math.round(((p - a) / (b - a)) * 64) / 64
+    pickK = a; if (al > 0) { pickB = b; pickA = al }
+    mPos = a + al * (b - a); return true
   }
-  if (b >= 0 && M.bm.has(b) && b - p < 1 / 128) { pickK = b; mPos = b; return true }
   const t = Math.round(p)
   for (let d = 0; d <= 3; d++) {
     const x = t + d * dir, y = t - d * dir
