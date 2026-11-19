@@ -1,19 +1,19 @@
-/** enclave-server.ts — point d'entrée de l'image « copilot-enclave » (enclave/Dockerfile.copilot) : le copilote d'ArcHive
- *  dans une VM Intel TDX (Phala dstack), avec le kit d'enclave (voir enclave-app.ts).
- *   1. configuration lue et VALIDÉE avant la naissance des clés (enclave-config.ts) : une valeur invalide arrête l'enclave
- *      (DEBUG présent, COPILOT_PROXY_TOKEN absent ou trop court compris) ;
- *   2. DEBUG retiré de l'environnement avant de monter le client du modèle (llm.ts) ;
- *   3. clés nées en mémoire ; quote par l'agent invité dstack (/var/run/dstack.sock), sinon SIMULÉ (hors TDX, inscription
- *      impossible) ;
- *   4. le MÊME copilote que server.ts (copilot.ts), les outils lisant la pile de DEPLOYMENTS ;
- *   5. /attest, /pubkeys et /health publics ; POST /chat (en clair ou chiffré) seulement avec le jeton du mandataire du
- *      site (COPILOT_PROXY_TOKEN, en-tête x-archive-proxy-token), qui seul fait croire X-Forwarded-For (débit par IP).
- *  Aucun secret au journal : ni la clé du modèle (OPENAI_API_KEY, variable chiffrée), ni le jeton du mandataire, ni la
+/** enclave-server.ts — entry point of the "copilot-enclave" image (enclave/Dockerfile.copilot): ArcHive's copilot in an
+ *  Intel TDX VM (Phala dstack), with the enclave kit (see enclave-app.ts).
+ *   1. configuration read and VALIDATED before the keys are born (enclave-config.ts): an invalid value stops the enclave
+ *      (DEBUG present, COPILOT_PROXY_TOKEN missing or too short included);
+ *   2. DEBUG removed from the environment before the model client is built (llm.ts);
+ *   3. keys born in memory; quote from the dstack guest agent (/var/run/dstack.sock), otherwise SIMULATED (outside TDX,
+ *      registration impossible);
+ *   4. the SAME copilot as server.ts (copilot.ts), its tools reading the DEPLOYMENTS stack;
+ *   5. /attest, /pubkeys and /health public; POST /chat (in clear or encrypted) only with the site proxy's token
+ *      (COPILOT_PROXY_TOKEN, header x-archive-proxy-token), the only thing that makes X-Forwarded-For trusted (per-IP rate).
+ *  No secret in the logs: not the model key (OPENAI_API_KEY, an encrypted variable), not the proxy token, not the
  *  conversation.
- *  18/11 : COPILOT_SURFACE=site (mesurée) : le copilote du PANNEAU DU SITE (enclave-site.ts) : même invite, mêmes outils
- *  d'interface et prepare que le copilote du site sur le serveur, sa propre note « où tu tournes » (juste en TDX comme
- *  hors TDX), une invite contrôlée (aucune phrase du serveur, sinon refus de démarrer) et des réponses scellées SIGNÉES
- *  par la clé de l'enclave (champ sig, vérifié par le panneau). Sans la variable : la console, comme avant. */
+ *  COPILOT_SURFACE=site (measured): the copilot of the SITE'S PANEL, AskHive (enclave-site.ts): the same prompt, the
+ *  same interface and prepare tools as the site copilot on the server, its own "where you run" note (correct in TDX
+ *  and outside it), a controlled prompt (no server sentence, otherwise it refuses to start) and sealed replies SIGNED
+ *  by the enclave's key (the sig field, checked by the panel). Without the variable: the console, unchanged. */
 import { serve } from "@hono/node-server";
 import { EnclaveKit } from "../../../enclave/src/kit/enclave-kit";
 import { RpcQuorum } from "../../../enclave/src/kit/rpc-quorum";

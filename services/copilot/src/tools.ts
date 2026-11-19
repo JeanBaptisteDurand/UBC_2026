@@ -1,6 +1,6 @@
-/** tools.ts — les outils du copilote (§5 du plan). Lectures + actions PRÉPARÉES (jamais exécutées :
- *  l'utilisateur signe). Tout chiffre vient d'un outil ; aucune clé privée en conversation.
- *  La logique on-chain des nouveaux outils est dans arc-actions.ts (partagée avec le serveur MCP). */
+/** tools.ts — the copilot's tools. Reads + PREPARED actions (never executed: the user signs). Every number comes from a
+ *  tool; no private key in the conversation. The on-chain logic of the newer tools is in arc-actions.ts (shared with the
+ *  MCP server). */
 import { type ArcClient, normalizeReceipt } from "@arcvault/sdk";
 import { formatUnits, type Address, type Hex } from "viem";
 import {

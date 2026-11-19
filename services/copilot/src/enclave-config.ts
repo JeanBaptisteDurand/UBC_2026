@@ -1,26 +1,26 @@
-/** enclave-config.ts — la configuration du copilote EN ENCLAVE, lue dans l'environnement et VALIDÉE au démarrage, avant la
- *  naissance des clés : une valeur absente ou invalide arrête l'enclave (on échoue fermé).
+/** enclave-config.ts — the configuration of the copilot IN AN ENCLAVE, read from the environment and VALIDATED at start,
+ *  before the keys are born: a missing or invalid value stops the enclave (fail closed).
  *
- *  À écrire EN CLAIR dans le compose Phala (mesuré : compose-hash → empreinte d'image autorisée par l'auteur du produit) :
- *    PRODUCT_ID (requis), DEPLOYMENTS (requis : chemin du deployments.*.json embarqué dans l'image, ex.
- *    /app/deployments/deployments.v21.testnet.json ; les outils lisent cette pile), REGISTRY et CHAIN_ID (facultatifs :
- *    s'ils sont donnés, ils doivent être ceux du fichier), RPC_URL / RPC_URLS (quorum de lecture du kit), OPENAI_BASE_URL
- *    et COPILOT_MODEL (requis : l'amont et le modèle sont mesurés), PORT, ALLOWED_ORIGINS (jamais « * »),
- *    COPILOT_RATE_PER_MINUTE, COPILOT_RATE_PER_DAY, COPILOT_GLOBAL_PER_DAY, COPILOT_MAX_TOKENS, COPILOT_MAX_TOOL_CHARS,
- *    COPILOT_MAX_INPUT_CHARS, COPILOT_MAX_INPUT_TOKENS (9/11 au soir : budget d'entrée en jetons estimés, 50 000 par
- *    défaut, valeur du code si absente), ARCHIVE_API, ENCLAVE_URL, ENCLAVE_PATH_PREFIXES.
- *  Variables CHIFFRÉES (non mesurées, jamais journalisées) : OPENAI_API_KEY, OPERATOR_ALLOWLIST, COPILOT_PROXY_TOKEN.
- *  Refusés dans une enclave : COPILOT_ALLOW_PRIVATE_URLS=1 (développement local seulement) ; DEBUG, quelle qu'en soit la
- *  valeur (openai@4 journaliserait la clé du modèle et toute la conversation, voir llm.ts).
+ *  To write IN CLEAR in the Phala compose (measured: compose-hash → image fingerprint allowed by the product's author):
+ *    PRODUCT_ID (required), DEPLOYMENTS (required: path of the deployments.*.json shipped in the image, e.g.
+ *    /app/deployments/deployments.v21.testnet.json; the tools read this stack), REGISTRY and CHAIN_ID (optional: if
+ *    given, they must match the file), RPC_URL / RPC_URLS (the kit's read quorum), OPENAI_BASE_URL and COPILOT_MODEL
+ *    (required: the upstream and the model are measured), PORT, ALLOWED_ORIGINS (never "*"), COPILOT_RATE_PER_MINUTE,
+ *    COPILOT_RATE_PER_DAY, COPILOT_GLOBAL_PER_DAY, COPILOT_MAX_TOKENS, COPILOT_MAX_TOOL_CHARS, COPILOT_MAX_INPUT_CHARS,
+ *    COPILOT_MAX_INPUT_TOKENS (input budget in estimated tokens, 50,000 by default, the code's value when absent),
+ *    ARCHIVE_API, ENCLAVE_URL, ENCLAVE_PATH_PREFIXES.
+ *  ENCRYPTED variables (not measured, never logged): OPENAI_API_KEY, OPERATOR_ALLOWLIST, COPILOT_PROXY_TOKEN.
+ *  Refused in an enclave: COPILOT_ALLOW_PRIVATE_URLS=1 (local development only); DEBUG, whatever its value (openai@4
+ *  would log the model key and the whole conversation, see llm.ts).
  *
- *  COPILOT_PROXY_TOKEN (9/11, débit par IP) : le jeton que le mandataire du site (nginx) pose sur chaque requête
- *  (en-tête x-archive-proxy-token). POST /chat le exige (sinon 403 proxy_required) et X-Forwarded-For n'est cru que
- *  s'il est bon : appeler l'URL Phala directement ne permet donc plus de changer d'« IP » à chaque requête. 32 octets au
- *  moins, caractères ASCII visibles (ex. `openssl rand -hex 32`) ; variable CHIFFRÉE de la VM, même valeur côté nginx.
+ *  COPILOT_PROXY_TOKEN (per-IP rate): the token the site's proxy (nginx) sets on every request (header
+ *  x-archive-proxy-token). POST /chat requires it (otherwise 403 proxy_required) and X-Forwarded-For is trusted only
+ *  when it is right: calling the Phala URL directly therefore cannot change "IP" at every request. At least 32 bytes,
+ *  visible ASCII characters (e.g. `openssl rand -hex 32`); an ENCRYPTED variable of the VM, the same value on nginx's side.
  *
- *  COPILOT_SURFACE (18/11, en clair donc MESURÉE) : « console » (défaut, la bulle de la console) ou « site » (le panneau du
- *  front, enclave-site.ts : réponses scellées ET signées) ; toute autre valeur arrête l'enclave avant la naissance des
- *  clés. La surface fait partie du compose, donc de l'empreinte d'image qu'autorise l'auteur du produit. */
+ *  COPILOT_SURFACE (in clear, so MEASURED): "console" (the default, the console's bubble) or "site" (the site's panel,
+ *  enclave-site.ts: replies sealed AND signed); any other value stops the enclave before the keys are born. The surface
+ *  is part of the compose, so of the image fingerprint the product's author allows. */
 import { readFileSync } from "node:fs";
 import { type Address, getAddress, isAddress } from "viem";
 import { deploymentFromJson, type Deployment } from "@arcvault/sdk";

@@ -1,12 +1,12 @@
-/** llm.ts — l'appel au modèle compatible OpenAI (OpenAI, DeepSeek, RedPill…), séparé de server.ts pour être testé contre
- *  un faux fournisseur local. max_tokens part à CHAQUE appel (coût borné) ; une seule nouvelle tentative ; le signal de
- *  la requête coupe l'appel au délai global. Les erreurs du fournisseur remontent telles quelles à app.ts, qui ne les
- *  renvoie jamais au visiteur (message générique + code).
- *  9/11 (vérificateur, DEBUG) : avec DEBUG=true, openai@4 (core.js, debug()) écrit au journal (console.log) l'URL, les
- *  en-têtes (dont « authorization: Bearer <clé du modèle> ») et le corps (toute la conversation) de chaque requête et de
- *  chaque réponse, hors de tout filtre. Il relit process.env.DEBUG à chaque appel : DEBUG est donc retiré de
- *  l'environnement au démarrage des deux points d'entrée (server.ts, enclave-server.ts, avant de monter le client), à la
- *  construction du client ici, et encore avant chaque appel. Le client ne journalise ainsi jamais ni en-têtes ni corps. */
+/** llm.ts — the call to the OpenAI-compatible model (OpenAI, DeepSeek, RedPill…), kept apart from server.ts so it can be
+ *  tested against a fake local provider. max_tokens is sent with EVERY call (bounded cost); one retry at most; the
+ *  request's signal cuts the call at the global timeout. Provider errors go up to app.ts as they are, which never
+ *  returns them to the visitor (generic message + code).
+ *  DEBUG: with DEBUG=true, openai@4 (core.js, debug()) logs (console.log) the URL, the headers (including
+ *  "authorization: Bearer <model key>") and the body (the whole conversation) of every request and response, outside
+ *  any filter. It rereads process.env.DEBUG at every call, so DEBUG is removed from the environment when both entry
+ *  points start (server.ts, enclave-server.ts, before the client is built), when the client is built here, and again
+ *  before every call. The client therefore never logs headers or bodies. */
 import OpenAI from "openai";
 import type { Llm } from "./app";
 

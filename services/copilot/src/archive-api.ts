@@ -1,11 +1,11 @@
-/** archive-api.ts — les LISTES du réseau (enclaves, primes, produits, sessions d'un compte, activité, compteurs) lues
- *  dans l'index d'événements de l'API publique d'ArcHive (services/api : index RPC tenu sur disque, jamais partiel),
- *  pour le copilote ET le serveur MCP (audit du 7/11, n° 7).
- *  - Délai : 8 s par appel (AbortSignal.timeout), corps borné, cache de 15 s des seules réponses réussies.
- *  - Repli EXPLICITE : API muette, en erreur ou illisible → ListUnavailableError, « liste momentanément
- *    indisponible » ; jamais l'explorateur (Blockscout), jamais une liste partielle présentée comme complète :
- *    une seule ligne mal formée rend toute la liste indisponible.
- *  Les lectures PONCTUELLES (une enclave, une session, une prime, un produit) restent des lectures on-chain. */
+/** archive-api.ts — the network's LISTS (enclaves, bounties, products, an account's sessions, activity, counters) read
+ *  from the event index of ArcHive's public API (services/api: an RPC index kept on disk, never partial), for the
+ *  copilot AND the MCP server.
+ *  - Timeout: 8 s per call (AbortSignal.timeout), bounded body, 15 s cache of successful answers only.
+ *  - EXPLICIT fallback: an API that is silent, failing or unreadable → ListUnavailableError, "liste momentanément
+ *    indisponible" (list temporarily unavailable); never the explorer (Blockscout), never a partial list presented as
+ *    complete: a single malformed row makes the whole list unavailable.
+ *  SINGLE reads (one enclave, one session, one bounty, one product) stay on-chain reads. */
 import { getAddress, type Address, type Hex } from "viem";
 import type { EnclaveView, BountyRow, ProductView, ProductState } from "@arcvault/sdk";
 

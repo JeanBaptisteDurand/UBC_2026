@@ -1,6 +1,6 @@
-/** guard.ts — les garde-fous HTTP du copilote (audit du 7/11, n° 4) : lecture bornée du corps, validation de la
- *  conversation (rôles user et assistant, texte seulement, historique borné, filtre de secrets sur toute la conversation),
- *  limite de débit par IP, jeton du mandataire du site (copilote en enclave), origines. */
+/** guard.ts — the copilot's HTTP guards: bounded body reading, conversation validation (user and assistant roles, text
+ *  only, bounded history, secrets filter on the whole conversation), per-IP rate limit, the site proxy's token (copilot
+ *  in an enclave), origins. */
 import { createHash, timingSafeEqual } from "node:crypto";
 import { isIP } from "node:net";
 import type { Context } from "hono";

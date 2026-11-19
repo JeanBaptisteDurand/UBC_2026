@@ -1,15 +1,15 @@
-/** site-live.ts — l'ÉTAT EN DIRECT du réseau pour le copilote du site (19/11/2026) : au lieu d'un état écrit dans l'invite
- *  (« 0 enclave active », « en pause depuis le 14/11 »), qui se périme dès qu'une VM démarre ou s'arrête, chaque requête
- *  reçoit UNE ligne lue au moment de répondre (LIVE STATUS, ajoutée par app.ts après la ligne de la page) :
- *  - les enclaves actives par produit (index de l'API ArcHive : /enclaves) et leur niveau (/levels : vérifié = puce
- *    déclarée par l'alliance Proof of Cloud) ; les produits sans enclave active ;
- *  - le règlement du produit 7 (OperatorBond.isSettlement, lu par /levels : canSlash) ;
- *  - les primes ouvertes des DEUX niveaux : SealedBounty par l'API (/bounties), SealedBountyVerified (produit 7) lue
- *    on-chain, l'API ne l'indexant pas.
- *  Bornes : lecture de 3,5 s au plus (sinon une ligne de repli qui renvoie aux outils, jamais un état deviné), ligne
- *  gardée 30 s (succès seulement), en anglais ASCII (chaque caractère accentué compte 3 jetons, app.ts).
- *  bounty_list du SITE ajoute aussi les primes du niveau vérifié (siteBountyList) ; la console et le MCP n'en dépendent
- *  pas (leur bounty_list reste celui d'arc-actions.ts). */
+/** site-live.ts — the network's LIVE STATUS for the site copilot: instead of a status written into the prompt, which goes
+ *  stale as soon as a VM starts or stops, each request gets ONE line read at answer time (LIVE STATUS, added by app.ts
+ *  after the page line):
+ *  - the active enclaves per product (ArcHive API index: /enclaves) and their level (/levels: verified = a chip declared
+ *    by the Proof of Cloud alliance); the products with no active enclave;
+ *  - product 7's settlement (OperatorBond.isSettlement, read by /levels: canSlash);
+ *  - the open bounties of BOTH levels: SealedBounty through the API (/bounties), SealedBountyVerified (product 7) read
+ *    on-chain, since the API does not index it.
+ *  Limits: a read of 3.5 s at most (otherwise a fallback line that points to the tools, never a guessed status), the line
+ *  kept 30 s (successes only), in ASCII English (every accented character counts as 3 tokens, app.ts).
+ *  The SITE's bounty_list also adds the verified-level bounties (siteBountyList); the console and the MCP server do not
+ *  depend on it (their bounty_list stays arc-actions.ts's). */
 import { type Address } from "viem";
 import { sealedBountyAbi, type ArcClient } from "@arcvault/sdk";
 import { apiBounties, apiEnclaves, apiLevels, apiProducts } from "./archive-api";

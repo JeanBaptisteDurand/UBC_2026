@@ -1,23 +1,23 @@
-/** enclave-app.ts — le copilote DANS une enclave Intel TDX (Phala dstack), sans effet de bord (testable hors VM) : la MÊME
- *  application que server.ts (mêmes outils, mêmes garde-fous, même invite), plus le kit d'enclave d'ArcHive :
- *   - clés nées en mémoire au démarrage (secp256k1 + X25519), jamais écrites ;
- *   - POST /attest (opérateur) : quote TDX RÉEL de dstack dont le REPORTDATA lie la chaîne, le registre, le produit du
- *     copilote, l'opérateur et les deux clés ; mêmes règles que les autres produits (OPERATOR_ALLOWLIST, échoue fermé ;
- *     refus si la clé est déjà inscrite pour un autre opérateur) ; hors TDX, quote SIMULÉ (mock: true), qu'aucune
- *     inscription on-chain n'accepte : un client (site, SDK) refuse donc toujours ce copilote-là ;
- *   - GET /pubkeys (public, CORS ouvert) : la clé X25519 que le client confronte à la chaîne avant de chiffrer ;
- *   - POST /chat : en plus du mode clair, la conversation chiffrée (HPKE vers la clé X25519 de l'enclave, étiquette
- *     ARC-COPILOT-CHAT-v1, info liée à la chaîne, au registre, au produit et au signataire) ; la réponse repart scellée
- *     pour ce seul client (enclave/src/kit/hpke-exchange.ts ; client : createAttestedCopilotClient du SDK) ;
- *   - 9/11 : POST /chat SEULEMENT au travers du mandataire du site (proxyToken = COPILOT_PROXY_TOKEN, variable chiffrée :
- *     en-tête x-archive-proxy-token posé par nginx, sinon 403 proxy_required) ; X-Forwarded-For n'est cru que s'il est
- *     bon (le pair vu ici est toujours la passerelle Phala) : le débit par IP ne se contourne plus en appelant l'URL
- *     Phala directement. /attest, /pubkeys et /health restent publics.
- *  La clé d'API du modèle et le jeton du mandataire restent des variables CHIFFRÉES de l'enclave : jamais mesurées,
- *  jamais journalisées ; la clé est retirée de tout ce qui sort (filtre de secrets d'app.ts).
- *  18/11 : surface « site » (COPILOT_SURFACE=site, enclave-site.ts) : le copilote du panneau du site, dans l'enclave ;
- *  avec `signReplies`, chaque réponse scellée est aussi SIGNÉE par la clé de l'enclave (champ sig, vérifié par le
- *  panneau). Hors TDX (quote simulé), la note de la console ne dit plus qu'il tourne dans une enclave. */
+/** enclave-app.ts — the copilot INSIDE an Intel TDX enclave (Phala dstack), with no side effect (testable outside a VM):
+ *  the SAME app as server.ts (same tools, same guards, same prompt), plus ArcHive's enclave kit:
+ *   - keys born in memory at start (secp256k1 + X25519), never written;
+ *   - POST /attest (operator): a REAL TDX quote from dstack whose REPORTDATA binds the chain, the registry, the copilot's
+ *     product, the operator and both keys; the same rules as the other products (OPERATOR_ALLOWLIST, fail closed;
+ *     refused if the key is already registered for another operator); outside TDX, a SIMULATED quote (mock: true) that
+ *     no on-chain registration accepts, so a client (site, SDK) always refuses that copilot;
+ *   - GET /pubkeys (public, open CORS): the X25519 key the client checks against the chain before encrypting;
+ *   - POST /chat: besides clear mode, the encrypted conversation (HPKE to the enclave's X25519 key, tag
+ *     ARC-COPILOT-CHAT-v1, info bound to the chain, the registry, the product and the signer); the reply goes back
+ *     sealed for that client only (enclave/src/kit/hpke-exchange.ts; client: the SDK's createAttestedCopilotClient);
+ *   - POST /chat ONLY through the site's proxy (proxyToken = COPILOT_PROXY_TOKEN, an encrypted variable: header
+ *     x-archive-proxy-token set by nginx, otherwise 403 proxy_required); X-Forwarded-For is trusted only when it is right
+ *     (the peer seen here is always Phala's gateway), so the per-IP rate cannot be bypassed by calling the Phala URL
+ *     directly. /attest, /pubkeys and /health stay public.
+ *  The model's API key and the proxy token stay ENCRYPTED variables of the enclave: never measured, never logged; the
+ *  key is removed from everything that goes out (app.ts's secrets filter).
+ *  "site" surface (COPILOT_SURFACE=site, enclave-site.ts): AskHive, the site panel's copilot, in the enclave; with
+ *  `signReplies`, every sealed reply is also SIGNED by the enclave's key (the sig field, checked by the panel). Outside
+ *  TDX (simulated quote), the console's note no longer says it runs in an enclave. */
 import { COPILOT_SEALED_TAG } from "@arcvault/sdk";
 import type { EnclaveKit } from "../../../enclave/src/kit/enclave-kit";
 import { createAttestServer, type AttestServerOptions } from "../../../enclave/src/server/attest-server";

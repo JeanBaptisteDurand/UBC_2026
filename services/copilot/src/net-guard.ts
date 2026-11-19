@@ -1,15 +1,14 @@
-/** net-guard.ts — appels vers une URL fournie par l'utilisateur (le /attest ou le /pubkeys d'une VM) sans faire du
- *  serveur un relais vers son propre réseau ni vers un autre service (audit du 7/11, n° 4 ; restes du 8/11) :
- *  - URL d'enclave (enclaveEndpoint) : https seulement, port 443 seulement, chemin FIXE (/attest ou /pubkeys, à la
- *    racine ou derrière un préfixe de passerelle connu : /enclave/inference, /enclave/bounty), sans identifiants, ni
- *    requête, ni fragment ;
- *  - le nom d'hôte est résolu UNE fois ; si une seule des adresses est privée, locale, réservée ou de documentation,
- *    l'appel est refusé (formes IPv6 qui embarquent une IPv4 comprises : ::ffff:7f00:1, 6to4…) ;
- *  - la connexion se fait vers CETTE adresse (lookup figé, nouvel agent à chaque appel) : un second tour de DNS
- *    (rebinding) ne peut plus viser le réseau interne ; le TLS vérifie toujours le certificat du nom d'hôte (SNI) ;
- *  - aucune redirection suivie, délai global, corps borné.
- *  Développement local seulement (COPILOT_ALLOW_PRIVATE_URLS=1, MCP_ALLOW_PRIVATE_URLS=1 : allowPrivate) : adresses
- *  privées, http et tout port permis ; les chemins restent fixes et les redirections refusées. */
+/** net-guard.ts — calls to a URL supplied by the user (a VM's /attest or /pubkeys) without turning the server into a
+ *  relay to its own network or to another service:
+ *  - enclave URL (enclaveEndpoint): https only, port 443 only, a FIXED path (/attest or /pubkeys, at the root or behind
+ *    a known gateway prefix: /enclave/inference, /enclave/bounty), no credentials, no query, no fragment;
+ *  - the host name is resolved ONCE; if any one of the addresses is private, local, reserved or for documentation, the
+ *    call is refused (IPv6 forms that embed an IPv4 included: ::ffff:7f00:1, 6to4…);
+ *  - the connection goes to THAT address (pinned lookup, a new agent for each call): a second DNS round (rebinding)
+ *    cannot target the internal network; TLS still checks the host name's certificate (SNI);
+ *  - no redirect followed, a global timeout, a bounded body.
+ *  Local development only (COPILOT_ALLOW_PRIVATE_URLS=1, MCP_ALLOW_PRIVATE_URLS=1: allowPrivate): private addresses,
+ *  http and any port allowed; paths stay fixed and redirects refused. */
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import * as http from "node:http";

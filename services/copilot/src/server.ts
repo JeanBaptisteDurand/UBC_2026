@@ -1,11 +1,11 @@
-/** server.ts — copilote RAG agentique (OpenAI-compatible : OpenAI/DeepSeek/RedPill), servi tel quel (VPS). Boucle d'outils :
- *  répond en citant, prépare des actions à signer. Clé + modèle par variables d'env (.env).
- *  Le copilote (invite, outils, modèle, garde-fous) est monté par copilot.ts ; l'application HTTP et ses garde-fous
- *  (origines, débit par IP, bornes, plafonds d'outils et de coût, filtre de secrets, erreurs du modèle génériques,
- *  langue) sont dans app.ts. Dans une enclave Intel TDX, c'est enclave-server.ts qui sert le MÊME copilote, avec le kit
- *  d'enclave (clés en mémoire, /attest, /pubkeys, conversation chiffrée). Variables : voir copilot.ts.
- *  DEBUG est retiré de l'environnement AVANT de monter le client du modèle (llm.ts : openai@4 journaliserait sinon la clé
- *  du modèle et toute la conversation). */
+/** server.ts — the agentic RAG copilot (OpenAI-compatible API: OpenAI, DeepSeek, RedPill), served as is (on the server).
+ *  Tool loop: it answers with citations and prepares actions to sign. Key and model come from environment variables (.env).
+ *  The copilot (prompt, tools, model, guards) is assembled by copilot.ts; the HTTP app and its guards (origins, per-IP
+ *  rate, limits, tool and cost caps, secrets filter, generic model errors, language) are in app.ts. In an Intel TDX
+ *  enclave, enclave-server.ts serves the SAME copilot, with the enclave kit (keys in memory, /attest, /pubkeys,
+ *  encrypted conversation). Variables: see copilot.ts.
+ *  DEBUG is removed from the environment BEFORE the model client is built (llm.ts: openai@4 would otherwise log the
+ *  model key and the whole conversation). */
 import { serve } from "@hono/node-server";
 import { createCopilotApp } from "./app";
 import { copilotFromEnv } from "./copilot";
