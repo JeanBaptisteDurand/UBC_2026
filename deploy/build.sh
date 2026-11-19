@@ -13,9 +13,8 @@ PUBLIC_URL="${PUBLIC_URL:-https://archive.62-171-153-35.sslip.io}"
 ONLY="${1:-all}"
 case "$ONLY" in all|web) ;; *) echo "usage : build.sh [web]"; exit 1 ;; esac
 
-# 17/11 : garde-fou. Le site n'est reconstruit que s'il est celui que ce script a construit la dernière fois (empreinte
-# de web/index.html notée dans $OUT/.web-front-build). Sinon, un site déposé à la main serait effacé (le 17/11, Florent
-# avait déposé sa version construite chez lui) : on s'arrête avant de rien construire, et on dit quoi faire.
+# Garde-fou : le site n'est reconstruit que s'il est celui que ce script a construit la dernière fois (empreinte
+# de web/index.html notée dans $OUT/.web-front-build). Sinon, un site déposé à la main serait effacé : on s'arrête avant de rien construire, et on dit quoi faire.
 # FORCE_WEB=1 passe outre, exprès (après une sauvegarde de web/).
 MARK="$OUT/.web-front-build"
 if [ -f "$OUT/web/index.html" ] && [ "${FORCE_WEB:-0}" != 1 ]; then
@@ -55,8 +54,7 @@ docker run --rm -v "$SRC":/src -w /src -e PUBLIC_URL="$PUBLIC_URL" -e ONLY="$ONL
   echo "-- console (sous /console/)"
   (cd web && VITE_API_URL="$PUBLIC_URL/api" VITE_COPILOT_URL="$PUBLIC_URL/copilot" \
     VITE_ENCLAVE_URL="$PUBLIC_URL/enclave/inference" VITE_O3_URL="$PUBLIC_URL/enclave/bounty" \
-    VITE_X402_URL="$PUBLIC_URL/enclave/x402" VITE_COPILOT_ENCLAVE_URL="$PUBLIC_URL/enclave/copilot" \
-    VITE_COPILOT_PRODUCT_ID=4 VITE_COPILOT_OPERATOR=0x344f2d2fA5AeAe78871F0B882245069F887c2e1a \
+    VITE_X402_URL="$PUBLIC_URL/enclave/x402" VITE_COPILOT_SITE_ENCLAVE_URL="$PUBLIC_URL/enclave/copilot-site" \
     npx vite build --base /console/ --logLevel warn --emptyOutDir --outDir /src/.build/web-console)
   echo "-- front (à la racine) : pages de Florent et copilote du site, profil jb (frontend/.env.jb : tout sur cette origine)"
   (cd frontend && node scripts/sizes.mjs && npx vite build --mode jb --logLevel warn --emptyOutDir --outDir /src/.build/web-front)
@@ -71,6 +69,8 @@ mkdir -p "$W/console" "$W/datacenter" "$W/manifests"
 rsync -a --delete --exclude console/ --exclude datacenter/ --exclude install.sh --exclude archive-node.mjs --exclude manifests/ \
   "$SRC/.build/web-front/" "$W/"
 rsync -a --delete --exclude datacenter/ "$SRC/.build/web-console/" "$W/console/"
+# 20/11 : the small 404 page nginx shows for unknown paths (deploy/nginx.conf, error_page)
+install -m 644 "$SRC/deploy/404.html" "$W/404.html"
 rsync -a --delete "$SRC/web/public/datacenter/" "$W/datacenter/"
 # le bouton « console » de la salle 3D mène à /console/ (la page est construite pour la racine : T-salle-serveurs-3d/site)
 sed -i 's#id="btn-console" href="/"#id="btn-console" href="/console/"#' "$W/datacenter/index.html"

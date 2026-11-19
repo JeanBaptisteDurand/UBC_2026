@@ -27,17 +27,17 @@ archive.62-171-153-35.sslip.io {
 		}
 	}
 
-	# option : un nœud d'Arc d'ArcHive (deploy/arc-node ; la route répond 502 quand aucun nœud ne tourne) : LECTURES
-	# seulement (preuves d'état du rejeu de la Prime), par la passerelle
-	# deploy/arc-node/rpc-gate.mjs publiée sur le pont Docker (172.17.0.1:8810, jamais sur Internet). Le nœud n'est pas
-	# de confiance : l'enclave vérifie chaque preuve contre l'en-tête ancré.
+	# RPC public d'Arc testnet : même cible que le proxy de développement du front (frontend/vite.config.ts : /arc-rpc
+	# vers https://rpc.testnet.arc.io). Pour les preuves d'état, une passerelle vers un nœud d'Arc
+	# (deploy/arc-node/rpc-gate.mjs, host.docker.internal:8810) peut prendre sa place.
 	@arcrpc path /arc-rpc /arc-rpc/*
 	handle @arcrpc {
 		uri strip_prefix /arc-rpc
 		request_body {
 			max_size 128KB
 		}
-		reverse_proxy host.docker.internal:8810 {
+		reverse_proxy https://rpc.testnet.arc.io {
+			header_up Host {upstream_hostport}
 			transport http {
 				read_timeout 30s
 			}
@@ -82,7 +82,7 @@ archive.62-171-153-35.sslip.io {
 		# cloudflared (inscription d'une machine : le navigateur lit son /attest), les RPC Sepolia et Base Sepolia de
 		# la page Portefeuille (CCTP), WalletConnect, Coinbase Wallet et le résolveur ENS de RainbowKit.
 		# Styles en ligne permis (RainbowKit injecte ses thèmes) ; images https (icônes de wallets) ; jamais cadré.
-		Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://rpc.testnet.arc.io https://explorer.testnet.arc.io https://*.phala.network https://*.trycloudflare.com https://ethereum-sepolia-rpc.publicnode.com https://base-sepolia-rpc.publicnode.com https://*.walletconnect.com wss://*.walletconnect.com https://*.walletconnect.org wss://*.walletconnect.org https://enhanced-provider.rainbow.me https://api.wallet.coinbase.com wss://www.walletlink.org; frame-src https://verify.walletconnect.com https://verify.walletconnect.org; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://iris-api-sandbox.circle.com https://rpc.testnet.arc.io https://explorer.testnet.arc.io https://*.phala.network https://*.trycloudflare.com https://ethereum-sepolia-rpc.publicnode.com https://base-sepolia-rpc.publicnode.com https://*.walletconnect.com wss://*.walletconnect.com https://*.walletconnect.org wss://*.walletconnect.org https://enhanced-provider.rainbow.me https://api.wallet.coinbase.com wss://www.walletlink.org; frame-src https://verify.walletconnect.com https://verify.walletconnect.org; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 		# ni version ni logiciel annoncés (Server de nginx ou de Caddy, Via du proxy)
 		-Server
 		-Via
