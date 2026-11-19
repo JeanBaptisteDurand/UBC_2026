@@ -4,7 +4,14 @@
 result counts, a contract on **Arc** checks Intel's signature on the machine and the exact image it runs; every use is
 **paid in USDC** against a receipt the enclave signed, and a machine caught lying loses its operator's USDC bond.
 
-Built on Arc testnet for the UBC 2026 hackathon by Jean-Baptiste Durand and Florent Belotti.
+**The problem.** An app or an AI agent that sends a private request to someone else's machine, or pays out on a
+security report, has to take the provider's word: that the advertised code is what runs, that the data stays private,
+that the result is honest. ArcHive replaces that word with checks Arc runs itself: a machine is admitted only once
+Intel's signature and its image fingerprint check out, USDC is paid out only against a signature from an admitted
+enclave, and a proven lie costs the operator's bond.
+
+Built on Arc testnet for UBC 2026 (Track 01, Agentic Payments & AI, and the Arc chain award) by Jean-Baptiste Durand
+and Florent Belotti.
 
 ## Live
 
@@ -14,13 +21,15 @@ Built on Arc testnet for the UBC 2026 hackathon by Jean-Baptiste Durand and Flor
 | How it works in 3D (roles, contracts, a guided demo) | https://arc-hive.xyz/network.html |
 | The services, prices and shares | https://arc-hive.xyz/service.html |
 | The Doc: how Arc checks every machine, every proof linked | https://arc-hive.xyz/doc.html |
+| Bring USDC to Arc with Circle's CCTP (from Ethereum Sepolia or Base Sepolia) | https://arc-hive.xyz/bridge.html |
 | Console (sessions, bounties, operators, developers) | https://archive.62-171-153-35.sslip.io/console/ |
 | 3D server room (live, or a replay of recorded events) | https://arc-hive.xyz/datacenter/ |
 | Read API (JSON, no key) | https://arc-hive.xyz/api/stats |
 | MCP server for AI agents (16 tools, no key) | https://arc-hive.xyz/mcp |
 | Arc testnet explorer | https://explorer.testnet.arc.io |
 
-The same site also answers at https://archive.62-171-153-35.sslip.io (the console and the operators' wallet sign-in use that address).
+The same site also answers at the server's own address, https://archive.62-171-153-35.sslip.io, where the console and
+the operators' wallet sign-in run (https://arc-hive.xyz/console/ redirects there).
 
 ## Check it in two minutes, no wallet needed
 
@@ -31,6 +40,9 @@ The same site also answers at https://archive.62-171-153-35.sslip.io (the consol
 3. **Ask AskHive** (bottom right of the site) *"Does this chat run in an enclave?"*. The panel shows its connection to
    the enclave whose key Arc holds for product 4, and the answer comes back sealed by that enclave.
 4. **Open any transaction below** on the explorer: `https://explorer.testnet.arc.io/tx/<hash>`.
+5. **Without a browser** (Foundry's `cast`):
+   `cast receipt 0xde9628b23d0483bb666a0cd13c55c4f32a1204151323a80da9451b0aeb330176 --rpc-url https://rpc.testnet.arc.io`
+   shows AskHive's enclave admission: status 1 (success), 6,849,074 gas, sent to the `EnclaveRegistry`.
 
 ## AskHive: the site's assistant, in its own enclave
 
@@ -277,7 +289,10 @@ header and signs nothing that depends on an RPC error.
 
 **What else Arc brings**: USDC is the money and the gas, so every check has a dollar price; EIP-3009 lets a buyer pay
 with one signature (no approve, and no gas for the buyer: the operator pays the settlement, about 0.005 USDC); Arc Foundry's `arc-anvil` forks Arc with its own precompiles (native USDC
-included) to replay an exploit exactly; EIP-2935 block history lets a contract refuse stale quotes and claims.
+included) to replay an exploit exactly; EIP-2935 block history lets a contract refuse stale quotes and claims; and
+Circle's CCTP V2 brings USDC to Arc from Ethereum Sepolia or Base Sepolia on the Bridge page (the user's wallet signs the
+burn on the source chain and the mint on Arc, Circle's attestation comes in between, and a standard transfer pays
+Circle no fee).
 
 ## Run it
 
