@@ -22,6 +22,10 @@ export interface Msg {
   local?: boolean
   /** Sent to (or answered by) the enclave, sealed to its key: never resent to the server in clear. */
   sealed?: boolean
+  /** Who answered (assistant): the enclave, sealed, or the ArcHive server, not sealed. */
+  route?: 'enclave' | 'server'
+  /** The enclave was tried and could not be used: the server answered (one line says so). */
+  down?: boolean
   citations?: string[]
   tools?: string[]
   cards?: Prepared[]

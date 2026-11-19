@@ -5,7 +5,7 @@
 // (Tab, Shift+Tab), Escape closes it and returns focus to the button. Phone (under 640 px): a full-width sheet,
 // collapsed while the copilot shows the site.
 import { AskHiveMark } from './AskHiveMark'
-import { useEnc, checkEnclave } from './enclave'
+import { useEnc, useLeg, checkEnclave } from './enclave'
 import { EXPLORER } from '../data/endpoints'
 import { useEffect, useRef, useState, type KeyboardEvent as RKeyboardEvent } from 'react'
 import { useLang } from '../i18n'
@@ -42,7 +42,9 @@ const fresh = new Set<string>()
  *  enclave: the question is sealed here first, then the enclave answers (its signature is checked on arrival). */
 function Thinking() {
   useLang()
-  const sealed = useEnc().status === 'on'
+  // sealed only while the question really goes to the enclave: once it falls back to the server, the line says so
+  const enc = useEnc().status, leg = useLeg()
+  const sealed = enc === 'on' && leg === 'enclave'
   const [secs, setSecs] = useState(0)
   useEffect(() => {
     const t0 = performance.now()
@@ -71,7 +73,9 @@ async function send(text: string) {
   const msg: Msg = { id, role: 'assistant', content: p.text || (p.cards.length || p.ui.length ? '' : ct('err.empty')), citations: p.citations, tools: p.toolNames, cards: p.cards }
   fresh.add(id)
   setTimeout(() => fresh.delete(id), 4000)
-  if (a.sealed) { msg.sealed = true; setState((s) => ({ msgs: s.msgs.map((m) => (m.id === user.id ? { ...m, sealed: true } : m)) })) }
+  msg.route = a.route
+  if (a.down) msg.down = true
+  if (a.route === 'enclave') { msg.sealed = true; setState((s) => ({ msgs: s.msgs.map((m) => (m.id === user.id ? { ...m, sealed: true } : m)) })) }
   if (!p.text && !p.cards.length && !p.ui.length) msg.local = true
   // gestures play before any new question (showing); if they change page, the resume on the new page keeps the
   // same lock (mount.tsx)
@@ -86,14 +90,18 @@ function EnclaveBadge({ svc }: { svc?: string }) {
   const [open, setOpen] = useState(false)
   useEffect(() => { void checkEnclave() }, [])
   const st = e.status === 'idle' ? 'checking' : e.status
-  const a = st === 'checking' ? ct('enc.checking') : ct(`enc.${st}.a` as never)
-  const b = st === 'checking' ? '' : ct(`enc.${st}.b` as never)
+  // the key is verified but the last answer came from the ArcHive server (the enclave did not answer): the badge
+  // says so, never "sealed" for an answer that was not
+  const lastSrv = useCopilot((s) => s.msgs.filter((m) => m.role === 'assistant' && !m.local).slice(-1)[0]?.route === 'server')
+  const d = st === 'on' && lastSrv ? 'srv' : st
+  const a = d === 'checking' ? ct('enc.checking') : ct(`enc.${d}.a` as never)
+  const b = d === 'checking' ? '' : ct(`enc.${d}.b` as never)
   const k = e.keys
   const ex = (kind: 'address' | 'block', v: string) => `${EXPLORER}/${kind}/${v}`
   const sh = (v: string) => `${v.slice(0, 6)}…${v.slice(-4)}`
   const time = k ? new Date(k.checkedAtMs).toLocaleTimeString(lang === 'fr' ? 'fr-FR' : 'en-US') : ''
   return (
-    <div className={`cp-enc-w is-${st}`}>
+    <div className={`cp-enc-w is-${d === 'srv' ? 'clear' : st}`}>
       <button type="button" className="cp-enc" aria-expanded={open} aria-controls="cp-proof" aria-label={`${a}${b ? `, ${b}` : ''}. ${ct('enc.aria')}`} disabled={st === 'checking'} onClick={() => setOpen(!open)}>
         <svg className="cp-enc-lock" viewBox="0 0 10 12" width="10" height="12" aria-hidden="true"><path d="M2.5 5V3.5a2.5 2.5 0 0 1 5 0V5" fill="none" stroke="currentColor" strokeWidth="1.2" /><rect x="1" y="5" width="8" height="6.4" fill="currentColor" /></svg>
         <span className="cp-enc-t"><span className="cp-enc-a">{a}</span>{b ? <span className="cp-enc-b">{b}</span> : null}</span>
@@ -110,7 +118,7 @@ function EnclaveBadge({ svc }: { svc?: string }) {
               <dt>{ct('enc.reg')}</dt><dd><a className="cp-a mono" href={ex('block', String(k.fromBlock))} target="_blank" rel="noreferrer">{ct('enc.blk', { n: String(k.fromBlock) })}</a></dd>
               <dt>{ct('enc.img')}</dt><dd className="mono">{sh(k.workloadId)}</dd>
               <dt>{ct('enc.quote')}</dt><dd>{ct('enc.quote.v', { tcb: k.tcbStatus === 0 ? ct('enc.tcb.0') : ct('enc.tcb.n', { n: k.tcbStatus }) })}</dd>
-              <dt>{ct('enc.conv')}</dt><dd>{st === 'on' ? ct('enc.conv.on', { k: sh(k.x25519) }) : ct('enc.conv.clear')}</dd>
+              <dt>{ct('enc.conv')}</dt><dd>{d === 'on' ? ct('enc.conv.on', { k: sh(k.x25519) }) : d === 'srv' ? ct('enc.conv.srv') : ct('enc.conv.clear')}</dd>
               <dt>{ct('enc.model')}</dt><dd>{ct('enc.model.v')}</dd>
               <dt>{ct('enc.checked')}</dt><dd className={st === 'on' ? 'cp-proof-ok' : ''}>{ct('enc.checked.v', { n: String(k.checkedAtBlock), t: time })}</dd>
             </dl>
@@ -190,6 +198,7 @@ function Message({ m }: { m: Msg }) {
   return (
     <li className={`cp-m is-bot ${m.local ? 'is-err' : ''} ${fresh.has(m.id) ? 'is-fresh' : ''}`}>
       <span className="sr-only">{ct('copilot')}: </span>
+      {m.down ? <p className="cp-route">{ct('route.down')}</p> : null}
       {m.content ? (m.local ? <p role="alert">{m.content}</p> : <Markdown text={stripCitations(m.content)} />) : null}
       {m.steps?.length ? <ul className="cp-steps mono" aria-label={ct('driving')}>{m.steps.map((x, i) => <li key={i}>{x}</li>)}</ul> : null}
       {m.cards?.map((c) => (isInfo(c) ? <InfoCard key={c.tool} c={c} /> : <ActionCard key={c.tool} c={c} cs={m.cardState?.[c.tool]} msgId={m.id} onAfter={(steps) => void play(m.id, steps)} />))}

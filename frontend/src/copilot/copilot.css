@@ -238,3 +238,5 @@ button.cp-enc:disabled .cp-enc-x { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .cp-m.is-fresh .cp-md > *, .cp-m.is-fresh > .cp-steps, .cp-m.is-fresh > .cp-src { animation: none; }
 }
+/* an answer from the ArcHive server because the enclave could not be used: one plain line, never a raw error */
+.cp-route { margin: 0 0 6px; font-size: 12px; line-height: 1.45; color: var(--ink3); }
