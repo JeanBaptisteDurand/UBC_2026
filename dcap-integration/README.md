@@ -2,8 +2,8 @@
 
 ArcHive's `TdxAttestationModule` (`contracts/src/attestation/TdxAttestationModule.sol`) checks an Intel TDX quote by
 calling Automata's DCAP verifier v1.1 (MIT) on-chain, then parses the measurements that `EnclaveRegistry` enforces.
-This folder holds the two proofs that it works: on Arc testnet with a quote from a live Phala enclave, and in Automata's
-own test harness.
+This folder holds the two proofs that it works: on Arc testnet with a quote from ArcHive's Phala enclave, and in
+Automata's own test harness.
 
 ## On Arc testnet (7 Nov 2026, folder `arc-testnet/`)
 
