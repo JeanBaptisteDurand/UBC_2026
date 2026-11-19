@@ -252,3 +252,8 @@ button.cp-enc:disabled .cp-enc-x { display: none; }
   .cp-panel[data-sheet="1"] .cp-wal, .cp-panel[data-sheet="1"] .cp-enc-w { display: none; }
   .cp-panel[data-sheet="1"] .cp-log { min-height: 80px; }
 }
+/* touch screens: while a field of the page has the focus (the keyboard is up), the AskHive button steps aside, so it
+   never covers the page's own controls (the Bridge page's Max) */
+@media (hover: none) and (pointer: coarse) {
+  body:has(:is(input, textarea, select):focus:not(.cp-panel *)) .cp-launch { visibility: hidden; }
+}
