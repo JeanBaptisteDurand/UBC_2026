@@ -1,19 +1,19 @@
-/** arc-actions.ts — les actions du copilote ET du serveur MCP (§5 du plan), écrites une seule fois.
- *  - Lectures : chaque chiffre vient d'une lecture on-chain (ArcClient du SDK, ou lecture directe d'un
- *    contrat avec son ABI) ; les dérivés (reste, plafond, frais) sont calculés ici en entiers, comme
- *    les contrats. Lectures séquentielles et mises en cache (le RPC public d'Arc répond 429 en rafale).
- *  - LISTES (enclaves, primes, produits, sessions d'un compte, activité) : lues dans l'index d'événements de l'API
- *    ArcHive (archive-api.ts, délai de 8 s), jamais chez l'explorateur ; API muette = « liste momentanément
- *    indisponible », jamais une liste partielle présentée comme complète (audit du 7/11, n° 7).
- *  - Actions : PRÉPARÉES seulement. Il n'y a aucune clé ici : rien n'est signé ni envoyé. L'utilisateur
- *    signe dans son navigateur, son wallet ou la CLI sur sa machine.
- *  - URL données par l'utilisateur (/attest, /pubkeys d'une VM) : https, port 443 et chemin fixe ; hôte résolu une fois,
- *    adresse publique exigée et connexion à CETTE adresse ; aucune redirection suivie ; le corps d'une réponse d'erreur
- *    n'est jamais lu ni renvoyé (net-guard.ts, audit n° 4 et restes du 8/11). Mêmes gardes pour le copilote et le MCP ;
- *    seule exception, en développement local : allowPrivateUrls (réseau privé, http, tout port).
- *  - Clés : la clé de session (aek_…) et la clé X25519 du protocole naissent chez l'utilisateur ;
- *    scrubSecrets() (secrets.ts, audit n° 10) masque un secret collé par erreur dans la conversation.
- *  Utilisé par services/copilot (tools.ts) et services/mcp (tools.ts). */
+/** arc-actions.ts — the actions of the copilot AND the MCP server, written once.
+ *  - Reads: every number comes from an on-chain read (the SDK's ArcClient, or a direct contract read with its ABI);
+ *    derived values (remainder, cap, fees) are computed here in integers, like the contracts. Reads are sequential and
+ *    cached (Arc's public RPC answers 429 to bursts).
+ *  - LISTS (enclaves, bounties, products, an account's sessions, activity): read from the ArcHive API's event index
+ *    (archive-api.ts, 8 s timeout), never from the explorer; an API that does not answer = "liste momentanément
+ *    indisponible" (list temporarily unavailable), never a partial list presented as complete.
+ *  - Actions: PREPARED only. There is no key here: nothing is signed or sent. The user signs in their browser, their
+ *    wallet or the CLI on their machine.
+ *  - URLs given by the user (a VM's /attest, /pubkeys): https, port 443 and a fixed path; host resolved once, a public
+ *    address required and the connection made to THAT address; no redirect followed; an error response's body is never
+ *    read or returned (net-guard.ts). The same guards for the copilot and the MCP server; the only exception, in local
+ *    development: allowPrivateUrls (private network, http, any port).
+ *  - Keys: the session key (aek_…) and the protocol's X25519 key are born on the user's side; scrubSecrets()
+ *    (secrets.ts) masks a secret pasted by mistake into the conversation.
+ *  Used by services/copilot (tools.ts) and services/mcp (tools.ts). */
 import {
   type ArcClient, type ProductView, type Predicate, type Clause, type EnclaveView, type BountyRow,
   usdcDomain, receiveWithAuthorizationTypes, freshNonce, predicateHash, canonicalize, validatePredicate,

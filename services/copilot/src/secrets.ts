@@ -1,50 +1,50 @@
-/** secrets.ts — le filtre de secrets (audit du 7/11, n° 10, et restes relevés par le vérificateur le 8/11), partagé par
- *  le copilote et le serveur MCP.
+/** secrets.ts — the secrets filter, shared by the copilot and the MCP server.
  *
- *  Rien de ce qui part vers le fournisseur du LLM ne doit porter :
- *  - une clé d'accès aek_<réseau>_<session>_<secret> ; une clé opérateur arcop_<id>_<secret> ;
- *  - une clé de fournisseur d'API : sk-… et sk-proj-… (OpenAI et compatibles), rpk_… (RedPill), gsk_, hf_, xai-, ghp_,
- *    github_pat_, glpat-, AIza… ; un jeton « Bearer … » ; la valeur d'une variable d'environnement secrète
- *    (…_API_KEY=, …_SECRET=, …_TOKEN=, …_PASSWORD=, …_PRIVATE_KEY=, …_MNEMONIC=…) ;
- *  - une phrase de récupération BIP-39 : 12 mots ou plus À LA SUITE d'une même liste (les dix listes officielles),
- *    numérotée ou non (« 1. », « 2) », « 3: », « #4 », « Mot n°5 : », « Word 6: », « 07. »), une par ligne, en colonnes
- *    alignées, ou avec une faute de frappe par tranche de 12 mots (lettre oubliée, en trop, changée ou inversée avec sa
- *    voisine, ou mot reconnu à ses 4 premières lettres, comme le font les wallets) ;
- *  - une clé privée PEM ;
- *  - une clé privée hexadécimale (0x + 64 hex, ou 64 hex nus) PRÈS d'un mot qui la désigne (clé, key, priv, secret,
- *    seed, wallet…). Un hash de transaction ou un bytes32 public (workloadId, quoteHash, clé X25519 PUBLIQUE, nonce)
- *    reste lisible : seul compte le libellé du champ de la valeur (dans un JSON, la clé qui la précède, jamais celle
- *    du champ suivant), et le mot le plus proche décide (« tx », « hash », « publique »… l'emportent).
- *  Les mots d'une phrase peuvent aussi être collés par « + » ou « . » (« abandon+ability+… »).
+ *  Nothing sent to the LLM provider may carry:
+ *  - an access key aek_<network>_<session>_<secret>; an operator key arcop_<id>_<secret>;
+ *  - an API provider key: sk-… and sk-proj-… (OpenAI and compatible), rpk_… (RedPill), gsk_, hf_, xai-, ghp_,
+ *    github_pat_, glpat-, AIza…; a "Bearer …" token; the value of a secret environment variable (…_API_KEY=,
+ *    …_SECRET=, …_TOKEN=, …_PASSWORD=, …_PRIVATE_KEY=, …_MNEMONIC=…);
+ *  - a BIP-39 recovery phrase: 12 or more words IN A ROW from one list (the ten official lists), numbered or not
+ *    ("1.", "2)", "3:", "#4", "Mot n°5 :", "Word 6:", "07."), one per line, in aligned columns, or with one typo per
+ *    12-word slice (a letter missing, added, changed or swapped with its neighbour, or a word recognised by its first 4
+ *    letters, as wallets do);
+ *  - a PEM private key;
+ *  - a hexadecimal private key (0x + 64 hex, or 64 bare hex) NEAR a word that names it (clé, key, priv, secret, seed,
+ *    wallet…). A transaction hash or a public bytes32 (workloadId, quoteHash, PUBLIC X25519 key, nonce) stays readable:
+ *    only the label of the value's field counts (in JSON, the key before it, never the next field's), and the nearest
+ *    word decides ("tx", "hash", "publique"… win).
+ *  A phrase's words can also be joined by "+" or "." ("abandon+ability+…").
  *
- *  MODE ALERTE (9/11 : pour TOUTE la conversation, scrubConversation) : dès qu'un message de l'UTILISATEUR parle de clé
- *  privée, de phrase de récupération ou de clé étendue (mentionsSecret, formulations précises), TOUS les messages de la conversation
- *  sont filtrés sévèrement — le secret arrive souvent dans le message SUIVANT celui qui en parle :
- *  - toute valeur de 64 hex y est masquée, quel que soit le mot le plus proche (« ma clé privée, pas le hash de
- *    transaction : 0x… »), même coupée en morceaux : lignes, paires (« 4c 08 83 … »), groupes de 2 à 8 chiffres ou plus
- *    (64 chiffres au moins au total, lettres a-f ET chiffres : une table de nombres n'en est pas une) ;
- *  - les clés base58 : clé Solana (87 ou 88 caractères), clé Bitcoin WIF (51 ou 52 caractères, commençant par 5, K ou
- *    L) ; et la clé Solana en tableau d'octets (« [174,47,…] », 32 à 64 nombres) ;
- *  - une phrase de récupération y est reconnue dès 8 mots (une faute par tranche de 6), et une phrase COUPÉE entre
- *    plusieurs messages de l'utilisateur (« début : … », puis « la fin : … ») l'est aussi : les morceaux d'au moins 4 mots
- *    d'une même liste, seuls sur leur ligne (ou après « : »), qui font ensemble 12 mots ou plus, sont tous masqués.
- *  scrubUserMessage applique ce mode à un message seul (alerte s'il parle lui-même de secret).
- *  Le filtre s'applique aux messages du client, aux résultats d'outils (journaux de machines compris) et à la réponse.
+ *  ALERT MODE (for the WHOLE conversation, scrubConversation): as soon as a USER message mentions a private key, a
+ *  recovery phrase or an extended key (mentionsSecret, precise wordings), ALL the conversation's messages are filtered
+ *  strictly — the secret often arrives in the message AFTER the one that mentions it:
+ *  - any 64-hex value is masked, whatever the nearest word ("my private key, not the transaction hash: 0x…"), even when
+ *    split: lines, pairs ("4c 08 83 …"), groups of 2 to 8 digits or more (at least 64 digits in total, letters a-f AND
+ *    digits: a table of numbers is not one);
+ *  - base58 keys: a Solana key (87 or 88 characters), a Bitcoin WIF key (51 or 52 characters, starting with 5, K or L);
+ *    and a Solana key as a byte array ("[174,47,…]", 32 to 64 numbers);
+ *  - a recovery phrase is recognised from 8 words (one typo per 6-word slice), and a phrase SPLIT across several user
+ *    messages ("start: …", then "the end: …") is too: chunks of at least 4 words from one list, alone on their line (or
+ *    after ":"), which together make 12 words or more, are all masked.
+ *  scrubUserMessage applies this mode to a single message (alert if the message itself mentions a secret).
+ *  The filter applies to the client's messages, to tool results (machine logs included) and to the answer.
  *
- *  9/11 au soir (preuve secrets-new du vérificateur) :
- *  - MODE NORMAL, moins de faux positifs : « clé », « key », « wallet » (et MetaMask, Rabby, Phantom, Keplr) sont des
- *    mots AMBIGUS : ils ne désignent un secret qu'AVANT la valeur, sans mot public dans la même phrase du libellé
- *    (« the transaction for your key registration: 0x… », « Transaction of wallet 0x…: 0x… » restent lisibles) ni voisin
- *    public (« enclave key », « clé de l'enclave », comme « clé publique »). « privée », « secret », « seed »… gardent la
- *    règle du mot le plus proche. Un mot coupé par la fenêtre du libellé est repris en entier ;
- *  - MODE NORMAL, en plus : clé étendue BIP-32 (xprv, yprv, zprv, tprv, uprv, vprv…) toujours masquée ; clé hexadécimale
- *    en groupes et clé base58 (Solana, WIF) masquées quand un mot secret la désigne (« my metamask key: 4c08 83a6 … ») ;
- *  - l'ALERTE ne se déclenche plus que sur des formulations précises (clé privée, private key, seed phrase, recovery
- *    phrase, phrase de récupération, mnemonic, xprv/zprv/tprv…) : plus sur « export », « seed », « secret key » seuls ;
- *  - en alerte, tout morceau hexadécimal de 16 chiffres ou plus (lettres a-f ET chiffres ; une adresse 0x + 40 hex reste
- *    lisible) est masqué : une clé coupée 32 + 32 entre deux messages ne passe plus, même avant que la 2e moitié arrive.
- *  Hors de portée : une phrase envoyée par morceaux de moins de 4 mots, ou coupée sans aucune mention ; une clé nue sans
- *  libellé ; une clé privée en base64. */
+ *  Fewer false positives in NORMAL MODE: "clé", "key", "wallet" (and MetaMask, Rabby, Phantom, Keplr) are AMBIGUOUS
+ *  words: they name a secret only BEFORE the value, with no public word in the same sentence of the label ("the
+ *  transaction for your key registration: 0x…", "Transaction of wallet 0x…: 0x…" stay readable) and no public neighbour
+ *  ("enclave key", "clé de l'enclave", like "clé publique"). "privée", "secret", "seed"… keep the nearest-word rule. A
+ *  word cut by the label window is taken whole;
+ *  - also in NORMAL MODE: a BIP-32 extended key (xprv, yprv, zprv, tprv, uprv, vprv…) is always masked; a hexadecimal
+ *    key in groups and a base58 key (Solana, WIF) are masked when a secret word names them ("my metamask key: 4c08
+ *    83a6 …");
+ *  - the ALERT is triggered only by precise wordings (clé privée, private key, seed phrase, recovery phrase, phrase de
+ *    récupération, mnemonic, xprv/zprv/tprv…), not by "export", "seed" or "secret key" alone;
+ *  - in alert mode, any hexadecimal chunk of 16 digits or more (letters a-f AND digits; an address 0x + 40 hex stays
+ *    readable) is masked: a key split 32 + 32 across two messages cannot get through, even before the second half
+ *    arrives.
+ *  Out of reach: a phrase sent in chunks of fewer than 4 words, or split without any mention; a bare key with no label;
+ *  a private key in base64. */
 import {
   czech, english, french, italian, japanese, korean, portuguese, simplifiedChinese, spanish, traditionalChinese,
 } from "viem/accounts";
