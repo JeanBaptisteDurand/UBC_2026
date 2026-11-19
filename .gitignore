@@ -1,24 +1,28 @@
-# secrets
+# secrets and local settings (example files are kept)
 .env
 .env.*
+!.env.example
 *.key
 *.pem
+.secrets/
 
-# deps and builds
+# dependencies and build outputs
 node_modules/
 dist/
 build/
 out/
 cache/
+broadcast/
+vendor/
+# Foundry dependencies installed with `forge install` (see README); the two partial copies
+# contracts/lib/solady-0.0.160 and contracts/lib/smooth-crypto-lib are tracked
+contracts/lib/forge-std/
+contracts/lib/openzeppelin-contracts/
 
-# OS / editors
+# OS and editors
 .DS_Store
 .vscode/
 .idea/
-broadcast/
-lib/
-vendor/
-.secrets/
 __pycache__/
 *.log
 *.swp
