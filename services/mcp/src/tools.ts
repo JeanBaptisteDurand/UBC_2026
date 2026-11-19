@@ -10,7 +10,7 @@
  *    MCP_ALLOW_PRIVATE_URLS=1 (développement local : une VM du réseau local) permet le réseau privé, http et tout port,
  *    avec les mêmes autres gardes. */
 import { readFileSync } from "node:fs";
-import { createPublicClient, http, formatUnits } from "viem";
+import { createPublicClient, http, formatUnits, parseUnits } from "viem";
 import { arcTestnet, createArcClient, normalizeReceipt, testnet, deploymentFromJson, type ArcClient, type Deployment } from "@arcvault/sdk";
 import {
   enclaveStatus, sessionStatus, prepareBountyCreate, operatorPlan, prepareBond, prepareRegister,
@@ -127,20 +127,20 @@ export function receiptErrors(r: unknown, sig: unknown): string[] {
   return errs;
 }
 
-const PREP = "PRÉPARE seulement : ne signe ni n'envoie rien, renvoie les données que l'utilisateur signe dans son wallet.";
-const LIST = "Lu dans l'index de l'API ArcHive ; si la liste est momentanément indisponible, l'outil le dit (aucune liste partielle).";
+const PREP = "PREPARES only: signs and sends nothing, returns the data the user signs in their wallet.";
+const LIST = "Read from the ArcHive API index; if the list is briefly unavailable, the tool says so (never a partial list).";
 
 export const TOOLS = [
-  { name: "arc_products", description: `Liste les produits du réseau d'enclaves d'Arc (prix, parts, règlement, caution minimale, état). ${LIST}`, inputSchema: { type: "object", properties: { onlyActive: { type: "boolean", description: "true = seulement les produits actifs" } } } },
-  { name: "arc_enclaves", description: `Liste les enclaves (la ruche) : opérateur, produit, TCB, active ou non au bloc de tête, fenêtre de validité en blocs, clé X25519 inscrite. ${LIST}`, inputSchema: { type: "object", properties: { onlyActive: { type: "boolean", description: "true = seulement les enclaves actives" } } } },
-  { name: "arc_bounties", description: `Liste les primes scellées des DEUX niveaux (open : SealedBounty, produits 2 et 5 ; verified : SealedBountyVerified, produit 7) : niveau, contrat, protocole, produit, solde, échéance, pause, ouverte ou non. ${LIST}`, inputSchema: { type: "object", properties: { onlyOpen: { type: "boolean", description: "true = seulement les primes ouvertes" } } } },
-  { name: "arc_sessions", description: `Liste les sessions SessionPay ouvertes par un compte : produit, dépôt, déjà réglé, reste, fermée, échéance. ${LIST}`, inputSchema: { type: "object", properties: { owner: { type: "string", description: "adresse 0x… du compte" } }, required: ["owner"] } },
-  { name: "arc_activity", description: `L'activité on-chain récente des contrats du réseau (inscriptions, sessions, règlements, primes, verdicts), du plus récent au plus ancien. ${LIST}`, inputSchema: { type: "object", properties: { limit: { type: "number", description: "nombre d'événements (1 à 50, défaut 10)" } } } },
-  { name: "arc_pricing", description: "Coût d'un usage : unités × prix du produit.", inputSchema: { type: "object", properties: { productId: { type: "string" }, units: { type: "string" } }, required: ["productId", "units"] } },
-  { name: "arc_verify_receipt", description: "Vérifie un reçu d'inférence comme SessionPay.settle : enclave verrouillée de la session, active au bloc d'ancrage chez son opérateur, modèle verrouillé, cumul croissant ; et ce que le règlement verserait.", inputSchema: { type: "object", properties: { receipt: RECEIPT_SCHEMA, signature: { type: "string", description: "signature EIP-712 de l'enclave : 0x + 130 hex (65 octets)" } }, required: ["receipt", "signature"] } },
-  { name: "arc_enclave_status", description: "État d'UNE enclave par son signataire : opérateur, produit, TCB, expiration, active ou non, caution de l'opérateur (totale, disponible, exposition 24 h sur ce produit).", inputSchema: { type: "object", properties: { signer: { type: "string", description: "adresse 0x… du signataire de l'enclave" } }, required: ["signer"] } },
-  { name: "arc_session_status", description: "État d'une session SessionPay : propriétaire, produit, opérateur, dépôt, déjà payé, reste, échéance, fermée.", inputSchema: { type: "object", properties: { sessionId: { type: "string" } }, required: ["sessionId"] } },
-  { name: "arc_bounty_prepare_create", description: `Création d'une prime scellée, avec assistant de prédicat (« le solde USDC du contrat target baisse d'au moins minDrop » → clause ERC20_DROP), paliers, frais lus on-chain, paramètres de createBounty et autorisation EIP-3009. ${PREP}`, inputSchema: { type: "object", properties: {
+  { name: "arc_products", description: `Lists the products of Arc's enclave network (price with its unit, shares, settlement, minimum bond, state). ${LIST}`, inputSchema: { type: "object", properties: { onlyActive: { type: "boolean", description: "true = seulement les produits actifs" } } } },
+  { name: "arc_enclaves", description: `Lists the enclaves (the hive): operator, product, TCB, active or not at the head block, validity window in blocks, registered X25519 key. ${LIST}`, inputSchema: { type: "object", properties: { onlyActive: { type: "boolean", description: "true = seulement les enclaves actives" } } } },
+  { name: "arc_bounties", description: `Lists the sealed bounties of BOTH levels (open: SealedBounty, products 2 and 5; verified: SealedBountyVerified, product 7): level, contract, protocol, product, balance, deadline, pause, open or not. ${LIST}`, inputSchema: { type: "object", properties: { onlyOpen: { type: "boolean", description: "true = seulement les primes ouvertes" } } } },
+  { name: "arc_sessions", description: `Lists the SessionPay sessions opened by an account: product, deposit, already settled, remainder, closed, expiry. ${LIST}`, inputSchema: { type: "object", properties: { owner: { type: "string", description: "adresse 0x… du compte" } }, required: ["owner"] } },
+  { name: "arc_activity", description: `Recent on-chain activity of the network's contracts (enclave registrations, sessions, settlements, bounties, verdicts), newest first. ${LIST}`, inputSchema: { type: "object", properties: { limit: { type: "number", description: "nombre d'événements (1 à 50, défaut 10)" } } } },
+  { name: "arc_pricing", description: "Cost of a use: units × the product's price, with a readable line giving the unit (per token for a prepaid session, per call for x402, free, or paid by a bounty's pool).", inputSchema: { type: "object", properties: { productId: { type: "string" }, units: { type: "string" } }, required: ["productId", "units"] } },
+  { name: "arc_verify_receipt", description: "Checks an inference receipt the way SessionPay.settle does: the session's locked enclave, active at the anchor block under its operator, locked model, growing cumulative total; and what the settlement would pay.", inputSchema: { type: "object", properties: { receipt: RECEIPT_SCHEMA, signature: { type: "string", description: "signature EIP-712 de l'enclave : 0x + 130 hex (65 octets)" } }, required: ["receipt", "signature"] } },
+  { name: "arc_enclave_status", description: "State of ONE enclave by its signer: operator, product, TCB, expiry, active or not, the operator's bond (total, available, 24 h exposure on this product).", inputSchema: { type: "object", properties: { signer: { type: "string", description: "adresse 0x… du signataire de l'enclave" } }, required: ["signer"] } },
+  { name: "arc_session_status", description: "State of a SessionPay session: owner, product, operator, deposit, already paid, remainder, expiry, closed.", inputSchema: { type: "object", properties: { sessionId: { type: "string" } }, required: ["sessionId"] } },
+  { name: "arc_bounty_prepare_create", description: `Creates a sealed bounty, with a predicate helper ("the USDC balance of the target contract drops by at least minDrop" → ERC20_DROP clause), tiers, fees read on-chain, createBounty parameters and an EIP-3009 authorization. ${PREP}`, inputSchema: { type: "object", properties: {
     from: { type: "string", description: "wallet du protocole, qui finance et signe" },
     target: { type: "string", description: "contrat surveillé (ex. le coffre du protocole)" },
     minDrop: { type: "string", description: "baisse minimale qui prouve l'exploit, en USDC" },
@@ -152,16 +152,16 @@ export const TOOLS = [
     deadlineDays: { type: "number" }, k: { type: "number" }, singleCap: { type: "string" }, targetToPause: { type: "string" },
     protocolX25519: { type: "string", description: "clé PUBLIQUE X25519 du protocole (jamais la privée)" }, productId: { type: "string" },
   } } },
-  { name: "arc_operator_plan", description: "Plan pas à pas pour devenir opérateur : VM Intel TDX (Phala), app-compose, /attest, caution, registerEnclave, renouvellement ; règles de la caution avec les chiffres lus on-chain.", inputSchema: { type: "object", properties: { operator: { type: "string" }, productId: { type: "string" } } } },
-  { name: "arc_operator_prepare_bond", description: `Dépôt de caution d'opérateur : autorisation EIP-3009 pour bond(), ou approve + bondFrom encodés ; vérifie solde, bannissement, caution minimale. ${PREP}`, inputSchema: { type: "object", properties: { operator: { type: "string" }, amount: { type: "string", description: "montant en USDC" }, productId: { type: "string" } } } },
-  { name: "arc_operator_prepare_register", description: `Inscription d'une enclave : bloc d'ancrage, lecture du /attest de la VM (si enclaveUrl et operator sont donnés), transaction registerEnclave encodée. ${PREP}`, inputSchema: { type: "object", properties: { productId: { type: "string" }, operator: { type: "string" }, enclaveUrl: { type: "string" }, includeCalldata: { type: "boolean", description: "calldata complète (défaut : oui)" } }, required: ["productId"] } },
-  { name: "arc_product_scaffold", description: "Squelette d'un produit tiers : conteneur + kit d'enclave, app-compose, manifeste, paramètres de propose(), puis timelock et activate (bpsOperator + bpsAuthor + bpsNetwork = 10 000).", inputSchema: { type: "object", properties: {
+  { name: "arc_operator_plan", description: "Step-by-step plan to become an operator: Intel TDX VM (Phala), app-compose, /attest, bond, registerEnclave, renewal; the bond rules with the figures read on-chain.", inputSchema: { type: "object", properties: { operator: { type: "string" }, productId: { type: "string" } } } },
+  { name: "arc_operator_prepare_bond", description: `Operator bond deposit: EIP-3009 authorization for bond(), or encoded approve + bondFrom; checks balance, ban and minimum bond. ${PREP}`, inputSchema: { type: "object", properties: { operator: { type: "string" }, amount: { type: "string", description: "montant en USDC" }, productId: { type: "string" } } } },
+  { name: "arc_operator_prepare_register", description: `Enclave registration: anchor block, reading the VM's /attest (if enclaveUrl and operator are given), encoded registerEnclave transaction. ${PREP}`, inputSchema: { type: "object", properties: { productId: { type: "string" }, operator: { type: "string" }, enclaveUrl: { type: "string" }, includeCalldata: { type: "boolean", description: "calldata complète (défaut : oui)" } }, required: ["productId"] } },
+  { name: "arc_product_scaffold", description: "Skeleton of a third-party product: container + enclave kit, app-compose, manifest, propose() parameters, then timelock and activate (bpsOperator + bpsAuthor + bpsNetwork = 10,000).", inputSchema: { type: "object", properties: {
     name: { type: "string" }, description: { type: "string" }, rail: { type: "string", enum: ["session", "x402"] }, deterministic: { type: "boolean" },
     price: { type: "string", description: "prix par unité en USDC" }, bpsOperator: { type: "number" }, bpsAuthor: { type: "number" }, bpsNetwork: { type: "number" },
     minBond: { type: "string" }, exposureCap: { type: "string" }, modelId: { type: "string" }, image: { type: "string" },
   } } },
-  { name: "arc_machines_list", description: "Machines (nœuds) d'un opérateur d'après l'API ArcHive : mode (tdx, dstack, demo), en ligne, dernier signal, produit, URL et signataire de l'enclave, diagnostic OK, inscrite. Lecture seule.", inputSchema: { type: "object", properties: { operator: { type: "string", description: "adresse 0x… de l'opérateur" } }, required: ["operator"] } },
-  { name: "arc_machine_diagnostics", description: "Diagnostic d'une machine d'opérateur (API ArcHive) : vérifications en échec avec la correction à faire, échecs normaux selon le mode, journal récent, attestation, inscription on-chain. Lecture seule.", inputSchema: { type: "object", properties: { machineId: { type: "string" } }, required: ["machineId"] } },
+  { name: "arc_machines_list", description: "An operator's machines (nodes) from the ArcHive API: mode (tdx, dstack, demo), online, last heartbeat, product, enclave URL and signer, diagnostics OK, registered. Read only.", inputSchema: { type: "object", properties: { operator: { type: "string", description: "adresse 0x… de l'opérateur" } }, required: ["operator"] } },
+  { name: "arc_machine_diagnostics", description: "Diagnostics of an operator's machine (ArcHive API): failed checks with the fix to apply, normal failures for the mode, recent log, attestation, on-chain registration. Read only.", inputSchema: { type: "object", properties: { machineId: { type: "string" } }, required: ["machineId"] } },
 ];
 
 /** Le client Arc et le contexte des actions d'un processus MCP local (stdio). */
@@ -214,6 +214,26 @@ function closedSessions(v: any): any {
   return o;
 }
 
+/** 20/11 : un prix lisible avec son unité, jamais un « 0.0001 USDC » nu : par jeton (session), par appel (x402), gratuit, ou payé par le pool d'une prime. */
+function usdc2(x: bigint): string { const s = formatUnits(x, 6); const [i, f] = s.split("."); return f === undefined || f.length >= 2 ? s : `${i}.${f}0`; }
+export function readablePrice(arc: ArcClient, id: string, price: bigint, settlement: string, unitTokens = 1, outWeight = 1): string {
+  const s = String(settlement).toLowerCase();
+  if (/^0x0{40}$/.test(s)) return price === 0n ? "free: no payment contract, nothing is billed" : `${formatUnits(price, 6)} USDC per use`;
+  const rail = productRail(arc, id, settlement);
+  if (/neutralized/i.test(rail)) return "none: neutralized, replaced by product 7 (this contract settles nothing)";
+  if (/x402/i.test(rail)) return `${usdc2(price)} USDC per call (one x402 payment per call; the settlement's gas, about 0.005 USDC at 25 gwei, is paid by the operator)`;
+  if (/sessionpay/i.test(rail)) {
+    const ut = BigInt(Math.max(1, Math.floor(Number(unitTokens) || 1)));
+    const w = Number(outWeight) === 1 ? "a question or answer token" : `a question token; an answer token counts ${outWeight}`;
+    return `${formatUnits(price, 6)} USDC per unit, 1 unit = ${ut === 1n ? "1 token" : `${ut} tokens`} (${w}): ${usdc2((price * 1000n) / ut)} USDC per 1,000 tokens, ${usdc2((price * 1_000_000n) / ut)} USDC per million tokens`;
+  }
+  if (price === 0n) return "0 USDC per use: the bounty's poster funds the pool, which pays the hunter the tier, plus 10% to the network and 5% to the signing operators";
+  return `${formatUnits(price, 6)} USDC per unit`;
+}
+function readableOfListed(arc: ArcClient, p: any): string | undefined {
+  try { return readablePrice(arc, String(p.id), parseUnits(String(p.pricePerUnit).replace(/\s*USDC\s*$/, ""), 6), String(p.settlement), Number(p.unitTokens ?? 1), Number(p.outWeight ?? 1)); } catch { return undefined; }
+}
+
 async function pricing(arc: ArcClient, a: any) {
   const rawId = String(a.productId ?? "").trim(), rawUnits = String(a.units ?? "1").trim();
   if (!/^\d{1,12}$/.test(rawId)) throw new Error("bad_param: productId must be a product number (e.g. \"1\")");
@@ -222,14 +242,14 @@ async function pricing(arc: ArcClient, a: any) {
   let p: Awaited<ReturnType<ArcClient["getProduct"]>> | null = null;
   try { p = id >= 1n ? await arc.getProduct(id) : null; } catch { p = null; }
   if (!p || p.state === "None" || /^0x0{40}$/i.test(String(p.author))) throw new Error(`unknown_product: no product #${rawId}`);
-  return { productId: id.toString(), pricePerUnit: formatUnits(p.price, 6) + " USDC", units: u.toString(), total: formatUnits(p.price * u, 6) + " USDC" };
+  return { productId: id.toString(), pricePerUnit: formatUnits(p.price, 6) + " USDC", units: u.toString(), total: formatUnits(p.price * u, 6) + " USDC", readable: readablePrice(arc, id.toString(), p.price, String(p.settlement), Number((p as any).unitTokens ?? 1), Number((p as any).outWeight ?? 1)) };
 }
 
 async function run(arc: ArcClient, actx: ActionCtx, name: string, a: any): Promise<unknown> {
   switch (name) {
     case "arc_products": {
       const v = await productsList(arc, { all: a.onlyActive !== true }, actx);
-      return { ...v, produits: v.produits.map((p) => ({ ...p, rail: productRail(arc, p.id, p.settlement) })) };
+      return { ...v, produits: v.produits.map((p) => ({ ...p, rail: productRail(arc, p.id, p.settlement), readablePrice: readableOfListed(arc, p) })) };
     }
     case "arc_enclaves": return enclavesList(arc, { onlyActive: a.onlyActive }, actx);
     case "arc_bounties": return bountiesAllLevels(arc, actx, a.onlyOpen === true || String(a.onlyOpen) === "true");

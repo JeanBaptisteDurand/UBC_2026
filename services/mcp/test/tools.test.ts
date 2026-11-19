@@ -29,7 +29,7 @@ test("les outils de liste existent et disent leur source", () => {
   const names = TOOLS.map((t) => t.name);
   for (const n of ["arc_products", "arc_enclaves", "arc_bounties", "arc_sessions", "arc_activity"]) {
     assert.ok(names.includes(n), n);
-    assert.match(TOOLS.find((t) => t.name === n)!.description, /index de l'API ArcHive/);
+    assert.match(TOOLS.find((t) => t.name === n)!.description, /ArcHive API index/);
   }
   const { actx: c } = createMcpContext({ ARCHIVE_API: "https://exemple.invalid/api" } as NodeJS.ProcessEnv);
   assert.equal(c.apiBase, "https://exemple.invalid/api");
