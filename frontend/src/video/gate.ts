@@ -55,7 +55,7 @@ export function showGate(onEnter: () => void) {
   el.setAttribute('aria-hidden', 'true')
   pan = document.createElement('div')
   pan.id = 'film-gate-panel'
-  pan.innerHTML = '<div class="fg-in"><p class="fg-t"></p><div class="fg-live" aria-live="polite"><div class="fg-bar" role="progressbar" aria-valuemin="0"><div class="fg-fill"></div></div><p class="fg-n mono"><span class="fg-b"></span><span class="fg-eta"></span></p></div><button type="button" class="btn btn-line btn-s fg-go" hidden><span></span></button></div>'
+  pan.innerHTML = '<div class="fg-in"><p class="fg-t"></p><div class="fg-live" aria-live="polite"><div class="fg-bar" role="progressbar" aria-valuemin="0"><div class="fg-fill"></div></div><p class="fg-n mono" aria-hidden="true"><span class="fg-b"></span><span class="fg-eta"></span></p></div><button type="button" class="btn btn-line btn-s fg-go" hidden><span></span></button></div>'
   pan.querySelector('.fg-t')!.textContent = T.load
   prog = pan.querySelector('.fg-bar'); bar = pan.querySelector('.fg-fill'); num = pan.querySelector('.fg-b'); eta = pan.querySelector('.fg-eta')
   btn = pan.querySelector('.fg-go'); btn!.querySelector('span')!.textContent = T.enter
@@ -78,6 +78,9 @@ export function updateGate(got: number, total: number, etaS: number, enter: bool
   bar!.style.transform = `scaleX(${f.toFixed(4)})`
   prog!.setAttribute('aria-valuemax', String(Math.round(total)))
   prog!.setAttribute('aria-valuenow', String(Math.round(got)))
+  // a screen reader hears tenths, not every update (the bytes and the time left are shown, not read out)
+  const tenth = `${Math.floor(f * 10) * 10}%`
+  if (prog!.getAttribute('aria-valuetext') !== tenth) prog!.setAttribute('aria-valuetext', tenth)
   num!.textContent = total > 0 ? `${fmt(got)} / ${fmt(total)} ${T.mb}` : ''
   eta!.textContent = etaS >= 0 && total > 0 ? T.about(Math.max(1, Math.ceil(etaS))) : ''
   if (enter && btn!.hidden) btn!.hidden = false
