@@ -84,9 +84,10 @@ export function pullImage(image: string, platform: string | null, signal?: Abort
 }
 
 export const PRIVATE_IMAGE_HELP =
-  "The enclave image is private for now: log Docker in to the registry with the token from the ArcHive team " +
+  "The enclave image is hosted in a private registry: log Docker in with an access token from the ArcHive team " +
   "(docker login ghcr.io -u <user>), or build the image from enclave/Dockerfile " +
-  "(docker build -t archive-sealed-chat:local enclave/) and run again with --image archive-sealed-chat:local.";
+  "(docker build -t archive-sealed-chat:local enclave/) and run again with --image archive-sealed-chat:local " +
+  "(the network registers an enclave only if its image measurement is one the product allows).";
 
 export function pullError(stderr: string, image: string): string {
   if (/no matching manifest|does not match the specified platform/i.test(stderr)) {

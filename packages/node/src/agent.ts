@@ -234,9 +234,9 @@ export class Agent {
     };
   }
 
-  /** Variables du conteneur (pile v2) : les contrats v2 (l'image retombe sinon sur la v1), le seul opérateur autorisé à
-   *  demander un quote (OPERATOR_ALLOWLIST : l'enclave échoue fermée sans lui) et, s'il est défini chez l'agent, le
-   *  secret du modèle amont, hérité sans apparaître dans la ligne de commande. */
+  /** Container variables: the stack's contract addresses (the image has no default address valid for the live stack),
+   *  the only operator allowed to request a quote (OPERATOR_ALLOWLIST: without it the enclave fails closed) and, when
+   *  the agent has it, the upstream model's secret, inherited without appearing on the command line. */
   private containerEnv(): Record<string, string> {
     return {
       CHAIN_ID: String(CHAIN_ID),

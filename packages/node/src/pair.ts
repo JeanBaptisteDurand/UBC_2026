@@ -1,14 +1,14 @@
 /** pair.ts — « archive-node pair » : appairage par code (flux « appareil », comme une TV).
- *  La machine affiche HIVE-XXXX-XXXX, l'humain l'approuve sur le site en signant avec son wallet ; la machine reçoit
- *  une clé opérateur arcop_… (qui ne peut rien dépenser).
- *  Avant de la garder, la machine affiche l'ADRESSE COMPLÈTE du compte qui a approuvé et demande une confirmation
- *  (y/N, non par défaut ; « o » et « oui » sont aussi acceptés) : un code vu par quelqu'un d'autre et approuvé avant vous
- *  se refuse ici, et l'API révoque la clé (POST /pair/reject). Audit du 7/11, faille n° 5. Automatisation :
- *  --operator <adresse> n'accepte que ce compte ; --yes accepte sans demander. La clé gardée est rangée en 0600.
- *  La réponse vient de l'humain devant le terminal, après l'affichage de l'adresse (vérification du 8/11) : ce qui a été
- *  tapé pendant l'attente est jeté ; une entrée standard qui n'est pas un terminal (tube, script, `echo y |`) n'est
- *  jamais lue : sans terminal, --operator ou --yes est exigé, avant même de demander un code.
- *  Les messages sont en anglais (le site est jugé en anglais). */
+ *  The machine shows HIVE-XXXX-XXXX; a person approves it on the site by signing with their wallet; the machine receives
+ *  an operator key arcop_… (which cannot spend anything).
+ *  Before keeping it, the machine shows the FULL ADDRESS of the account that approved and asks for confirmation
+ *  (y/N, no by default; "o" and "oui" are accepted too): a code seen by someone else and approved before you is
+ *  refused here, and the API revokes the key (POST /pair/reject); this closes a finding of the security audit.
+ *  Automation: --operator <address> accepts only that account; --yes accepts without asking. The key kept is stored
+ *  with file mode 0600. The answer comes from the person at the terminal, after the address is shown: anything typed
+ *  while waiting is discarded; a standard input that is not a terminal (pipe, script, `echo y |`) is never read:
+ *  without a terminal, --operator or --yes is required, before a code is even requested.
+ *  Messages are in English. */
 import { hostname } from "node:os";
 import { configPath, loadConfig, resolveApi, saveConfig, tilde } from "./config";
 import { CliError, UsageError } from "./errors";
@@ -85,7 +85,7 @@ class Waiting {
 /** Garder ou non la clé : `how` dit pourquoi elle est gardée ; sinon `why`, et le code de sortie. */
 type Verdict = { keep: true; how: string } | { keep: false; why: string; exitCode: number };
 
-/** Montre le compte qui a approuvé, en entier, et décide (--operator, --yes, sinon la question y/N). */
+/** Shows the account that approved, in full, and decides (--operator, --yes, otherwise the y/N question). */
 async function confirmOperator(operator: string, f: PairFlags, signal: AbortSignal): Promise<Verdict> {
   out(`${OK} Code approved on the site, by the account:`);
   out();

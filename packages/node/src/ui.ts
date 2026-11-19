@@ -1,5 +1,5 @@
-/** ui.ts — sortie terminal : couleurs (coupées hors terminal ou avec NO_COLOR), symboles, masquage, gros caractères,
- *  question oui/non. */
+/** ui.ts — terminal output: colors (off outside a terminal or with NO_COLOR), symbols, masking, large characters,
+ *  yes/no question. */
 import { createInterface } from "node:readline";
 
 const COLOR = !!process.stdout.isTTY && !process.env.NO_COLOR && process.env.TERM !== "dumb";
@@ -107,10 +107,10 @@ export const fmtSeconds = (s: number): string => {
   return `${a < 10 ? a.toFixed(1) : Math.round(a)} s`;
 };
 
-// ---------- question oui/non ----------
+// ---------- yes/no question ----------
 
-/** Une réponse lue au terminal : « y », « yes » (et « o », « oui » : l'agent était en français) = oui ; « n », « no »,
- *  « non », Entrée seule ou tout le reste = non (le défaut). Casse et espaces indifférents. */
+/** An answer read at the terminal: "y", "yes" (and the French "o", "oui") = yes; "n", "no", "non", Enter alone or
+ *  anything else = no (the default). Case and spaces are ignored. */
 export function parseYesNo(line: string): "yes" | "no" {
   return /^(y|yes|o|oui)$/i.test(line.trim()) ? "yes" : "no";
 }
@@ -221,7 +221,7 @@ export async function askYesNo(question: string, signal?: AbortSignal): Promise<
 
 // ---------- gros caractères (5 lignes) pour le code d'appairage ----------
 
-// 5 colonnes par signe ; « I » et « - », étroits, en prennent 3 : HIVE-XXXX-XXXX tient en 77 colonnes
+// 5 columns per glyph; the narrow "I" and "-" take 3: HIVE-XXXX-XXXX fits in 77 columns
 const FONT: Record<string, string> = {
   A: ".###.|#...#|#####|#...#|#...#", B: "####.|#...#|####.|#...#|####.", C: ".####|#....|#....|#....|.####",
   D: "####.|#...#|#...#|#...#|####.", E: "#####|#....|####.|#....|#####", F: "#####|#....|####.|#....|#....",
