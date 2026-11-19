@@ -1,8 +1,8 @@
-/** client.ts — client principal (pile v2) : lectures + actions (opérateur, produit, session, prime).
- *  v2 : une session est verrouillée sur UNE enclave dont les clés sont vérifiées on-chain ; la Prime scellée se paie en
- *  deux temps (acceptClaim réserve, deliver livre cP et paie) ; l'inscription passe par le vrai DCAP (≈ 5,7 M gas) et
- *  le quote est contrôlé hors chaîne avant l'envoi ; les appels qui écrivent un verdict ERC-8004 partent avec une
- *  marge de gaz (le contrat exige VERDICT_GAS avant l'écriture). Les refus sont décodés en français (errors.ts). */
+/** client.ts — the main client: reads and actions (operator, product, session, bounty).
+ *  A session is locked to ONE enclave whose keys are verified on-chain; the Sealed Bounty pays in two steps
+ *  (acceptClaim reserves the payment, deliver hands over cP and pays); registration goes through Intel's DCAP
+ *  verification on Arc, and the quote is checked off-chain before it is sent; calls that write an ERC-8004 verdict
+ *  carry a gas margin (the contract requires VERDICT_GAS before the write). Reverts are decoded by name (errors.ts). */
 import {
   type Address, type Hex, type PublicClient, type WalletClient, type Account,
   getAddress, keccak256, toBytes, zeroAddress,
@@ -41,42 +41,42 @@ export interface ProductView {
   bpsOperator: number; bpsAuthor: number; bpsNetwork: number;
   minBond: bigint; exposureCap: bigint; settlement: Address; param: Hex;
   version: bigint; activatesAt: bigint; state: ProductState; manifestURI: string;
-  /** v2 : unité facturée (jetons-équivalent-entrée par unité) et poids d'un jeton de sortie, verrouillés à l'ouverture. */
+  /** Billed unit (input-token equivalents per unit) and the weight of an output token, locked when the session opens. */
   unitTokens: number; outWeight: number;
 }
 
-/** Une enclave du registre v2 (enclaveOf), avec son état au bloc de tête. */
+/** An enclave of the registry (enclaveOf), with its state at the head block. */
 export interface EnclaveView {
   signer: Address; x25519: Hex; operator: Address; productId: bigint; workloadId: Hex; fmspc: Hex;
   tcbStatus: number; quoteHash: Hex; anchorBlock: bigint; registeredAt: bigint;
-  /** Horodatage INDICATIF (la règle est en blocs : untilBlock). */
+  /** INDICATIVE timestamp (the rule is in blocks: untilBlock). */
   expiresAt: bigint;
-  /** Fenêtre de validité en cours, en blocs (les reçus ancrés dedans se règlent jusqu'à untilBlock + grâce). */
+  /** Current validity window, in blocks (receipts anchored in it settle until untilBlock + grace). */
   fromBlock: bigint; untilBlock: bigint;
-  /** Active pour son produit au bloc de tête (activeOperatorAt ≠ 0). */
+  /** Active for its product at the head block (activeOperatorAt ≠ 0). */
   active: boolean;
-  /** Bloc de tête de la lecture. */
+  /** Head block of the read. */
   head?: bigint;
 }
 
 export interface BountyRow {
   id: bigint; protocol: Address; productId: bigint; predicateHash: Hex; protocolX25519: Hex; singleCap: bigint; k: number;
   balance: bigint; deadline: bigint; paused: boolean; targetToPause: Address;
-  /** v2 : palier le plus haut déjà accordé depuis le dernier armement (un exploit n'est payé qu'une fois par palier). */
+  /** Highest tier already granted since the last arming (an exploit is paid only once per tier). */
   paidAmount: bigint;
-  /** v2 : bloc du dernier paiement ou réarmement ; une réclamation doit être ancrée APRÈS. */
+  /** Block of the last payment or re-arming; a claim must be anchored AFTER it. */
   lastPaidBlock: bigint;
-  /** v2 : la pause n'atteint que les réclamations ancrées à partir de ce bloc. */
+  /** The pause only affects claims anchored from this block on. */
   pausedFromBlock: bigint;
 }
 
-/** Paiement réservé par acceptClaim, en attente de deliver (payee nul si aucun). */
+/** Payment reserved by acceptClaim, waiting for deliver (zero payee if none). */
 export interface PendingPayout {
   payee: Address; tier: number; acceptedAt: bigint; cPHash: Hex; claimDigest: Hex; amount: bigint; netFee: bigint; opFee: bigint; ops: Address[];
 }
 
-/** Gaz en plus de l'estimation pour les appels qui écrivent un verdict ERC-8004 ou mettent une cible en pause (le
- *  contrat exige VERDICT_GAS / PAUSE_GAS avant l'appel et refuse sinon) : +25 %. */
+/** Gas added to the estimate for calls that write an ERC-8004 verdict or pause a target (the contract requires
+ *  VERDICT_GAS / PAUSE_GAS before the call and reverts otherwise): +25 %. */
 const GAS_MARGIN_PCT = 25n;
 
 function toEnclaveView(signer: Address, e: any, active: boolean, head?: bigint): EnclaveView {
@@ -110,7 +110,7 @@ export class ArcClient {
   }
 
   private signer(): Account {
-    if (!this.account || !this.wallet) throw new Error("walletClient/account requis pour cette action");
+    if (!this.account || !this.wallet) throw new Error("this action needs a walletClient and an account");
     return this.account;
   }
 
@@ -119,7 +119,7 @@ export class ArcClient {
     return (args) => w!.signTypedData({ account: a, ...(args as any) });
   }
 
-  /** Simule (refus décodés avec TOUTES les erreurs du réseau), puis envoie. `margin` : gaz estimé + 25 %. */
+  /** Simulates (reverts decoded with EVERY error of the network), then sends. `margin`: estimated gas + 25 %. */
   private async send(address: Address, abi: readonly unknown[], functionName: string, args: unknown[], margin = false): Promise<{ tx: Hex; result: unknown }> {
     const account = this.signer();
     const fullAbi = [...abi, ...arcErrorsAbi] as any;
@@ -139,7 +139,7 @@ export class ArcClient {
   usdcBalance(a: Address) { return this.pub.readContract({ address: this.d.usdc, abi: usdcAbi, functionName: "balanceOf", args: [a] }) as Promise<bigint>; }
   bondOf(op: Address) { return this.pub.readContract({ address: this.d.operatorBond, abi: operatorBondAbi, functionName: "bondOf", args: [op] }) as Promise<bigint>; }
   availableBond(op: Address) { return this.pub.readContract({ address: this.d.operatorBond, abi: operatorBondAbi, functionName: "availableBond", args: [op] }) as Promise<bigint>; }
-  /** v2 : caution non réservée (chaque clé d'enclave inscrite réserve la caution minimale de son produit). */
+  /** Unreserved bond (each registered enclave key reserves its product's minimum bond). */
   freeBond(op: Address) { return this.pub.readContract({ address: this.d.operatorBond, abi: operatorBondAbi, functionName: "freeBond", args: [op] }) as Promise<bigint>; }
 
   async productCount(): Promise<bigint> {
@@ -165,19 +165,19 @@ export class ArcClient {
     return out;
   }
 
-  /** L'enclave inscrite pour ce signataire (struct v2 brute : signer nul si aucune). */
+  /** The enclave registered for this signer (raw struct: zero signer if none). */
   getEnclave(signer: Address) { return this.pub.readContract({ address: this.d.enclaveRegistry, abi: enclaveRegistryAbi, functionName: "enclaveOf", args: [signer] }) as Promise<any>; }
 
-  /** Opérateur pour lequel ce signataire est actif sur ce produit à ce bloc (défaut : la tête) ; 0x0… sinon. */
+  /** Operator for which this signer is active on this product at this block (default: the head); 0x0… otherwise. */
   async activeOperatorAt(signer: Address, productId: bigint, blockNumber?: bigint): Promise<Address> {
     const b = blockNumber ?? (await this.pub.getBlockNumber());
     return this.pub.readContract({ address: this.d.enclaveRegistry, abi: enclaveRegistryAbi, functionName: "activeOperatorAt", args: [signer, productId, b] }) as Promise<Address>;
   }
 
-  /** Dernier bloc auquel un reçu de cette enclave peut encore être réglé (fin de fenêtre + grâce ; 0 si aucun). */
+  /** Last block at which a receipt of this enclave can still be settled (end of window + grace; 0 if none). */
   settleableUntilBlock(signer: Address) { return this.pub.readContract({ address: this.d.enclaveRegistry, abi: enclaveRegistryAbi, functionName: "settleableUntilBlock", args: [signer] }) as Promise<bigint>; }
 
-  /** Une enclave par son signataire, avec son état au bloc de tête (null si inconnue). */
+  /** An enclave by its signer, with its state at the head block (null if unknown). */
   async enclaveView(signer: Address): Promise<EnclaveView | null> {
     const head = await this.pub.getBlockNumber();
     const e = await this.getEnclave(signer);
@@ -186,7 +186,7 @@ export class ArcClient {
     return toEnclaveView(signer, e, op !== zeroAddress, head);
   }
 
-  /** Une session v2, typée (owner nul si inconnue). */
+  /** A session, typed (zero owner if unknown). */
   getSession(id: bigint): Promise<SessionInfo> { return readSession(this.pub, this.d, id); }
 
   async getBounty(id: bigint): Promise<BountyRow> {
@@ -194,7 +194,7 @@ export class ArcClient {
     return toBountyRow(id, b);
   }
 
-  /** Paliers d'une prime (seuils et montants). */
+  /** Tiers of a bounty (thresholds and amounts). */
   async bountyTiers(id: bigint): Promise<Array<{ minLoss: bigint; amount: bigint }>> {
     const out: Array<{ minLoss: bigint; amount: bigint }> = [];
     for (let i = 0n; i < 16n; i++) {
@@ -202,8 +202,8 @@ export class ArcClient {
       try {
         minLoss = await this.pub.readContract({ address: this.d.sealedBounty, abi: sealedBountyAbi, functionName: "tierMinLoss", args: [id, i] }) as bigint;
       } catch (e) {
-        if (isRevert(e)) break; // fin du tableau
-        throw e; // erreur réseau : jamais de paliers tronqués en silence
+        if (isRevert(e)) break; // end of the array
+        throw e; // network error: tiers are never silently truncated
       }
       const amount = await this.pub.readContract({ address: this.d.sealedBounty, abi: sealedBountyAbi, functionName: "tierAmount", args: [id, i] }) as bigint;
       out.push({ minLoss, amount });
@@ -211,7 +211,7 @@ export class ArcClient {
     return out;
   }
 
-  /** v2 : le paiement réservé pour (prime, empreinte), en attente de deliver. */
+  /** The payment reserved for (bounty, fingerprint), waiting for deliver. */
   async pendingOf(bountyId: bigint, fingerprint: Hex): Promise<PendingPayout> {
     const p = await this.pub.readContract({ address: this.d.sealedBounty, abi: sealedBountyAbi, functionName: "pendingOf", args: [bountyId, fingerprint] }) as any;
     return {
@@ -220,8 +220,8 @@ export class ArcClient {
     };
   }
 
-  /** Lecture d'events robuste : via Blockscout (indexe tout l'historique, instantané) si configuré,
-   *  sinon par tranches getLogs sur le RPC (plafonné). Renvoie les topics bruts, du plus récent au plus ancien. */
+  /** Robust event reading: through Blockscout (indexes the whole history, instant) when configured,
+   *  otherwise getLogs in chunks on the RPC (capped). Returns the raw topics, newest first. */
   private async _rawLogs(address: Address, topic0: Hex, topicFilters?: Record<number, Hex>): Promise<Array<{ topics: Hex[] }>> {
     const match = (topics: Hex[]) =>
       topics[0]?.toLowerCase() === topic0.toLowerCase() &&
@@ -243,12 +243,12 @@ export class ArcClient {
           if (!j.next_page_params) break;
           query = "?" + Object.entries(j.next_page_params).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`).join("&");
         }
-        return out; // Blockscout renvoie déjà du plus récent au plus ancien
-      } catch { /* bascule sur le RPC */ }
+        return out; // Blockscout already returns newest first
+      } catch { /* fall back to the RPC */ }
     }
 
-    // Secours RPC : eth_getLogs par tranches de 5 000 blocs, filtrées par topic0 côté nœud. Une tranche ratée lève
-    // (après les réessais du transport) : jamais de liste tronquée en silence.
+    // RPC fallback: eth_getLogs in chunks of 5,000 blocks, filtered by topic0 on the node. A failed chunk throws
+    // (after the transport's retries): a list is never silently truncated.
     const head = await this.pub.getBlockNumber();
     const chunk = 5_000n;
     const raw: Array<{ topics: Hex[] }> = [];
@@ -260,12 +260,12 @@ export class ArcClient {
       })) as Array<{ topics: Hex[] }>;
       for (const log of logs) if (match(log.topics)) raw.push({ topics: log.topics });
     }
-    return raw.reverse(); // du plus récent au plus ancien
+    return raw.reverse(); // newest first
   }
 
   private static topicAddr(t?: Hex): Address { return getAddress(("0x" + (t ?? "0x").slice(-40)).toLowerCase()); }
 
-  /** La « hive » : toutes les enclaves inscrites, avec leur état au bloc de tête (une ligne par signataire). */
+  /** The "hive": every registered enclave, with its state at the head block (one row per signer). */
   async listEnclaves(): Promise<EnclaveView[]> {
     const topic0 = keccak256(toBytes("EnclaveRegistered(address,uint256,address,bytes32,uint64)"));
     const logs = await this._rawLogs(this.d.enclaveRegistry, topic0);
@@ -313,17 +313,17 @@ export class ArcClient {
     return out;
   }
 
-  /** Clés d'une enclave confrontées à la chaîne (voir enclave-keys.ts) : à faire AVANT tout chiffrement vers elle. */
+  /** An enclave's keys checked against the chain (see enclave-keys.ts): do it BEFORE encrypting anything to it. */
   verifyEnclaveKeys(enclaveUrl: string, productId: bigint, o: Omit<VerifyEnclaveKeysOptions, "publicClient" | "deployment"> = {}): Promise<VerifiedEnclaveKeys> {
     return verifyEnclaveKeys(enclaveUrl, productId, { ...o, publicClient: this.pub, deployment: this.d });
   }
 
-  /** Vérifie un reçu exactement comme SessionPay.settle (lectures seulement). */
+  /** Verifies a receipt exactly as SessionPay.settle does (reads only). */
   verifyReceipt(receipt: Receipt, signature: Hex): Promise<ReceiptVerification> {
     return verifyReceiptOnChain(this.pub, receipt, signature, this.d);
   }
 
-  // ---------- opérateur ----------
+  // ---------- operator ----------
 
   async bond(amount: bigint, mode: "allowance" | "auth" = "allowance"): Promise<Hex> {
     if (mode === "allowance") {
@@ -337,10 +337,10 @@ export class ArcClient {
   withdrawBond() { return this.write(this.d.operatorBond, operatorBondAbi, "withdraw", []); }
 
   /**
-   * Inscrit (ou renouvelle) une enclave : POST /attest (quote lié à l'opérateur, au produit et à un bloc récent), contrôle
-   * du quote HORS chaîne (quote réel, pas de DEBUG, SEPT_VE_DISABLE si exigé, image autorisée par le produit, liaison
-   * REPORTDATA), puis registerEnclave — la chaîne vérifie la signature d'Intel par DCAP (≈ 5,7 M gas). Un refus prévisible
-   * est levé AVANT d'envoyer quoi que ce soit.
+   * Registers (or renews) an enclave: POST /attest (a quote bound to the operator, the product and a recent block), an
+   * OFF-chain check of the quote (a real quote, no DEBUG, SEPT_VE_DISABLE when required, an image the product allows,
+   * the REPORTDATA binding), then registerEnclave: the chain verifies Intel's signature with DCAP. A foreseeable revert
+   * is raised BEFORE anything is sent.
    */
   async registerEnclave(productId: bigint, enclaveUrl: string): Promise<{ tx: Hex; signer: Address; x25519: Hex; workloadId: Hex; admittedBy: "image" | "workload" }> {
     const operator = this.signer().address;
@@ -352,27 +352,27 @@ export class ArcClient {
       signal: AbortSignal.timeout(60_000),
     });
     const a = await res.json().catch(() => ({})) as { quote?: Hex; eventLog?: Hex; signer?: Address; x25519?: Hex; mock?: boolean; error?: string };
-    if (!res.ok || a.error || !a.quote || !a.signer || !a.x25519) throw new Error(`/attest : HTTP ${res.status} ${a.error ?? "réponse incomplète"}`);
-    if (a.mock) throw new Error("quote simulé : cette machine n'a pas Intel TDX ; le registre (vérification DCAP d'Intel) le refuserait");
+    if (!res.ok || a.error || !a.quote || !a.signer || !a.x25519) throw new Error(`/attest: HTTP ${res.status} ${a.error ?? "incomplete response"}`);
+    if (a.mock) throw new Error("simulated quote: this machine has no Intel TDX, so the registry (Intel DCAP verification) would refuse it");
     const m = parseTdxQuote(a.quote);
-    if (m.debug) throw new Error("enclave en mode DEBUG : le registre la refuserait (DebugEnclave)");
+    if (m.debug) throw new Error("enclave in DEBUG mode: the registry would refuse it (DebugEnclave)");
     const needSeptVe = await this.pub.readContract({ address: this.d.enclaveRegistry, abi: enclaveRegistryAbi, functionName: "requireSeptVeDisable" }) as boolean;
-    if (needSeptVe && !m.septVeDisabled) throw new Error("SEPT_VE_DISABLE absent du quote : le registre le refuserait (SeptVeNotDisabled)");
-    // v2.1 : empreinte d'IMAGE (journal RTMR3 rejoué par le registre) si le produit l'autorise ; sinon empreinte complète
+    if (needSeptVe && !m.septVeDisabled) throw new Error("SEPT_VE_DISABLE missing from the quote: the registry would refuse it (SeptVeNotDisabled)");
+    // IMAGE id (RTMR3 event log replayed by the registry) when the product allows it; otherwise the full workload id
     const plan = await planRegistrationLog(this.pub, { registry: this.d.enclaveRegistry, productRegistry: this.d.productRegistry, productId, quote: a.quote, rawEventLog: a.eventLog });
     if (!plan.admittedBy) {
-      const ask = plan.v21 && plan.imageId ? `empreinte d'image ${plan.imageId} (stable d'un redémarrage à l'autre)` : `workloadId ${plan.workloadId}`;
-      throw new Error(`image non autorisée pour le produit #${productId} : ${ask}${plan.note ? ` ; ${plan.note}` : ""} (l'auteur du produit doit la proposer puis l'appliquer : proposeWorkload → applyWorkload)`);
+      const ask = plan.v21 && plan.imageId ? `image id ${plan.imageId} (stable across restarts)` : `workloadId ${plan.workloadId}`;
+      throw new Error(`image not allowed for product #${productId}: ${ask}${plan.note ? `; ${plan.note}` : ""} (the product's author must propose it, then apply it: proposeWorkload → applyWorkload)`);
     }
     const rd0 = expectedReportData0({ chainId: this.d.chainId, registry: this.d.enclaveRegistry, productId, operator, signer: a.signer, x25519: a.x25519 });
     if (m.reportData.slice(0, 66).toLowerCase() !== rd0.toLowerCase()) {
-      throw new Error("REPORTDATA ne lie pas (chaîne, registre, produit, opérateur, clés) : l'enclave sert un autre produit ou un autre registre (ReportDataMismatch)");
+      throw new Error("REPORTDATA does not bind (chain, registry, product, operator, keys): the enclave serves another product or another registry (ReportDataMismatch)");
     }
     const tx = await this.write(this.d.enclaveRegistry, enclaveRegistryAbi, "registerEnclave", [productId, a.quote, anchorR, a.signer, a.x25519, plan.eventLog], true);
     return { tx, signer: a.signer, x25519: a.x25519, workloadId: plan.admittedBy === "image" ? plan.imageId! : plan.workloadId, admittedBy: plan.admittedBy };
   }
-  /** Retire une de SES enclaves : plus rien ne s'ancre après, la caution qu'elle réservait est libérée (les reçus
-   *  ancrés avant restent réglables pendant la grâce). */
+  /** Removes one of YOUR enclaves: nothing anchors after it, the bond it reserved is released (receipts anchored
+   *  before stay settleable during the grace period). */
   retireEnclave(signer: Address) { return this.write(this.d.enclaveRegistry, enclaveRegistryAbi, "retire", [signer]); }
 
   // ---------- produit ----------
@@ -381,7 +381,7 @@ export class ArcClient {
     manifestHash: Hex; manifestURI: string; workloadIds: Hex[]; deterministic: boolean; price: bigint;
     bpsOperator: number; bpsAuthor: number; bpsNetwork: number; minBond: bigint; exposureCap: bigint;
     settlement: Address; param: Hex; advisoryIds: string[];
-    /** v2 : unité facturée (défaut 1 jeton) et poids d'un jeton de sortie (défaut 1). */
+    /** Billed unit (default 1 token) and weight of an output token (default 1). */
     unitTokens?: number; outWeight?: number;
   }): Promise<{ tx: Hex; productId: bigint }> {
     const params = { ...q, unitTokens: q.unitTokens ?? 1, outWeight: q.outWeight ?? 1 };
@@ -389,19 +389,19 @@ export class ArcClient {
     return { tx, productId: result as bigint };
   }
   activateProduct(id: bigint) { return this.write(this.d.productRegistry, productRegistryAbi, "activate", [id]); }
-  /** v2 : autoriser une image se fait en deux temps (timelock du registre). */
+  /** Allowing an image takes two steps (the registry's timelock). */
   proposeWorkload(productId: bigint, workloadId: Hex) { return this.write(this.d.productRegistry, productRegistryAbi, "proposeWorkload", [productId, workloadId]); }
   applyWorkload(productId: bigint, workloadId: Hex) { return this.write(this.d.productRegistry, productRegistryAbi, "applyWorkload", [productId, workloadId]); }
 
-  // ---------- session (inférence) ----------
+  // ---------- session (inference) ----------
 
   /**
-   * Ouvre une session v2, VERROUILLÉE sur une enclave : seuls ses reçus la paieront.
-   * - `enclaveUrl` (recommandé) : ses clés sont vérifiées on-chain (verifyEnclaveKeys), l'enclave et l'opérateur en
-   *   viennent ; un `operator` donné doit être le même.
-   * - sinon `enclave` (signataire) : son opérateur actif est lu on-chain ;
-   * - transition : `operator` seul, s'il a exactement UNE enclave active sur ce produit.
-   * L'échéance (défaut 24 h) doit être dans [10 min, 30 j] (SessionPay.MIN_SESSION / MAX_SESSION).
+   * Opens a session LOCKED to one enclave: only its receipts will be paid from it.
+   * - `enclaveUrl` (recommended): its keys are verified on-chain (verifyEnclaveKeys), and the enclave and the operator
+   *   come from them; a given `operator` must be the same;
+   * - otherwise `enclave` (its signer): its active operator is read on-chain;
+   * - compatibility: `operator` alone, if it has exactly ONE active enclave on this product.
+   * The expiry (default 24 h) must be within [10 min, 30 days] (SessionPay.MIN_SESSION / MAX_SESSION).
    */
   async openSession(params: {
     productId: bigint; deposit: bigint; cap?: bigint; expiresInSeconds?: number;
@@ -409,7 +409,7 @@ export class ArcClient {
   }): Promise<{ tx: Hex; sessionId: bigint; sessionKey: SessionKey; enclave: Address; operator: Address; expiresAt: bigint; keys?: VerifiedEnclaveKeys }> {
     const life = params.expiresInSeconds ?? 86_400;
     if (life < SESSION_MIN_SECONDS + SESSION_EXPIRY_MARGIN_SECONDS || life > SESSION_MAX_SECONDS - SESSION_EXPIRY_MARGIN_SECONDS) {
-      throw new Error(`échéance de session : entre ${(SESSION_MIN_SECONDS + SESSION_EXPIRY_MARGIN_SECONDS) / 60} min et ${Math.floor((SESSION_MAX_SECONDS - SESSION_EXPIRY_MARGIN_SECONDS) / 86_400)} jours (SessionPay v2 refuse sinon : BadExpiry)`);
+      throw new Error(`session expiry: between ${(SESSION_MIN_SECONDS + SESSION_EXPIRY_MARGIN_SECONDS) / 60} min and ${Math.floor((SESSION_MAX_SECONDS - SESSION_EXPIRY_MARGIN_SECONDS) / 86_400)} days (SessionPay refuses otherwise: BadExpiry)`);
     }
     let keys: VerifiedEnclaveKeys | undefined;
     let enclave: Address;
@@ -419,28 +419,28 @@ export class ArcClient {
       enclave = keys.signer;
       operator = keys.operator;
       if (params.enclave && params.enclave.toLowerCase() !== enclave.toLowerCase()) {
-        throw new Error(`${params.enclaveUrl} sert l'enclave ${enclave}, pas ${params.enclave}`);
+        throw new Error(`${params.enclaveUrl} serves enclave ${enclave}, not ${params.enclave}`);
       }
     } else if (params.enclave) {
       enclave = params.enclave;
       operator = await this.activeOperatorAt(enclave, params.productId);
-      if (operator === zeroAddress) throw new Error(`l'enclave ${enclave} n'est pas active pour le produit #${params.productId} (InactiveEnclave)`);
+      if (operator === zeroAddress) throw new Error(`enclave ${enclave} is not active for product #${params.productId} (InactiveEnclave)`);
     } else if (params.operator) {
-      // transition (appelants v1 qui ne donnent que l'opérateur) : son UNIQUE enclave active sur ce produit, lue dans le
-      // registre. Le client d'inférence vérifiera de toute façon les clés de l'enclave contre la session avant d'envoyer.
+      // compatibility (callers that give only the operator): its ONLY active enclave on this product, read from the
+      // registry. The inference client checks the enclave's keys against the session before sending in any case.
       const mine = (await this.listEnclaves()).filter((e) => e.active && e.productId === params.productId && e.operator.toLowerCase() === params.operator!.toLowerCase());
       if (mine.length !== 1) {
         throw new Error(mine.length
-          ? `l'opérateur ${params.operator} a ${mine.length} enclaves actives sur le produit #${params.productId} : donnez enclaveUrl (ou enclave) pour choisir celle qui servira la session`
-          : `l'opérateur ${params.operator} n'a aucune enclave active sur le produit #${params.productId}`);
+          ? `operator ${params.operator} has ${mine.length} active enclaves on product #${params.productId}: give enclaveUrl (or enclave) to choose the one that will serve the session`
+          : `operator ${params.operator} has no active enclave on product #${params.productId}`);
       }
       enclave = mine[0]!.signer;
       operator = mine[0]!.operator;
     } else {
-      throw new Error("v2 : une session est verrouillée sur une enclave : donnez enclaveUrl (clés vérifiées on-chain) ou enclave (signataire)");
+      throw new Error("a session is locked to one enclave: give enclaveUrl (keys verified on-chain) or enclave (its signer)");
     }
     if (params.operator && params.operator.toLowerCase() !== operator.toLowerCase()) {
-      throw new Error(`l'enclave ${enclave} est active pour l'opérateur ${operator}, pas pour ${params.operator} (WrongOperator)`);
+      throw new Error(`enclave ${enclave} is active for operator ${operator}, not for ${params.operator} (WrongOperator)`);
     }
     const now = (await this.pub.getBlock()).timestamp;
     const expiresAt = now + BigInt(life);
@@ -455,13 +455,13 @@ export class ArcClient {
     return this.write(this.d.sessionPay, sessionPayAbi, "topUp", [sessionId, amount, auth]);
   }
   rotateKey(sessionId: bigint, newKey: Address) { return this.write(this.d.sessionPay, sessionPayAbi, "rotateKey", [sessionId, newKey]); }
-  /** Règle un reçu (sans permission : le paiement va à l'opérateur de la session). */
+  /** Settles a receipt (permissionless: the payment goes to the session's operator). */
   settle(receipt: Receipt, signature: Hex) { return this.write(this.d.sessionPay, sessionPayAbi, "settle", [receipt, signature]); }
-  /** Ferme une session (propriétaire) : rembourse le reste, écrit le verdict ERC-8004 (gaz du verdict compris). */
+  /** Closes a session (owner): refunds the rest, writes the ERC-8004 verdict (verdict gas included). */
   closeSession(sessionId: bigint) { return this.write(this.d.sessionPay, sessionPayAbi, "closeSession", [sessionId], true); }
 
-  /** Quand la session peut être fermée : à l'échéance + SETTLE_GRACE, ou plus tôt si son enclave ne peut plus rien
-   *  régler (bloc > settleableUntilBlock). */
+  /** When the session can be closed: at expiry + SETTLE_GRACE, or earlier if its enclave can no longer settle
+   *  anything (block > settleableUntilBlock). */
   async sessionClosability(sessionId: bigint): Promise<{ closableNow: boolean; atTime: bigint; afterBlock: bigint; head: bigint; now: bigint }> {
     const s = await this.getSession(sessionId);
     if (s.owner === zeroAddress) throw new Error(`session #${sessionId} inconnue`);
@@ -479,13 +479,13 @@ export class ArcClient {
     singleCap: bigint; k: number; targetToPause: Address; deadline: bigint; funding: bigint;
   }): Promise<{ tx: Hex; bountyId: bigint }> {
     const n = q.tierMinLoss.length;
-    if (n === 0 || n !== q.tierAmount.length || q.tierAmount[0] === 0n) throw new Error("paliers : listes non vides et de même taille, premier montant > 0 (BadTiers)");
+    if (n === 0 || n !== q.tierAmount.length || q.tierAmount[0] === 0n) throw new Error("tiers: non-empty lists of the same length, first amount > 0 (BadTiers)");
     for (let i = 1; i < n; i++) {
       if (q.tierMinLoss[i]! <= q.tierMinLoss[i - 1]! || q.tierAmount[i]! <= q.tierAmount[i - 1]!) {
         throw new Error("paliers : seuils ET montants strictement croissants (BadTiers)");
       }
     }
-    if (!Number.isInteger(q.k) || q.k < 1 || q.k > BOUNTY_MAX_SIGS) throw new Error(`k : entre 1 et ${BOUNTY_MAX_SIGS} (BadK)`);
+    if (!Number.isInteger(q.k) || q.k < 1 || q.k > BOUNTY_MAX_SIGS) throw new Error(`k: between 1 and ${BOUNTY_MAX_SIGS} (BadK)`);
     const auth = await this.buildAuth(this.d.sealedBounty, q.funding);
     const { tx, result } = await this.send(this.d.sealedBounty, sealedBountyAbi, "createBounty", [{ ...q, auth }]);
     return { tx, bountyId: result as bigint };
@@ -495,15 +495,15 @@ export class ArcClient {
     return this.write(this.d.sealedBounty, sealedBountyAbi, "fund", [bountyId, amount, auth]);
   }
   withdrawRemaining(bountyId: bigint) { return this.write(this.d.sealedBounty, sealedBountyAbi, "withdrawRemaining", [bountyId]); }
-  /** v2 : le protocole réarme sa prime après correction (les paliers redeviennent payables, ancrage après ce bloc). */
+  /** The protocol re-arms its bounty after a fix (the tiers become payable again, anchored after this block). */
   reopenBounty(bountyId: bigint) { return this.write(this.d.sealedBounty, sealedBountyAbi, "reopen", [bountyId]); }
   setBountyPaused(bountyId: bigint, paused: boolean) { return this.write(this.d.sealedBounty, sealedBountyAbi, "setPaused", [bountyId, paused]); }
 
   // ---------- prime (chasseur) ----------
 
   /**
-   * Prépare la soumission d'un exploit : lit la prime ON-CHAIN (produit, clé X25519 du protocole), vérifie les clés de
-   * l'enclave on-chain pour CE produit (verifyEnclaveKeys), puis chiffre (cP vers le protocole, cE vers l'enclave).
+   * Prepares an exploit submission: reads the bounty ON-CHAIN (product, the protocol's X25519 key), verifies the
+   * enclave's keys on-chain for THIS product (verifyEnclaveKeys), then encrypts (cP to the protocol, cE to the enclave).
    */
   async prepareExploit(a: {
     bountyId: bigint; enclaveUrl: string; exploit: ExploitInput; payee?: Address; r?: Uint8Array; blockN?: bigint; deadline?: bigint;
@@ -515,29 +515,29 @@ export class ArcClient {
     if (!payee) throw new Error("payee requis (ou un compte)");
     return sealExploitForEnclave({ bountyId: a.bountyId, payee, exploit: a.exploit, protocolX25519: b.protocolX25519, enclave, r: a.r, blockN: a.blockN, deadline: a.deadline });
   }
-  /** Envoie l'exploit chiffré à l'enclave et contrôle la réclamation signée qu'elle rend. */
+  /** Sends the encrypted exploit to the enclave and checks the signed claim it returns. */
   proveExploit(sealed: SealedExploit): Promise<ProvenClaim> {
     return submitSealedExploit(sealed, { sealedBounty: this.d.sealedBounty, chainId: this.d.chainId });
   }
-  /** v2 (recommandé) : vérifie la réclamation et RÉSERVE le paiement ; cP n'est pas dans cette transaction. */
+  /** The recommended path: verifies the claim and RESERVES the payment; cP is not in this transaction. */
   acceptClaim(claim: Claim, signatures: Hex[]) { return this.write(this.d.sealedBounty, sealedBountyAbi, "acceptClaim", [claim, signatures], true); }
-  /** v2 : livre cP (contrôlé contre le hash réservé) et paie chasseur, réseau et opérateurs. Ouvert à tous. */
+  /** Delivers cP (checked against the reserved hash) and pays the hunter, the network and the operators. Open to all. */
   deliver(bountyId: bigint, fingerprint: Hex, cP: Hex) { return this.write(this.d.sealedBounty, sealedBountyAbi, "deliver", [bountyId, fingerprint, cP], true); }
-  /** acceptClaim, attente de sa confirmation, puis deliver : les deux transactions du paiement v2. */
+  /** acceptClaim, wait for its confirmation, then deliver: the two transactions of the payment. */
   async acceptAndDeliver(claim: Claim, signatures: Hex[], cP: Hex): Promise<{ acceptTx: Hex; deliverTx: Hex }> {
     const acceptTx = await this.acceptClaim(claim, signatures);
     const r = await this.pub.waitForTransactionReceipt({ hash: acceptTx, timeout: 180_000 });
-    if (r.status !== "success") throw new Error(`acceptClaim annulée on-chain (${acceptTx}) : rien n'est réservé, cP n'a pas été publié`);
+    if (r.status !== "success") throw new Error(`acceptClaim reverted on-chain (${acceptTx}): nothing is reserved, cP was not published`);
     const deliverTx = await this.deliver(claim.bountyId, claim.fingerprint, cP);
     return { acceptTx, deliverTx };
   }
-  /** Chemin v1 en UNE transaction (claim). Déconseillé : si elle échoue, cP reste lisible dans sa calldata. */
+  /** One-transaction path (claim). Not recommended: if it fails, cP stays readable in its calldata. */
   claimBounty(claim: Claim, signatures: Hex[], cP: Hex): Promise<Hex> {
     return this.write(this.d.sealedBounty, sealedBountyAbi, "claim", [claim, signatures, cP], true);
   }
-  /** v2 : un paiement réservé et jamais livré retourne au pool après DELIVERY_WINDOW (ouvert à tous). */
+  /** A payment reserved and never delivered returns to the pool after DELIVERY_WINDOW (open to all). */
   cancelUndelivered(bountyId: bigint, fingerprint: Hex) { return this.write(this.d.sealedBounty, sealedBountyAbi, "cancelUndelivered", [bountyId, fingerprint]); }
-  /** v2 : retire un paiement dont le transfert avait été refusé (crédit). */
+  /** Withdraws a payment whose transfer had been refused (credit). */
   withdrawCredit() { return this.write(this.d.sealedBounty, sealedBountyAbi, "withdrawCredit", []); }
 
   // ---------- helpers ----------
@@ -547,7 +547,7 @@ export class ArcClient {
   }
 }
 
-/** Vrai si l'erreur viem est un refus du contrat (et non une erreur réseau). */
+/** True if the viem error is a contract revert (not a network error). */
 export function isRevert(e: unknown): boolean {
   for (let x: any = e, n = 0; x && n < 12; x = x.cause, n++) {
     if (x?.name === "ContractFunctionRevertedError" || x?.name === "ExecutionRevertedError") return true;

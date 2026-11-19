@@ -7,4 +7,3 @@ dist-*/
 !.env.ext
 *.local
 tools/
-.sur-mac/

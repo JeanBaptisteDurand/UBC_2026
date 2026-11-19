@@ -1,116 +1,116 @@
-/** copilot.ts — le copilote ATTESTÉ : parler au copilote d'ArcHive qui tourne dans une enclave Intel TDX inscrite sur Arc,
- *  sans que le serveur web qui relaie la conversation (ni aucun autre mandataire) puisse la lire ou la modifier.
+/** copilot.ts — the ATTESTED copilot: talk to ArcHive's copilot, which runs in an Intel TDX enclave registered on Arc,
+ *  without the web server that relays the conversation (or any other proxy) being able to read or change it.
  *
- *  createAttestedCopilotClient({ copilotUrl, productId, publicClient }) :
- *   1. AVANT tout envoi, vérifie la clé du copilote sur la chaîne : verifyEnclaveKeys (signataire inscrit pour CE produit,
- *      clé X25519 de /pubkeys = celle inscrite, enclave active au bloc de tête), puis, AU MÊME BLOC, qu'elle fait foi
- *      maintenant (comme EnclaveRegistry.attestedOperator de la v2.1) : produit actif, image (workloadId) encore autorisée
- *      par le produit, opérateur non radié. Sinon EnclaveKeyMismatchError et rien n'est envoyé. Un copilote dont le quote
- *      est simulé (hors TDX) ne peut pas être inscrit : il est donc toujours refusé ici.
- *   2. chiffre la conversation (messages, wallet, langue) vers cette clé : HPKE, étiquette ARC-COPILOT-CHAT-v1, info liée à
- *      la chaîne, au registre, au produit et au signataire (sealed-exchange.ts) ;
- *   3. ouvre la réponse, scellée par l'enclave pour CETTE requête : un mandataire ne peut ni la lire, ni la modifier (les
- *      actions préparées à signer comprises), ni rejouer celle d'une autre requête. Une réponse en clair à une requête
- *      chiffrée, ou qui ne s'ouvre pas, est refusée (CopilotResponseError).
- *  Les refus d'avant le déchiffrement (mandataire, origine, débit par IP, taille, format : 403, 429, 413, 415, 400) arrivent
- *  en clair, donc SANS preuve d'origine : un relais peut les forger (« Session expirée : collez votre phrase de
- *  récupération sur … »). Le résultat a alors `authenticated: false`, AUCUN `enclave` (9/11 : un badge « attesté » ne
- *  peut se tirer que d'une réponse scellée, `authenticated === true`), et un `reply.text` écrit ICI d'après le code et la
- *  langue de la requête : le texte du relais n'est jamais repris.
- *  La langue part DANS le chiffré (champ lang), plus en en-tête Accept-Language : le relais ne la voit pas.
- *  Après un redémarrage du copilote (nouvelles clés, réinscrites par le registrar), l'enclave répond « indéchiffrable » :
- *  le client revérifie la clé sur la chaîne et renvoie UNE fois si la clé inscrite a changé.
- *  Côté serveur : services/copilot/src/enclave-app.ts (même étiquette, kit d'enclave : enclave/src/kit/hpke-exchange.ts). */
+ *  createAttestedCopilotClient({ copilotUrl, productId, publicClient }):
+ *   1. BEFORE anything is sent, checks the copilot's key on the chain: verifyEnclaveKeys (signer registered for THIS
+ *      product, X25519 key from /pubkeys = the registered one, enclave active at the head block), then, AT THE SAME
+ *      BLOCK, that it is authoritative now (as EnclaveRegistry.attestedOperator on v2.1): product active, image
+ *      (workloadId) still allowed by the product, operator not banned. Otherwise EnclaveKeyMismatchError, and nothing is
+ *      sent. A copilot whose quote is simulated (no TDX) cannot be registered, so it is always refused here.
+ *   2. encrypts the conversation (messages, wallet, language) to that key: HPKE, label ARC-COPILOT-CHAT-v1, info bound to
+ *      the chain, the registry, the product and the signer (sealed-exchange.ts);
+ *   3. opens the answer, sealed by the enclave for THIS request: a proxy can neither read it, nor change it (prepared
+ *      actions to sign included), nor replay the answer to another request. A plaintext answer to an encrypted request,
+ *      or one that does not open, is refused (CopilotResponseError).
+ *  Refusals from before decryption (proxy, origin, rate limit per IP, size, format: 403, 429, 413, 415, 400) arrive in
+ *  plaintext, so WITHOUT proof of origin: a relay could forge them ("Session expired: paste your recovery phrase
+ *  at …"). The result then has `authenticated: false`, NO `enclave` (an "attested" badge can only come from a sealed
+ *  answer, `authenticated === true`), and a `reply.text` written HERE from the code and the request's language: the
+ *  relay's text is never reused.
+ *  The language travels INSIDE the ciphertext (lang field), no longer in an Accept-Language header: the relay cannot see it.
+ *  After a copilot restart (new keys, registered again by the registrar), the enclave answers "undecryptable": the
+ *  client checks the key on the chain again and resends ONCE if the registered key changed.
+ *  Server side: services/copilot/src/enclave-app.ts (same label; enclave kit: enclave/src/kit/hpke-exchange.ts). */
 import { type Address, type Hex, type PublicClient, isAddress, toBytes, toHex } from "viem";
 import { operatorBondAbi, productRegistryAbi } from "./abis";
 import { testnet, type Deployment } from "./network";
 import { EnclaveKeyMismatchError, verifyEnclaveKeys, type VerifiedEnclaveKeys } from "./enclave-keys";
 import { EXCHANGE_RESPONSE_NONCE_BYTES, exchangeInfo, sealExchange } from "./sealed-exchange";
 
-/** Étiquette du protocole (champ `sealed` du corps de POST /chat ; même valeur côté copilote). */
+/** The protocol label (the `sealed` field of the POST /chat body; same value on the copilot side). */
 export const COPILOT_SEALED_TAG = "ARC-COPILOT-CHAT-v1";
 /** Langues du copilote. */
 export type CopilotLang = "en" | "fr";
-/** Le copilote garde les 20 derniers messages ; le client n'en envoie pas plus. */
+/** The copilot keeps the last 20 messages; the client sends no more. */
 export const COPILOT_MAX_MESSAGES = 20;
-/** Taille au plus de la conversation en clair (le copilote refuse au-delà de 64 Kio) : les plus anciens messages tombent. */
+/** Maximum size of the plaintext conversation (the copilot refuses above 64 KiB): the oldest messages are dropped. */
 export const COPILOT_MAX_PLAINTEXT_BYTES = 60 * 1024;
 
 export interface CopilotMessage { role: "user" | "assistant"; content: string }
-/** Une action PRÉPARÉE par le copilote (jamais exécutée) : l'utilisateur la vérifie et la signe lui-même. */
+/** An action PREPARED by the copilot (never executed): the user checks it and signs it themselves. */
 export interface CopilotAction { tool: string; input: unknown; result: unknown }
-/** La réponse du copilote (même forme qu'en mode clair). */
+/** The copilot's answer (same shape as in plaintext mode). */
 export interface CopilotReply {
-  /** Ce que la bulle affiche (dans la langue demandée). */
+  /** What the bubble shows (in the requested language). */
   text: string;
   tools?: string[];
   citations?: string[];
-  /** Page du site à ouvrir (identifiant de route : vue, ruche, produits, primes, playground, cles…). */
+  /** Site page to open (route id, as the copilot names it: vue, ruche, produits, primes, playground, cles…). */
   navigate?: string;
   actions?: CopilotAction[];
-  /** Code machine : erreur du modèle (modele_429…) ou refus (bad_conversation, global_cap, too_large…). */
+  /** Machine code: a model error (modele_429…) or a refusal (bad_conversation, global_cap, too_large…). */
   code?: string;
   error?: string;
   outilsNonExecutes?: number;
   retryAfterSec?: number;
 }
 
-/** La clé du copilote, vérifiée on-chain, et ce qui fait foi maintenant au même bloc. */
+/** The copilot's key, verified on-chain, and what is authoritative now at the same block. */
 export interface VerifiedCopilot extends VerifiedEnclaveKeys {
-  /** Product.param (keccak256 de l'identifiant du modèle épinglé par le produit). */
+  /** Product.param (keccak256 of the model id pinned by the product). */
   productParam: Hex;
 }
 
 export interface AttestedCopilotClientOptions {
-  /** URL du copilote en enclave (directe chez Phala, ou derrière le proxy du site, ex. https://…/enclave/copilot). */
+  /** URL of the copilot enclave (direct at Phala, or behind the site's proxy, e.g. https://…/enclave/copilot). */
   copilotUrl: string;
   /** Le produit du copilote, inscrit sur Arc. */
   productId: bigint;
   publicClient: PublicClient;
-  /** Pile lue (défaut : la v2 du SDK ; pour la v2.1 : deploymentFromJson(deployments.v21.testnet.json)). */
+  /** Stack to read (default: the SDK's testnet stack; or deploymentFromJson(deployments.v21.testnet.json)). */
   deployment?: Deployment;
-  /** Langue demandée par défaut (sinon le copilote répond dans la langue du dernier message). */
+  /** Default requested language (otherwise the copilot answers in the language of the last message). */
   lang?: CopilotLang;
-  /** Si donné : l'enclave doit être active chez CET opérateur. */
+  /** If given: the enclave must be active for THIS operator. */
   expectedOperator?: Address;
   fetch?: typeof fetch;
-  /** Revérifier la clé on-chain au plus tard après ce délai (ms, défaut 5 min). */
+  /** Check the key on-chain again at the latest after this delay (ms, default 5 min). */
   reverifyMs?: number;
-  /** Délai d'une requête (ms, défaut 180 000 ; le copilote coupe à 150 s). */
+  /** Timeout of a request (ms, default 180,000; the copilot stops at 150 s). */
   timeoutMs?: number;
 }
 
 export interface CopilotChatRequest {
   messages: CopilotMessage[];
-  /** Wallet connecté : adresse par défaut des actions préparées (ou null). */
+  /** Connected wallet: the default address of prepared actions (or null). */
   user?: Address | string | null;
   lang?: CopilotLang;
 }
 
-/** Réponse SCELLÉE par l'enclave vérifiée : ouverte avec le secret de CETTE requête, donc écrite par elle. */
+/** An answer SEALED by the verified enclave: opened with THIS request's secret, so written by that enclave. */
 export interface AuthenticatedCopilotChat {
-  /** Statut de la réponse, celui du copilote (dans le chiffré) : 200, 400, 413, 429… */
+  /** Status of the answer, the copilot's own (inside the ciphertext): 200, 400, 413, 429… */
   status: number;
   ok: boolean;
   reply: CopilotReply;
   authenticated: true;
-  /** L'enclave vérifiée (sur Arc, au bloc checkedAtBlock) qui a écrit cette réponse : de quoi afficher un badge. */
+  /** The verified enclave (on Arc, at block checkedAtBlock) that wrote this answer: enough to show a badge. */
   enclave: VerifiedCopilot;
 }
-/** Refus EN CLAIR d'avant le déchiffrement : sans rien de la conversation, mais sans preuve d'origine (un relais peut le
- *  forger). Ni `enclave`, ni texte du relais : `reply.text` est un message local tiré de `reply.code`. */
+/** A PLAINTEXT refusal from before decryption: nothing of the conversation, but no proof of origin (a relay could
+ *  forge it). No `enclave` and no relay text: `reply.text` is a local message taken from `reply.code`. */
 export interface UnauthenticatedCopilotChat {
-  /** Statut HTTP vu sur le fil (non authentifié). */
+  /** HTTP status seen on the wire (not authenticated). */
   status: number;
   ok: false;
   reply: CopilotReply;
   authenticated: false;
   enclave?: undefined;
 }
-/** Le résultat d'un échange : n'afficher « attesté » (et `enclave`) que si `authenticated === true`. */
+/** The result of an exchange: show "attested" (and `enclave`) only if `authenticated === true`. */
 export type CopilotChatResult = AuthenticatedCopilotChat | UnauthenticatedCopilotChat;
 
-/** Messages locaux des refus en clair (le texte du relais n'est jamais repris), par code. */
+/** Local messages for plaintext refusals (the relay's text is never reused), by code. */
 const PLAIN_REFUSALS: Record<CopilotLang, Record<string, string>> = {
   fr: {
     proxy_required: "Ce copilote attesté ne répond qu'au travers du site d'ArcHive (son mandataire) : utilisez l'adresse du site, pas celle de l'enclave.",
@@ -143,7 +143,7 @@ const plainRefusalText = (lang: CopilotLang, code: string | undefined, status: n
   (code !== undefined ? PLAIN_REFUSALS[lang][code] : undefined) ??
   (lang === "fr" ? `Le copilote a refusé la requête (HTTP ${status}).` : `The copilot refused the request (HTTP ${status}).`);
 
-/** La réponse ne vient pas de l'enclave vérifiée (ou ne répond pas à cette requête) : elle n'est pas rendue. */
+/** The answer does not come from the verified enclave (or does not answer this request): it is not returned. */
 export class CopilotResponseError extends Error {
   constructor(message: string) { super(`réponse du copilote refusée : ${message}`); this.name = "CopilotResponseError"; }
 }
@@ -154,8 +154,8 @@ const hexOf = (x: unknown, bytes?: number): Uint8Array | null => {
   return bytes === undefined || b.length === bytes ? b : null;
 };
 
-/** La conversation en clair telle qu'elle part chiffrée : les 20 derniers messages, puis les plus anciens retirés tant
- *  qu'elle dépasse 60 Kio ; seuls role et content sont recopiés. */
+/** The plaintext conversation as it leaves encrypted: the last 20 messages, then the oldest removed while it is over
+ *  60 KiB; only role and content are copied. */
 export function copilotRequestBytes(messages: CopilotMessage[], user?: string | null, lang?: CopilotLang): Uint8Array {
   const enc = new TextEncoder();
   let kept = messages.slice(-COPILOT_MAX_MESSAGES).map((m) => ({ role: m.role, content: m.content }));
@@ -175,15 +175,15 @@ export class AttestedCopilotClient {
 
   constructor(private o: AttestedCopilotClientOptions) {
     this.d = o.deployment ?? testnet;
-    // appelée comme fonction, jamais comme méthode : dans un navigateur, fetch appelé avec `this` = ce client lève
-    // « Illegal invocation » (Node l'accepte, les tests ne le voyaient pas : vérification navigateur du 9/11)
+    // called as a function, never as a method: in a browser, fetch called with `this` = this client throws
+    // "Illegal invocation" (Node accepts it, so only a browser check shows it)
     this.f = o.fetch ?? ((input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => globalThis.fetch(input, init));
     if (!o.copilotUrl) throw new Error("copilote attesté : copilotUrl requis");
   }
 
   private base() { return this.o.copilotUrl.replace(/\/+$/, ""); }
 
-  /** La clé du copilote, vérifiée on-chain (refait après `reverifyMs`, ou tout de suite avec force). */
+  /** The copilot's key, verified on-chain (done again after `reverifyMs`, or at once with force). */
   async verifiedKeys(force = false): Promise<VerifiedCopilot> {
     const maxAge = this.o.reverifyMs ?? 5 * 60_000;
     if (!force && this.keys && Date.now() - this.keys.checkedAtMs < maxAge) return this.keys;
@@ -191,7 +191,7 @@ export class AttestedCopilotClient {
       publicClient: this.o.publicClient, deployment: this.d, fetch: this.f,
       ...(this.o.expectedOperator ? { expectedOperator: this.o.expectedOperator } : {}),
     });
-    // fait foi MAINTENANT (EnclaveRegistry.attestedOperator, v2.1) : lu au bloc même de la vérification
+    // authoritative NOW (EnclaveRegistry.attestedOperator, v2.1): read at the very block of the check
     const blockNumber = k.checkedAtBlock;
     const pub = this.o.publicClient;
     const [active, allowed, banned, product] = (await Promise.all([
@@ -210,7 +210,7 @@ export class AttestedCopilotClient {
     return this.keys;
   }
 
-  /** Envoie la conversation chiffrée et rend la réponse ouverte (ou un refus en clair d'avant le déchiffrement). */
+  /** Sends the encrypted conversation and returns the opened answer (or a plaintext refusal from before decryption). */
   async chat(req: CopilotChatRequest): Promise<CopilotChatResult> {
     return this.send(req, false);
   }
@@ -220,13 +220,13 @@ export class AttestedCopilotClient {
     const lang = req.lang ?? this.o.lang;
     const keys = await this.verifiedKeys();
     const plaintext = copilotRequestBytes(req.messages, req.user ?? null, lang);
-    // info liée à la chaîne, au registre, au produit et au signataire VÉRIFIÉS : seule cette enclave ouvre la requête
+    // info bound to the VERIFIED chain, registry, product and signer: only this enclave can open the request
     const info = exchangeInfo(COPILOT_SEALED_TAG, this.d.chainId, this.d.enclaveRegistry, keys.productId, keys.signer);
     const sx = await sealExchange(toBytes(keys.x25519), COPILOT_SEALED_TAG, info, plaintext);
     const res = await this.f(`${this.base()}/chat`, {
       method: "POST",
-      // aucun en-tête Accept-Language : la langue est DANS le chiffré (le relais ne la voit pas) ; les refus d'avant le
-      // déchiffrement sont mis en mots ici, dans cette langue
+      // no Accept-Language header: the language is INSIDE the ciphertext (the relay cannot see it); refusals from before
+      // decryption are put into words here, in that language
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ sealed: COPILOT_SEALED_TAG, enc: toHex(sx.enc), ciphertext: toHex(sx.ciphertext) }),
       signal: AbortSignal.timeout(this.o.timeoutMs ?? 180_000),
@@ -253,13 +253,13 @@ export class AttestedCopilotClient {
     if (res.ok) {
       throw new CopilotResponseError("réponse en clair à une requête chiffrée (ce n'est pas le copilote attesté, ou un mandataire l'a remplacée)");
     }
-    // clé changée depuis la vérification (redémarrage du copilote) : revérifier sur la chaîne, renvoyer UNE fois
+    // key changed since the check (copilot restart): check on the chain again, resend ONCE
     if (res.status === 400 && j?.code === "sealed_undecryptable" && !retried) {
       const fresh = await this.verifiedKeys(true);
       if (fresh.signer.toLowerCase() !== keys.signer.toLowerCase() || fresh.x25519 !== keys.x25519) return this.send(req, true);
     }
-    // refus EN CLAIR : rien ne prouve qu'il vienne de l'enclave vérifiée (un relais peut l'écrire) ; ni `enclave`, ni le
-    // texte du relais : un message local d'après le code (seulement s'il a la forme d'un code), et le délai annoncé
+    // PLAINTEXT refusal: nothing proves it comes from the verified enclave (a relay could write it); no `enclave` and no
+    // relay text: a local message from the code (only if it has the shape of a code), and the announced delay
     const code = typeof j?.code === "string" && /^[a-z0-9_]{1,64}$/.test(j.code) ? j.code : undefined;
     const retryAfter = Number(res.headers.get("retry-after"));
     return {

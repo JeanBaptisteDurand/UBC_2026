@@ -149,7 +149,7 @@ const wheelNorm = (data: { deltaX: number; deltaY: number; event: WheelEvent | T
   const e = data.event as WheelEvent
   if (!e || e.type !== 'wheel' || !lenis || e.ctrlKey) return true
   // A wheel over a panel with its own scroll (AskHive's conversation, a dialog): that panel scrolls, never the page
-  //; Lenis then lets it through (its prevent option below)
+  // and Lenis lets it through (its prevent option below)
   if ((e.target as Element | null)?.closest?.(OWN_SCROLL)) return true
   const H = innerHeight || 800
   const raw = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * H : e.deltaY

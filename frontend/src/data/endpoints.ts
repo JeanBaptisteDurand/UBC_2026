@@ -20,9 +20,9 @@ export type Profile = 'relay' | 'jb' | 'ext'
 export const PROFILE: Profile = env.VITE_PROFILE === 'jb' || env.VITE_PROFILE === 'ext' ? env.VITE_PROFILE : 'relay'
 
 /** Public ArcHive API origin (its Caddy) */
-export const JB_ORIGIN = pick('VITE_JB_ORIGIN') ?? 'https://archive.62-171-153-35.sslip.io'
+export const API_ORIGIN = pick('VITE_JB_ORIGIN') ?? 'https://archive.62-171-153-35.sslip.io'
 /** Root of the API URLs as seen by the page: '' (same origin) for the jb profile, the origin otherwise */
-const ROOT = PROFILE === 'jb' ? '' : JB_ORIGIN
+const ROOT = PROFILE === 'jb' ? '' : API_ORIGIN
 
 /** Read and pairing API (direct URL; the relay profile tries /jb-api first, data/live.ts) */
 export const API_DIRECT = pick('VITE_API_URL') ?? `${ROOT}/api`
@@ -34,7 +34,7 @@ export const COPILOT = pick('VITE_COPILOT_URL') ?? `${ROOT}/copilot`
  *  copilot panel calls it */
 export const COPILOT_SITE = pick('VITE_COPILOT_SITE_URL') ?? `${ROOT}/copilot-site`
 /** MCP server (Streamable HTTP): a full URL, to paste into an agent configuration */
-export const MCP = pick('VITE_MCP_URL') ?? `${JB_ORIGIN}/mcp`
+export const MCP = pick('VITE_MCP_URL') ?? `${API_ORIGIN}/mcp`
 /** Public Arc testnet RPC (allowed in the API origin's CSP connect-src) */
 export const RPC_DIRECT = pick('VITE_ARC_RPC') ?? 'https://rpc.testnet.arc.io'
 export const EXPLORER = 'https://explorer.testnet.arc.io'

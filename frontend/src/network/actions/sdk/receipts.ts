@@ -1,13 +1,13 @@
-/** receipts.ts — sessions (pile v2) et vérification d'un reçu d'inférence EXACTEMENT comme SessionPay.settle le fera :
- *  session existante et ouverte, même produit, signataire = l'enclave verrouillée à l'ouverture, enclave active pour ce
- *  produit au bloc d'ancrage chez l'opérateur de la session, modèle verrouillé, cumul croissant. */
+/** receipts.ts — sessions and the check of an inference receipt EXACTLY as SessionPay.settle will do it: the session
+ *  exists and is open, same product, signer = the enclave locked at opening, enclave active for this product at the
+ *  anchor block for the session's operator, locked model, increasing cumulative total. */
 import { type Address, type Hex, type PublicClient, zeroAddress } from "viem";
 import { enclaveRegistryAbi, sessionPayAbi } from "./abis";
 import { recoverReceiptSigner, type Receipt } from "./eip712";
 import { testnet, type Deployment } from "./network";
 
-/** Une session SessionPay v2 (getSession), avec son identifiant. Prix, enclave, modèle et unité sont VERROUILLÉS à
- *  l'ouverture : un changement du produit ne touche que les sessions ouvertes après. */
+/** A SessionPay session (getSession), with its id. Price, enclave, model and unit are LOCKED at opening: a change to
+ *  the product only affects sessions opened afterwards. */
 export interface SessionInfo {
   id: bigint;
   owner: Address;
@@ -15,20 +15,20 @@ export interface SessionInfo {
   operator: Address;
   sessionKey: Address;
   deposit: bigint;
-  /** Plafond de dépense (0 = le dépôt). */
+  /** Spending cap (0 = the deposit). */
   cap: bigint;
   paidUnits: bigint;
   paid: bigint;
   expiresAt: bigint;
   closed: boolean;
   verdictWritten: boolean;
-  /** Prix unitaire verrouillé (USDC, 6 décimales). */
+  /** Locked unit price (USDC, 6 decimals). */
   price: bigint;
-  /** La SEULE enclave dont les reçus paient cette session. */
+  /** The ONLY enclave whose receipts this session pays. */
   enclave: Address;
   unitTokens: number;
   outWeight: number;
-  /** Modèle verrouillé : les reçus doivent porter modelHash == param. */
+  /** Locked model: receipts must carry modelHash == param. */
   param: Hex;
 }
 
@@ -47,12 +47,12 @@ export async function readSession(pub: PublicClient, d: Deployment, id: bigint, 
   return toSessionInfo(id, s);
 }
 
-/** Ce que la session peut encore payer (le dépôt, ou le plafond s'il est plus bas), comme SessionPay.settle. */
+/** What the session can still pay (the deposit, or the cap if lower), as SessionPay.settle computes it. */
 export function sessionCeiling(s: Pick<SessionInfo, "deposit" | "cap">): bigint {
   return s.cap === 0n ? s.deposit : s.cap < s.deposit ? s.cap : s.deposit;
 }
 
-/** Ce qu'un reçu au cumul `cumulativeUnits` ferait payer maintenant (0 s'il n'apporte rien). */
+/** What a receipt with cumulative total `cumulativeUnits` would pay now (0 if it adds nothing). */
 export function payableFor(s: Pick<SessionInfo, "deposit" | "cap" | "paid" | "price">, cumulativeUnits: bigint): bigint {
   const ceiling = sessionCeiling(s);
   const owed = cumulativeUnits * s.price > ceiling ? ceiling : cumulativeUnits * s.price;
@@ -66,19 +66,19 @@ export interface ReceiptCheck {
 }
 
 export interface ReceiptVerification {
-  /** Signataire du reçu (recouvré de la signature EIP-712, domaine SessionPay). */
+  /** Signer of the receipt (recovered from the EIP-712 signature, SessionPay domain). */
   signer: Address;
   session: SessionInfo | null;
-  /** Opérateur actif de ce signataire pour le produit de la session au bloc d'ancrage (0x0… si aucun). */
+  /** Active operator of this signer for the session's product at the anchor block (0x0… if none). */
   activeOperatorAtAnchor: Address;
   checks: ReceiptCheck[];
-  /** Vrai si SessionPay.settle accepterait ce reçu maintenant. */
+  /** True if SessionPay.settle would accept this receipt now. */
   settleable: boolean;
-  /** USDC (6 décimales) que settle verserait maintenant. */
+  /** USDC (6 decimals) that settle would pay out now. */
   payableNow: bigint;
 }
 
-/** Vérifie un reçu comme SessionPay.settle (lectures on-chain, rien n'est envoyé). */
+/** Verifies a receipt as SessionPay.settle does (on-chain reads, nothing is sent). */
 export async function verifyReceiptOnChain(
   pub: PublicClient,
   receipt: Receipt,

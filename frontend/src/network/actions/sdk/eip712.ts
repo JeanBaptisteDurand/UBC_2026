@@ -1,5 +1,5 @@
-/** eip712.ts — types EIP-712 du réseau et vérification des messages signés par les enclaves (côté client) :
- *  le reçu (SessionPay), la réclamation de prime (SealedBounty) et, en v2, la réfutation d'une réclamation. */
+/** eip712.ts — the network's EIP-712 types and the client-side check of messages signed by enclaves:
+ *  the receipt (SessionPay), the bounty claim (SealedBounty) and the refutation of a claim. */
 import {
   type Address, type Hex, keccak256, encodeAbiParameters, hashTypedData, recoverTypedDataAddress, type TypedDataDomain,
 } from "viem";
@@ -23,8 +23,8 @@ export const claimTypes = {
   ],
 } as const;
 
-/** v2 : le verdict d'un contre-rejeu sur une réclamation ACCEPTÉE (SealedBounty.refute). `claimDigest` = digest
- *  EIP-712 de la réclamation ; `proven` faux = l'exploit ne se prouve pas, sinon `loss`/`tier` mesurés autrement. */
+/** The verdict of a counter-replay on an ACCEPTED claim (SealedBounty.refute). `claimDigest` = the claim's EIP-712
+ *  digest; `proven` false = the exploit does not prove itself, otherwise `loss`/`tier` measured differently. */
 export const refutationTypes = {
   Refutation: [
     { name: "claimDigest", type: "bytes32" }, { name: "proven", type: "bool" }, { name: "loss", type: "uint256" },
@@ -37,7 +37,7 @@ export interface Receipt {
   responseHash: Hex; tokensIn: bigint; tokensOut: bigint; cumulativeUnits: bigint; anchorBlock: bigint;
 }
 
-/** Réclamation de la Prime scellée, signée par une (ou k) enclave(s) (SealedBounty.Claim). */
+/** A Sealed Bounty claim, signed by one (or k) enclave(s) (SealedBounty.Claim). */
 export interface Claim {
   bountyId: bigint; payee: Address; blockN: bigint; blockHashN: Hex; predicateHash: Hex; loss: bigint;
   tier: number; fingerprint: Hex; cPHash: Hex; deadline: bigint;
@@ -59,8 +59,8 @@ export async function recoverClaimSigner(sealedBounty: Address, claim: Claim, si
   });
 }
 
-/** Digest EIP-712 d'une réclamation : ce que signent les enclaves, la clé de ClaimAccepted / claimRecords, et ce
- *  que porte une réfutation (= SealedBounty.claimDigest, calculé hors chaîne). */
+/** EIP-712 digest of a claim: what the enclaves sign, the key of ClaimAccepted / claimRecords, and what a
+ *  refutation carries (= SealedBounty.claimDigest, computed off-chain). */
 export function claimDigestOf(sealedBounty: Address, claim: Claim, chainId?: number): Hex {
   return hashTypedData({
     domain: networkDomain(sealedBounty, chainId) as TypedDataDomain,
@@ -75,7 +75,7 @@ export async function recoverRefutationSigner(sealedBounty: Address, f: Refutati
   });
 }
 
-/** Réclamation reçue en JSON (chaînes décimales, comme la rend l'enclave O3) → types du SDK. */
+/** A claim received as JSON (decimal strings, as the enclave O3 returns it) → SDK types. */
 export function normalizeClaim(c: any): Claim {
   return {
     bountyId: BigInt(c.bountyId), payee: c.payee as Address, blockN: BigInt(c.blockN), blockHashN: c.blockHashN as Hex,
@@ -84,7 +84,7 @@ export function normalizeClaim(c: any): Claim {
   };
 }
 
-/** Reçu reçu en JSON (chaînes décimales, comme le rend l'enclave O2) → types du SDK. */
+/** A receipt received as JSON (decimal strings, as the enclave O2 returns it) → SDK types. */
 export function normalizeReceipt(r: any): Receipt {
   return {
     productId: BigInt(r.productId), sessionId: BigInt(r.sessionId), seq: BigInt(r.seq),
@@ -93,7 +93,7 @@ export function normalizeReceipt(r: any): Receipt {
   };
 }
 
-/** Reçu → JSON (chaînes décimales), le format de l'enclave et de /verify-receipt. */
+/** Receipt → JSON (decimal strings), the format of the enclave and of /verify-receipt. */
 export function serializeReceipt(r: Receipt): Record<string, string> {
   return {
     productId: r.productId.toString(), sessionId: r.sessionId.toString(), seq: r.seq.toString(), modelHash: r.modelHash,
@@ -102,7 +102,7 @@ export function serializeReceipt(r: Receipt): Record<string, string> {
   };
 }
 
-/** Digest de l'enveloppe d'une requête d'inférence, signé par la clé de session. */
+/** Digest of an inference request's envelope, signed by the session key. */
 export function envelopeDigest(sessionId: bigint, seq: bigint, ciphertext: Hex, clientEphemeralPub: Hex): Hex {
   return keccak256(
     encodeAbiParameters(

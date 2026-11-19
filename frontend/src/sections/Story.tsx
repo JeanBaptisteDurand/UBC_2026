@@ -351,7 +351,7 @@ export function End() {
   // the admission block, read from the registration transaction of the proof chain
   const admB = proof?.registerTx ? (activity?.find((a) => a.tx === proof.registerTx && a.name === 'EnclaveRegistered')?.block ?? (world.wall.replayTx === proof.registerTx ? world.wall.replayBlock : null)) : null
   // The image is only "pinned" if the API verified its author's manifest (manifestVerified);
-// otherwise proof.image is only the API default value (the image of the old v2 stack), which proves nothing: we
+// otherwise proof.image is only the API default value (the image of the earlier v2 stack), which is not a proof for this enclave: we
 // then show the measurement of the image read on Arc (EnclaveImage event of the registration: imageId and compose)
   const pinned = proof?.manifestVerified === true && !!proof.image
   const fp = proof?.enclaveImage

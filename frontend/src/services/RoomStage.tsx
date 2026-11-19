@@ -1,5 +1,5 @@
 // The Services room: a Cycles still of the landing's room with one of its racks alone in the aisle
-// (design/blender/service-room, public/tex/svc-room.webp), the same models, fog, floor and light as the landing film.
+// (public/tex/svc-room.webp, rendered in Blender), the same models, fog, floor and light as the landing film.
 // The rack's 32 sleds are rendered blank; their plates and LEDs are live HTML laid in the plane of each facade with
 // the still's camera (public/tex/svc-room.json, CSS matrix3d as on the landing, video/lames.ts), so a new service
 // shows up on its sled with no new render. The distant racks' LEDs are drawn live over the room (ui/roomleds.ts).

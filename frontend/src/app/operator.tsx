@@ -1,5 +1,5 @@
-// Entry point of the old operator page: it now lives in My space (space.html?tab=machines). The address is kept with its
-// parameters, so links from the console, the copilot and the other pages land on the same tab.
+// Entry point of the operator address: the page is a tab of My space (space.html?tab=machines). The address is kept
+// with its parameters, so links from the console, the copilot and other pages land on the same tab.
 import { toSpace } from './toSpace'
 
 toSpace('machines')

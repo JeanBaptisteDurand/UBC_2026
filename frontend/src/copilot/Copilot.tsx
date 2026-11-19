@@ -36,10 +36,10 @@ export function hooksFor(msgId: string): DriveHooks {
 }
 export function play(msgId: string, steps: UiStep[]) { return drive(steps, hooksFor(msgId)) }
 
-/** Answers that just arrived: they unfold block by block once */
+/** Answers that just arrived: they unfold block by block once, instead of the whole text appearing at once */
 const fresh = new Set<string>()
 
-/** While AskHive answers: the real steps of the round trip. Sealed to the
+/** While AskHive answers, the wait is visible: the real steps of the round trip. Sealed to the
  *  enclave: the question is sealed here first, then the enclave answers (its signature is checked on arrival). */
 function Thinking() {
   useLang()

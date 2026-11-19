@@ -1,4 +1,4 @@
-// The doc page: how ArcHive works, from the technology page, read the way the rest of the site reads. A stage the
+// The doc page: how ArcHive works, from the technology chapters, read the way the rest of the site reads. A stage the
 // height of the window: on the right, the server and the chapter index; on the left, a reading column that scrolls
 // inside itself (like Network's column). It opens on the introduction; a chapter (index, in-text link, ?c=<id>) opens in
 // the column, with previous / next, and Esc or "Back to the start" returns to the introduction. No anchor jumps, the
@@ -12,14 +12,14 @@ import { C } from '../data/facts'
 import { useSettlementAuth, useOpenBounties } from './arc'
 import { DOC, type Chapter } from './content'
 import { useDt } from './strings'
-import './doc-jb.css'
+import './doc-chapters.css'
 import './doc.css'
 import { reveal } from '../ui/motion'
 
 const ids = DOC.en.chapters.map((c) => c.id)
 const initial = () => { const c = new URLSearchParams(location.search).get('c'); return c && ids.includes(c) ? c : null }
 
-/** the static HTML, set once per string. React 19 sets innerHTML again whenever the {__html} object changes, and the
+/** The chapters' static HTML, set once per string. React 19 sets innerHTML again whenever the {__html} object changes, and the
  *  live reading re-renders the chapter every 4 seconds: inline objects closed every open "In detail" again and wiped
  *  the code read on Arc and the live status lines. */
 const Html = memo(function Html({ html, className }: { html: string; className: string }) {
@@ -82,7 +82,7 @@ function LiveNumbers() {
   return <dl className="figs tc-live">{rows.map(([k, v]) => <div key={k}><dt>{k}</dt><dd className="tnum">{v ?? '—'}</dd></div>)}</dl>
 }
 
-/** chapter 09: reads the code of every contract of the table on Arc (eth_getCode), in place of the button */
+/** chapter 09: reads the code of every contract of the table on Arc (eth_getCode), in place of the source page's static button */
 function ReadCode({ root }: { root: React.RefObject<HTMLDivElement | null> }) {
   const { d, lang } = useDt()
   const [st, setSt] = useState<string>('')
@@ -118,7 +118,7 @@ function ReadCode({ root }: { root: React.RefObject<HTMLDivElement | null> }) {
 /** a date read on Arc, in UTC like every date of the site */
 const utc = (unix: number, lang: string) => `${new Date(unix * 1000).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })} UTC`
 
-/** chapter 04's two status lines, written by JB while the machines were off, read live: the Proof of Cloud declaration
+/** chapter 04's two status lines, read live on Arc: the Proof of Cloud declaration
  *  of our machine's chip (/api/levels: the chip with the latest token) and product 7 (its authorization on Arc, its
  *  open demo bounty). The static text is the state of 19 November; nothing is changed until the reading answers. */
 function useIdentityLive(root: React.RefObject<HTMLDivElement | null>, on: boolean, c: Chapter) {

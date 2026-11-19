@@ -1,4 +1,4 @@
-// Doc page strings (EN, FR). The chapters themselves come from content.ts (the technology page); here only what the
+// Doc page strings (EN, FR). The chapters themselves come from content.ts (the technology chapters); here only what the
 // doc page adds around them, and the sentences whose numbers are read live.
 import { useLang } from '../i18n'
 
@@ -16,8 +16,8 @@ const EN = {
   'doc.of': '{a} of {b}',
   'doc.start': 'Start reading',
   // live sentences (contract counts are deployment facts; enclaves and verdicts are read live)
-  'doc.verdict': '13 of our contracts in service on Arc testnet, 51 deployed in all with Intel’s verifier. {e} enclaves admitted so far, {v} verdicts written.',
-  'doc.verdict.r': '13 of our contracts in service on Arc testnet, 51 deployed in all with Intel’s verifier.',
+  'doc.verdict': '13 of our contracts in service on Arc testnet, 51 deployed with Intel’s verifier through the live stack, plus the 14 of the next stack (v3). {e} enclaves admitted so far, {v} verdicts written.',
+  'doc.verdict.r': '13 of our contracts in service on Arc testnet, 51 deployed with Intel’s verifier through the live stack, plus the 14 of the next stack (v3).',
   'doc.readAt': 'Arc testnet, read at block {b}',
   'doc.reading': 'Reading Arc testnet',
   'doc.st.off': 'No enclave running right now (0 of {n}). Everything on Arc stays readable, and every proof on this page is a real past transaction.',
@@ -62,8 +62,8 @@ const FR: Record<K, string> = {
   'doc.next': 'Chapitre suivant',
   'doc.of': '{a} sur {b}',
   'doc.start': 'Commencer la lecture',
-  'doc.verdict': '13 de nos contrats en service sur Arc testnet, 51 déployés en tout avec le vérificateur d’Intel. {e} enclaves admises à ce jour, {v} verdicts écrits.',
-  'doc.verdict.r': '13 de nos contrats en service sur Arc testnet, 51 déployés en tout avec le vérificateur d’Intel.',
+  'doc.verdict': '13 de nos contrats en service sur Arc testnet, 51 déployés avec le vérificateur d’Intel jusqu’à la pile en service, plus les 14 de la pile suivante (v3). {e} enclaves admises à ce jour, {v} verdicts écrits.',
+  'doc.verdict.r': '13 de nos contrats en service sur Arc testnet, 51 déployés avec le vérificateur d’Intel jusqu’à la pile en service, plus les 14 de la pile suivante (v3).',
   'doc.readAt': 'Arc testnet, lu au bloc {b}',
   'doc.reading': 'Lecture d’Arc testnet',
   'doc.st.off': 'Aucune enclave en marche pour le moment (0 sur {n}). Tout ce qui est sur Arc reste lisible, et chaque preuve de cette page est une vraie transaction passée.',

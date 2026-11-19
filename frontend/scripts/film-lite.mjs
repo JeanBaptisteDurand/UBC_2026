@@ -4,11 +4,13 @@
 // (the sharp frame replaces the light one as soon as it is decoded). The file is ordered coarse to fine (1 frame in 8,
 // then in 4, then in 2): what has arrived always covers the whole film. Retina uses the desktop file (same frames, same
 // positions). Every frame instead of one in 2 doubled the file and took that much bandwidth from the sharp frames.
-// Usage: node scripts/film-lite.mjs <film dir> [set ...] (needs sharp; the deploy runs it in a node:22-slim container)
+// Usage: node scripts/film-lite.mjs <film dir> [set ...] (needs sharp, which is not a dependency of the site: npm i
+// --no-save sharp; the deploy runs it in a node:22-slim container)
 // Nothing is rewritten when lite.bin already matches the set's meta.bin (the build can call it every time).
 // Overrides (environment): DIV (reduction), Q (AVIF quality), NAME (output file, lite.bin by default), STEPS (fetch
 // order, 8,4,2 by default; 8,4,2,1 packs every frame, coarse to fine: the motion level, motion.bin). Without them the
-// output is byte-identical to before. With STEPS ending in 1, the file is checked once written (count = frames of the
+// output uses the defaults above. FORCE=1 rewrites the file even when it is up to date; OUT writes under another root
+// instead of the film dir. With STEPS ending in 1, the file is checked once written (count = frames of the
 // set, fingerprint = meta.bin's): the script exits 1 if it does not match.
 // Format (little-endian): "FLT1", u32 count, u16 w, u16 h, u32 n (frames of the set), u32 meta.bin fingerprint,
 // count x (u32 frame, u32 length), then the images in that order.

@@ -1,4 +1,5 @@
-/* The technology page's CSS, scoped to the doc reading column (override in doc.css). */
+/* Generated from the technology page's CSS, scoped to the doc reading column.
+   Overrides go in doc.css. */
 .doc-r .tc-roots {
   margin: 20px 0 0;
   font-size: 15px;
