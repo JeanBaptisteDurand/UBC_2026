@@ -288,7 +288,7 @@ export const BEAT_MORE: Record<number, { why?: Bi; rec?: Rec[] }> = {
     rec: [{ k: ex('Image fingerprint recomputed by Arc, allowed', 'Empreinte recalculée par Arc, autorisée'), v: sh(OK.imageId) }] },
   11: { why: ex('One transaction carries the Intel quote and the boot log. The quote is anchored to a recent Arc block and binds the enclave’s signing key.', 'Une transaction porte le quote signé par Intel et le journal de démarrage. Le quote est ancré à un bloc récent d’Arc et lie la clé de signature de l’enclave.'),
     rec: [{ k: { en: `registerEnclave, block ${G.block}, quote anchored at block ${G.anchorR}`, fr: `registerEnclave, bloc ${G.block}, quote ancré au bloc ${G.anchorR}` }, v: `gas ${G.costUsdc.toFixed(4)} USDC`, tx: G.tx }] },
-  12: { rec: [{ k: ex('Price per call, product #3', 'Prix par appel, produit n° 3'), v: { en: `${u6(P3.price)} USDC (${P3.price} units)`, fr: `${u6(P3.price)} USDC (${P3.price} unités)` } }] },
+  12: { rec: [{ k: ex('Price per call, product #3', 'Prix par appel, produit n° 3'), v: { en: `${u6(P3.price)} USDC per call (raw value ${P3.price}, 6 decimals)`, fr: `${u6(P3.price)} USDC l’appel (valeur brute ${P3.price}, 6 décimales)` } }] },
   13: { rec: [{ k: { en: `Enclave key, product #${E.productId}, blocks ${E.fromBlock} to ${E.untilBlock}`, fr: `Clé de l’enclave, produit n° ${E.productId}, blocs ${E.fromBlock} à ${E.untilBlock}` }, v: `${sh(E.signer)} · X25519 ${sh(E.x25519)}` }] },
   14: { rec: [{ k: ex('Sealed to the registered X25519 key', 'Scellée pour la clé X25519 inscrite'), v: sh(E.x25519) }] },
   17: { rec: [{ k: ex('Receipt signed by the enclave key', 'Reçu signé par la clé de l’enclave'), v: sh(E.signer) }] },
