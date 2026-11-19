@@ -30,6 +30,8 @@ export function HeaderWallet() {
   useEffect(() => { if (s.phase === 'pick' || s.note) setOpen(true) }, [s.phase, s.note])
   const connected = s.phase === 'connected' && !!s.address
   const wrong = connected && s.chainId !== ARC_ID
+  // connected on another network: the popup opens on its own, with the Switch to Arc button in view
+  useEffect(() => { if (wrong) setOpen(true) }, [wrong])
   const busy = s.phase === 'loading' || s.phase === 'connecting'
   // no wallet in this browser, on a touch screen: browser extensions cannot be installed there, so the page offers
   // to open itself in a wallet app, or the demo, which needs no wallet
