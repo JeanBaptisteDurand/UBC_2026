@@ -831,6 +831,22 @@ export const GATE = Q.get('gate') === '1' || (GATE_DEFAULT && Q.get('gate') !== 
  *  frames keep streaming in the worker. Measured 20/11 at 3.5 Mbit/s: gate 15 s, 0% of moving refreshes more than 1
  *  frame off; ?pack=lite.bin: gate 8 s, the same 0% with frames 2 apart at 640x400 */
 const PACK = /^[\w.-]+$/.test(Q.get('pack') ?? '') ? Q.get('pack')! : 'motion.bin'
+/** The pack starts as soon as this module runs, with meta.bin (preloaded by index.html), before the fonts and the
+ *  first render; mountMotion takes the worker over and replays what it said meanwhile (about a second earlier at the
+ *  gate) */
+const early = (() => {
+  if (!GATE || REDUCED || CONN?.saveData) return null
+  const man = (window as W).__FILM_MAN?.[SET]
+  if (!man) return null
+  const set = man.ysFrom ?? SET
+  const meta = fetch(`${ROOT}${set}/meta.bin`, { priority: 'high' } as RequestInit).then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null)
+  const e = { meta, w: null as Worker | null, q: [] as MessageEvent[], t0: performance.now(), failed: false }
+  try { e.w = new Worker(new URL('./pack.worker.ts', import.meta.url), { type: 'module' }) } catch { return e }
+  e.w.onmessage = (m) => { e.q.push(m) }
+  e.w.onerror = () => { e.failed = true }
+  void meta.then((buf) => { if (buf && e.w) { const fp = fingerprint(new Uint8Array(buf)); e.w.postMessage({ type: 'pack', url: `${ROOT}${set}/${PACK}?v=${fp.toString(36)}`, n: man.n, fp }) } })
+  return e
+})()
 const M = {
   w: 0, h: 0, count: 0, total: 0, gateAt: 0, got: 0, ks: new Int32Array(0), ends: new Int32Array(0), pj: 0,
   present: new Uint8Array(0), head: false, done: false, cached: false, fail: '',
@@ -1223,11 +1239,12 @@ async function mountMotion(man: Manifest, fp: number, metaBytes: number, onFirst
     onTick((_t, dt) => tickM(dt, firstDraw))
     return true
   }
-  try { pw = new Worker(new URL('./pack.worker.ts', import.meta.url), { type: 'module' }) } catch { pw = null }
+  if (early?.w) pw = early.w
+  else try { pw = new Worker(new URL('./pack.worker.ts', import.meta.url), { type: 'module' }) } catch { pw = null }
   let off: (() => void) | null = null
   if (pw) {
     type PM = { type: 'head'; w: number; h: number; count: number; total: number; gateAt: number; ks: Int32Array<ArrayBuffer>; ends: Int32Array<ArrayBuffer> } | { type: 'prog'; got: number } | { type: 'done'; cached: boolean } | { type: 'bmp'; k: number; bmp: ImageBitmap } | { type: 'fail'; why: string }
-    pw.onmessage = (e: MessageEvent<PM>) => {
+    const onMsg = (e: MessageEvent<PM>) => {
       const d = e.data
       if (d.type === 'head') {
         M.w = d.w; M.h = d.h; M.count = d.count; M.total = d.total; M.gateAt = d.gateAt; M.ks = d.ks; M.ends = d.ends; M.head = true; M.tHead = performance.now()
@@ -1247,9 +1264,19 @@ async function mountMotion(man: Manifest, fp: number, metaBytes: number, onFirst
       } else if (d.type === 'bmp') gotBmp(d.k, d.bmp)
       else if (d.type === 'fail') M.fail = d.why || 'pack'
     }
+    pw.onmessage = onMsg
     pw.onerror = () => { M.fail = M.fail || 'worker' }
-    M.t0 = performance.now(); gateT0 = M.t0
-    pw.postMessage({ type: 'pack', url: `${ROOT}${man.ysFrom ?? set0}/${PACK}${VQ}`, n, fp })
+    gateT0 = performance.now()
+    if (early?.w === pw) {
+      // started early: what the worker has said so far, in order
+      M.t0 = early.t0
+      for (const e of early.q) onMsg(e as MessageEvent<PM>)
+      early.q.length = 0
+      if (early.failed) M.fail = M.fail || 'worker'
+    } else {
+      M.t0 = gateT0
+      pw.postMessage({ type: 'pack', url: `${ROOT}${man.ysFrom ?? set0}/${PACK}${VQ}`, n, fp })
+    }
     lockScroll(true)
     off = onTick((_t, dt) => tickM(dt, firstDraw))
     if (await new Promise<boolean>((r) => { gateResolve = r })) return true
@@ -1280,7 +1307,8 @@ export async function mountFilm(canvas: HTMLCanvasElement, onFirst: () => void) 
   // meta.bin is preloaded by index.html (same address, same mode): it is the critical path to the first draw. Its
   // content gives the film version (?v=, immutable on the server): the same capture keeps the same addresses from one
   // deploy to the next (its ETag changed at every build, so a return visit after a deploy fetched the whole film again)
-  const meta = await fetch(`${ROOT}${man.ysFrom ?? SET}/meta.bin`, { priority: 'high' } as RequestInit).then((r) => r.arrayBuffer())
+  const em = early ? await early.meta : null
+  const meta: ArrayBuffer = em ?? await fetch(`${ROOT}${man.ysFrom ?? SET}/meta.bin`, { priority: 'high' } as RequestInit).then((r) => r.arrayBuffer())
   const fp = fingerprint(new Uint8Array(meta))
   VQ = `?v=${fp.toString(36)}`
   film.man = man; film.total = man.n
