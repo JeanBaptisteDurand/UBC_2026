@@ -68,7 +68,9 @@ export function readSources(ids: readonly string[]): Source[] {
     const label = p.doc ? `Doc${fr ? ' : ' : ': '}${t}` : t
     if (!out.some((s) => s.label === label)) out.push({ label, ...(p.href ? { href: p.href } : {}) })
   }
-  return out.slice(0, 6)
+  // a Doc chapter cited makes the plain "Doc" redundant
+  const chapter = out.some((s) => s.href?.startsWith(`${link.doc}?c=`))
+  return out.filter((s) => !(chapter && s.href === link.doc)).slice(0, 6)
 }
 
 /** "Sources: Doc: Tokenomics, Home", under an answer (commas: the site shows no middle dot); nothing when no citation has a place on the site */
