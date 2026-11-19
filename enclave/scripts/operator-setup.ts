@@ -1,11 +1,12 @@
 /**
- * operator-setup.ts — sépare les rôles (audit de sécurité du 7/11, faille n° 6) : l'OPÉRATEUR qui fait tourner les
- * enclaves et le registrar n'est plus la clé du déployeur, propriétaire (owner) des contrats v2.
- *  1) crée la clé d'opérateur (.secrets/operator.json, jamais affichée) si elle n'existe pas ;
- *  2) le déployeur lui envoie de quoi payer le gas et la caution ;
- *  3) l'opérateur crée SON identité d'agent ERC-8004, autorise VerdictLog à écrire ses verdicts,
- *     dépose sa caution (EIP-3009) et déclare son agentId dans OperatorBond.
- * Idempotent. Usage : cd enclave && npx tsx scripts/operator-setup.ts
+ * operator-setup.ts — separates the roles (from the 7 Nov 2026 security review): the operator that runs the enclaves
+ * and the registrar is a different key from the deployer, which owns the contracts.
+ *  1) creates the operator key (.secrets/operator.json, never printed) if it does not exist;
+ *  2) the deployer sends it enough to pay for gas and the bond;
+ *  3) the operator creates its own ERC-8004 agent identity, allows VerdictLog to write its verdicts,
+ *     deposits its bond (EIP-3009) and declares its agentId in OperatorBond.
+ * The agent card below is written on-chain as it is, so it keeps its original wording.
+ * Idempotent. Usage: cd enclave && npx tsx scripts/operator-setup.ts
  */
 import { existsSync, readFileSync, writeFileSync, chmodSync } from "node:fs";
 import { createPublicClient, createWalletClient, http, parseEther, parseEventLogs, toHex, type Abi, type Address, type Hex } from "viem";
@@ -29,9 +30,9 @@ const pub = createPublicClient({ chain, transport: http(undefined, { retryCount:
 const OPF = new URL(".secrets/operator.json", ROOT);
 if (!existsSync(OPF)) {
   const pk = generatePrivateKey();
-  writeFileSync(OPF, JSON.stringify({ address: privateKeyToAccount(pk).address, privateKey: pk, role: "opérateur ArcHive (enclaves + registrar), pas owner des contrats" }, null, 2));
+  writeFileSync(OPF, JSON.stringify({ address: privateKeyToAccount(pk).address, privateKey: pk, role: "ArcHive operator (enclaves + registrar), not the contracts' owner" }, null, 2));
   chmodSync(OPF, 0o600);
-  console.log("clé d'opérateur créée dans .secrets/operator.json");
+  console.log("operator key created in .secrets/operator.json");
 }
 const OP = JSON.parse(readFileSync(OPF, "utf8"));
 const operator = privateKeyToAccount(OP.privateKey as Hex);
@@ -43,35 +44,35 @@ async function send(w: typeof asOp, address: Address, a: Abi, functionName: stri
   const { request } = await pub.simulateContract({ account: w.account!, address, abi: a, functionName, args } as any);
   const hash = await w.writeContract(request as any);
   const r = await pub.waitForTransactionReceipt({ hash });
-  console.log(`${label} : ${hash} (statut ${r.status}, gas ${r.gasUsed})`);
-  if (r.status !== "success") throw new Error(`${label} a échoué`);
+  console.log(`${label}: ${hash} (status ${r.status}, gas ${r.gasUsed})`);
+  if (r.status !== "success") throw new Error(`${label} failed`);
   return r;
 }
 
 async function main() {
-  console.log(`opérateur ${operator.address} (owner des contrats : ${deployer.address})`);
+  console.log(`operator ${operator.address} (contract owner: ${deployer.address})`);
   const bal = await pub.getBalance({ address: operator.address });
-  // v2.1 : FUND_USDC (défaut 6) = ce que l'opérateur doit avoir pour le gas ET la caution (BOND_USDC, défaut 3)
+  // v2.1: FUND_USDC (default 6) = what the operator must hold for gas and the bond (BOND_USDC, default 3)
   const fund = parseEther(process.env.FUND_USDC ?? "6");
   if (bal < fund - parseEther("1")) {
     const hash = await asDeployer.sendTransaction({ to: operator.address, value: fund - bal });
     await pub.waitForTransactionReceipt({ hash });
-    console.log(`opérateur doté : ${hash}`);
+    console.log(`operator funded: ${hash}`);
   }
 
   let agentId: bigint | undefined = OP.agentId !== undefined ? BigInt(OP.agentId) : undefined;
   if (agentId === undefined) {
     const card = { type: "agent", name: "ArcHive — opérateur d'enclaves n° 1", description: "Fait tourner des enclaves Intel TDX (chez Phala) dont l'attestation est vérifiée par DCAP sur Arc ; cautionné dans OperatorBond.", url: "https://archive.62-171-153-35.sslip.io" };
     const uri = "data:application/json;base64," + Buffer.from(JSON.stringify(card)).toString("base64");
-    const r = await send(asOp, X.ERC8004_Identity!, idAbi as unknown as Abi, "register", [uri], "identité ERC-8004 créée");
+    const r = await send(asOp, X.ERC8004_Identity!, idAbi as unknown as Abi, "register", [uri], "ERC-8004 identity created");
     const t = parseEventLogs({ abi: idAbi as unknown as Abi, logs: r.logs, eventName: "Transfer" })[0] as any;
     agentId = t.args.tokenId as bigint;
     writeFileSync(OPF, JSON.stringify({ ...OP, agentId: agentId.toString() }, null, 2));
     chmodSync(OPF, 0o600);
   }
-  console.log(`agentId de l'opérateur : ${agentId}`);
+  console.log(`operator agentId: ${agentId}`);
   if (!(await pub.readContract({ address: X.ERC8004_Identity!, abi: idAbi, functionName: "isApprovedForAll", args: [operator.address, K.VerdictLog!] })))
-    await send(asOp, X.ERC8004_Identity!, idAbi as unknown as Abi, "setApprovalForAll", [K.VerdictLog!, true], "VerdictLog autorisé à écrire ses verdicts");
+    await send(asOp, X.ERC8004_Identity!, idAbi as unknown as Abi, "setApprovalForAll", [K.VerdictLog!, true], "VerdictLog allowed to write its verdicts");
 
   const want = BigInt(Math.round(Number(process.env.BOND_USDC ?? "3") * 1e6));
   const have = (await pub.readContract({ address: K.OperatorBond!, abi: ob, functionName: "bondOf", args: [operator.address] })) as bigint;
@@ -89,11 +90,11 @@ async function main() {
       primaryType: "ReceiveWithAuthorization",
       message: { from: operator.address, to: K.OperatorBond!, value, validAfter: 0n, validBefore, nonce },
     });
-    await send(asOp, K.OperatorBond!, ob, "bond", [value, { validAfter: 0n, validBefore, nonce, signature }], `caution +${Number(value) / 1e6} USDC`);
+    await send(asOp, K.OperatorBond!, ob, "bond", [value, { validAfter: 0n, validBefore, nonce, signature }], `bond +${Number(value) / 1e6} USDC`);
   }
   const cur = (await pub.readContract({ address: K.OperatorBond!, abi: ob, functionName: "agentIdOf", args: [operator.address] })) as bigint;
-  if (cur !== agentId) await send(asOp, K.OperatorBond!, ob, "setAgentId", [agentId], `agentId ${agentId} déclaré`);
+  if (cur !== agentId) await send(asOp, K.OperatorBond!, ob, "setAgentId", [agentId], `agentId ${agentId} declared`);
   const bond = await pub.readContract({ address: K.OperatorBond!, abi: ob, functionName: "bondOf", args: [operator.address] });
-  console.log(`prêt : caution ${Number(bond) / 1e6} USDC, agentId ${agentId}, gas ${Number(await pub.getBalance({ address: operator.address })) / 1e18} USDC`);
+  console.log(`ready: bond ${Number(bond) / 1e6} USDC, agentId ${agentId}, gas ${Number(await pub.getBalance({ address: operator.address })) / 1e18} USDC`);
 }
-main().catch((e) => { console.error("ÉCHEC :", e?.shortMessage ?? e?.message ?? e); process.exit(1); });
+main().catch((e) => { console.error("FAILED:", e?.shortMessage ?? e?.message ?? e); process.exit(1); });
