@@ -4,8 +4,29 @@
 # Certificat obtenu et renouvelé automatiquement par Caddy (Let's Encrypt, sinon ZeroSSL).
 # Caddy remplace tout X-Forwarded-For reçu du client par l'IP réelle de la connexion (aucun proxy de confiance
 # n'est déclaré) : l'API s'en sert pour limiter le débit par IP.
-archive.62-171-153-35.sslip.io {
+#
+# arc-hive.xyz (A @ et www vers 62.171.153.35) sert le MÊME
+# site, l'adresse sslip.io reste servie telle quelle (enclaves, registrars, scripts d'opérateur et liens publiés
+# l'appellent). Deux réglages tant que tout n'est pas reconstruit sur le nouveau nom :
+#  - la console (/console/) est construite avec l'adresse sslip.io en dur (build.sh, PUBLIC_URL) : la CSP du nouveau nom
+#    bloquerait ses appels, on l'envoie donc sur sslip.io ;
+#  - les copilotes (serveur et enclave, ALLOWED_ORIGINS mesurée dans la VM) n'acceptent que l'origine sslip.io : Caddy
+#    leur présente l'origine https://arc-hive.xyz (notre propre site, même serveur) comme celle de sslip.io.
+#  Les signatures de wallet (EIP-4361 : appairage, clés d'opérateur) restent liées à sslip.io (WEB_URL de l'API) : sur le
+#  nouveau nom, le front affiche déjà « mauvais site » avec le lien de la console.
+#  Pour faire d'arc-hive.xyz le nom principal : PUBLIC_URL et WEB_URL, ALLOWED_ORIGINS des enclaves (au passage en v3).
+www.arc-hive.xyz {
+	redir https://arc-hive.xyz{uri} permanent
+}
+
+archive.62-171-153-35.sslip.io, arc-hive.xyz {
 	encode gzip
+
+	@console_newname {
+		host arc-hive.xyz
+		path /console /console/*
+	}
+	redir @console_newname https://archive.62-171-153-35.sslip.io{uri} 302
 
 	# API de lecture, appairage des machines, mode test (l'API borne aussi chaque route à 64 Kio)
 	handle_path /api/* {
@@ -21,6 +42,8 @@ archive.62-171-153-35.sslip.io {
 			max_size 512KB
 		}
 		reverse_proxy copilot:8808 {
+			# 20/11 : l'origine arc-hive.xyz (notre site) est présentée comme celle de sslip.io (voir en tête)
+			header_up Origin ^https://arc-hive\.xyz$ https://archive.62-171-153-35.sslip.io
 			transport http {
 				read_timeout 180s
 			}
@@ -50,6 +73,8 @@ archive.62-171-153-35.sslip.io {
 			max_size 512KB
 		}
 		reverse_proxy copilot-site:8808 {
+			# 20/11 : l'origine arc-hive.xyz (notre site) est présentée comme celle de sslip.io (voir en tête)
+			header_up Origin ^https://arc-hive\.xyz$ https://archive.62-171-153-35.sslip.io
 			transport http {
 				read_timeout 180s
 			}
@@ -67,7 +92,11 @@ archive.62-171-153-35.sslip.io {
 
 	# site + proxy des enclaves (/enclave/inference/, /enclave/bounty/) : nginx du conteneur web
 	handle {
-		reverse_proxy web:80
+		# l'enclave du copilote (/enclave/copilot-site/, derrière nginx) filtre aussi l'origine
+		reverse_proxy web:80 {
+			# 20/11 : l'origine arc-hive.xyz (notre site) est présentée comme celle de sslip.io (voir en tête)
+			header_up Origin ^https://arc-hive\.xyz$ https://archive.62-171-153-35.sslip.io
+		}
 	}
 
 	header {
