@@ -6,7 +6,7 @@
 import type { Activity, Bounty, Enclave, LiveState, Product } from '../data/live'
 import { ledOf, badOf, serviceOf, svcName, signerHistory, type Led, type RedWhy, type Service } from '../data/wall'
 import { C, roleOf, type ProductRole } from '../data/facts'
-import { t, type TKey } from '../i18n'
+import { t, getLang, type TKey } from '../i18n'
 
 export interface EncRow { e: Enclave; led: Led; why?: RedWhy; reason?: string; reg?: Activity }
 export interface SvcRow {
@@ -83,7 +83,7 @@ export function verdictOf(rows: SvcRow[]) {
 /** a service status in two or three words (catalog, Publish page) */
 export function stateLabel(r: SvcRow) {
   if (r.role?.role === 'superseded') return t('app.st.superseded', { id: r.role.by })
-  if (r.role?.role === 'refuteDemo') return document.documentElement.lang === 'fr' ? 'Caution saisie' : 'Bond seized'
+  if (r.role?.role === 'refuteDemo') return getLang() === 'fr' ? 'Caution saisie' : 'Bond seized'
   if (r.p.state === 'Proposed') return t('app.st.proposed')
   return t(`app.st.${r.led}` as TKey)
 }

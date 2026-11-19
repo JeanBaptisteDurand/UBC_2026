@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLive, ago } from '../data/live'
 import { short, usdc, pct, num } from '../data/fmt'
-import { t, useLang, type TKey } from '../i18n'
+import { t, useLang, getLang, type TKey } from '../i18n'
 import { priceText, whyText, type Led } from '../data/wall'
 import { consoleFor, link, tx, addr, serviceHref, useHref } from '../links'
 import { LevelBadge, useServiceLevel } from './levels'
@@ -41,7 +41,7 @@ const LOCAL = {
     'd.use.proof': 'Voir la preuve',
   },
 } as const
-const lt = (k: keyof typeof LOCAL.en) => LOCAL[document.documentElement.lang === 'fr' ? 'fr' : 'en'][k]
+const lt = (k: keyof typeof LOCAL.en) => LOCAL[getLang() === 'fr' ? 'fr' : 'en'][k]
 
 /** a service status in one sentence */
 export function stateLine(r: SvcRow) {

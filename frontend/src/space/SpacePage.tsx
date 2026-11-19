@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { useLive } from '../data/live'
-import { short, usdc } from '../data/fmt'
+import { short, usdc, pct } from '../data/fmt'
 import { addr, link, networkFor } from '../links'
 import { Footer } from '../ui/Footer'
 import { AppHeader } from '../app/AppFrame'
@@ -18,12 +18,6 @@ import { useEngine, NoteLine, errNote, type Note, type Engine } from '../network
 import { useSt, type SpKey } from './strings'
 import './space.css'
 import { reveal } from '../ui/motion'
-
-/** a share in basis points, as a percentage (French: a no-break space before %) */
-const pct = (bps: number, lang = 'en') => {
-  const v = (bps / 100).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-US', { maximumFractionDigits: 2 })
-  return lang === 'fr' ? `${v}\u00a0%` : `${v}%`
-}
 
 const TABS = ['bounties', 'sessions', 'machines', 'services'] as const
 type Tab = typeof TABS[number]

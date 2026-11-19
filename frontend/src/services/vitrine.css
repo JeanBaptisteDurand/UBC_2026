@@ -256,3 +256,9 @@ html:not([data-cur='1']) .vt-fac:hover::after, html:not([data-cur='1']) .vt-fac:
    hold one give it a flexible column, never wider than the screen (a 320 px phone cut the faces and the rows under them) */
 .vt-r .vit-tier, .vt-r .vit-retired-side { grid-template-columns: minmax(0, 1fr); }
 .vt-r .vit-face, .vt-r .vit-face .blade-face { min-width: 0; max-width: 100%; }
+/* the call to the room: the sleds are on the right on the desktop; stacked, they come below (Vitrine.tsx) */
+.vt-cta-m { display: none; }
+@media (max-width: 1024px) {
+  .vt-cta-d { display: none; }
+  .vt-cta-m { display: inline; }
+}
