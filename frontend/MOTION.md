@@ -1,6 +1,6 @@
 # Motion and transitions: the site's locks
 
-Owner, 19/11/2026: « mettre en place des règles d'animation et de transition qui soient toujours vraies et que tu
+Owner, 19/11/2026 (M9 added the same evening: « je veux que tu laisses le header avec la barre de chargement en permanence… pour toutes les pages… que ce soit une règle par défaut »): « mettre en place des règles d'animation et de transition qui soient toujours vraies et que tu
 appliques à chaque fois, un peu comme ce qu'on a fait avec le curseur… des locks pour dire : si jamais il y a ça sur
 une page, je le veux absolument ». « Je cherche pas quelque chose de particulièrement visuel, mais quelque chose de
 cohérent. » « Le header doit toujours être visible… quand on passe d'une page à l'autre… la transition se passe à
@@ -19,4 +19,5 @@ content swap uses them; it never invents its own entrance.
 | M5 | **Reduced motion:** opacity only, 120 ms, no stagger, no travel; no page transition. | `motion.ts`, `styles.css` |
 | M6 | **One clock:** 180 ms hover, 280 ms state, 360 ms reveal, 600 ms scene; one curve, `cubic-bezier(.22, 1, .36, 1)`. | tokens `--t1 --t2 --t3 --productive` |
 | M7 | **The cursor** is the same on every page (square, axes, stretch onto controls, loading onto a sled): `ui/PageCursor.tsx`, landing `ui/Frame.tsx`. | `AppHeader` |
+| M9 | **Changing page never blanks the screen.** A click on a link to another page brings the page-colour veil down over the content (220 ms), never over the header, which stays (`ui/veil.ts`, the veil starts at `var(--hd)`); the header's bar becomes the loading bar and keeps filling while the next page loads (the old page stays on screen). The next page picks the bar up where it was and fills it as it loads; when the page is ready (its data and its 3D scene, `window.__frontReady`) the bar is full and then shows the scroll position. True on every page, the landing included. | `ui/veil.ts`, `ui/pageload.ts`, both headers, `styles.css` |
 | M8 | **Nothing else enters on its own:** no bounce, no scale-in, no parallax on text, no animated counters; live numbers simply change. | review |

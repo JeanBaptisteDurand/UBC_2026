@@ -6,6 +6,10 @@
 //   - Network (#net): lifts when the scene says it is ready (window.__frontReady, set once the focus is in place);
 //   - other pages: lifts right after the first render.
 // A failsafe lifts it after 5 s whatever happens; ?tournage (film capture) has no veil.
+import { startLeaving } from './pageload'
+
+// The header and its bar stay above the veil (it starts under the header, styles.css): leaving, the bar becomes the
+// loading bar (ui/pageload.ts, design/MOTION.md M9)
 const root = document.documentElement
 const W = window as unknown as { __frontReady?: boolean; __world?: { sceneReady?: boolean } }
 const OUT_MS = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 220
@@ -40,6 +44,7 @@ else {
     if (u.origin !== location.origin) return
     if (u.pathname === location.pathname && u.search === location.search) return // same page (hash or nothing)
     e.preventDefault()
+    startLeaving()
     root.classList.remove('veil-off'); root.classList.add('veil-on')
     setTimeout(() => location.assign(u.href), OUT_MS)
   })
@@ -48,6 +53,7 @@ else {
 /** For code that navigates by itself (location.assign): the same exit */
 export function leaveTo(href: string) {
   if (root.classList.contains('veil-none')) { location.assign(href); return }
+  startLeaving()
   root.classList.remove('veil-off'); root.classList.add('veil-on')
   setTimeout(() => location.assign(href), OUT_MS)
 }

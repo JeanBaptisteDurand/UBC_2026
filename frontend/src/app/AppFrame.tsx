@@ -11,6 +11,7 @@ import { Logo } from '../ui/Logo'
 import { SelLayer } from '../ui/Sel'
 import { PageCursor } from '../ui/PageCursor'
 import { reveal } from '../ui/motion'
+import { loadP, installPageExit } from '../ui/pageload'
 import { MainNav } from '../ui/MainNav'
 import { HeaderWallet } from '../network/actions/HeaderWallet'
 import '../network/actions/actions.css'
@@ -35,13 +36,13 @@ export function AppHeader({ page, section, sectionText, replay, wallet }: { page
   useEffect(() => { let ok = true; setPayAt(null); if (pay?.block) blockTime(pay.block).then((v) => { if (ok) setPayAt(v) }); return () => { ok = false } }, [pay?.block])
   useEffect(() => { const id = setInterval(() => setMin((m) => m + 1), 60000); return () => clearInterval(id) }, [])
   const bar = useRef<HTMLDivElement>(null)
-  const loadR = useRef(0)
-  // loading: one third while awaiting the first response, two thirds at the API, full at the Arc block
-  loadR.current = replay ? 1 : status === 'loading' ? 0.33 : block ? 1 : 0.66
+  // the bar: the page's loading (carried over from the page before, full when the page is ready), then the scroll
+  // position; on a link to another page it becomes the loading bar again (ui/pageload.ts, MOTION.md M9)
+  useEffect(() => { installPageExit() }, [])
   // the page height is read only when the scroll, the size or the loading state changed (no layout read per frame)
   const lastR = useRef('')
   useEffect(() => onTick(() => {
-    const L = loadR.current
+    const L = loadP()
     const key = `${scrollY}|${innerWidth}|${innerHeight}|${L}|${document.body.childElementCount}`
     if (key === lastR.current) return
     lastR.current = key

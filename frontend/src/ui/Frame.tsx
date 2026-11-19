@@ -17,6 +17,7 @@ import '../network/actions/actions.css'
 import { progress, ORDER } from '../story'
 import { Logo } from './Logo'
 import { SelLayer, selBox } from './Sel'
+import { loadP, isLeaving, arrivedAt, installPageExit } from './pageload'
 
 // ---------------- logo: the rack reduced to two slots, a hexagon in place of the LED ----------------
 export function Mark({ size = 22 }: { size?: number }) {
@@ -53,7 +54,10 @@ export function Header({ loaded }: { loaded: number | (() => number) }) {
   loadedR.current = loaded
   useEffect(() => onTick(() => {
     // first the loading bar (scene steps), then the progress through the page
-    const L = typeof loadedR.current === 'function' ? loadedR.current() : loadedR.current
+    // leaving for another page, the bar is the loading bar again (ui/pageload.ts); arriving, it starts where the
+    // page before left it
+    const own = typeof loadedR.current === 'function' ? loadedR.current() : loadedR.current
+    const L = isLeaving() ? loadP() : own < 1 ? Math.max(own, arrivedAt()) : own
     const p = L < 1 ? L : progress()
     if (bar.current) { bar.current.style.transform = `scaleX(${p.toFixed(4)})`; bar.current.dataset.load = L < 1 ? '1' : '0' }
     // the percentage only speaks during loading; afterwards the bar and the section number are enough
@@ -61,6 +65,7 @@ export function Header({ loaded }: { loaded: number | (() => number) }) {
     // the position is told by the section name (the words carry the order, not a 01 / 08 counter)
     if (sec.current) { const s = t(`sec.${ORDER[Math.min(ORDER.length - 1, Math.floor(world.story))]}` as TKey); if (sec.current.textContent !== s) sec.current.textContent = s }
   }), [])
+  useEffect(() => { installPageExit() }, [])
   const nav = <MainNav page="home" />
   return (
     <header className="hd" data-ui data-front-free>

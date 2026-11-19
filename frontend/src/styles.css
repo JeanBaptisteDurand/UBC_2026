@@ -641,7 +641,9 @@ html.tournage, html.tournage body { cursor: none; }
 
 /* Page transitions (ui/veil.ts): a veil in the page colour from the first paint, lifted once the page is ready, back
    down before leaving. Without JS it lifts on its own after a moment */
-body::after { content: ''; position: fixed; inset: 0; z-index: 2147483000; background: var(--bg, #020306); pointer-events: none; opacity: 1; animation: veil-auto 360ms ease 1.2s forwards; }
+/* the veil never covers the header (design/MOTION.md, M9): it starts under it, so the header and its loading bar stay
+   on screen from page to page */
+body::after { content: ''; position: fixed; inset: 0; top: var(--hd, 86px); z-index: 2147483000; background: var(--bg, #020306); pointer-events: none; opacity: 1; animation: veil-auto 360ms ease 1.2s forwards; }
 html.veil-js body::after { animation: none; }
 html.veil-off body::after { opacity: 0; transition: opacity 420ms cubic-bezier(.2,0,.2,1); }
 html.veil-on body::after { opacity: 1; transition: opacity 220ms cubic-bezier(.4,0,1,1); }
@@ -706,3 +708,4 @@ html.veil-none body::after { display: none; }
   ::view-transition-new(root) { animation: none; }
 }
 @keyframes vt-page-out { to { opacity: 0; } }
+
