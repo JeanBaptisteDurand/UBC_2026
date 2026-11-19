@@ -62,8 +62,8 @@ async function servedCall(o: { enclave: ReturnType<typeof privateKeyToAccount>; 
   return { receipt, signature, auth: { validAfter: 0n, validBefore, nonce, signature: authSig } };
 }
 
-describe("x402 : formes canoniques", () => {
-  it("normalizeEcdsaSignature : s haut → s bas, v 0/1 → 27/28, même signataire ; l'USDC accepterait la forme rendue", async () => {
+describe("x402: canonical forms", () => {
+  it("normalizeEcdsaSignature: high s → low s, v 0/1 → 27/28, same signer; USDC would accept the returned form", async () => {
     const acc = privateKeyToAccount(generatePrivateKey());
     const msg = { domain: usdcDomain(D.usdc, D.chainId) as any, types: receiveWithAuthorizationTypes, primaryType: "ReceiveWithAuthorization" as const,
       message: { from: acc.address, to: D.x402Settler, value: 1n, validAfter: 0n, validBefore: 2n, nonce: `0x${"01".repeat(32)}` as Hex } };
@@ -82,7 +82,7 @@ describe("x402 : formes canoniques", () => {
     expect(() => normalizeEcdsaSignature("0x1234" as Hex)).toThrow("65-byte");
   });
 
-  it("reçu et appel en attente : lus strictement (rien de mal formé ne passe)", async () => {
+  it("receipt and pending call: parsed strictly (nothing malformed gets through)", async () => {
     const enclave = privateKeyToAccount(generatePrivateKey());
     const payer = privateKeyToAccount(generatePrivateKey());
     const call = await servedCall({ enclave, payer });
@@ -99,7 +99,7 @@ describe("x402 : formes canoniques", () => {
     expect(x402NetworkName(5042)).toBe("arc");
   });
 
-  it("deploymentFromJson : le fichier de la pile v2 redonne exactement la pile v2 du SDK ; une adresse manquante lève", () => {
+  it("deploymentFromJson: the v2 stack file gives back exactly the SDK's v2 stack; a missing address throws", () => {
     const j = JSON.parse(readFileSync(new URL("../../../deployments.v2.testnet.json", import.meta.url), "utf8"));
     const d = deploymentFromJson(j);
     for (const k of ["usdc", "productRegistry", "operatorBond", "enclaveRegistry", "verdictLog", "sessionPay", "sealedBounty", "x402Settler", "attestationModule", "erc8004Validation", "erc8004Identity", "history"] as const) {
@@ -113,8 +113,8 @@ describe("x402 : formes canoniques", () => {
   });
 });
 
-describe("x402 : vérifier un appel comme X402Settler.settle", () => {
-  it("réglable ; puis chaque refus du contrat ou de l'USDC est nommé", async () => {
+describe("x402: verify a call like X402Settler.settle", () => {
+  it("settleable; then every refusal from the contract or from USDC is named", async () => {
     const c = chain();
     const enclave = privateKeyToAccount(generatePrivateKey());
     const payer = privateKeyToAccount(generatePrivateKey());
@@ -146,7 +146,7 @@ describe("x402 : vérifier un appel comme X402Settler.settle", () => {
   });
 });
 
-describe("x402 : la file de règlement de l'opérateur", () => {
+describe("x402: the operator's settlement queue", () => {
   function setup() {
     const c = chain();
     const enclave = privateKeyToAccount(generatePrivateKey());
@@ -169,7 +169,7 @@ describe("x402 : la file de règlement de l'opérateur", () => {
     return { c, enclave, q, sent, acked, setPending: (p: PendingCall[]) => { pending = p; }, setOutcome: (o: typeof outcome) => { outcome = o; } };
   }
 
-  it("règle chaque appel une seule fois, même avec des passages simultanés ; signale à l'enclave ce qui est consommé", async () => {
+  it("settles each call only once, even with simultaneous passes; reports what is consumed to the enclave", async () => {
     const s = setup();
     const payer = privateKeyToAccount(generatePrivateKey());
     s.c.balances.set(L(payer.address), 1_000_000n);
@@ -185,7 +185,7 @@ describe("x402 : la file de règlement de l'opérateur", () => {
     expect(s.sent).toHaveLength(2);
   });
 
-  it("transaction sans reçu (délai) : pas de nouvel envoi pendant le refroidissement ; appel d'un autre opérateur écarté ; solde insuffisant : en attente", async () => {
+  it("transaction with no receipt (timeout): no resend during the cooldown; a call for another operator is skipped; insufficient balance: waiting", async () => {
     const s = setup();
     const payer = privateKeyToAccount(generatePrivateKey());
     s.c.balances.set(L(payer.address), 1_000_000n);
@@ -206,7 +206,7 @@ describe("x402 : la file de règlement de l'opérateur", () => {
     expect(s.q.size).toBe(2); // le mien (en attente de reçu) et celui du payeur sans fonds
   });
 
-  it("une autorisation qui échoit avant le règlement sort de la file (perdue), sans envoi", async () => {
+  it("an authorization that expires before settlement leaves the queue (lost), with no send", async () => {
     const s = setup();
     const payer = privateKeyToAccount(generatePrivateKey());
     s.c.balances.set(L(payer.address), 1_000_000n);
@@ -218,8 +218,8 @@ describe("x402 : la file de règlement de l'opérateur", () => {
   });
 });
 
-describe("x402 : le client refuse avant de signer", () => {
-  it("produit qui ne se règle pas par X402Settler : X402ChallengeError, aucune requête d'inférence", async () => {
+describe("x402: the client refuses before signing", () => {
+  it("a product not settled through X402Settler: X402ChallengeError, no inference request", async () => {
     const c = chain();
     c.settlement = D.sessionPay;
     const enclave = privateKeyToAccount(generatePrivateKey());
@@ -244,7 +244,7 @@ describe("x402 : le client refuse avant de signer", () => {
   });
 });
 
-describe("x402 : après l'envoi payé, jamais « rien n'est dû » (correctif du 9/11)", () => {
+describe("x402: after the paid send, never \"nothing is owed\"", () => {
   /** Une passerelle factice : clés vérifiables on-chain, 402 conforme à la chaîne, puis `paid` pour chaque envoi payé. */
   function gateway(paid: (n: number) => Response | Promise<Response>) {
     const c = chain();
@@ -278,7 +278,7 @@ describe("x402 : après l'envoi payé, jamais « rien n'est dû » (correctif du
     return { c, f, p, payer, wallet, sent, signed: () => signed };
   }
 
-  it("chaque échec après l'envoi payé (503, 429, 409, 402, coupure) renvoie la requête IDENTIQUE ; une seule autorisation ; l'erreur porte de quoi reprendre", async () => {
+  it("every failure after the paid send (503, 429, 409, 402, disconnect) resends the IDENTICAL request; one authorization only; the error carries what is needed to resume", async () => {
     const answers = [
       () => new Response(JSON.stringify({ error: "x", code: "chain_unavailable" }), { status: 503 }),
       () => new Response(JSON.stringify({ error: "x", code: "payer_pending_limit" }), { status: 429 }),
@@ -311,7 +311,7 @@ describe("x402 : après l'envoi payé, jamais « rien n'est dû » (correctif du
     expect(new Set(g.sent.filter((x) => x.paid).map((x) => x.xPayment)).size).toBe(1);
   });
 
-  it("402 « prix changé » non confirmé on-chain : aucune 2e autorisation ; confirmé À LA BAISSE : une 2e, pour le MÊME nonce", async () => {
+  it("402 \"price changed\" not confirmed on-chain: no 2nd authorization; confirmed as a DECREASE: a 2nd one, for the SAME nonce", async () => {
     const PC = { x402Version: 1, error: "invalid_exact_evm_payload_authorization_value", accepts: [] };
     const g = gateway(() => new Response(JSON.stringify(PC), { status: 402 }));
     const ai = createX402Client({ enclaveUrl: "https://e.example", productId: PRODUCT, walletClient: g.wallet, publicClient: g.p, deployment: D, fetch: g.f, paidRetryDelaysMs: [1, 1] });
@@ -332,7 +332,7 @@ describe("x402 : après l'envoi payé, jamais « rien n'est dû » (correctif du
     expect(new Set(g2.sent.filter((x) => x.paid).map((x) => x.body)).size).toBe(1); // même requête
   });
 
-  it("9/11 au soir (preuve E3) : prix monté POUR DE VRAI pendant l'appel (×100) → AUCUNE autorisation au nouveau prix ; X402PaidCallError « price_increased » avec newPrice ; accepté explicitement par resume({ renew, maxPrice })", async () => {
+  it("price REALLY raised during the call (×100) → NO authorization at the new price; X402PaidCallError \"price_increased\" with newPrice; accepted explicitly through resume({ renew, maxPrice })", async () => {
     const PC = { x402Version: 1, error: "invalid_exact_evm_payload_authorization_value", accepts: [] };
     const g = gateway((n) => {
       if (n === 1) g.c.price = 100n * PRICE; // l'auteur relève le prix pendant qu'un mandataire cache la réponse
@@ -362,7 +362,7 @@ describe("x402 : après l'envoi payé, jamais « rien n'est dû » (correctif du
     expect(accepted.pending.maxPrice).toBe(100n * PRICE);
   });
 
-  it("9/11 au soir (preuve E6) : enclave redémarrée → le message dit que la réponse est PERDUE et que le paiement a pu être réglé, sans conseiller resume", async () => {
+  it("enclave restarted → the message says the reply is LOST and that the payment may have been settled, without suggesting resume", async () => {
     const g = gateway(() => new Response(JSON.stringify({ error: "Bad Gateway" }), { status: 502 }));
     const ai = createX402Client({ enclaveUrl: "https://e.example", productId: PRODUCT, walletClient: g.wallet, publicClient: g.p, deployment: D, fetch: g.f, paidRetryDelaysMs: [] });
     const err = await ai.chat.completions.create({ messages: [{ role: "user", content: "a" }] }).catch((e) => e);
@@ -380,7 +380,7 @@ describe("x402 : après l'envoi payé, jamais « rien n'est dû » (correctif du
     expect(changed.message).not.toContain("rien n'est dû");
   });
 
-  it("une coupure AVANT tout paiement reste X402CallError (rien n'a été signé)", async () => {
+  it("a disconnect BEFORE any payment stays X402CallError (nothing was signed)", async () => {
     const c = chain();
     const enclave = privateKeyToAccount(generatePrivateKey());
     const x = generateX25519().publicKey;
@@ -403,7 +403,7 @@ describe("x402 : après l'envoi payé, jamais « rien n'est dû » (correctif du
     expect(X402_PAID_RETRY_DELAYS_MS.length).toBe(3);
   });
 
-  it("cancelAuthorization : le payeur signe CancelAuthorization (domaine de l'USDC) et l'envoie ; refusé si déjà consommée", async () => {
+  it("cancelAuthorization: the payer signs CancelAuthorization (USDC domain) and sends it; refused if already consumed", async () => {
     const c = chain();
     const payer = privateKeyToAccount(generatePrivateKey());
     const nonce = keccak256(toBytes("n")) as Hex;
@@ -425,8 +425,8 @@ describe("x402 : après l'envoi payé, jamais « rien n'est dû » (correctif du
   });
 });
 
-describe("x402 : le signalement de la file de l'opérateur est signé et sans doublon", () => {
-  it("POST /x402/settled porte une signature EIP-712 de l'opérateur (enclave relue sur /x402/pending, produit, horodatage, nonce), chaque clé une fois", async () => {
+describe("x402: the operator queue's reports are signed and never duplicated", () => {
+  it("POST /x402/settled carries the operator's EIP-712 signature (enclave read back from /x402/pending, product, timestamp, nonce), each key once", async () => {
     const c = chain();
     const enclave = privateKeyToAccount(generatePrivateKey());
     const operator = privateKeyToAccount(generatePrivateKey());
@@ -463,7 +463,7 @@ describe("x402 : le signalement de la file de l'opérateur est signé et sans do
     expect(x402AckDomain(D.x402Settler, D.chainId).version).toBe("2");
   });
 
-  it("9/11 au soir (preuves B et F) : une autorisation consommée SANS règlement X402Settler visible (annulée) est signalée « settled: false » ; nos propres règlements, même relevés une 2e fois, « settled: true » ; un signalement en échec est renvoyé", async () => {
+  it("an authorization consumed WITHOUT a visible X402Settler settlement (cancelled) is reported \"settled: false\"; our own settlements, even fetched a 2nd time, \"settled: true\"; a failed report is sent again", async () => {
     const c = chain();
     const enclave = privateKeyToAccount(generatePrivateKey());
     const operator = privateKeyToAccount(generatePrivateKey());
@@ -511,8 +511,8 @@ describe("x402 : le signalement de la file de l'opérateur est signé et sans do
   });
 });
 
-describe("x402 : la file de l'opérateur relève TOUT, règle d'abord les appels couverts (9/11 au soir, preuves C et C2)", () => {
-  it("GET /x402/pending par pages (limit, offset) jusqu'au total ; une enclave qui ignore offset : une seule page", async () => {
+describe("x402: the operator queue fetches EVERYTHING and settles covered calls first", () => {
+  it("GET /x402/pending page by page (limit, offset) up to the total; an enclave that ignores offset: a single page", async () => {
     const c = chain();
     const enclave = privateKeyToAccount(generatePrivateKey());
     const operator = privateKeyToAccount(generatePrivateKey());
@@ -541,7 +541,7 @@ describe("x402 : la file de l'opérateur relève TOUT, règle d'abord les appels
     expect(asked).toEqual(["?limit=3&offset=0"]);
   });
 
-  it("des centaines d'impayés « non couverts » à échéance courte : l'appel COUVERT d'un payeur honnête est réglé au premier passage ; au plus maxUncoveredChecks impayés revérifiés", async () => {
+  it("hundreds of \"uncovered\" unpaid calls with short expiry: an honest payer's COVERED call is settled on the first pass; at most maxUncoveredChecks unpaid calls re-checked", async () => {
     const c = chain();
     const enclave = privateKeyToAccount(generatePrivateKey());
     c.enclaves.set(L(enclave.address), OPERATOR);

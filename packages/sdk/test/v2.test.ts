@@ -77,19 +77,19 @@ const URL0 = "https://enclave.example";
 
 // ---------------------------------------------------------------- erreurs
 
-describe("refus des contrats en français", () => {
-  it("chaque erreur de la pile v2 a son explication", () => {
+describe("contract refusals: named and explained", () => {
+  it("every error of the v2 stack has its explanation", () => {
     const names = arcErrorsAbi.filter((x: any) => x.type === "error").map((x: any) => x.name as string);
     expect(names.length).toBeGreaterThan(80);
     expect(names.filter((n) => !ARC_ERRORS_FR[n])).toEqual([]);
   });
-  it("décode un refus remonté d'un autre contrat (données brutes)", () => {
+  it("decodes a refusal bubbled up from another contract (raw data)", () => {
     const data = encodeErrorResult({ abi: arcErrorsAbi, errorName: "WrongEnclave" });
     const e = { name: "ContractFunctionExecutionError", cause: { name: "CallExecutionError", cause: { data } } };
     expect(arcErrorOf(e)?.name).toBe("WrongEnclave");
     expect(explainArcError(e)).toMatch(/WrongEnclave — le reçu est signé par une autre enclave/);
   });
-  it("garde les arguments (EnclaveHeldByOtherOperator)", () => {
+  it("keeps the arguments (EnclaveHeldByOtherOperator)", () => {
     const data = encodeErrorResult({ abi: arcErrorsAbi, errorName: "EnclaveHeldByOtherOperator", args: [OPERATOR, 42n] });
     expect(explainArcError({ data })).toContain(`(${OPERATOR}, 42)`);
   });
@@ -97,22 +97,22 @@ describe("refus des contrats en français", () => {
 
 // ---------------------------------------------------------------- clés d'enclave contre la chaîne
 
-describe("verifyEnclaveKeys — on ne chiffre que vers la clé inscrite on-chain", () => {
+describe("verifyEnclaveKeys — encrypt only to the key registered on-chain", () => {
   const e = makeEnclave();
   const st: ChainState = { head: 1000n, enclaves: new Map([[e.signer.address.toLowerCase(), { productId: PRODUCT, operator: OPERATOR, x25519: e.x25519, active: true }]]), sessions: new Map() };
   const pub = fakeChain(st);
 
-  it("accepte la clé inscrite, active, du bon produit", async () => {
+  it("accepts the registered, active key of the right product", async () => {
     const k = await verifyEnclaveKeys(URL0, PRODUCT, { publicClient: pub, fetch: pubkeysFetch(e) });
     expect(k).toMatchObject({ verified: true, signer: e.signer.address, x25519: e.x25519, operator: OPERATOR, checkedAtBlock: 1000n });
   });
-  it("refuse une clé X25519 remplacée par le mandataire", async () => {
+  it("refuses an X25519 key swapped by the proxy", async () => {
     const swapped = generateX25519().publicKey;
     const p = verifyEnclaveKeys(URL0, PRODUCT, { publicClient: pub, fetch: pubkeysFetch(e, (j) => ({ ...j, x25519: swapped })) });
     await expect(p).rejects.toThrow(ENCLAVE_KEY_MISMATCH_FR);
     await expect(p).rejects.toMatchObject({ reason: "x25519_mismatch" });
   });
-  it("refuse un signataire inconnu, un autre produit, une enclave inactive", async () => {
+  it("refuses an unknown signer, another product, an inactive enclave", async () => {
     const other = makeEnclave();
     await expect(verifyEnclaveKeys(URL0, PRODUCT, { publicClient: pub, fetch: pubkeysFetch(other) })).rejects.toMatchObject({ reason: "not_registered" });
     await expect(verifyEnclaveKeys(URL0, 2n, { publicClient: pub, fetch: pubkeysFetch(e) })).rejects.toMatchObject({ reason: "wrong_product" });
@@ -120,7 +120,7 @@ describe("verifyEnclaveKeys — on ne chiffre que vers la clé inscrite on-chain
     st.enclaves.set(off.signer.address.toLowerCase(), { productId: PRODUCT, operator: OPERATOR, x25519: off.x25519, active: false });
     await expect(verifyEnclaveKeys(URL0, PRODUCT, { publicClient: pub, fetch: pubkeysFetch(off) })).rejects.toMatchObject({ reason: "inactive" });
   });
-  it("session : l'enclave servie doit être celle verrouillée à l'ouverture", async () => {
+  it("session: the enclave served must be the one locked when the session opened", async () => {
     const locked = makeEnclave();
     st.sessions.set("7", { owner: OPERATOR, productId: PRODUCT, operator: OPERATOR, sessionKey: OPERATOR, deposit: 1n, cap: 0n, paidUnits: 0n, paid: 0n, expiresAt: 0n, closed: false, verdictWritten: false, price: 100n, enclave: locked.signer.address, unitTokens: 1, outWeight: 1, param: MODEL });
     const p = verifyEnclaveKeys(URL0, PRODUCT, { publicClient: pub, fetch: pubkeysFetch(e), sessionId: 7n });
@@ -128,7 +128,7 @@ describe("verifyEnclaveKeys — on ne chiffre que vers la clé inscrite on-chain
     await expect(p).rejects.toMatchObject({ reason: "wrong_session_enclave" });
     await expect(verifyEnclaveKeys(URL0, PRODUCT, { publicClient: pub, fetch: pubkeysFetch(e), sessionId: 8n })).rejects.toMatchObject({ reason: "session_unknown" });
   });
-  it("refuse une réponse /pubkeys malformée", async () => {
+  it("refuses a malformed /pubkeys response", async () => {
     await expect(verifyEnclaveKeys(URL0, PRODUCT, { publicClient: pub, fetch: pubkeysFetch(e, () => ({ signer: "x", x25519: "0x01" })) })).rejects.toMatchObject({ reason: "pubkeys_unreadable" });
   });
 });
@@ -147,14 +147,14 @@ async function enclaveRecomputes(e: ReturnType<typeof makeEnclave>, body: { enc:
   return { obj, cP: deterministicSeal(toBytes(protocolX25519), new TextEncoder().encode(canonical), toBytes(obj.r)) };
 }
 
-describe("Prime scellée : chiffrement vers l'enclave vérifiée, contrôle de la réclamation", () => {
+describe("Sealed Bounty: encryption to the verified enclave, claim check", () => {
   const e = makeEnclave();
   const proto = generateX25519();
   const keys: VerifiedEnclaveKeys = { verified: true, enclaveUrl: URL0, productId: 2n, signer: e.signer.address, x25519: e.x25519, operator: OPERATOR, workloadId: `0x${"ab".repeat(32)}`, tcbStatus: 0, fromBlock: 1n, untilBlock: 2n, checkedAtBlock: 1n, checkedAtMs: Date.now() };
   const payee = OPERATOR;
   const txs = [encodeExploitTx({ to: testnet.demoVault, data: "0x12345678" })];
 
-  it("l'enclave rouvre le bundle et recalcule le MÊME cP ; le protocole le déchiffre", async () => {
+  it("the enclave reopens the bundle and recomputes the SAME cP; the protocol decrypts it", async () => {
     const s = await sealExploitForEnclave({ bountyId: 3n, payee, exploit: { predicate: PREDICATE, txs }, protocolX25519: proto.publicKey, enclave: keys, blockN: 900n });
     const { obj, cP } = await enclaveRecomputes(e, s.submitBody, proto.publicKey);
     expect(cP).toBe(s.cP);
@@ -163,11 +163,11 @@ describe("Prime scellée : chiffrement vers l'enclave vérifiée, contrôle de l
     const report = JSON.parse(new TextDecoder().decode(deterministicOpen(proto.privateKey, s.cP)));
     expect(report).toEqual(JSON.parse(protocolCanonical({ bountyId: 3n, payee, exploit: { predicate: PREDICATE, txs } })));
   });
-  it("refuse de chiffrer vers des clés non vérifiées (réponse brute de /pubkeys)", async () => {
+  it("refuses to encrypt to unverified keys (raw /pubkeys response)", async () => {
     const raw = { signer: e.signer.address, x25519: e.x25519 } as unknown as VerifiedEnclaveKeys;
     await expect(sealExploitForEnclave({ bountyId: 3n, payee, exploit: { predicate: PREDICATE, txs }, protocolX25519: proto.publicKey, enclave: raw })).rejects.toThrow(ENCLAVE_KEY_MISMATCH_FR);
   });
-  it("k enclaves, même r et même ancrage : même cP pour toutes", async () => {
+  it("k enclaves, same r and same anchor: the same cP for all", async () => {
     const r = new Uint8Array(32).fill(5);
     const e2 = makeEnclave();
     const keys2 = { ...keys, signer: e2.signer.address, x25519: e2.x25519 };
@@ -176,7 +176,7 @@ describe("Prime scellée : chiffrement vers l'enclave vérifiée, contrôle de l
     expect(a.cP).toBe(b.cP);
     expect(a.submitBody.ciphertext).not.toBe(b.submitBody.ciphertext);
   });
-  it("contrôle la réclamation signée avant tout envoi", async () => {
+  it("checks the signed claim before anything is sent", async () => {
     const s = await sealExploitForEnclave({ bountyId: 3n, payee, exploit: { predicate: PREDICATE, txs }, protocolX25519: proto.publicKey, enclave: keys });
     const claim = { bountyId: 3n, payee, blockN: 900n, blockHashN: `0x${"aa".repeat(32)}` as Hex, predicateHash: s.predicateHash, loss: 1_000_000n, tier: 0, fingerprint: s.fingerprint, cPHash: keccak256(s.cP), deadline: 1_900_000_000n };
     const sign = (acc: ReturnType<typeof privateKeyToAccount>, c = claim) => acc.signTypedData({ domain: networkDomain(testnet.sealedBounty, testnet.chainId) as any, types: claimTypes, primaryType: "Claim", message: c });
@@ -229,7 +229,7 @@ function emulatedEnclave(e: ReturnType<typeof makeEnclave>, st: ChainState, opts
   return { f, seen, seqs, setLastSeq: (n: bigint) => { lastSeq = n; } };
 }
 
-describe("client d'inférence v2", () => {
+describe("inference client", () => {
   function setup(o: { tamperText?: boolean; balance402?: boolean; pubkeysTamper?: boolean } = {}) {
     const e = makeEnclave();
     const sk = generatePrivateKey();
@@ -243,7 +243,7 @@ describe("client d'inférence v2", () => {
     return { ai, emu, e };
   }
 
-  it("chiffre vers la clé vérifiée, authentifie la réponse, dit si le reçu est payable", async () => {
+  it("encrypts to the verified key, authenticates the reply, says whether the receipt is payable", async () => {
     const { ai } = setup();
     const r = await ai.chat.completions.create({ messages: [{ role: "user", content: "bonjour" }], temperature: 0.2 });
     expect(r.text).toBe("écho : user: bonjour");
@@ -252,22 +252,22 @@ describe("client d'inférence v2", () => {
     const r2 = await ai.chat.completions.create({ messages: [{ role: "user", content: "encore" }] });
     expect(r2.receipt.seq).toBe(2n);
   });
-  it("mandataire qui remplace la clé X25519 : RIEN n'est envoyé à l'enclave", async () => {
+  it("a proxy that swaps the X25519 key: NOTHING is sent to the enclave", async () => {
     const { ai, emu } = setup({ pubkeysTamper: true });
     await expect(ai.chat.completions.create({ messages: [{ role: "user", content: "secret" }] })).rejects.toThrow(ENCLAVE_KEY_MISMATCH_FR);
     expect(emu.seen.filter((u) => u.includes("chat/completions"))).toEqual([]);
   });
-  it("texte qui n'est pas celui signé par l'enclave : refusé", async () => {
+  it("text that is not the one signed by the enclave: refused", async () => {
     const { ai } = setup({ tamperText: true });
     await expect(ai.chat.completions.create({ messages: [{ role: "user", content: "x" }] })).rejects.toBeInstanceOf(ReceiptMismatchError);
   });
-  it("se recale sur le seq de l'enclave (409 expectedSeq)", async () => {
+  it("resyncs on the enclave's seq (409 expectedSeq)", async () => {
     const { ai, emu } = setup();
     emu.setLastSeq(4n); // une autre instance a déjà servi 4 requêtes avec la même clé aek_
     const r = await ai.chat.completions.create({ messages: [{ role: "user", content: "x" }] });
     expect(r.receipt.seq).toBe(5n);
   });
-  it("402 sans réponse en attente : le seq n'est pas consommé", async () => {
+  it("402 with no pending reply: the seq is not consumed", async () => {
     const { ai, emu } = setup({ balance402: true });
     const p = ai.chat.completions.create({ messages: [{ role: "user", content: "x" }] });
     await expect(p).rejects.toBeInstanceOf(InsufficientSessionBalance);
@@ -278,8 +278,8 @@ describe("client d'inférence v2", () => {
 
 // ---------------------------------------------------------------- reçus, quote
 
-describe("reçus et quote", () => {
-  it("vérifie un reçu comme SessionPay.settle", async () => {
+describe("receipts and quote", () => {
+  it("verifies a receipt like SessionPay.settle", async () => {
     const e = makeEnclave();
     const st: ChainState = { head: 1000n, enclaves: new Map([[e.signer.address.toLowerCase(), { productId: PRODUCT, operator: OPERATOR, x25519: e.x25519, active: true }]]), sessions: new Map() };
     st.sessions.set("3", { owner: OPERATOR, productId: PRODUCT, operator: OPERATOR, sessionKey: OPERATOR, deposit: 1_000n, cap: 0n, paidUnits: 2n, paid: 200n, expiresAt: 0n, closed: false, verdictWritten: false, price: 100n, enclave: e.signer.address, unitTokens: 1, outWeight: 1, param: MODEL });
@@ -292,7 +292,7 @@ describe("reçus et quote", () => {
     expect(forged.settleable).toBe(false);
     expect(payableFor({ deposit: 1_000n, cap: 500n, paid: 0n, price: 100n }, 20n)).toBe(500n);
   });
-  it("lit un quote TDX v4 et calcule REPORTDATA comme le registre", () => {
+  it("reads a TDX v4 quote and computes REPORTDATA like the registry", () => {
     const body = new Uint8Array(584);
     body[120 + 3] = 0x10; // SEPT_VE_DISABLE
     body.fill(7, 136, 136 + 48); // MRTD
@@ -304,7 +304,7 @@ describe("reçus et quote", () => {
     const rd = expectedReportData0({ chainId: 5042002, registry: testnet.enclaveRegistry, productId: 1n, operator: OPERATOR, signer: OPERATOR, x25519: pad("0x01", { size: 32 }) });
     expect(rd).toMatch(/^0x[0-9a-f]{64}$/);
   });
-  it("le digest d'enveloppe reste celui de l'enclave", () => {
+  it("the envelope digest stays the enclave's", () => {
     expect(envelopeDigest(1n, 2n, "0xdead", `0x${"11".repeat(32)}`)).toBe(envelopeDigest(1n, 2n, "0xdead", `0x${"11".repeat(32)}`));
     expect(parseAbi(["function f()"]).length).toBe(1);
   });
