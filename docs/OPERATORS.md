@@ -12,7 +12,7 @@ ArcHive is open: anyone can run an enclave and get paid in USDC. Some products n
 
 **Why a verified level.** Physical attacks published in 2025 (TEE.fail, Battering RAM, Wiretap) extract attestation keys from a server the attacker can touch. An attestation then proves the right code, but no longer that the machine is untouched. Pinning the chip to an inspected datacenter closes that gap.
 
-## What runs on Arc testnet (deployed 11 Nov 2026 (corrected stack after the security review))
+## What runs on Arc testnet (the levels stack, deployed 11 Nov 2026)
 
 | Contract | Address | What it does |
 |---|---|---|
@@ -23,15 +23,15 @@ ArcHive is open: anyone can run an enclave and get paid in USDC. Some products n
 | `SealedBounty` (verified level) | [`0x36a8ddf9fcb1308b9e86425bec9b098e933c7348`](https://explorer.testnet.arc.io/address/0x36a8ddf9fcb1308b9e86425bec9b098e933c7348) | Same code as the live Sealed Bounty, wired to `PolicyEnclaves`. It can slash bonds and write ERC-8004 verdicts from **18 Nov 2026, 23:00 UTC**: any new settlement contract waits 8 days, so every operator can leave before it gains that power. |
 
 **Proof, on-chain:**
-- **Our four enclaves are bound to their machine.** Txs [`0x3abafc08…`](https://explorer.testnet.arc.io/tx/0x3abafc085e5e20cd40b167b3e9dbd384188c2acb10cb7b145f382d0ebc5bbe03), [`0x67c5569b…`](https://explorer.testnet.arc.io/tx/0x67c5569b226dbf9ff370951264df16a939c5399d9466608dcc1fb4922d23eef5), [`0xa48d37f0…`](https://explorer.testnet.arc.io/tx/0xa48d37f04a9cee3a753b3eccc2d692b3f91f8e6ec334a4fc3ab69c5f07da7a5c) and [`0x1e1bfff4…`](https://explorer.testnet.arc.io/tx/0x1e1bfff436ef7ba62154cdbb027910baf8203fe4fe6190473160e098cf245c86).
+- **Our four enclaves were bound to their machine** on 11 Nov, and again after their relaunch on 19 Nov (for example [`0xf3ed752c…`](https://explorer.testnet.arc.io/tx/0xf3ed752c6df5a9cb2b5325764ce8ef72fc9526664d989d3e2e3ebf04bc866794)). Txs of 11 Nov: [`0x3abafc08…`](https://explorer.testnet.arc.io/tx/0x3abafc085e5e20cd40b167b3e9dbd384188c2acb10cb7b145f382d0ebc5bbe03), [`0x67c5569b…`](https://explorer.testnet.arc.io/tx/0x67c5569b226dbf9ff370951264df16a939c5399d9466608dcc1fb4922d23eef5), [`0xa48d37f0…`](https://explorer.testnet.arc.io/tx/0xa48d37f04a9cee3a753b3eccc2d692b3f91f8e6ec334a4fc3ab69c5f07da7a5c) and [`0x1e1bfff4…`](https://explorer.testnet.arc.io/tx/0x1e1bfff436ef7ba62154cdbb027910baf8203fe4fe6190473160e098cf245c86).
   - All four run on the same Phala machine: PPID `62d54040cb9dfc08bb13006fa75ece56`, FMSPC `20a06f000000`, issued by "Intel SGX PCK Platform CA".
 - **The Proof of Cloud alliance declared that machine.** A token was co-signed by the trust servers of Secret, Nillion and iExec, and verified on-chain in tx [`0x5ca34002…`](https://explorer.testnet.arc.io/tx/0x5ca34002fca5de1614cfa7a52aef3eb638f7bc3b358a13a5dd86d860e7c5c7a3) for 5.16 M gas.
 - **The four enclaves are now at the verified level.** Anyone can check with `arcvault operator level --signer <key>`, `GET /api/levels`, or the badges on the Hive page.
 - **Product 7, "Sealed Bounty, verified operator level"**, is the first product that *requires* the verified level:
   - policy level 1 with `ProofOfCloudAuditor` as the auditor: propose [`0xe5102a3a…`](https://explorer.testnet.arc.io/tx/0xe5102a3a9841af9454d4ae4d1e590f1bdb1435b25b9c53868793b9b1b72e60fd), apply [`0xbc18aeae…`](https://explorer.testnet.arc.io/tx/0xbc18aeae4f6d948bf970d42d2b2de98f635f3a13ccff33a8ccbf3d3f5a532e6b);
   - its enclave runs in its own Intel TDX VM on the declared machine (Phala `prod9`). It was registered through DCAP in [`0x524eef52…`](https://explorer.testnet.arc.io/tx/0x524eef52938b73eefaa69074a835f1c8494a09326fb8896b66f6226c03237a54) and bound to its machine in [`0xe0cabf4f…`](https://explorer.testnet.arc.io/tx/0xe0cabf4f1d9551d3dac4dfa0f2baef38035f9e47d0743a1943ffcb82d6e0d55b);
-  - `PolicyEnclaves.activeOperatorAt(<its key>, 6, head)` returns the operator, so it counts;
-  - its exploit replay proves every state read (`STATE_PROOF_RPC_URL`, see the README).
+  - `PolicyEnclaves.activeOperatorAt(<its key>, 7, <block>)` returns the operator while the enclave is active and bound, so it counts;
+  - its exploit replay reads Arc through the strict relay; it can also prove every state read (`STATE_PROOF_RPC_URL`) once an Arc RPC serves historical `eth_getProof`.
   - Phala's own API independently reports the same machine id: `node_info.ppid = 62d54040…` for node `prod9`.
 
 ## Join at the open level

@@ -1,75 +1,65 @@
-# Déployer ArcHive (serveur 62.171.153.35)
+# Deploying ArcHive (the server behind archive.62-171-153-35.sslip.io)
 
-Depuis le 16/11/2026, **un seul projet** sur le serveur, `/opt/archive`. Le site en ligne est **construit sur le serveur, à partir du code source qui s'y trouve**.
+The whole site runs from one folder on one server, `/opt/archive`, and is **built on the server from the source in
+`/opt/archive/src`** (this repository, without secrets). The enclaves do not run here: this server has no Intel TDX.
+They run in Intel TDX VMs at Phala Cloud (see "Enclaves" below).
 
-## Ce qui est servi
+## What is served
 
-| Adresse | Quoi | Source |
+| Path | What | Source |
 |---|---|---|
-| `/` , `/use.html`, `/service.html?p=<n>`, `/rent.html`, `/publish.html`, `/demo.html` | Le front de Florent (accueil avec la baie 3D, catalogue, fiches, Louer, Publier, démo rejouée), avec le panneau du copilote du site | `frontend/` |
-| `/console/` (`#/vue`, `#/ruche`, `#/produits`, `#/primes`, `#/playground`, `#/cles`, `#/publier-prime`, `#/operateur`, `#/publier-produit`, `#/portefeuille`, `#/developpeurs`) | La console : wallet, sessions, clés, primes, opérateurs, publication, CCTP, docs développeurs, copilote de la console | `web/` |
-| `/datacenter/` | La salle des serveurs en 3D | `web/public/datacenter/` (construite dans le dépôt UBC : `T-salle-serveurs-3d/site/build-site.sh`) |
-| `/api/*` | L'API de lecture et l'index des événements | `services/api` |
-| `/copilot/*` | Le copilote de la console | `services/copilot` |
-| `/copilot-site/*` | Le copilote du site : le même programme avec `COPILOT_SURFACE=site`. Il pilote les pages du front et prépare des opérations que l'utilisateur signe | `services/copilot` |
-| `/mcp` | Le serveur MCP en HTTP (Streamable HTTP, sans état ; lectures et actions préparées seulement) | `services/mcp` (`src/http.ts`) |
-| `/install.sh`, `/archive-node.mjs`, `/manifests/` | L'agent des opérateurs et les manifestes des produits | `web/public/`, `packages/node` |
-| `/enclave/<nom>/` | Le proxy de même origine vers les enclaves (VM Intel TDX chez Phala) | `deploy/nginx.conf` |
-| `/arc-rpc` | La passerelle du nœud d'Arc. Le nœud a été supprimé le 16/11, faute de disque : `deploy/arc-node` permet de le réinstaller | `deploy/arc-node/` |
+| `/`, `/network.html`, `/service.html?p=<n>`, `/doc.html`, `/space.html`, `/use.html`, `/rent.html`, `/publish.html` | The marketplace site, with the AskHive panel | `frontend/` |
+| `/console/` (hash routes `#/vue`, `#/ruche`, `#/produits`, `#/primes`, `#/playground`, `#/operateur`, `#/developpeurs`…) | The console: wallet, sessions, keys, bounties, operators, publishing, CCTP, developer docs | `web/` |
+| `/datacenter/` | The 3D server room (live data and a replay of recorded events) | `web/public/datacenter/` |
+| `/api/*` | The read API and its own index of contract events | `services/api` |
+| `/copilot/*` | The console's copilot | `services/copilot` |
+| `/copilot-site/*` | AskHive on the server (same program, `COPILOT_SURFACE=site`): it drives the site's pages and prepares operations the user signs | `services/copilot` |
+| `/mcp` | The MCP server over Streamable HTTP (stateless; reads and prepared actions only) | `services/mcp` (`src/http.ts`) |
+| `/install.sh`, `/archive-node.mjs`, `/manifests/` | The operator agent and the products' manifests | `web/public/`, `packages/node` |
+| `/enclave/<name>/` | Same-origin proxy to the enclaves (TLS verified, exact host name) | `deploy/nginx.conf` |
+| `/arc-rpc` | Optional: read-only gateway to an Arc node of our own, for state proofs (`deploy/arc-node`); answers 502 when no node runs | `deploy/arc-node/` |
 
-## Sur le serveur
+## On the server
 
-| Quoi | Où |
+| What | Where |
 |---|---|
-| Code source complet, sans secrets | `/opt/archive/src` |
-| Ce qui tourne | `/opt/archive` : `api.mjs`, `copilot.mjs`, `registrar.mjs`, `mcp-http.mjs`, `web/`, `docker-compose.yml`, `nginx.conf`, `Caddyfile` |
-| Données (index des événements, machines appairées) | `/opt/archive/data` |
-| Secrets, jamais dans le code | `/opt/archive/*.env` (droits 600) : `registrar-v2.env`, `test-signer.env`, `copilot.env`, `nginx.env` |
-| Sauvegardes | `/root/backups/`, dont la v1 (`archive-v1-2026-11-16.tgz`) et le dépôt de Florent du 15/11 (`florent-frontend-2026-11-15.tgz`) |
+| Source, without secrets | `/opt/archive/src` |
+| What runs | `/opt/archive`: `api.mjs`, `copilot.mjs`, `registrar.mjs`, `mcp-http.mjs`, `web/`, `docker-compose.yml`, `nginx.conf`, `Caddyfile` |
+| Data (event index, paired machines) | `/opt/archive/data` |
+| Secrets, never in the code | `/opt/archive/*.env` (mode 600): `registrar-v2.env` (operator key only), `test-signer.env`, `copilot.env`, `nginx.env` |
 
-## Depuis un poste de dev
+The contract owner's key never lives on the server: the registrars hold the operator's key only.
 
-```sh
-./deploy/push.sh          # envoie le code (filtre : deploy/rsync-filter.txt), puis construit et relance LÀ-BAS
-```
-
-## Directement sur le serveur (après avoir modifié /opt/archive/src)
+## Scripts
 
 ```sh
-/opt/archive/src/deploy/deploy.sh      # tout : build.sh, configuration, relance des services, vérification
-/opt/archive/src/deploy/build.sh web   # le site seul (front, console, salle 3D), sans toucher aux services
+./deploy/push.sh                         # from a dev machine: send the source (filter: rsync-filter.txt), then deploy there
+/opt/archive/src/deploy/deploy.sh        # on the server: build.sh, configuration, restart, checks
+/opt/archive/src/deploy/build.sh web     # on the server: the site only (front, console, 3D room); services untouched
+/opt/archive/src/deploy/front-update.sh  # on the server: merge frontend/ from a GitHub branch (BRANCH, default main), then build the site
 ```
 
-- **`build.sh`**, dans un conteneur Node 22, prend en charge :
-  - les dépendances ;
-  - les bundles `api`, `copilot`, `registrar` et `mcp-http` (esbuild) ;
-  - l'agent `archive-node` ;
-  - la console (Vite, `--base /console/`) et le front (Vite, avec `VITE_API_URL=/api`, `VITE_CONSOLE_URL=/console` et `VITE_COPILOT_URL=/copilot-site`) ;
-  - puis l'assemblage de `/opt/archive/web`.
-- **`deploy.sh`**, dans l'ordre :
-  - lance `build.sh`, installe `docker-compose.yml`, `nginx.conf` et le `Caddyfile`, relance les services et recrée nginx ;
-  - recrée Caddy **seulement si le Caddyfile a changé** : Caddy ne relit son fichier qu'à sa recréation ;
-  - contrôle le site. Les enclaves sont contrôlées à part : leur absence n'est pas une panne du site.
-- **N'envoyez pas tout `web/public/` depuis un poste :** `archive-node.mjs` y est reconstruit par le serveur.
+- **`build.sh`** runs in a Node 22 container: dependencies (`npm ci`), the `api`, `copilot`, `registrar` and
+  `mcp-http` bundles (esbuild), the `archive-node` agent, the console (Vite, `--base /console/`) and the front (Vite,
+  profile `frontend/.env.jb`: every URL on this origin), then assembles `/opt/archive/web`. It refuses to overwrite a
+  `web/` changed by hand (`FORCE_WEB=1` to do it on purpose).
+- **`deploy.sh`** runs `build.sh`, installs `docker-compose.yml`, `nginx.conf` and the `Caddyfile`, restarts the
+  services, recreates Caddy only when its file changed, then checks the site. Enclaves are checked separately: one
+  being down is not a site failure.
+- Every container runs without new privileges and with no Linux capability it does not use; images are pinned by digest.
 
-## Les enclaves (Intel TDX, chez Phala)
+## Enclaves (Intel TDX at Phala Cloud)
 
-- Les enclaves ne tournent pas sur ce serveur, qui n'a pas de TDX. Leurs 9 VM ont été **supprimées le 14/11** pour ne plus payer. Pour les recréer, voir la note V du dépôt UBC (fichiers de déploiement sauvegardés, nœud prod9, gaz).
-- **Ensuite,** mettre à jour les adresses des enclaves dans `deploy/nginx.conf` (blocs `/enclave/…`) et dans `deploy/docker-compose.vps.yml` (`ENCLAVE_URL` des registrars), puis lancer `deploy.sh`.
-- **Sans enclave, ce qui ne marche pas :**
-  - l'IA privée, les appels x402 et le copilote attesté ;
-  - la création d'une prime, car aucun opérateur n'est actif.
-- **Sans enclave, ce qui marche :** les pages, les deux copilotes du serveur, le MCP, la caution d'opérateur et la lecture de l'état on-chain.
+- One VM per enclave image, on Phala's `prod9` node, production OS image `dstack-0.5.12`, size `tdx.small`. The
+  compose files are `enclave/phala/*.yml`; what they write in clear is measured into the image fingerprint that Arc
+  checks, so they are kept byte for byte as deployed.
+- After creating or replacing a VM: set its host in `deploy/nginx.conf` (the `/enclave/…` blocks) and in
+  `deploy/docker-compose.vps.yml` (the registrar's `ENCLAVE_URL`), then run `deploy.sh`. The registrar registers the
+  enclave on Arc through DCAP and renews it before its window ends.
+- Without enclaves, the pages, both server copilots, the MCP server, the operator bond and every on-chain read still
+  work; private AI, pay per call, AskHive's enclave mode and new bounties need a live enclave.
 
-## Ce qui n'est jamais copié
+## Never copied to the server
 
-`.secrets/`, `.git/`, tout `.env` (sauf `web/.env.local`, l'identifiant WalletConnect, public), `node_modules/`, `dist/` et les sorties de compilation. Voir `rsync-filter.txt`.
-
-## Le front de Florent : sa branche GitHub `front` (depuis le 17/11/2026)
-
-- `src/frontend` suit la branche `front` de `JeanBaptisteDurand/UBC_2026` (dossier `frontend/`). L'adoption a été faite une fois par `front-adopt.sh` : un commit de fusion, et nos 27 commits d'avant restent dans l'historique (étiquette `jb-front-2026-11-16`, paquet `/root/backups/front-jb-1cd3c51-20261117.bundle`).
-- **Changer le front :** pousser sur la branche `front`, puis lancer `/opt/archive/src/deploy/front-update.sh` sur le serveur. Il fusionne seulement `frontend/`, puis lance `build.sh web` (services non touchés). Il refuse s'il y a des changements locaux, et ne construit rien en cas de conflit.
-- **Construction :** `npm ci` (le `package-lock.json` du front n'est jamais réécrit), `node scripts/sizes.mjs`, puis `vite build --mode jb` (profil `frontend/.env.jb` : tout sur cette origine).
-- **Garde-fou :** `build.sh` refuse de remplacer un `web/` modifié à la main (empreinte du dernier site construit dans `/opt/archive/.web-front-build`). `FORCE_WEB=1` passe outre, exprès, après une sauvegarde.
-- **Depuis ce Mac :** `push.sh` n'envoie plus `frontend/` (règle `- /frontend/` dans `rsync-filter.txt`). La copie locale `frontend/` est l'ancienne (1cd3c51) : ne pas la modifier.
-- **Ne jamais** déposer un `dist/` dans `/opt/archive/web`, ni modifier `src/frontend` sur le serveur.
+`.secrets/`, `.git/`, every `.env` (except `web/.env.local`, the public WalletConnect id), `node_modules/`, `dist/`
+and build outputs. See `rsync-filter.txt`.
