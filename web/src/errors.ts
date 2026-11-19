@@ -1,5 +1,5 @@
-/** errors.ts — refusals explained in the site's language (English or French), for the whole site (v2 stack).
- *  - contract refusals: decoded by the SDK (arcErrorOf: every v2 contract error, by name, even from a called
+/** errors.ts — refusals explained in the site's language (English or French), for the whole site (v2.1 stack).
+ *  - contract refusals: decoded by the SDK (arcErrorOf: every contract error of the stack, by name, even from a called
  *    contract). French: the SDK's own sentence (explainArcError, unchanged). English: the name, its arguments and the
  *    English table (i18n/contract-errors.en.ts), or a generic sentence with the name for an error it doesn't know;
  *  - ArcHive API refusals: by their stable code, in both languages (i18n/api-errors.ts); an API without codes (or a

@@ -113,7 +113,7 @@ const LABEL: Record<string, (a: Record<string, any>) => [string, ReactNode]> = {
   Recorded: (a) => [t("ev.Recorded"), t("ev.d.verdict", { agent: a.agentId, score: a.response })],
   CallSettled: (a) => [t("ev.CallSettled"), t("ev.d.call", { amt: usdc(a.amount), id: a.productId })],
   ProductUpdated: (a) => [t("ev.ProductUpdated", { id: a.productId }), t("ev.d.version", { v: a.version })],
-  // pile v2
+  // events added by the v2 contracts
   EnclaveRetired: () => [t("ev.EnclaveRetired"), t("ev.d.reserveFreed")],
   EnclaveInvalidated: (a) => [t("ev.EnclaveInvalidated"), String(a.reason ?? "")],
   ProductProposed: (a) => [t("ev.ProductProposed", { id: a.productId }), ""],
