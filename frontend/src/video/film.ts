@@ -1047,6 +1047,8 @@ function sharpTick(rest: boolean, now: number, onFirstDraw: () => void) {
         sharpC.delete(k); sharpC.set(k, b)
         sharpK = k
         showSharp(true, !REDUCED && M.gate !== 'stops')
+        // the way in without the motion film: the motion frame under it goes once a sharp frame covers it
+        if (M.gate === 'stops' && cv.style.opacity !== '0') cv.style.opacity = '0'
         onFirstDraw()
       }
     }
@@ -1126,8 +1128,9 @@ function openGate() {
 function enterStops() {
   if (M.gate !== 'wait') return
   M.gate = 'stops'; WG.__filmGate = 'stops'
-  cv.style.opacity = '0'
-  if (sharpOn) showSharp(true, false)
+  // the motion frame (or the poster) stays until the first sharp frame is drawn over it (sharpTick hides it then):
+  // the film area went blank for about 380 ms at 3.5 Mbit/s
+  if (sharpOn) { cv.style.opacity = '0'; showSharp(true, false) }
   lockScroll(false); closeGate()
   gateResolve?.(true); gateResolve = null
 }
