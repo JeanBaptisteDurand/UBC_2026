@@ -169,13 +169,16 @@ function placeNote(n: HTMLDivElement, b: Box) {
   const W = n.offsetWidth || 280, H = n.offsetHeight || 64, M = 16, top = HD() + 8
   const panel = document.querySelector('.cp-panel:not([data-sheet="1"])')?.getBoundingClientRect()
   const right = panel && panel.width ? panel.left - M : innerWidth - M
+  // on phones the folded sheet covers the bottom of the screen: the bubble stays above it
+  const sheet = document.querySelector('.cp-panel[data-sheet="1"]')?.getBoundingClientRect()
+  const bottom = sheet && sheet.height && sheet.top > top + H ? sheet.top : innerHeight
   let x: number, y: number
   if (b.x + b.w + M + W <= right) { x = b.x + b.w + M; y = b.y }
   else if (b.x - M - W >= M) { x = b.x - M - W; y = b.y }
   else if (b.w > innerWidth * 0.5 && b.h > 3 * H) { x = Math.min(b.x + b.w, right + M) - M - W; y = b.y + M }
-  else if (b.y + b.h + M + H <= innerHeight - M) { x = b.x; y = b.y + b.h + M }
+  else if (b.y + b.h + M + H <= bottom - M) { x = b.x; y = b.y + b.h + M }
   else { x = b.x; y = b.y - M - H }
-  x = Math.max(M, Math.min(right - W, x)); y = Math.max(top, Math.min(innerHeight - M - H, y))
+  x = Math.max(M, Math.min(right - W, x)); y = Math.max(top, Math.min(bottom - M - H, y))
   n.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`
 }
 
