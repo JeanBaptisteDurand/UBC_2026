@@ -9,13 +9,13 @@ import { fail, msg, type Msg } from "../msg";
 import { fmtUnix, t, type StaticKey } from "../i18n";
 import { ProposeCard } from "./Operator";
 
-/** Le parcours de l'auteur : [titre, détail] de chaque étape. */
+/** The author's path: [title, detail] of each step. */
 const STEPS: Array<[StaticKey, StaticKey]> = [
   ["pub.s1", "pub.s1d"], ["pub.s2", "pub.s2d"], ["pub.s3", "pub.s3d"], ["pub.s4", "pub.s4d"],
   ["pub.s5", "pub.s5d"], ["pub.s6", "pub.s6d"], ["pub.s7", "pub.s7d"],
 ];
 
-/** v2 : une nouvelle image s'autorise en deux temps (proposeWorkload, puis applyWorkload après le délai du registre). */
+/** A new image is allowed in two steps (proposeWorkload, then applyWorkload after the registry's delay). */
 function WorkloadCard() {
   const arc = useArc();
   const [productId, setProductId] = useState("");

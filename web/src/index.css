@@ -2,9 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 19/11 (r2) : Chivo et Chivo Mono servis par le site lui-même (fonts/, licence SIL OFL : fonts/Chivo-OFL.txt), au lieu de
-   la feuille de Google Fonts qui bloquait le premier affichage (deux hôtes de plus à joindre sur un téléphone). Polices
-   variables (un fichier par sous-ensemble pour toutes les graisses), latin et latin étendu, comme Google les servait. */
+/* Chivo and Chivo Mono are served by the site itself (fonts/, SIL OFL licence: fonts/Chivo-OFL.txt) rather than from a
+   Google Fonts stylesheet, which would block the first paint (two more hosts to reach on a phone). Variable fonts (one
+   file per subset for all weights), Latin and Latin Extended, as Google serves them. */
 @font-face {
   font-family: "Chivo"; font-style: normal; font-weight: 100 900; font-display: swap;
   src: url("./fonts/chivo-latin-ext.woff2") format("woff2");
@@ -31,13 +31,13 @@ body { background: #070b16; color: #e6edf7; font-family: Chivo, ui-sans-serif, s
 ::selection { background: #5b8cff55; }
 :focus-visible { outline: 2px solid #5b8cff; outline-offset: 2px; border-radius: 6px; }
 
-/* l'alvéole : la forme de la marque, de la chaîne de preuves et de la ruche */
+/* the hexagonal cell: the shape of the brand, the proof chain and the hive */
 .hex { clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%); }
 
-/* Tableaux de données (ui.tsx, Table). Le cadre est un conteneur : sous le seuil de son tableau, chaque ligne devient une
-   carte (la 1re cellule en titre, puis « nom de la colonne · valeur », puis les boutons), sans défilement interne.
-   Seuils : .dt-md (5 ou 6 colonnes) sous 900 px de large, .dt-sm (2 ou 3 colonnes) sous 560 px. Au-dessus, un tableau
-   dont les cellules longues passent à la ligne (Td wrap) et dont les boutons se rangent (Td actions). */
+/* Data tables (ui.tsx, Table). The frame is a container: under its table's threshold, each row becomes a card (the
+   first cell as the title, then "column name · value", then the buttons), with no inner scroll. Thresholds: .dt-md (5
+   or 6 columns) under 900 px wide, .dt-sm (2 or 3 columns) under 560 px. Above them, a table whose long cells wrap
+   (Td wrap) and whose buttons stack (Td actions). */
 .dt { container-type: inline-size; }
 
 @container (max-width: 899.98px) {
@@ -74,40 +74,40 @@ body { background: #070b16; color: #e6edf7; font-family: Chivo, ui-sans-serif, s
   * { transition: none !important; animation: none !important; }
 }
 
-/* 19/11 — téléphone et tablette (écran tactile) : chaque cible fait au moins 44 × 44 px. `.tap` : boutons et champs ;
-   `.hexbtn` : copier et ouvrir dans l'explorateur, à côté de chaque hash (ui.tsx, Hex) ; `.hexlink` : le hash lui-même.
-   À la souris, rien ne change. */
+/* Phone and tablet (touch screen): every target is at least 44 × 44 px. `.tap`: buttons and fields; `.hexbtn`: copy
+   and open in the explorer, next to each hash (ui.tsx, Hex); `.hexlink`: the hash itself. With a mouse, nothing
+   changes. */
 @media (pointer: coarse) {
   .tap { min-height: 44px; }
   .hexbtn { display: inline-grid; place-items: center; min-width: 44px; min-height: 44px; }
   .hexbtn svg { width: 15px; height: 15px; }
   .hexlink { display: inline-flex; align-items: center; min-height: 44px; }
-  /* un champ à 16 px au moins, même en paysage (Safari d'iOS zoome sur un champ plus petit) */
+  /* a field at 16 px at least, even in landscape (iOS Safari zooms on a smaller field) */
   input.tap, textarea.tap { font-size: 16px; }
-  /* le bouton « Connect » de RainbowKit, et la bascule de langue de l'ordinateur sur une tablette */
+  /* RainbowKit's "Connect" button, and the desktop language switch on a tablet */
   header [data-testid="rk-connect-button"], header [data-testid="rk-account-button"] { min-height: 44px; }
   header [role="group"] button { min-width: 44px; }
 }
 
-/* 19/11 — téléphone (portrait, ou paysage de moins de 500 px de haut) : le texte courant fait au moins 15 px et les
-   petites étiquettes au moins 12-13 px. Les tailles fixes de la console (text-[12px], text-[13px]…) sont remontées ici,
-   en un seul endroit ; l'ordinateur et la tablette gardent les leurs. */
+/* Phone (portrait, or landscape under 500 px tall): body text is at least 15 px and small labels at least 12-13 px.
+   The console's fixed sizes (text-[12px], text-[13px]…) are raised here, in one place; computers and tablets keep
+   theirs. */
 @media (max-width: 639px), (pointer: coarse) and (max-height: 500px) {
   #root .text-\[11px\] { font-size: 12px; }
   #root .text-\[12px\], #root .text-xs { font-size: 13px; }
   #root .text-\[13px\], #root .text-\[14px\], #root .text-sm { font-size: 15px; }
-  /* 19/11 (r2) : une PHRASE d'explication écrite petit sur ordinateur (maillons de la chaîne de preuves, aide d'un champ,
-     description d'un mode, note de bas de page) se lit à 15 px, comme le texte courant ; les étiquettes restent à 13 px */
+  /* an explanatory SENTENCE written small on a computer (proof chain links, a field's help, a mode's description, a
+     footnote) reads at 15 px, like body text; labels stay at 13 px */
   #root .expl { font-size: 15px; line-height: 1.45; }
 }
 
-/* 19/11 (r2) : écran court (téléphone en paysage) : le bouton du copilote passe dans la barre du haut (Layout.tsx), le
-   rond flottant (FloatingCopilot.tsx) ne couvre plus la fin des lignes */
+/* Short screen (phone in landscape): the copilot button moves into the top bar (Layout.tsx), so the floating button
+   (FloatingCopilot.tsx) does not cover the end of the lines */
 .copilot-top { display: none; }
 @media (max-height: 500px) {
   .copilot-top { display: grid; }
   .copilot-fab { display: none; }
-  /* la pastille du bloc courant laisse sa place au nom de la page (il était coupé : « Vue d'en… ») ; #root : plus fort
-     que md:inline-flex, que Tailwind écrit après ces règles */
+  /* the current-block pill gives its place to the page name (which it would otherwise cut off); #root: stronger than
+     md:inline-flex, which Tailwind writes after these rules */
   #root .net-pill { display: none; }
 }

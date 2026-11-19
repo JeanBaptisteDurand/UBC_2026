@@ -12,7 +12,7 @@ export const EXPLORER = "https://explorer.testnet.arc.io";
 export function txLink(h: string) { return `${EXPLORER}/tx/${h}`; }
 export function addrLink(a: string) { return `${EXPLORER}/address/${a}`; }
 
-/** En-tête de page : titre + une phrase qui dit à quoi sert la page + actions à droite. */
+/** Page header: a title, one sentence that says what the page is for, and actions on the right. */
 export function PageHeader({ title, lead, actions }: { title: string; lead?: ReactNode; actions?: ReactNode }) {
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-edge pb-5">
@@ -25,14 +25,14 @@ export function PageHeader({ title, lead, actions }: { title: string; lead?: Rea
   );
 }
 
-/** Section de page (pas une carte) : un titre, une phrase, du contenu. `min-w-0` : dans une grille, un long bloc de code
- *  défile dans son cadre au lieu d'élargir la page (téléphone). */
+/** Page section (not a card): a title, a sentence, content. `min-w-0`: in a grid, a long code block scrolls inside its
+ *  frame instead of widening the page (phone). */
 export function Section({ title, lead, children, right }: { title?: string; lead?: ReactNode; children?: ReactNode; right?: ReactNode }) {
   return (
     <section className="mb-8 min-w-0">
       {(title || right) && (
         <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-          {/* une adresse longue dans la phrase (dépôt, URL) passe à la ligne au lieu d'élargir la page (320 px) */}
+          {/* a long address in the sentence (repository, URL) wraps instead of widening the page (320 px) */}
           <div className="min-w-0">
             {title && <h2 className="text-[15px] font-semibold">{title}</h2>}
             {lead && <p className="mt-0.5 text-[13px] text-muted [overflow-wrap:anywhere]">{lead}</p>}
@@ -45,9 +45,9 @@ export function Section({ title, lead, children, right }: { title?: string; lead
   );
 }
 
-/** Surface encadrée, réservée aux unités interactives (formulaires, panneaux de commande). L'en-tête garde au titre et à
- *  sa phrase au moins 18rem : plus étroit (téléphone), `right` (un bouton) passe dessous au lieu de les serrer dans une
- *  colonne étroite. */
+/** Framed surface, reserved for interactive units (forms, control panels). The header keeps at least 18rem for the title
+ *  and its sentence: when narrower (phone), `right` (a button) moves below instead of squeezing them into a narrow
+ *  column. */
 export function Card({ title, sub, children, right }: { title?: string; sub?: string; children?: ReactNode; right?: ReactNode }) {
   return (
     <div className="rounded-xl border border-edge bg-panel p-5">
@@ -68,7 +68,7 @@ export function Card({ title, sub, children, right }: { title?: string; sub?: st
 export function Btn({ children, onClick, disabled, kind = "primary", type = "button" }: {
   children: ReactNode; onClick?: () => void; disabled?: boolean; kind?: "primary" | "ghost" | "danger"; type?: "button" | "submit";
 }) {
-  // tap : 44 px de haut sur un écran tactile (index.css), la taille d'origine à la souris
+  // tap: 44 px tall on a touch screen (index.css), the original size with a mouse
   const base = "tap inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium transition disabled:cursor-not-allowed disabled:opacity-40";
   const style = kind === "primary" ? "bg-accent text-ink hover:brightness-110"
     : kind === "danger" ? "border border-bad/40 text-bad hover:bg-bad/10"
@@ -80,7 +80,7 @@ export function Field({ label, value, onChange, placeholder, hint }: { label: st
   return (
     <label className="block">
       <span className="text-[13px] text-muted">{label}</span>
-      {/* 16 px sur téléphone : Safari d'iOS ne zoome pas sur le champ quand il prend le focus */}
+      {/* 16 px on a phone: iOS Safari does not zoom on the field when it takes focus */}
       <input
         className="tap mt-1 w-full rounded-lg border border-edge bg-ink px-3 py-2 font-mono text-base outline-none transition focus:border-accent sm:text-[13px]"
         value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)}
@@ -103,7 +103,7 @@ export function Stat({ label, value, tone }: { label: string; value: ReactNode; 
 export function Badge({ children, tone }: { children: ReactNode; tone?: "good" | "bad" | "warn" | "muted" | "accent" }) {
   const c = tone === "good" ? "bg-good/15 text-good" : tone === "bad" ? "bg-bad/15 text-bad" : tone === "warn" ? "bg-warn/15 text-warn"
     : tone === "accent" ? "bg-accent/15 text-accent" : "bg-edge text-muted";
-  // un badge long (« Verified · Proof of Cloud ») passe à la ligne dans une carte étroite au lieu d'en déborder
+  // a long badge ("Verified · Proof of Cloud") wraps in a narrow card instead of overflowing it
   return <span className={`inline-flex max-w-full items-center rounded-md px-1.5 py-0.5 text-[12px] font-medium leading-tight [overflow-wrap:anywhere] ${c}`}>{children}</span>;
 }
 
@@ -111,9 +111,9 @@ export function Mono({ children }: { children: ReactNode }) {
   return <span className="font-mono text-[12px] text-muted">{children}</span>;
 }
 
-/** Une adresse ou un hash : tronqué, copiable, avec lien vers l'explorateur. Le hash reste sur une ligne
- *  (« 0xff28…e6c4 ») ; 19/11 : sur un écran tactile, la copie et l'explorateur sont des cibles de 44 px (index.css,
- *  .hexbtn), qui passent sous le hash si la colonne est trop étroite. */
+/** An address or a hash: truncated, copyable, with a link to the explorer. The hash stays on one line ("0xff28…e6c4");
+ *  on a touch screen, copy and explorer are 44 px targets (index.css, .hexbtn), which move under the hash if the column
+ *  is too narrow. */
 export function Hex({ value, kind = "address", n = 6 }: { value?: string | null; kind?: "address" | "tx" | "none"; n?: number }) {
   const [ok, setOk] = useState(false);
   if (!value) return <span className="text-muted">—</span>;
@@ -131,19 +131,18 @@ export function Hex({ value, kind = "address", n = 6 }: { value?: string | null;
   );
 }
 
-/** Tableau de données (machines, sessions, clés, primes, produits, contrats). Son cadre est un conteneur (CSS container
- *  queries, index.css) : assez large, c'est un tableau dont les cellules longues passent à la ligne et dont les boutons
- *  se rangent les uns sous les autres plutôt que de déborder ; plus étroit que son seuil (`stack` : « md » sous 900 px,
- *  pour 5 ou 6 colonnes ; « sm » sous 560 px, pour 2 ou 3), chaque ligne devient une carte : la 1re cellule en titre
- *  (Td `main`), chaque autre valeur précédée du nom de sa colonne (Td `label`), les boutons en bas (Td `actions`).
- *  Aucune colonne ni aucun bouton n'est caché dans un défilement interne (celui du cadre ne sert plus que de secours,
- *  pour un navigateur sans container queries). */
+/** Data table (machines, sessions, keys, bounties, products, contracts). Its frame is a container (CSS container
+ *  queries, index.css): when wide enough, it is a table whose long cells wrap and whose buttons stack rather than
+ *  overflow; narrower than its threshold (`stack`: "md" under 900 px, for 5 or 6 columns; "sm" under 560 px, for 2 or
+ *  3), each row becomes a card: the first cell as the title (Td `main`), each other value preceded by its column's name
+ *  (Td `label`), the buttons at the bottom (Td `actions`). No column or button is hidden in an inner scroll (the
+ *  frame's scroll is only a fallback for a browser without container queries). */
 export function Table({ head, children, empty, stack = "md" }: { head: ReactNode[]; children?: ReactNode; empty?: ReactNode; stack?: "md" | "sm" }) {
   return (
     <div className={`dt dt-${stack} overflow-x-auto rounded-xl border border-edge`}>
       <table className="w-full border-collapse text-left text-[13px]">
         <thead className="bg-panel text-[12px] text-muted">
-          {/* un en-tête long (« Parts op. / auteur / réseau ») passe à la ligne entre ses mots plutôt que d'élargir le tableau */}
+          {/* a long header wraps between its words rather than widening the table */}
           <tr>{head.map((h, i) => <th key={i} className="px-3 py-2.5 align-bottom font-medium">{h}</th>)}</tr>
         </thead>
         <tbody className="divide-y divide-edge">{children}</tbody>
@@ -152,9 +151,9 @@ export function Table({ head, children, empty, stack = "md" }: { head: ReactNode
     </div>
   );
 }
-/** Une cellule. `label` : le nom de sa colonne, montré devant la valeur quand le tableau passe en cartes ; `main` : la
- *  1re cellule (titre de la carte) ; `actions` : les boutons de la ligne (côte à côte, ou les uns sous les autres
- *  quand la place manque) ; `wrap` : un texte long, qui passe à la ligne. Sinon, une ligne (montants, dates). */
+/** A cell. `label`: its column's name, shown before the value when the table turns into cards; `main`: the first cell
+ *  (the card's title); `actions`: the row's buttons (side by side, or stacked when space runs out); `wrap`: a long text
+ *  that wraps. Otherwise, one line (amounts, dates). */
 export function Td({ children, className = "", label, main, actions, wrap }: {
   children?: ReactNode; className?: string; label?: string; main?: boolean; actions?: boolean; wrap?: boolean;
 }) {
@@ -167,7 +166,7 @@ export function Td({ children, className = "", label, main, actions, wrap }: {
   );
 }
 
-/** État vide : dit quoi faire, pas une humeur. */
+/** Empty state: says what to do, not a mood. */
 export function Empty({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
     <div className="flex flex-col items-start gap-3 px-4 py-8 text-[13px] text-muted">
@@ -177,8 +176,8 @@ export function Empty({ children, action }: { children: ReactNode; action?: Reac
   );
 }
 
-/** Message de résultat d'une action (succès / erreur / en cours), gardé comme message (msg.ts) et mis en mots ici : il
- *  suit la bascule de langue. En rouge pour un échec (fail, failWith). */
+/** Result message of an action (success / error / in progress), kept as a message (msg.ts) and put into words here: it
+ *  follows the language switch. In red for a failure (fail, failWith). */
 export function Status({ msg }: { msg: Msg | null | undefined }) {
   const text = show(msg);
   if (!text) return null;
@@ -194,7 +193,7 @@ export function Status({ msg }: { msg: Msg | null | undefined }) {
 export type StepState = "todo" | "doing" | "done" | "fail";
 export interface Step { label: string; state: StepState; detail?: ReactNode }
 
-/** Les étapes d'une action en plusieurs temps (preuve puis paiement, inscription…), chacune avec son état. */
+/** The steps of a multi-step action (proof then payment, registration…), each with its state. */
 export function Steps({ steps }: { steps: Step[] }) {
   return (
     <ol className="mt-3 space-y-1.5" aria-live="polite">
@@ -214,7 +213,7 @@ export function Steps({ steps }: { steps: Step[] }) {
   );
 }
 
-/** Résultat de la confrontation des clés d'une enclave à la chaîne (useVerifiedEnclave). */
+/** Result of checking an enclave's keys against the chain (useVerifiedEnclave). */
 export function EnclaveCheckView({ check, onRetry }: { check: EnclaveCheck; onRetry?: () => void }) {
   if (check.state === "idle") return <span className="text-[12px] text-muted">{t("ui.check.idle")}</span>;
   if (check.state === "checking") return <span className="inline-flex items-center gap-1.5 text-[12px] text-muted"><Loader2 size={12} className="animate-spin" />{t("ui.check.checking")}</span>;
@@ -237,10 +236,10 @@ export function EnclaveCheckView({ check, onRetry }: { check: EnclaveCheck; onRe
   );
 }
 
-/** Demande de connexion du wallet, pour les pages qui en ont besoin (`what` : ce que la connexion permet, déjà traduit). */
+/** Wallet connection request, for the pages that need one (`what`: what connecting allows, already translated). */
 export function NeedWallet({ what }: { what: string }) {
   return (
-    // mb-8 : la section qui suit garde l'écart des autres sections (elle touchait le cadre)
+    // mb-8: the next section keeps the same gap as the other sections
     <div className="mb-8 rounded-xl border border-dashed border-edge px-5 py-8 text-[14px] text-muted">
       {t("ui.needWallet", { what })}
     </div>

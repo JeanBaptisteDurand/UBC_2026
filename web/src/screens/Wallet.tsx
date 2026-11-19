@@ -15,7 +15,7 @@ export default function Wallet({ go }: { go: (r: string) => void }) {
     if (!arc || !address) return;
     arc.usdcBalance(address).then(setBal).catch(() => {});
     arc.bondOf(address).then(setBond).catch(() => {});
-    arc.freeBond(address).then(setAvail).catch(() => {}); // v2 : la part non réservée par les enclaves inscrites
+    arc.freeBond(address).then(setAvail).catch(() => {}); // the part not reserved by registered enclaves
   }, [arc, address]);
   const onArc = chain?.id === testnet.chainId;
 
