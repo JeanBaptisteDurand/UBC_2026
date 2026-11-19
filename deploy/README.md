@@ -1,4 +1,4 @@
-# Deploying ArcHive (the server behind archive.62-171-153-35.sslip.io)
+# Deploying ArcHive (the server behind https://arc-hive.xyz, also served at archive.62-171-153-35.sslip.io, the console's origin)
 
 The whole site runs from one folder on one server, `/opt/archive`, and is **built on the server from the source in
 `/opt/archive/src`** (this repository, without secrets). The enclaves do not run here: this server has no Intel TDX.

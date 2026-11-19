@@ -1,20 +1,20 @@
-// rpc-gate.mjs — PASSERELLE PUBLIQUE vers notre nœud d'Arc (10/11/2026), sans dépendance (Node 22).
+// rpc-gate.mjs — PUBLIC GATEWAY to the optional Arc node (deploy/arc-node), no dependency (Node 22).
 //
-// Pourquoi : les RPC publics d'Arc ne servent eth_getProof qu'au dernier bloc (VERIFIED le 10/11) ; notre nœud
-// (--rpc.eth-proof-window) sert les preuves d'état des blocs récents, pour le rejeu de la Prime scellée. Le nœud N'EST PAS
-// de confiance : l'enclave vérifie chaque preuve contre le stateRoot de l'en-tête ancré. La passerelle ne protège donc
-// que le NŒUD (abus, déni de service), pas l'intégrité : lectures seulement (liste fermée de méthodes), jamais debug /
-// trace / txpool / envoi de transactions ; corps, lots, réponses et débit bornés.
+// Why: Arc's public RPCs serve eth_getProof only at the latest block (checked on 10 Nov 2026); the node
+// (--rpc.eth-proof-window) serves state proofs for recent blocks, for the Sealed Bounty's replay. The node is NOT
+// trusted: the enclave checks every proof against the stateRoot of the anchored header. So the gateway protects only
+// the NODE (abuse, denial of service), not integrity: reads only (closed list of methods), never debug / trace /
+// txpool / sending transactions; bodies, batches, responses and rate are bounded.
 import { createServer } from "node:http";
 
 const PORT = Number(process.env.PORT ?? 8810);
 const HOST = process.env.HOST ?? "0.0.0.0";
 const UPSTREAM = process.env.UPSTREAM ?? "http://arc-execution:8545";
-const MAX_BODY = 128 * 1024; // une preuve se demande en quelques centaines d'octets
+const MAX_BODY = 128 * 1024; // a proof request takes a few hundred bytes
 const MAX_BATCH = 50;
 const MAX_RESPONSE = 16 * 1024 * 1024;
 const TIMEOUT_MS = 20_000;
-const PER_IP = { rate: 30, burst: 60 }; // requêtes JSON-RPC par seconde (un lot compte pour ses éléments)
+const PER_IP = { rate: 30, burst: 60 }; // JSON-RPC requests per second (a batch counts for its items)
 const GLOBAL = { rate: 200, burst: 400 };
 
 const ALLOWED = new Set([
@@ -22,7 +22,7 @@ const ALLOWED = new Set([
   "eth_getBlockByNumber", "eth_getBlockByHash", "eth_blockNumber", "eth_chainId",
 ]);
 
-/** Seau à jetons : `take(n)` vrai si n jetons sont disponibles. */
+/** Token bucket: `take(n)` is true if n tokens are available. */
 function bucket({ rate, burst }) {
   let tokens = burst, at = Date.now();
   return {
@@ -57,7 +57,7 @@ async function upstream(body) {
     const { done, value } = await reader.read();
     if (done) break;
     size += value.byteLength;
-    if (size > MAX_RESPONSE) { await reader.cancel(); throw new Error("réponse trop grande"); }
+    if (size > MAX_RESPONSE) { await reader.cancel(); throw new Error("response too large"); }
     chunks.push(value);
   }
   return { status: res.status, text: Buffer.concat(chunks, size).toString("utf8") };
@@ -79,22 +79,22 @@ createServer((rq, rs) => {
   let size = 0, tooBig = false;
   rq.on("data", (d) => { size += d.length; if (size > MAX_BODY) tooBig = true; else chunks.push(d); });
   rq.on("end", async () => {
-    if (tooBig) return json(rs, 413, rpcErr(null, -32600, "requête trop grande"));
+    if (tooBig) return json(rs, 413, rpcErr(null, -32600, "request too large"));
     let q;
     try { q = JSON.parse(Buffer.concat(chunks).toString("utf8")); } catch { return json(rs, 400, rpcErr(null, -32700, "JSON illisible")); }
     const items = Array.isArray(q) ? q : [q];
-    if (items.length === 0 || items.length > MAX_BATCH) return json(rs, 400, rpcErr(null, -32600, `lot de 1 à ${MAX_BATCH} requêtes`));
+    if (items.length === 0 || items.length > MAX_BATCH) return json(rs, 400, rpcErr(null, -32600, `batch of 1 to ${MAX_BATCH} requests`));
     for (const it of items) {
       if (!it || typeof it !== "object" || typeof it.method !== "string" || (it.params !== undefined && !Array.isArray(it.params))) {
-        return json(rs, 400, rpcErr(it?.id, -32600, "requête JSON-RPC mal formée"));
+        return json(rs, 400, rpcErr(it?.id, -32600, "malformed JSON-RPC request"));
       }
-      if (!ALLOWED.has(it.method)) return json(rs, 200, Array.isArray(q) ? items.map((x) => rpcErr(x?.id, -32601, "méthode non servie par la passerelle (lectures seulement)")) : rpcErr(it.id, -32601, "méthode non servie par la passerelle (lectures seulement)"));
+      if (!ALLOWED.has(it.method)) return json(rs, 200, Array.isArray(q) ? items.map((x) => rpcErr(x?.id, -32601, "method not served by the gateway (reads only)")) : rpcErr(it.id, -32601, "method not served by the gateway (reads only)"));
     }
-    // Caddy remplace X-Forwarded-For par l'IP réelle de la connexion (aucun proxy de confiance déclaré)
+    // Caddy replaces X-Forwarded-For with the connection's real IP (no trusted proxy declared)
     const ip = String(rq.headers["x-forwarded-for"] ?? rq.socket.remoteAddress ?? "?").split(",")[0].trim();
     let b = perIp.get(ip);
     if (!b) { b = bucket(PER_IP); perIp.set(ip, b); }
-    if (!b.take(items.length) || !global.take(items.length)) return json(rs, 429, rpcErr(null, -32005, "trop de requêtes (passerelle)"));
+    if (!b.take(items.length) || !global.take(items.length)) return json(rs, 429, rpcErr(null, -32005, "too many requests (gateway)"));
     try {
       const { status, text } = await upstream(JSON.stringify(q));
       rs.writeHead(status === 200 ? 200 : 502, { "content-type": "application/json", "cache-control": "no-store" });

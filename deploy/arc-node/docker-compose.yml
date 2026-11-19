@@ -1,11 +1,12 @@
-# Nœud d'Arc testnet d'ArcHive (10/11/2026), sur le VPS (/opt/arc-node), JAMAIS sur un poste : instantané d'≈ 84 Go.
-# Compose officiel de circlefin/arc-node v0.8.4 (deployments/docker-compose.yml), avec deux ajouts :
-#  1. instantané minimal + élagage sur mesure + --rpc.eth-proof-window=600000 : eth_getProof sur ≈ 3 jours de blocs, pour
-#     les preuves d'état du rejeu de la Prime scellée (les RPC publics ne les servent qu'au dernier bloc) ;
-#  2. rpc-gate : passerelle de LECTURE (liste fermée de méthodes, débit borné) publiée sur 172.17.0.1:8810 (pont Docker,
-#     jamais sur Internet) ; Caddy l'expose en https://archive.62-171-153-35.sslip.io/arc-rpc/.
-# Le nœud n'est PAS de confiance : l'enclave vérifie chaque preuve contre le stateRoot de l'en-tête ancré.
-# Installation : deploy/arc-node/install.sh (sur le serveur). Variables : .env à côté (ARC_HOME, images).
+# Optional: an Arc testnet node for the Sealed Bounty's state proofs, on the server (/opt/arc-node), never on a
+# workstation (about 84 GB of snapshot; it needs a disk of at least 450 GB, or an archive RPC instead).
+# Circle's official compose from circlefin/arc-node v0.8.4 (deployments/docker-compose.yml), with two additions:
+#  1. minimal snapshot + custom pruning + --rpc.eth-proof-window=600000: eth_getProof over about 3 days of blocks, for
+#     the state proofs of the Sealed Bounty's replay (public RPCs serve them only at the latest block);
+#  2. rpc-gate: a READ gateway (closed list of methods, bounded rate) published on 172.17.0.1:8810 (the Docker bridge,
+#     never on the Internet); Caddy's /arc-rpc/ route can point at it (deploy/Caddyfile).
+# The node is NOT trusted: the enclave checks every proof against the stateRoot of the anchored header.
+# Install: deploy/arc-node/install.sh (on the server). Variables: the .env next to it (ARC_HOME, images).
 # Docker Compose for running an Arc node in follow mode.
 #
 # Start:  docker compose up -d    (first run downloads snapshots)
@@ -38,9 +39,9 @@ services:
     command:
       - download
       - --chain=arc-testnet
-      # 11/11 : profil MINIMAL (état + en-têtes + petit tampon) : le profil full (≈ 270 Go avec le consensus) ne tient pas
-      # sur le disque de 290 Go du VPS (mesuré le 10/11 : arrêt par le garde-fou à 14 Go libres). Instantané épinglé sur
-      # la même date que le consensus déjà restauré (16 h 20 UTC le 10/11), pour ne pas retélécharger ses 120 Go.
+      # MINIMAL profile (state + headers + a small buffer): the full profile (about 270 GB with the consensus layer) does
+      # not fit a 290 GB disk (measured: stopped by the guard at 14 GB free). Snapshot pinned to the same date as the
+      # consensus layer's (16:20 UTC on 10 Nov 2026), so its 120 GB are not downloaded again.
       - --el-profile=minimal
       - --execution-url=https://snapshots.arc.network/api/download/testnet/storage-v2/archive/71734683-20261110T1620Z/execution/manifest.json
       - --consensus-url=https://snapshots.arc.network/api/download/testnet/storage-v2/archive/71734683-20261110T1620Z/consensus.tar.lz4
@@ -81,9 +82,9 @@ services:
       - node
       - --chain=arc-testnet
       - --datadir=/data/execution
-      # 11/11 : élagage sur mesure (au lieu de --full) : ce qui ne sert pas aux preuves est élagué ; l'historique des comptes
-      # et du stockage est gardé sur 600 000 blocs (≈ 3 jours à ≈ 0,46 s/bloc : toute la fenêtre de réfutation de la Prime,
-      # ≈ 0,5 Go), et les preuves d'état sont servies sur cette fenêtre
+      # custom pruning (instead of --full): what proofs do not need is pruned; account and storage history is kept for
+      # 600,000 blocks (about 3 days at about 0.46 s per block: the Bounty's whole refutation window, about 0.5 GB), and
+      # state proofs are served over that window
       - --prune.sender-recovery.full
       - --prune.transaction-lookup.full
       - --prune.receipts.full
@@ -144,7 +145,7 @@ services:
         condition: service_started
     restart: unless-stopped
 
-  # Passerelle de lecture vers le nœud (deploy/arc-node/rpc-gate.mjs) : seule entrée publique, via Caddy
+  # Read gateway to the node (deploy/arc-node/rpc-gate.mjs): the only public entry, through Caddy
   rpc-gate:
     image: node:22-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d
     user: "1000:1000"
