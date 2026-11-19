@@ -1,17 +1,17 @@
 /**
- * levels-setup.ts — met en place les DEUX NIVEAUX d'opérateur sur la pile v2.1 (10/11/2026), sans rien
- * redéployer de l'existant :
- *   1. MachineRegistry       : liaison enclave → machine (PPID du certificat Intel), déclarations des vérificateurs,
- *                              politique de niveau de chaque produit ;
- *   2. Ed25519Verifier       : vérification Ed25519 (Smooth CryptoLib, auditée) ;
- *   3. ProofOfCloudAuditor   : vérificateur sans confiance : la signature de l'alliance Proof of Cloud, vérifiée on-chain ;
- *   4. PolicyEnclaves        : le registre vu à travers la politique de chaque produit (pour les contrats de règlement) ;
- *   5. SealedBounty (niveau vérifié) : le MÊME code que la Prime en service, branché sur PolicyEnclaves ; puis
- *      proposeSettlement (OperatorBond) et proposeCaller (VerdictLog) : il ne pourra saisir une caution et écrire un
- *      verdict qu'après le délai de 8 jours (applySettlement / applyCaller, ouverts à tous, à appeler ensuite).
- * Clé du déployeur (propriétaire), jamais affichée. Idempotent : ce qui est déjà déployé (section `levels` du fichier de
- * déploiement, code présent on-chain) n'est pas refait. DRY=1 : n'envoie rien, dit ce qui serait fait.
- * Usage : cd enclave && npx tsx scripts/levels-setup.ts
+ * levels-setup.ts — sets up the two operator levels on the v2.1 stack (10 Nov 2026), without redeploying anything
+ * already in place:
+ *   1. MachineRegistry       : enclave → machine binding (PPID from Intel's certificate), verifiers' declarations,
+ *                              each product's level policy;
+ *   2. Ed25519Verifier       : Ed25519 verification (Smooth CryptoLib, audited);
+ *   3. ProofOfCloudAuditor   : a trustless verifier: the Proof of Cloud alliance's signature, verified on-chain;
+ *   4. PolicyEnclaves        : the registry seen through each product's policy (for the settlement contracts);
+ *   5. SealedBounty (verified level): the same code as the Sealed Bounty in service, wired to PolicyEnclaves; then
+ *      proposeSettlement (OperatorBond) and proposeCaller (VerdictLog): it can seize a bond and write a verdict only
+ *      after the 8-day delay (applySettlement / applyCaller, open to anyone, called afterwards).
+ * Deployer key (the owner), never printed. Idempotent: what is already deployed (the `levels` section of the deployment
+ * file, code present on-chain) is not redone. DRY=1: sends nothing and says what would be done.
+ * Usage: cd enclave && npx tsx scripts/levels-setup.ts
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { createPublicClient, createWalletClient, http, type Abi, type Address, type Hex } from "viem";
@@ -45,21 +45,21 @@ async function hasCode(a?: string) {
 
 async function deploy(key: string, file: string, name: string, args: unknown[]) {
   if (await hasCode(L[key])) {
-    console.log(`${key} : déjà déployé ${L[key]}`);
+    console.log(`${key}: already deployed ${L[key]}`);
     return L[key] as Address;
   }
   if (DRY) {
-    console.log(`[DRY] déploierait ${name}(${args.map(String).join(", ")})`);
+    console.log(`[DRY] would deploy ${name}(${args.map(String).join(", ")})`);
     return "0x0000000000000000000000000000000000000000" as Address;
   }
   const { abi, bytecode } = art(file, name);
   const hash = await wallet.deployContract({ abi, bytecode, args } as any);
   const r = await pub.waitForTransactionReceipt({ hash });
-  if (r.status !== "success" || !r.contractAddress) throw new Error(`${name} : déploiement échoué`);
+  if (r.status !== "success" || !r.contractAddress) throw new Error(`${name}: deployment failed`);
   L[key] = r.contractAddress;
   L.txs[key] = hash;
   save();
-  console.log(`${key} : ${r.contractAddress} (tx ${hash}, gaz ${r.gasUsed})`);
+  console.log(`${key}: ${r.contractAddress} (tx ${hash}, gas ${r.gasUsed})`);
   return r.contractAddress as Address;
 }
 
@@ -71,10 +71,10 @@ async function send(label: string, address: Address, abi: Abi, fn: string, args:
   const { request } = await pub.simulateContract({ account: deployer, address, abi, functionName: fn, args } as any);
   const hash = await wallet.writeContract(request as any);
   const r = await pub.waitForTransactionReceipt({ hash });
-  if (r.status !== "success") throw new Error(`${label} : échec`);
+  if (r.status !== "success") throw new Error(`${label}: failed`);
   L.txs[label] = hash;
   save();
-  console.log(`${label} : tx ${hash}`);
+  console.log(`${label}: tx ${hash}`);
 }
 
 function save() {
@@ -82,7 +82,7 @@ function save() {
 }
 
 async function main() {
-  console.log(`déployeur ${deployer.address} ; registre ${K.EnclaveRegistry} ; produits ${K.ProductRegistry}`);
+  console.log(`deployer ${deployer.address}; registry ${K.EnclaveRegistry}; products ${K.ProductRegistry}`);
   const machines = await deploy("MachineRegistry", "MachineRegistry", "MachineRegistry", [K.EnclaveRegistry, K.ProductRegistry]);
   const ed = await deploy("Ed25519Verifier", "Ed25519Verifier", "Ed25519Verifier", []);
   const poc = await deploy("ProofOfCloudAuditor", "ProofOfCloudAuditor", "ProofOfCloudAuditor", [
@@ -98,7 +98,7 @@ async function main() {
     X.USDC, K.ProductRegistry, view, K.OperatorBond, K.VerdictLog, treasury, nb, ob,
   ]);
 
-  // un nouveau contrat de règlement : 8 jours avant de pouvoir saisir une caution ou écrire un verdict
+  // a new settlement contract: 8 days before it can seize a bond or write a verdict
   const bondAbi = art("OperatorBond", "OperatorBond").abi;
   const verdictAbi = art("VerdictLog", "VerdictLog").abi;
   if (!DRY) {
@@ -112,11 +112,11 @@ async function main() {
     L.callerApplyAt = Number(await pub.readContract({ address: K.VerdictLog!, abi: verdictAbi, functionName: "callerApplyAt", args: [bounty] }).catch(() => 0n));
   }
   L.allianceKey = POC.allianceKey;
-  L.note = "Deux niveaux d'opérateur (10/11/2026) : MachineRegistry (liaison enclave → puce PPID, déclarations, politiques), " +
-    "ProofOfCloudAuditor (jeton EdDSA de l'alliance Proof of Cloud vérifié on-chain), PolicyEnclaves (registre vu à travers la " +
-    "politique du produit), SealedBountyVerified (même code que SealedBounty, branché sur PolicyEnclaves ; saisies et verdicts " +
-    "après le délai de 8 jours de OperatorBond / VerdictLog).";
+  L.note = "Two operator levels (10 Nov 2026): MachineRegistry (enclave → PPID chip binding, declarations, policies), " +
+    "ProofOfCloudAuditor (the Proof of Cloud alliance's EdDSA token verified on-chain), PolicyEnclaves (the registry seen " +
+    "through the product's policy), SealedBountyVerified (the same code as SealedBounty, wired to PolicyEnclaves; seizures " +
+    "and verdicts after the 8-day delay of OperatorBond / VerdictLog).";
   save();
-  console.log(`\nfait. Saisies possibles après ${L.settlementApplyAt ? new Date(L.settlementApplyAt * 1000).toISOString() : "?"} ; verdicts après ${L.callerApplyAt ? new Date(L.callerApplyAt * 1000).toISOString() : "?"}`);
+  console.log(`\ndone. Seizures possible after ${L.settlementApplyAt ? new Date(L.settlementApplyAt * 1000).toISOString() : "?"}; verdicts after ${L.callerApplyAt ? new Date(L.callerApplyAt * 1000).toISOString() : "?"}`);
 }
-main().catch((e) => { console.error("ÉCHEC :", e?.shortMessage ?? e?.message ?? e); process.exit(1); });
+main().catch((e) => { console.error("FAILED:", e?.shortMessage ?? e?.message ?? e); process.exit(1); });
