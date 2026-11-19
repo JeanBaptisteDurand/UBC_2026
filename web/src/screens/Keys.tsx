@@ -31,8 +31,8 @@ function CreateKey({ onCreated, onConfirmed }: { onCreated: (aek: string) => voi
   const [deposit, setDeposit] = useState("2");
   const [hours, setHours] = useState("24");
   const [out, setOut] = useState<Msg | null>(null);
-  // v2 : la clé est adossée à une session VERROUILLÉE sur l'enclave que le mandataire appellera (ENCLAVE_URL),
-  // dont la clé est d'abord confrontée à la chaîne
+  // the key is backed by a session LOCKED to the enclave the proxy will call (ENCLAVE_URL), whose key is first checked
+  // against the chain
   const [check, recheck] = useVerifiedEnclave(arc, ENCLAVE_URL, INFERENCE_PRODUCT);
   async function create() {
     if (!arc || check.state !== "ok") return;
@@ -102,7 +102,7 @@ function SessionRow({ s, onChanged, onNewKey }: { s: Session; onChanged: () => v
   }
   async function close(): Promise<Msg> {
     if (!arc) throw new MsgError(msg("err.connectWallet"));
-    // v2 : clôture à l'échéance + 1 h de grâce (dernier règlement possible), ou plus tôt si l'enclave ne peut plus régler
+    // close at expiry + 1 h of grace (the last possible settlement), or earlier if the enclave can no longer settle
     const c = await arc.sessionClosability(s.id);
     if (!c.closableNow) {
       throw new MsgError(msg("keys.tooEarly", { when: () => fmtUnix(c.atTime) }));
@@ -110,7 +110,7 @@ function SessionRow({ s, onChanged, onNewKey }: { s: Session; onChanged: () => v
     const hash = await arc.closeSession(s.id);
     setNote(msg("keys.closeConfirming"));
     const rcpt = await waitOk(arc, hash, "tx.closeSession");
-    // v2.1 : la fermeture dit ce qu'est devenu le verdict ERC-8004 (écrit, sans objet faute de paiement, ou sauté)
+    // v2.1: closing tells what became of the ERC-8004 verdict (written, not applicable without a payment, or skipped)
     const o = closeOutcome(rcpt.logs);
     return o.outcome === "written" ? msg("keys.closed", { tx: hash })
       : o.outcome === "not_applicable" ? msg("keys.closedNoVerdict", { tx: hash })
@@ -147,14 +147,14 @@ function SessionRow({ s, onChanged, onNewKey }: { s: Session; onChanged: () => v
   );
 }
 
-/** Clés opérateur (arcop_) : pour l'agent archive-node, la CLI et le serveur MCP. Elles rendent compte et
- *  diagnostiquent ; elles ne peuvent ni dépenser ni retirer la caution (seul le wallet signe). Leurs vrais libellés
- *  sont réservés à l'opérateur : la signature de lecture (10 min, partagée avec la page Opérateur) les affiche. */
+/** Operator keys (arcop_): for the archive-node agent, the CLI and the MCP server. They report and diagnose; they can
+ *  neither spend nor withdraw the bond (only the wallet signs). Their real labels are reserved to the operator: the read
+ *  signature (10 min, shared with the Operator page) shows them. */
 function OperatorKeys({ address }: { address: string }) {
   const arc = useArc();
   const read = useReadAccess(address);
   const [keys, setKeys] = useState<OperatorKey[] | null>(null);
-  // null : le nom proposé, dans la langue du moment (tant que l'utilisateur n'a rien tapé)
+  // null: the suggested name, in the current language (until the user types something)
   const [typed, setLabel] = useState<string | null>(null);
   const label = typed ?? t("keys.op.defaultLabel");
   const [fresh, setFresh] = useState("");
@@ -184,7 +184,7 @@ function OperatorKeys({ address }: { address: string }) {
     catch (e: any) { setNote(fail(e)); }
   }
   const masked = !read && !!keys?.some((k) => k.restricted);
-  // vue publique : l'API remplace le vrai libellé par un libellé générique (en français) ; on le dit dans la langue du site
+  // public view: the API replaces the real label with a generic one (in French); the site says it in its own language
   const labelOf = (k: OperatorKey) => (k.restricted ? t(k.machineId ? "keys.op.machineKey" : "keys.op.freeKey") : k.label);
   return (
     <Section title={t("keys.op.title")} lead={t("keys.op.lead")}
@@ -242,7 +242,7 @@ export default function Keys() {
         </>
       )}
       <Section title={t("keys.loop.title")} lead={t("keys.loop.lead")}>
-        {/* grid-cols-1 et min-w-0 : sur téléphone, le code défile dans son cadre au lieu d'élargir la page */}
+        {/* grid-cols-1 and min-w-0: on a phone, code scrolls inside its frame instead of widening the page */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div className="min-w-0">
             <div className="mb-1.5 text-[13px] text-muted">{t("keys.loop.step1")}</div>

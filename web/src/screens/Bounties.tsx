@@ -4,10 +4,10 @@ import { PageHeader, Section, Table, Td, Badge, Btn, Hex, usdc, Empty } from "..
 import { fmtUnix, t } from "../i18n";
 import { BountyLevelBadge, CreditNotice, DEMO_PREDICATE_HASH, HunterPanel } from "./Bounty";
 
-/** 19/11 : les primes des DEUX niveaux (ouvert : SealedBounty ; vérifié : SealedBountyVerified, produit 7), lues dans
- *  /bounties?level=all. Une prime se désigne par son niveau ET son numéro (« verified:2 ») : les numéros existent aux
- *  deux niveaux. Ce qui a été payé vient des BountyPaid (paidOut), jamais du champ paidAmount (une réclamation réfutée
- *  le garde à 0,5 USDC sans rien avoir payé). */
+/** Bounties at BOTH levels (open: SealedBounty; verified: SealedBountyVerified, product 7), read from
+ *  /bounties?level=all. A bounty is identified by its level AND its number ("verified:2"): numbers exist at both levels.
+ *  What was paid comes from BountyPaid events (paidOut), never from the paidAmount field (a refuted claim leaves it at
+ *  0.5 USDC without anything paid). */
 export default function Bounties({ go }: { go: (r: string) => void }) {
   const [rows, setRows] = useState<Bounty[] | null>(null);
   const [pick, setPick] = useState("");
@@ -15,8 +15,8 @@ export default function Bounties({ go }: { go: (r: string) => void }) {
   useEffect(() => {
     fetchBounties().then((b) => {
       setRows(b);
-      // on ne pré-sélectionne qu'une prime qu'on peut chasser : ouverte, et de préférence une prime de démonstration
-      // (règle DemoVault) dont aucun palier n'est encore réservé ni payé
+      // only a bounty that can be hunted is preselected: open, and preferably a demo bounty (DemoVault rule) with no tier
+      // reserved or paid yet
       const open = b.filter((x) => !x.paused && x.deadline >= now);
       const demo = (x: Bounty) => x.predicateHash?.toLowerCase() === DEMO_PREDICATE_HASH.toLowerCase();
       const fresh = (x: Bounty) => x.paidAmount === 0n && !(x.paidOut && x.paidOut > 0n);
@@ -25,7 +25,7 @@ export default function Bounties({ go }: { go: (r: string) => void }) {
     }).catch(() => setRows([]));
   }, []);
   const picked = rows?.find((b) => bountyKey(b) === pick) ?? null;
-  /** choisir une prime à chasser : son panneau est sous la liste, on y descend (sur téléphone, il est loin) */
+  /** pick a bounty to hunt: its panel is below the list, so the page scrolls down to it (far away on a phone) */
   const hunt = (b: Bounty) => {
     setPick(bountyKey(b));
     setTimeout(() => document.getElementById("hunt")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
@@ -44,14 +44,14 @@ export default function Bounties({ go }: { go: (r: string) => void }) {
           head={[t("bounties.h.bounty"), t("bounties.h.protocol"), t("bounties.h.pool"), t("bounties.h.deadline"), t("bounties.h.status"), ""]}
           empty={rows && rows.length === 0 ? <Empty action={<Btn onClick={() => go("publier-prime")}>{t("bounties.postFirst")}</Btn>}>{t("bounties.empty")}</Empty> : undefined}
         >
-          {/* 19/11 (r2) : la place de la liste est gardée pendant la lecture (une ligne seule, puis quatre cartes, faisait
-              sauter la page sur téléphone) */}
+          {/* the list keeps its space while loading (so the page does not jump on a phone when one line turns into four
+              cards) */}
           {!rows && <tr><Td className="h-[60vh] !align-top text-muted sm:h-56">{t("bounties.loading")}</Td></tr>}
           {rows?.map((b) => {
             const key = bountyKey(b);
             const expired = b.deadline < now;
             const paid = b.paidOut !== null && b.paidOut > 0n;
-            // réfutée : une réclamation acceptée puis réfutée sur Arc, et rien de versé (la caution du menteur est saisie)
+            // refuted: a claim accepted then refuted on Arc, and nothing paid (the liar's bond is seized)
             const refuted = b.claimsRefuted > 0 && !paid;
             return (
               <tr key={key} className={pick === key ? "bg-accent/5" : "hover:bg-panel/60"}>
@@ -70,7 +70,7 @@ export default function Bounties({ go }: { go: (r: string) => void }) {
                     {refuted && <span title={t("bounties.refutedTitle")}><Badge tone="bad">{t("bounties.refuted")}</Badge></span>}
                   </span>
                 </Td>
-                {/* rien à faire sur une prime échue ou en pause : son état est déjà dit (pas de ligne « clôturée » seule) */}
+                {/* nothing to do on an expired or paused bounty: its state is already shown (no lone "closed" line) */}
                 <Td actions>{!b.paused && !expired
                   ? <Btn kind={pick === key ? "primary" : "ghost"} onClick={() => hunt(b)}>{t("bounties.hunt")}</Btn>
                   : null}</Td>

@@ -6,8 +6,8 @@ import { getLang, t, tx, type StaticKey } from "../i18n";
 import type { LevelsView } from "../api";
 import { useLevels } from "./Levels";
 
-/** Les routes de l'API de lecture ; 19/11 : + les deux niveaux de primes, la chaîne d'une enclave donnée, un produit,
- *  la vérification d'un reçu (POST : décrite, pas de lien), l'état de l'index et la santé. */
+/** The read API's routes, including both bounty levels, the proof chain of a given enclave, a product, the check of a
+ *  receipt (POST: described, no link), the index status and the health check. */
 const ENDPOINTS: Array<[string, StaticKey, ("GET" | "POST")?]> = [
   ["/stats", "dev.ep.stats"],
   ["/proof", "dev.ep.proof"],
@@ -37,7 +37,7 @@ const CONTRACTS: Array<[string, string, StaticKey]> = [
   ["DemoVault", testnet.demoVault, "dev.c.vault"],
 ];
 
-/** 16/11 : les contrats des deux niveaux d'opérateur ; leurs adresses viennent de GET /levels. */
+/** The contracts of the two operator levels; their addresses come from GET /levels. */
 const LEVEL_CONTRACTS: Array<[string, keyof NonNullable<LevelsView["contracts"]>, StaticKey]> = [
   ["MachineRegistry", "machineRegistry", "dev.c.machines"],
   ["ProofOfCloudAuditor", "proofOfCloudAuditor", "dev.c.poc"],
@@ -54,7 +54,7 @@ const ROUTES: Array<[string, string, StaticKey]> = [
   ["GET", "/v1/session/:id", "dev.r.session"],
 ];
 
-// adresse publique de l'opérateur de démo (a des sessions), pour l'exemple de lecture
+// public address of the demo operator (it has sessions), for the read example
 const DEMO_OWNER = "0x5724d89D610c3017b8DC161c025248341556f6Ab";
 
 function Code({ children }: { children: string }) {
@@ -76,7 +76,7 @@ export default function Developers() {
           ))}
         </Table>
       </Section>
-      {/* grid-cols-1 (et min-w-0 des sections) : sur téléphone, le code défile dans son cadre au lieu d'élargir la page */}
+      {/* grid-cols-1 (and the sections' min-w-0): on a phone, code scrolls inside its frame instead of widening the page */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Section title={t("dev.sdk.title")} lead={t("dev.sdk.lead")}>
           <Code>{`import { createArcClient, createInferenceClient } from "@arcvault/sdk";
@@ -105,8 +105,8 @@ arcvault proxy --key aek_… --enclave <url>   # ${t("dev.cli.proxy")}
 arcvault verify <${t("dev.cli.receipt")}>${" ".repeat(Math.max(1, 27 - t("dev.cli.receipt").length))}# ${t("dev.cli.verify")}`}</Code>
         </Section>
       </div>
-      {/* les deux rails de la pile v2.1 : l'inférence payée à l'appel (produit 3) et le copilote attesté (produit 4) ;
-          les adresses sont celles de ce déploiement quand elles sont configurées (VITE_X402_URL, VITE_COPILOT_*) */}
+      {/* the two rails of the v2.1 stack: inference paid per call (product 3) and the attested copilot (product 4); the
+          addresses are this deployment's when they are configured (VITE_X402_URL, VITE_COPILOT_*) */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Section title={t("dev.x402.title")} lead={t("dev.x402.lead")}>
           <Code>{`import { createX402Client, X402PaidCallError, testnet } from "@arcvault/sdk";
@@ -150,7 +150,7 @@ if (r.authenticated) {
         </Section>
       </div>
       <Section title={t("dev.mcp.title")} lead={t("dev.mcp.lead")}>
-        {/* le serveur MCP en ligne (Streamable HTTP, sans état) : d'abord l'adresse, puis la variante locale */}
+        {/* the hosted MCP server (Streamable HTTP, stateless): first its address, then the local variant */}
         <Code>{`{
   "mcpServers": {
     "archive": { "url": "https://archive.62-171-153-35.sslip.io/mcp" }

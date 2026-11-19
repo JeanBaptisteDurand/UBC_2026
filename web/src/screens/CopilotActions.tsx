@@ -1,7 +1,7 @@
-/** CopilotActions.tsx — « préparer → signer » : le copilote prépare une action (il ne dépense jamais),
- *  le site l'affiche avec ses vérifications et un bouton, et c'est le wallet de l'utilisateur qui signe.
- *  Une vérification échouée (solde, caution, produit inactif, quote refusé…) bloque la signature, quelle que soit
- *  l'action : la transaction serait refusée. */
+/** CopilotActions.tsx — "prepare → sign": the copilot prepares an action (it never spends), the site shows it with its
+ *  checks and a button, and the user's own wallet signs it. A failed check (balance, bond, inactive product, quote
+ *  refused…) blocks the signature, whatever the action: the transaction would be refused.
+ *  Field names come from the copilot's JSON protocol (aCompleter = fields still to fill in, produit = product). */
 import { useState } from "react";
 import { isAddress, type Address, type Hex } from "viem";
 import { encodeAek, maskAek } from "@arcvault/sdk";
@@ -15,10 +15,10 @@ import { t } from "../i18n";
 
 export interface CopilotAction { tool: string; input: any; result: any }
 
-/** Une adresse préparée par le copilote, ou undefined si c'est un gabarit (« <signataire de l'enclave choisie> »). */
+/** An address prepared by the copilot, or undefined if it is a template ("<signer of the chosen enclave>"). */
 const addr = (x: unknown): Address | undefined => (typeof x === "string" && isAddress(x, { strict: false }) ? (x as Address) : undefined);
 
-/** Les vérifications faites par le copilote en préparant l'action (`verifications: [{ ok, quoi }]`), telles qu'il les écrit. */
+/** The checks the copilot made while preparing the action (`verifications: [{ ok, quoi }]`), as it writes them. */
 function checksOf(a: CopilotAction): Array<{ ok: boolean; what: string }> {
   const v = a.result?.verifications;
   return Array.isArray(v) ? v.filter((x) => x && typeof x.quoi === "string").map((x) => ({ ok: x.ok === true, what: String(x.quoi) })) : [];
@@ -32,7 +32,7 @@ function describe(a: CopilotAction): { title: string; lines: string[]; ready: bo
   switch (a.tool) {
     case "session_prepare_open": {
       const p = r.openSessionParams ?? {};
-      // v2 : la session est verrouillée sur UNE enclave (son signataire), servie par l'adresse d'inférence du site
+      // the session is locked to ONE enclave (its signer), served at the site's inference address
       const ok = !!addr(p.operator) && !!addr(p.enclave);
       return {
         title: t("action.session.title"),
@@ -74,7 +74,7 @@ export function ActionCard({ a }: { a: CopilotAction }) {
   const [note, setNote] = useState<Msg | null>(null);
   const [aek, setAek] = useState("");
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState(false); // signée et confirmée : on ne la resigne pas par mégarde
+  const [done, setDone] = useState(false); // signed and confirmed: it is not signed again by mistake
   const d = describe(a);
   const checks = checksOf(a);
   const warnings = warningsOf(a);
@@ -90,7 +90,7 @@ export function ActionCard({ a }: { a: CopilotAction }) {
       if (a.tool === "session_prepare_open") {
         const p = r.openSessionParams;
         const secs = Math.max(3600, Number(p.expiresAt) - Math.floor(Date.now() / 1000));
-        // la clé de l'enclave servie par l'adresse d'inférence du site est vérifiée sur Arc ; elle doit être l'enclave préparée
+        // the key of the enclave served at the site's inference address is verified on Arc; it must be the prepared enclave
         const o = await arc.openSession({
           productId: BigInt(p.productId), deposit: BigInt(p.deposit), expiresInSeconds: secs,
           enclaveUrl: ENCLAVE_URL, enclave: addr(p.enclave), operator: addr(p.operator),
