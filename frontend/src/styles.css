@@ -884,3 +884,5 @@ html.veil-none body::after { display: none; }
 /* Phones: a chapter link inside the Doc's text (Tokenomics' "The numbers"...) gets a 44 px tall hit area; padding on an
    inline link leaves the lines where they are */
 @media (max-width: 760px) { .doc-b a.tlink[data-doc-ch] { padding-block: 11px; } }
+/* Phones: the bounty sheet's "Hunt a bounty, or follow yours, in My space" is 44 px tall to the thumb */
+@media (max-width: 760px) { .vt-use-alt .tlink { display: inline-flex; align-items: center; min-height: 44px; } }
