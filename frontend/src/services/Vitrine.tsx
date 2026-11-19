@@ -188,6 +188,9 @@ function useLiveFill(root: React.RefObject<HTMLDivElement | null>, key: string) 
     if (!el) return
     // before the catalog is read (or while the API does not answer), nothing is said as if read: quiet lamps, "Reading"
     const wait = !rows
+    // the column's content can be laid again just after it arrives (a sheet's parts, the motion of its blocks): the
+    // live words are written now and once more when it has settled
+    const fill = () => {
     const running = (ids: string[]) => (rows ?? []).filter((r) => ids.includes(r.p.id)).reduce((a, r) => a + r.running, 0)
     // a sled face (#2 #7 in its unit line): green and "Running" while one of its products runs
     el.querySelectorAll<HTMLElement>('.vit-face').forEach((f) => {
@@ -223,6 +226,10 @@ function useLiveFill(root: React.RefObject<HTMLDivElement | null>, key: string) 
     }
     // the introduction's lines that name the running products (the state of 19 November), read live
     if (key === 'intro') fillRuns(el, rows ? rows.filter((r) => r.running > 0 && !isSupersededRow(r)).map((r) => r.p.id).sort((a, b) => Number(a) - Number(b)) : null, lang)
+    }
+    fill()
+    const a = setTimeout(fill, 400), b = setTimeout(fill, 1400)
+    return () => { clearTimeout(a); clearTimeout(b) }
   }, [root, key, lang, rows, status])
   useEffect(() => {
     const el = root.current
