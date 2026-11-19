@@ -13,6 +13,10 @@ export function productName(p: ProductView): { name: string; rail: string; route
   // sans contrat de règlement : service gratuit (le copilote attesté, produit 4)
   if (s === "0x0000000000000000000000000000000000000000") return { name: t("prod.name.copilot"), rail: t("prod.rail.free"), route: "vue" };
   if (s === testnet.sessionPay.toLowerCase()) return { name: t("prod.name.inference"), rail: t("prod.rail.session"), route: "playground" };
+  // les deux SealedBountyVerified (deployments.v21.testnet.json) : produit 7 (niveau vérifié), et l'ancien produit 6,
+  // neutralisé le 12/11 (faille corrigée) et remplacé par le 7
+  if (s === "0x36a8ddf9fcb1308b9e86425bec9b098e933c7348") return { name: t("prod.name.bountyVerified"), rail: "SealedBountyVerified", route: "primes" };
+  if (s === "0x242ca1c4d0a5a6fe5a806f215ca5f127422364d2") return { name: t("prod.name.bountyOld"), rail: "SealedBountyVerified (v1)", route: "primes" };
   return { name: t("prod.name.other"), rail: s.slice(0, 10) + "…", route: "produits" };
 }
 

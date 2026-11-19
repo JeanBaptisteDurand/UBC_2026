@@ -14,6 +14,12 @@ import { stateLabel } from "./Products";
 import { RefillBox, ReceiptPanel, type LastReceipt, type Refill } from "./Chat";
 import { LevelBadge, useLevels } from "./Levels";
 
+/** 16/11 : l'enclave de la démo de réfutation (produit 5, prime n° 2) : sa réclamation a été réfutée sur Arc et la caution
+ *  de son opérateur saisie (bloc 71620138). Ces événements sont trop anciens pour la fenêtre de /activity : écrits ici. */
+const REFUTED: Record<string, string> = {
+  "0xedc7df91392c40c89955249006c1fa47bc34e497": "0x0ffca5433186735bf5525e525995f3589d842681da8ffcaa82acb5993025051f",
+};
+
 /** Le message de test envoyé à l'enclave, dans la langue du site. */
 const testMessages = (): ChatMessage[] => [{ role: "user", content: t("hive.testPrompt") }];
 
@@ -56,12 +62,15 @@ export default function Hive() {
         {encs.map((e) => {
           const p = products.get(e.productId.toString());
           const on = e.active;
+          const liar = REFUTED[e.signer.toLowerCase()];
           return (
             <button key={e.signer} onClick={() => setSel(e)}
               className={`rounded-xl border p-4 text-left transition ${sel?.signer === e.signer ? "border-accent bg-accent/10" : on ? "border-good/40 bg-good/5 hover:border-good/70" : "border-edge bg-panel opacity-60 hover:opacity-80"}`}>
               <div className="flex items-center justify-between">
                 <span className={`hex block h-7 w-7 ${on ? "bg-good" : "bg-edge"}`} aria-hidden />
-                <Badge tone={on ? "good" : "muted"}>{on ? t("common.active") : t("hive.expired")}</Badge>
+                {liar && !on
+                  ? <span title={t("hive.refuted.title")}><Badge tone="bad">{t("hive.refuted")}</Badge></span>
+                  : <Badge tone={on ? "good" : "muted"}>{on ? t("common.active") : t("hive.expired")}</Badge>}
               </div>
               <div className="mt-2 text-sm font-medium">{t("common.Product", { id: e.productId.toString() })}</div>
               <Mono>{e.signer.slice(0, 10)}…</Mono>
