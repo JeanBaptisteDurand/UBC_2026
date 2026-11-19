@@ -1,0 +1,14 @@
+/* The Bridge entry of the main navigation (MainNav.tsx): open with a wallet connected, greyed out without one. The
+   reason shows on hover or focus in the header row, and in plain text in the phone menu. */
+.nav-br[aria-disabled='true'] { color: var(--ink3); opacity: 0.6; cursor: not-allowed; }
+.nav-br[aria-disabled='true']::before, .nav-br[aria-disabled='true']::after { display: none; }
+.nav-br .nav-br-h { display: none; }
+.hd-nav .nav-br[aria-disabled='true'] { position: relative; }
+.hd-nav .nav-br[aria-disabled='true'] .nav-br-h {
+  display: block; position: absolute; top: calc(100% + 4px); right: 0; z-index: 5; white-space: nowrap; padding: 6px 10px;
+  background: var(--bg); color: var(--ink2); font-size: 12px; line-height: 1.3; box-shadow: inset 0 0 0 1px var(--rule2);
+  opacity: 0; pointer-events: none; transition: opacity var(--t2) var(--productive);
+}
+.hd-nav .nav-br[aria-disabled='true']:hover .nav-br-h, .hd-nav .nav-br[aria-disabled='true']:focus-visible .nav-br-h { opacity: 1; }
+.hd-drawer .nav-br[aria-disabled='true'] { flex-wrap: wrap; align-items: baseline; gap: 0 12px; padding: 10px 0; opacity: 1; }
+.hd-drawer .nav-br[aria-disabled='true'] .nav-br-h { display: inline; font-size: 13px; color: var(--ink3); }

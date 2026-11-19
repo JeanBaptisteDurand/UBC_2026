@@ -4,12 +4,17 @@
 import { useEffect, useState } from 'react'
 import { t } from '../i18n'
 import { link, networkFor } from '../links'
+import { useWallet } from '../network/actions/store'
+import { bt, BRIDGE_HREF } from '../bridge/strings'
+import '../bridge/nav.css'
 
-type Cur = 'home' | 'network' | 'catalog' | 'use' | 'rent' | 'publish' | 'doc' | ''
+type Cur = 'home' | 'network' | 'catalog' | 'use' | 'rent' | 'publish' | 'doc' | 'bridge' | ''
 const PARTS = ['use', 'rent', 'publish'] as const
 
-export function MainNav({ page }: { page: 'home' | 'network' | 'catalog' | 'doc' | 'other' }) {
-  const [cur, setCur] = useState<Cur>(page === 'home' ? 'home' : page === 'catalog' ? 'catalog' : page === 'doc' ? 'doc' : '')
+export function MainNav({ page }: { page: 'home' | 'network' | 'catalog' | 'doc' | 'bridge' | 'other' }) {
+  const [cur, setCur] = useState<Cur>(page === 'home' ? 'home' : page === 'catalog' ? 'catalog' : page === 'doc' ? 'doc' : page === 'bridge' ? 'bridge' : '')
+  const w = useWallet()
+  const walletOn = w.phase === 'connected' && !!w.address
   useEffect(() => {
     if (page !== 'network') return
     const col = document.getElementById('col')
@@ -37,6 +42,12 @@ export function MainNav({ page }: { page: 'home' | 'network' | 'catalog' | 'doc'
       {/* the documentation: how Arc checks every machine, chapter by chapter; the same menu on every page, the
           landing included (owner, 19/11) */}
       <a href={link.doc} {...at('doc')}>Doc</a>
+      {/* the bridge (CCTP, USDC from another testnet to Arc), at the right end: open only with a wallet connected */}
+      {walletOn ? (
+        <a className="nav-br" href={BRIDGE_HREF} {...at('bridge')} title={bt('nav.t')}>{bt('nav')}</a>
+      ) : (
+        <a className="nav-br" role="link" aria-disabled="true" tabIndex={0} title={bt('nav.off')} onClick={(e) => e.preventDefault()}>{bt('nav')}<span className="nav-br-h">{bt('nav.off')}</span></a>
+      )}
     </>
   )
 }
