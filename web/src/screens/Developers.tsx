@@ -163,9 +163,9 @@ claude mcp add --transport http archive https://archive.62-171-153-35.sslip.io/m
         <Code>{`{
   "mcpServers": {
     "archive": {
-      "command": "npx",
-      "args": ["tsx", "<${t("dev.mcp.repo")}>/services/mcp/src/server.ts"],
-      "env": { "ARCHIVE_API": "${api}" }
+      "command": "npm",
+      "args": ["--silent", "--prefix", "<${t("dev.mcp.repo")}>/services/mcp", "start"],
+      "env": { "ARCHIVE_API": "https://archive.62-171-153-35.sslip.io/api" }
     }
   }
 }`}</Code>

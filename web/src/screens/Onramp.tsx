@@ -89,7 +89,7 @@ export default function Onramp() {
                 </div>
               ))}
             </div>
-            <p className="mt-3 text-xs text-muted">{tx("onramp.note", { burn: <Mono>depositForBurn</Mono>, mint: <Mono>receiveMessage</Mono>, messenger: <Mono>tokenMessenger</Mono> })}</p>
+            <p className="mt-3 text-xs text-muted">{tx("onramp.note", { burn: <Mono>depositForBurn</Mono>, mint: <Mono>receiveMessage</Mono>, link: <a href="/bridge.html" className="text-accent underline">/bridge.html</a> })}</p>
           </Card>
         </>
       )}

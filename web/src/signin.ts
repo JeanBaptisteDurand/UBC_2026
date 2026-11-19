@@ -2,7 +2,7 @@
  *  Le wallet reconnaît ce format : il montre le site qui demande, la phrase de l'action, le réseau et l'échéance, et
  *  signale un site imposteur (domaine du message différent de la page). L'API (services/api/src/operators.ts) vérifie
  *  chaque ligne et consomme le nonce qu'elle a émis (GET /auth/nonce : usage unique, 5 minutes).
- *  Les phrases sont en anglais (le jury d'Austin les lit dans son wallet), quelle que soit la langue du site, et en
+ *  Les phrases sont en anglais (on les lit dans son wallet), quelle que soit la langue du site, et en
  *  ASCII : la grammaire d'EIP-4361 n'accepte rien d'autre, et un wallet ne contrôle le domaine que d'un message qu'il sait
  *  lire. Elles doivent rester identiques à STATEMENT dans operators.ts (le test services/api/test/security.test.ts le
  *  vérifie). Module sans navigateur : le test de l'API l'importe tel quel. */

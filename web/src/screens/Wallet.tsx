@@ -4,7 +4,6 @@ import { testnet } from "@arcvault/sdk";
 import { useArc } from "../useArc";
 import { PageHeader, Section, Stat, Badge, Hex, NeedWallet, Btn, usdc } from "../ui";
 import { t } from "../i18n";
-import Onramp from "./Onramp";
 
 export default function Wallet({ go }: { go: (r: string) => void }) {
   const arc = useArc();
@@ -42,7 +41,7 @@ export default function Wallet({ go }: { go: (r: string) => void }) {
         </Section>
       )}
       <Section title={t("wallet.cctp.title")} lead={t("wallet.cctp.lead")}>
-        <Onramp />
+        <a href="/bridge.html" className="tap inline-flex items-center gap-1.5 rounded-lg border border-edge px-3.5 py-2 text-[13px] font-medium text-text transition hover:border-muted/60">{t("wallet.cctp.link")}</a>
       </Section>
     </>
   );
