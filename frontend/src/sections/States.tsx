@@ -1,7 +1,7 @@
 // 2 to 5: the state sections act as the legend. Each frames a real slot of its state in the
 // wall, linked to the text by a line, and describes the service, not the metaphor. The carried buttons dock here.
 import { useEffect, useRef } from 'react'
-import { useLive } from '../data/live'
+import { useLive, type Activity } from '../data/live'
 import { num, short, pct, usdc } from '../data/fmt'
 import { t, useLang, type TKey } from '../i18n'
 import { world, useWallVersion } from '../world'
@@ -16,12 +16,18 @@ import type { SecId } from '../story'
 
 type Id = 'use' | 'rent' | 'publish' | 'invalid'
 
-/** The Use gesture, a counted payment. The last payment settled on Arc (read live) counts up from zero
- *  to its amount while the green LED takes it (0.16 to 0.42 of the section, on scroll, reversed when scrolling up) */
-function UseCount() {
+/** The product a payment belongs to: a per-call payment (CallSettled) names it; a session payment (Settled) names its
+ *  session, whose opening (SessionOpened) names the product */
+const payProduct = (a: Activity, all: Activity[]) => a.name === 'CallSettled' ? a.args.productId
+  : a.name === 'Settled' ? all.find((x) => x.name === 'SessionOpened' && x.args.sessionId === a.args.sessionId)?.args.productId : undefined
+const isPay = (a: Activity) => a.name === 'CallSettled' || a.name === 'Settled'
+
+/** The Use gesture, a counted payment. The last payment settled on Arc (read live; or the one given) counts up from
+ *  zero to its amount while the green LED takes it (0.16 to 0.42 of the section, on scroll, reversed when scrolling up) */
+function UseCount({ pay }: { pay?: Activity }) {
   const lang = useLang()
   const activity = useLive((s) => s.activity)
-  const last = activity?.find((a) => a.name === 'CallSettled' || a.name === 'Settled')
+  const last = pay ?? activity?.find(isPay)
   const micro = Number(last?.args.amount ?? last?.args.paidDelta ?? 0)
   const ref = useRef<HTMLSpanElement>(null)
   useEffect(() => {
@@ -71,11 +77,15 @@ export function StateSection({ id }: { id: Id }) {
   const minBond = products?.filter((x) => x.state === 'Active' && !roleOf(x.id)).reduce((m, x) => Math.min(m, Number(x.minBond)), Infinity)
   const opShare = products?.find((x) => x.state === 'Active')
   if (id === 'use' && s) {
-    // "Latest payment" is that of this service; if the last payment read belongs to another service,
-// the line says so (on ArcHive, and for which service), never silently attached to the framed slot
-    const own = !lastPay || !lastPay.args.productId || lastPay.args.productId === p?.id
-    const other = own ? null : products?.find((x) => x.id === lastPay!.args.productId)
-    rows.push([t('card.service'), productLabel(p, products, bounties)], [t('card.price'), priceText(p, bounties) ?? '-'], [t('card.operator'), e ? short(e.operator, 4) : '-'], [t('card.anchored'), e ? t('card.block', { n: num(Number(e.anchorBlock), lang)! }) : '-'], [own ? t('end.last') : t('use.lastNet'), own ? <UseCount /> : <><UseCount />{other ? `, ${productLabel(other, products, bounties)}` : ''}</>])
+    // "Latest payment" is that of this service (a session payment counts for the product its session was opened on);
+    // if this service has none in the read window, the line gives the network's latest and says for which service,
+    // never silently attached to the framed slot
+    const all = activity ?? []
+    const ownPay = p ? all.find((a) => isPay(a) && payProduct(a, all) === p.id) : undefined
+    const netPid = lastPay ? payProduct(lastPay, all) : undefined
+    const other = !ownPay && netPid ? products?.find((x) => x.id === netPid) : null
+    rows.push([t('card.service'), productLabel(p, products, bounties)], [t('card.price'), priceText(p, bounties) ?? '-'], [t('card.operator'), e ? short(e.operator, 4) : '-'], [t('card.anchored'), e ? t('card.block', { n: num(Number(e.anchorBlock), lang)! }) : '-'],
+      ownPay || !lastPay ? [t('end.last'), <UseCount pay={ownPay} />] : [t('use.lastNet'), <><UseCount pay={lastPay} />{other ? `, ${productLabel(other, products, bounties)}` : ''}</>])
   }
   if (id === 'rent') {
     rows.push([t('rent.pair'), t('rent.pair.v')], [t('rent.bond'), minBond !== undefined && Number.isFinite(minBond) ? usdc(minBond, lang) : t('state.loading')], [t('rent.share'), opShare ? pct(opShare.bpsOperator, lang) : t('state.loading')])
