@@ -15,25 +15,25 @@ import { RefillBox, ReceiptPanel, type LastReceipt, type Refill } from "./Chat";
 import { LevelBadge, useLevels } from "./Levels";
 import { ProofChain } from "./Overview";
 
-/** 19/11 : le prix d'un produit avec son unité : par jeton (session prépayée), par appel (x402), payé par la cagnotte
- *  d'une prime, ou gratuit (aucun contrat de règlement : le copilote attesté). */
+/** A product's price with its unit: per token (prepaid session), per call (x402), paid from a bounty's pool, or free
+ *  (no settlement contract: the attested copilot). */
 function priceOf(p: ProductView): string {
   const s = p.settlement.toLowerCase();
   if (/^0x0{40}$/.test(s)) return t("hive.price.free");
-  // l'ancien produit 6 (premier SealedBountyVerified, remplacé par le 7) est aussi payé par la cagnotte d'une prime
+  // the former product 6 (the first SealedBountyVerified, replaced by product 7) is also paid from a bounty's pool
   if (bountyLevelOf(s) || s === SUPERSEDED_VERIFIED_BOUNTY) return t("hive.price.pool");
   if (s === testnet.x402Settler.toLowerCase()) return t("hive.price.call", { p: usdc(p.price) });
   if (s === testnet.sessionPay.toLowerCase()) return t("hive.price.unit", { p: usdc(p.price) });
   return usdc(p.price);
 }
 
-/** 16/11 : l'enclave de la démo de réfutation (produit 5, prime n° 2) : sa réclamation a été réfutée sur Arc et la caution
- *  de son opérateur saisie (bloc 71620138). Ces événements sont trop anciens pour la fenêtre de /activity : écrits ici. */
+/** The refutation demo's enclave (product 5, bounty #2): its claim was refuted on Arc and its operator's bond seized
+ *  (block 71620138). These events are older than the /activity window, so they are written here. */
 const REFUTED: Record<string, string> = {
   "0xedc7df91392c40c89955249006c1fa47bc34e497": "0x0ffca5433186735bf5525e525995f3589d842681da8ffcaa82acb5993025051f",
 };
 
-/** Le message de test envoyé à l'enclave, dans la langue du site. */
+/** The test message sent to the enclave, in the site's language. */
 const testMessages = (): ChatMessage[] => [{ role: "user", content: t("hive.testPrompt") }];
 
 export default function Hive() {
@@ -42,7 +42,7 @@ export default function Hive() {
   const [sel, setSel] = useState<Enclave | null>(null);
   const [loading, setLoading] = useState(false);
   const levels = useLevels();
-  // 19/11 : le panneau de commande est sous les alvéoles (sur téléphone, à près de 2 000 px) : on y descend au choix
+  // the control panel is below the cells (about 2,000 px down on a phone): the page scrolls to it on selection
   const panel = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (sel) panel.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -62,7 +62,7 @@ export default function Hive() {
     <div className="space-y-6">
       <PageHeader title={t("hive.title")} lead={t(DCAP ? "hive.lead.dcap" : "hive.lead.dev")}
         actions={
-          /* la même ruche en salle des serveurs 3D (/datacenter/) : une autre page du site, dans le même onglet */
+          /* the same hive as a 3D server room (/datacenter/): another page of the site, in the same tab */
           <a href="/datacenter/" className="tap inline-flex items-center gap-1.5 rounded-lg border border-edge px-3.5 py-2 text-[13px] font-medium text-text transition hover:border-muted/60">
             <Rotate3d size={15} aria-hidden="true" />{t("hive.view3d")}
           </a>
@@ -81,13 +81,13 @@ export default function Hive() {
           const p = products.get(e.productId.toString());
           const on = e.active;
           const liar = REFUTED[e.signer.toLowerCase()];
-          // 19/11 : l'état dit par la chaîne (API) : active, retirée par son opérateur, invalidée (avec la raison), expirée
+          // the state reported by the chain (API): active, withdrawn by its operator, invalidated (with the reason), expired
           const status = e.status ?? (on ? "active" : "expired");
           const why = status === "invalidated" ? t("hive.invalidated.title", { reason: e.statusReason ?? "" }) : undefined;
           return (
-            // 19/11 (r2) : flex-col : le contenu d'une alvéole commence en haut (un bouton centre son contenu : une alvéole
-            // inactive, plus courte que ses voisines, avait son alvéole et son état descendus au milieu de la case) ;
-            // items-stretch : le navigateur aligne le contenu d'un bouton au début, l'état doit rester à droite
+            // flex-col: a cell's content starts at the top (a button centres its content, so a shorter inactive cell
+            // would have its hexagon and state pushed to the middle of the box); items-stretch: the browser aligns a
+            // button's content at the start, and the state must stay on the right
             <button key={e.signer} onClick={() => setSel(e)} aria-pressed={sel?.signer === e.signer}
               className={`flex min-w-0 flex-col items-stretch rounded-xl border p-3 text-left transition sm:p-4 ${sel?.signer === e.signer ? "border-accent bg-accent/10" : on ? "border-good/40 bg-good/5 hover:border-good/70" : "border-edge bg-panel opacity-60 hover:opacity-80"}`}>
               <div className="flex items-start justify-between gap-2">
@@ -119,17 +119,16 @@ export default function Hive() {
 function OrderPanel({ enclave, product, onClose }: { enclave: Enclave; product?: ProductView; onClose: () => void }) {
   const arc = useArc();
   const isInference = product?.settlement.toLowerCase() === testnet.sessionPay.toLowerCase();
-  // 19/11 : les autres rails se commandent ailleurs : l'appel payé x402 sur la page IA privée, le copilote attesté
-  // (gratuit) par le panneau du copilote du site, les primes (deux niveaux) sur la page Primes
+  // the other rails are driven elsewhere: the paid x402 call on the Private AI page, the attested copilot (free)
+  // through the site's copilot panel, bounties (both levels) on the Bounties page
   const rail = product?.settlement.toLowerCase() ?? "";
   const isX402 = rail === testnet.x402Settler.toLowerCase();
   const isFree = /^0x0{40}$/.test(rail);
-  // 19/11 : l'état de CETTE alvéole (dit par la chaîne, API) : une alvéole inactive montre le sien, jamais l'état « Actif »
-  // de son produit juste au-dessus de « cette alvéole n'est plus active »
+  // the state of THIS cell (reported by the chain, API): an inactive cell shows its own, never its product's "Active"
+  // state right above "this cell is no longer active"
   const status = enclave.status ?? (enclave.active ? "active" : "expired");
   const liar = !!REFUTED[enclave.signer.toLowerCase()];
-  // 19/11 : la chaîne de preuves de CETTE enclave (GET /proof?signer=) ; une API qui renverrait une autre enclave n'est
-  // pas montrée
+  // the proof chain of THIS enclave (GET /proof?signer=); an API response about another enclave is not shown
   const [proof, setProof] = useState<Proof | null>(null);
   const [proofFailed, setProofFailed] = useState(false);
   useEffect(() => {
@@ -148,8 +147,8 @@ function OrderPanel({ enclave, product, onClose }: { enclave: Enclave; product?:
   const [refill, setRefill] = useState<Refill | null>(null);
   const [sessionId, setSessionId] = useState<bigint | null>(null);
   const ic = useRef<InferenceClient | null>(null);
-  // l'adresse doit servir CETTE alvéole, et sa clé doit être celle inscrite sur Arc ; 19/11 : pour le copilote attesté
-  // (gratuit, actif), la même confrontation, en lecture seule, de l'enclave du copilote du site
+  // the address must serve THIS cell, and its key must be the one registered on Arc; for the attested copilot (free,
+  // active), the same read-only check of the site copilot's enclave
   const checkUrl = isInference ? enclaveUrl : isFree && enclave.active ? COPILOT_SITE_URL : "";
   const [check, recheck] = useVerifiedEnclave(arc, checkUrl, enclave.productId);
   const served = check.state === "ok" && check.keys.signer.toLowerCase() === enclave.signer.toLowerCase();
@@ -173,7 +172,7 @@ function OrderPanel({ enclave, product, onClose }: { enclave: Enclave; product?:
     const url = enclaveUrl.trim();
     setOut(msg("order.opening")); setAnswer(null); setLast(null); setRefill(null);
     try {
-      // la session est VERROUILLÉE sur cette alvéole : le SDK revérifie que l'adresse la sert, avec la clé inscrite sur Arc
+      // the session is LOCKED to this cell: the SDK checks again that the address serves it, with the key registered on Arc
       const r = await arc.openSession({ productId: enclave.productId, deposit: parseUsdc(deposit, "what.deposit"), enclaveUrl: url, enclave: enclave.signer });
       setOut(msg("order.sent", { id: r.sessionId }));
       await waitOk(arc, r.tx, "tx.openSession");
@@ -239,11 +238,11 @@ function OrderPanel({ enclave, product, onClose }: { enclave: Enclave; product?:
           {last && <div className="mt-3"><ReceiptPanel arc={arc} last={last} /></div>}
         </>
       ) : isX402 ? (
-        // 19/11 : le lien ouvre la page IA privée directement sur « Paiement à l'appel » (Playground, ?mode=x402)
+        // the link opens the Private AI page directly on "Pay per call" (Playground, ?mode=x402)
         <p className="text-[13px] text-muted">{tx("order.x402", { link: <a href="#/playground?mode=x402" className="text-accent hover:underline">{t("nav.playground")}</a> })}</p>
       ) : isFree ? (
-        // 19/11 : le copilote attesté (produit 4) répond dans le panneau du copilote des pages du site ; sa clé est confrontée
-        // à Arc ici même (lecture de /enclave/copilot-site/pubkeys), et le bouton de cette console peut repasser au serveur
+        // the attested copilot (product 4) answers in the copilot panel of the site's pages; its key is checked against
+        // Arc right here (a read of /enclave/copilot-site/pubkeys), and this console's button can switch back to the server
         <>
           <p className="text-[13px] text-muted">{tx("order.free", { link: <a href="/network.html" className="text-accent hover:underline">{t("order.free.site")}</a> })}</p>
           {COPILOT_SITE_URL && (
@@ -257,7 +256,7 @@ function OrderPanel({ enclave, product, onClose }: { enclave: Enclave; product?:
       ) : rail === SUPERSEDED_VERIFIED_BOUNTY ? null : (
         <p className="text-[13px] text-muted">{tx("order.bounty", { link: <a href="#/primes" className="text-accent hover:underline">{t("nav.primes")}</a> })}</p>
       )}
-      {/* 19/11 : l'ancien produit 6 (premier niveau vérifié, neutralisé le 12/11) : le dire, et renvoyer au 7 */}
+      {/* the former product 6 (the first verified level, retired after a security fix): say so, and point to product 7 */}
       {rail === SUPERSEDED_VERIFIED_BOUNTY && (
         <p className={`${enclave.active ? "" : "mt-2 "}text-[13px] text-muted`}>{tx("order.bountyOld", { link: <a href="#/primes" className="text-accent hover:underline">{t("nav.primes")}</a> })}</p>
       )}
