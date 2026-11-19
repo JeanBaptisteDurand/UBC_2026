@@ -430,7 +430,7 @@ async function imagePlatform(image, signal) {
 function pullImage(image, platform4, signal) {
   return run("docker", ["pull", ...platform4 ? ["--platform", platform4] : [], image], { timeoutMs: 20 * 6e4, signal });
 }
-var PRIVATE_IMAGE_HELP = "The enclave image is private for now: log Docker in to the registry with the token from the ArcHive team (docker login ghcr.io -u <user>), or build the image from enclave/Dockerfile (docker build -t archive-sealed-chat:local enclave/) and run again with --image archive-sealed-chat:local.";
+var PRIVATE_IMAGE_HELP = "The enclave image is hosted in a private registry: log Docker in with an access token from the ArcHive team (docker login ghcr.io -u <user>), or build the image from enclave/Dockerfile (docker build -t archive-sealed-chat:local enclave/) and run again with --image archive-sealed-chat:local (the network registers an enclave only if its image measurement is one the product allows).";
 function pullError(stderr, image) {
   if (/no matching manifest|does not match the specified platform/i.test(stderr)) {
     return `The image ${image} doesn't exist for this processor (${process.arch}): use an x86-64 machine or another image (--image).`;
@@ -1200,9 +1200,9 @@ Stop it first: Ctrl+C in its terminal, or sudo systemctl stop archive-node.`);
       "io.archive.operator": this.operator ?? ""
     };
   }
-  /** Variables du conteneur (pile v2) : les contrats v2 (l'image retombe sinon sur la v1), le seul opérateur autorisé à
-   *  demander un quote (OPERATOR_ALLOWLIST : l'enclave échoue fermée sans lui) et, s'il est défini chez l'agent, le
-   *  secret du modèle amont, hérité sans apparaître dans la ligne de commande. */
+  /** Container variables: the stack's contract addresses (the image has no default address valid for the live stack),
+   *  the only operator allowed to request a quote (OPERATOR_ALLOWLIST: without it the enclave fails closed) and, when
+   *  the agent has it, the upstream model's secret, inherited without appearing on the command line. */
   containerEnv() {
     return {
       CHAIN_ID: String(CHAIN_ID),
