@@ -1,9 +1,9 @@
-/** fr.ts — le dictionnaire français : mêmes clés que en.ts (le type `Dict` le vérifie : une clé manquante ou en trop
- *  ne compile pas). Les textes reprennent ceux du site d'avant la traduction. `{nom}` est rempli par t(). */
+/** fr.ts — the French dictionary: the same keys as en.ts (the `Dict` type checks it: a missing or extra key does not
+ *  compile). `{nom}` placeholders are filled by t(). */
 import type { Dict } from "./en";
 
 const s = (n: number) => (n > 1 ? "s" : "");
-/** « de » devant un nom, élidé devant une voyelle : « d'Ethereum Sepolia », « de Base Sepolia ». */
+/** French "de" before a name, elided before a vowel: « d'Ethereum Sepolia », « de Base Sepolia ». */
 const de = (x: string) => (/^[aeiouyâàéèêëîïôöûüAEIOUYÂÀÉÈÊËÎÏÔÖÛÜ]/.test(x) ? `d'${x}` : `de ${x}`);
 
 export const fr: Dict = {
@@ -11,7 +11,7 @@ export const fr: Dict = {
   "meta.title": "ArcHive — enclaves vérifiées sur Arc",
   "meta.description": "Faites tourner un service dans une enclave Intel TDX dont l'attestation est vérifiée par un contrat d'Arc, payée en USDC.",
 
-  // ---------- commun
+  // ---------- shared
   "common.fail": "échec : {msg}",
   "common.product": "produit #{id}",
   "common.Product": "Produit #{id}",
@@ -83,7 +83,7 @@ export const fr: Dict = {
   "field.enclaveUrl": "URL de l'enclave",
   "field.amount": "Montant (USDC)",
 
-  // ---------- menu
+  // ---------- navigation
   "nav.group.explore": "Explorer",
   "nav.group.use": "Utiliser",
   "nav.group.provide": "Fournir",
@@ -102,7 +102,7 @@ export const fr: Dict = {
   "nav.developpeurs": "Développeurs",
   "nav.datacenter": "Salle des serveurs 3D",
 
-  // ---------- cadre
+  // ---------- layout
   "layout.brandSub": "enclaves vérifiées par Arc",
   "layout.navAria": "Navigation principale",
   "layout.copilot": "AskHive",
@@ -116,7 +116,7 @@ export const fr: Dict = {
   "layout.language": "Langue",
   "layout.connect": "Connexion",
 
-  // ---------- composants communs
+  // ---------- shared components (ui.tsx)
   "ui.copy": "Copier",
   "ui.openExplorer": "Ouvrir dans l'explorateur",
   "ui.viewTx": "voir la transaction",
@@ -129,7 +129,7 @@ export const fr: Dict = {
   "ui.check.until": "active jusqu'au bloc {n}",
   "ui.needWallet": "Connectez votre portefeuille (en haut à droite) pour {what}. Votre adresse est votre compte : pas d'inscription, pas de mot de passe.",
 
-  // ---------- Arc
+  // ---------- Arc helpers (arc.ts, operatorActions.ts)
   "arc.verified": "vérifiée par Arc",
   "arc.registered": "inscrite sur Arc",
   "arc.gas": "≈ {m} M gas",
@@ -143,7 +143,7 @@ export const fr: Dict = {
   "arc.admitted.image": "Admise par son empreinte d'image : stable d'un redémarrage à l'autre.",
   "arc.admitted.workload": "Admise par l'empreinte complète de la machine.",
 
-  // ---------- erreurs
+  // ---------- errors (errors.ts)
   "err.rejected": "signature refusée dans le portefeuille : rien n'a été envoyé",
   "err.wrongNetwork": "votre portefeuille est sur un autre réseau : passez sur Arc testnet (chainId 5042002), puis recommencez",
   "err.enclave.unreachable": "l'enclave ne répond pas, rien n'a été envoyé : réessayez dans un instant ({detail})",
@@ -173,7 +173,7 @@ export const fr: Dict = {
   "err.rpcHttp": "le RPC a répondu par une erreur (HTTP {status}) : réessayez dans un instant",
   "err.slow": "pas de réponse à temps : réessayez dans un instant",
   "err.unexpected": "erreur inattendue ({name})",
-  // paiement à l'appel (x402) : d'après les champs de l'erreur, jamais d'après le texte d'un serveur
+  // pay per call (x402): from the error's fields, never from a server's text
   "err.x402.price": "le prix d'un appel a monté sur Arc pendant l'appel, à {price} : rien n'a été signé. Le nouveau prix est affiché : renvoyez pour l'accepter",
   "err.x402.cap": "un appel coûte maintenant plus que le prix affiché : rien n'a été signé. Le nouveau prix est affiché : renvoyez pour l'accepter",
   "err.x402.payTo": "l'enclave a demandé de payer quelqu'un d'autre que X402Settler : rien n'a été signé (un mandataire qui détourne le paiement ?)",
@@ -189,7 +189,7 @@ export const fr: Dict = {
   "err.x402.priceUp": "le prix d'un appel a monté sur Arc à {price}, au-delà du prix que vous avez accepté ({cap}) : rien n'a été signé à ce prix. L'enclave a pu servir l'appel sous l'autorisation déjà envoyée (au plus {max}, une seule fois, valable jusqu'au {until})",
   "err.x402.receipt": "la réponse ne correspond pas au reçu que l'enclave a signé pour cette requête : le texte n'est pas affiché",
   "err.copilot.response": "la réponse du copilote ne vient pas de l'enclave vérifiée sur Arc (ou a été modifiée en route) : elle n'est pas affichée",
-  // ce qu'une enclave a refusé AVANT tout paiement (x402)
+  // what an enclave refused BEFORE any payment (x402)
   "x402.why.busy": "l'enclave est occupée",
   "x402.why.backlog": "l'enclave attend le règlement d'appels précédents",
   "x402.why.capacity": "la caution de l'opérateur ne couvre pas d'autres appels non réglés pour le moment",
@@ -199,12 +199,12 @@ export const fr: Dict = {
   "x402.why.free": "l'enclave a répondu sans demander de paiement (ce n'est pas un produit payé à l'appel) : sa réponse est ignorée",
   "x402.why.format": "requête refusée par l'enclave ({code})",
   "x402.why.other": "l'enclave a refusé l'appel (HTTP {status}, {code})",
-  // pourquoi un verdict ERC-8004 a été sauté (données de revert du registre, skipReason d'arc.ts)
+  // why an ERC-8004 verdict was skipped (revert data of the registry, arc.ts skipReason)
   "reason.empty": "revert vide (aucune raison donnée)",
   "reason.unreadable": "données de revert illisibles",
   "reason.unknown": "erreur inconnue {selector} ({n} octets ; les données complètes sont dans la transaction)",
 
-  // ---------- refus de l'API ArcHive, par leur code stable ({ error, code, params } de services/api)
+  // ---------- ArcHive API refusals, by their stable code ({ error, code, params } from services/api)
   "api.rate_limited": "trop de requêtes ({what}) : réessayez dans {s} s",
   "api.scope.signatures": "signatures",
   "api.scope.signed_reads": "lectures signées",
@@ -283,7 +283,7 @@ export const fr: Dict = {
   "api.internal_error": "erreur interne de l'API opérateurs : réessayez dans un instant",
   "api.server_error": "l'API n'a pas pu répondre (erreur du serveur) : réessayez dans un instant",
 
-  // ---------- vue d'ensemble
+  // ---------- overview
   "ov.title.dcap": "Une enclave Intel TDX vérifiée par Arc, de l'image au verdict",
   "ov.title.dev": "Une enclave Intel TDX inscrite sur Arc, de l'image au verdict",
   "ov.lead": "Au 1er novembre 2026, aucun autre contrat d'Arc ne vérifiait l'enclave de quelqu'un d'autre. Voici la chaîne de preuves de l'enclave d'inférence (celle en service, sinon celle qui a servi la dernière session payée), lue en direct sur Arc testnet : chaque maillon renvoie à sa transaction.",
@@ -416,7 +416,7 @@ export const fr: Dict = {
   "ev.AgentIdSet": "Opérateur lié à son agent ERC-8004",
   "ev.ManifestURIUpdated":"Produit #{id} : adresse du manifeste changée",
 
-  // ---------- ruche
+  // ---------- hive
   "hive.title": "La ruche d'enclaves",
   "hive.view3d": "Voir en 3D",
   "hive.lead.dcap": "Chaque alvéole est une enclave Intel TDX : un contrat d'Arc a vérifié la signature d'Intel sur son attestation (DCAP), puis l'a inscrite. Choisissez une alvéole active pour commander son produit, payé en USDC.",
@@ -438,7 +438,7 @@ export const fr: Dict = {
   "hive.price.unit": "{p} / jeton",
   "hive.refuted": "prise à mentir",
   "hive.refuted.title": "Sa réclamation a été réfutée sur Arc et la caution de son opérateur saisie",
-  // ---------- niveaux (10/11) : opérateurs ouverts ou vérifiés
+  // ---------- levels: open or verified operators
   "lvl.title": "Deux niveaux d'opérateur",
   "lvl.lead": "N'importe qui peut faire tourner une enclave. Les produits qui ont besoin de sécurité physique exigent des machines vérifiées en datacenter connu.",
   "lvl.open.title": "Niveau ouvert",
@@ -476,12 +476,12 @@ export const fr: Dict = {
   "order.x402": "Ce produit se paie à l'appel (x402) : appelez-le depuis la page {link}, avec « Paiement à l'appel ».",
   "order.free": "C'est le copilote attesté, gratuit. Il répond dans le panneau du copilote {link} (en bas à droite), ses réponses scellées et signées par cette enclave ; dans cette console, le bouton du copilote peut repasser au copilote du serveur (non attesté).",
   "order.free.site": "des pages du site",
-  "order.bountyOld": "C'était la première prime scellée au niveau vérifié : désactivée le 10/11, après notre revue de sécurité qui a durci la lecture de la puce, et remplacée par le produit 7. Les primes au niveau vérifié se chassent depuis la page {link}.",
+  "order.bountyOld": "C'était la première prime scellée au niveau vérifié : retirée après notre revue de sécurité qui a durci la lecture de la puce, et remplacée par le produit 7. Les primes au niveau vérifié se chassent depuis la page {link}.",
   "order.productState": "produit : {state}",
   "order.proof": "Chaîne de preuves de cette enclave",
   "order.proofUnavailable": "Impossible de lire la chaîne de preuves de cette enclave pour l'instant.",
 
-  // ---------- produits
+  // ---------- products
   "prod.title": "Produits",
   "prod.lead": "Un produit, c'est un service mis en conteneur, son empreinte autorisée, un prix et un partage des revenus. N'importe qui peut en publier un ; les opérateurs le font tourner dans leurs enclaves.",
   "prod.publish": "Publier un produit",
@@ -519,7 +519,7 @@ export const fr: Dict = {
   "prod.name.inference": "Inférence privée",
   "prod.rail.session": "Session prépayée",
 
-  // ---------- primes (liste)
+  // ---------- bounties (list)
   "bounties.title": "Primes scellées",
   "bounties.lead": "Un protocole dépose un pool d'USDC et une règle de perte. Un chasseur prouve son exploit dans une enclave, sur une copie d'Arc : la réclamation acceptée réserve son paiement, versé dès que le rapport chiffré est livré au seul protocole. Sinon, rien ne bouge.",
   "bounties.post": "Publier une prime",
@@ -551,7 +551,7 @@ export const fr: Dict = {
   "bounties.who.operators": "Les opérateurs",
   "bounties.who.operatorsText": "5 % en plus, partagés entre les enclaves qui ont vérifié.",
 
-  // ---------- primes (protocole et chasseur)
+  // ---------- bounty panels (protocol and hunter)
   "bounty.card.title": "Prime scellée",
   "bounty.card.sub": "Une prime payée sur preuve, sinon rien : l'enclave rejoue l'exploit contre une cible jetable (DemoVault) ; la réclamation acceptée réserve le paiement, la livraison du rapport chiffré le verse.",
   "bounty.card.predicate": "prédicat de démo : le solde USDC de DemoVault chute d'au moins 1 USDC ⇒ exploit prouvé",
@@ -623,7 +623,7 @@ export const fr: Dict = {
   "hunt.deliverWarn": "Le paiement est réservé : livrez le rapport dans les 24 h, sinon la réservation retourne au pool de la prime.",
   "hunt.local": "L'adresse pointe vers une machine locale : lancez-la ({cmd}) ou renseignez l'URL d'une machine « Prime scellée » déployée.",
 
-  // ---------- IA privée
+  // ---------- private AI (playground and chat)
   "play.title": "IA privée en enclave",
   "play.lead": "Votre requête est chiffrée vers une enclave Intel TDX vérifiée sur Arc : ni l'opérateur ni notre serveur ne peuvent la lire. Avant tout appel, l'enclave vérifie l'enclave du fournisseur du modèle (la passerelle de RedPill : quote Intel, OS de production, TLS épinglé sur sa clé attestée) et exige un reçu signé citant un service amont vérifié (gpt-oss-120b, servi dans une enclave GPU). Elle signe la réponse et la facture. Vous payez à l'usage, en USDC : depuis une session prépayée, ou à l'appel (x402).",
   "play.keys": "Appeler en boucle avec une clé",
@@ -693,7 +693,7 @@ export const fr: Dict = {
   "chat.message": "Message",
   "chat.send": "Envoyer (chiffré)",
 
-  // ---------- IA privée payée à l'appel (x402, X402Chat.tsx)
+  // ---------- private AI paid per call (x402, X402Chat.tsx)
   "x402.title": "Paiement à l'appel (x402)",
   "x402.sub": "Chaque message est un appel : chiffré pour l'enclave seule (sa clé confrontée à Arc) et payé par une signature EIP-3009 du prix exact lu sur Arc, vers X402Settler. Une signature, pas une transaction : pas de gas. La réponse revient avec un reçu signé par l'enclave ; l'opérateur règle l'appel ensuite.",
   "x402.price.label": "Prix d'un appel",
@@ -744,7 +744,7 @@ export const fr: Dict = {
   "x402.paid.priceUpBody": "Le prix d'un appel a monté sur Arc à {price}, au-delà du prix que vous avez accepté ({cap}) : rien n'a été signé à ce prix. L'enclave a pu servir l'appel sous l'autorisation déjà envoyée (au plus {max}, une seule fois, valable jusqu'au {until}).",
   "x402.unanswered": "payé, sans réponse vérifiée",
 
-  // ---------- clés et sessions
+  // ---------- keys and sessions
   "keys.title": "Clés et sessions",
   "keys.lead": "Deux sortes de clés. Les clés d'accès (aek_) appellent les services en programme, adossées à une session prépayée : la dépense ne dépasse jamais le dépôt. Les clés opérateur (arcop_) pilotent vos machines, sans pouvoir dépenser.",
   "keys.need": "créer une clé et gérer vos sessions",
@@ -820,7 +820,7 @@ export const fr: Dict = {
   "keys.loop.listens": "écoute sur http://localhost:8787/v1",
   "keys.loop.step2": "2. Garder votre client OpenAI, changer l'URL",
 
-  // ---------- publier une prime
+  // ---------- post a bounty
   "post.title": "Publier une prime",
   "post.lead": "Vous protégez un contrat ? Déposez un pool d'USDC et une règle de perte vérifiable par une machine. Vous ne payez que si une faille est prouvée, et vous recevez l'exploit chiffré pour vous seul.",
   "post.demo": "Démo : la règle est « le solde USDC de DemoVault baisse d'au moins 1 USDC », sur un coffre volontairement faillible.",
@@ -836,7 +836,7 @@ export const fr: Dict = {
   "post.rule.private": "Ce qui reste privé :",
   "post.rule.privateText": " l'exploit n'apparaît jamais en clair on-chain ; seule la clé de votre prime, née dans votre navigateur, déchiffre le rapport livré.",
 
-  // ---------- opérateur
+  // ---------- operator
   "op.check.os": "système",
   "op.check.node": "Node.js",
   "op.check.docker": "Docker",
@@ -997,7 +997,7 @@ export const fr: Dict = {
   "op.rules.machine": "Ce que la machine ne peut pas faire",
   "op.rules.machineText": "Sa clé (arcop_) sert à rendre compte et à se diagnostiquer. Elle ne peut ni retirer la caution, ni dépenser : seul votre portefeuille signe.",
 
-  // ---------- publier un produit
+  // ---------- publish a product
   "pub.badInt": "{what} invalide : « {v} » (un entier entre 1 et {max})",
   "pub.badWorkload": "image autorisée (workloadId) : 32 octets en hexadécimal (0x + 64 caractères)",
   "pub.signing": "publication du produit : signez dans votre portefeuille…",
@@ -1059,7 +1059,7 @@ export const fr: Dict = {
   "wl.propose": "1. Proposer l'image",
   "wl.apply": "2. Appliquer",
 
-  // ---------- portefeuille et CCTP
+  // ---------- wallet and CCTP
   "wallet.title": "Portefeuille",
   "wallet.lead": "Votre adresse est votre compte. Ici : votre USDC sur Arc, votre caution si vous êtes opérateur, et l'USDC que vous avez sur d'autres chaînes, à rapatrier vers Arc.",
   "wallet.keys": "Mes clés et sessions",
@@ -1092,7 +1092,7 @@ export const fr: Dict = {
   "onramp.err.down": (v) => `le RPC ${de(v.chain)} ne répond pas`,
   "onramp.err.slow": (v) => `le RPC ${de(v.chain)} a mis trop de temps à répondre`,
 
-  // ---------- développeurs
+  // ---------- developers
   "dev.title": "Développeurs",
   "dev.lead": "Tout ce que fait le site se fait aussi en code : une API de lecture, un SDK TypeScript, une CLI, un mandataire compatible OpenAI et un serveur MCP pour les agents.",
   "dev.api.title": "API de lecture",
@@ -1167,7 +1167,7 @@ export const fr: Dict = {
   "dev.r.chat": "la requête chiffrée ; renvoie la réponse et son reçu signé",
   "dev.r.session": "le solde et le cumul d'une session",
 
-  // ---------- bulle du copilote
+  // ---------- copilot bubble
   "copilot.thinking": "le copilote réfléchit…",
   "copilot.unreachable": "Je n'arrive pas à joindre le serveur copilote ({url}) : vérifiez votre connexion, puis réessayez.",
   "copilot.refused": "Le copilote a refusé la requête (HTTP {status}).",
@@ -1186,7 +1186,7 @@ export const fr: Dict = {
   "copilot.placeholder": "Écrivez ici…",
   "copilot.send": "Envoyer",
   "copilot.attested": "copilote attesté",
-  // copilote attesté (produit 4 de la v2.1) : sa clé vérifiée sur Arc, la conversation chiffrée vers son enclave, réponses scellées
+  // attested copilot (product 4 of v2.1): its key checked on Arc, the conversation encrypted to its enclave, answers sealed
   "copilot.thinkingSealed": "le copilote attesté réfléchit (chiffré vers son enclave)…",
   "copilot.slow": "Le serveur copilote ({url}) a mis trop de temps à répondre : réessayez dans un instant.",
   "copilot.serverError": "Le serveur copilote ({url}) a échoué : {err}",
@@ -1213,7 +1213,7 @@ export const fr: Dict = {
   "copilot.introAttested": "Je tourne dans une enclave Intel TDX dont la clé est vérifiée sur Arc : votre conversation est chiffrée vers elle et chaque réponse revient scellée. Je réponds en citant mes sources et je vous emmène sur la page concernée. Aucune dépense sans votre signature.",
   "copilot.introServer": "Le copilote attesté est indisponible : vous parlez au copilote du serveur (non attesté). Aucune dépense sans votre signature.",
   "copilot.placeholderServer": "Écrivez ici (serveur, non attesté)…",
-  // refus en clair (avant le déchiffrement, sans preuve d'origine) : un message local par code, jamais le texte du relais
+  // refusals in clear text (before decryption, no proof of origin): a local message per code, never the relay's text
   "copilot.plain.proxy": "Ce copilote attesté ne répond qu'au travers du site d'ArcHive (son mandataire).",
   "copilot.plain.origin": "Le copilote attesté refuse les requêtes venant de cette origine.",
   "copilot.plain.rateMinute": "Trop de questions d'affilée : réessayez dans un instant.",
@@ -1225,7 +1225,7 @@ export const fr: Dict = {
   "copilot.plain.other": "Le copilote attesté a refusé la requête (HTTP {status}).",
   "copilot.plain.rateMinuteIn": "Trop de questions d'affilée : réessayez dans {s} s.",
 
-  // ---------- actions préparées (cartes du copilote)
+  // ---------- prepared actions (copilot cards)
   "action.session.title": "ouvrir une session et recevoir votre clé d'accès",
   "action.session.none": "aucune enclave active pour ce produit",
   "action.l.product": "produit #{id}",
@@ -1255,7 +1255,7 @@ export const fr: Dict = {
   "action.toComplete": "À compléter : {why}",
   "action.keyOnce": "Affichée une seule fois. Gérez-la dans « Clés et sessions ».",
 
-  // ---------- portefeuille de test (wagmi.ts)
+  // ---------- test wallet (wagmi.ts)
   "wallet.test.name": "Portefeuille de test ArcHive (serveur)",
   "wallet.browser.name": "Portefeuille du navigateur",
 };

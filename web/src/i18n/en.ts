@@ -444,7 +444,7 @@ export const en = {
   "hive.price.unit": "{p} / token",
   "hive.refuted": "caught lying",
   "hive.refuted.title": "Its claim was refuted on Arc and its operator's bond seized",
-  // ---------- levels (10/11) : open or verified operators
+  // ---------- levels: open or verified operators
   "lvl.title": "Two operator levels",
   "lvl.lead": "Anyone can run an enclave. Products that need physical security require machines verified in a known datacenter.",
   "lvl.open.title": "Open level",
@@ -483,7 +483,7 @@ export const en = {
   "order.x402": "This product is paid per call (x402): call it from the {link} page, with “Pay per call”.",
   "order.free": "This is the attested copilot, free of charge. It answers in the copilot panel of {link} (bottom right), its answers sealed and signed by this enclave; in this console, the copilot button can fall back to the server copilot (not attested).",
   "order.free.site": "the site's pages",
-  "order.bountyOld": "This was the first verified-level sealed bounty: switched off on 10 Nov, after our security review hardened the chip reading, and replaced by product #7. Verified-level bounties are hunted from the {link} page.",
+  "order.bountyOld": "This was the first verified-level sealed bounty: retired after our security review hardened the chip reading, and replaced by product #7. Verified-level bounties are hunted from the {link} page.",
   "order.productState": "product: {state}",
   "order.proof": "Proof chain of this enclave",
   "order.proofUnavailable": "Couldn't read this enclave's proof chain right now.",
