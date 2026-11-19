@@ -41,18 +41,19 @@ const KEY = 'archive-copilot'
 const QKEY = 'archive-copilot-queue'
 const MAX_KEPT = 30
 
-function load(): Pick<CopilotState, 'open' | 'msgs'> {
+/** owner: whose conversation the tab holds (an address, null: written without a wallet, undefined: not recorded) */
+function load(): Pick<CopilotState, 'open' | 'msgs'> & { owner: string | null | undefined } {
   try {
     const j = JSON.parse(sessionStorage.getItem(KEY) ?? 'null')
-    if (j && j.v === 1 && Array.isArray(j.msgs)) return { open: !!j.open, msgs: j.msgs as Msg[] }
+    if (j && j.v === 1 && Array.isArray(j.msgs)) return { open: !!j.open, msgs: j.msgs as Msg[], owner: typeof j.owner === 'string' ? j.owner : j.owner === null || !j.msgs.length ? null : undefined }
   } catch { /* storage missing or unreadable: a fresh conversation */ }
-  return { open: false, msgs: [] }
+  return { open: false, msgs: [], owner: null }
 }
 /** The messages as stored: the last ones, without the one-time access keys of prepared cards */
 const slim = (msgs: Msg[]) => msgs.slice(-MAX_KEPT).map((m) => (m.cardState ? { ...m, cardState: Object.fromEntries(Object.entries(m.cardState).map(([k, v]) => [k, { ...v, aek: undefined }])) } : m))
 function save(s: CopilotState) {
   try {
-    sessionStorage.setItem(KEY, JSON.stringify({ v: 1, open: s.open, msgs: slim(s.msgs) }))
+    sessionStorage.setItem(KEY, JSON.stringify({ v: 1, open: s.open, msgs: slim(s.msgs), ...(convOwner !== undefined ? { owner: convOwner } : {}) }))
   } catch { /* private browsing, quota: the conversation stays in memory */ }
   keepForWallet(s)
 }
@@ -64,8 +65,13 @@ function save(s: CopilotState) {
 const WKEY = (a: string) => `archive-copilot-w:${a}`
 const W_TTL = 30 * 24 * 3600 * 1000
 let owner: string | null = null
+/** setOwner was called once on this page (the wallet is known) */
+let known = false
+/** whose conversation is on screen, kept next to it in the tab (sessionStorage): after a reload, another wallet never
+ *  inherits it */
+let convOwner: string | null | undefined = null
 function keepForWallet(s: CopilotState) {
-  if (!owner) return
+  if (!owner || convOwner !== owner) return
   try {
     if (!s.msgs.length) localStorage.removeItem(WKEY(owner))
     else localStorage.setItem(WKEY(owner), JSON.stringify({ v: 1, at: Date.now(), msgs: slim(s.msgs) }))
@@ -79,26 +85,38 @@ function keptFor(a: string): Msg[] {
   return []
 }
 /** Called with the connected address, or null once no wallet is connected (never while it is connecting). */
+// The rule: the conversation on screen stays only if it belongs to the wallet now connected (or to no wallet when
+// none is). Another wallet's conversation, or one whose owner was not recorded, leaves the screen (it stays kept for
+// its own wallet). A conversation written without a wallet becomes the connecting wallet's only if that wallet has
+// none kept; otherwise the wallet's kept conversation comes back and the walletless one is dropped.
 export function setOwner(address: string | null) {
   const a = address ? address.toLowerCase() : null
-  if (a === owner) return
-  const was = owner
+  if (known && a === owner) return
+  known = true
   owner = null
-  // the previous wallet's conversation leaves the screen (it stays kept for that wallet in this browser)
-  if (was) setState({ msgs: [], view: 'chat' })
-  if (!a) return
-  owner = a
-  // a conversation under way stays, now kept for this wallet; an empty one gets this wallet's last conversation back
+  if (!a) {
+    if (convOwner !== null && state.msgs.length) setState({ msgs: [], view: 'chat' })
+    convOwner = null
+    save(state)
+    return
+  }
   const kept = keptFor(a)
-  if (!state.msgs.length && kept.length) setState({ msgs: kept, view: 'chat' })
-  else keepForWallet(state)
+  const adopt = state.msgs.length > 0 && (convOwner === a || (convOwner === null && !kept.length))
+  owner = a
+  convOwner = a
+  if (adopt) save(state)
+  else setState({ msgs: kept, view: 'chat' })
 }
 
-let state: CopilotState = { ...load(), view: 'chat', busy: false, driving: false, showing: false }
+const boot = load()
+convOwner = boot.owner
+let state: CopilotState = { open: boot.open, msgs: boot.msgs, view: 'chat', busy: false, driving: false, showing: false }
 const subs = new Set<() => void>()
 export const getState = () => state
 export function setState(p: Partial<CopilotState> | ((s: CopilotState) => Partial<CopilotState>)) {
   state = { ...state, ...(typeof p === 'function' ? p(state) : p) }
+  // an empty conversation belongs to whoever writes next: the wallet connected, or none
+  if (!state.msgs.length) convOwner = owner
   save(state)
   subs.forEach((f) => f())
 }
@@ -106,7 +124,7 @@ export function useCopilot<T>(sel: (s: CopilotState) => T): T {
   return useSyncExternalStore((f) => { subs.add(f); return () => { subs.delete(f) } }, () => sel(state))
 }
 /** A page restored from the browser cache (Back) re-reads the tab's conversation. */
-export function reloadState() { state = { ...state, ...load() }; subs.forEach((f) => f()) }
+export function reloadState() { const b = load(); convOwner = b.owner; state = { ...state, open: b.open, msgs: b.msgs }; subs.forEach((f) => f()) }
 
 let n = 0
 export const newId = () => `${Date.now().toString(36)}-${(++n).toString(36)}`
