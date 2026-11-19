@@ -92,6 +92,22 @@ export function parseReply(j: Record<string, unknown>): Parsed {
   const ui: UiStep[] = []
   const cards = new Map<string, Prepared>()
   for (const e of entries) {
+    if (e.tool === 'ui_guide') {
+      // a guided tour (ui_guide): played here as the page it names, then each step pointed out with its note (a ring
+      // and a bubble, ui_highlight), in order. Nothing of the page is clicked, typed or signed
+      if (!obj(e.result) || e.result.ok !== true) continue
+      const g = { ...(obj(e.input) ? e.input : {}), ...e.result }
+      const alias: Record<string, string> = { products: 'service', technology: 'doc' }
+      const page = typeof g.page === 'string' ? (alias[g.page] ?? g.page) : undefined
+      const nav = page ? uiStepOf('ui_navigate', { page }) : null
+      if (nav) ui.push(nav)
+      for (const st of (Array.isArray(g.steps) ? g.steps : []).slice(0, 6)) {
+        if (!obj(st)) continue
+        const step = uiStepOf('ui_highlight', { target: st.target, note: st.note })
+        if (step) ui.push(step)
+      }
+      continue
+    }
     if (UI_TOOLS.has(e.tool)) {
       // the server validates and returns { ok: true, …normalized input }; an ok: false is never played
       if (!obj(e.result) || e.result.ok !== true) continue
