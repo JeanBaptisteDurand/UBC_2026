@@ -959,7 +959,7 @@ function drawM(): number {
 }
 // ---- The sharp layer: fetched, decoded and faded in at rest only ----
 const sharpC = new Map<number, ImageBitmap>()
-let sharpMax = 6, sharpK = -1, sharpOn = false, sharpWant = -1, sharpUpTick = -1, tickN = 0, sId = 0
+let sharpMax = 6, sharpK = -1, sharpOn = false, sharpWant = -1, sharpUpTick = -1, tickN = 0, sId = 0, fadeK = -1, fadeT0 = 0, fadeU = 0
 const sFetch = new Set<number>(), sDec = new Set<number>(), sJobs = new Map<number, number>()
 let stopKs: number[] = [], stopKsOf: number[] | null = null
 const sInflight = () => (film.rate >= 8 ? 4 : 2)
@@ -1014,13 +1014,28 @@ function sharpTick(rest: boolean, now: number, onFirstDraw: () => void) {
       // one new sharp bitmap per display frame (Safari blocks on each upload)
       if (b && sharpUpTick !== tickN) {
         sharpUpTick = tickN
-        if (b.width === cvS.width) gS.drawImage(b, 0, 0); else gS.drawImage(b, 0, 0, cvS.width, cvS.height)
-        if (CAL) bands(gS, cvS.width, cvS.height, k)
+        // the way in without the motion film: the next stop's frame cross-fades over the one shown (250 ms)
+        if (M.gate === 'stops' && sharpOn && sharpK >= 0 && !REDUCED && !CONN?.saveData) { fadeK = k; fadeT0 = now; fadeU = 0 }
+        else {
+          fadeK = -1
+          if (b.width === cvS.width) gS.drawImage(b, 0, 0); else gS.drawImage(b, 0, 0, cvS.width, cvS.height)
+          if (CAL) bands(gS, cvS.width, cvS.height, k)
+        }
         sharpC.delete(k); sharpC.set(k, b)
         sharpK = k
         showSharp(true, !REDUCED && M.gate !== 'stops')
         onFirstDraw()
       }
+    }
+  }
+  // the cross-fade: the new frame drawn over the canvas with a weight that makes the mix grow linearly with time
+  if (fadeK >= 0) {
+    const b = sharpC.get(fadeK)
+    if (!b || fadeK !== sharpK) fadeK = -1
+    else {
+      const u = Math.min(1, (now - fadeT0) / 250), al = u >= 1 ? 1 : (u - fadeU) / (1 - fadeU)
+      if (al > 0) { gS.globalAlpha = al; if (b.width === cvS.width) gS.drawImage(b, 0, 0); else gS.drawImage(b, 0, 0, cvS.width, cvS.height); gS.globalAlpha = 1; fadeU = u }
+      if (u >= 1) { if (CAL) bands(gS, cvS.width, cvS.height, fadeK); fadeK = -1 }
     }
   }
   // once the pack is in: the stops' sharp frames (desktop, the stop trips land there), then 2 frames around the rest

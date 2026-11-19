@@ -9,7 +9,7 @@ const TXT = {
   en: { load: 'Loading the film', about: (s: number) => `about ${s} s`, enter: 'Enter now', mb: 'MB' },
   fr: { load: 'Chargement du film', about: (s: number) => `environ ${s} s`, enter: 'Entrer maintenant', mb: 'Mo' },
 }
-let el: HTMLDivElement | null = null, bar: HTMLDivElement | null = null, prog: HTMLDivElement | null = null
+let el: HTMLDivElement | null = null, pan: HTMLDivElement | null = null, bar: HTMLDivElement | null = null, prog: HTMLDivElement | null = null
 let num: HTMLSpanElement | null = null, eta: HTMLSpanElement | null = null, btn: HTMLButtonElement | null = null
 let locked = false
 const SCROLL_KEYS = new Set([' ', 'Spacebar', 'PageDown', 'PageUp', 'ArrowDown', 'ArrowUp', 'Home', 'End'])
@@ -48,15 +48,22 @@ const fmt = (b: number) => { const s = (b / 1e6).toFixed(1); return getLang() ==
 export function showGate(onEnter: () => void) {
   if (el) return
   const T = TXT[getLang()] ?? TXT.en
+  // the veil darkens the film only: it sits under the page (its text and the hero's AskHive bar stay readable and
+  // usable), the header and the AskHive button above it; the loading panel sits above the page, at the bottom
   el = document.createElement('div')
   el.id = 'film-gate'
-  el.innerHTML = '<div class="fg-in"><p class="fg-t"></p><div class="fg-live" aria-live="polite"><div class="fg-bar" role="progressbar" aria-valuemin="0"><div class="fg-fill"></div></div><p class="fg-n mono"><span class="fg-b"></span><span class="fg-eta"></span></p></div><button type="button" class="btn btn-line btn-s fg-go" hidden><span></span></button></div>'
-  el.querySelector('.fg-t')!.textContent = T.load
-  prog = el.querySelector('.fg-bar'); bar = el.querySelector('.fg-fill'); num = el.querySelector('.fg-b'); eta = el.querySelector('.fg-eta')
-  btn = el.querySelector('.fg-go'); btn!.querySelector('span')!.textContent = T.enter
+  el.setAttribute('aria-hidden', 'true')
+  pan = document.createElement('div')
+  pan.id = 'film-gate-panel'
+  pan.innerHTML = '<div class="fg-in"><p class="fg-t"></p><div class="fg-live" aria-live="polite"><div class="fg-bar" role="progressbar" aria-valuemin="0"><div class="fg-fill"></div></div><p class="fg-n mono"><span class="fg-b"></span><span class="fg-eta"></span></p></div><button type="button" class="btn btn-line btn-s fg-go" hidden><span></span></button></div>'
+  pan.querySelector('.fg-t')!.textContent = T.load
+  prog = pan.querySelector('.fg-bar'); bar = pan.querySelector('.fg-fill'); num = pan.querySelector('.fg-b'); eta = pan.querySelector('.fg-eta')
+  btn = pan.querySelector('.fg-go'); btn!.querySelector('span')!.textContent = T.enter
   btn!.addEventListener('click', () => onEnter())
   prog!.setAttribute('aria-label', T.load)
-  document.body.appendChild(el)
+  const root = document.getElementById('root')
+  if (root) document.body.insertBefore(el, root); else document.body.appendChild(el)
+  document.body.appendChild(pan)
 }
 export const gateShown = () => !!el
 /** Bytes so far and in all, the ETA in seconds (-1: not known yet), and whether the way in is offered */
@@ -73,9 +80,7 @@ export function updateGate(got: number, total: number, etaS: number, enter: bool
 }
 /** The gate fades out (200 ms) and goes */
 export function closeGate() {
-  const g = el
-  el = null
-  if (!g) return
-  g.classList.add('fg-out')
-  setTimeout(() => g.remove(), 260)
+  const g = el, p = pan
+  el = null; pan = null
+  for (const x of [g, p]) { if (!x) continue; x.classList.add('fg-out'); setTimeout(() => x.remove(), 260) }
 }
