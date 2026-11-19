@@ -72,3 +72,7 @@ on-chain manifest updates, replay and state-proof checks, and the retirement of 
 
 `phala/` holds the app-compose files of the enclaves. dstack measures each file byte for byte, comments included, so
 they stay exactly as deployed; `phala/README.md` summarizes each one in English.
+
+`docker-compose.bounty.yml` is a template of the Sealed Bounty machine's app-compose (real replay by anvil on a fork of
+Arc at block N), with the image digest left as a parameter; the deployed compose files in `phala/` pin the image by
+digest in clear.
