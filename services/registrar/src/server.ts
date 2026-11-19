@@ -10,7 +10,7 @@
  *
  *  v2.1:
  *  - the stack is chosen by DEPLOYMENTS (path to a deployments.*.json file, e.g. deployments.v21.testnet.json); without
- *    it, the SDK's v2 stack. No contract address is hard-coded here.
+ *    it, the SDK's default stack (`testnet`, v2.1). No contract address is hard-coded here.
  *  - settlement follows the settlement contract of the product served (read on-chain): SessionPay → sessions (the last
  *    receipt of each session); X402Settler → pay per call: every X402_CHECK_SECONDS (10 s by default, because payer
  *    authorizations are valid for 15 min), the calls served but not yet settled are fetched (GET /x402/pending) and
@@ -308,5 +308,5 @@ async function loop() {
   }
 }
 
-console.log(`Registrar (stack ${process.env.DEPLOYMENTS ?? "SDK v2"}, DCAP): enclave ${ENCLAVE}, product ${PRODUCT_ID}, operator ${account.address}, checks every ${CHECK_MIN} min, renews ${RENEW_BEFORE_H} h before the window ends${RETIRE_PREVIOUS ? ", retires the old key after a restart" : ""}${LEVELS ? ", keeps the verified level (machine binding, Proof of Cloud token)" : ""}${SETTLE ? `, settles what the enclave served (sessions: from ${Number(SETTLE_MIN) / 1e6} USDC due or at the end of the session; x402 pay per call: every ${X402_EVERY_S} s)` : ""}`);
+console.log(`Registrar (stack ${process.env.DEPLOYMENTS ?? "SDK default, v2.1"}, DCAP): enclave ${ENCLAVE}, product ${PRODUCT_ID}, operator ${account.address}, checks every ${CHECK_MIN} min, renews ${RENEW_BEFORE_H} h before the window ends${RETIRE_PREVIOUS ? ", retires the old key after a restart" : ""}${LEVELS ? ", keeps the verified level (machine binding, Proof of Cloud token)" : ""}${SETTLE ? `, settles what the enclave served (sessions: from ${Number(SETTLE_MIN) / 1e6} USDC due or at the end of the session; x402 pay per call: every ${X402_EVERY_S} s)` : ""}`);
 void Promise.all([loop(), SETTLE ? x402Loop() : Promise.resolve()]);
