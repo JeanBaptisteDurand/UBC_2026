@@ -1,6 +1,6 @@
-/** Levels.tsx — les DEUX NIVEAUX d'opérateur (10/11/2026) sur le site : la carte qui explique les deux parcours (avec les
- *  commandes du kit arcvault) et l'état en direct, et le badge de niveau d'une enclave. Les données viennent de GET /levels
- *  (l'API lit MachineRegistry, ProofOfCloudAuditor et la caution sur Arc). */
+/** Levels.tsx — the TWO operator levels on the site: the card that explains both paths (with the arcvault kit's
+ *  commands) and the live state, and an enclave's level badge. The data comes from GET /levels (the API reads
+ *  MachineRegistry, ProofOfCloudAuditor and the bond on Arc). */
 import { useEffect, useState } from "react";
 import { ShieldCheck, Server } from "lucide-react";
 import { fetchLevels, type LevelsView } from "../api";
@@ -18,7 +18,7 @@ export function useLevels(): LevelsView | null {
   return v;
 }
 
-/** Badge de niveau d'une enclave (rien si l'API n'a pas les niveaux). */
+/** An enclave's level badge (nothing if the API has no levels). */
 export function LevelBadge({ levels, signer }: { levels: LevelsView | null; signer: string }) {
   const e = levels?.enclaves?.find((x) => x.signer.toLowerCase() === signer.toLowerCase());
   if (!e) return null;

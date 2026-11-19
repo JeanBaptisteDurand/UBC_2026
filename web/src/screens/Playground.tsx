@@ -1,8 +1,8 @@
-/** Playground.tsx — l'IA privée en enclave, avec le choix de la façon de payer :
- *  - « Session prépayée » : un dépôt, puis autant de messages qu'il en couvre (Chat.tsx, SessionPay) ;
- *  - « Paiement à l'appel (x402) » : chaque message payé par une signature du prix lu sur Arc (X402Chat.tsx, X402Settler).
- *  Les deux restent montés : changer de mode ne fait perdre ni la session ouverte (sa clé n'est qu'en mémoire) ni la
- *  conversation payée à l'appel. Le choix est gardé dans ce navigateur (commodité, stockage protégé). */
+/** Playground.tsx — private AI in an enclave, with the choice of how to pay:
+ *  - "Prepaid session": a deposit, then as many messages as it covers (Chat.tsx, SessionPay);
+ *  - "Pay per call (x402)": each message paid by a signature for the price read on Arc (X402Chat.tsx, X402Settler).
+ *  Both stay mounted: switching modes loses neither the open session (its key is only in memory) nor the pay-per-call
+ *  conversation. The choice is kept in this browser (a convenience, guarded storage). */
 import { useEffect, useState } from "react";
 import { PageHeader, Btn, usdc } from "../ui";
 import { t, useLang } from "../i18n";
@@ -13,7 +13,7 @@ import X402Chat from "./X402Chat";
 type Mode = "session" | "x402";
 const MODE_KEY = "archive.payMode";
 const storedMode = (): Mode => (safeStorage.getItem(MODE_KEY) === "x402" ? "x402" : "session");
-/** 19/11 : « #/playground?mode=x402 » (le lien du produit 3 dans la Ruche) ouvre la page sur le paiement à l'appel. */
+/** "#/playground?mode=x402" (product 3's link in the Hive) opens the page on pay per call. */
 const hashMode = (): Mode | null => {
   const m = new URLSearchParams(window.location.hash.split("?")[1] ?? "").get("mode");
   return m === "x402" || m === "session" ? m : null;
@@ -22,9 +22,9 @@ const hashMode = (): Mode | null => {
 export default function Playground({ go }: { go: (r: string) => void }) {
   useLang();
   const [mode, setMode] = useState<Mode>(() => hashMode() ?? storedMode());
-  // le mode demandé par le lien devient le choix gardé, comme un clic sur l'option
+  // the mode requested by the link becomes the saved choice, like a click on the option
   useEffect(() => { const m = hashMode(); if (m) safeStorage.setItem(MODE_KEY, m); }, []);
-  // le prix d'un appel x402, lu sur Arc par X402Chat (null tant qu'il n'est pas lu, ou si le produit n'est pas payable)
+  // the price of an x402 call, read on Arc by X402Chat (null until it is read, or if the product cannot be paid)
   const [price, setPrice] = useState<bigint | null>(null);
   function choose(m: Mode) {
     setMode(m);
