@@ -185,7 +185,8 @@ test("bounty_list du site : le niveau ouvert (API) et le niveau vérifié (Seale
   const keep = process.env.ARCHIVE_API;
   process.env.ARCHIVE_API = api.base;
   try {
-    const arc = arcWith([{ productId: 7, balance: 1_000_000n, deadline: NOW - 30_000 }, { productId: 7, balance: 2_000_000n, deadline: NOW + 86_400 }]);
+    // bounty_list reads the real clock (no `now` here): a deadline ten years ahead keeps bounty 2 open whenever this runs
+    const arc = arcWith([{ productId: 7, balance: 1_000_000n, deadline: NOW - 30_000 }, { productId: 7, balance: 2_000_000n, deadline: NOW + 3_650 * 86_400 }]);
     const { result, citations } = await executeSiteTool("bounty_list", {}, { arc });
     const r = result as any;
     assert.equal(r.niveauOuvert.total, 2);
