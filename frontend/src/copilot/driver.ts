@@ -388,7 +388,8 @@ async function navigate(a: NavArgs, rest: UiStep[], hooks: DriveHooks): Promise<
   const target = a.page === 'service' && !a.productId ? 'use' : a.page
   // the demo is the Network page's 3D demo (network.html?focus=demo): on that page, it starts in place
   if (target === 'demo' && here === 'network') { await netDemo({ action: 'play' }, hooks); return false }
-  const same = here === target && (target !== 'service' || new URLSearchParams(location.search).get('p') === a.productId)
+  const q = new URLSearchParams(location.search)
+  const same = here === target && (target !== 'service' || q.get('p') === a.productId) && (target !== 'doc' || !a.section || q.get('c') === a.section)
   if (!same) {
     hooks.log(ct('step.open', { page: ct(`page.${target}` as 'page.home') }))
     // the menu link, if on screen, is "clicked" by the copilot cursor

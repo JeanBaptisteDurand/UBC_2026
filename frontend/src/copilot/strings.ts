@@ -43,7 +43,7 @@ const EN = {
   'err.empty': 'The copilot sent an empty answer.',
   // pages and steps played on the site
   'page.home': 'the home page', 'page.use': 'the catalog', 'page.service': 'the service page', 'page.rent': 'the Rent page',
-  'page.publish': 'the Publish page', 'page.network': 'the Network page', 'page.demo': 'the demo', 'page.datacenter': 'the 3D server room', 'page.console': 'the console',
+  'page.publish': 'the Publish page', 'page.network': 'the Network page', 'page.doc': 'the Doc', 'page.space': 'My space', 'page.bounty': 'the Bounties page', 'page.sessions': 'the Sessions page', 'page.operator': 'the Operator page', 'page.demo': 'the demo', 'page.datacenter': 'the 3D server room', 'page.console': 'the console',
   'step.open': 'Opened {page}',
   'step.search': 'Typed “{q}” in the search',
   'step.clear': 'Cleared the search',
@@ -184,7 +184,7 @@ const FR: Record<Key, string> = {
   'err.unreadable': 'La réponse du copilote est illisible (HTTP {status}).',
   'err.empty': 'Le copilote a envoyé une réponse vide.',
   'page.home': 'l’accueil', 'page.use': 'le catalogue', 'page.service': 'la page du service', 'page.rent': 'la page Louer',
-  'page.publish': 'la page Publier', 'page.network': 'la page Réseau', 'page.demo': 'la démo', 'page.datacenter': 'la salle des serveurs en 3D', 'page.console': 'la console',
+  'page.publish': 'la page Publier', 'page.network': 'la page Réseau', 'page.doc': 'la Doc', 'page.space': 'Mon espace', 'page.bounty': 'la page des primes', 'page.sessions': 'la page des sessions', 'page.operator': 'la page Opérateur', 'page.demo': 'la démo', 'page.datacenter': 'la salle des serveurs en 3D', 'page.console': 'la console',
   'step.open': 'Ouvert : {page}',
   'step.search': 'Recherche tapée : « {q} »',
   'step.clear': 'Recherche effacée',

@@ -3,9 +3,10 @@
 import { link, serviceHref } from '../links'
 import { CONSOLE, DATACENTER } from '../data/endpoints'
 
-export type PageName = 'home' | 'use' | 'service' | 'rent' | 'publish' | 'demo' | 'network'
+export type PageName = 'home' | 'use' | 'service' | 'rent' | 'publish' | 'demo' | 'network' | 'doc' | 'space' | 'bounty' | 'sessions' | 'operator'
 export type Target = PageName | 'datacenter' | 'console'
-export const TARGETS: readonly Target[] = ['home', 'use', 'service', 'rent', 'publish', 'demo', 'datacenter', 'console']
+// the pages the server copilot may open (its SITE_PAGES): every page of this site, the 3D room and the console
+export const TARGETS: readonly Target[] = ['home', 'network', 'service', 'doc', 'space', 'use', 'bounty', 'sessions', 'operator', 'rent', 'publish', 'demo', 'datacenter', 'console']
 export const STATES = ['all', 'green', 'amber', 'red'] as const
 export const KINDS = ['all', 'ai', 'x402', 'bounty', 'copilot', 'author'] as const
 export const CONSOLE_ROUTES = ['vue', 'ruche', 'produits', 'primes', 'playground', 'cles', 'publier-prime', 'operateur', 'publier-produit', 'portefeuille', 'developpeurs'] as const
@@ -24,7 +25,7 @@ export function pageOf(pathname = location.pathname): PageName | null {
   const rel = base && pathname.startsWith(base) ? pathname.slice(base.length) || '/' : pathname
   const p = rel.replace(/\/index\.html$/, '/').replace(/\.html$/, '').replace(/\/+$/, '')
   if (p === '') return 'home'
-  const m = /^\/(use|service|rent|publish|demo|network)$/.exec(p)
+  const m = /^\/(use|service|rent|publish|demo|network|doc|space|bounty|sessions|operator)$/.exec(p)
   return m ? (m[1] as PageName) : null
 }
 
@@ -43,8 +44,8 @@ export interface PageCtx { name: PageName; productId?: string; query?: string; s
 export const netDemoOpen = () => { const r = document.querySelector<HTMLElement>('.s3d .dm'); return !!r && !r.hidden }
 export function pageContext(): PageCtx | undefined {
   const page = pageOf()
-  // the server knows the demo, not the Network page: there, the open demo is "demo", the rest says nothing
-  const name = page === 'network' ? (netDemoOpen() ? 'demo' : null) : page
+  // on the Network page, its open 3D demo is the demo the server knows
+  const name = page === 'network' && netDemoOpen() ? 'demo' : page
   if (!name) return undefined
   const q = new URLSearchParams(location.search)
   const out: PageCtx = { name }
@@ -64,12 +65,15 @@ export function pageContext(): PageCtx | undefined {
 }
 
 /** The URL of a site page; catalog search and filters are typed on arrival. */
-export function urlOf(page: Target, a: { productId?: string; consoleRoute?: string } = {}): string {
+export function urlOf(page: Target, a: { productId?: string; consoleRoute?: string; section?: string } = {}): string {
   // site URLs (link, build base), the console and the 3D room (data/endpoints.ts)
   switch (page) {
     case 'home': return link.home
     case 'use': return link.use
     case 'service': return a.productId ? serviceHref(a.productId) : link.use
+    // the Doc page opens one chapter at a time (doc.html?c=<chapter>)
+    case 'doc': return isAnchor(a.section) ? `${link.doc}?c=${a.section}` : link.doc
+    case 'space': return `${link.home}space.html`
     case 'datacenter': return DATACENTER
     case 'console': return `${CONSOLE}/#/${oneOf(CONSOLE_ROUTES, a.consoleRoute) ?? 'vue'}`
     default: return link[page]
