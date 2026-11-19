@@ -26,8 +26,8 @@ contract SealedBountyTest is Base {
         productId = _proposeAndActivate(address(sealedBounty), true, bytes32(0), 0, 100e6, 100_000e6);
         (signer,) = _registerEnclave(productId, opPk, signerPk, "s1");
         (signer2,) = _registerEnclave(productId, op2Pk, signer2Pk, "s2");
-        vm.roll(1002); // pour ancrer une réclamation sur un bloc < tête et >= bloc d'inscription
-        blockN = 1001; // littéral : l'optimiseur (via_ir) replie block.number lu après vm.roll dans la même fonction
+        vm.roll(1002); // to anchor a claim on a block < head and >= the registration block
+        blockN = 1001; // literal: the optimizer (via_ir) folds a block.number read after vm.roll in the same function
 
         bountyId = _createBounty(200e6, 2, address(0)); // singleCap=200e6, k=2
     }
@@ -103,8 +103,8 @@ contract SealedBountyTest is Base {
         uint256 treasuryBefore = usdc.balanceOf(treasury);
         sealedBounty.claim(r, sigs, cP);
 
-        assertEq(usdc.balanceOf(hunter) - hunterBefore, 100e6); // le palier
-        assertEq(usdc.balanceOf(treasury) - treasuryBefore, 10e6); // 10 % réseau
+        assertEq(usdc.balanceOf(hunter) - hunterBefore, 100e6); // the tier
+        assertEq(usdc.balanceOf(treasury) - treasuryBefore, 10e6); // 10 % network
         assertTrue(sealedBounty.fingerprintPaid(bountyId, keccak256("fp1")));
         assertEq(validation.responses(), 1); // verdict ERC-8004
     }
@@ -116,7 +116,7 @@ contract SealedBountyTest is Base {
         sigs[0] = _sigClaim(r, signerPk);
         sealedBounty.claim(r, sigs, cP);
 
-        // rejouer la même empreinte
+        // replay the same fingerprint
         bytes[] memory sigs2 = new bytes[](1);
         sigs2[0] = _sigClaim(r, signerPk);
         vm.expectRevert(SealedBounty.AlreadyPaid.selector);
@@ -142,7 +142,7 @@ contract SealedBountyTest is Base {
     }
 
     function test_needMoreEnclavesAboveCap() public {
-        // prime avec un plafond d'une seule enclave sous le montant -> exige k=2 opérateurs distincts
+        // bounty whose single-enclave cap is below the amount -> requires k=2 distinct operators
         uint256 id = _createBounty(50e6, 2, address(0)); // singleCap=50e6 < 100e6
         bountyId = id;
         bytes memory cP = bytes("c");
@@ -153,7 +153,7 @@ contract SealedBountyTest is Base {
         vm.expectRevert(SealedBounty.NeedMoreEnclaves.selector);
         sealedBounty.claim(r, one, cP);
 
-        // deux opérateurs distincts -> payé
+        // two distinct operators -> paid
         bytes[] memory two = new bytes[](2);
         two[0] = _sigClaim(r, signerPk);
         two[1] = _sigClaim(r, signer2Pk);
@@ -183,11 +183,11 @@ contract SealedBountyTest is Base {
     }
 
     // =====================================================================================
-    // tests négatifs ajoutés le 7/11 (réclamations, bloc N, enclaves, saisie).
-    // Après setUp : enclaves `signer` (operator) et `signer2` (operator2) inscrites au bloc 1000,
-    // bloc courant 1002, blockN = 1001, prime `bountyId` (palier 100 USDC, singleCap 200, k = 2).
-    // v2 : les tests `test_FIXED_*` rejouent les cas de la revue adverse (corrigés dans src, prouvés ici).
-    // Fenêtre de validité des enclaves : [1000, 5999], grâce jusqu'au bloc 9999 (cf. Base).
+    // Negative tests: claims, block N, enclaves, slashing.
+    // After setUp: enclaves `signer` (operator) and `signer2` (operator2) registered at block 1000,
+    // current block 1002, blockN = 1001, bounty `bountyId` (tier 100 USDC, singleCap 200, k = 2).
+    // The `test_FIXED_*` tests replay the cases of the adversarial review (fixed in src, proven here).
+    // Enclave validity window: [1000, 5999], grace until block 9999 (see Base).
     // =====================================================================================
 
     function _claimAt(address payee, uint64 n, bytes32 fingerprint, uint256 loss, bytes32 cPHash, uint64 deadline)
@@ -238,48 +238,48 @@ contract SealedBountyTest is Base {
         id = sealedBounty.createBounty(q);
     }
 
-    /// §9 « réclamation de prime modifiée d'un octet » : corps, signature ou chiffré — tout est refusé.
+    /// Threat "bounty claim altered by one byte": body, signature or ciphertext, every variant is rejected.
     function test_claimRevertModifiedByOneByte() public {
         bytes memory cP = bytes("sealed-to-protocol");
         uint64 dl = uint64(vm.getBlockTimestamp() + 10 minutes);
         SealedBounty.Claim memory r = _claimAt(hunter, blockN, keccak256("fp-1b"), 5e6, keccak256(cP), dl);
         bytes[] memory sigs = _one(_sigClaim(r, signerPk));
 
-        // (1) payee remplacé : un tiers qui voit la réclamation dans la mempool tente de se la verser
+        // (1) payee replaced: a third party who sees the claim in the mempool tries to pay it to itself
         SealedBounty.Claim memory stolen =
             _claimAt(makeAddr("front-runner"), blockN, keccak256("fp-1b"), 5e6, keccak256(cP), dl);
         vm.expectRevert(SealedBounty.NoValidSigner.selector);
         sealedBounty.claim(stolen, sigs, cP);
 
-        // (2) un octet de l'empreinte (dernier octet XOR 0x01)
+        // (2) one byte of the fingerprint (last byte XOR 0x01)
         SealedBounty.Claim memory fpFlip =
             _claimAt(hunter, blockN, keccak256("fp-1b") ^ bytes32(uint256(1)), 5e6, keccak256(cP), dl);
         vm.expectRevert(SealedBounty.NoValidSigner.selector);
         sealedBounty.claim(fpFlip, sigs, cP);
 
-        // (3) un octet de la perte (loss + 1, toujours au-dessus du palier)
+        // (3) one byte of the loss (loss + 1, still above the tier)
         SealedBounty.Claim memory lossFlip = _claimAt(hunter, blockN, keccak256("fp-1b"), 5e6 + 1, keccak256(cP), dl);
         vm.expectRevert(SealedBounty.NoValidSigner.selector);
         sealedBounty.claim(lossFlip, sigs, cP);
 
-        // (4) un octet de la signature (v : 27 <-> 28) → un autre signataire, pas une enclave
+        // (4) one byte of the signature (v: 27 <-> 28) → another signer, not an enclave
         bytes memory sigFlip = bytes.concat(sigs[0]);
         sigFlip[64] = sigFlip[64] ^ bytes1(0x07);
         vm.expectRevert(SealedBounty.NoValidSigner.selector);
         sealedBounty.claim(r, _one(sigFlip), cP);
 
-        // (5) un octet du chiffré livré au protocole
+        // (5) one byte of the ciphertext delivered to the protocol
         bytes memory cPFlip = bytes.concat(cP);
         cPFlip[0] = cPFlip[0] ^ bytes1(0x01);
         vm.expectRevert(SealedBounty.CipherMismatch.selector);
         sealedBounty.claim(r, sigs, cPFlip);
 
-        // contre-épreuve : l'original intact est payé
+        // counter-check: the intact original is paid
         sealedBounty.claim(r, sigs, cP);
         assertTrue(sealedBounty.fingerprintPaid(bountyId, keccak256("fp-1b")));
     }
 
-    /// §9 « bloc N trop ancien » : hors de la fenêtre EIP-2935 (8 192 blocs) → refus ; 8 191 → payé.
+    /// Threat "block N too old": outside the EIP-2935 window (8,192 blocks) → rejected; 8,191 → paid.
     function test_claimRevertBlockNTooOld() public {
         bytes memory cP = bytes("c");
         SealedBounty.Claim memory r = _claim(keccak256("fp-old"), _goodBlockHash(), keccak256(cP)); // N = 1001
@@ -289,16 +289,16 @@ contract SealedBountyTest is Base {
         vm.expectRevert(History.AnchorTooOld.selector);
         sealedBounty.claim(r, sigs, cP);
 
-        vm.roll(9192); // 8191 : dernier bloc de la fenêtre
+        vm.roll(9192); // 8191: last block of the window
         sealedBounty.claim(r, sigs, cP);
         assertTrue(sealedBounty.fingerprintPaid(bountyId, keccak256("fp-old")));
     }
 
-    /// §9 « enclave expirée » (v2, en blocs) : fenêtre [1000, 5999], grâce jusqu'au bloc 9999.
-    /// (a) une réclamation ancrée APRÈS la fenêtre ne vaut rien, même pendant la grâce ;
-    /// (b) une réclamation ancrée DANS la fenêtre se règle pendant la grâce, plus après.
+    /// Threat "expired enclave" (in blocks): window [1000, 5999], grace until block 9999.
+    /// (a) a claim anchored AFTER the window is worth nothing, even during the grace period;
+    /// (b) a claim anchored INSIDE the window settles during the grace period, not after.
     function test_claimRevertExpiredEnclave() public {
-        bountyId = _createBountyUntil(uint64(vm.getBlockTimestamp() + 7 days)); // la prime, elle, reste ouverte
+        bountyId = _createBountyUntil(uint64(vm.getBlockTimestamp() + 7 days)); // the bounty itself stays open
         bytes memory cP = bytes("c");
         uint64 dl = uint64(vm.getBlockTimestamp() + 1 hours);
         SealedBounty.Claim memory afterExpiry = _claimAt(hunter, 6500, keccak256("fp-after"), 5e6, keccak256(cP), dl);
@@ -306,22 +306,22 @@ contract SealedBountyTest is Base {
         bytes[] memory sigsAfter = _one(_sigClaim(afterExpiry, signerPk));
         bytes[] memory sigsIn = _one(_sigClaim(inWindow, signerPk));
 
-        vm.roll(7000); // expirée, dans la grâce
+        vm.roll(7000); // expired, inside the grace period
         vm.expectRevert(SealedBounty.NoValidSigner.selector);
         sealedBounty.claim(afterExpiry, sigsAfter, cP);
 
         uint256 snap = vm.snapshotState();
-        sealedBounty.claim(inWindow, sigsIn, cP); // ancrée dans la fenêtre : payée pendant la grâce
+        sealedBounty.claim(inWindow, sigsIn, cP); // anchored inside the window: paid during the grace period
         assertTrue(sealedBounty.fingerprintPaid(bountyId, keccak256("fp-in")));
         vm.revertToState(snap);
 
-        vm.roll(10_000); // grâce écoulée (10 000 − 5 999 = 4 001 blocs : N toujours dans la fenêtre EIP-2935)
+        vm.roll(10_000); // grace period over (10,000 − 5,999 = 4,001 blocks: N still inside the EIP-2935 window)
         vm.expectRevert(SealedBounty.NoValidSigner.selector);
         sealedBounty.claim(inWindow, sigsIn, cP);
     }
 
-    /// §9 « enclave invalidée » : réclamation ancrée au bloc d'invalidation ou après → refus ;
-    /// ancrée avant → payée (voulu).
+    /// Threat "invalidated enclave": a claim anchored at the invalidation block or after → rejected;
+    /// anchored before → paid (intended).
     function test_claimRevertInvalidatedEnclave() public {
         bytes memory cP = bytes("c");
         uint64 dl = uint64(vm.getBlockTimestamp() + 10 minutes);
@@ -330,10 +330,10 @@ contract SealedBountyTest is Base {
         bytes[] memory sigsEarly = _one(_sigClaim(early, signerPk));
         bytes[] memory sigsLate = _one(_sigClaim(late, signerPk));
 
-        bytes memory quote = abi.encodePacked("quote", bytes32("s1")); // quote d'inscription (Base)
+        bytes memory quote = abi.encodePacked("quote", bytes32("s1")); // registration quote (Base)
         IAttestationModule.Measurements memory bad;
         module.setMeasurements(quote, bad);
-        registry.invalidate(signer, quote); // désactivée au bloc 1002
+        registry.invalidate(signer, quote); // deactivated at block 1002
         vm.roll(1005);
 
         vm.expectRevert(SealedBounty.NoValidSigner.selector);
@@ -343,11 +343,11 @@ contract SealedBountyTest is Base {
         assertTrue(sealedBounty.fingerprintPaid(bountyId, keccak256("fp-early")));
     }
 
-    /// §9 « montant au-dessus du plafond d'une seule enclave » : deux enclaves du MÊME opérateur, ou la même
-    /// signature deux fois, ne font pas k = 2 opérateurs distincts.
+    /// Threat "amount above the single-enclave cap": two enclaves of the SAME operator, or the same
+    /// signature twice, do not make k = 2 distinct operators.
     function test_needMoreEnclavesRevertSameOperatorTwice() public {
         bountyId = _createBounty(50e6, 2, address(0)); // singleCap 50 < palier 100
-        (address signer3,) = _registerEnclave(productId, opPk, 0x5353, "s3"); // 2e enclave d'`operator`, bloc 1002
+        (address signer3,) = _registerEnclave(productId, opPk, 0x5353, "s3"); // 2nd enclave of `operator`, block 1002
         assertEq(registry.enclaveOf(signer3).operator, operator);
         vm.roll(1004);
         bytes memory cP = bytes("c");
@@ -368,8 +368,8 @@ contract SealedBountyTest is Base {
         sealedBounty.claim(r, duplicated, cP);
     }
 
-    /// Contre-épreuve de la saisie : une VRAIE équivocation (même prime, même empreinte, même bloc N, même
-    /// chasseur, résultats contradictoires) saisit la caution : 50 % au dénonciateur, 50 % au protocole.
+    /// Slashing counter-check: a REAL equivocation (same bounty, same fingerprint, same block N, same
+    /// hunter, contradictory results) seizes the bond: 50 % to the reporter, 50 % to the protocol.
     function test_bountyEquivocationSlashes() public {
         uint64 dl = uint64(vm.getBlockTimestamp() + 10 minutes);
         SealedBounty.Claim memory a = _claimAt(hunter, blockN, keccak256("fp-eq"), 5e6, keccak256("c"), dl);
@@ -387,15 +387,15 @@ contract SealedBountyTest is Base {
         assertEq(usdc.balanceOf(protocol) - protocolBefore, 500e6);
     }
 
-    /// §9 « écriture ERC-8004 refusée sur un chemin de saisie (la saisie passe quand même) » : VerdictLog
-    /// refuse l'appelant (NotCaller), la saisie de la prime scellée a lieu.
+    /// Threat "ERC-8004 write refused on a slashing path (the slashing still happens)": VerdictLog
+    /// refuses the caller (NotCaller), the sealed bounty slashing takes place.
     function test_bountySlashGoesThroughWhenVerdictLogRefuses() public {
         uint64 dl = uint64(vm.getBlockTimestamp() + 10 minutes);
         SealedBounty.Claim memory a = _claimAt(hunter, blockN, keccak256("fp-eq2"), 5e6, keccak256("c"), dl);
         SealedBounty.Claim memory b = _claimAt(hunter, blockN, keccak256("fp-eq2"), 50e6, keccak256("c"), dl);
         bytes memory sigA = _sigClaim(a, signerPk);
         bytes memory sigB = _sigClaim(b, signerPk);
-        verdict.removeCaller(address(sealedBounty)); // v2 : retrait immédiat (frein d'urgence)
+        verdict.removeCaller(address(sealedBounty)); // immediate removal (emergency brake)
         uint256 responsesBefore = validation.responses();
 
         sealedBounty.reportEquivocation(a, sigA, b, sigB);
@@ -405,33 +405,33 @@ contract SealedBountyTest is Base {
         assertEq(validation.responses(), responsesBefore);
     }
 
-    /// FIXED (revue adverse) : deux réclamations HONNÊTES du même exploit — l'enclave O3 choisit N = tête − 2
-    /// et deadline = maintenant + TTL à CHAQUE soumission — ne sont plus une « équivocation » : refus, aucune
-    /// saisie. Avant la correction, le chasseur (ou le protocole qui chasse sa propre prime) vidait la caution
-    /// de n'importe quel opérateur du produit.
+    /// FIXED (adversarial review): two HONEST claims of the same exploit (the bounty enclave picks N = head − 2
+    /// and deadline = now + TTL at EACH submission) are no longer an "equivocation": refused, no
+    /// slashing. Before the fix, the hunter (or the protocol hunting its own bounty) could drain the bond
+    /// of any operator of the product.
     function test_FIXED_honestResubmissionIsNotSlashable() public {
         bytes memory cP = bytes("c");
         SealedBounty.Claim memory first =
             _claimAt(hunter, 1001, keccak256("fp-same"), 5e6, keccak256(cP), uint64(vm.getBlockTimestamp() + 600));
         bytes memory sigFirst = _sigClaim(first, signerPk);
 
-        vm.roll(1007); // le même bundle resoumis 5 blocs plus tard : N = 1005, nouvelle échéance
+        vm.roll(1007); // the same bundle resubmitted 5 blocks later: N = 1005, new deadline
         vm.warp(vm.getBlockTimestamp() + 3);
         SealedBounty.Claim memory second =
             _claimAt(hunter, 1005, keccak256("fp-same"), 5e6, keccak256(cP), uint64(vm.getBlockTimestamp() + 600));
         bytes memory sigSecond = _sigClaim(second, signerPk);
 
-        sealedBounty.claim(first, _one(sigFirst), cP); // le chasseur est payé normalement…
+        sealedBounty.claim(first, _one(sigFirst), cP); // the hunter is paid normally…
 
-        vm.prank(hunter); // …puis « dénonce » ses deux réclamations honnêtes : refusé
+        vm.prank(hunter); // …then "reports" its two honest claims: refused
         vm.expectRevert(SealedBounty.NotEquivocation.selector);
         sealedBounty.reportEquivocation(first, sigFirst, second, sigSecond);
         assertFalse(bond.banned(operator), "operateur honnete non saisi");
         assertEq(bond.bondOf(operator), 1000e6, "caution intacte");
     }
 
-    /// Correction 1, toutes les variantes : n'est une équivocation QUE « mêmes entrées (bountyId, blockN,
-    /// blockHashN, payee, predicateHash, cPHash, fingerprint), sorties différentes (loss ou tier) ».
+    /// Every variant: it is an equivocation ONLY with "same inputs (bountyId, blockN,
+    /// blockHashN, payee, predicateHash, cPHash, fingerprint), different outputs (loss or tier)".
     function test_equivocationOnlyForSameInputsDifferentOutputs() public {
         uint64 dl = uint64(vm.getBlockTimestamp() + 10 minutes);
         bytes32 fp = keccak256("fp-eqv");
@@ -439,18 +439,18 @@ contract SealedBountyTest is Base {
         SealedBounty.Claim memory a = _claimAt(hunter, 1001, fp, 5e6, cph, dl);
         bytes memory sigA = _sigClaim(a, signerPk);
 
-        // resoumissions honnêtes, ou entrées différentes : jamais une preuve, même si la sortie diffère
+        // honest resubmissions, or different inputs: never a proof, even if the output differs
         SealedBounty.Claim[] memory honest = new SealedBounty.Claim[](6);
-        honest[0] = _claimAt(hunter, 1000, fp, 5e6, cph, dl); // autre bloc N
+        honest[0] = _claimAt(hunter, 1000, fp, 5e6, cph, dl); // another block N
         honest[1] = _claimAt(makeAddr("hunter2"), 1001, fp, 5e6, cph, dl); // autre chasseur
-        honest[2] = _claimAt(hunter, 1001, fp, 5e6, keccak256("c2"), dl); // autre chiffré
-        honest[3] = _claimAt(hunter, 1001, fp, 5e6, cph, dl + 60); // même tout, autre échéance
-        honest[4] = _claimAt(hunter, 1000, fp, 50e6, cph, dl); // autre bloc N ET autre perte
+        honest[2] = _claimAt(hunter, 1001, fp, 5e6, keccak256("c2"), dl); // another ciphertext
+        honest[3] = _claimAt(hunter, 1001, fp, 5e6, cph, dl + 60); // everything the same, another deadline
+        honest[4] = _claimAt(hunter, 1000, fp, 50e6, cph, dl); // another block N AND another loss
         honest[5] = _claimAt(hunter, 1001, fp, 50e6, cph, dl);
-        honest[5].predicateHash = keccak256("autre-predicat"); // autre prédicat ET autre perte
+        honest[5].predicateHash = keccak256("autre-predicat"); // another predicate AND another loss
         bytes[] memory sigs = new bytes[](honest.length);
         for (uint256 i = 0; i < honest.length; i++) {
-            sigs[i] = _sigClaim(honest[i], signerPk); // signatures calculées AVANT expectRevert
+            sigs[i] = _sigClaim(honest[i], signerPk); // signatures computed BEFORE expectRevert
         }
         for (uint256 i = 0; i < honest.length; i++) {
             vm.expectRevert(SealedBounty.NotEquivocation.selector);
@@ -459,7 +459,7 @@ contract SealedBountyTest is Base {
         assertFalse(bond.banned(operator));
         assertEq(bond.bondOf(operator), 1000e6);
 
-        // vraie équivocation, palier seul différent : saisie
+        // real equivocation, only the tier differs: slashed
         SealedBounty.Claim memory otherTier = _claimAt(hunter, 1001, fp, 5e6, cph, dl);
         otherTier.tier = 1;
         bytes memory sigTier = _sigClaim(otherTier, signerPk);
@@ -468,7 +468,7 @@ contract SealedBountyTest is Base {
         assertTrue(bond.banned(operator));
         vm.revertToState(snap);
 
-        // vraie équivocation, perte seule différente (échéances différentes : sans effet) : saisie, 50/50
+        // real equivocation, only the loss differs (different deadlines: no effect): slashed, 50/50
         SealedBounty.Claim memory otherLoss = _claimAt(hunter, 1001, fp, 50e6, cph, dl + 120);
         bytes memory sigLoss = _sigClaim(otherLoss, signerPk);
         uint256 reporterBefore = usdc.balanceOf(address(this));
@@ -480,8 +480,8 @@ contract SealedBountyTest is Base {
         assertEq(usdc.balanceOf(protocol) - protocolBefore, 500e6);
     }
 
-    /// Correction 1 : deux réclamations aux mêmes entrées et sorties différentes, mais signées par DEUX
-    /// enclaves différentes, ne prouvent rien contre l'une ou l'autre.
+    /// Two claims with the same inputs and different outputs, but signed by TWO
+    /// different enclaves, prove nothing against either one.
     function test_equivocationRefusedAcrossTwoEnclaves() public {
         uint64 dl = uint64(vm.getBlockTimestamp() + 10 minutes);
         SealedBounty.Claim memory a = _claimAt(hunter, 1001, keccak256("fp-2e"), 5e6, keccak256("c"), dl);
@@ -494,41 +494,41 @@ contract SealedBountyTest is Base {
         assertFalse(bond.banned(operator2));
     }
 
-    /// FIXED (revue adverse) : claim() exige l'échéance SIGNÉE de la réclamation (deadline ≥ block.timestamp).
-    /// Le TTL de 10 min de l'enclave O3 a maintenant un effet.
+    /// FIXED (adversarial review): claim() requires the claim's SIGNED deadline (deadline ≥ block.timestamp).
+    /// The bounty enclave's 10-min TTL now has an effect.
     function test_FIXED_claimDeadlineEnforced() public {
         bytes memory cP = bytes("c");
         uint64 claimDeadline = uint64(vm.getBlockTimestamp() + 10 minutes);
         SealedBounty.Claim memory r = _claimAt(hunter, blockN, keccak256("fp-ttl"), 5e6, keccak256(cP), claimDeadline);
         bytes[] memory sigs = _one(_sigClaim(r, signerPk));
 
-        // contre-épreuve : à la dernière seconde de l'échéance signée, la réclamation est payée
+        // counter-check: at the last second of the signed deadline, the claim is paid
         uint256 snap = vm.snapshotState();
         vm.warp(claimDeadline);
         sealedBounty.claim(r, sigs, cP);
         assertTrue(sealedBounty.fingerprintPaid(bountyId, keccak256("fp-ttl")));
         vm.revertToState(snap);
 
-        // une seconde après (prime ouverte, enclave active, N dans la fenêtre) : refusée
+        // one second later (bounty open, enclave active, N inside the window): refused
         vm.warp(uint256(claimDeadline) + 1);
         vm.expectRevert(SealedBounty.ClaimExpired.selector);
         sealedBounty.claim(r, sigs, cP);
         assertFalse(sealedBounty.fingerprintPaid(bountyId, keccak256("fp-ttl")));
     }
 
-    /// Correction 11 : au-dessus de singleCap, k opérateurs DISTINCTS qui signent la MÊME réclamation sont
-    /// payés, et chacun prend montant ÷ (nombre d'opérateurs distincts) d'exposition ; deux enclaves du
-    /// même opérateur ne comptent qu'une fois (ni pour k, ni pour le partage).
+    /// Above singleCap, k DISTINCT operators signing the SAME claim are
+    /// paid, and each takes amount ÷ (number of distinct operators) of exposure; two enclaves of the
+    /// same operator count once (neither for k nor for the split).
     function test_kDistinctOperatorsSplitExposure() public {
-        bountyId = _createBounty(50e6, 2, address(0)); // singleCap 50 < palier 100 → k = 2 opérateurs distincts
-        _registerEnclave(productId, opPk, 0x5353, "s3"); // 2e enclave d'`operator`, bloc 1002
+        bountyId = _createBounty(50e6, 2, address(0)); // singleCap 50 < tier 100 → k = 2 distinct operators
+        _registerEnclave(productId, opPk, 0x5353, "s3"); // 2nd enclave of `operator`, block 1002
         vm.roll(1004);
         bytes memory cP = bytes("c");
         SealedBounty.Claim memory r =
             _claimAt(hunter, 1003, keccak256("fp-k2"), 5e6, keccak256(cP), uint64(vm.getBlockTimestamp() + 1 hours));
         bytes[] memory sigs = new bytes[](3);
         sigs[0] = _sigClaim(r, signerPk); // operator
-        sigs[1] = _sigClaim(r, 0x5353); // operator encore (2e enclave)
+        sigs[1] = _sigClaim(r, 0x5353); // operator again (2nd enclave)
         sigs[2] = _sigClaim(r, signer2Pk); // operator2
 
         uint256 hunterBefore = usdc.balanceOf(hunter);
@@ -540,19 +540,19 @@ contract SealedBountyTest is Base {
         assertEq(usdc.balanceOf(hunter) - hunterBefore, 100e6);
         assertEq(bond.exposureOf(operator, productId), 50e6, "100 / 2 operateurs distincts, pas / 3 signatures");
         assertEq(bond.exposureOf(operator2, productId), 50e6);
-        assertEq(usdc.balanceOf(operator) - opBefore, 2.5e6); // 5 % de 100, partagés en 2
+        assertEq(usdc.balanceOf(operator) - opBefore, 2.5e6); // 5 % of 100, split in 2
         assertEq(usdc.balanceOf(operator2) - op2Before, 2.5e6);
-        assertEq(usdc.balanceOf(treasury) - treasuryBefore, 10e6); // 10 % réseau
+        assertEq(usdc.balanceOf(treasury) - treasuryBefore, 10e6); // 10 % network
     }
 
-    /// Correction 11 (k = 3) : trois opérateurs distincts ; exposition = 100 ÷ 3 chacun ; le reste de la
-    /// division de la part opérateurs va au réseau (rien ne reste bloqué dans le contrat).
+    /// k = 3: three distinct operators; exposure = 100 ÷ 3 each; the remainder of the
+    /// division of the operators' share goes to the network (nothing stays stuck in the contract).
     function test_kThreeDistinctOperators() public {
         uint256 op3Pk = 0xC0C;
         address operator3 = vm.addr(op3Pk);
         usdc.mint(operator3, 1_000_000e6);
         _bondOperator(op3Pk, 1000e6);
-        _registerEnclave(productId, op3Pk, 0x5454, "s4"); // bloc 1002
+        _registerEnclave(productId, op3Pk, 0x5454, "s4"); // block 1002
         bountyId = _createBounty(50e6, 3, address(0)); // k = 3
         vm.roll(1004);
         bytes memory cP = bytes("c");
@@ -578,28 +578,28 @@ contract SealedBountyTest is Base {
         assertEq(bond.exposureOf(operator2, productId), 33_333_333);
         assertEq(bond.exposureOf(operator3, productId), 33_333_333);
         assertEq(usdc.balanceOf(operator3) - op3Before, 1_666_666); // 5e6 / 3
-        assertEq(usdc.balanceOf(treasury) - treasuryBefore, 10e6 + 2); // réseau + reste de la division
-        // le pool a payé exactement palier × 1,15 et le contrat n'a rien gardé en trop
+        assertEq(usdc.balanceOf(treasury) - treasuryBefore, 10e6 + 2); // network + remainder of the division
+        // the pool paid exactly tier × 1.15 and the contract kept nothing extra
         assertEq(balanceBefore - usdc.balanceOf(address(sealedBounty)), 115e6);
         assertEq(usdc.balanceOf(address(sealedBounty)), sealedBounty.getBounty(bountyId).balance + _otherBalances());
     }
 
-    /// @dev Somme des soldes des primes AUTRES que `bountyId` (créées par setUp / le test).
+    /// @dev Sum of the balances of the bounties OTHER than `bountyId` (created by setUp / the test).
     function _otherBalances() internal view returns (uint256 sum) {
         for (uint256 id = 1; id <= sealedBounty.bountyCount(); id++) {
             if (id != bountyId) sum += sealedBounty.getBounty(id).balance;
         }
     }
 
-    /// Correction 10 : le plafond d'exposition du produit (par opérateur, 24 h glissantes) s'applique EN PLUS de
-    /// « ½ caution disponible ». Plafond 60 USDC : une seule enclave ne libère pas 100 ; deux opérateurs
-    /// distincts (50 chacun) le peuvent ; v2 : le compteur glisse (une exposition compte jusqu'à 36 h).
-    /// v2 : une prime paie au plus son palier le plus haut par armement → la 2e réclamation vise une AUTRE prime.
+    /// The product's exposure cap (per operator, rolling 24 h) applies ON TOP of
+    /// "½ of the available bond". Cap 60 USDC: a single enclave cannot release 100; two distinct
+    /// operators (50 each) can; the counter is rolling (an exposure counts for up to 36 h).
+    /// A bounty pays at most its highest tier per arming → the 2nd claim targets ANOTHER bounty.
     function test_claimRespectsProductExposureCap() public {
         productId = _proposeAndActivate(address(sealedBounty), true, bytes32(0), 0, 100e6, 60e6); // plafond 60
-        _registerEnclave(productId, opPk, 0x6161, "cap-1"); // bloc 1002
+        _registerEnclave(productId, opPk, 0x6161, "cap-1"); // block 1002
         _registerEnclave(productId, op2Pk, 0x6262, "cap-2");
-        // une seule enclave suffit (100 ≤ singleCap 200) ; nonces de financement distincts de celui de setUp
+        // a single enclave is enough (100 ≤ singleCap 200); funding nonces distinct from the one in setUp
         uint64 bountyDeadline = uint64(vm.getBlockTimestamp() + 3 days);
         uint256 bountyA = _createBountyUntil(bountyDeadline);
         uint256 bountyB = _createBountyUntil(bountyDeadline + 1);
@@ -618,27 +618,27 @@ contract SealedBountyTest is Base {
         duo2[0] = _sigClaim(r2, 0x6161);
         duo2[1] = _sigClaim(r2, 0x6262);
 
-        // une seule enclave : 100 > plafond 60 (alors que ½ caution = 500 le permettrait)
+        // a single enclave: 100 > cap 60 (while ½ bond = 500 would allow it)
         vm.expectRevert(OperatorBond.ExposureCapExceeded.selector);
         sealedBounty.claim(r1, solo, cP);
 
-        // deux opérateurs distincts : 50 chacun ≤ 60
+        // two distinct operators: 50 each ≤ 60
         sealedBounty.claim(r1, duo, cP);
         assertEq(bond.exposureOf(operator, productId), 50e6);
 
-        // même fenêtre : 50 + 50 > 60
+        // same window: 50 + 50 > 60
         vm.expectRevert(OperatorBond.ExposureCapExceeded.selector);
         sealedBounty.claim(r2, duo2, cP);
 
-        // 36 h plus tard, l'exposition précédente ne compte plus
+        // 36 h later, the previous exposure no longer counts
         vm.warp(vm.getBlockTimestamp() + 36 hours + 1);
         sealedBounty.claim(r2, duo2, cP);
         assertEq(bond.exposureOf(operator, productId), 50e6);
     }
 
     // =====================================================================================
-    // v2 bis — revue adverse du 7/11 : un exploit = un paiement, cP livré après réservation, pause bornée,
-    // paramètres bornés, réfutation par contre-rejeu
+    // Adversarial review of v2: one exploit = one payment, cP delivered after reservation, bounded pause,
+    // bounded parameters, refutation by counter-replay
     // =====================================================================================
 
     function _claimTier(uint64 n, bytes32 fp, uint256 loss, uint8 tier) internal view returns (SealedBounty.Claim memory r) {
@@ -646,7 +646,7 @@ contract SealedBountyTest is Base {
         r.tier = tier;
     }
 
-    /// @dev Prime à paliers (perte ≥ 1 → 10 ; ≥ 50 → 30 ; ≥ 500 → 100 USDC), une enclave suffit (singleCap 200).
+    /// @dev Tiered bounty (loss ≥ 1 → 10; ≥ 50 → 30; ≥ 500 → 100 USDC), one enclave is enough (singleCap 200).
     function _createTieredBounty(bytes32 nonce) internal returns (uint256 id) {
         uint256[] memory minLoss = new uint256[](3);
         minLoss[0] = 1e6;
@@ -674,8 +674,8 @@ contract SealedBountyTest is Base {
         id = sealedBounty.createBounty(q);
     }
 
-    /// FIXED (haute) : un palier ne se paie qu'une fois par armement ; un palier supérieur ne paie que la
-    /// différence, et seulement ancré APRÈS le dernier paiement ; le protocole réarme après correction.
+    /// FIXED (high): a tier is paid only once per arming; a higher tier pays only the
+    /// difference, and only when anchored AFTER the last payment; the protocol re-arms after the fix.
     function test_FIXED_eachTierPaidOncePerArm() public {
         bountyId = _createTieredBounty(keccak256("tiered"));
         bytes memory cP = bytes("c");
@@ -684,27 +684,27 @@ contract SealedBountyTest is Base {
         sealedBounty.claim(t1, _one(_sigClaim(t1, signerPk)), cP);
         assertEq(usdc.balanceOf(hunter) - before, 30e6);
 
-        // le même bug sous une autre empreinte, même palier, ancré au même bloc : refusé
+        // the same bug under another fingerprint, same tier, anchored at the same block: refused
         vm.roll(1004);
         SealedBounty.Claim memory again = _claimTier(1003, keccak256("exploit-a-recase"), 60e6, 1);
         bytes[] memory sAgain = _one(_sigClaim(again, signerPk));
         vm.expectRevert(SealedBounty.TierAlreadyPaid.selector);
         sealedBounty.claim(again, sAgain, cP);
 
-        // ancré avant (ou au bloc du) dernier paiement : refusé, même à un palier supérieur
+        // anchored before (or at the block of) the last payment: refused, even at a higher tier
         SealedBounty.Claim memory early = _claimTier(1002, keccak256("exploit-b"), 600e6, 2);
         bytes[] memory sEarly = _one(_sigClaim(early, signerPk));
         vm.expectRevert(SealedBounty.AnchorBeforeLastPayout.selector);
         sealedBounty.claim(early, sEarly, cP);
 
-        // un palier SUPÉRIEUR, ancré après : seule la différence (100 − 30)
+        // a HIGHER tier, anchored after: only the difference (100 − 30)
         SealedBounty.Claim memory top = _claimTier(1003, keccak256("exploit-b"), 600e6, 2);
         before = usdc.balanceOf(hunter);
         sealedBounty.claim(top, _one(_sigClaim(top, signerPk)), cP);
         assertEq(usdc.balanceOf(hunter) - before, 70e6);
         assertEq(sealedBounty.getBounty(bountyId).paidAmount, 100e6);
 
-        // plus rien au-delà du palier le plus haut… jusqu'au réarmement par le protocole
+        // nothing more beyond the highest tier… until the protocol re-arms
         vm.roll(1010);
         SealedBounty.Claim memory more = _claimTier(1009, keccak256("exploit-c"), 600e6, 2);
         bytes[] memory sMore = _one(_sigClaim(more, signerPk));
@@ -712,7 +712,7 @@ contract SealedBountyTest is Base {
         sealedBounty.claim(more, sMore, cP);
 
         vm.prank(protocol);
-        sealedBounty.reopen(bountyId); // réarmée au bloc 1010
+        sealedBounty.reopen(bountyId); // re-armed at block 1010
         vm.expectRevert(SealedBounty.AnchorBeforeLastPayout.selector); // 1009 ≤ 1010
         sealedBounty.claim(more, sMore, cP);
         vm.roll(1012);
@@ -721,7 +721,7 @@ contract SealedBountyTest is Base {
         assertEq(sealedBounty.getBounty(bountyId).paidAmount, 100e6);
     }
 
-    /// FIXED (haute) : acceptClaim ne porte pas cP ; deliver(cP), ouvert à tous, livre et paie.
+    /// FIXED (high): acceptClaim does not carry cP; deliver(cP), open to anyone, delivers and pays.
     function test_FIXED_acceptThenDeliver() public {
         bytes memory cP = bytes("exploit chiffre vers le protocole");
         SealedBounty.Claim memory r = _claimAt(hunter, blockN, keccak256("fp-2s"), 5e6, keccak256(cP), uint64(vm.getBlockTimestamp() + 1 hours));
@@ -737,7 +737,7 @@ contract SealedBountyTest is Base {
         vm.expectRevert(SealedBounty.CipherMismatch.selector);
         sealedBounty.deliver(bountyId, keccak256("fp-2s"), bytes("autre chose"));
 
-        vm.prank(makeAddr("relayeur")); // n'importe qui livre ; le chasseur est payé
+        vm.prank(makeAddr("relayeur")); // anyone delivers; the hunter is paid
         sealedBounty.deliver(bountyId, keccak256("fp-2s"), cP);
         assertEq(usdc.balanceOf(hunter), 1_000_000e6 + 100e6);
         assertEq(validation.responses(), 1);
@@ -746,7 +746,7 @@ contract SealedBountyTest is Base {
         sealedBounty.deliver(bountyId, keccak256("fp-2s"), cP);
     }
 
-    /// v2 : un paiement réservé et jamais livré retourne au pool après DELIVERY_WINDOW.
+    /// A reserved payment that is never delivered returns to the pool after DELIVERY_WINDOW.
     function test_cancelUndeliveredAfterWindow() public {
         bytes memory cP = bytes("c");
         SealedBounty.Claim memory r = _claimAt(hunter, blockN, keccak256("fp-nd"), 5e6, keccak256(cP), uint64(vm.getBlockTimestamp() + 1 hours));
@@ -761,7 +761,7 @@ contract SealedBountyTest is Base {
         sealedBounty.deliver(bountyId, keccak256("fp-nd"), cP);
     }
 
-    /// FIXED (haute) : la pause n'atteint que les réclamations ancrées à partir du bloc de la pause.
+    /// FIXED (high): the pause only reaches claims anchored from the pause block on.
     function test_FIXED_pauseDoesNotReachClaimsAnchoredBefore() public {
         bytes memory cP = bytes("c");
         uint64 dl = uint64(vm.getBlockTimestamp() + 1 hours);
@@ -770,31 +770,31 @@ contract SealedBountyTest is Base {
         bytes[] memory sBefore = _one(_sigClaim(before_, signerPk));
         bytes[] memory sAt = _one(_sigClaim(atPause, signerPk));
         vm.prank(protocol);
-        sealedBounty.setPaused(bountyId, true); // au bloc 1002
+        sealedBounty.setPaused(bountyId, true); // at block 1002
         vm.roll(1004);
         vm.expectRevert(SealedBounty.BountyPausedErr.selector);
         sealedBounty.claim(atPause, sAt, cP);
-        sealedBounty.claim(before_, sBefore, cP); // preuve faite avant la pause : payée
+        sealedBounty.claim(before_, sBefore, cP); // proof made before the pause: paid
         assertTrue(sealedBounty.fingerprintPaid(bountyId, keccak256("fp-p1")));
     }
 
-    /// FIXED (basse) : produit réglé par ce contrat, k ≤ MAX_SIGS, paliers strictement croissants.
+    /// FIXED (low): product settled by this contract, k ≤ MAX_SIGS, strictly increasing tiers.
     function test_FIXED_createBountyParamsBounded() public {
         uint256[] memory minLoss = new uint256[](2);
         uint256[] memory amount = new uint256[](2);
         minLoss[0] = 10e6;
-        minLoss[1] = 5e6; // non trié
+        minLoss[1] = 5e6; // not sorted
         amount[0] = 5e6;
         amount[1] = 50e6;
         vm.expectRevert(SealedBounty.BadTiers.selector);
         this.createWith(productId, minLoss, amount, 2);
         minLoss[1] = 50e6;
-        amount[1] = 1e6; // palier supérieur moins payé
+        amount[1] = 1e6; // higher tier paid less
         vm.expectRevert(SealedBounty.BadTiers.selector);
         this.createWith(productId, minLoss, amount, 2);
         amount[1] = 50e6;
         vm.expectRevert(SealedBounty.BadK.selector);
-        this.createWith(productId, minLoss, amount, 6); // > MAX_SIGS : jamais réclamable au-dessus de singleCap
+        this.createWith(productId, minLoss, amount, 6); // > MAX_SIGS: never claimable above singleCap
         uint256 inference = _proposeAndActivate(address(sessionPay), false, bytes32("m"), 1e6, 100e6, 0);
         vm.expectRevert(SealedBounty.WrongSettlement.selector);
         this.createWith(inference, minLoss, amount, 2);
@@ -824,7 +824,7 @@ contract SealedBountyTest is Base {
         id = sealedBounty.createBounty(q);
     }
 
-    // ---- réfutation (contre-rejeu) ----
+    // ---- refutation (counter-replay) ----
 
     function _sigRefutation(SealedBounty.Refutation memory f, uint256 pk) internal view returns (bytes memory) {
         bytes32 structHash = keccak256(abi.encode(sealedBounty.REFUTATION_TYPEHASH(), f.claimDigest, f.proven, f.loss, f.tier));
@@ -837,17 +837,17 @@ contract SealedBountyTest is Base {
         sigs[1] = b;
     }
 
-    /// v2 : bornes de la réfutation — quorum d'opérateurs distincts, jamais un signataire de la réclamation, un
-    /// résultat différent, dans la fenêtre ; une réclamation exacte ne se réfute pas.
+    /// Refutation bounds: a quorum of distinct operators, never a signer of the claim, a
+    /// different result, inside the window; an exact claim cannot be refuted.
     function test_refutationRules() public {
         uint256 op3Pk = 0xC0C;
         address op3 = vm.addr(op3Pk);
         usdc.mint(op3, 1_000_000e6);
         _bondOperator(op3Pk, 1000e6);
-        _registerEnclave(productId, op3Pk, 0x5454, "s4"); // 3e opérateur, bloc 1002
+        _registerEnclave(productId, op3Pk, 0x5454, "s4"); // 3rd operator, block 1002
         bytes memory cP = bytes("c");
         SealedBounty.Claim memory r = _claimAt(hunter, blockN, keccak256("fp-ref"), 5e6, keccak256(cP), uint64(vm.getBlockTimestamp() + 1 hours));
-        sealedBounty.claim(r, _one(_sigClaim(r, signerPk)), cP); // signée par `operator` seul
+        sealedBounty.claim(r, _one(_sigClaim(r, signerPk)), cP); // signed by `operator` alone
         bytes32 digest = sealedBounty.claimDigest(r);
         address[] memory ops = new address[](1);
         ops[0] = operator;
@@ -859,7 +859,7 @@ contract SealedBountyTest is Base {
 
         SealedBounty.Refutation memory f = SealedBounty.Refutation({claimDigest: digest, proven: false, loss: 0, tier: 0});
         bytes[] memory alone = _one(_sigRefutation(f, signer2Pk));
-        vm.expectRevert(SealedBounty.NeedMoreRefuters.selector); // 1 opérateur : pas plus que la réclamation
+        vm.expectRevert(SealedBounty.NeedMoreRefuters.selector); // 1 operator: no more than the claim
         sealedBounty.refute(r, ops, f, alone);
 
         bytes[] memory withClaimer = _two(_sigRefutation(f, signer2Pk), _sigRefutation(f, signerPk));
@@ -878,16 +878,16 @@ contract SealedBountyTest is Base {
         sealedBounty.refute(r, ops, f, good);
         vm.revertToState(snap);
 
-        sealedBounty.refute(r, ops, f, good); // deux opérateurs distincts, étrangers à la réclamation
+        sealedBounty.refute(r, ops, f, good); // two distinct operators, unrelated to the claim
         assertTrue(bond.banned(operator));
         assertFalse(bond.banned(operator2));
         vm.expectRevert(SealedBounty.AlreadyRefuted.selector);
         sealedBounty.refute(r, ops, f, good);
     }
-    // ---- v2 bis : le verdict ERC-8004 ne saute plus au gaz minimal (eth_estimateGas) ----
+    // ---- the ERC-8004 verdict is no longer skipped at the minimum gas (eth_estimateGas) ----
 
-    /// FIXED : au gaz MINIMAL qui fait réussir deliver, le chasseur est payé — aucun transfert affamé changé en crédit —
-    /// ET le verdict ERC-8004 est écrit.
+    /// FIXED: at the MINIMUM gas that makes deliver succeed, the hunter is paid (no starved transfer turned into a credit)
+    /// AND the ERC-8004 verdict is written.
     function test_FIXED_v2_minimalGasDeliverPaysAndWritesVerdict() public {
         _emulateArcVerdictCost();
         bytes memory cP = bytes("c");
@@ -909,7 +909,7 @@ contract SealedBountyTest is Base {
         assertEq(validation.responses(), before + 1, "verdict ecrit au gaz minimal");
     }
 
-    /// FIXED : la saisie pour équivocation au gaz minimal écrit son verdict de faute.
+    /// FIXED: slashing for equivocation at the minimum gas writes its fault verdict.
     function test_FIXED_v2_minimalGasEquivocationWritesVerdict() public {
         _emulateArcVerdictCost();
         uint64 dl = uint64(vm.getBlockTimestamp() + 10 minutes);
@@ -927,13 +927,13 @@ contract SealedBountyTest is Base {
         assertEq(validation.responses(), before + 1, "verdict de faute ecrit au gaz minimal");
     }
 
-    /// FIXED : une réfutation au gaz minimal saisit ET écrit son verdict.
+    /// FIXED: a refutation at the minimum gas slashes AND writes its verdict.
     function test_FIXED_v2_minimalGasRefuteWritesVerdict() public {
         _emulateArcVerdictCost();
         uint256 op3Pk = 0xC0C;
         usdc.mint(vm.addr(op3Pk), 1_000_000e6);
         _bondOperator(op3Pk, 1000e6);
-        _registerEnclave(productId, op3Pk, 0x5454, "s4-gas"); // 3e opérateur
+        _registerEnclave(productId, op3Pk, 0x5454, "s4-gas"); // 3rd operator
         bytes memory cP = bytes("c");
         SealedBounty.Claim memory r =
             _claimAt(hunter, blockN, keccak256("fp-ref-gas"), 5e6, keccak256(cP), uint64(vm.getBlockTimestamp() + 1 hours));
@@ -954,9 +954,9 @@ contract SealedBountyTest is Base {
         assertEq(validation.responses(), before + 1, "verdict de refutation ecrit au gaz minimal");
     }
 
-    // ---- v2.1 : requestHash lié à la chaîne et au contrat ; VerdictSkipped quand l'écriture échoue ----
+    // ---- requestHash bound to the chain and the contract; VerdictSkipped when the write fails ----
 
-    /// v2.1 : le verdict d'une prime payée porte keccak256(abi.encode(chainid, address(this), "bounty", id, empreinte)).
+    /// The verdict of a paid bounty carries keccak256(abi.encode(chainid, address(this), "bounty", id, fingerprint)).
     function test_v21_bountyVerdictRequestHashBound() public {
         bytes memory cP = bytes("c");
         SealedBounty.Claim memory r =
@@ -968,7 +968,7 @@ contract SealedBountyTest is Base {
         sealedBounty.claim(r, sigs, cP);
     }
 
-    /// v2.1 : registre ERC-8004 en panne au paiement : le chasseur est payé, VerdictSkipped trace le verdict sauté.
+    /// ERC-8004 registry down at payment time: the hunter is paid, VerdictSkipped records the skipped verdict.
     function test_v21_payEmitsVerdictSkippedWhenRegistryFails() public {
         bytes memory cP = bytes("c");
         SealedBounty.Claim memory r =
@@ -983,8 +983,8 @@ contract SealedBountyTest is Base {
         assertEq(usdc.balanceOf(hunter) - before, 100e6, "paye malgre la panne du registre");
     }
 
-    /// v2.1 : saisie pour équivocation avec VerdictLog qui refuse l'appelant : la saisie a lieu, VerdictSkipped est émis.
-    /// v2.1 bis (changement voulu, revue adverse du 9/11) : le requestHash porte aussi l'opérateur saisi.
+    /// Slashing for equivocation while VerdictLog refuses the caller: the slashing happens, VerdictSkipped is emitted.
+    /// Intended change (adversarial review of v2.1): the requestHash also carries the slashed operator.
     function test_v21_equivocationEmitsVerdictSkipped() public {
         uint64 dl = uint64(vm.getBlockTimestamp() + 10 minutes);
         SealedBounty.Claim memory a = _claimAt(hunter, blockN, keccak256("fp-eq3"), 5e6, keccak256("c"), dl);
@@ -1001,7 +1001,7 @@ contract SealedBountyTest is Base {
         assertTrue(bond.banned(operator));
     }
 
-    /// v2.1 : réfutation avec le registre en panne : saisie faite, VerdictSkipped émis avec le requestHash lié.
+    /// Refutation with the registry down: slashing done, VerdictSkipped emitted with the bound requestHash.
     function test_v21_refuteEmitsVerdictSkipped() public {
         uint256 op3Pk = 0xC0C;
         usdc.mint(vm.addr(op3Pk), 1_000_000e6);

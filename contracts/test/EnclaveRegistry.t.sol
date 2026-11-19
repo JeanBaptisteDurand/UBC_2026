@@ -43,7 +43,7 @@ contract EnclaveRegistryTest is Base {
         uint256 r = block.number - 1;
         bytes memory quote = abi.encodePacked("q-wl");
         IAttestationModule.Measurements memory m = _measurements(productId, operator, vm.addr(signerPk), x, r, false);
-        m.mrtd = _b48("EVIL"); // change le workloadId
+        m.mrtd = _b48("EVIL"); // changes the workloadId
         module.setMeasurements(quote, m);
         vm.prank(operator);
         vm.expectRevert(EnclaveRegistry.WorkloadNotAllowed.selector);
@@ -54,7 +54,7 @@ contract EnclaveRegistryTest is Base {
         bytes32 x = keccak256("x");
         uint256 r = block.number - 1;
         bytes memory quote = abi.encodePacked("q-rd");
-        // mesures liées à operator2, mais c'est operator qui appelle
+        // measurements bound to operator2, but operator is the caller
         IAttestationModule.Measurements memory m = _measurements(productId, operator2, vm.addr(signerPk), x, r, false);
         module.setMeasurements(quote, m);
         vm.prank(operator);
@@ -69,7 +69,7 @@ contract EnclaveRegistryTest is Base {
         IAttestationModule.Measurements memory m = _measurements(productId, operator, vm.addr(signerPk), x, r, false);
         module.setMeasurements(quote, m);
         vm.prank(operator);
-        // on ancre sur un AUTRE bloc que celui des mesures -> hash différent
+        // anchored on ANOTHER block than the measurements' block -> different hash
         vm.expectRevert(EnclaveRegistry.AnchorHashMismatch.selector);
         registry.registerEnclave(productId, quote, r - 1, vm.addr(signerPk), x, "");
     }
@@ -88,14 +88,14 @@ contract EnclaveRegistryTest is Base {
 
     function test_register_revertQuoteReused() public {
         (, bytes memory quote) = _registerEnclave(productId, opPk, signerPk, "s1");
-        // réutiliser le même quote
+        // reuse the same quote
         vm.prank(operator);
         vm.expectRevert(EnclaveRegistry.QuoteReused.selector);
         registry.registerEnclave(productId, quote, block.number - 1, vm.addr(signer2Pk), keccak256("x2"), "");
     }
 
     function test_register_revertUnderbonded() public {
-        // operator2 n'a pas déposé de caution
+        // operator2 has posted no bond
         bytes32 x = keccak256("x2");
         uint256 r = block.number - 1;
         bytes memory quote = abi.encodePacked("q-nobond");
@@ -110,11 +110,11 @@ contract EnclaveRegistryTest is Base {
         (address signer, bytes memory quote) = _registerEnclave(productId, opPk, signerPk, "s1");
         assertTrue(registry.isActiveAt(signer, productId, block.number));
 
-        // le collatéral actuel ne valide plus ce quote
+        // the current collateral no longer validates this quote
         IAttestationModule.Measurements memory bad; // ok == false
         module.setMeasurements(quote, bad);
 
-        registry.invalidate(signer, quote); // ouvert à tous
+        registry.invalidate(signer, quote); // open to anyone
         assertFalse(registry.enclaveOf(signer).active);
         assertFalse(registry.isActiveAt(signer, productId, block.number));
     }
@@ -126,24 +126,24 @@ contract EnclaveRegistryTest is Base {
     }
 
     function test_retire() public {
-        // inscription au bloc 1000 (cf. setUp). Numéros explicites : l'optimiseur replie block.number.
+        // registered at block 1000 (see setUp). Explicit block numbers: the optimizer folds block.number.
         (address signer,) = _registerEnclave(productId, opPk, signerPk, "s1");
         vm.roll(1010);
         vm.prank(operator);
         registry.retire(signer); // deactivatedAtBlock = 1010
-        // actif pour les reçus d'avant le retrait, inactif à partir du retrait
+        // active for receipts from before the retirement, inactive from the retirement on
         assertTrue(registry.isActiveAt(signer, productId, 1005));
         assertFalse(registry.isActiveAt(signer, productId, 1010));
     }
 
     // =====================================================================================
-    // tests négatifs ajoutés le 7/11 (inscription, REPORTDATA, rejeu, expiration).
-    // Bloc courant = 1000 après setUp ; numéros de bloc en littéraux (l'optimiseur replie block.number).
-    // v2 : les tests `test_FIXED_*` rejouent les cas de la revue adverse, corrigés dans src (le
-    // test prouve le bon comportement). Validité en blocs : fenêtre [1000, 5999], grâce jusqu'au bloc 9999.
+    // Negative tests: registration, REPORTDATA binding, replay, expiry.
+    // Current block = 1000 after setUp; block numbers are literals (the optimizer folds block.number).
+    // The `test_FIXED_*` tests replay the cases of the adversarial review, fixed in src (the
+    // test proves the correct behaviour). Validity in blocks: window [1000, 5999], grace until block 9999.
     // =====================================================================================
 
-    /// @dev Mesures valides dont REPORTDATA[0:32] lie un chainId et un registre CHOISIS (P6).
+    /// @dev Valid measurements whose REPORTDATA[0:32] binds a CHOSEN chainId and registry.
     function _measurementsBoundTo(
         uint256 chainId_,
         address registry_,
@@ -159,10 +159,10 @@ contract EnclaveRegistryTest is Base {
     }
 
     function _x25519Of(bytes32 salt) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked("x25519", salt)); // même dérivation que _registerEnclave
+        return keccak256(abi.encodePacked("x25519", salt)); // same derivation as _registerEnclave
     }
 
-    /// §9 « autre chainId dans REPORTDATA » : un quote lié à une autre chaîne (ici Arc mainnet) est refusé.
+    /// Threat "another chainId in REPORTDATA": a quote bound to another chain (here Arc mainnet) is rejected.
     function test_register_revertWrongChainIdInReportData() public {
         address s = vm.addr(signerPk);
         bytes32 x = keccak256("x");
@@ -176,9 +176,9 @@ contract EnclaveRegistryTest is Base {
         registry.registerEnclave(productId, quote, 999, s, x, "");
     }
 
-    /// §9 « autre registre dans REPORTDATA » : le quote lié à un autre déploiement ne vaut que là-bas.
+    /// Threat "another registry in REPORTDATA": a quote bound to another deployment is only valid there.
     function test_register_revertWrongRegistryInReportData() public {
-        // un autre déploiement : sa propre caution, câblée sur son propre registre
+        // another deployment: its own bond, wired to its own registry
         OperatorBond otherBond = new OperatorBond(address(usdc), treasury, address(this), address(identity));
         EnclaveRegistry other = new EnclaveRegistry(
             address(module),
@@ -205,14 +205,14 @@ contract EnclaveRegistryTest is Base {
         vm.expectRevert(EnclaveRegistry.ReportDataMismatch.selector);
         registry.registerEnclave(productId, quote, 999, s, x, "");
 
-        // contre-épreuve : le même quote passe sur le registre auquel il est lié
+        // counter-check: the same quote passes on the registry it is bound to
         vm.prank(operator);
         other.registerEnclave(productId, quote, 999, s, x, "");
         assertEq(other.enclaveOf(s).operator, operator);
         assertEq(registry.enclaveOf(s).operator, address(0));
     }
 
-    /// P6 : l'opérateur ne peut pas substituer SA clé de signature ni SA clé X25519 à celles de l'enclave.
+    /// The operator cannot substitute ITS signing key or ITS X25519 key for the enclave's keys.
     function test_register_revertSignerOrX25519Substitution() public {
         address enclaveKey = vm.addr(signerPk);
         address operatorKey = vm.addr(0xBADC0DE);
@@ -229,7 +229,7 @@ contract EnclaveRegistryTest is Base {
         registry.registerEnclave(productId, quote, 999, enclaveKey, keccak256("x-operateur"), "");
     }
 
-    /// P6 : un quote lié au produit A ne sert pas à inscrire l'enclave sur le produit B (même image autorisée).
+    /// A quote bound to product A cannot register the enclave on product B (same allowed image).
     function test_register_revertProductSubstitution() public {
         uint256 otherPid = _proposeAndActivate(address(sessionPay), false, bytes32("model2"), 1e6, 100e6, 100_000e6);
         address s = vm.addr(signerPk);
@@ -241,8 +241,8 @@ contract EnclaveRegistryTest is Base {
         registry.registerEnclave(otherPid, quote, 999, s, x, "");
     }
 
-    /// §9 « quote rejoué » : une enclave invalidée ne ressuscite pas en rejouant son ancien quote (P9),
-    /// même si le collatéral redevient bon.
+    /// Threat "replayed quote": an invalidated enclave does not come back by replaying its old quote,
+    /// even if the collateral becomes valid again.
     function test_register_revertQuoteReplayAfterInvalidation() public {
         (address s, bytes memory quote) = _registerEnclave(productId, opPk, signerPk, "s1"); // R = 999
         IAttestationModule.Measurements memory good = _measurements(productId, operator, s, _x25519Of("s1"), 999, false);
@@ -258,7 +258,7 @@ contract EnclaveRegistryTest is Base {
         assertFalse(registry.isActiveAt(s, productId, 1000));
     }
 
-    /// §9 « quote périmé » (bornes) : R = bloc courant refusé (EIP-2935 ne sert que les blocs passés).
+    /// Threat "stale quote" (bounds): R = current block is rejected (EIP-2935 only serves past blocks).
     function test_register_revertAnchorNotYetInHistory() public {
         address s = vm.addr(signerPk);
         bytes32 x = keccak256("x");
@@ -266,10 +266,10 @@ contract EnclaveRegistryTest is Base {
         module.setMeasurements(quote, _measurements(productId, operator, s, x, 1000, false));
         vm.prank(operator);
         vm.expectRevert(History.AnchorTooOld.selector);
-        registry.registerEnclave(productId, quote, 1000, s, x, ""); // 1000 = bloc courant
+        registry.registerEnclave(productId, quote, 1000, s, x, ""); // 1000 = current block
     }
 
-    /// §9 « quote périmé » (bornes) : 8 192 blocs d'écart refusés, 8 191 acceptés.
+    /// Threat "stale quote" (bounds): a gap of 8,192 blocks is rejected, 8,191 is accepted.
     function test_register_anchorWindowBoundary() public {
         address s = vm.addr(signerPk);
         bytes32 x = keccak256("x");
@@ -281,7 +281,7 @@ contract EnclaveRegistryTest is Base {
         vm.expectRevert(History.AnchorTooOld.selector);
         registry.registerEnclave(productId, q1, 1000, s, x, "");
 
-        vm.roll(9191); // 9191 - 1000 = 8191 : dernier bloc de la fenêtre
+        vm.roll(9191); // 9191 - 1000 = 8191: last block of the window
         bytes memory q2 = abi.encodePacked("q-8191");
         module.setMeasurements(q2, _measurements(productId, operator, s, x, 1000, false));
         vm.prank(operator);
@@ -289,7 +289,7 @@ contract EnclaveRegistryTest is Base {
         assertTrue(registry.enclaveOf(s).active);
     }
 
-    /// @dev Réinscrit `signerPk_` pour (`pid`, `opPk_`), quote neuf ancré au bloc `r` (littéral).
+    /// @dev Re-registers `signerPk_` for (`pid`, `opPk_`), with a fresh quote anchored at block `r` (literal).
     function _reRegister(uint256 pid, uint256 opPk_, uint256 signerPk_, bytes32 salt, bytes memory quote, uint256 r)
         internal
     {
@@ -300,60 +300,60 @@ contract EnclaveRegistryTest is Base {
         registry.registerEnclave(pid, quote, r, s, _x25519Of(salt), "");
     }
 
-    /// §9 « enclave expirée » (v2, en blocs) : inscrite au bloc 1000 → fenêtre [1000, 5999] ; la grâce
-    /// (jusqu'au bloc 9999) ne sert qu'à régler des reçus ancrés DANS la fenêtre ; au-delà, plus rien.
+    /// Threat "expired enclave" (in blocks): registered at block 1000 → window [1000, 5999]; the grace period
+    /// (until block 9999) only settles receipts anchored INSIDE the window; beyond it, nothing.
     function test_isActiveAt_windowAndGrace() public {
-        (address s,) = _registerEnclave(productId, opPk, signerPk, "s1"); // bloc 1000
+        (address s,) = _registerEnclave(productId, opPk, signerPk, "s1"); // block 1000
         IEnclaveRegistry.Enclave memory e = registry.enclaveOf(s);
         assertEq(e.fromBlock, 1000);
-        assertEq(e.untilBlock, 5999); // 1000 + 5 000 − 1 : exactement VALIDITY_BLOCKS blocs
+        assertEq(e.untilBlock, 5999); // 1000 + 5,000 − 1: exactly VALIDITY_BLOCKS blocks
         assertEq(registry.VALIDITY_BLOCKS(), TEST_VALIDITY_BLOCKS);
         assertEq(registry.GRACE_BLOCKS(), TEST_GRACE_BLOCKS);
 
-        vm.roll(9999); // dernier bloc de la grâce
+        vm.roll(9999); // last block of the grace period
         assertTrue(registry.isActiveAt(s, productId, 1000));
         assertTrue(registry.isActiveAt(s, productId, 5999));
-        assertFalse(registry.isActiveAt(s, productId, 999)); // avant l'inscription
-        assertFalse(registry.isActiveAt(s, productId, 6000)); // après la fenêtre
+        assertFalse(registry.isActiveAt(s, productId, 999)); // before registration
+        assertFalse(registry.isActiveAt(s, productId, 6000)); // after the window
         assertEq(registry.activeOperatorAt(s, productId, 5999), operator);
 
-        vm.roll(10_000); // grâce écoulée
+        vm.roll(10_000); // grace period over
         assertFalse(registry.isActiveAt(s, productId, 1000));
         assertFalse(registry.isActiveAt(s, productId, 5999));
         assertEq(registry.activeOperatorAt(s, productId, 5999), address(0));
     }
 
-    /// FIXED (revue adverse ; spécification C2 « vrai si l'enclave était active à ce bloc » ; C5 « enclave expirée au
-    /// bloc d'ancrage : refusé »). Une enclave EXPIRÉE et non réattestée n'est plus « active » pour des blocs
-    /// produits APRÈS son expiration, même pendant la grâce : validité réelle = VALIDITY_BLOCKS, pas le double.
+    /// FIXED (adversarial review; specification: "true if the enclave was active at that block"; "enclave expired at
+    /// the anchor block: rejected"). An EXPIRED enclave that has not re-attested is no longer "active" for blocks
+    /// produced AFTER its expiry, even during the grace period: real validity = VALIDITY_BLOCKS, not twice that.
     function test_FIXED_expiredEnclaveNotActiveForBlocksAfterExpiry() public {
-        (address s,) = _registerEnclave(productId, opPk, signerPk, "s1"); // fenêtre [1000, 5999]
+        (address s,) = _registerEnclave(productId, opPk, signerPk, "s1"); // window [1000, 5999]
         vm.warp(vm.getBlockTimestamp() + 25 hours);
-        vm.roll(7000); // expirée depuis 1 000 blocs, dans la grâce (jusqu'au bloc 9999)
+        vm.roll(7000); // expired 1,000 blocks ago, inside the grace period (until block 9999)
         assertTrue(registry.isActiveAt(s, productId, 1000), "grace : un bloc de la fenetre reste reglable (voulu)");
         assertFalse(registry.isActiveAt(s, productId, 6000), "bloc posterieur a l'expiration : jamais actif");
         assertFalse(registry.isActiveAt(s, productId, 7000), "bloc posterieur a l'expiration : jamais actif");
     }
 
-    /// FIXED (revue adverse) : la réattestation par le même opérateur (`operator renew`, toutes les ≈ 24 h) PROLONGE
-    /// la fenêtre en cours au lieu de la remplacer : les reçus et réclamations ancrés avant le renouvellement
-    /// restent réglables.
+    /// FIXED (adversarial review): re-attestation by the same operator (`operator renew`, every ≈ 24 h) EXTENDS
+    /// the current window instead of replacing it: receipts and claims anchored before the renewal
+    /// stay payable.
     function test_FIXED_renewalKeepsReceiptsAnchoredBeforeRenewal() public {
-        (address s,) = _registerEnclave(productId, opPk, signerPk, "s1"); // bloc 1000, R = 999
+        (address s,) = _registerEnclave(productId, opPk, signerPk, "s1"); // block 1000, R = 999
         vm.roll(1010);
-        vm.warp(vm.getBlockTimestamp() + 23 hours); // renouvellement avant l'expiration
+        vm.warp(vm.getBlockTimestamp() + 23 hours); // renewal before expiry
         _reRegister(productId, opPk, signerPk, "s1", abi.encodePacked("quote-renew"), 1009);
 
         assertTrue(registry.isActiveAt(s, productId, 1010), "apres renouvellement : active");
         assertTrue(registry.isActiveAt(s, productId, 1005), "les blocs anterieurs au renouvellement restent actifs");
         IEnclaveRegistry.Enclave memory e = registry.enclaveOf(s);
-        assertEq(e.fromBlock, 1000); // la fenêtre est prolongée, pas remplacée
+        assertEq(e.fromBlock, 1000); // the window is extended, not replaced
         assertEq(e.untilBlock, 1010 + TEST_VALIDITY_BLOCKS - 1);
         (, IEnclaveRegistry.Window memory prev) = registry.windowsOf(s);
-        assertEq(prev.operator, address(0)); // rien d'archivé : aucune fenêtre perdue
+        assertEq(prev.operator, address(0)); // nothing archived: no window lost
     }
 
-    /// Renouvellement juste au bloc qui suit la fin de la fenêtre (5999 → 6000) : toujours sans trou, prolongé.
+    /// Renewal exactly at the block after the window ends (5999 → 6000): still no gap, extended.
     function test_renewalAtFirstBlockAfterWindowStillExtends() public {
         (address s,) = _registerEnclave(productId, opPk, signerPk, "s1"); // [1000, 5999]
         vm.roll(6000);
@@ -365,11 +365,11 @@ contract EnclaveRegistryTest is Base {
         assertTrue(registry.isActiveAt(s, productId, 6000));
     }
 
-    /// Historique (correction 4) : réinscription APRÈS un trou. La fenêtre passée est gardée pour sa grâce
-    /// (ses reçus restent réglables) ; les blocs du trou ne sont jamais valides ; la grâce écoulée, plus rien.
+    /// History: re-registration AFTER a gap. The past window is kept for its grace period
+    /// (its receipts stay payable); the blocks of the gap are never valid; once the grace period is over, nothing.
     function test_reRegistrationAfterGapKeepsPreviousWindowForGrace() public {
         (address s,) = _registerEnclave(productId, opPk, signerPk, "s1"); // [1000, 5999]
-        vm.roll(7000); // expirée ; grâce de la 1re fenêtre jusqu'au bloc 9999
+        vm.roll(7000); // expired; grace period of the 1st window until block 9999
         _reRegister(productId, opPk, signerPk, "s1", abi.encodePacked("quote-gap"), 6999); // [7000, 11999]
 
         (IEnclaveRegistry.Window memory cur, IEnclaveRegistry.Window memory prev) = registry.windowsOf(s);
@@ -379,17 +379,17 @@ contract EnclaveRegistryTest is Base {
         assertEq(prev.untilBlock, 5999);
         assertEq(prev.operator, operator);
 
-        assertTrue(registry.isActiveAt(s, productId, 3000)); // fenêtre précédente, en grâce
-        assertFalse(registry.isActiveAt(s, productId, 6500)); // le trou
+        assertTrue(registry.isActiveAt(s, productId, 3000)); // previous window, in its grace period
+        assertFalse(registry.isActiveAt(s, productId, 6500)); // the gap
         assertTrue(registry.isActiveAt(s, productId, 7000));
 
-        vm.roll(10_000); // grâce de la 1re fenêtre écoulée
+        vm.roll(10_000); // grace period of the 1st window over
         assertFalse(registry.isActiveAt(s, productId, 3000));
         assertTrue(registry.isActiveAt(s, productId, 7000));
     }
 
-    /// FIXED v2 (revue adverse, moyenne) : une clé est liée À VIE à son premier (opérateur, produit). La réinscrire
-    /// sur un AUTRE produit (même opérateur) est refusé : une preuve d'équivocation reste recevable contre elle.
+    /// FIXED v2 (adversarial review, medium): a key is bound FOR LIFE to its first (operator, product). Re-registering it
+    /// on ANOTHER product (same operator) is refused: a proof of equivocation stays admissible against it.
     function test_FIXED_keyCannotMoveToAnotherProduct() public {
         uint256 pid2 = _proposeAndActivate(address(sessionPay), false, bytes32("model2"), 1e6, 100e6, 100_000e6);
         (address s,) = _registerEnclave(productId, opPk, signerPk, "s1"); // produit A : [1000, 5999]
@@ -401,17 +401,17 @@ contract EnclaveRegistryTest is Base {
         vm.prank(operator);
         vm.expectRevert(EnclaveRegistry.SignerBoundElsewhere.selector);
         registry.registerEnclave(pid2, q, 1999, s, _x25519Of("s1"), "");
-        assertTrue(registry.isActiveAt(s, productId, 1500)); // toujours au produit A
+        assertTrue(registry.isActiveAt(s, productId, 1500)); // still on product A
         assertFalse(registry.isActiveAt(s, pid2, 2000));
     }
 
-    /// FIXED (revue adverse, scénario du kit O1) : un autre opérateur cautionné, muni d'un
-    /// vrai quote liant SON adresse aux clés de l'enclave d'autrui, ne peut pas se l'approprier tant qu'elle
-    /// est valide ou en grâce (erreur dédiée).
+    /// FIXED (adversarial review, operator-kit scenario): another bonded operator, holding a
+    /// real quote that binds ITS address to someone else's enclave keys, cannot take it over while it
+    /// is valid or in its grace period (dedicated error).
     function test_FIXED_otherOperatorCannotHijackLiveEnclave() public {
         (address s,) = _registerEnclave(productId, opPk, signerPk, "s1"); // inscrite par `operator`
         _bondOperator(op2Pk, 1000e6);
-        bytes memory hijackQuote = abi.encodePacked("quote-hijack"); // vrai quote obtenu sur /attest avec operator2
+        bytes memory hijackQuote = abi.encodePacked("quote-hijack"); // real quote obtained from /attest with operator2
         module.setMeasurements(hijackQuote, _measurements(productId, operator2, s, _x25519Of("s1"), 999, false));
 
         vm.prank(operator2);
@@ -423,13 +423,13 @@ contract EnclaveRegistryTest is Base {
         assertTrue(registry.isActiveAt(s, productId, 1000));
     }
 
-    /// Correction 2, bornes : refus pendant la validité ET la grâce (EnclaveHeldByOtherOperator) ; v2 : et APRÈS la
-    /// grâce aussi (SignerBoundElsewhere) — une sybille ne reprend jamais la clé d'autrui.
+    /// Bounds: refused during validity AND the grace period (EnclaveHeldByOtherOperator); and AFTER the
+    /// grace period too (SignerBoundElsewhere): a sybil never takes over someone else's key.
     function test_takeoverRefusedDuringAndAfterGrace() public {
-        (address s,) = _registerEnclave(productId, opPk, signerPk, "s1"); // [1000, 5999], tenue jusqu'à 9999
+        (address s,) = _registerEnclave(productId, opPk, signerPk, "s1"); // [1000, 5999], held until 9999
         _bondOperator(op2Pk, 1000e6);
 
-        vm.roll(9999); // dernier bloc de la grâce : encore tenue
+        vm.roll(9999); // last block of the grace period: still held
         bytes memory q1 = abi.encodePacked("quote-op2-9999");
         module.setMeasurements(q1, _measurements(productId, operator2, s, _x25519Of("s1"), 9998, false));
         vm.prank(operator2);
@@ -438,7 +438,7 @@ contract EnclaveRegistryTest is Base {
         );
         registry.registerEnclave(productId, q1, 9998, s, _x25519Of("s1"), "");
 
-        vm.roll(10_000); // grâce écoulée : la clé reste liée à `operator`
+        vm.roll(10_000); // grace period over: the key stays bound to `operator`
         bytes memory q2 = abi.encodePacked("quote-op2-10000");
         module.setMeasurements(q2, _measurements(productId, operator2, s, _x25519Of("s1"), 9999, false));
         vm.prank(operator2);
@@ -448,13 +448,13 @@ contract EnclaveRegistryTest is Base {
         assertEq(registry.activeOperatorAt(s, productId, 10_000), address(0));
     }
 
-    /// Correction 2 : après un RETRAIT, la clé reste tenue pendant la grâce comptée depuis le retrait ; v2 : puis
-    /// elle reste liée à son opérateur (aucune reprise).
+    /// After a RETIREMENT, the key stays held during the grace period counted from the retirement; then
+    /// it stays bound to its operator (no takeover).
     function test_takeoverAfterRetireRefused() public {
         (address s,) = _registerEnclave(productId, opPk, signerPk, "s1");
         vm.roll(1010);
         vm.prank(operator);
-        registry.retire(s); // fenêtre coupée à 1009, tenue jusqu'à 1009 + 4 000 = 5009
+        registry.retire(s); // window cut at 1009, held until 1009 + 4,000 = 5009
         assertEq(registry.enclaveOf(s).untilBlock, 1009);
         _bondOperator(op2Pk, 1000e6);
 
@@ -476,23 +476,23 @@ contract EnclaveRegistryTest is Base {
         assertEq(registry.enclaveOf(s).operator, operator);
     }
 
-    /// FIXED v2 (revue adverse, haute) : retirer une image fautive invalide ses enclaves SANS grâce, avec ou sans
-    /// quote ; la clé ne se réinscrit plus ; sa caution réservée est libérée.
+    /// FIXED v2 (adversarial review, high): retiring a faulty image invalidates its enclaves WITHOUT grace, with or without
+    /// a quote; the key can no longer re-register; its reserved bond is released.
     function test_FIXED_retiredWorkloadKillsEnclaveWithoutGrace() public {
         (address s,) = _registerEnclave(productId, opPk, signerPk, "s1");
         vm.expectRevert(EnclaveRegistry.StillValid.selector);
-        registry.invalidateRetiredWorkload(s); // image encore autorisée
+        registry.invalidateRetiredWorkload(s); // image still allowed
         assertEq(bond.reservedFor(s), 100e6);
 
         vm.roll(1500);
-        products.retireWorkload(productId, _workloadId()); // l'auteur (ce contrat) retire l'image
-        registry.invalidateRetiredWorkload(s); // ouvert à tous, sans quote
+        products.retireWorkload(productId, _workloadId()); // the author (this contract) retires the image
+        registry.invalidateRetiredWorkload(s); // open to anyone, without a quote
         assertTrue(registry.killed(s));
         assertFalse(registry.isActiveAt(s, productId, 1200), "plus rien ne se regle, meme ancre avant");
         assertEq(registry.settleableUntilBlock(s), 0);
         assertEq(bond.reservedFor(s), 0);
 
-        // l'image est réautorisée (timelock) : la clé tuée ne revient pas
+        // the image is allowed again (timelock): the killed key does not come back
         products.proposeWorkload(productId, _workloadId());
         vm.warp(vm.getBlockTimestamp() + TIMELOCK + 1);
         products.applyWorkload(productId, _workloadId());
@@ -503,7 +503,7 @@ contract EnclaveRegistryTest is Base {
         registry.registerEnclave(productId, q2, 1499, s, _x25519Of("s1"), "");
     }
 
-    /// v2 : invalidate(signer, quote) suit la même règle quand l'image est retirée (sans grâce).
+    /// invalidate(signer, quote) follows the same rule when the image is retired (no grace).
     function test_invalidateWithQuoteKillsRetiredWorkload() public {
         (address s, bytes memory quote) = _registerEnclave(productId, opPk, signerPk, "s1");
         products.retireWorkload(productId, _workloadId());
@@ -512,19 +512,19 @@ contract EnclaveRegistryTest is Base {
         assertEq(registry.activeOperatorAt(s, productId, 1000), address(0));
     }
 
-    /// v2 : dernier bloc réglable d'une clé = fin de fenêtre + grâce (sert à fermer plus tôt une session).
+    /// Last payable block of a key = end of window + grace (used to close a session earlier).
     function test_settleableUntilBlock() public {
         (address s,) = _registerEnclave(productId, opPk, signerPk, "s1"); // [1000, 5999]
         assertEq(registry.settleableUntilBlock(s), 5999 + TEST_GRACE_BLOCKS);
         vm.roll(1010);
         vm.prank(operator);
-        registry.retire(s); // coupée à 1009
+        registry.retire(s); // cut at 1009
         assertEq(registry.settleableUntilBlock(s), 1009 + TEST_GRACE_BLOCKS);
         assertEq(registry.settleableUntilBlock(makeAddr("inconnue")), 0);
     }
 
-    /// `expiresAt` est un horodatage INDICATIF (affichage, planification du renouvellement) : inscription
-    /// + VALIDITY_BLOCKS × BLOCK_TIME_MS ; la règle est en blocs.
+    /// `expiresAt` is an INDICATIVE timestamp (display, renewal planning): registration
+    /// + VALIDITY_BLOCKS × BLOCK_TIME_MS; the rule is in blocks.
     function test_expiresAtIsIndicativeFromBlocks() public {
         (address s,) = _registerEnclave(productId, opPk, signerPk, "s1");
         IEnclaveRegistry.Enclave memory e = registry.enclaveOf(s);
@@ -532,7 +532,7 @@ contract EnclaveRegistryTest is Base {
         assertTrue(e.active);
     }
 
-    /// Valeurs d'Arc (mesurées le 7/11/2026 : ≈ 508 ms/bloc sur mainnet et testnet) : 170 000 blocs ≈ 24 h.
+    /// Arc values (measured on 2026-11-07: ≈ 508 ms per block on mainnet and testnet): 170,000 blocks ≈ 24 h.
     function test_arcValuesSpan24Hours() public {
         EnclaveRegistry arc = new EnclaveRegistry(
             address(module), address(products), address(bond), true, 170_000, 170_000, 508
@@ -544,7 +544,7 @@ contract EnclaveRegistryTest is Base {
         assertEq(uint256(arc.VALIDITY_BLOCKS()) * arc.BLOCK_TIME_MS() / 1000, 86_360);
     }
 
-    /// Paramètres invalides refusés au déploiement (validité nulle, durée de bloc nulle) ; grâce nulle permise.
+    /// Invalid parameters are refused at deployment (zero validity, zero block time); zero grace is allowed.
     function test_constructorRejectsZeroParams() public {
         vm.expectRevert(EnclaveRegistry.BadParams.selector);
         new EnclaveRegistry(address(module), address(products), address(bond), false, 0, 1, 508);
