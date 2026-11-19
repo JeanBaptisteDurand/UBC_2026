@@ -18,6 +18,7 @@ import type { Machine, OperatorKey } from '../network/actions/jbapi'
 import { x, xTitle } from '../network/actions/strings-x'
 import { WalletLine, ActSec } from './opsui'
 import { LevelsCard } from './levels'
+import { useCopy, useHashScroll } from './parts'
 
 /** embed: inside My space (space.html), without the page frame; the title becomes a section title */
 export function OperatorPage({ embed = false }: { embed?: boolean } = {}) {
@@ -27,6 +28,7 @@ export function OperatorPage({ embed = false }: { embed?: boolean } = {}) {
   const main = useRef<HTMLElement>(null)
   useIn(main, 0.94)
   useEffect(() => { if (!embed) document.title = xTitle('o.doc') }, [lang, embed])
+  useHashScroll(true) // space.html?tab=machines#keys lands on its section
   return (
     <>
       {embed ? null : <><a className="skip" href="#machines" data-front-free>{x('o.skip')}</a><AppHeader page="operator" section="nav.operator" /></>}
@@ -68,7 +70,8 @@ function Machines() {
     if (!E || !s.address) { setMs(null); return }
     let alive = true
     const load = () => (read ? E.fetchMachinesSigned(read) : E.fetchMachines(s.address!)).then((m) => { if (alive) { setMs(m); setN(null) } })
-      .catch((e) => { if (!alive) return; if (read && E.isSignatureSpent(e)) { E.dropReadAccess(); setN({ tone: 'muted', text: x('o.readExpired') }) } else { setMs((v) => v ?? []); setN(errNote(E, e)) } })
+      // a list that could not be read stays unread (never "no machine paired"); the previous list, if any, stays
+      .catch((e) => { if (!alive) return; if (read && E.isSignatureSpent(e)) { E.dropReadAccess(); setN({ tone: 'muted', text: x('o.readExpired') }) } else setN(errNote(E, e)) })
     void load()
     const iv = setInterval(load, 15_000)
     return () => { alive = false; clearInterval(iv) }
@@ -80,7 +83,7 @@ function Machines() {
   }
   const masked = !read && !!ms?.some((m) => m.restricted || m.hostnameHidden)
   return (
-    <ActSec id="machines" title={x('o.m.title')} lede={x('o.m.lede')} side={masked ? <button type="button" className="btn btn-line btn-s" onClick={unlock} disabled={!onArc(s)}><span>{x('o.readBtn')}</span></button> : null}>
+    <ActSec id="machines" title={x('o.m.title')} lede={x('o.m.lede')} side={masked ? <button type="button" className="btn btn-line btn-s" onClick={unlock} disabled={!onArc(s)}><span>{x('o.readBtn')}</span></button> : null} copilot="machines">
       {!s.address ? <WalletLine /> : null}
       {n ? <NoteLine n={n} /> : null}
       {s.address ? (
@@ -88,7 +91,8 @@ function Machines() {
           <table className="tbl">
             <thead><tr><th scope="col">{x('o.m.h.name')}</th><th scope="col">{x('o.m.h.state')}</th><th scope="col">{x('o.m.h.doctor')}</th><th scope="col">{x('o.m.h.arc')}</th><th scope="col">{x('o.m.h.act')}</th></tr></thead>
             <tbody>
-              {ms === null ? <tr><td colSpan={5} className="muted">{x('state.reading')}</td></tr>
+              {ms === null ? (n?.tone === 'bad' ? <tr><td colSpan={5} className="muted b-unread"><span>{x('list.unread')}</span><button type="button" className="btn btn-line btn-s" onClick={() => { setN(null); setTick((v) => v + 1) }}><span>{x('list.reread')}</span></button></td></tr>
+                : <tr><td colSpan={5} className="muted">{x('state.reading')}</td></tr>)
                 : ms.length === 0 ? <tr><td colSpan={5} className="muted">{x('o.m.none')}</td></tr>
                   : ms.map((m) => <MachineLine key={m.machineId} m={m} E={E!} lang={lang} read={read} onChanged={() => setTick((v) => v + 1)} unlock={unlock} />)}
             </tbody>
@@ -125,12 +129,13 @@ function MachineLine({ m, E, lang, read, onChanged, unlock }: { m: Machine; E: E
   return (
     <>
       <tr>
+        {/* one box per cell: on phones a cell is a grid (label, value), a second child fell under the label */}
         <td data-l={x('o.m.h.name')}>
-          <button type="button" className="tlink" aria-expanded={open} onClick={() => setOpen((o) => !o)}>{m.hostname || x('o.m.hidden')}</button>
-          <span className="lbl muted"> {m.mode === 'demo' ? x('o.m.noTdx') : m.mode.toUpperCase()}</span>
+          <span><button type="button" className="tlink" aria-expanded={open} onClick={() => setOpen((o) => !o)}>{m.hostname || x('o.m.hidden')}</button>
+          <span className="lbl muted"> {m.mode === 'demo' ? x('o.m.noTdx') : m.mode.toUpperCase()}</span></span>
         </td>
-        <td data-l={x('o.m.h.state')}><span className={`led ${m.online ? 'led-green' : ''}`} aria-hidden="true" />{m.online ? m.status : ago !== null ? x('o.m.offline', { n: ago }) : x('o.m.never')}</td>
-        <td data-l={x('o.m.h.doctor')}>{m.doctorOk === null ? x('o.m.pending') : m.failing?.length ? m.failing.join(', ') : x('o.m.green')}</td>
+        <td data-l={x('o.m.h.state')}><span><span className={`led ${m.online ? 'led-green' : ''}`} aria-hidden="true" />{m.online ? m.status : ago !== null ? x('o.m.offline', { n: ago }) : x('o.m.never')}</span></td>
+        <td className="tbl-long" data-l={x('o.m.h.doctor')}>{m.doctorOk === null ? x('o.m.pending') : m.failing?.length ? m.failing.join(', ') : x('o.m.green')}</td>
         <td data-l={x('o.m.h.arc')}>{m.registered ? x('o.m.registered') : <button type="button" className="btn btn-line btn-s" onClick={register} disabled={!m.online || !m.enclaveUrl || m.mode === 'demo'}><span>{x('o.m.register')}</span></button>}</td>
         <td data-l={x('o.m.h.act')}><button type="button" className="btn btn-line btn-s" onClick={remove}><span>{x('o.m.remove')}</span></button></td>
       </tr>
@@ -182,12 +187,12 @@ function Register() {
   return (
     <ActSec id="register" title={x('o.reg.title')} lede={x('o.reg.lede')}>
       <ol className="na-list" aria-label={x('o.reg.title')}>
-        <Step n={1} part="rent" el="" st={st.st} t={x('o.reg.s1')} d={x('o.reg.s1d')} note={st.note} active>
+        <Step n={1} part="rent" el="" st={st.st} t={x('o.reg.s1')} d={x('o.reg.s1d')} note={st.note} active copilot="register">
           <div className="na-grid"><Field label={x('o.f.product')}><input inputMode="numeric" value={pid} onChange={(e) => setPid(e.target.value)} /></Field></div>
           <Field label={x('o.f.url')} wide><input type="url" spellCheck={false} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://xxxx.trycloudflare.com" /></Field>
-          <button type="button" className="btn btn-main btn-s" id="o-register" onClick={go} disabled={!ready || st.st === 'doing' || !url.trim()}><span>{x('o.reg.btn')}</span></button>
+          <button type="button" className="btn btn-main btn-s" id="o-register" data-copilot="o-register" onClick={go} disabled={!ready || st.st === 'doing' || !url.trim()}><span>{x('o.reg.btn')}</span></button>
         </Step>
-        <Step n={2} part="rent" el="" st={mine.length ? 'done' : 'todo'} t={x('o.ret.title')} d={x('o.ret.d')}>
+        <Step n={2} part="rent" el="" st={mine.length ? 'done' : 'todo'} t={x('o.ret.title')} d={x('o.ret.d')} copilot="retire">
           {mine.length ? (
             <ul className="na-encs">
               {mine.map((e) => (
@@ -208,6 +213,21 @@ function Register() {
   )
 }
 
+/** a new arcop_ key, shown once: its Copy button says "Copied", or selects the key when the browser refuses */
+function FreshKey({ k, onDone }: { k: string; onDone: () => void }) {
+  useLang()
+  const v = useRef<HTMLParagraphElement>(null)
+  const c = useCopy(k, v)
+  return (
+    <div className="na-ans aek">
+      <p className="na-ans-t">{x('o.k.fresh')}</p>
+      <p className="mono aek-v" ref={v}>{k}</p>
+      <div className="na-row"><button type="button" className="btn btn-main btn-s" onClick={c.copy}><span>{c.done ? x('s.aek.copied') : x('s.aek.copy')}</span></button><button type="button" className="tlink" onClick={onDone}>{x('s.aek.saved')}</button></div>
+      {c.hint}
+    </div>
+  )
+}
+
 /** arcop_ operator keys: they report, they do not spend (Keys.tsx, OperatorKeys) */
 function Keys() {
   const lang = useLang()
@@ -223,7 +243,7 @@ function Keys() {
     if (!E || !s.address) { setKeys(null); return }
     let alive = true
     ;(read ? E.fetchOperatorKeysSigned(read) : E.fetchOperatorKeys(s.address)).then((k) => { if (alive) setKeys(k) })
-      .catch((e) => { if (!alive) return; if (read && E.isSignatureSpent(e)) E.dropReadAccess(); else { setKeys([]); setN(errNote(E, e)) } })
+      .catch((e) => { if (!alive) return; if (read && E.isSignatureSpent(e)) E.dropReadAccess(); else setN(errNote(E, e)) }) // unread, never "no key yet"
     return () => { alive = false }
   }, [E, s.address, read, tick])
   async function create() {
@@ -237,29 +257,24 @@ function Keys() {
     try { await E.revokeOperatorKey(id); setN({ tone: 'ok', text: x('o.k.revoked') }); setTick((v) => v + 1) } catch (e) { setN(errNote(E, e)) }
   }
   return (
-    <ActSec id="keys" title={x('o.k.title')} lede={x('o.k.lede')}>
+    <ActSec id="keys" title={x('o.k.title')} lede={x('o.k.lede')} copilot="keys">
       <div className="na-row">
         <Field label={x('o.k.name')}><input value={label} onChange={(e) => setLabel(e.target.value)} /></Field>
-        <button type="button" className="btn btn-main btn-s" id="o-key" onClick={create} disabled={!onArc(s) || !E}><span>{x('o.k.create')}</span></button>
+        <button type="button" className="btn btn-main btn-s" id="o-key" data-copilot="o-key" onClick={create} disabled={!onArc(s) || !E}><span>{x('o.k.create')}</span></button>
       </div>
-      {fresh ? (
-        <div className="na-ans aek">
-          <p className="na-ans-t">{x('o.k.fresh')}</p>
-          <p className="mono aek-v">{fresh}</p>
-          <div className="na-row"><button type="button" className="btn btn-main btn-s" onClick={() => { navigator.clipboard?.writeText(fresh).catch(() => {}) }}><span>{x('s.aek.copy')}</span></button><button type="button" className="tlink" onClick={() => setFresh('')}>{x('s.aek.saved')}</button></div>
-        </div>
-      ) : null}
+      {fresh ? <FreshKey k={fresh} onDone={() => setFresh('')} /> : null}
       {n ? <NoteLine n={n} /> : null}
       {s.address ? (
         <div className="tbl-w">
           <table className="tbl">
             <thead><tr><th scope="col">{x('o.k.h.key')}</th><th scope="col">{x('o.k.h.bound')}</th><th scope="col">{x('o.k.h.used')}</th><th scope="col">{x('o.k.h.state')}</th><th scope="col"><span className="sr-only">{x('o.m.h.act')}</span></th></tr></thead>
             <tbody>
-              {keys === null ? <tr><td colSpan={5} className="muted">{x('state.reading')}</td></tr>
+              {keys === null ? (n?.tone === 'bad' ? <tr><td colSpan={5} className="muted b-unread"><span>{x('list.unread')}</span><button type="button" className="btn btn-line btn-s" onClick={() => { setN(null); setTick((v) => v + 1) }}><span>{x('list.reread')}</span></button></td></tr>
+                : <tr><td colSpan={5} className="muted">{x('state.reading')}</td></tr>)
                 : keys.length === 0 ? <tr><td colSpan={5} className="muted">{x('o.k.none')}</td></tr>
                   : keys.map((k) => (
                     <tr key={k.keyId}>
-                      <td className="mono" data-l={x('o.k.h.key')}>{`arcop_${k.keyId}_`} <span className="lbl muted">{k.restricted ? x(k.machineId ? 'o.k.machineKey' : 'o.k.freeKey') : k.label}</span></td>
+                      <td className="mono" data-l={x('o.k.h.key')}><span>{`arcop_${k.keyId}_`} <span className="lbl muted">{k.restricted ? x(k.machineId ? 'o.k.machineKey' : 'o.k.freeKey') : k.label}</span></span></td>
                       <td data-l={x('o.k.h.bound')}>{k.machineId ? x('o.k.machine') : x('o.k.free')}</td>
                       <td data-l={x('o.k.h.used')}>{k.lastUsedAt ? new Date(k.lastUsedAt).toLocaleString(lang) : x('o.k.never')}</td>
                       <td data-l={x('o.k.h.state')}>{k.revoked ? x('o.k.st.revoked') : x('o.k.st.active')}</td>

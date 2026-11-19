@@ -1,13 +1,14 @@
 // The three flows signed by the visitor's wallet (Use, Rent, Publish), shared by the Network page and the Use, Rent
 // and Publish pages of the app. On the Network page, each step plays the diagram (window.__s3d); elsewhere the
-// diagram is absent and only the actions matter.
+// diagram is absent and only the actions matter. Each step carries its name for the copilot's guided tours
+// (data-copilot, copilot/guide/registry.ts), and the install command its marker (install-cmd).
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLang } from '../../i18n'
-import { useLive, CONSOLE } from '../../data/live'
+import { useLive, CONSOLE, INSTALL_URL } from '../../data/live'
 import { short, usdc } from '../../data/fmt'
-import { addr } from '../../links'
+import { addr, serviceHref } from '../../links'
 import { useCatalog } from '../../app/useCatalog'
-import { RAIL_NAME } from '../../app/catalog'
+import { RAIL_NAME, type SvcRow } from '../../app/catalog'
 import { Cmd } from '../../app/parts'
 import { useWallet, onArc, useUi, setUi } from './store'
 import { w, type WKey } from './strings'
@@ -19,6 +20,15 @@ import { useShow, useTyped, REC } from './showfill'
 // and its buttons are off; the visitor's own state is kept apart and comes back when the demo is reset.
 const DemoBadge = () => <p className="na-demo-badge lbl" role="status">{w('show.badge')}</p>
 
+/** a catalog name already carries its number when two products share it ("Sealed Bounty #2"): never twice */
+const pickName = (r: SvcRow) => (r.name.endsWith(`#${r.p.id}`) ? r.name : `${r.name}, #${r.p.id}`)
+/** where a product that is not paid per call is used on this site: its session, the bounties, or its own page. The
+ *  refutation demo (5, not for sale) and a replaced product (6) are not used anywhere: their own page says what they are */
+const B = import.meta.env.BASE_URL
+const whereOf = (r: SvcRow): { href: string; k: WKey } => (r.role?.role === 'refuteDemo' || r.role?.role === 'superseded' ? { href: serviceHref(r.p.id), k: 'u.go.other' }
+  : r.svc === 'ai' ? { href: `${B}space.html?tab=sessions&p=${encodeURIComponent(r.p.id)}`, k: 'u.go.ai' }
+    : r.svc === 'bounty' ? { href: `${B}space.html?tab=bounties`, k: 'u.go.bounty' } : { href: serviceHref(r.p.id), k: 'u.go.other' })
+
 // ---------- Use ----------
 /** sheet: the Services sheet of one service. The service is fixed and prefilled (no catalog, no change), the wallet
  *  step is the sheet's own button, no CCTP block: the steps left are the key check, then paying and sending. */
@@ -28,7 +38,14 @@ export function UseActs({ label, onPick, sheet = false }: { label?: string; onPi
   const E = useEngine()
   const rows = useCatalog()
   const ready = onArc(s) && !!E
-  const { pid, catOpen } = useUi()
+  const { pid: asked, catOpen } = useUi()
+  // This form pays per call (x402, X402Settler). A product given by the address (?p=, a sled, a service page) that is
+  // paid otherwise (a session, a bounty) is not priced per call: the form stays on the pay-per-call product, and says
+  // where that one is used. The Services sheet (sheet) gives its own product.
+  const perCall = (rows ?? []).filter((r) => r.svc === 'x402' && r.p.state === 'Active')
+  const askedRow = (rows ?? []).find((r) => r.p.id === asked)
+  const other = !sheet && askedRow && askedRow.svc !== 'x402' ? askedRow : undefined
+  const pid = sheet || askedRow?.svc === 'x402' ? asked : (perCall.find((r) => r.led === 'green') ?? perCall[0])?.p.id ?? ''
   const row = (rows ?? []).find((r) => r.p.id === pid)
   const [price, setPrice] = useState<{ st: St; p?: Awaited<ReturnType<Engine['readX402Price']>>; note?: Note }>({ st: 'todo' })
   useEffect(() => {
@@ -48,7 +65,9 @@ export function UseActs({ label, onPick, sheet = false }: { label?: string; onPi
 
   const [url, setUrl] = useState('')
   useEffect(() => { if (pid && E) setUrl(E.KNOWN_ENCLAVE[pid] ?? '') }, [pid, E])
-  const [key, setKey] = useState<{ st: St; signer?: string; note?: Note }>({ st: 'todo' })
+  // a refused key keeps its reason (a string key, or the engine's message); the sentence is written at render, in the
+  // current language, and only offers "Change service" when that button is there
+  const [key, setKey] = useState<{ st: St; signer?: string; note?: Note; whyK?: WKey; why?: string }>({ st: 'todo' })
   useEffect(() => {
     if (!ready || !payable || !E) { setKey({ st: 'todo' }); return }
     if (!/^https?:\/\/\S+$/.test(url.trim())) { setKey({ st: 'todo', note: { tone: 'muted', text: w('u.keyNoUrl') } }); return }
@@ -60,7 +79,7 @@ export function UseActs({ label, onPick, sheet = false }: { label?: string; onPi
           if (!alive) return
           const r = String((e as { reason?: string })?.reason ?? '')
           const k = ({ pubkeys_unreachable: 'u.k.unreachable', pubkeys_unreadable: 'u.k.unreadable', not_registered: 'u.k.not_registered', wrong_product: 'u.k.wrong_product', x25519_mismatch: 'u.k.x25519_mismatch', inactive: 'u.k.inactive' } as Record<string, WKey>)[r]
-          setKey({ st: 'fail', note: { tone: 'bad', text: w('u.keyBad', { why: k ? w(k) : E.explain(e).message }), href: `${CONSOLE}/#/playground`, hrefLabel: w('u.useConsole') } })
+          setKey({ st: 'fail', whyK: k, why: k ? undefined : E.explain(e).message })
         })
     }, 400)
     return () => { alive = false; clearTimeout(tm) }
@@ -116,28 +135,35 @@ export function UseActs({ label, onPick, sheet = false }: { label?: string; onPi
   const active = S.on ? -1 : active0
   const stOf = (i: number, real: St) => (S.on ? S.st(i) : real)
   const off = S.on
+  // "Change service" is only there with a choice (several pay-per-call products) or nothing picked yet
+  const canChange = !sheet && (!row || perCall.length > 1)
+  const keyNote: Note | undefined = key.st === 'fail' && (key.whyK || key.why !== undefined)
+    ? { tone: 'bad', text: w(canChange ? 'u.keyBad' : 'u.keyBad1', { why: key.whyK ? w(key.whyK) : key.why ?? '' }), href: `${CONSOLE}/#/playground`, hrefLabel: w('u.useConsole') }
+    : key.note
   return (
     <>
       {S.on ? <DemoBadge /> : null}
       <ol className="na-list" aria-label={label} data-demo={S.on ? '1' : undefined}>
-        {sheet ? null : <ConnectStep part="use" el="use.guichet" k="u" active={active === 0} demo={S.on} />}
-        {sheet ? null : <Step n={2} part="use" el="use.guichet" st={stOf(1, pid ? price.st : catOpen ? 'doing' : 'todo')} t={w('u.s2')} d={w('u.s2d')} note={S.on ? null : pid ? price.note : null} active={active === 1}>
-          {S.on ? (S.at(1) || S.past(1) ? <p className="lbl na-kv na-pick"><span className="na-pick-n">{dRow ? `${dRow.name}, #${REC.pid}` : `#${REC.pid}`}</span> <span className="muted">{w('u.price')}</span> <span className="mono tnum">{dPrice}</span></p> : <p className="lbl muted na-kv">{w('u.none')}</p>)
+        {sheet ? null : <ConnectStep part="use" el="use.guichet" k="u" active={active === 0} copilot="connect" demo={S.on} />}
+        {sheet ? null : <Step n={2} part="use" el="use.guichet" st={stOf(1, pid ? price.st : catOpen ? 'doing' : 'todo')} t={w('u.s2')} d={w('u.s2d')} note={S.on ? null : pid ? price.note : null} active={active === 1} copilot="pick">
+          {S.on ? (S.at(1) || S.past(1) ? <p className="lbl na-kv na-pick"><span className="na-pick-n">{dRow ? pickName(dRow) : `#${REC.pid}`}</span> <span className="muted">{w('u.price')}</span> <span className="mono tnum">{dPrice}</span></p> : <p className="lbl muted na-kv">{w('u.none')}</p>)
             : row ? (
-            <p className="lbl na-kv na-pick"><span className="na-pick-n">{`${row.name}, #${row.p.id}`}</span> <span className="muted">{w('u.price')}</span> <span className="mono tnum">{payable ? usdc(payable.price.toString(), lang) : price.st === 'doing' ? w('u.priceReading') : usdc(row.p.price, lang)}</span></p>
+            <p className="lbl na-kv na-pick"><span className="na-pick-n">{pickName(row)}</span> <span className="muted">{w('u.price')}</span> <span className="mono tnum">{payable ? usdc(payable.price.toString(), lang) : price.st === 'doing' ? w('u.priceReading') : usdc(row.p.price, lang)}</span></p>
           ) : <p className="lbl muted na-kv">{w('u.none')}</p>}
-          <button type="button" className="btn btn-line btn-s" id="u-pick" disabled={off} aria-expanded={catOpen} aria-controls="net-cat" onClick={() => { if (onPick) { onPick(); return } setUi({ catOpen: true }); play('use', 1, 'doing', 'use.guichet', false) }}><span>{row || (S.on && S.past(0)) ? w('u.change') : w('u.pickBtn')}</span></button>
+          {other && !S.on ? <p className="na-note" data-tone="muted">{w('u.notCallOf', { name: other.name.endsWith(`#${other.p.id}`) ? other.name : `${other.name} #${other.p.id}` })} <a className="tlink" href={whereOf(other).href}>{w(whereOf(other).k)}</a></p> : null}
+          {/* one pay-per-call product: nothing to change; the catalog only when there is a choice or nothing yet */}
+          {S.on || canChange ? <button type="button" className="btn btn-line btn-s" id="u-pick" disabled={off} aria-expanded={catOpen} aria-controls="net-cat" onClick={() => { if (onPick) { onPick(); return } setUi({ catOpen: true }); play('use', 1, 'doing', 'use.guichet', false) }}><span>{row || (S.on && S.past(0)) ? w('u.change') : w('u.pickBtn')}</span></button> : null}
         </Step>}
-        <Step n={3} num={sheet ? 1 : undefined} part="use" el="link.useArc" st={stOf(2, key.st)} t={w('u.s3')} d={w('u.s3d')} note={S.on ? (S.past(2) ? { tone: 'ok', text: w('u.dm.key', { signer: short(REC.signer, 4), pid: REC.enclavePid }) } : S.at(2) ? { tone: 'muted', text: w('u.keyChecking') } : null) : key.note} active={active === 2}>
+        <Step n={3} num={sheet ? 1 : undefined} part="use" el="link.useArc" st={stOf(2, key.st)} t={w('u.s3')} d={w('u.s3d')} note={S.on ? (S.past(2) ? { tone: 'ok', text: w('u.dm.key', { signer: short(REC.signer, 4), pid: REC.enclavePid }) } : S.at(2) ? { tone: 'muted', text: w('u.keyChecking') } : null) : keyNote} active={active === 2} copilot="key">
           <Field label={w('u.url')} wide><input type="url" inputMode="url" spellCheck={false} value={S.on ? dUrl : url} readOnly={off} onChange={(e) => setUrl(e.target.value)} placeholder="https://" /></Field>
         </Step>
-        <Step n={4} num={sheet ? 2 : undefined} part="use" el="link.useRent" st={stOf(3, send.st)} t={w('u.s4')} d={w('u.s4d')} note={S.on ? (S.past(3) ? { tone: 'ok', text: w('u.dm.sent') } : S.at(3) ? { tone: 'muted', text: w('u.dm.signing', { price: dPrice }) } : null) : send.note ?? (sheet && price.st === 'fail' ? price.note : null)} active={active === 3}>
+        <Step n={4} num={sheet ? 2 : undefined} part="use" el="link.useRent" st={stOf(3, send.st)} t={w('u.s4')} d={w('u.s4d')} note={S.on ? (S.past(3) ? { tone: 'ok', text: w('u.dm.sent') } : S.at(3) ? { tone: 'muted', text: w('u.dm.signing', { price: dPrice }) } : null) : send.note ?? (sheet && price.st === 'fail' ? price.note : null)} active={active === 3} copilot="pay">
           <Field label={w('u.msg')} wide><input value={S.on ? dMsg : message} readOnly={off} onChange={(e) => setMsg(e.target.value)} /></Field>
           <button type="button" className="btn btn-main btn-s" id="u-send" onClick={go} disabled={off || !ready || !payable || key.st !== 'done' || send.st === 'doing' || !message.trim()}>
             <span>{S.on ? w('u.send', { price: dPrice }) : payable ? w('u.send', { price: usdc(payable.price.toString(), lang) ?? '' }) : w('u.sendPlain')}</span>
           </button>
         </Step>
-        <Step n={5} num={sheet ? 3 : undefined} part="use" el="use.drone" st={stOf(4, answer ? 'done' : 'todo')} t={w('u.s5')} d={w('u.s5d')} active={active === 4}>
+        <Step n={5} num={sheet ? 3 : undefined} part="use" el="use.drone" st={stOf(4, answer ? 'done' : 'todo')} t={w('u.s5')} d={w('u.s5d')} active={active === 4} copilot="answer">
           {S.on ? (S.at(4) || S.past(4) ? (
             <div className="na-ans" data-demo="1">
               <p className="na-ans-t">{dAns}</p>
@@ -150,7 +176,7 @@ export function UseActs({ label, onPick, sheet = false }: { label?: string; onPi
             </div>
           ) : null}
         </Step>
-        <Step n={6} num={sheet ? 4 : undefined} part="use" el="link.useArc" st={stOf(5, settle.st)} t={w('u.s6')} d={w('u.s6d')} note={S.on ? (S.past(5) ? { tone: 'ok', text: w('u.dm.paid', { amount: usdc(REC.payAmount, lang) ?? '', block: REC.payBlock }), hash: REC.payTx } : null) : settle.note} active={active === 5} />
+        <Step n={6} num={sheet ? 4 : undefined} part="use" el="link.useArc" st={stOf(5, settle.st)} t={w('u.s6')} d={w('u.s6d')} note={S.on ? (S.past(5) ? { tone: 'ok', text: w('u.dm.paid', { amount: usdc(REC.payAmount, lang) ?? '', block: REC.payBlock }), hash: REC.payTx } : null) : settle.note} active={active === 5} copilot="settled" />
       </ol>
       {sheet ? null : <Cctp />}
     </>
@@ -201,6 +227,16 @@ export function RentActs({ label }: { label?: string } = {}) {
   const [bond, setBond] = useState<Awaited<ReturnType<Engine['readBond']>> | null>(null)
   const readB = () => { if (ready && s.address) E!.readBond(s.address).then(setBond).catch(() => setBond(null)) }
   useEffect(readB, [ready, s.address]) // eslint-disable-line react-hooks/exhaustive-deps
+  // a bond signed from the copilot's card (copilot/cards.tsx, event archive:signed): read again, so this step (and a
+  // guided tour waiting on it) turns done; once more a moment later, in case the RPC answered from an older block
+  useEffect(() => {
+    const on = (e: Event) => {
+      if ((e as CustomEvent<{ tool?: string } | null>).detail?.tool !== 'operator_prepare_bond') return
+      readB(); window.setTimeout(readB, 3000)
+    }
+    addEventListener('archive:signed', on)
+    return () => removeEventListener('archive:signed', on)
+  }, [ready, s.address, E]) // eslint-disable-line react-hooks/exhaustive-deps
   const [amt, setAmt] = useState('4')
   const [b, setB] = useState<{ st: St; note?: Note }>({ st: 'todo' })
   async function doBond() {
@@ -257,7 +293,7 @@ export function RentActs({ label }: { label?: string } = {}) {
     return rows.flatMap((r) => r.encs.filter((x) => x.e.operator.toLowerCase() === a).map((x) => ({ ...x, pid: r.p.id, name: r.name })))
   }, [rows, s.address])
   const admSt: St = mine.some((x) => x.led === 'green') ? 'done' : mine.length ? 'doing' : 'todo'
-  const cmds = [`curl -fsSL ${CONSOLE}/install.sh | sh`, 'archive-node doctor', 'archive-node pair', 'archive-node up --product 1 --tunnel']
+  const cmds = [`curl -fsSL ${INSTALL_URL} | sh`, 'archive-node doctor', 'archive-node pair', 'archive-node up --product 1 --tunnel']
   const sts: St[] = [connectSt(s), bondSt, p.st === 'done' || mine.length ? 'done' : 'todo', p.st, admSt]
   const active0 = sts.findIndex((x) => x !== 'done')
   usePlay('rent', active0, sts, { tx: b.note?.hash })
@@ -271,8 +307,8 @@ export function RentActs({ label }: { label?: string } = {}) {
     <>
     {S.on ? <DemoBadge /> : null}
     <ol className="na-list" aria-label={label} data-demo={S.on ? '1' : undefined}>
-      <ConnectStep part="rent" el="rent.operateur" k="r" active={active === 0} demo={S.on} />
-      <Step n={2} part="rent" el="rent.operateur" st={stOf(1, bondSt)} t={w('r.s2')} d={w('r.s2d')} note={S.on ? (S.past(1) ? { tone: 'ok', text: w('r.dm.bond', { amount: REC.bond }), hash: REC.bondTx } : null) : b.note} active={active === 1}>
+      <ConnectStep part="rent" el="rent.operateur" k="r" active={active === 0} copilot="connect" demo={S.on} />
+      <Step n={2} part="rent" el="rent.operateur" st={stOf(1, bondSt)} t={w('r.s2')} d={w('r.s2d')} note={S.on ? (S.past(1) ? { tone: 'ok', text: w('r.dm.bond', { amount: REC.bond }), hash: REC.bondTx } : null) : b.note} active={active === 1} copilot="bond">
         {bond && !S.on ? <p className="lbl na-kv mono tnum">{w('r.bondNow', { bond: usdc(bond.bond.toString(), lang) ?? '', free: usdc(bond.free.toString(), lang) ?? '' })}</p> : null}
         <div className="na-row">
           <Field label={w('r.amount')}><input inputMode="decimal" value={S.on ? dAmt : amt} readOnly={off} onChange={(e) => setAmt(e.target.value)} /></Field>
@@ -295,16 +331,17 @@ export function RentActs({ label }: { label?: string } = {}) {
           </div>
         ) : null}
       </Step>
-      <Step n={3} part="rent" el="rent.quai" st={stOf(2, sts[2])} t={w('r.s3')} d={w('r.s3d')} note={S.on && (S.at(2) || S.past(2)) ? { tone: S.past(2) ? 'ok' : 'muted', text: w('r.dm.agent', { q: REC.quoteBytes, n: REC.events }) } : null} active={active === 2}>
-        <div className="na-cmds">{cmds.map((c) => <Cmd key={c} cmd={c} />)}</div>
+      <Step n={3} part="rent" el="rent.quai" st={stOf(2, sts[2])} t={w('r.s3')} d={w('r.s3d')} note={S.on && (S.at(2) || S.past(2)) ? { tone: S.past(2) ? 'ok' : 'muted', text: w('r.dm.agent', { q: REC.quoteBytes, n: REC.events }) } : null} active={active === 2} copilot="install">
+        {/* the install command's box, for the assistant's tours (install-cmd): a box of its own, so a tour can light it */}
+        <div className="na-cmds">{cmds.map((c, i) => (i === 0 ? <div key={c} className="na-cmd1" data-copilot="install-cmd"><Cmd cmd={c} /></div> : <Cmd key={c} cmd={c} />))}</div>
       </Step>
-      <Step n={4} part="rent" el="rent.quai" st={stOf(3, p.st)} t={w('r.s4')} d={w('r.s4d')} note={S.on ? (S.past(3) ? { tone: 'ok', text: w('r.dm.pair') } : null) : p.note} active={active === 3}>
+      <Step n={4} part="rent" el="rent.quai" st={stOf(3, p.st)} t={w('r.s4')} d={w('r.s4d')} note={S.on ? (S.past(3) ? { tone: 'ok', text: w('r.dm.pair') } : null) : p.note} active={active === 3} copilot="pair">
         <div className="na-row">
           <Field label={w('r.code')}><input value={S.on ? dCode : code} readOnly={off} onChange={(e) => setCode(e.target.value)} placeholder="HIVE-7K2P-QX9M" autoCapitalize="characters" spellCheck={false} /></Field>
           <button type="button" className="btn btn-main btn-s" id="r-pair" onClick={doPair} disabled={off || !ready || p.st === 'doing' || !code.trim()}><span>{w('r.pairBtn')}</span></button>
         </div>
       </Step>
-      <Step n={5} part="rent" el="rent.portique" st={stOf(4, admSt)} t={w('r.s5')} d={w('r.s5d')} note={S.on && S.past(4) ? { tone: 'ok', text: w('r.dm.adm', { block: REC.regBlock, gas: lang === 'fr' ? REC.regGas.replace('.', ',') : REC.regGas }), hash: REC.regTx } : null} active={active === 4}>
+      <Step n={5} part="rent" el="rent.portique" st={stOf(4, admSt)} t={w('r.s5')} d={w('r.s5d')} note={S.on && S.past(4) ? { tone: 'ok', text: w('r.dm.adm', { block: REC.regBlock, gas: lang === 'fr' ? REC.regGas.replace('.', ',') : REC.regGas }), hash: REC.regTx } : null} active={active === 4} copilot="admit">
         {S.on ? (S.past(4) ? (
           <ul className="na-encs" data-demo="1">
             <li><span className="led led-green" aria-hidden="true" /><a className="tlink mono" href={addr(REC.signer)} target="_blank" rel="noreferrer">{short(REC.signer, 4)}</a><span className="lbl muted">{w('r.product', { id: REC.enclavePid })}</span><span className="lbl">{w('r.dm.led')}</span></li>
@@ -391,14 +428,14 @@ export function PublishActs({ label }: { label?: string } = {}) {
     <>
     {S.on ? <DemoBadge /> : null}
     <ol className="na-list" aria-label={label} data-demo={S.on ? '1' : undefined}>
-      <ConnectStep part="publish" el="publish.poste" k="p" active={active === 0} demo={S.on} />
-      <Step n={2} part="publish" el="publish.poste" st={stOf(1, manSt)} t={w('p.s2')} d={w('p.s2d')} active={active === 1}>
+      <ConnectStep part="publish" el="publish.poste" k="p" active={active === 0} copilot="connect" demo={S.on} />
+      <Step n={2} part="publish" el="publish.poste" st={stOf(1, manSt)} t={w('p.s2')} d={w('p.s2d')} active={active === 1} copilot="manifest">
         <Field label={w('p.manifest')} wide><textarea rows={5} spellCheck={false} value={S.on ? dMan : d.manifest} readOnly={off} onChange={set('manifest')} /></Field>
         <Field label={w('p.uri')} wide><input type="url" spellCheck={false} value={S.on ? dUri : d.uri} readOnly={off} onChange={set('uri')} placeholder="https://example.com/manifest.json" /></Field>
         {S.on ? (S.past(1) ? <p className="lbl na-kv"><span className="muted">{`${w('p.hash')}, ${w('p.dm.hash')}`}</span> <span className="mono">{short(REC.manifestHash, 8)}</span></p> : null)
           : hash ? <p className="lbl na-kv"><span className="muted">{w('p.hash')}</span> <span className="mono">{short(hash, 8)}</span></p> : null}
       </Step>
-      <Step n={3} part="publish" el="publish.poste" st={stOf(2, fpSt)} t={w('p.s3')} d={w('p.s3d')} active={active === 2}>
+      <Step n={3} part="publish" el="publish.poste" st={stOf(2, fpSt)} t={w('p.s3')} d={w('p.s3d')} active={active === 2} copilot="fingerprint">
         <Field label={w('p.image')} wide><input spellCheck={false} value={S.on ? dImg : d.image} readOnly={off} onChange={set('image')} placeholder="0x" /></Field>
         <div className="na-grid">
           <Field label={w('p.price')}><input inputMode="decimal" value={S.on ? dv.price : d.price} readOnly={off} onChange={set('price')} /></Field>
@@ -409,10 +446,10 @@ export function PublishActs({ label }: { label?: string } = {}) {
           <Field label={w('p.network')}><input inputMode="decimal" value={S.on ? dv.nw : d.bpsNetwork / 100} readOnly={off} onChange={set('bpsNetwork')} /></Field>
         </div>
       </Step>
-      <Step n={4} part="publish" el="link.publishArc" st={stOf(3, sts[3])} t={w('p.s4')} d={w('p.s4d')} note={S.on ? (S.past(3) ? { tone: 'ok', text: w('p.dm.proposed'), hash: REC.proposeTx } : S.at(3) ? { tone: 'muted', text: w('tx.pending') } : null) : pr.note ?? (ready && check ? { tone: 'muted', text: check } : null)} active={active === 3}>
+      <Step n={4} part="publish" el="link.publishArc" st={stOf(3, sts[3])} t={w('p.s4')} d={w('p.s4d')} note={S.on ? (S.past(3) ? { tone: 'ok', text: w('p.dm.proposed'), hash: REC.proposeTx } : S.at(3) ? { tone: 'muted', text: w('tx.pending') } : null) : pr.note ?? (ready && check ? { tone: 'muted', text: check } : null)} active={active === 3} copilot="propose">
         <button type="button" className="btn btn-main btn-s" id="p-propose" onClick={doPropose} disabled={off || !ready || !!check || pr.st === 'doing'}><span>{w('p.propose')}</span></button>
       </Step>
-      <Step n={5} part="publish" el="arc" st={stOf(4, revSt)} t={w('p.s5')} d={w('p.s5d')} note={S.on ? (S.past(4) ? { tone: 'ok', text: w('p.dm.published'), hash: REC.activateTx } : null) : ac.note} active={active === 4}>
+      <Step n={5} part="publish" el="arc" st={stOf(4, revSt)} t={w('p.s5')} d={w('p.s5d')} note={S.on ? (S.past(4) ? { tone: 'ok', text: w('p.dm.published'), hash: REC.activateTx } : null) : ac.note} active={active === 4} copilot="activate">
         {S.on ? (S.past(4) ? <p className="lbl na-kv"><span className="muted">{w('p.state')}</span> <span className="mono">{w('p.dm.state')}</span></p> : null) : s.address ? (mine.length ? (
           <>
             <Field label={w('p.mine')}><span className="na-sel"><select value={sel} onChange={(e) => setSel(e.target.value)}>{mine.map((p) => <option key={p.id} value={p.id}>{`#${p.id}`}</option>)}</select></span></Field>

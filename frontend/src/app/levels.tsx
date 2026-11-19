@@ -31,6 +31,9 @@ export function useServiceLevel(productId?: string): { requires?: 'verified' | '
   return { requires: req, verified }
 }
 
+/** singular: 1 in English, 0 or 1 in French */
+const one = (n: number, lang: string) => n === 1 || (lang === 'fr' && n === 0)
+
 export function LevelsCard() {
   const lang = useLang()
   const lv = useLive((s) => s.levels)
@@ -62,7 +65,7 @@ export function LevelsCard() {
       </div>
       <p className="lbl lvl-live" role="status">
         {lv === undefined ? x('state.reading') : lv === null || !lv.enabled ? x('lvl.none')
-          : x('lvl.live', { n: verified.length, m: machines })}
+          : x('lvl.live', { n: verified.length, encs: x(one(verified.length, lang) ? 'lvl.enc1' : 'lvl.encN'), m: machines, machs: x(one(machines, lang) ? 'lvl.m1' : 'lvl.mN') })}
         {lv?.verifiedBounty?.slashFrom ? ` ${x('lvl.slash', { when: new Date(lv.verifiedBounty.slashFrom * 1000).toLocaleString(lang) })}` : ''}
       </p>
     </section>

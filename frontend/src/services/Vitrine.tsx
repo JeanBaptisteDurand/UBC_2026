@@ -5,9 +5,10 @@
 // (replaceState); ?p=<product> from the landing wall, the Use catalog or the copilot opens that product's family.
 // Copy and chapters from JB (vit-content.ts, generated), numbers read live on Arc.
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
-import { t, useLang } from '../i18n'
+import { t, useLang, getLang } from '../i18n'
 import { useLive } from '../data/live'
 import { useCatalog } from '../app/useCatalog'
+import { isSupersededRow } from '../app/catalog'
 import { ServiceDetail } from '../app/ServiceDetail'
 import { API_DIRECT } from '../data/endpoints'
 import { num, usdc, pct } from '../data/fmt'
@@ -19,6 +20,15 @@ import { reveal, grow } from '../ui/motion'
 const UseBlock = lazy(() => import('./UseBlock'))
 import './vit-jb.css'
 import './vitrine.css'
+
+/** the call and the room's hint as a touch screen and a stacked page read them (the shared table, i18n.ts, has the
+ *  mouse wording only): "tap", and on a phone or a tablet held upright the sleds are below, not on the right */
+const TOUCH_STR = {
+  en: { cta: 'The sleds on the right are interactive: tap one to see its service and use it.', ctaM: 'The sleds below are interactive: tap one to see its service and use it.', hint: 'Tap a sled to open its sheet.' },
+  fr: { cta: 'Les lames à droite sont interactives : touchez-en une pour voir son service et l’utiliser.', ctaM: 'Les lames ci-dessous sont interactives : touchez-en une pour voir son service et l’utiliser.', hint: 'Touchez une lame pour ouvrir sa fiche.' },
+} as const
+const ts = (k: keyof typeof TOUCH_STR.en) => TOUCH_STR[getLang() === 'fr' ? 'fr' : 'en'][k]
+const isTouch = () => typeof matchMedia === 'function' && matchMedia('(hover: none), (pointer: coarse)').matches
 
 const SLOT = 'slot'
 const FAM = ['bounty', 'private-ai', 'attested-copilot', 'refutation', 'retired'] as const
@@ -103,7 +113,8 @@ function Intro({ root, to }: { root: React.RefObject<HTMLDivElement | null>; to:
       {/* the call to the room, as on the landing: the sleds are the shop window */}
       <p className="vt-cta">
         <svg className="hero-ic" viewBox="0 0 20 20" aria-hidden="true"><rect x="2.4" y="3" width="15.2" height="4" rx="0.6" /><rect x="2.4" y="8" width="15.2" height="4" rx="0.6" /><rect x="2.4" y="13" width="15.2" height="4" rx="0.6" /><path d="M4.6 4.2 V5.8" className="hero-ic-led l1" /><path d="M4.6 9.2 V10.8" className="hero-ic-led l2" /><path d="M4.6 14.2 V15.8" className="hero-ic-led l3" /></svg>
-        <span>{t('vit.cta')}</span>
+        <span className="vt-cta-d">{isTouch() ? ts('cta') : t('vit.cta')}</span>
+        <span className="vt-cta-m">{ts('ctaM')}</span>
       </p>
       <div className="vt-toc">
         <p className="mono vt-toc-k">{t('vit.toc')}</p>
@@ -127,11 +138,99 @@ function Intro({ root, to }: { root: React.RefObject<HTMLDivElement | null>; to:
   )
 }
 
+/** the live words of the sled faces and of the sheets' "Today" lines (the shared table, i18n.ts, does not carry them
+ *  yet), English and French in step */
+const LIVE_STR = {
+  en: { wDown: 'State unknown', wRead: 'Reading…', p4on: 'Runs in its own enclave, admitted on Arc, registration valid until {t}.', off: 'No enclave runs it right now, read live on Arc. Every past payment stays readable.', none: 'No enclave runs right now, read live on Arc.' },
+  fr: { wDown: 'État inconnu', wRead: 'Lecture…', p4on: 'Tourne dans sa propre enclave, admise sur Arc, inscription valable jusqu’au {t}.', off: 'Aucune enclave ne le fait tourner en ce moment, lu en direct sur Arc. Chaque paiement passé reste lisible.', none: 'Aucune enclave ne tourne en ce moment, lu en direct sur Arc.' },
+} as const
+const ls = (k: keyof typeof LIVE_STR.en, v?: Record<string, string>) => {
+  let x: string = LIVE_STR[getLang() === 'fr' ? 'fr' : 'en'][k]
+  for (const [a, b] of Object.entries(v ?? {})) x = x.split(`{${a}}`).join(b)
+  return x
+}
+const utcDay = (unix: number, lang: string) => `${new Date(unix * 1000).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })} UTC`
+
+/** JB's sentences that name the products running on 19 November ("#1, #2, #3 and #7"), read live: the products whose
+ *  enclave runs now. Another list drops the daily cost of 4 VMs that went with it; none running, one short line. The
+ *  original text is kept per text node. */
+const RUNS = /#1, #2, #3 and #7|n°\s1, 2, 3 et 7/
+const COST = /,\sat about 5\.8\s\$ a day for 4\sVMs|,\spour environ 5,8\s\$ par jour pour 4\sVM/
+const SENT = /(The verified enclaves of products|Les enclaves vérifiées des produits)[^.]*\./
+const runOrig = new WeakMap<Text, string>()
+function fillRuns(el: HTMLElement, ids: string[] | null, lang: string) {
+  const hits: Text[] = []
+  const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+  for (let n = w.nextNode(); n; n = w.nextNode()) { const x = n as Text; if (runOrig.has(x) || RUNS.test(x.data)) hits.push(x) }
+  const last = ids?.[ids.length - 1]
+  const list = !ids?.length ? '' : lang === 'fr'
+    ? `n° ${ids.length > 1 ? `${ids.slice(0, -1).join(', ')} et ` : ''}${last}`
+    : `${ids.length > 1 ? `${ids.slice(0, -1).map((i) => `#${i}`).join(', ')} and ` : ''}#${last}`
+  for (const x of hits) {
+    if (!runOrig.has(x)) runOrig.set(x, x.data)
+    const o = runOrig.get(x)!
+    const v = !ids || ids.join() === '1,2,3,7' ? o : !ids.length ? o.replace(COST, '').replace(SENT, ls('none')) : o.replace(COST, '').replace(RUNS, list)
+    if (x.data !== v) x.data = v
+  }
+}
+
 /** numbers JB's page read live, filled from /api/stats and /api/products */
 function useLiveFill(root: React.RefObject<HTMLDivElement | null>, key: string) {
   const lang = useLang()
   const stats = useLive((s) => s.stats)
   const products = useLive((s) => s.products)
+  const status = useLive((s) => s.status)
+  const rows = useCatalog()
+  // the sled faces and the "Today" lines of the sheets take the live state of their products (JB's page was written
+  // while every enclave was paused: its lamps and words are only the state before the first read)
+  useEffect(() => {
+    const el = root.current
+    if (!el) return
+    // before the catalog is read (or while the API does not answer), nothing is said as if read: quiet lamps, "Reading"
+    const wait = !rows
+    // the column's content can be laid again just after it arrives (a sheet's parts, the motion of its blocks): the
+    // live words are written now and once more when it has settled
+    const fill = () => {
+    const running = (ids: string[]) => (rows ?? []).filter((r) => ids.includes(r.p.id)).reduce((a, r) => a + r.running, 0)
+    // a sled face (#2 #7 in its unit line): green and "Running" while one of its products runs
+    el.querySelectorAll<HTMLElement>('.vit-face').forEach((f) => {
+      const ids = (f.querySelector('.bl-u')?.textContent ?? '').match(/\d+/g) ?? []
+      const w = f.querySelector<HTMLElement>('.bl-word')
+      if (f.dataset.origLed === undefined) f.dataset.origLed = f.dataset.led ?? ''
+      if (!ids.length || !w || f.dataset.origLed === 'red' || f.dataset.origLed === 'off') return
+      if (w.dataset.orig === undefined) w.dataset.orig = w.textContent ?? ''
+      const on = running(ids) > 0
+      f.dataset.led = wait ? 'off' : on ? 'green' : f.dataset.origLed || 'amber'
+      w.textContent = wait ? ls(status === 'error' ? 'wDown' : 'wRead') : on ? t('vit.w.on') : w.dataset.orig
+    })
+    // the "Today" line of a family sheet: its lamp follows the family's products; a family that sells (bounty, private
+    // AI) and runs nothing says so; the attested copilot (#4), while its enclave runs, says until when its
+    // registration holds
+    const fam = PIDS[key]
+    if (fam && (key === 'bounty' || key === 'private-ai' || key === 'attested-copilot')) {
+      const on = running(fam) > 0
+      const until = Math.max(0, ...(rows ?? []).filter((r) => fam.includes(r.p.id)).flatMap((r) => r.encs.filter((x) => x.led === 'green').map((x) => Number(x.e.expiresAt) || 0)))
+      el.querySelectorAll<HTMLElement>('.vit-side-today, .vit-offer-r .led').forEach((x) => {
+        const p = x.classList.contains('led') ? x.parentElement : x
+        const led = p?.querySelector<HTMLElement>('.led')
+        if (led) { led.classList.toggle('led-green', !wait && on); led.classList.toggle('led-amber', !wait && !on) }
+        if (!p) return
+        const txt = [...p.childNodes].find((n) => n.nodeType === 3 && n.textContent?.trim())
+        if (!txt) return
+        if ((p as HTMLElement).dataset.orig === undefined) (p as HTMLElement).dataset.orig = txt.textContent ?? ''
+        const orig = (p as HTMLElement).dataset.orig!
+        txt.textContent = wait ? t(status === 'error' ? 'vit.down' : 'vit.reading')
+          : key === 'attested-copilot' ? (on && until ? ls('p4on', { t: utcDay(until, lang) }) : orig)
+            : on ? orig : ls('off')
+      })
+    }
+    // the introduction's lines that name the running products (the state of 19 November), read live
+    if (key === 'intro') fillRuns(el, rows ? rows.filter((r) => r.running > 0 && !isSupersededRow(r)).map((r) => r.p.id).sort((a, b) => Number(a) - Number(b)) : null, lang)
+    }
+    fill()
+    const a = setTimeout(fill, 400), b = setTimeout(fill, 1400)
+    return () => { clearTimeout(a); clearTimeout(b) }
+  }, [root, key, lang, rows, status])
   useEffect(() => {
     const el = root.current
     if (!el) return
@@ -377,7 +476,7 @@ export function Vitrine() {
   const pRow = pOpen ? list.find((r) => r.p.id === pOpen) : undefined
   return (
     <div className="vt" data-open={cur ? '1' : '0'}>
-      <RoomStage plates={plates} hint={t('vit.hint')} onCap={setCap} />
+      <RoomStage plates={plates} hint={isTouch() ? ts('hint') : t('vit.hint')} onCap={setCap} />
       <aside className="vt-col" aria-live="polite" data-cur-text>
         <div className="vt-r" ref={col} onClick={onClick}>
           {cur === SLOT ? <SlotView close={() => open(null)} />

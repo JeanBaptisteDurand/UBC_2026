@@ -25,7 +25,9 @@ const injected = () => typeof window !== 'undefined' && !!(window as unknown as 
 function view(s: SiteState): WalletState {
   const status = s.phase === 'connected' && s.address ? 'connected' : s.phase === 'loading' || s.phase === 'connecting' || s.switching ? 'connecting' : 'idle'
   return {
-    has: s.phase !== 'none' && (injected() || s.wallets.length > 0 || status !== 'idle'),
+    // a wallet that only announces itself (EIP-6963, no window.ethereum) is found on the first click: until the
+    // search says there is none, Connect is offered
+    has: s.phase !== 'none' || injected(),
     status, address: s.address, chainId: s.chainId,
     error: s.note?.tone === 'bad' ? s.note.text : undefined,
     pick: s.phase === 'pick' ? s.wallets : undefined,
@@ -54,18 +56,26 @@ export function codeOf(e: unknown): number | undefined {
 
 /** Connects the wallet (wallet popup, or choice between several), then switches it to Arc testnet. */
 export async function connect(id?: string): Promise<boolean> {
-  const E = await engine()
-  if (id) await E.connect(id)
-  else await E.start()
-  if (getSite().phase !== 'connected') return false
-  if (getSite().chainId !== ARC_ID) return toArc()
-  return true
+  try {
+    const E = await engine()
+    if (id) await E.connect(id)
+    else await E.start()
+    if (getSite().phase !== 'connected') return false
+    if (getSite().chainId !== ARC_ID) return toArc()
+    return true
+  } catch (e) {
+    // the wallet module did not load, or the wallet threw outside its own handling: said, never silent
+    setSite({ phase: getSite().phase === 'connected' ? 'connected' : 'idle', note: { tone: 'bad', text: String((e as Error)?.message ?? e).slice(0, 200) } })
+    return false
+  }
 }
 
 /** Arc testnet in the wallet: selected if known, added otherwise (the site engine, like the header). */
 export async function toArc(): Promise<boolean> {
-  const E = await engine()
-  await E.switchToArc()
+  try {
+    const E = await engine()
+    await E.switchToArc()
+  } catch (e) { setSite({ switching: false, note: { tone: 'bad', text: String((e as Error)?.message ?? e).slice(0, 200) } }) }
   return getSite().chainId === ARC_ID
 }
 

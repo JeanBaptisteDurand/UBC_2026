@@ -10,7 +10,7 @@ import { t, getLang, type TKey } from '../i18n'
 import { SLOTS, G } from '../data/wall'
 import { getLive } from '../data/live'
 import { ct } from './strings'
-import { pageOf, urlOf, type PageName } from './page'
+import { pageOf, urlOf, netDemoOpen, type PageName } from './page'
 import { serviceHref } from '../links'
 import type { UiStep, NavArgs, HlArgs, DemoArgs } from './api'
 
@@ -21,6 +21,8 @@ export interface DriveHooks {
   leave: (target: PageName, rest: UiStep[]) => void
   /** On phones, the panel collapses while the copilot shows the site. */
   drive: (on: boolean) => void
+  /** On a small screen, the panel steps aside for a scene that plays on its own (the Network page's 3D demo). */
+  hide?: () => void
 }
 
 export const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -384,7 +386,10 @@ async function navigate(a: NavArgs, rest: UiStep[], hooks: DriveHooks): Promise<
     return true
   }
   const target = a.page === 'service' && !a.productId ? 'use' : a.page
-  const same = here === target && (target !== 'service' || new URLSearchParams(location.search).get('p') === a.productId)
+  // the demo is the Network page's 3D demo (network.html?focus=demo): on that page, it starts in place
+  if (target === 'demo' && here === 'network') { await netDemo({ action: 'play' }, hooks); return false }
+  const q = new URLSearchParams(location.search)
+  const same = here === target && (target !== 'service' || q.get('p') === a.productId) && (target !== 'doc' || !a.section || q.get('c') === a.section)
   if (!same) {
     hooks.log(ct('step.open', { page: ct(`page.${target}` as 'page.home') }))
     // the menu link, if on screen, is "clicked" by the copilot cursor
@@ -392,7 +397,8 @@ async function navigate(a: NavArgs, rest: UiStep[], hooks: DriveHooks): Promise<
     const link = [...document.querySelectorAll<HTMLAnchorElement>('.hd-nav a, .hd-drawer a')].find((x) => x.getAttribute('href') === href && x.getBoundingClientRect().width > 0)
     if (link) { await glideTo(boxOf(link)); await press() }
     else await sleep(reduced() ? 0 : 300)
-    hooks.leave(target, rest)
+    // the demo opens on the Network page (?focus=demo starts it there): the rest resumes on that page
+    hooks.leave(target === 'demo' ? 'network' : target, rest)
     location.assign(href)
     return true
   }
@@ -426,6 +432,35 @@ async function demo(a: DemoArgs, hooks: DriveHooks) {
   await sleep(reduced() ? 50 : 500)
 }
 
+/** The Network page's 3D demo (network/demo.ts): opened with its own button (the Demo view), then driven with its
+ *  own controls (play/pause, previous, next, the three chapters), clicked by the copilot cursor. Nothing else. */
+async function netDemo(a: DemoArgs, hooks: DriveHooks) {
+  const root = () => document.querySelector<HTMLElement>('.s3d .dm')
+  const click = async (el: HTMLElement) => { const b = boxOf(el); if (b.w && b.h) { await glideTo(b); await press() } el.click() }
+  let started = false
+  if (!netDemoOpen()) {
+    const open = await waitFor(() => document.querySelector<HTMLElement>('button[data-view="demo"]'), 6000)
+    if (!open) { hooks.log(ct('step.missing', { t: ct('page.demo') })); return }
+    await click(open)
+    if (!(await waitFor(() => (netDemoOpen() ? true : null), 4000))) { hooks.log(ct('step.missing', { t: ct('page.demo') })); return }
+    started = true
+    await sleep(reduced() ? 50 : 400)
+  }
+  const r = root()!
+  const btn = (k: string) => r.querySelector<HTMLElement>(`[data-a="${k}"]`)
+  const playing = () => r.querySelector<HTMLElement>('.dm-play')?.dataset.on === '1'
+  const el = a.action === 'play' ? (playing() ? null : btn('play'))
+    : a.action === 'pause' ? (playing() ? btn('play') : null)
+    : a.action === 'goto' ? r.querySelector<HTMLElement>(`.dm-seg[data-c="${Math.min(2, Math.max(0, Math.floor(((a.step ?? 1) - 1) / 3)))}"]`)
+    : btn(a.action)
+  if (el) await click(el)
+  hooks.log(a.action === 'goto' ? ct('step.demo.goto', { n: a.step ?? 1 }) : ct(`step.demo.${a.action}` as 'step.demo.play'))
+  // the demo takes the whole scene (its story on the left, its controls along the bottom): the panel steps aside once
+  // the demo starts, the AskHive button brings it back with this log
+  if (started || a.action === 'play') hooks.hide?.()
+  await sleep(reduced() ? 50 : 500)
+}
+
 // ---------------------------------------------------------------- the queue
 
 let chain: Promise<void> = Promise.resolve()
@@ -447,9 +482,11 @@ async function run(steps: UiStep[], hooks: DriveHooks) {
       if (s.tool === 'ui_navigate') { if (await navigate(s.args, steps.slice(i), hooks)) return }
       else if (s.tool === 'ui_highlight') await highlight(s.args, hooks)
       else if (s.tool === 'ui_demo') {
-        // the demo only exists on /demo.html: go there first
-        if (pageOf() !== 'demo') { if (await navigate({ page: 'demo' }, steps.slice(i), hooks)) return }
-        else await demo(s.args, hooks)
+        // the demo is the Network page's 3D demo (the old /demo.html keeps its own player): go there first
+        const here = pageOf()
+        if (here === 'network') await netDemo(s.args, hooks)
+        else if (here === 'demo') await demo(s.args, hooks)
+        else if (await navigate({ page: 'demo' }, steps.slice(i), hooks)) return
       }
     }
   } finally {

@@ -200,7 +200,9 @@ function plateOf(s: Sled | undefined, amber: boolean, admitted: boolean, refused
   else if (s && amber) { ST.title = name(); ST.sub = 2; ST.k = 1.4; ST.led = 'amber' }
   else if (s?.led === 'green') { ST.title = name(); ST.sub = 1; ST.k = 1.9; ST.led = 'green' }
   else if (s?.led === 'red') { ST.title = name(); ST.sub = 3; ST.k = 1.4; ST.led = 'red' }
-  else if (s?.led === 'amber') { ST.title = name(); ST.sub = s.why === 'expired' ? 4 : 2; ST.k = 1.1; ST.led = 'amber' }
+  // amber: "Waiting" only for an enclave that is pending; withdrawn, replaced, stopped or expired reads "Inactive" (the
+  // landing legend, stage.ts plateText and data/wall.ts lapsed say the same)
+  else if (s?.led === 'amber') { ST.title = name(); ST.sub = s.why && s.why !== 'idle' ? 4 : 2; ST.k = 1.1; ST.led = 'amber' }
   else { ST.title = t('plate.off'); ST.sub = 0; ST.k = 0; ST.led = 'off' }
   return ST
 }

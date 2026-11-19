@@ -6,7 +6,7 @@
 import type { Activity, Bounty, Enclave, LiveState, Product } from '../data/live'
 import { ledOf, badOf, serviceOf, svcName, signerHistory, type Led, type RedWhy, type Service } from '../data/wall'
 import { C, roleOf, type ProductRole } from '../data/facts'
-import { t, type TKey } from '../i18n'
+import { t, getLang, type TKey } from '../i18n'
 
 export interface EncRow { e: Enclave; led: Led; why?: RedWhy; reason?: string; reg?: Activity }
 export interface SvcRow {
@@ -60,7 +60,9 @@ export function catalog(s: Pick<LiveState, 'products' | 'enclaves' | 'activity' 
     const encs = enclaves.filter((e) => e.productId === p.id).map((e): EncRow => ({ e, ...ledOf(e, p, bad), reg: last.get(e.signer.toLowerCase()) }))
       .sort((a, b) => RANK[a.led] - RANK[b.led] || Number(b.e.registeredAt) - Number(a.e.registeredAt))
     const running = encs.filter((x) => x.led === 'green').length
-    const led: Led = role?.role === 'superseded' ? 'off' : p.state === 'Retired' ? 'red' : running > 0 ? 'green' : 'amber'
+    // the refutation demo (product 5) is the operator caught lying: red with "Bond seized" (stateLabel), as on the
+    // landing and its family face, never "waiting" as if it would run again
+    const led: Led = role?.role === 'superseded' ? 'off' : p.state === 'Retired' || role?.role === 'refuteDemo' ? 'red' : running > 0 ? 'green' : 'amber'
     const events = desc.filter((a) => productOfEvent(a, activity, bySigner, byBounty) === p.id && a.name !== 'EnclaveImage')
     const pay = events.find(isPay)
     return {
@@ -81,6 +83,7 @@ export function verdictOf(rows: SvcRow[]) {
 /** a service status in two or three words (catalog, Publish page) */
 export function stateLabel(r: SvcRow) {
   if (r.role?.role === 'superseded') return t('app.st.superseded', { id: r.role.by })
+  if (r.role?.role === 'refuteDemo') return getLang() === 'fr' ? 'Caution saisie' : 'Bond seized'
   if (r.p.state === 'Proposed') return t('app.st.proposed')
   return t(`app.st.${r.led}` as TKey)
 }

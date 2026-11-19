@@ -26,7 +26,8 @@ const w = window as unknown as { __frontReady: boolean }
 w.__frontReady = false
 document.documentElement.classList.add('js', 'app-page', 'doc-page')
 document.documentElement.dataset.title = 'ArcHive. Doc'
-startLive()
+// levels: the identity chapter reads the Proof of Cloud declaration of our machine's chip live (/api/levels)
+startLive({ levels: true })
 startClock({ smooth: false })
 // first render synchronous: the header is on screen at the page's first frame, so it stays in place across the
 // page transition (motion rule M1, ui/motion.ts)

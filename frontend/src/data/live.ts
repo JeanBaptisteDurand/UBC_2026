@@ -122,7 +122,10 @@ async function poll() {
     for (const a of activity) { const k = keyOf(a); if (!seen.has(k)) { seen.add(k); if (!first) fresh.push(a) } }
     first = false
     set({ status: 'ok', stats, enclaves, products, activity, bounties, error: undefined, fresh: fresh.length ? fresh : state.fresh })
-    if (!state.block) set({ block: Number(stats.head), blockAt: Date.now() })
+    // the API's head block, when it is newer than the last one read on Arc (touch screens read the block from here; the
+    // number never goes back)
+    const head = Number(stats.head)
+    if (Number.isFinite(head) && head > (state.block ?? 0)) set({ block: head, blockAt: Date.now() })
     pollChain(enclaves)
   } catch (e) {
     set({ status: state.stats ? 'ok' : 'error', error: String((e as Error).message || e) })
@@ -152,11 +155,13 @@ async function pollProof() {
 }
 
 async function pollBlock() {
-  if (busy & 4) return
+  // after an HTTP 429 from Arc's public RPC, the block waits (the API head keeps it moving): the quota of a shared
+  // network goes to the reads that matter (the Arc check, the proof chain)
+  if (busy & 4 || Date.now() < rpcCool) return
   busy |= 4
   try {
-    const n = parseInt(await rpc<string>('eth_blockNumber', []), 16)
-    if (Number.isFinite(n)) set({ block: n, blockAt: Date.now() })
+    const n = parseInt(await rpc<string>('eth_blockNumber', [], 0), 16)
+    if (Number.isFinite(n) && n > (state.block ?? 0)) set({ block: n, blockAt: Date.now() })
   } catch { /* the API block stays on screen */ } finally { busy &= ~4 }
 }
 
@@ -175,26 +180,48 @@ export function startLive(o: { levels?: boolean } = {}) {
   const lv = !!o.levels
   // The block waits for the first API read: it tells whether the proxy exists (otherwise, direct URLs)
   poll().then(() => { if (API === DIRECT_API) RPC = DIRECT_RPC; pollBlock(); if (lv) pollLevels() }); pollProof()
+  // Touch screens (phones, tablets) read less often, so the radio rests between reads: the API every 6 s instead of 4,
+  // and the block from the API head (above) with one read on Arc every 15 s, instead of one every second. Many phones
+  // on one venue network share the public RPC's quota with the Arc check
+  const touch = (() => { try { return matchMedia('(pointer: coarse)').matches } catch { return false } })()
   if (lv) setInterval(() => { if (!document.hidden) pollLevels() }, 30000)
-  setInterval(() => { if (!document.hidden) poll() }, 4000)
+  setInterval(() => { if (!document.hidden) poll() }, touch ? 6000 : 4000)
   setInterval(() => { if (!document.hidden) pollProof() }, 20000)
-  setInterval(() => { if (!document.hidden) pollBlock() }, 1000)
+  setInterval(() => { if (!document.hidden) pollBlock() }, touch ? 15000 : 1000)
 }
 
+/** Until then, the block is not read on Arc (an HTTP 429 was answered) */
+let rpcCool = 0
+const RATE = /rate.?limit|too many requests/i
+const pause = (ms: number) => new Promise((res) => setTimeout(res, ms))
 /** A JSON-RPC call to Arc testnet (proxied in dev, direct in production). 8 s timeout, so a hanging request does not
- *  block the following reads. */
-export async function rpc<T = unknown>(method: string, params: unknown[]): Promise<T> {
+ *  block the following reads. A call refused for its rate (HTTP 429, several tabs or a shared network) is made again
+ *  after a short wait, `retries` times (twice by default), before it fails. */
+export async function rpc<T = unknown>(method: string, params: unknown[], retries = 2): Promise<T> {
   const body = JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })
   const base = RPC
   for (const url of base === DIRECT_RPC ? [base] : [base, DIRECT_RPC]) {
-    const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 8000)
-    try {
-      const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body, signal: ctl.signal })
-      if (!r.ok || !/json/.test(r.headers.get('content-type') ?? '')) { if (url !== DIRECT_RPC) { RPC = DIRECT_RPC; continue } throw new Error(`HTTP ${r.status}`) }
-      const j = await r.json()
-      if (j.error) throw new Error(j.error.message ?? 'rpc error')
-      return j.result as T
-    } catch (e) { if (url === DIRECT_RPC) throw e } finally { clearTimeout(to) }
+    for (let k = 0; ; k++) {
+      const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 8000)
+      let limited = false
+      try {
+        const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body, signal: ctl.signal })
+        // a rate refusal is not a missing proxy: the same URL again, after a wait
+        if (r.status === 429) { limited = true; throw new Error('HTTP 429') }
+        if (!r.ok || !/json/.test(r.headers.get('content-type') ?? '')) { if (url !== DIRECT_RPC) { RPC = DIRECT_RPC; break } throw new Error(`HTTP ${r.status}`) }
+        const j = await r.json()
+        if (j.error) { limited = j.error.code === 429 || RATE.test(String(j.error.message ?? '')); throw new Error(j.error.message ?? 'rpc error') }
+        return j.result as T
+      } catch (e) {
+        if (limited) {
+          rpcCool = Date.now() + 15000
+          if (k < retries) { await pause(k ? 1500 : 500); continue }
+          throw e
+        }
+        if (url === DIRECT_RPC) throw e
+        break
+      } finally { clearTimeout(to) }
+    }
   }
   throw new Error('rpc unreachable')
 }

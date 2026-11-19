@@ -102,7 +102,7 @@
 .s3d .tab { padding: 0 8px; font-size: 14px; }
 .s3d .back { display: none; }
 .s3d .main { position: static; padding-top: var(--hd); }
-.s3d .stage { position: relative; inset: auto; height: 56vh; min-height: 320px; }
+.s3d .stage { position: relative; inset: auto; height: 56vh; height: 56svh; min-height: 320px; }
 .s3d #gl { touch-action: pan-y; cursor: default; }
 .s3d .panel { position: static; width: auto; max-height: none; margin: 0; padding: 20px 16px 48px; overflow: visible; }
 .s3d .proc { padding: 0; background: none; box-shadow: none; }
@@ -253,7 +253,7 @@
 @media (max-width: 760px) {
 .s3d .net { position: static; display: flex; flex-direction: column; padding-top: var(--hd); }
 .s3d .net-scene { display: block; order: -1; }
-.s3d .net .stage { height: 60vh; min-height: 340px; }
+.s3d .net .stage { height: 60vh; height: 60svh; min-height: 340px; }
 .s3d .net-col { border-right: 0; padding: 24px 16px 48px; }
 .s3d .net .back { display: inline-block; }
 .s3d .key { padding: 12px 16px; font-size: 12px; }
@@ -271,7 +271,7 @@
 @media (max-width: 760px) {
 .s3d .net { display: flex; flex-direction: column; }
 .s3d .net-scene { position: relative; inset: auto; order: -1; }
-.s3d .net .stage { position: relative; inset: auto; height: 56vh; min-height: 320px; }
+.s3d .net .stage { position: relative; inset: auto; height: 56vh; height: 56svh; min-height: 320px; }
 .s3d .net-col { position: static; width: auto; background: none; }
 .s3d .key { position: static; }
 .s3d .net .stage::before { display: none; }

@@ -39,10 +39,10 @@ export function TxA({ hash }: { hash?: string | null }) {
   return <a className="tlink mono" href={txUrl(hash)} target="_blank" rel="noreferrer">{short(hash, 4)}</a>
 }
 
-/** an action section: title, lead, and the steps under .acts */
-export function ActSec({ id, title, lede, children, side }: { id: string; title: string; lede?: string; children: ReactNode; side?: ReactNode }) {
+/** an action section: title, lead, and the steps under .acts; copilot: its name for the copilot's guided tours */
+export function ActSec({ id, title, lede, children, side, copilot }: { id: string; title: string; lede?: string; children: ReactNode; side?: ReactNode; copilot?: string }) {
   return (
-    <section className="work-sec acts" id={id} aria-labelledby={`${id}-h`}>
+    <section className="work-sec acts" id={id} aria-labelledby={`${id}-h`} data-copilot={copilot}>
       <div className="acts-top">
         <h2 className="work-h" id={`${id}-h`}>{title}</h2>
         {side}

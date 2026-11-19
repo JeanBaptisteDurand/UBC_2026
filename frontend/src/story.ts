@@ -17,7 +17,9 @@ function measure() {
   for (const id of ORDER) {
     const el = document.querySelector<HTMLElement>(`[data-sec="${id}"]`)
     const r = el?.getBoundingClientRect()
-    tops.push(r ? r.top + y : 0); hs.push(r ? r.height : 0)
+    // a section not mounted yet (the video landing mounts them one by one) is not on the page: it has no top, so the
+    // story never counts it as reached (with a top of 0, the story read 7, the end, until the last one mounted)
+    tops.push(r ? r.top + y : Infinity); hs.push(r ? r.height : 0)
     // Top of the text block in the section
     const tr = el?.querySelector<HTMLElement>(id === 'end' ? '.chain' : '.txt')?.getBoundingClientRect()
     txts.push(r && tr ? tr.top - r.top : 0)
@@ -51,6 +53,7 @@ function stops(): Stop[] {
   const out: Stop[] = [{ y: 0, id: 'hero', k: 'hero' }]
   ORDER.forEach((id, i) => {
     const a = tops[i], h = hs[i]
+    if (!Number.isFinite(a)) return
     if (id === 'use' || id === 'rent' || id === 'publish' || id === 'invalid') {
       // the title at TITLE_Y, the block exactly at its sticky point (styles.css, .st .txt)
       out.push({ y: a + txts[i] - (hdH + TITLE_GAP), id, k: id })

@@ -9,6 +9,7 @@ import gsap from 'gsap'
 import { txUrl } from '../data/fmt'
 import { DEMO_STEPS, BEATS, CHAPTERS, DEMO_LABEL, UI, UI15, BEAT_MORE, REC_HEAD, clientAt, tr, type Beat, type Sfx, type Rec } from './demo-strings'
 import { lg } from './lang'
+import { DEMO_PARTS, partOfBeat, type DemoPartId } from './demo-parts'
 import { makeSound } from './sound'
 
 export interface DemoApi {
@@ -26,7 +27,7 @@ export const beatAt = (t: number) => { let i = BEATS.length - 1; while (i > 0 &&
 
 export function makeDemo(api: DemoApi) {
   const st = { t: 0 }
-  let open = false, cur = -1, drawer = false
+  let open = false, cur = -1, drawer = false, curPart = ''
   const tl = gsap.timeline({ paused: true })
   tl.to(st, { t: TOTAL, duration: TOTAL, ease: 'none' })
   BEATS.forEach((_, i) => tl.addLabel('b' + i, T0[i]))
@@ -47,7 +48,7 @@ export function makeDemo(api: DemoApi) {
     <div class="dm-top"><p class="dm-count mono" aria-live="polite"></p>
       <button type="button" class="dm-x" data-a="quit"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3 13 13M13 3 3 13" /></svg></button></div>
     <p class="dm-tag mono" aria-hidden="true"></p>
-    <div class="dm-low"><p class="dm-sub" aria-live="polite"></p></div>
+    <div class="dm-low"><p class="dm-part mono"></p><p class="dm-sub" aria-live="polite"></p><p class="dm-why"></p></div>
     <aside class="dm-drawer" hidden></aside>
     <div class="dm-ctl">
       <button type="button" class="dm-b" data-a="prev"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" /></svg></button>
@@ -57,17 +58,27 @@ export function makeDemo(api: DemoApi) {
       <button type="button" class="dm-b dm-snd" data-a="sound"><svg viewBox="0 0 16 16" aria-hidden="true"><path class="dm-i-spk" d="M2 6h3l4-3v10l-4-3H2z" /><path class="dm-i-on" d="M11 5.5c1 .8 1 4.2 0 5M12.8 4c1.8 1.6 1.8 6.4 0 8" /><path class="dm-i-off" d="m11 6 4 4M15 6l-4 4" /></svg></button>
       <button type="button" class="dm-b dm-det" data-a="details"></button>
     </div>
-    <aside class="dm-side" aria-live="polite"><p class="dm-side-ch mono"></p><h3 class="dm-side-t"></h3><p class="dm-side-sub"></p><p class="dm-side-why"></p><p class="dm-side-tech mono"></p><div class="dm-side-real"></div></aside>`
+    <aside class="dm-side" aria-live="polite"><p class="dm-side-ch mono"></p><h3 class="dm-side-t"></h3><p class="dm-side-part mono"></p><p class="dm-side-sub"></p><p class="dm-side-why"></p><p class="dm-side-tech mono"></p><div class="dm-side-real"></div></aside>`
   api.stage.appendChild(root)
   const $ = <T extends Element>(s: string) => root.querySelector(s) as T
   const sub = $<HTMLElement>('.dm-sub'), tag = $<HTMLElement>('.dm-tag'), dr = $<HTMLElement>('.dm-drawer'), side = $<HTMLElement>('.dm-side')
+  // the subtitle and the Details drawer sit just above the controls, whose height changes with the screen and the
+  // language (they wrap on phones): measured into --dm-ctl-h (demo.css), border box included
+  {
+    const ctl = $<HTMLElement>('.dm-ctl')
+    const put = () => { const h = ctl.offsetHeight; if (h > 0) root.style.setProperty('--dm-ctl-h', `${h}px`) }
+    if ('ResizeObserver' in window) { const ro = new ResizeObserver(put); try { ro.observe(ctl, { box: 'border-box' }) } catch { ro.observe(ctl) } }
+    addEventListener('resize', put)
+  }
   // the space taken by the side block (fraction of the width the scene shifts by): measured at start and on resize
   let sideK = 0
   const measure = () => { sideK = !open || side.offsetParent === null ? 0 : (side.offsetLeft + side.offsetWidth + 16) / (2 * Math.max(1, root.clientWidth)) }
   addEventListener('resize', () => { if (open) measure() })
 
   function texts() {
-    $<HTMLElement>('.dm-det').textContent = tr(drawer ? UI15.close : UI15.details)
+    // the Details button keeps its label (a disclosure: its state is aria-expanded, drawn in demo.css), so the controls
+    // keep their rows on a phone when the drawer opens ('Fermer les détails' took a third row at 320 px)
+    const det = $<HTMLElement>('.dm-det'); det.textContent = tr(UI15.details); det.setAttribute('aria-expanded', String(drawer))
     for (const [a, k] of [['quit', UI.quit], ['prev', UI.prev], ['next', UI.next]] as const) root.querySelector<HTMLElement>(`[data-a="${a}"]`)!.setAttribute('aria-label', tr(k))
     $<HTMLElement>('.dm-play').setAttribute('aria-label', tr(tl.isActive() ? UI.pause : UI.play))
     const sb = $<HTMLElement>('.dm-snd'); sb.setAttribute('aria-label', tr(snd.muted ? UI15.soundOn : UI15.mute)); sb.setAttribute('aria-pressed', String(snd.muted)); sb.dataset.off = snd.muted ? '1' : '0'
@@ -86,19 +97,32 @@ export function makeDemo(api: DemoApi) {
     return `<h3 class="dm-c-t">${esc(tr(s.title))}</h3><dl>` + row(tr(UI.who), esc(tr(s.who))) + (s.fn ? row(tr(UI.fn), esc(s.fn), true) : '') +
       (s.checks ? row(tr(UI.checks), esc(tr(s.checks))) : '') + row(tr(UI.writes), esc(tr(s.writes))) +
       (s.real ? row(tr(UI.real), esc(tr(s.real.text)) + (s.real.tx ? ` <a class="tlink mono" href="${txUrl(s.real.tx)}" target="_blank" rel="noreferrer">${tr(UI.tx)} ${s.real.tx.slice(0, 10)}…</a>` : '')) : '') + '</dl>' +
-      (BEAT_MORE[cur]?.why ? `<p class="dm-c-why">${esc(tr(BEAT_MORE[cur].why!))}</p>` : '') + `<div class="dm-c-rec">${recHtml(cur)}</div>`
+      `<p class="dm-c-why">${esc(tr(whyOf(cur)))}</p>` + `<div class="dm-c-rec">${recHtml(cur)}</div>`
   }
+  // why it matters: the beat's own line, else its part's (demo-parts.ts): every beat says it
+  const whyOf = (i: number) => BEAT_MORE[i]?.why ?? partOfBeat(Math.max(0, i)).why
   function beatChanged(i: number) {
     cur = i
     const b = BEATS[i]
     sub.textContent = tr(b.sub)
+    // the part under way (the request, the enclave, Arc verifying it, the payment, the verdict): its name over the
+    // subtitle, and on phones its 'why' under it; the assistant hears of each new part ('archive:demo-part')
+    const P = partOfBeat(i), pn = DEMO_PARTS.indexOf(P) + 1, newPart = P.id !== curPart
+    $<HTMLElement>('.dm-part').textContent = `${pn} / ${DEMO_PARTS.length} · ${tr(P.title)}`
+    $<HTMLElement>('.dm-side-part').textContent = `${pn} / ${DEMO_PARTS.length} · ${tr(P.title)}`
+    const wy = $<HTMLElement>('.dm-why'); wy.textContent = tr(P.why)
+    if (newPart) {
+      curPart = P.id; root.dataset.part = P.id
+      dispatchEvent(new CustomEvent('archive:demo-part', { detail: { part: P.id, beat: i } }))
+      if (!api.reduced()) gsap.fromTo([$('.dm-part'), wy], { opacity: 0 }, { opacity: 1, duration: 0.4, ease: 'power2.out' })
+    }
     const s = DEMO_STEPS[b.step]
     $<HTMLElement>('.dm-side-ch').textContent = `${tr(UI15.chapter)} ${b.ch + 1} / 3`
     $<HTMLElement>('.dm-side-t').textContent = tr(CHAPTERS[b.ch])
     $<HTMLElement>('.dm-side-sub').textContent = tr(b.sub)
     $<HTMLElement>('.dm-side-tech').textContent = b.tech ? tr(b.tech) : ''
     const more = BEAT_MORE[i]
-    $<HTMLElement>('.dm-side-why').textContent = more?.why ? tr(more.why) : ''
+    $<HTMLElement>('.dm-side-why').textContent = tr(whyOf(i))
     // the recorded values of the beat; without any, the step's real transaction as before
     $<HTMLElement>('.dm-side-real').innerHTML = more?.rec?.length ? recHtml(i) : s.real?.tx ? `<a class="tlink" href="${txUrl(s.real.tx)}" target="_blank" rel="noreferrer">${esc(tr(UI15.onArc))}</a>` : ''
     if (!api.reduced()) gsap.fromTo(side.querySelectorAll('.dm-side-sub, .dm-side-why, .dm-side-tech, .dm-side-real'), { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: 0.35, stagger: 0.06, ease: 'power2.out' })
@@ -162,11 +186,23 @@ export function makeDemo(api: DemoApi) {
   return {
     get open() { return open }, frame,
     get t() { return st.t },
-    start() { open = true; root.hidden = false; cur = -1; lastT = 0; lastChars = -1; snd.start(); measure(); tl.seek(0, false); if (!api.reduced()) tl.play(); else tl.pause(); syncPlay(); texts(); api.dirty() },
+    start() { open = true; root.hidden = false; cur = -1; curPart = ''; lastT = 0; lastChars = -1; snd.start(); measure(); tl.seek(0, false); if (!api.reduced()) tl.play(); else tl.pause(); syncPlay(); texts(); api.dirty() },
     stop() { open = false; root.hidden = true; tl.pause(); gsap.killTweensOf(tl); snd.pause(); sideK = 0 },
     side: () => sideK,
-    lang() { if (open) { cur = -1; texts() } },
+    lang() { if (open) { cur = -1; curPart = ''; texts() } },
     seek(t: number) { tl.pause(); tl.seek(t, false); syncPlay(); api.dirty() },
+    /** the player's own controls, for the assistant (the 'archive:demo' event, scene.ts) */
+    control(a: 'play' | 'pause' | 'next' | 'prev') {
+      if (!open) return
+      if (a === 'play') { if (tl.paused() || tl.progress() >= 1) act('play') } else if (a === 'pause') { if (!tl.paused()) act('play') } else act(a)
+    },
+    /** the demo from the start of one of its parts (demo-parts.ts), playing (paused with reduced motion) */
+    part(id: DemoPartId) {
+      const P = DEMO_PARTS.find((q) => q.id === id); if (!P || !open) return
+      gsap.killTweensOf(tl); tl.seek(T0[Math.min(P.beat, BEATS.length - 1)], false)
+      if (!api.reduced()) tl.play(); else tl.pause()
+      syncPlay(); api.dirty()
+    },
     playing: () => !tl.paused(),
     step: () => DEMO_STEPS[BEATS[Math.max(0, beatAt(st.t))].step],
   }

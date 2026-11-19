@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { useLive } from '../data/live'
-import { short, usdc } from '../data/fmt'
+import { short, usdc, pct } from '../data/fmt'
 import { addr, link, networkFor } from '../links'
 import { Footer } from '../ui/Footer'
 import { AppHeader } from '../app/AppFrame'
@@ -92,7 +92,7 @@ function MyServices({ address, E }: { address: string; E: Engine | null }) {
                       {n[p.id] ? <NoteLine n={n[p.id]} /> : null}
                     </td>
                     <td className="mono" data-l={s('sp.s.h.price')}>{usdc(p.price, lang)}</td>
-                    <td className="mono" data-l={s('sp.s.h.share')}>{`${(p.bpsAuthor / 100).toLocaleString(lang)} %`}</td>
+                    <td className="mono" data-l={s('sp.s.h.share')}>{pct(p.bpsAuthor, lang)}</td>
                     <td>{st === 'Proposed' ? <button type="button" className="btn btn-line btn-s" disabled={at > now || !E} onClick={() => activate(p.id)}><span>{s('sp.s.activate')}</span></button> : null}</td>
                   </tr>
                 )

@@ -40,6 +40,13 @@ const EN = {
   'doc.code.err': 'Arc could not be read. Try again.',
   'doc.code.bytes': '{n} bytes',
   'doc.code.none': 'no code',
+  // chapter 04, the two status lines, read live (/api/levels for the chip, Arc for product 7)
+  'doc.poc.on': 'Our machine’s chip ({chip}…) is declared on Arc by the Proof of Cloud alliance: renewed on {a}, valid until {b}. A running machine renews it every week.',
+  'doc.poc.off': 'Our machine’s chip ({chip}…) was declared on Arc by the Proof of Cloud alliance until {b}: a running machine renews it every week, and none has since.',
+  'doc.p7.on': 'Product 7 has been authorized to pay on Arc since 18 November at 23:00 UTC, after the 8-day safety delay.',
+  'doc.p7.wait': 'Product 7 can pay once its settlement contract is authorized on Arc, after the 8-day safety delay.',
+  'doc.p7.open': 'A {a} demo bounty is open until {t}.',
+  'doc.p7.none': 'No bounty is open on it right now.',
 }
 type K = keyof typeof EN
 const FR: Record<K, string> = {
@@ -77,6 +84,12 @@ const FR: Record<K, string> = {
   'doc.code.err': 'Arc n’a pas pu être lu. Réessayez.',
   'doc.code.bytes': '{n} octets',
   'doc.code.none': 'aucun code',
+  'doc.poc.on': 'La puce de notre machine ({chip}…) est déclarée sur Arc par l’alliance Proof of Cloud : renouvelée le {a}, valable jusqu’au {b}. Une machine en marche la renouvelle chaque semaine.',
+  'doc.poc.off': 'La puce de notre machine ({chip}…) a été déclarée sur Arc par l’alliance Proof of Cloud jusqu’au {b} : une machine en marche la renouvelle chaque semaine, et aucune ne l’a fait depuis.',
+  'doc.p7.on': 'Le produit 7 est autorisé à payer sur Arc depuis le 18 novembre à 23:00 UTC, après le délai de sécurité de 8 jours.',
+  'doc.p7.wait': 'Le produit 7 pourra payer une fois son contrat de règlement autorisé sur Arc, après le délai de sécurité de 8 jours.',
+  'doc.p7.open': 'Une prime de démo de {a} est ouverte jusqu’au {t}.',
+  'doc.p7.none': 'Aucune prime n’y est ouverte en ce moment.',
 }
 
 export function useDt() {

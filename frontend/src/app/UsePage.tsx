@@ -19,6 +19,7 @@ import { ArcIgnite, plainAcc } from '../ui/ArcGlow'
 import { Footer } from '../ui/Footer'
 import { AppHeader } from './AppFrame'
 import { useCatalog } from './useCatalog'
+import { useHashScroll } from './parts'
 import { verdictOf, matches, kindsOf, productOfEvent, isPay, railKey, stateLabel, isSupersededRow, type SvcRow, type StateFilter, type KindFilter } from './catalog'
 
 const loadDetail = () => import('./ServiceDetail')
@@ -251,6 +252,8 @@ export function UsePage() {
   // the tab title: the page, or the open service
   const name = pid ? rows?.find((r) => r.p.id === pid)?.name : undefined
   useEffect(() => { document.title = name ? `ArcHive. ${name}` : t('app.use.doc') }, [name, lang])
+  // use.html?act=3#act (a service's "Use it"): the call form, once the catalog above it has its rows
+  useHashScroll(!!rows)
   return (
     <>
       <a className="skip" href="#catalog" data-front-free>{t('app.skip')}</a>

@@ -17,7 +17,7 @@ import { AppHeader } from './AppFrame'
 import { AppTitle } from './UsePage'
 import { useCatalog } from './useCatalog'
 import { stateLabel } from './catalog'
-import { Path, Cmd, type PathStep } from './parts'
+import { Path, Cmd, useHashScroll, type PathStep } from './parts'
 import { readTimelock } from './chain'
 import { readManifest, type Manifest } from './proofs'
 
@@ -27,6 +27,7 @@ export function PublishPage() {
   const activity = useLive((s) => s.activity)
   const main = useRef<HTMLElement>(null)
   useIn(main, 0.94)
+  useHashScroll(!!rows) // publish.html#act lands on its section once the table above it has its rows
   const [lock, setLock] = useState<number | null | undefined>(undefined)
   useEffect(() => { readTimelock().then(setLock) }, [])
   // the most recent product that publishes a manifest: its copy verified by keccak against the hash read on Arc

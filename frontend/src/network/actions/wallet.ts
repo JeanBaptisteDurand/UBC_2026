@@ -6,7 +6,7 @@
 import { createPublicClient, createWalletClient, custom, http, parseAbi, type Address, type EIP1193Provider, type Hex, type PublicClient, type WalletClient } from 'viem'
 import { arcTestnet, createArcClient, testnet, type ArcClient } from './sdk'
 import { RPC } from '../../data/live'
-import { getWallet, setWallet, ARC_ID, type WalletInfo } from './store'
+import { getWallet, setWallet, ARC_ID, onPhone, type WalletInfo } from './store'
 import { w } from './strings'
 import { usdc } from '../../data/fmt'
 import { secure } from '../../data/endpoints'
@@ -67,7 +67,8 @@ export function requireSecure() { if (!secure()) throw new UserFacing(x('e.insec
 export async function start() {
   setWallet({ phase: 'loading', note: undefined })
   const ws = await discover()
-  if (!ws.length) { setWallet({ phase: 'none', wallets: [], note: { tone: 'muted', text: w('w.none') } }); return }
+  // a touch screen cannot install a browser wallet: it is told to open the page in a wallet app (HeaderWallet)
+  if (!ws.length) { setWallet({ phase: 'none', wallets: [], note: { tone: 'muted', text: w(onPhone() ? 'w.nonePhone' : 'w.none') } }); return }
   if (ws.length === 1) return connect(ws[0].id)
   setWallet({ phase: 'pick', wallets: ws })
 }
@@ -208,7 +209,8 @@ export function explain(e: unknown): UserFacing {
     if (!why && typeof x?.shortMessage === 'string') why = x.shortMessage
   }
   if (!why) why = String((e as Error)?.message ?? e).split('\n')[0].slice(0, 160)
-  return new UserFacing(w('e.other', { why }), 'other')
+  // the sentence ends with its own period ("Request exceeds defined limit.. Try again." had two)
+  return new UserFacing(w('e.other', { why: why.replace(/[\s.]+$/, '') }), 'other')
 }
 
 export * from './use'

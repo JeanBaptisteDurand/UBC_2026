@@ -13,6 +13,21 @@ export function makeSound() {
   let trailG: GainNode | null = null, trailF: BiquadFilterNode | null = null
   let muted = false
   try { muted = localStorage.getItem(KEY) === '1' } catch { /* storage unavailable: sound on */ }
+  // the context is created on a gesture only: a demo opened by the address (?focus=demo) has had none, and a context
+  // created then is refused by the browser (with a console warning); the first tap or key afterwards starts it. On a
+  // touch screen a finger going down does not count as a gesture yet (HTML user activation): it counts when it lifts
+  // (pointerup, touchend, click); a mouse button or a key counts at once
+  let wanted = false, waiting = false
+  const GESTURES = ['pointerup', 'touchend', 'click', 'keydown'] as const
+  const activated = () => (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation?.hasBeenActive ?? true
+  const stopWaiting = () => { waiting = false; for (const k of GESTURES) removeEventListener(k, onGesture, true) }
+  const onGesture = () => {
+    if (!activated()) return // not an activating event (Escape, a modifier): wait for the next one
+    const c = wanted ? ensure() : null
+    if (!c || c.state === 'running') { stopWaiting(); return }
+    // a browser that wants a stricter gesture (iOS: touchend or click) leaves it suspended: the next one tries again
+    void c.resume().then(() => { if (c.state === 'running') stopWaiting() }).catch(() => null)
+  }
 
   function ensure(): AudioContext | null {
     if (ctx) return ctx
@@ -62,10 +77,14 @@ export function makeSound() {
   }
   return {
     get muted() { return muted },
-    /** on click (gesture): creates or resumes the context */
-    start() { const c = ensure(); if (c && c.state !== 'running') void c.resume().catch(() => null) },
-    resume() { if (ctx && ctx.state === 'suspended') void ctx.resume().catch(() => null) },
-    pause() { if (trailG && ctx) trailG.gain.setTargetAtTime(0, ctx.currentTime, 0.03); if (ctx && ctx.state === 'running') void ctx.suspend().catch(() => null) },
+    /** on click (gesture): creates or resumes the context; without any gesture yet, waits for the first one */
+    start() {
+      wanted = true
+      if (!ctx && !activated()) { if (!waiting) { waiting = true; for (const k of GESTURES) addEventListener(k, onGesture, true) } return }
+      const c = ensure(); if (c && c.state !== 'running') void c.resume().catch(() => null)
+    },
+    resume() { wanted = true; if (ctx && ctx.state === 'suspended') void ctx.resume().catch(() => null) },
+    pause() { wanted = false; if (trailG && ctx) trailG.gain.setTargetAtTime(0, ctx.currentTime, 0.03); if (ctx && ctx.state === 'running') void ctx.suspend().catch(() => null) },
     fx,
     /** the trail, from 0 to 1 */
     trail(level: number, pitch = 0) {

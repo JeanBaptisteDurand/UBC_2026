@@ -50,8 +50,13 @@
   --t1: 180ms;
   --t2: 280ms;
   --t3: 600ms;
+  /* Room kept free at the bottom of the screen for the floating copilot button (copilot.css: 48 px at 40 px from the
+     edge, 44 px at 16 px on phones): what can never scroll out from under it (the pinned panels, the phone card)
+     stops above it; at the end of a page the button itself rises above the footer (copilot.css, --cp-lift) */
+  --launch-clear: 104px;
   color-scheme: dark;
 }
+@media (max-width: 640px) { :root { --launch-clear: 72px; } }
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -110,6 +115,8 @@ html[data-pin='1'] .veil { opacity: 0; }
 .menu-btn { display: none; }
 .hd-row2 { height: 28px; display: flex; align-items: center; gap: 28px; padding: 0 var(--gut); color: var(--ink3); border-bottom: 1px solid var(--rule); white-space: nowrap; overflow: hidden; }
 .hd-row2 b { font-weight: 400; color: var(--ink); }
+/* A page drawn under the notch (viewport-fit=cover, landscape iPhones): the header rows keep clear of it */
+.hd-row1, .hd-row2 { padding-left: max(var(--gut), env(safe-area-inset-left)); padding-right: max(var(--gut), env(safe-area-inset-right)); }
 .band-i { display: inline-flex; gap: 8px; }
 .band-i > span:last-child { color: var(--ink2); }
 .band-sec { margin-left: auto; display: inline-flex; align-items: baseline; gap: 8px; color: var(--ink); }
@@ -117,7 +124,17 @@ html[data-pin='1'] .veil { opacity: 0; }
 .prog { position: relative; height: 1px; }
 .prog-bar { position: absolute; inset: 0; background: var(--acc); transform-origin: 0 50%; transform: scaleX(0); }
 .prog-bar[data-load='1'] { background: var(--ink2); transition: transform 400ms var(--productive); }
-.hd-drawer { display: flex; flex-direction: column; padding: 16px var(--gut) 24px; gap: 16px; font-size: 20px; background: var(--bg); }
+/* The menu drawer (ui/Menu.tsx): links at least 44 px tall, the current page in the neon frame of the header nav; the
+   console and, on the narrowest phones, the language after a rule. It scrolls inside itself on short screens; a dim
+   layer under it closes it on a tap; while it is open the header comes over the copilot button and the page stays put */
+.hd-drawer { position: relative; display: flex; flex-direction: column; align-items: flex-start; max-height: calc(100vh - var(--hd)); max-height: calc(100dvh - var(--hd)); overflow-y: auto; overscroll-behavior: contain; padding: 8px var(--gut) 16px; gap: 4px; font-size: 20px; background: var(--bg); box-shadow: inset 0 -1px 0 var(--rule); }
+.hd-drawer a, .hd-drawer button { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink2); transition: color var(--t2) var(--productive); }
+.hd-drawer a:hover, .hd-drawer a:focus-visible, .hd-drawer a[aria-current='page'], .hd-drawer button:hover { color: var(--ink); }
+.hd-drawer-x { display: flex; flex-wrap: wrap; align-items: center; gap: 0 32px; align-self: stretch; margin-top: 8px; padding-top: 4px; box-shadow: inset 0 1px 0 var(--rule); font-size: 15px; }
+.hd-drawer .hd-drawer-lang { display: none; }
+.hd-scrim { position: fixed; left: 0; right: 0; bottom: 0; top: var(--hd); background: rgb(var(--bg-c) / 0.62); }
+html.menu-open { overflow: hidden; }
+html.menu-open .hd { z-index: 69; }
 /* Network-paused banner, third header row, calm: an amber LED, a sentence, the link to the replayed demo; the long
    sentence on desktop, the short one under 1100 px */
 .pause { display: flex; align-items: flex-start; min-height: 30px; padding: 5px var(--gut); color: var(--ink2); border-bottom: 1px solid var(--rule); background: var(--bg); }
@@ -316,9 +333,12 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
 .by.diff { color: var(--ink); background: oklch(0.45 0.16 27); box-shadow: inset 0 0 0 1px var(--red); } /* the faulty byte is outlined */
 .gate[data-ph="ok"] .by.on { color: #effff3; background-color: oklch(0.52 0.16 148); box-shadow: inset 0 0 0 1px oklch(0.80 0.22 148 / 0.6), 0 0 10px oklch(0.80 0.22 148 / 0.45); }
 .by.cur { box-shadow: inset 0 0 0 1px var(--acc); }
-.verdict { display: flex; gap: 12px; align-items: flex-start; min-height: 3.2em; }
-.verdict p { margin: 0; font-size: 15px; color: var(--ink2); }
-.seal { display: inline-flex; align-items: center; gap: 8px; flex: none; }
+/* the sentence sits beside the seal while it has room for a few words a line; otherwise it goes under it, full width
+   (tablets and phones), never in a one-word column */
+.verdict { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: flex-start; min-height: 3.2em; }
+.verdict p { flex: 1 1 10em; min-width: 0; margin: 0; font-size: 15px; color: var(--ink2); }
+.seal { display: inline-flex; align-items: center; gap: 8px; flex: 0 1 auto; min-width: 0; }
+.seal .mono { overflow-wrap: anywhere; }
 .seal svg { overflow: visible; }
 .seal-box { fill: none; stroke: currentColor; stroke-width: 1.4; stroke-dasharray: 1; animation: draw 420ms var(--productive) both; }
 .seal-mark { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-dasharray: 1; animation: draw 360ms var(--productive) 300ms both; }
@@ -337,6 +357,8 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
 .fiche[data-side='1']:not(.on) { clip-path: inset(0 100% 0 0); }
 .fiche[data-side='-1']:not(.on) { clip-path: inset(0 0 0 100%); }
 .fiche-lead { position: fixed; left: 0; top: 0; z-index: 54; height: 1px; width: 1px; background: var(--acc); opacity: 0; pointer-events: none; }
+/* a probe at the safe-area edges (the notch of a landscape iPhone), read by ui/Frame.tsx to place the card */
+.fi-safe { position: fixed; left: env(safe-area-inset-left, 0px); right: env(safe-area-inset-right, 0px); top: 0; height: 0; visibility: hidden; pointer-events: none; }
 .fi-head { display: flex; justify-content: space-between; align-items: center; padding-bottom: 4px; color: var(--ink3); }
 .fi-st { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); }
 .fi-st i { width: 12px; height: 4px; border-radius: 1px; background: var(--led-off2); }
@@ -351,6 +373,9 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
 .fi-dl dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
 .fi-foot { margin-top: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .fi-esc { font-size: 13px; }
+/* touch: a Close button in place of the Escape hint (ui/Frame.tsx) */
+.fi-foot .fi-x { display: none; }
+@media (pointer: coarse) { .fi-foot .fi-x { display: inline-flex; height: 44px; margin-left: auto; } .fi-foot .btn-s { height: 44px; } }
 
 /* ---------- end: back to the hero framing; a column in the room, the wall on the right ---------- */
 .end { padding: 0; margin-top: 24svh; }
@@ -379,7 +404,7 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
 .c-s { color: var(--ink2); font-size: 15px; }
 .c-tx { justify-self: end; display: inline-flex; align-items: center; min-height: 24px; }
 .chain-note { margin: 12px 0 0; color: var(--ink2); }
-.foot { position: relative; z-index: 2; background: rgb(var(--bg-c) / 0.94); padding: 40px var(--gut) 44px; display: flex; flex-wrap: wrap; gap: 24px 40px; align-items: center; justify-content: space-between; }
+.foot { position: relative; z-index: 2; background: rgb(var(--bg-c) / 0.94); padding: 40px var(--gut) calc(44px + env(safe-area-inset-bottom)); display: flex; flex-wrap: wrap; gap: 24px 40px; align-items: center; justify-content: space-between; }
 /* Our logo first, then "Powered by" and the Arc kit logo set back (smaller, after a rule), with its clear space
    (the inner arch height, about 20 px at 50 px tall: 24 px kept on each side) */
 .foot-l { display: flex; align-items: center; gap: 0; flex-wrap: wrap; }
@@ -388,7 +413,8 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
 .foot-arc { display: inline-flex; align-items: center; gap: 0; margin: 0; padding-left: 40px; box-shadow: inset 1px 0 0 var(--rule2); }
 .foot-arc img { display: block; height: 50px; width: auto; margin: 0 24px; }
 .foot-arc .lbl { white-space: nowrap; }
-.foot-r { display: grid; gap: 4px; justify-items: end; text-align: right; }
+/* the credits keep to the right edge, also when they wrap under the logos (tablets) */
+.foot-r { display: grid; gap: 4px; justify-items: end; text-align: right; margin-left: auto; }
 .foot-r p { margin: 0; }
 .foot-auth { font-size: 15px; font-weight: var(--w-head); color: var(--ink); }
 
@@ -443,8 +469,9 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
   .kv .row { grid-template-columns: minmax(0, 8em) minmax(0, 1fr); }
   /* Pinned pages in portrait: the 3D at the top of the screen (cam.ts PIN_SHIFT), the text below as a panel; the
      progress becomes a line of four steps */
-  .pin-in { display: flex; flex-direction: column; justify-content: flex-end; padding: 0; }
-  .pin .txt { width: 100%; padding: 20px var(--gut) 24px; background: rgb(var(--bg-c) / 0.9); }
+  /* at least the screen tall, taller when the panel needs it: then it sticks by its bottom (sections/Story.tsx) */
+  .pin-in { display: flex; flex-direction: column; justify-content: flex-end; padding: 0; height: auto; min-height: 100svh; }
+  .pin .txt { width: 100%; padding: 20px var(--gut) calc(var(--launch-clear) + env(safe-area-inset-bottom)); background: rgb(var(--bg-c) / 0.9); }
   .pin .h2 { font-size: 28px; }
   .pin .ttl-rule { display: none; }
   .steps { margin: 16px 0 0; padding: 0 0 12px; }
@@ -460,20 +487,76 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
   .gate .row.two > span { display: grid; gap: 4px; }
   .bytes { grid-template-columns: repeat(16, 1fr); gap: 2px; }
   .by { height: 18px; line-height: 18px; }
-  .fiche { left: 16px; right: 16px; top: auto; bottom: 16px; width: auto; transform: none !important; }
+  /* the phone card sits above the copilot button and the home indicator; its close button replaces "Esc to close" */
+  .fiche { left: 16px; right: 16px; top: auto; bottom: calc(var(--launch-clear) + env(safe-area-inset-bottom)); width: auto; transform: none !important; background: rgb(var(--pan-c) / 0.99); }
   .end-in { padding: 48px var(--gut); width: 100%; }
   .end-in { gap: 24px; }
   .end-in > * { background: rgb(var(--bg-c) / 0.84); margin: 0 -16px; padding: 16px; }
   .figs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .chain li { grid-template-columns: 18px minmax(0, 1fr); }
   .chain li .c-tx { grid-column: 2; justify-self: start; }
-  .foot-r { justify-items: start; text-align: left; }
+  .foot-r { justify-items: start; text-align: left; margin-left: 0; }
+  /* sentences read at 15 px on phones (the 13 px label size stays for true labels: "Powered by", key names) */
+  .foot-r .lbl, .st .pick-hint, .replay { font-size: 15px; }
   .foot-l .logo { margin-right: 24px; }
   .foot .logo-svg { height: 72px; }
   .foot-arc { padding-left: 0; box-shadow: none; margin-top: 16px; }
   .foot-arc img { margin: 0 0 0 16px; }
   .end-hd { margin-top: calc(40svh - 24px); }
 }
+/* Phones, and every touch screen (landscape phones wider than 760 px, tablets): 44 px tap targets in the header (row 1
+   is 56 px); the menu button keeps one width for Menu and Close, so the row never shifts when the drawer opens; the
+   logo link gets a taller hit area without moving */
+@media (max-width: 760px), (pointer: coarse) {
+  .lang, .menu-btn { height: 44px; min-width: 44px; justify-content: center; }
+  .menu-btn { min-width: 70px; }
+  .hd .logo { padding: 9px 0; margin: -9px 0; }
+}
+/* Narrow phones: the second header row drops the section name (the page title already says it; on the landing the
+   progress bar does), and row 1 tightens so the logo, the language, the wallet and the menu always fit */
+@media (max-width: 480px) { .hd-row2 .band-sec { display: none; } }
+@media (max-width: 400px) {
+  .hd-row1, .hd-side { gap: 8px; }
+  .lang, .menu-btn { padding: 0 10px; }
+}
+/* the replayed demo's second row on the narrowest phones: "Recorded at block N" stays whole, the network name goes
+   (app/AppFrame.tsx) */
+@media (max-width: 359px) { .hd-row2 .band-net-r { display: none; } }
+/* Under 375 px the language moves into the menu (ui/Menu.tsx): the wallet button keeps its full label */
+@media (max-width: 374px) {
+  .hd-side > .lang:not(.hd-w-b) { display: none; }
+  .hd-drawer .hd-drawer-lang { display: inline-flex; }
+}
+/* Every field at 16 px on phones and touch screens: below that, iOS Safari zooms the page on focus and stays zoomed
+   (important: some page rules set 13 to 15 px with two classes) */
+@media (max-width: 760px), (pointer: coarse) {
+  input, select, textarea { font-size: 16px !important; }
+}
+/* An anchor (skip link, in-page link, focus) lands under the fixed header, never behind it; the landing moves through
+   its own stops (clock.ts) and keeps its section tops */
+/* (--hd-page: the page header's height as set on the root, which a page's own --hd, such as Network's scene at 0,
+   cannot change) */
+:root { --hd-page: var(--hd); }
+html:not(.film-page) main [id], html:not(.film-page) main[id] { scroll-margin-top: calc(var(--hd-page) + 16px); }
+/* Short phones (iPhone SE class): the hero starts higher, so the first buttons are on the first screen */
+@media (max-width: 760px) and (max-height: 680px) { .hero { padding-top: calc(var(--hd) + 10svh); } }
+/* and the Arc check keeps its title, the two fingerprints, the button and the verdict (the step name and the
+   transaction row go: the proof chain below gives the transaction), so it fits under the header on 667 px phones */
+@media (max-width: 760px) and (max-height: 700px) { .pin-arc .steps, .pin-arc .gate > .row.two { display: none; } }
+/* Under 1100 px the verdict sentence goes under the seal, full width: a short seal ("Refused by Arc") no longer leaves it
+   a narrow column beside it, and both verdicts have the same layout */
+@media (max-width: 1100px) {
+  .verdict { flex-direction: column; flex-wrap: nowrap; gap: 6px; }
+  .verdict p { flex: 0 0 auto; }
+}
+/* Short screens (landscape phones, phones under 620 px tall): the seal says the verdict on one line, and its sentence
+   stays for screen readers only (the live region), so the check keeps its title under the header with its verdict in view */
+@media (max-height: 500px) and (orientation: landscape), (max-width: 760px) and (max-height: 620px) {
+  .pin-arc .verdict { min-height: 0; }
+  .pin-arc .verdict .seal ~ p, .pin-arc .verdict .seal-wait ~ p { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+}
+/* Tablets: the proof chain column as wide as the other text columns (a 250 px column broke every line) */
+@media (min-width: 761px) and (max-width: 1100px) { .end-in { width: calc(min(520px, 46vw) + 2 * var(--gut)); } }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 1ms !important; animation-duration: 1ms !important; }
 }
@@ -529,17 +612,26 @@ html.svc-open .page, html.svc-open .carrier, html.svc-open .leads, html.svc-open
    and its corners take the neon of the logo dot (light core, electric blue, near halo, very low wide halo) */
 .chip, .dot, .mode, .lang, .menu-btn, .svc-x, .cmd-b, .svc-b { position: relative; }
 .btn { transition: background var(--t1) var(--productive), color var(--t1) var(--productive); }
-.btn::before, .hd-nav a::before, .tlink::before, .chip::after, .dot::after, .mode::after, .lang::after, .menu-btn::after, .svc-x::after, .cmd-b::after, .svc-b::after {
+.btn::before, .hd-nav a::before, .hd-drawer a::before, .tlink::before, .chip::after, .dot::after, .mode::after, .lang::after, .menu-btn::after, .svc-x::after, .cmd-b::after, .svc-b::after {
   content: ''; position: absolute; inset: -8px; z-index: 2; pointer-events: none; opacity: 0;
   background: linear-gradient(var(--arc-core), var(--arc-core)) left top / 12px 1px no-repeat, linear-gradient(var(--arc-core), var(--arc-core)) left top / 1px 12px no-repeat, linear-gradient(var(--arc-core), var(--arc-core)) right bottom / 12px 1px no-repeat, linear-gradient(var(--arc-core), var(--arc-core)) right bottom / 1px 12px no-repeat;
   box-shadow: inset 0 0 0 1px rgb(143 180 255 / 0.6);
   filter: drop-shadow(0 0 1px rgb(74 134 255 / 0.95)) drop-shadow(0 0 4px rgb(58 107 255 / 0.75)) drop-shadow(0 0 12px rgb(36 72 216 / 0.5));
   transition: opacity var(--t1) var(--productive);
 }
-.btn:active::before, .hd-nav a[aria-current='page']::before, .tlink:active::before, .chip[aria-pressed='true']::after, .dot.is-on::after, .mode[aria-checked='true']::after, .lang:active::after, .menu-btn:active::after, .menu-btn[aria-expanded='true']::after, .svc-x:active::after, .cmd-b:active::after, .svc-b:active::after { opacity: 1; }
+.btn:active::before, .hd-nav a[aria-current='page']::before, .hd-drawer a[aria-current='page']::before, .tlink:active::before, .chip[aria-pressed='true']::after, .dot.is-on::after, .mode[aria-checked='true']::after, .lang:active::after, .menu-btn:active::after, .menu-btn[aria-expanded='true']::after, .svc-x:active::after, .cmd-b:active::after, .svc-b:active::after { opacity: 1; }
 .chip[aria-pressed='true'], .dot.is-on, .mode[aria-checked='true'], .svc-b:active { z-index: 1; }
 .btn-main:active { background: var(--chip3); color: var(--ink); }
 .hd-nav a::after { display: none; }
+/* in the drawer the frame hugs the link text (the link itself is 44 px tall for the thumb) */
+.hd-drawer a { position: relative; }
+.hd-drawer a::before { inset: 4px -10px; }
+/* Touch screens wide enough for the full menu (tablets in landscape): the menu links and the console are 44 px tall for
+   the finger, and the neon frame keeps the height it has around the words */
+@media (pointer: coarse) and (min-width: 1101px) {
+  .hd-nav a, .hd-console { display: inline-flex; align-items: center; min-height: 44px; }
+  .hd-nav a::before { inset: 4px -8px; }
+}
 /* The logo has no frame: on hover and focus the whole shape lights up with the glow of the "A" dot */
 .logo .logo-svg { transition: color 200ms var(--productive), filter 200ms var(--productive); filter: drop-shadow(0 0 0 rgb(74 134 255 / 0)) drop-shadow(0 0 0 rgb(58 107 255 / 0)) drop-shadow(0 0 0 rgb(36 72 216 / 0)); }
 .logo:hover .logo-svg, .logo:focus-visible .logo-svg { color: var(--arc-core); filter: drop-shadow(0 0 1px rgb(74 134 255 / 0.9)) drop-shadow(0 0 4px rgb(58 107 255 / 0.7)) drop-shadow(0 0 11px rgb(36 72 216 / 0.45)); }
@@ -696,6 +788,48 @@ html.veil-none body::after { display: none; }
 @keyframes read-blur { from { opacity: 0.82; transform: translateX(-6px); } to { opacity: 1; transform: translateX(6px); } }
 @media (prefers-reduced-motion: reduce) { html.film-page .txt::before, html.film-page .end-in::before { animation: none; } }
 
+/* ---------- landscape phones: a screen under 500 px tall ----------
+   The header keeps its first row only (the live reading goes, the page gets 28 px back). On the landing the text is
+   made to fit the height: the headline scales with it; the state blocks scroll with the page (stuck, a block taller
+   than the screen hid its end and its button); the pinned pages keep the title, the current step and the check, and a
+   panel still taller than the screen sticks by its bottom (sections/Story.tsx), so the button and the verdict stay in
+   view while the title went by on the way in. The card fits the height and scrolls inside itself. */
+@media (max-height: 500px) and (orientation: landscape) {
+  :root { --hd: calc(57px + var(--pause-h, 0px)); }
+  .hd-row2 { display: none; }
+  .hero { padding-top: calc(var(--hd) + 16px); }
+  .catch { font-size: min(8vw, 12svh); }
+  .hero .support { font-size: 17px; margin-top: 20px; }
+  .st { padding-top: calc(var(--hd) + 32px); }
+  .st .txt { position: relative; top: auto; }
+  .pin-in { height: auto; min-height: 100svh; }
+  .pin .h2 { font-size: 26px; }
+  .pin .checks, .pin-arc .steps, .pin-arc .gate > .row.two { display: none; }
+  .end { margin-top: 12svh; }
+  .end-hd { margin-top: 24svh; min-height: 0; }
+  /* the card is never taller than the screen under the header: its body scrolls inside it, its buttons stay in view
+     (ui/Frame.tsx places it beside its slot, between the header and the bottom of the screen) */
+  .fiche:not([hidden]) { display: flex; flex-direction: column; max-height: calc(100svh - var(--hd) - 32px); background: rgb(var(--pan-c) / 0.99); }
+  .fi-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  .fi-foot { flex: none; }
+}
+@media (max-height: 500px) and (orientation: landscape) and (min-width: 761px) {
+  .pin-in { padding-top: calc(var(--hd) + 12px); padding-bottom: 12px; }
+  .pin .ttl + .steps { margin-top: 24px; }
+  .pin .gate { margin-top: 12px; }
+  .end-in { padding-top: 32px; padding-bottom: 48px; }
+}
+/* phone layout turned sideways (under 761 px wide): the pinned panel spans the width under the header, its text keeps
+   clear of the copilot button on the right rather than at the bottom; the card sits on the left, away from that button */
+@media (max-height: 500px) and (orientation: landscape) and (max-width: 760px) {
+  .pin-in { padding-top: var(--hd); }
+  .pin .txt { padding: 12px calc(var(--gut) + 156px) 16px var(--gut); }
+  .pin .gate { margin-top: 10px; padding: 10px 12px; gap: 6px; }
+  .pin .by { height: 16px; line-height: 16px; }
+  .hero .hero-acts { width: max-content; max-width: 100%; }
+  .fiche { left: max(16px, env(safe-area-inset-left)); right: auto; width: min(360px, calc(100vw - 32px)); bottom: calc(16px + env(safe-area-inset-bottom)); }
+}
+
 /* Motion rule M1 (ui/motion.ts, design/MOTION.md): from page to page the header never moves. A cross-document view
    transition keeps it in place (its new state replaces the old at once); the old page fades out in 140 ms (M3) and
    the new one's content arrives block by block (M2, ui/motion.ts reveal). */
@@ -729,3 +863,12 @@ html.veil-none body::after { display: none; }
 /* the eyes: the right one Arc blue (the logo's diode), the left one the amber of the site's LEDs, both lit */
 .ah-mark .ah-eye-b { fill: #eaf4ff; filter: drop-shadow(0 0 2px #4a86ff) drop-shadow(0 0 5px #3a6bff); }
 .ah-mark .ah-eye-a { fill: #fff1e0; filter: drop-shadow(0 0 2px #ff7a24) drop-shadow(0 0 5px #c4400c); }
+
+/* The drawer's last row holds only the language, which moves there under 375 px (ui/Menu.tsx): no empty rule above it */
+.hd-drawer-x { display: none; }
+@media (max-width: 374px) { .hd-drawer .hd-drawer-x { display: flex; } }
+/* Phones: the replayed demo link of the hero reads at 15 px and is 44 px tall for the thumb */
+@media (max-width: 760px) { .hero-live:is(.hero *, .end *) { font-size: 15px; min-height: 44px; } }
+/* The footer's last line scrolls clear of the floating AskHive button (copilot.css: 48 px tall at 40 px from the edge,
+   44 px at 16 px on phones), which otherwise covered the credits at the end of every page */
+.foot { padding-bottom: calc(var(--launch-clear) + 16px + env(safe-area-inset-bottom)); }

@@ -4,7 +4,15 @@
 .s3d #col[data-col='demo'] { display: none; }
 .s3d .net:has(.stage[data-view='demo']) .key, .s3d .net:has(.stage[data-view='demo']) .key-t { display: none; }
 .s3d .net .stage[data-view='demo']::before { opacity: 0; }
-@media (max-width: 1024px) { .s3d .net .stage[data-view='demo'], .s3d #col[data-col='demo'] ~ .net-scene .stage { height: 84svh; min-height: 520px; aspect-ratio: auto; } }
+/* phones, tablets and short screens (landscape): the demo is a player fixed under the header, over the whole screen
+   below it, whatever the scroll offset it was opened at (the close cross and the controls are always on screen, a
+   swipe has nothing to reach) */
+@media (max-width: 1024px), (max-height: 520px) {
+  .s3d .net:has(.stage[data-view='demo']) .net-scene { position: fixed; left: 0; right: 0; top: var(--hdr, 84px); bottom: 0; height: auto; min-height: 0; margin: 0; z-index: 60; background: #0b0d10; }
+  .s3d .net:has(.stage[data-view='demo']) .net-scene .stage, .s3d #col[data-col='demo'] ~ .net-scene .stage { position: absolute; inset: 0; height: auto; min-height: 0; aspect-ratio: auto; }
+  .s3d #col[data-col='demo'] ~ .net-scene { margin: 0; } /* the phone focus margin (network.css) left a 24 px band under the header */
+  body:has(.stage[data-view='demo']) .foot { display: none; }
+}
 
 .s3d .dm { position: absolute; inset: 0; z-index: 9; pointer-events: none; font-family: var(--sans); color: var(--ink); }
 .s3d .dm[hidden] { display: none; }
@@ -74,6 +82,11 @@
 .s3d .arcp-k { font: 400 12px/1 var(--mono); color: var(--ink3); text-transform: uppercase; letter-spacing: 0.04em; margin-right: 4px; }
 .s3d .arcp-d .tlink { font-size: 13px; }
 .s3d #col[data-col='arc'] .p-title-w .ttl-rule { background: var(--arc-elec, #4a86ff); }
+/* touch: each contract's explorer link and heading are 44 px targets (the address still wraps inside the column) */
+@media (max-width: 1024px), (pointer: coarse) {
+  .s3d .arcp-d .tlink { display: inline-flex; align-items: center; min-height: 44px; }
+  .s3d .arcp-c summary { min-height: 44px; align-items: center; }
+}
 
 /* ---------- Shorter cards, title only once (in the card); on phones, the demo full screen under the header,
    the card scrolls with a fade, counter and progress kept ---------- */
@@ -85,7 +98,7 @@
 .s3d .dm-card dl { gap: 8px; }
 .s3d .dm-row dd { font-size: 14px; line-height: 1.4; }
 @media (max-width: 760px) {
-  .s3d .net:has(.stage[data-view='demo']) .net-scene { position: fixed; left: 0; right: 0; top: 84px; bottom: 0; height: auto; min-height: 0; margin: 0; z-index: 60; background: #0b0d10; }
+  .s3d .net:has(.stage[data-view='demo']) .net-scene { position: fixed; left: 0; right: 0; top: var(--hdr, 84px); bottom: 0; height: auto; min-height: 0; margin: 0; z-index: 60; background: #0b0d10; }
   body:has(.stage[data-view='demo']) .foot { display: none; }
   .s3d .net:has(.stage[data-view='demo']) .net-scene .stage { position: absolute; inset: 0; height: auto; min-height: 0; aspect-ratio: auto; }
   .s3d .dm-top { padding: 12px 16px; }
@@ -168,7 +181,7 @@
 .s3d .dm15 .dm-side-why { margin: 10px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink2); }
 .s3d .dm15 .dm-side-why:empty { display: none; }
 .s3d .dm15 .dm-side-real { padding-top: 12px; border-top: 1px solid var(--rule); }
-.s3d .dm-rec-h { margin: 0; font-size: 11px; line-height: 16px; letter-spacing: 0.02em; color: var(--ink3); }
+.s3d .dm-rec-h { margin: 0; font-size: 12px; line-height: 16px; letter-spacing: 0.02em; color: var(--ink3); }
 .s3d .dm-rec { margin: 8px 0 0; display: grid; gap: 2px; }
 .s3d .dm-rec-k { font-size: 12px; line-height: 1.4; color: var(--ink2); }
 .s3d .dm-rec-v { font-size: 12px; line-height: 1.45; color: var(--ink); overflow-wrap: anywhere; }
@@ -182,11 +195,95 @@
 /* while the part's demo plays, its button stays in reach at the top of the column (the marked step scrolls into view
    below it) */
 .s3d .net-show[data-st='on'], .s3d .net-show[data-st='done'] { position: sticky; top: 0; z-index: 3; margin-top: 12px; padding: 12px 0 20px; background: linear-gradient(to bottom, rgb(11 13 16) 82%, rgb(11 13 16 / 0)); }
+/* phones and tablets: the page scrolls under the fixed header, the bar sticks right under it (at 0 it hid behind it) */
+@media (max-width: 1024px) { .s3d .net-show[data-st='on'], .s3d .net-show[data-st='done'] { top: var(--hdr, 84px); } }
+/* phones: the stuck bar spans the screen (the steps never show at its sides) */
+@media (max-width: 760px) { .s3d #col:not([data-col='ensemble']) #panel > .net-show:is([data-st='on'], [data-st='done']) { margin-left: 0; margin-right: 0; padding-left: 16px; padding-right: 16px; } }
 .s3d .net-acts .na { scroll-margin-top: 104px; }
 .s3d .net-show-r { display: flex; align-items: center; gap: 20px; }
 .s3d .net-show-x { font-size: 13px; }
-.s3d .net-show-n { color: var(--ink3); }
-.s3d .net-show-n[data-ok='1'] { color: var(--green); }
+/* (two classes under .s3d: above actions.css '[data-ok='0'].lbl', a salmon error tone, whatever the stylesheet order) */
+.s3d .net-show .net-show-n { color: var(--ink3); }
+.s3d .net-show .net-show-n[data-ok='1'] { color: var(--green); }
 /* the steps while the demo fills them: a badge above, fields read-only and tinted as simulated */
 .s3d .na-demo-badge { display: inline-block; margin: 20px 0 0; padding: 4px 10px; font-size: 12px; color: var(--arc-light, #9cc0ff); box-shadow: inset 0 0 0 1px rgb(74 134 255 / 0.55); background: rgb(58 107 255 / 0.08); }
 .s3d .na-list[data-demo='1'] input, .s3d .na-list[data-demo='1'] textarea, .s3d .na-list[data-demo='1'] select { color: var(--arc-light, #9cc0ff); }
+
+/* ---------- The player on touch screens and next to the copilot button (mobile pass, 19/11) ----------
+   Each chapter segment is a 44 px target (its label and bar drawn as before). The copilot button (fixed, bottom right:
+   40 px from the edges above 640 px wide, 16 px below) never covers a control: the control rows end left of it on wide
+   screens, and sit above it on narrow phones; the subtitle and the Details drawer stay above the controls. */
+.s3d .dm15 .dm-seg { min-height: 44px; align-content: center; }
+@media (min-width: 641px) { .s3d .dm15 .dm-ctl { padding-right: 196px; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); } }
+/* on one row, the chapter bar takes the room left and shrinks (its labels ellipsize) rather than pushing the sound
+   button onto a second row */
+@media (min-width: 761px) { .s3d .dm15 .dm-chap { flex: 1 1 0; } }
+@media (max-width: 1024px), (pointer: coarse) { .s3d .dm-b { height: 44px; min-width: 44px; } .s3d .dm-x { width: 44px; height: 44px; } }
+@media (max-width: 640px) {
+  .s3d .dm15 .dm-ctl { gap: 8px; padding: 12px 12px calc(var(--launch-clear, 72px) + env(safe-area-inset-bottom, 0px)); }
+  .s3d .dm15 .dm-low, .s3d .dm15 .dm-drawer { bottom: calc(var(--launch-clear, 72px) + 116px + env(safe-area-inset-bottom, 0px)); }
+}
+@media (min-width: 641px) and (max-width: 760px) { .s3d .dm15 .dm-low, .s3d .dm15 .dm-drawer { bottom: 148px; } }
+/* landscape phones (short screens wider than 760 px): the phone player (the subtitle at the bottom, the Details drawer,
+   the chapter count at the top) with its controls on one row */
+@media (min-width: 761px) and (max-height: 520px) {
+  .s3d .dm15 .dm-side { display: none; }
+  .s3d .dm15 .dm-top { padding: 12px 16px; }
+  .s3d .dm15 .dm-top .dm-count { visibility: visible; }
+  .s3d .dm15 .dm-low { display: block; bottom: 96px; }
+  .s3d .dm15 .dm-sub { font-size: 16px; }
+  .s3d .dm15 .dm-det { display: inline-grid; }
+  .s3d .dm15 .dm-drawer { display: block; left: 12px; right: 12px; width: auto; top: 64px; bottom: 96px; }
+  .s3d .dm15 .dm-drawer[hidden] { display: none; }
+  .s3d .dm15 .dm-ctl { gap: 8px; padding-top: 12px; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); padding-left: 12px; }
+  .s3d .dm15 .dm-seg-n { display: none; }
+}
+
+/* ---------- The player on phones, round 2 (19/11) ----------
+   Up to 760 px wide the copilot button waits for the end of the demo (copilot.css): the controls keep no room for it.
+   The subtitle and the Details drawer sit just above the controls whatever their height (one, two or three rows, the
+   longer French labels): demo.ts measures it into --dm-ctl-h. While the drawer is open the subtitle under it gives way
+   (it showed through as ghost text), and the drawer's text reads at 15 px. */
+@media (max-width: 760px) {
+  .s3d .dm15 .dm-ctl { padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px)); }
+  .s3d .dm15 .dm-low, .s3d .dm15 .dm-drawer { bottom: calc(var(--dm-ctl-h, 124px) + 8px); }
+  .s3d .dm-row dd, .s3d .dm-c-why { font-size: 15px; }
+}
+.s3d .dm15[data-drawer='1'] .dm-low, .s3d .dm15[data-drawer='1'] .dm-tag { visibility: hidden; }
+.s3d .dm15 .dm-det[aria-expanded='true'] { color: var(--arc-light, #9cc0ff); box-shadow: inset 0 0 0 1px var(--arc-elec, #4a86ff); }
+/* the drawer scrolls inside: its last 24 px fade, so a cut line reads as 'more below' (and can scroll clear of it) */
+.s3d .dm15 .dm-drawer { padding-bottom: 24px; -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent); }
+/* landscape phones of any width (667 x 375 as well as 844 x 390): the controls on one row, the drawer from the top of the
+   player down to the controls, left of the close cross, over the chapter line (hidden while it is open) */
+@media (max-height: 520px) {
+  .s3d .dm15 .dm-side { display: none; }
+  .s3d .dm15 .dm-top { padding: 12px 16px; }
+  .s3d .dm15 .dm-top .dm-count { visibility: visible; }
+  .s3d .dm15 .dm-ctl { flex-wrap: nowrap; gap: 8px; padding-top: 12px; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); padding-left: max(12px, env(safe-area-inset-left, 0px)); }
+  .s3d .dm15 .dm-chap { order: 0; flex: 1 1 0; min-width: 0; }
+  .s3d .dm15 .dm-seg-n { display: none; }
+  .s3d .dm15 .dm-low { display: block; bottom: calc(var(--dm-ctl-h, 68px) + 8px); }
+  .s3d .dm15 .dm-sub { font-size: 16px; }
+  .s3d .dm15 .dm-det { display: inline-grid; }
+  .s3d .dm15 .dm-drawer { display: block; left: 12px; right: 72px; width: auto; top: 12px; bottom: calc(var(--dm-ctl-h, 68px) + 8px); }
+  .s3d .dm15 .dm-drawer[hidden] { display: none; }
+  .s3d .dm15[data-drawer='1'] .dm-count { visibility: hidden; }
+  .s3d .dm-row dd, .s3d .dm-c-why { font-size: 15px; }
+}
+
+/* ---------- The parts of the demo (demo-parts.ts, 19/11) ----------
+   The part under way (the service, the enclave, Arc verifying it, the request, the signed answer, the payment, the
+   verdict) is named over the sentence of the moment, and why it matters is said with it: in the side block on wide
+   screens, under the subtitle on phones held upright (on short screens the Details drawer keeps it). */
+.s3d .dm15 .dm-side-part { margin: 16px 0 0; padding-top: 16px; border-top: 1px solid var(--rule2); font-size: 12px; line-height: 16px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--arc-light, #9cc0ff); }
+.s3d .dm15 .dm-side-part + .dm-side-sub { margin-top: 8px; padding-top: 0; border-top: 0; }
+.s3d .dm15 .dm-side-why { font-size: 15px; }
+.s3d .dm15 .dm-part { display: block; width: fit-content; max-width: 100%; margin: 0 auto 6px; padding: 3px 8px; font-size: 12px; line-height: 16px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--arc-light, #9cc0ff); background: rgb(11 13 16 / 0.78); }
+.s3d .dm15 .dm-why { display: block; width: fit-content; max-width: 46ch; margin: 6px auto 0; padding: 6px 12px; font-size: 14px; line-height: 1.45; color: var(--ink2, #c5ccd4); background: rgb(11 13 16 / 0.78); text-shadow: 0 1px 2px rgb(5 6 7 / 0.9); }
+.s3d .dm15 .dm-part:empty, .s3d .dm15 .dm-why:empty { display: none; }
+/* short screens (landscape phones, the smallest phones upright): the part's name only, the 'why' is in Details */
+@media (max-height: 640px) { .s3d .dm15 .dm-why { display: none; } }
+/* phones held upright: AskHive's button (copilot.css .cp-launch, fixed at the bottom right) covered the Details button:
+   while it is on the page the controls rise above it (the subtitle follows them, --dm-ctl-h in demo.ts) */
+@media (max-width: 640px) and (min-height: 521px) { body:has(.cp-launch) .s3d .dm15 .dm-ctl { padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px)); } }
+@media (min-width: 641px) and (max-width: 760px) and (min-height: 521px) { body:has(.cp-launch) .s3d .dm15 .dm-ctl { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); } }

@@ -10,7 +10,7 @@
 .cp-mark i { position: absolute; left: 4px; top: 4px; width: 6px; height: 6px; background: var(--arc-elec); }
 
 /* ---------- panel ---------- */
-.cp-panel { position: fixed; right: 24px; bottom: 24px; z-index: 68; width: min(420px, calc(100vw - 48px)); height: min(700px, calc(100svh - var(--hd) - 48px)); display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; background: rgb(var(--pan-c) / 0.985); color: var(--ink); font-family: var(--sans); box-shadow: inset 0 0 0 1px var(--rule2), 0 32px 64px -32px rgb(0 0 0 / 0.9); animation: cp-in 280ms var(--productive) both; }
+.cp-panel { position: fixed; right: 24px; bottom: 24px; z-index: 68; width: min(420px, calc(100vw - 48px)); height: min(700px, calc(100svh - var(--hd) - 48px)); display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; background: rgb(var(--pan-c)); isolation: isolate; color: var(--ink); font-family: var(--sans); box-shadow: inset 0 0 0 1px var(--rule2), 0 32px 64px -32px rgb(0 0 0 / 0.9); animation: cp-in 280ms var(--productive) both; }
 @keyframes cp-in { from { clip-path: inset(100% 0 0 0); transform: translateY(8px); } to { clip-path: inset(0); transform: none; } }
 .cp-panel.is-driving { height: auto; grid-template-rows: auto; }
 .cp-hd { display: grid; gap: 2px; padding: 12px 16px 12px; box-shadow: inset 0 -1px 0 var(--rule); }
@@ -32,6 +32,9 @@
 .cp-wal-n { color: var(--ink3); }
 .cp-wal-how { flex-basis: 100%; display: grid; gap: 8px; padding: 4px 0 2px; }
 .cp-wal-how p { margin: 0; line-height: 1.5; }
+.cp-wal-pick { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.cp-wal-pick .cp-ib { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; }
+.cp-wal-pick img { width: 16px; height: 16px; flex: none; }
 .cp-wal-e { flex-basis: 100%; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin: 0; color: var(--amber); line-height: 1.45; }
 .cp-x { flex: none; width: 24px; height: 24px; color: var(--ink2); }
 .cp-led { display: inline-block; flex: none; width: 4px; height: 12px; border-radius: 1px; background: var(--led-off); }
@@ -161,6 +164,15 @@
   .cp-in { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
   .cp-ghost-cap { max-width: 200px; }
 }
+/* a phone held sideways (or any short screen): the panel takes the full height on the right, so the conversation keeps
+   room between its header and the field */
+@media (max-height: 500px) and (min-width: 641px) {
+  .cp-panel { top: 0; right: 0; bottom: 0; height: auto; width: min(420px, 56vw); box-shadow: inset 1px 0 0 var(--rule2), -24px 0 48px -24px rgb(0 0 0 / 0.9); }
+  .cp-panel.is-driving { top: auto; height: auto; }
+  .cp-hd { padding: 8px 16px; }
+  .cp-wal { padding: 6px 16px; }
+  .cp-in { padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
+}
 @media (prefers-reduced-motion: reduce) {
   .cp-panel, .cp-note, .cp-ring { animation: none; }
   .cp-typing i, .cp-spin { animation: none; opacity: 0.8; }
@@ -209,3 +221,20 @@ button.cp-enc:disabled .cp-enc-x { display: none; }
 /* the badge is the single line under the title (owner, 19/11): it never wraps, the proof holds the rest */
 .cp-enc-t { flex-wrap: nowrap; white-space: nowrap; }
 .cp-enc-a { overflow: hidden; text-overflow: ellipsis; }
+/* waiting for AskHive (JB, 19/11): a readable line with the real steps of the round trip, then the answer unfolds
+   block by block instead of popping at once */
+.cp-log .cp-typing { height: auto; min-height: 16px; margin: 14px 0 2px; }
+.cp-think { margin-left: 8px; font-size: 13px; line-height: 1.4; color: var(--ink2, #c5ccd4); }
+.cp-think-t { color: var(--ink3, #96a0ab); font-size: 12px; }
+.cp-m.is-fresh .cp-md > *, .cp-m.is-fresh > .cp-steps, .cp-m.is-fresh > .cp-src { animation: cp-unfold 420ms var(--expressive, cubic-bezier(0.2, 0.7, 0.2, 1)) both; }
+.cp-m.is-fresh .cp-md > :nth-child(2) { animation-delay: 140ms; }
+.cp-m.is-fresh .cp-md > :nth-child(3) { animation-delay: 280ms; }
+.cp-m.is-fresh .cp-md > :nth-child(4) { animation-delay: 420ms; }
+.cp-m.is-fresh .cp-md > :nth-child(5) { animation-delay: 560ms; }
+.cp-m.is-fresh .cp-md > :nth-child(6) { animation-delay: 700ms; }
+.cp-m.is-fresh .cp-md > :nth-child(n + 7) { animation-delay: 840ms; }
+.cp-m.is-fresh > .cp-steps, .cp-m.is-fresh > .cp-src { animation-delay: 900ms; }
+@keyframes cp-unfold { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .cp-m.is-fresh .cp-md > *, .cp-m.is-fresh > .cp-steps, .cp-m.is-fresh > .cp-src { animation: none; }
+}

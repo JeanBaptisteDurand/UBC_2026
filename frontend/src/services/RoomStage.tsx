@@ -13,6 +13,8 @@ export interface Plate {
   key: string; title: string; sub: string; unit: string
   led: 'green' | 'amber' | 'red' | 'off'
   on: boolean; dim: boolean; label: string; open: () => void
+  /** a placeholder while the catalog is read: quiet, opens nothing */
+  wait?: boolean
 }
 interface RoomFile { w: number; h: number; vp: number[]; cam: [number, number, number]; fov: number; slots: number[]; fog: FogP; leds: Led[] }
 
@@ -88,7 +90,7 @@ function PlateEl({ p, slot, m }: { p: Plate; slot: number; m: string }) {
   const lit = p.led !== 'off'
   const S = SLOTS[slot]
   return (
-    <button type="button" className="vt-fac" data-own-frame data-cur-arm style={{ width: `${mm(FW)}px`, height: `${mm(FH)}px`, transform: m }} data-on={p.on ? '1' : '0'} data-dim={p.dim ? '1' : '0'} aria-pressed={p.on} aria-label={p.label} onClick={p.open}>
+    <button type="button" className="vt-fac" data-own-frame data-cur-arm style={{ width: `${mm(FW)}px`, height: `${mm(FH)}px`, transform: m }} data-on={p.on ? '1' : '0'} data-dim={p.dim ? '1' : '0'} aria-pressed={p.wait ? undefined : p.on} aria-label={p.label} disabled={p.wait} onClick={p.wait ? undefined : p.open}>
       {lit ? <span className="lm-led" aria-hidden="true" style={{ '--c': c, left: `${mm(LD.x - GLOW.w / 2 + FW / 2)}px`, top: `${mm(G.FT - (LD.y + GLOW.h / 2))}px`, width: `${mm(GLOW.w)}px`, height: `${mm(GLOW.h)}px` } as React.CSSProperties}>
         <i className="lm-spill" /><i className="lm-core" style={{ width: `${mm(LD.w - 0.0008)}px`, height: `${mm(LD.h - 0.0008)}px` }} />
       </span> : null}

@@ -56,7 +56,7 @@
 @media (max-width: 1024px) {
   .s3d .net { display: flex; flex-direction: column; height: auto; min-height: 0; }
   .s3d .net-scene { position: relative; inset: auto; order: -1; }
-  .s3d .net .stage { position: relative; inset: auto; height: 62vh; min-height: 340px; }
+  .s3d .net .stage { position: relative; inset: auto; height: 62vh; height: 62svh; min-height: 340px; }
   .s3d .net-col { position: static; width: 100%; min-width: 0; box-sizing: border-box; background: none; padding: 40px var(--gut, 32px) 56px; }
   .s3d .key { position: static; }
 }
@@ -439,3 +439,103 @@
 .net-go-cat { display: grid; gap: 14px; margin: 0 0 24px; padding: 18px 20px; background: rgb(var(--ink-c) / 0.04); box-shadow: inset 0 0 0 1px var(--rule2), inset 3px 0 0 var(--arc-elec); }
 .net-go-cat-t { margin: 0; font-size: 15px; line-height: 1.5; color: var(--ink2); }
 .net-go-cat .btn { justify-self: start; gap: 10px; }
+
+/* ---------- Touch, tablets and short screens (mobile pass, 19/11) ---------- */
+/* the page header's height, read outside .s3d (which sets its own --hd to 0): the fixed or sticky things inside the
+   scene section sit right under the header */
+.network { --hdr: var(--hd, 86px); }
+/* a finger on the 3D scrolls the page (a horizontal drag still turns the scene, scene.ts): on phones, on tablets and
+   on any touch screen; only a mouse keeps the full drag (touch-action: none, scene.css) */
+@media (max-width: 1024px), (pointer: coarse) { .s3d #gl { touch-action: pan-y; } }
+/* tablets: the scene in small-viewport units (a mobile address bar does not resize it) */
+@media (min-width: 761px) and (max-width: 1024px) { .s3d .net .stage { height: 62svh; } }
+/* short screens (phones and small tablets in landscape): the scene never fills the screen under the header, the
+   title and the buttons start on the first screen */
+@media (max-width: 1024px) and (max-height: 520px) {
+  .s3d .net .stage { height: 58svh; min-height: 0; }
+  .s3d #col[data-col='ensemble'] ~ .net-scene .stage, .s3d #col:not([data-col='ensemble']):not([data-col='demo']) ~ .net-scene .stage { height: 58svh; min-height: 0; aspect-ratio: auto; }
+}
+/* French: 'Rejoignez le' is half as long again as 'Join the'. Its line stays whole (no lone 'LE' under 'REJOIGNEZ'), so
+   the title keeps its two lines, sized to the column where the column is narrower than that line: 'REJOIGNEZ LE' is
+   7.8 em wide, the column's text 100 px narrower than the column (desktop), the screen less its 16 px margins (phones) */
+html[lang='fr'] .s3d .net-catch .c1 { max-width: none; }
+@media (min-width: 1025px) { html[lang='fr'] .s3d .net-catch { font-size: min(clamp(48px, min(5.6vw, 9.4vh), 96px), calc((var(--colw) - 100px) / 7.9)); } }
+@media (max-width: 760px) { html[lang='fr'] .s3d .net-catch { font-size: min(48px, calc((100vw - 32px) / 7.9)); } }
+/* short desktop screens (1280 x 720 to 1280 x 800, 1366 x 768, 1180 x 820): the roles column fits without scrolling,
+   'See the demo' whole (it showed as a sliver at the bottom edge): a slightly smaller title, the two live links on one
+   row, tighter gaps */
+@media (min-width: 1025px) and (max-height: 860px) {
+  .s3d .net-catch { font-size: clamp(48px, min(5.6vw, 8.6vh), 96px); }
+  html[lang='fr'] .s3d .net-catch { font-size: min(clamp(40px, min(4.1vw, 7.4vh), 96px), calc((var(--colw) - 100px) / 7.9)); }
+  .s3d #col .net-support { margin-top: 20px; }
+  .s3d .net-links { flex-direction: row; flex-wrap: wrap; column-gap: 28px; row-gap: 0; margin-top: 24px; }
+  .s3d #col .net-links + .net-ctas { margin-top: 24px; }
+  .s3d .net-more { margin-top: 12px; }
+}
+/* phones and tablets: a part opened from a scrolled overview starts at its top (scene.ts go), under the header */
+@media (max-width: 1024px) { .s3d .net { scroll-margin-top: var(--hdr); } }
+/* phones, on a part: the section is at least one screen tall, so the footer never shows in the first screen and then
+   jumps away when the part's steps arrive (they are rendered once the page knows the part) */
+@media (max-width: 760px) { .s3d .net:has(> #col:not([data-col='ensemble'])) { min-height: calc(100svh - var(--hdr)); } }
+/* touch: targets of at least 44 px (the live links, the overview and close buttons, the column buttons, the refusal,
+   the step headings, the fields and the catalog search) */
+@media (max-width: 1024px), (pointer: coarse) {
+  .s3d .net-links { gap: 0; }
+  .s3d .net-links .tlink { min-height: 44px; padding: 0; }
+  .s3d .net .back { height: 44px; }
+  .s3d .net-x { width: 44px; height: 44px; }
+  .s3d .panel .btn, .s3d .net-show-b { height: 44px; } /* the overview's own buttons keep their 48 px */
+  .s3d .refus-b { height: 44px; }
+  .s3d .net-show-x { min-height: 44px; padding: 0 4px; }
+  /* the step heading's 44 px target takes the step's own top padding (the heading stays where it was) and the gap
+     under it (what follows keeps about its distance) */
+  .s3d .na { padding-top: 0; }
+  .s3d .na-h { min-height: 44px; padding: 12px 0 6px; }
+  .s3d .na-h + .na-d { margin-top: 0; }
+  .s3d .na[data-st='done']:not([data-on='1']) .na-b { margin-top: 2px; }
+  .s3d .na-f input, .s3d .na-sel select, .s3d .net-cat-q { height: 44px; }
+}
+/* fields at 16 px on phones and touch screens (iOS does not zoom into them on focus); body text at 15 px on phones */
+@media (max-width: 760px), (pointer: coarse) {
+  .s3d .na-f input, .s3d .na-f textarea, .s3d .na-sel select, .s3d .net-cat-q input { font-size: 16px; }
+}
+@media (max-width: 760px) {
+  .s3d .na-d, .s3d .na-note, .s3d .net-go-cat-t { font-size: 15px; }
+}
+
+/* ---------- Before the 3D, landscape phones, the refusal on phones (mobile pass, round 2, 19/11) ---------- */
+/* The page shows before the 3D room (network.tsx): a quiet line where the room will appear, centered in the visible part
+   of the scene (right of the column on wide screens), gone once the scene is ready */
+.s3d .net-load { position: absolute; z-index: 1; left: 0; right: 0; top: 50%; margin: 0; padding: 0 16px; transform: translateY(-50%); text-align: center; font-size: 13px; line-height: 20px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink3); pointer-events: none; transition: opacity 400ms var(--productive), visibility 0s; }
+.s3d .net-load::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 10px; vertical-align: 2px; background: var(--arc-elec, #4a86ff); box-shadow: 0 0 6px rgb(74 134 255 / 0.8); animation: net-load 1.2s ease-in-out infinite; }
+.s3d .stage[data-ready='1'] .net-load { opacity: 0; visibility: hidden; transition: opacity 400ms var(--productive), visibility 0s linear 400ms; }
+@media (min-width: 1025px) { .s3d .stage:not([data-view='demo']) .net-load { left: var(--colw); } }
+@keyframes net-load { 50% { opacity: 0.25; } }
+/* a part's demo asked while the room loads: the button waits (its icon breathes), the note says why */
+.s3d .net-show[data-st='wait'] .net-show-b svg { animation: net-load 1.2s ease-in-out infinite; }
+.s3d .net-show[data-st='wait'] .net-show-n { color: var(--arc-light, #9cc0ff); }
+.s3d .refus-b[aria-busy='true'] { color: var(--ink2); }
+@media (prefers-reduced-motion: reduce) { .s3d .net-load::before, .s3d .net-show[data-st='wait'] .net-show-b svg { animation: none; } }
+/* phones: 'Show a refusal' lines up with the panel (scene.css moved it 8 px to the left, a leftover of the old scene
+   button) and keeps its own width, like 'Play the demo' above it */
+@media (max-width: 760px) {
+  .s3d #refus { right: auto; }
+  .s3d #col:not([data-col='ensemble']) #panel > .refus-b { align-self: flex-start; }
+}
+/* landscape phones wider than 760 px (844 x 390, 932 x 430): a part opens text first, as on a phone held upright (the
+   3D filled the first screen, the title started below it and the copilot button sat on the close cross): the title,
+   its sentence and the demo button, then the scene, then the steps, at the header's margins */
+@media (min-width: 761px) and (max-width: 1024px) and (max-height: 520px) {
+  .s3d .net { position: relative; }
+  .s3d #col:not([data-col='ensemble']):not([data-col='demo']) { display: contents; }
+  .s3d #col:not([data-col='ensemble']):not([data-col='demo']) #panel { display: contents; }
+  .s3d #col:not([data-col='ensemble']):not([data-col='demo']) #panel > * { order: 1; margin-left: var(--gut, 72px); margin-right: var(--gut, 72px); }
+  .s3d #col:not([data-col='ensemble']):not([data-col='demo']) #panel > .back { margin-top: 24px; align-self: flex-start; }
+  .s3d #col:not([data-col='ensemble']):not([data-col='demo']) #panel > .refus-b { align-self: flex-start; }
+  .s3d #col:not([data-col='ensemble']):not([data-col='demo']) #panel > .net-acts { order: 3; margin-bottom: 48px; }
+  .s3d #col:not([data-col='ensemble']):not([data-col='demo']) .net-x-panel { position: absolute; top: 24px; right: var(--gut, 72px); margin: 0; }
+  .s3d #col:not([data-col='ensemble']):not([data-col='demo']) ~ .net-scene { order: 2; margin-top: 24px; }
+  /* the Stop bar, stuck under the header while the demo plays, spans the screen */
+  .s3d #col:not([data-col='ensemble']):not([data-col='demo']) #panel > .net-show:is([data-st='on'], [data-st='done']) { margin-left: 0; margin-right: 0; padding-left: var(--gut, 72px); padding-right: var(--gut, 72px); }
+  .s3d .net:has(> #col:not([data-col='ensemble']):not([data-col='demo'])) { min-height: calc(100svh - var(--hdr)); }
+}
