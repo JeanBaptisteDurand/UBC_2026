@@ -44,7 +44,7 @@ function verdict(v: (p: any) => void, p: unknown): string {
   }
 }
 
-describe("2 — prédicat : mêmes règles dans le SDK et dans l'enclave ; refus à la création", () => {
+describe("2 — predicate: the same rules in the SDK and in the enclave; refused at creation", () => {
   const corpus: unknown[] = [
     PRED,
     { combine: "AND", clauses: [{ type: "NATIVE_DROP", holder: HOLDER, min: 1 }, { type: "ATTACKER_PROFIT", token: TOKEN, min: "0" }] },
@@ -64,7 +64,7 @@ describe("2 — prédicat : mêmes règles dans le SDK et dans l'enclave ; refus
     "pas un objet",
   ];
 
-  it("chaque prédicat du corpus reçoit le MÊME verdict (et le même hash) du SDK et de l'enclave", () => {
+  it("every predicate of the corpus gets the SAME verdict (and the same hash) from the SDK and from the enclave", () => {
     for (const p of corpus) {
       const sdkV = verdict(validatePredicate, p);
       expect(sdkV).toBe(verdict(enclave.validatePredicate, p));
@@ -74,7 +74,7 @@ describe("2 — prédicat : mêmes règles dans le SDK et dans l'enclave ; refus
     expect(PREDICATE_MAX_DEPTH).toBe(enclave.PREDICATE_MAX_DEPTH);
   });
 
-  it("refus à la création : predicateHash lève PredicateError pour un prédicat hors règles ; la CLI le refuse avec un message clair", () => {
+  it("refused at creation: predicateHash throws PredicateError for a predicate outside the rules; the CLI refuses it with a clear message", () => {
     expect(() => predicateHash({ combine: "OR", clauses: [{ ...c0, x: deep(9_000) } as any] })).toThrow(PredicateError);
     expect(() => loadPredicate({ combine: "OR", clauses: [{ ...c0, x: deep(9_000) }] }, "predicat.json")).toThrow(CliError);
     expect(() => loadPredicate({ combine: "OR", clauses: [{ ...c0, x: deep(9_000) }] }, "predicat.json")).toThrow(/predicat\.json : prédicat invalide \(prédicat : imbrication de plus de 8 niveaux\)/);
@@ -82,7 +82,7 @@ describe("2 — prédicat : mêmes règles dans le SDK et dans l'enclave ; refus
     expect(loadPredicate(PRED, "p.json")).toBe(PRED);
   });
 
-  it("checkRefuteSource (clé de la prime) annonce la faute que signeront les enclaves : prédicat hors forme, rapport trop imbriqué", () => {
+  it("checkRefuteSource (bounty key) announces the fault the enclaves will sign: malformed predicate, report nested too deeply", () => {
     const proto = generateX25519();
     const make = (predicate: unknown) => {
       const text = JSON.stringify({ bountyId: "3", payee: HUNTER, capital: "0", predicate, txs: ["0xdeadbeef"], attackCode: null });
@@ -100,20 +100,20 @@ describe("2 — prédicat : mêmes règles dans le SDK et dans l'enclave ; refus
   });
 });
 
-describe("4 — CLI : r dans un fichier 0600 ou sur l'entrée standard, jamais en argument", () => {
+describe("4 — CLI: r in a 0600 file or on standard input, never as an argument", () => {
   let dir = "";
   beforeEach(() => { dir = mkdtempSync(join(tmpdir(), "arcvault-r-")); });
   afterEach(() => rmSync(dir, { recursive: true, force: true }));
   const R = ("0x" + "ab".repeat(32)) as Hex;
 
-  it("--r <0x…> est refusé (historique du shell, liste des processus) ; --r-file est accepté", () => {
+  it("--r <0x…> is refused (shell history, process list); --r-file is accepted", () => {
     const base = ["--claim", "0x" + "11".repeat(32), "--enclave", "https://e.example"];
     expect(() => parseArgs([...base, "--r", R], refuteCmd)).toThrow(UsageError);
     expect(() => parseArgs([...base, `--r=${R}`], refuteCmd)).toThrow(/--r is not supported/);
     expect(parseArgs([...base, "--bundle", "x.json", "--r-file", "r.hex"], refuteCmd).opts["r-file"]).toBe("r.hex");
   });
 
-  it("fichier 0600 : lu ; lisible par d'autres : refusé ; contenu invalide : refusé sans être recopié", async () => {
+  it("0600 file: read; readable by others: refused; invalid content: refused without being echoed", async () => {
     const f = join(dir, "r.hex");
     saveR(f, toBytes(R)); // écrit en 0600, jamais par-dessus un fichier existant
     expect(statSync(f).mode & 0o777).toBe(0o600);
@@ -128,20 +128,20 @@ describe("4 — CLI : r dans un fichier 0600 ou sur l'entrée standard, jamais e
     try { parseR("0xSECRET-NOT-HEX", "r.txt"); } catch (e) { expect((e as Error).message).not.toContain("SECRET"); }
   });
 
-  it("entrée standard (--r-file -) : lue si redirigée ; refusée depuis un terminal (la saisie s'afficherait)", async () => {
+  it("standard input (--r-file -): read when redirected; refused from a terminal (the input would be shown)", async () => {
     expect(await readR("-", Readable.from([`${R}\n`]) as any)).toBe(R);
     const tty = Object.assign(Readable.from([]), { isTTY: true });
     await expect(readR("-", tty as any)).rejects.toThrow(/redirigez r/);
   });
 });
 
-describe("5 — CLI : une clé X25519 par prime ; --reveal-key dit exactement ce qu'elle ouvre", () => {
+describe("5 — CLI: one X25519 key per bounty; --reveal-key says exactly what it opens", () => {
   let dir = "";
   beforeEach(() => { dir = mkdtempSync(join(tmpdir(), "arcvault-keys-")); });
   afterEach(() => rmSync(dir, { recursive: true, force: true }));
   const D = { sealedBounty: "0x182871d34438aB37a7FD4d8689f3e0812E447A9b", chainId: 5042002 };
 
-  it("deux primes = deux clés, deux fichiers 0600 nommés par la clé publique ; jamais un fichier existant écrasé", () => {
+  it("two bounties = two keys, two 0600 files named after the public key; an existing file is never overwritten", () => {
     const a = createBountyKey({ dir, ...D });
     const b = createBountyKey({ dir, ...D });
     expect(a.key.publicKey).not.toBe(b.key.publicKey);
@@ -156,7 +156,7 @@ describe("5 — CLI : une clé X25519 par prime ; --reveal-key dit exactement ce
     expect(statSync(a.path).mode & 0o777).toBe(0o600);
   });
 
-  it("retrouvée par la clé publique de la prime (Bounty.protocolX25519) ; l'ancienne clé partagée encore lue, signalée", () => {
+  it("found through the bounty's public key (Bounty.protocolX25519); the earlier shared key is still read, and flagged", () => {
     const a = createBountyKey({ dir, ...D });
     expect(findBountyKey(a.key.publicKey.toUpperCase().replace("0X", "0x") as Hex, { dir, legacyPath: join(dir, "nope.json") })).toMatchObject({ path: a.path, shared: false });
     const legacyPath = join(dir, "legacy", "protocol-x25519.json");
@@ -169,7 +169,7 @@ describe("5 — CLI : une clé X25519 par prime ; --reveal-key dit exactement ce
     expect(existsSync(legacyPath)).toBe(true);
   });
 
-  it("l'avertissement de --reveal-key nomme exactement les primes que la clé ouvre", () => {
+  it("the --reveal-key warning names exactly the bounties the key opens", () => {
     const pk = ("0x" + "cd".repeat(32)) as Hex;
     expect(revealKeyWarning({ publicKey: pk, bountyId: 3n, sharing: [3n] })).toMatch(/ceux de la prime #3 seulement \(aucune autre prime n'utilise cette clé\)$/);
     expect(revealKeyWarning({ publicKey: pk, bountyId: 3n, sharing: [7n, 3n, 4n, 4n] })).toMatch(/ceux de la prime #3 ET ceux des primes #4, #7, qui utilisent la même clé$/);
@@ -182,7 +182,7 @@ describe("5 — CLI : une clé X25519 par prime ; --reveal-key dit exactement ce
   });
 });
 
-describe("CLI : paliers lus jusqu'au revert EVM (code 3) seulement", () => {
+describe("CLI: tiers are read up to the EVM revert (code 3) only", () => {
   const abi = parseAbi([
     "function tierMinLoss(uint256 bountyId, uint256 index) view returns (uint256)",
     "function tierAmount(uint256 bountyId, uint256 index) view returns (uint256)",
@@ -198,7 +198,7 @@ describe("CLI : paliers lus jusqu'au revert EVM (code 3) seulement", () => {
       },
     }, { retryCount: 0 }),
   });
-  it("fin de tableau = revert (code 3, sans données comme le RPC public d'Arc) ; erreur interne -32603 = elle remonte (jamais tronqués)", async () => {
+  it("end of array = revert (code 3, with no data, like Arc's public RPC); internal error -32603 = it is raised (never truncated)", async () => {
     expect(await readTiers(pub(2, 3) as any, 1n)).toEqual([{ minLoss: 10n, amount: 1n }, { minLoss: 20n, amount: 2n }]);
     await expect(readTiers(pub(1, -32603) as any, 1n)).rejects.toThrow();
   });

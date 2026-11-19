@@ -95,8 +95,8 @@ function fakeChain(head: bigint) {
   };
 }
 
-describe("réclamation acceptée lue on-chain", () => {
-  it("ClaimAccepted retrouvé à partir de l'horodatage d'acceptation (dichotomie, une seule tranche de journaux), état et fenêtre", async () => {
+describe("accepted claim read on-chain", () => {
+  it("ClaimAccepted found from the acceptance timestamp (binary search, a single log range), state and window", async () => {
     const chain = fakeChain(250_000n);
     const { claim, digest } = makeClaim();
     chain.accept(makeClaim({ capital: 9n }).claim, [OP_C], 150n); // une autre réclamation de la même prime
@@ -114,7 +114,7 @@ describe("réclamation acceptée lue on-chain", () => {
     expect((await readAcceptedClaim(late.pub, { claimDigest: digest, deployment: D })).windowOpen).toBe(false);
   });
 
-  it("inconnue, déjà réfutée, opérateurs émis ≠ opsHash → erreurs explicites", async () => {
+  it("unknown, already refuted, emitted operators ≠ opsHash → explicit errors", async () => {
     const chain = fakeChain(1_000n);
     const { claim, digest } = makeClaim();
     await expect(readAcceptedClaim(chain.pub, { claimDigest: digest, deployment: D })).rejects.toMatchObject({ code: "unknown_claim" });
@@ -126,7 +126,7 @@ describe("réclamation acceptée lue on-chain", () => {
     await expect(readAcceptedClaim(chain.pub, { claimDigest: digest, deployment: D })).rejects.toMatchObject({ code: "inconsistent_event" });
   });
 
-  it("listAcceptedClaims d'une prime ; findDeliveredReport retrouve le cP livré par son cPHash", async () => {
+  it("listAcceptedClaims of a bounty; findDeliveredReport finds the delivered cP by its cPHash", async () => {
     const chain = fakeChain(12_000n);
     const one = makeClaim();
     const two = makeClaim({ capital: 6n });
@@ -144,10 +144,10 @@ describe("réclamation acceptée lue on-chain", () => {
   });
 });
 
-describe("source de l'exploit : contrôlée avant tout envoi", () => {
+describe("exploit source: checked before anything is sent", () => {
   const { claim, cP, exploit } = makeClaim();
 
-  it("chasseur : le bundle et r redonnent cPHash ; autre r ou autre capital → source_mismatch", () => {
+  it("hunter: the bundle and r give back cPHash; another r or another capital → source_mismatch", () => {
     expect(checkRefuteSource(hunterRefuteSource({ bountyId: 3n, payee: HUNTER, exploit, r: R }), claim, proto.publicKey)).toMatchObject({ mode: "hunter", readable: true, consistent: true });
     const other = hunterRefuteSource({ bountyId: 3n, payee: HUNTER, exploit, r: ("0x" + "43".repeat(32)) as Hex });
     expect(() => checkRefuteSource(other, claim, proto.publicKey)).toThrow(/cPHash/);
@@ -156,7 +156,7 @@ describe("source de l'exploit : contrôlée avant tout envoi", () => {
     expect(() => hunterRefuteSource({ bountyId: 3n, payee: HUNTER, exploit, r: "0x1234" })).toThrow(/32 octets/);
   });
 
-  it("protocole : par défaut le secret de CE rapport (pas la clé) ; il ouvre cP ; un faux secret ou un autre cP → refus", () => {
+  it("protocol: by default the secret of THIS report (not the key); it opens cP; a wrong secret or another cP → refused", () => {
     const s = protocolRefuteSource({ cP, protocolPrivateKey: proto.privateKey });
     expect(s).not.toHaveProperty("protocolPrivateKey");
     expect(checkRefuteSource(s, claim, proto.publicKey)).toMatchObject({ mode: "protocol-secret", readable: true, consistent: true });
@@ -166,7 +166,7 @@ describe("source de l'exploit : contrôlée avant tout envoi", () => {
     expect(() => checkRefuteSource(protocolRefuteSource({ cP: other.cP, protocolPrivateKey: proto.privateKey }), claim, proto.publicKey)).toThrow(/cPHash/);
   });
 
-  it("protocole, rapport illisible : seul revealKey (clé vérifiée) le prouve ; une clé qui n'est pas celle de la prime est refusée", () => {
+  it("protocol, unreadable report: only revealKey (verified key) proves it; a key that is not the bounty's is refused", () => {
     const garbage = toHex(new Uint8Array(32 + 64).fill(7));
     const forged = { ...claim, cPHash: keccak256(garbage) };
     expect(() => checkRefuteSource(protocolRefuteSource({ cP: garbage, protocolPrivateKey: proto.privateKey }), forged, proto.publicKey)).toThrow(/revealKey/);
@@ -181,7 +181,7 @@ describe("source de l'exploit : contrôlée avant tout envoi", () => {
     expect(checkRefuteSource(tinyKey, { ...claim, cPHash: keccak256(tiny) }, proto.publicKey)).toMatchObject({ readable: false, consistent: false });
   });
 
-  it("rapport lisible mais empreinte signée différente : signalé (« non prouvée » attendue, sans rejeu)", () => {
+  it("readable report but a different signed digest: flagged (\"not proven\" expected, with no replay)", () => {
     const forged = { ...claim, fingerprint: keccak256(toBytes("autre")) };
     const chk = checkRefuteSource(protocolRefuteSource({ cP, protocolPrivateKey: proto.privateKey }), forged, proto.publicKey);
     expect(chk).toMatchObject({ readable: true, consistent: false });
@@ -189,8 +189,8 @@ describe("source de l'exploit : contrôlée avant tout envoi", () => {
   });
 });
 
-describe("quorum : au moins 2 opérateurs distincts, plus que la réclamation, aucun d'elle", () => {
-  it("refutersNeeded et messages : un seul opérateur sur le réseau, un seul éligible, assez", () => {
+describe("quorum: at least 2 distinct operators, more than the claim's, none of its own", () => {
+  it("refutersNeeded and messages: a single operator on the network, a single eligible one, enough", () => {
     expect(REFUTE_QUORUM).toBe(2);
     expect([refutersNeeded(1), refutersNeeded(2), refutersNeeded(5)]).toEqual([2, 3, 6]);
     const alone = refuteQuorumPlan({ claimOperators: [OP_A], candidateOperators: [OP_A, OP_A], scope: "network" });
@@ -256,8 +256,8 @@ async function round(nodes: ReturnType<typeof emulated>[], source?: RefuteSource
 
 const notProven = (digest: Hex): { kind: "refute"; f: Refutation } => ({ kind: "refute", f: { claimDigest: digest, proven: false, loss: 0n, tier: 0 } });
 
-describe("requestRefutations : signatures vérifiées, réunies par résultat et par opérateur", () => {
-  it("deux opérateurs distincts « non prouvée » → prête ; le clair reçu est la source du protocole (secret du rapport)", async () => {
+describe("requestRefutations: signatures verified, grouped by result and by operator", () => {
+  it("two distinct operators \"not proven\" → ready; the plaintext received is the protocol's source (the report's secret)", async () => {
     const b = emulated(OP_B, notProven), c = emulated(OP_C, notProven);
     const { r, accepted } = await round([b, c]);
     expect(r.status).toBe("ready");
@@ -271,7 +271,7 @@ describe("requestRefutations : signatures vérifiées, réunies par résultat et
     expect(call.args[3]).toHaveLength(2);
   });
 
-  it("signature d'une autre clé, « réfutation » qui ne contredit pas, autre digest → rejetées ; quorum non atteint", async () => {
+  it("signature from another key, a \"refutation\" that does not contradict, another digest → rejected; quorum not reached", async () => {
     const b = emulated(OP_B, notProven, generatePrivateKey()); // signe avec une clé qui n'est pas celle inscrite
     const c = emulated(OP_C, (d) => ({ kind: "refute", f: { claimDigest: d, proven: true, loss: 5_000_000n, tier: 0 } })); // identique à la réclamation
     const e = emulated(getAddress("0x00000000000000000000000000000000000000d4"), () => ({ kind: "refute", f: { claimDigest: keccak256("0x01"), proven: false, loss: 0n, tier: 0 } }));
@@ -283,7 +283,7 @@ describe("requestRefutations : signatures vérifiées, réunies par résultat et
     expect(r.results[2]!.reason).toMatch(/autre réclamation/);
   });
 
-  it("désaccord : deux résultats différents, ou confirmée ET réfutée → signalé ; le plus grand groupe d'opérateurs l'emporte", async () => {
+  it("disagreement: two different results, or confirmed AND refuted → flagged; the largest group of operators wins", async () => {
     const d4 = getAddress("0x00000000000000000000000000000000000000d4");
     const b = emulated(OP_B, notProven), c = emulated(OP_C, notProven);
     const x = emulated(d4, (d) => ({ kind: "refute", f: { claimDigest: d, proven: true, loss: 1_000_000n, tier: 0 } }));
@@ -298,7 +298,7 @@ describe("requestRefutations : signatures vérifiées, réunies par résultat et
     expect(() => prepareRefuteCall(conf.accepted, conf.r, D)).toThrow(/non prête/);
   });
 
-  it("enclave de l'opérateur de la réclamation écartée et clé non inscrite jamais contactée ; quorum non atteignable → rien n'est posté", async () => {
+  it("the claim operator's enclave is excluded and an unregistered key is never contacted; quorum out of reach → nothing is posted", async () => {
     const a = emulated(OP_A, notProven), b = emulated(OP_B, notProven), ghost = emulated(OP_C, notProven);
     const { r, posted } = await round([a, b, ghost], undefined, [ghost]);
     expect(r.status).toBe("unreachable");
