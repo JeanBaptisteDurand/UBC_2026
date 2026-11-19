@@ -872,3 +872,5 @@ html.veil-none body::after { display: none; }
 /* The footer's last line scrolls clear of the floating AskHive button (copilot.css: 48 px tall at 40 px from the edge,
    44 px at 16 px on phones), which otherwise covered the credits at the end of every page */
 .foot { padding-bottom: calc(var(--launch-clear) + 16px + env(safe-area-inset-bottom)); }
+/* AskHive's panel keeps the wheel and the touch scroll: its log and the panel itself never hand them to the page */
+.cp-panel, .cp-panel .cp-log { overscroll-behavior: contain; }

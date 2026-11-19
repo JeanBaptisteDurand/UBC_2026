@@ -169,6 +169,29 @@ const wheelNorm = (data: { deltaX: number; deltaY: number; event: WheelEvent | T
   return true
 }
 ;(window as unknown as { __wheelNorm: typeof wheelNorm }).__wheelNorm = wheelNorm
+/** Can this element still scroll its own content in the wheel's direction? */
+const canScroll = (el: Element, dx: number, dy: number) => {
+  const cs = getComputedStyle(el), free = (o: string) => o === 'auto' || o === 'scroll' || o === 'overlay'
+  if (dy && free(cs.overflowY) && el.scrollHeight > el.clientHeight + 1 &&
+    (dy > 0 ? el.scrollTop + el.clientHeight < el.scrollHeight - 1 : el.scrollTop > 0)) return true
+  if (dx && free(cs.overflowX) && el.scrollWidth > el.clientWidth + 1 &&
+    (dx > 0 ? el.scrollLeft + el.clientWidth < el.scrollWidth - 1 : el.scrollLeft > 0)) return true
+  return false
+}
+/** A wheel over a panel with its own scroll (its header, a badge, the input, a log at its end) that nothing inside can
+ *  take any more would chain to the page behind: it stops at the panel (JB, 19/11) */
+const ownScrollGuard = (sel: string) => (e: WheelEvent) => {
+  if (e.ctrlKey || !e.cancelable || e.defaultPrevented) return
+  const t = e.target as Element | null
+  let box = t?.closest?.(sel) ?? null
+  if (!box) return
+  for (let up = box.parentElement?.closest(sel) ?? null; up; up = up.parentElement?.closest(sel) ?? null) box = up
+  for (let el: Element | null = t; el; el = el.parentElement) {
+    if (canScroll(el, e.deltaX, e.deltaY)) return
+    if (el === box) break
+  }
+  e.preventDefault()
+}
 // Keyboard uses the same scale and top speed: arrow = one notch, space and page keys = 85% of the viewport;
 // Home and End are a programmatic scroll capped at the wheel top speed
 const keyNorm = (e: KeyboardEvent) => {
@@ -218,6 +241,9 @@ export function startClock({ smooth = true }: { smooth?: boolean } = {}) {
     addEventListener('keydown', keyNorm)
     ;(window as unknown as { __lenis: Lenis }).__lenis = lenis
   }
+  // Non-passive so it can stop the wheel; with native scrolling only AskHive's panel is guarded (dialogs there may
+  // rely on the page's own scroll)
+  addEventListener('wheel', ownScrollGuard(lenis ? OWN_SCROLL : '.cp-panel'), { capture: true, passive: false })
   let last = performance.now()
   gsap.ticker.add((time) => {
     const now = performance.now()
