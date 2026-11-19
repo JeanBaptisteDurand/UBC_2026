@@ -287,7 +287,7 @@ html.sheet-open { overflow: hidden; }
   .path::before { left: 0; top: 4px; }
   .path { padding-left: 16px; }
   /* tables become cards, each value with its label */
-  .tbl-w { overflow: visible; }
+  .tbl-w { overflow-x: auto; }
   .tbl, .tbl tbody, .tbl tr, .tbl td { display: block; width: 100%; }
   .tbl thead { display: none; }
   .tbl tr { padding: 12px 0; box-shadow: inset 0 1px 0 var(--rule); }

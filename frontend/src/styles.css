@@ -874,3 +874,10 @@ html.veil-none body::after { display: none; }
 .foot { padding-bottom: calc(var(--launch-clear) + 16px + env(safe-area-inset-bottom)); }
 /* AskHive's panel keeps the wheel and the touch scroll: its log and the panel itself never hand them to the page */
 .cp-panel, .cp-panel .cp-log { overscroll-behavior: contain; }
+/* Phone menu: each entry is a full-width row, 44 px tall for the thumb; on a phone held sideways the list is tighter,
+   and what does not fit scrolls inside the menu (the last entry, Bridge, stays reachable) */
+.hd-drawer > a, .hd-drawer > button { display: flex; align-self: stretch; width: 100%; }
+@media (max-height: 500px) {
+  .hd-drawer { gap: 0; padding-top: 0; padding-bottom: 8px; font-size: 17px; }
+  .hd-drawer-x { margin-top: 0; }
+}
