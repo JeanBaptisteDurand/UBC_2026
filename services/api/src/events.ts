@@ -1,13 +1,13 @@
-/** events.ts — les événements des contrats d'ArcHive que l'API indexe, et ce qu'elle en tire :
- *  - EVENTS : l'ABI des événements (pile v2, plus ceux de la v2.1 : EnclaveImage, VerdictNotApplicable, VerdictSkipped,
- *    RequestHashSalted, ManifestURIUpdateProposed / ManifestURIUpdated…). Ajouts seulement : sur la v2, les événements
- *    de la v2.1 n'arrivent simplement jamais ;
- *  - eventLabel : le libellé lisible d'un événement (anglais, la langue de l'API publique), pour /activity ;
- *  - sessionVerdicts : l'issue du verdict ERC-8004 écrit à la fermeture de chaque session — écrit (Recorded), sans objet
- *    (VerdictNotApplicable : session close sans aucun paiement), sauté (VerdictSkipped, avec sa raison), aucun (fermeture
- *    sans verdict ni événement : pile v2, opérateur radié…) ou en attente (session pas encore close) ;
- *  - indexStartBlock : le bloc de départ de l'index (deployBlock du déploiement s'il est connu).
- *  Fonctions pures (aucun appel réseau) : testées dans test/events.test.ts. */
+/** events.ts — the events of ArcHive's contracts that the API indexes, and what it derives from them:
+ *  - EVENTS: the events' ABI (v2 stack, plus the v2.1 ones: EnclaveImage, VerdictNotApplicable, VerdictSkipped,
+ *    RequestHashSalted, ManifestURIUpdateProposed / ManifestURIUpdated…). Additions only: on v2, the v2.1 events
+ *    simply never arrive;
+ *  - eventLabel: an event's readable label (in English, the public API's language), for /activity;
+ *  - sessionVerdicts: the outcome of the ERC-8004 verdict written when each session closes — written (Recorded), not
+ *    applicable (VerdictNotApplicable: a session closed with no payment), skipped (VerdictSkipped, with its reason), none
+ *    (closed with no verdict and no event: v2 stack, operator banned…) or pending (session not closed yet);
+ *  - indexStartBlock: the index's start block (the deployment's deployBlock when known).
+ *  Pure functions (no network call): tested in test/events.test.ts. */
 import { decodeErrorResult, formatUnits, parseAbi, type Hex } from "viem";
 import { arcErrorsAbi } from "@arcvault/sdk";
 import type { Ev } from "./indexer";
@@ -28,7 +28,7 @@ export const EVENTS = parseAbi([
   "event Recorded(uint256 indexed agentId, bytes32 indexed requestHash, uint8 response, string tag)",
   "event CallSettled(uint256 indexed productId, address indexed payer, address indexed operator, uint256 amount, bytes32 nonce)",
   "event ProductUpdated(uint256 indexed productId, uint64 version)",
-  // pile v2
+  // v2 stack
   "struct Claim { uint256 bountyId; address payee; uint64 blockN; bytes32 blockHashN; bytes32 predicateHash; uint256 loss; uint8 tier; bytes32 fingerprint; bytes32 cPHash; uint64 deadline; }",
   "event ClaimAccepted(uint256 indexed bountyId, bytes32 indexed claimDigest, Claim claim, address[] operators, uint256 amount)",
   "event EnclaveRetired(address indexed signer)",
@@ -44,7 +44,7 @@ export const EVENTS = parseAbi([
   "event BountyPauseSet(uint256 indexed bountyId, bool paused, uint64 fromBlock)",
   "event UndeliveredCancelled(uint256 indexed bountyId, bytes32 indexed fingerprint, uint256 returned)",
   "event Credited(address indexed to, uint256 amount)",
-  // pile v2.1 (contracts/src, 9/11)
+  // v2.1 stack (contracts/src)
   "event EnclaveImage(address indexed signer, uint256 indexed productId, bytes32 indexed imageId, bytes32 composeHash, bytes32 osImageHash)",
   "event VerdictNotApplicable(uint256 indexed sessionId)",
   "event VerdictSkipped(bytes32 indexed requestHash, bytes reason)",

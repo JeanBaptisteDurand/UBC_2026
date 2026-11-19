@@ -23,7 +23,7 @@ export interface Ev {
   tx: string;
 }
 
-/** v2 (9/11) : + empreinte de l'ABI des événements et bloc de départ (un fichier v1 est refait de zéro). */
+/** Index file format v2: adds the event-ABI fingerprint and the start block (a v1 file is rebuilt from scratch). */
 interface State { version: 2; chainId: number; contracts: Record<string, string>; abi: string; fromBlock: number; lastBlock: number; events: Ev[] }
 
 /** Empreinte des événements décodés (nom, types, champs indexés) : un événement ajouté ou changé la modifie. */
@@ -74,7 +74,7 @@ export class EventIndexer {
       try {
         const s = JSON.parse(readFileSync(o.file, "utf8")) as State;
         // un index d'autres contrats (autre déploiement), d'autres événements ou d'un autre bloc de départ ne sert pas :
-        // on repart de zéro (un fichier v1, sans empreinte, aussi)
+        // start over (also for a v1 file, which has no fingerprint)
         if (s.version === 2 && s.chainId === o.chainId && JSON.stringify(s.contracts) === JSON.stringify(fresh.contracts)
           && s.abi === fresh.abi && s.fromBlock === fresh.fromBlock && Array.isArray(s.events)) this.st = s;
       } catch { /* fichier abîmé : on reconstruit */ }

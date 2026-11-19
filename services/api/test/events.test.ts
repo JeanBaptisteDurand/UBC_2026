@@ -1,11 +1,11 @@
-/** events.test.ts — l'index d'événements et ce que l'API en tire (pile v2.1, 9/11), sans réseau : un faux RPC rend des
- *  journaux encodés par viem avec l'ABI des contrats ; aucune transaction.
- *  - l'index décode les événements v2.1 (EnclaveImage, VerdictNotApplicable, VerdictSkipped, RequestHashSalted,
- *    ManifestURIUpdateProposed / ManifestURIUpdated) et le règlement x402 (CallSettled) ; il se refait de zéro si
- *    l'ensemble des événements ou le bloc de départ change ;
- *  - l'issue du verdict de chaque session : écrit (salé ou non), sans objet, sauté (raison décodée), aucun, en attente ;
- *  - la session que montre la chaîne de preuves ; les libellés de /activity ; le bloc de départ de l'index.
- *  Lancer : cd services/api && npx tsx --test test/events.test.ts */
+/** events.test.ts — the event index and what the API derives from it (v2.1 stack), with no network: a stub RPC returns
+ *  logs encoded by viem with the contracts' ABI; no transaction.
+ *  - the index decodes the v2.1 events (EnclaveImage, VerdictNotApplicable, VerdictSkipped, RequestHashSalted,
+ *    ManifestURIUpdateProposed / ManifestURIUpdated) and the x402 settlement (CallSettled); it is rebuilt from scratch
+ *    when the set of events or the start block changes;
+ *  - the outcome of each session's verdict: written (salted or not), not applicable, skipped (reason decoded), none, pending;
+ *  - the session the proof chain shows; the /activity labels; the index's start block.
+ *  Run: cd services/api && npx tsx --test test/events.test.ts */
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -89,7 +89,7 @@ test.after(() => rmSync(dir, { recursive: true, force: true }));
 const indexer = (file: string, rpc: ReturnType<typeof fakeRpc>, fromBlock = 900n, abi: Abi = EVENTS as Abi) =>
   new EventIndexer({ pub: rpc.pub as any, chainId: 5042002, contracts: A, abi, fromBlock, file, chunk: 250n, log: () => {} });
 
-test("index : les événements v2.1 et le règlement x402 sont décodés, du plus récent au plus ancien, et enregistrés", async () => {
+test("index: v2.1 events and x402 settlements are decoded, newest first, and stored", async () => {
   const rpc = fakeRpc(LOGS, 1800);
   const file = join(dir, "a.json");
   const idx = indexer(file, rpc);
@@ -118,7 +118,7 @@ test("index : les événements v2.1 et le règlement x402 sont décodés, du plu
   assert.equal(again.calls(), 0, "aucune tranche relue : l'index est à jour");
 });
 
-test("index : refait de zéro si les événements connus ou le bloc de départ changent (et pour un fichier v1)", async () => {
+test("index: rebuilt from scratch when the known events or the start block change (and for a v1 file)", async () => {
   const file = join(dir, "b.json");
   const OLD = (EVENTS as Abi).filter((x) => !(x.type === "event" && ["EnclaveImage", "VerdictNotApplicable", "VerdictSkipped", "RequestHashSalted", "ManifestURIUpdateProposed", "ManifestURIUpdated"].includes(x.name)));
   assert.notEqual(abiFingerprint(OLD), abiFingerprint(EVENTS as Abi));
@@ -146,7 +146,7 @@ test("index : refait de zéro si les événements connus ou le bloc de départ c
   assert.equal(JSON.parse(readFileSync(v1, "utf8")).version, 2);
 });
 
-test("verdict de chaque session : écrit (salé ou non), sans objet, sauté avec sa raison, aucun, en attente", async () => {
+test("each session's verdict: written (salted or not), not applicable, skipped with its reason, none, pending", async () => {
   const idx = indexer(join(dir, "d.json"), fakeRpc(LOGS, 1800));
   await idx.sync(0);
   const v = sessionVerdicts(idx.events());
@@ -167,7 +167,7 @@ test("verdict de chaque session : écrit (salé ou non), sans objet, sauté avec
   assert.deepEqual([...shuffled.entries()].sort(), [...v.entries()].sort());
 });
 
-test("raison d'un verdict sauté : erreur connue, Error(string), revert vide, octets inconnus, données illisibles", () => {
+test("reason for a skipped verdict: known error, Error(string), empty revert, unknown bytes, unreadable data", () => {
   assert.equal(decodeSkipReason(ALREADY_RECORDED), "AlreadyRecorded()");
   assert.equal(decodeSkipReason(encodeErrorResult({ abi: parseAbi(["error Error(string)"]), errorName: "Error", args: ["registry paused"] })), "Error(registry paused)");
   assert.equal(decodeSkipReason("0x"), "empty revert (no reason given)");
@@ -175,7 +175,7 @@ test("raison d'un verdict sauté : erreur connue, Error(string), revert vide, oc
   assert.equal(decodeSkipReason(42), "unreadable revert data");
 });
 
-test("chaîne de preuves : le verdict écrit d'une session servie d'abord ; sinon pourquoi pas ; sinon en attente", async () => {
+test("proof chain: the written verdict of a served session first; otherwise why not; otherwise pending", async () => {
   const idx = indexer(join(dir, "e.json"), fakeRpc(LOGS, 1800));
   await idx.sync(0);
   const v = sessionVerdicts(idx.events());
@@ -191,7 +191,7 @@ test("chaîne de preuves : le verdict écrit d'une session servie d'abord ; sino
   assert.equal(proofVerdict(v, new Set(["1"]), new Set(["5"]), "1")?.outcome, "written");
 });
 
-test("libellés de /activity : chaque événement connu a une phrase anglaise ; un inconnu garde son nom", async () => {
+test("/activity labels: every known event has an English sentence; an unknown one keeps its name", async () => {
   const idx = indexer(join(dir, "f.json"), fakeRpc(LOGS, 1800));
   await idx.sync(0);
   const one = (n: string) => eventLabel(idx.events().find((e) => e.name === n)!);
@@ -212,7 +212,7 @@ test("libellés de /activity : chaque événement connu a une phrase anglaise ; 
   }
 });
 
-test("bloc de départ de l'index : celui du déploiement s'il est connu, sinon INDEX_FROM_BLOCK, sinon 0", () => {
+test("index start block: the deployment's when known, otherwise INDEX_FROM_BLOCK, otherwise 0", () => {
   assert.deepEqual(indexStartBlock(71481927n, "5"), { block: 71481927n, source: "deployment" });
   assert.deepEqual(indexStartBlock(0n, "71000000"), { block: 71000000n, source: "env" });
   assert.deepEqual(indexStartBlock(undefined, " 42 "), { block: 42n, source: "env" });
