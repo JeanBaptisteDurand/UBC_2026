@@ -20,7 +20,9 @@ export function BridgeNav({ current = false }: { current?: boolean }) {
   return walletOn ? (
     <a className="nav-br" href={BRIDGE_HREF} aria-current={current ? 'page' : undefined} title={bt('nav.t')}>{bt('nav')}</a>
   ) : (
-    <a className="nav-br" role="link" aria-disabled="true" tabIndex={0} title={bt('nav.off')} onClick={(e) => e.preventDefault()}>{bt('nav')}<span className="nav-br-h">{bt('nav.off')}</span></a>
+    // its hint is in the text (nav-br-h), not in a title too; a tap does nothing, and does not close the phone menu
+    // (Menu.tsx closes the drawer on any of its links)
+    <a className="nav-br" role="link" aria-disabled="true" tabIndex={0} onClick={(e) => { e.preventDefault(); e.stopPropagation() }}>{bt('nav')}<span className="nav-br-h">{bt('nav.off')}</span></a>
   )
 }
 

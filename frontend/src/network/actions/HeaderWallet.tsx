@@ -9,6 +9,9 @@ import { w } from './strings'
 import { useEngine } from './kit'
 import { spText } from '../../space/strings'
 
+/** the bridge page's source chains (bridge/cctp.ts, SOURCES), by chain id: named, not an error, in quiet mode */
+const BRIDGE_NETS: Record<number, string> = { 11155111: 'Ethereum Sepolia', 84532: 'Base Sepolia' }
+
 // ---------- the wallet, in the header (top right, next to Console and the language) ----------
 /** quiet: the popup does not open on its own on another network (the bridge page moves the wallet across chains) */
 export function HeaderWallet({ quiet = false }: { quiet?: boolean } = {}) {
@@ -31,6 +34,10 @@ export function HeaderWallet({ quiet = false }: { quiet?: boolean } = {}) {
   useEffect(() => { if (s.phase === 'pick' || s.note) setOpen(true) }, [s.phase, s.note])
   const connected = s.phase === 'connected' && !!s.address
   const wrong = connected && s.chainId !== ARC_ID
+  // on the bridge page, a wallet on one of the bridge's source chains is there on purpose (the page moved it for the
+  // burn): its name in a neutral tone, never "Wrong network" for the whole wait
+  const away = quiet && wrong && s.chainId !== undefined ? BRIDGE_NETS[s.chainId] : undefined
+  const netName = away ?? (wrong ? w('w.wrong') : w('w.arc'))
   // connected on another network: the popup opens on its own, with the Switch to Arc button in view
   useEffect(() => { if (wrong && !quiet) setOpen(true) }, [wrong, quiet])
   const busy = s.phase === 'loading' || s.phase === 'connecting'
@@ -47,12 +54,12 @@ export function HeaderWallet({ quiet = false }: { quiet?: boolean } = {}) {
   const warm = () => { void engine().catch(() => undefined) }
   const click = () => { if (!connected && s.phase !== 'pick' && !busy) begin(); else setOpen((o) => !o) }
   // while the wallet answers, phones show a short label (actions.css, .hd-w-s): the full one stays the button's name
-  const name = connected ? `${short(s.address!, 4)}, ${wrong ? w('w.wrong') : w('w.arc')}` : busy ? w('w.connecting') : w('w.connect')
+  const name = connected ? `${short(s.address!, 4)}, ${netName}` : busy ? w('w.connecting') : w('w.connect')
   return (
-    <div className="hd-wallet" ref={box} data-st={connected ? (wrong ? 'wrong' : 'ok') : 'off'}>
+    <div className="hd-wallet" ref={box} data-st={connected ? (away ? 'away' : wrong ? 'wrong' : 'ok') : 'off'}>
       <button type="button" className="lang hd-w-b" id="connect" onClick={click} onPointerEnter={warm} onFocus={warm} aria-label={name} data-busy={busy ? '1' : undefined} aria-expanded={connected || s.phase === 'pick' || s.note ? open : undefined} aria-haspopup={connected ? 'dialog' : undefined} disabled={busy}>
         {connected ? (
-          <><span className="hd-w-dot" aria-hidden="true" /><span className="mono">{short(s.address!, 4)}</span><span className="hd-w-net">{wrong ? w('w.wrong') : w('w.arc')}</span></>
+          <><span className="hd-w-dot" aria-hidden="true" /><span className="mono">{short(s.address!, 4)}</span><span className="hd-w-net">{netName}</span></>
         ) : <><span className="hd-w-l">{busy ? w('w.connecting') : w('w.connect')}</span>{busy ? <span className="hd-w-s" aria-hidden="true">{w('w.connectingS')}</span> : null}</>}
       </button>
       {open ? (
@@ -66,7 +73,7 @@ export function HeaderWallet({ quiet = false }: { quiet?: boolean } = {}) {
           {connected ? (
             <dl className="wb">
               <div><dt className="lbl">{w('w.addr')}</dt><dd><a className="tlink mono" href={addr(s.address)} target="_blank" rel="noreferrer">{short(s.address!, 6)}</a></dd></div>
-              <div><dt className="lbl">{w('w.net')}</dt><dd className="mono" data-ok={wrong ? '0' : '1'}>{wrong ? w('w.wrong') : w('w.arc')}</dd></div>
+              <div><dt className="lbl">{w('w.net')}</dt><dd className="mono" data-ok={wrong && !away ? '0' : '1'}>{netName}</dd></div>
               <div><dt className="lbl">{w('w.bal')}</dt><dd className="mono tnum">{wrong ? w('w.switchToRead') : s.balance === undefined ? w('w.reading') : s.balance === null ? w('w.unread') : usdc(s.balance.toString(), lang)}</dd></div>
             </dl>
           ) : null}

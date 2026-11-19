@@ -12,6 +12,7 @@ import { RAIL_NAME, type SvcRow } from '../../app/catalog'
 import { Cmd } from '../../app/parts'
 import { useWallet, onArc, useUi, setUi } from './store'
 import { w, type WKey } from './strings'
+import { BRIDGE_HREF } from '../../bridge/strings'
 import { play, show, usePlay, useEngine, Step, Field, NoteLine, errNote, connectSt, ConnectStep, type St, type Engine, type Note } from './kit'
 import { useShow, useTyped, REC } from './showfill'
 
@@ -208,11 +209,13 @@ export function Cctp() {
           ))}
         </ul>
       ) : null}
+      {/* the Bridge page (bridge.html) brings it to Arc: open with a wallet, like the Bridge entry of the header */}
       <div className="cctp-b">
-        <button type="button" className="btn btn-line btn-s" disabled aria-describedby="cctp-soon"><span>{w('c.bring')}</span></button>
-        <span className="na-st mono" data-st="soon">{w('st.soon')}</span>
+        {s.phase === 'connected' && s.address
+          ? <a className="btn btn-line btn-s" href={BRIDGE_HREF} aria-describedby="cctp-how"><span>{w('c.bring')}</span></a>
+          : <button type="button" className="btn btn-line btn-s" disabled aria-describedby="cctp-how"><span>{w('c.bring')}</span></button>}
       </div>
-      <p className="na-note" data-tone="muted" id="cctp-soon">{w('c.soon')}</p>
+      <p className="na-note" data-tone="muted" id="cctp-how">{w(s.phase === 'connected' && s.address ? 'c.how' : 'c.howOff')}</p>
     </section>
   )
 }

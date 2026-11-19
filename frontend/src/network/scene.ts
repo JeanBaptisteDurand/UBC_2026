@@ -374,8 +374,8 @@ const CCTP_P: Record<'en' | 'fr', { title: string; actor: string }> = {
   fr: { title: 'Payer depuis d’autres chaînes', actor: 'Grâce à CCTP, ArcHive est accessible depuis les autres chaînes, en plus d’Arc, pour tous les paiements. Les USDC sur Ethereum, Base, Arbitrum, OP Mainnet, Solana, Avalanche ou Polygon PoS sont brûlés sur leur chaîne et émis sur Arc, puis paient.' },
 }
 const CCTP_F: Record<'en' | 'fr', Fiche> = {
-  en: { n: 'Your USDC from other chains', d: 'This link is on the user’s side: USDC held on Ethereum, Base, Arbitrum, OP Mainnet, Solana, Avalanche or Polygon PoS comes to Arc by CCTP (Circle’s cross-chain transfer), then pays for the service. The column marks the bridge itself “soon”.' },
-  fr: { n: 'Vos USDC depuis d’autres chaînes', d: 'Ce lien est du côté de l’utilisateur : ses USDC sur Ethereum, Base, Arbitrum, OP Mainnet, Solana, Avalanche ou Polygon PoS arrivent sur Arc par CCTP (le transfert entre chaînes de Circle), puis paient le service. La colonne marque le pont lui-même « bientôt ».' },
+  en: { n: 'Your USDC from other chains', d: 'This link is on the user’s side: USDC held on Ethereum, Base, Arbitrum, OP Mainnet, Solana, Avalanche or Polygon PoS comes to Arc by CCTP (Circle’s cross-chain transfer), then pays for the service. The Bridge page (bridge.html) does it today from Ethereum Sepolia or Base Sepolia: the burn, Circle’s attestation and the mint on Arc, free standard transfers, signed by the user’s wallet.' },
+  fr: { n: 'Vos USDC depuis d’autres chaînes', d: 'Ce lien est du côté de l’utilisateur : ses USDC sur Ethereum, Base, Arbitrum, OP Mainnet, Solana, Avalanche ou Polygon PoS arrivent sur Arc par CCTP (le transfert entre chaînes de Circle), puis paient le service. La page Pont (bridge.html) le fait aujourd’hui depuis Ethereum Sepolia ou Base Sepolia : la combustion, l’attestation de Circle et l’émission sur Arc, en transferts standard gratuits, signés par le wallet de l’utilisateur.' },
 }
 // a logo card: its name, its CCTP domain, and what the transfer does
 const chainFiche = (id: string): Fiche | undefined => {

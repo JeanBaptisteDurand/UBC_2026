@@ -3,10 +3,10 @@
 import { link, serviceHref, useHref } from '../links'
 import { CONSOLE, DATACENTER } from '../data/endpoints'
 
-export type PageName = 'home' | 'use' | 'service' | 'rent' | 'publish' | 'demo' | 'network' | 'doc' | 'space' | 'bounty' | 'sessions' | 'operator'
+export type PageName = 'home' | 'use' | 'service' | 'rent' | 'publish' | 'demo' | 'network' | 'doc' | 'space' | 'bounty' | 'sessions' | 'operator' | 'bridge'
 export type Target = PageName | 'datacenter' | 'console'
 // the pages the server copilot may open (its SITE_PAGES): every page of this site, the 3D room and the console
-export const TARGETS: readonly Target[] = ['home', 'network', 'service', 'doc', 'space', 'use', 'bounty', 'sessions', 'operator', 'rent', 'publish', 'demo', 'datacenter', 'console']
+export const TARGETS: readonly Target[] = ['home', 'network', 'service', 'doc', 'space', 'use', 'bounty', 'sessions', 'operator', 'rent', 'publish', 'demo', 'bridge', 'datacenter', 'console']
 export const STATES = ['all', 'green', 'amber', 'red'] as const
 export const KINDS = ['all', 'ai', 'x402', 'bounty', 'copilot', 'author'] as const
 export const CONSOLE_ROUTES = ['vue', 'ruche', 'produits', 'primes', 'playground', 'cles', 'publier-prime', 'operateur', 'publier-produit', 'portefeuille', 'developpeurs'] as const
@@ -29,7 +29,7 @@ function fileOf(pathname: string): PageName | null {
   const rel = base && pathname.startsWith(base) ? pathname.slice(base.length) || '/' : pathname
   const p = rel.replace(/\/index\.html$/, '/').replace(/\.html$/, '').replace(/\/+$/, '')
   if (p === '') return 'home'
-  const m = /^\/(use|service|rent|publish|demo|network|doc|space|bounty|sessions|operator)$/.exec(p)
+  const m = /^\/(use|service|rent|publish|demo|network|doc|space|bounty|sessions|operator|bridge)$/.exec(p)
   return m ? (m[1] as PageName) : null
 }
 /** The Network page is open (network.html), whatever part it shows */
@@ -92,6 +92,8 @@ export function urlOf(page: Target, a: { productId?: string; consoleRoute?: stri
     // the Doc page opens one chapter at a time (doc.html?c=<chapter>)
     case 'doc': return isAnchor(a.section) ? `${link.doc}?c=${a.section}` : link.doc
     case 'space': return `${link.home}space.html`
+    // the Bridge page (CCTP: USDC from Ethereum Sepolia or Base Sepolia to Arc)
+    case 'bridge': return `${link.home}bridge.html`
     // the Network page on one of its own views: what runs on Arc, CCTP
     case 'network': return a.section === 'arc' || a.section === 'cctp' ? `${link.network}?focus=${a.section}` : link.network
     // rent, publish (the Network page's parts), demo (the Network page's 3D demo), bounty, sessions, operator (the tabs
