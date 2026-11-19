@@ -110,7 +110,7 @@ cd packages/sdk && npm ci
 cd ../cli && npm ci && npm run arcvault -- products
 ```
 
-Both run from this repository (they are not published on npm).
+Both run from this repository with `npm ci` in each folder.
 
 ### Claude Code on ArcHive's private inference
 
@@ -132,7 +132,7 @@ three calls on Arc:
 | 3 | Private AI, pay per call (x402) | an agent signs one EIP-3009 authorization per call (0.01 USDC per call), no gas for the agent (the operator pays the settlement gas, about 0.005 USDC at 25 gwei) | operator 95 %, network 5 % | `X402Settler` | running |
 | 4 | AskHive, the attested copilot | free | — | — | running |
 | 5 | Caught lying (refutation demo) | — | the liar's whole bond: 50 % reporter, 50 % victim (or the network treasury if there is no victim) | `SealedBounty`, `OperatorBond` | done on 10 Nov, on Arc |
-| 6 | Verified bounty, first version | — | — | — | switched off, replaced by 7 |
+| 6 | Verified bounty, first version | — | — | — | retired: its settlement address is immutable, so the verified level was republished as product 7 |
 | 7 | Sealed Bounty, verified level | a protocol funds a USDC pool | as product 2; only enclaves on chips declared by the Proof of Cloud alliance count | `SealedBountyVerified` | running |
 
 Prices, shares, bonds and delays are on-chain parameters (`ProductRegistry`): the network keeps at least 5 %, an
@@ -241,20 +241,20 @@ against this source: [`deployments.v3.testnet.json`](deployments.v3.testnet.json
 
 | Contract | Address |
 |---|---|
-| EnclaveRegistry | `0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E` |
-| TdxAttestationModule | `0x3275fA3b519FAD912eA4a5e75Bf5078Def29D491` |
-| ProductRegistry | `0xd2e6f3fD0561C8823774A8C7054B414777E0228d` |
-| OperatorBond | `0x19C3438E997c2C513aA5E7D2dDd2666532095dd4` |
-| SessionPay | `0x606c379cd8758E3562e7ECC9972d0feF693F0763` |
-| X402Settler | `0x89B0381B18536f680fD952a0E7D375d7a4EC3fe6` |
-| SealedBounty | `0xaA229Eda6b535DF6aEe0B4D892f39e0EC006d308` |
-| VerdictLog | `0x3BEC55d2E50118ceACcD2E0045855123964D78cF` |
-| DemoVault | `0xf5D51c805BFa4c1Fb3d5D3B248bEB1841DDc03b8` |
-| MachineRegistry | `0xC64e9556AA896b2E8c0bE0fdf3dC7b2c0be24b86` |
-| ProofOfCloudAuditor | `0xEaf8163fa5Eb2f047d4876bb3Ef2E67250360b73` |
-| Ed25519Verifier | `0xf2c47D6eCD25290C9daa826b3D11AC43baaEcEf6` |
-| PolicyEnclaves | `0x12c0C33C62666AbE0ab03B286b428C554De71BF8` |
-| SealedBountyVerified | `0x8958EA25c9cF7bbee39B32C43187d854B5d73ee6` |
+| EnclaveRegistry | [`0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E`](https://explorer.testnet.arc.io/address/0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E) |
+| TdxAttestationModule | [`0x3275fA3b519FAD912eA4a5e75Bf5078Def29D491`](https://explorer.testnet.arc.io/address/0x3275fA3b519FAD912eA4a5e75Bf5078Def29D491) |
+| ProductRegistry | [`0xd2e6f3fD0561C8823774A8C7054B414777E0228d`](https://explorer.testnet.arc.io/address/0xd2e6f3fD0561C8823774A8C7054B414777E0228d) |
+| OperatorBond | [`0x19C3438E997c2C513aA5E7D2dDd2666532095dd4`](https://explorer.testnet.arc.io/address/0x19C3438E997c2C513aA5E7D2dDd2666532095dd4) |
+| SessionPay | [`0x606c379cd8758E3562e7ECC9972d0feF693F0763`](https://explorer.testnet.arc.io/address/0x606c379cd8758E3562e7ECC9972d0feF693F0763) |
+| X402Settler | [`0x89B0381B18536f680fD952a0E7D375d7a4EC3fe6`](https://explorer.testnet.arc.io/address/0x89B0381B18536f680fD952a0E7D375d7a4EC3fe6) |
+| SealedBounty | [`0xaA229Eda6b535DF6aEe0B4D892f39e0EC006d308`](https://explorer.testnet.arc.io/address/0xaA229Eda6b535DF6aEe0B4D892f39e0EC006d308) |
+| VerdictLog | [`0x3BEC55d2E50118ceACcD2E0045855123964D78cF`](https://explorer.testnet.arc.io/address/0x3BEC55d2E50118ceACcD2E0045855123964D78cF) |
+| DemoVault | [`0xf5D51c805BFa4c1Fb3d5D3B248bEB1841DDc03b8`](https://explorer.testnet.arc.io/address/0xf5D51c805BFa4c1Fb3d5D3B248bEB1841DDc03b8) |
+| MachineRegistry | [`0xC64e9556AA896b2E8c0bE0fdf3dC7b2c0be24b86`](https://explorer.testnet.arc.io/address/0xC64e9556AA896b2E8c0bE0fdf3dC7b2c0be24b86) |
+| ProofOfCloudAuditor | [`0xEaf8163fa5Eb2f047d4876bb3Ef2E67250360b73`](https://explorer.testnet.arc.io/address/0xEaf8163fa5Eb2f047d4876bb3Ef2E67250360b73) |
+| Ed25519Verifier | [`0xf2c47D6eCD25290C9daa826b3D11AC43baaEcEf6`](https://explorer.testnet.arc.io/address/0xf2c47D6eCD25290C9daa826b3D11AC43baaEcEf6) |
+| PolicyEnclaves | [`0x12c0C33C62666AbE0ab03B286b428C554De71BF8`](https://explorer.testnet.arc.io/address/0x12c0C33C62666AbE0ab03B286b428C554De71BF8) |
+| SealedBountyVerified | [`0x8958EA25c9cF7bbee39B32C43187d854B5d73ee6`](https://explorer.testnet.arc.io/address/0x8958EA25c9cF7bbee39B32C43187d854B5d73ee6) |
 
 `DemoVault` is a deliberately vulnerable target (`migrate` has no access control) used by the bounty demos.
 
@@ -314,14 +314,15 @@ Nothing to install to try it: the site, the API and the MCP server above are liv
 # Services: the read API, the copilot (copy .env.example to .env to run it), the MCP server (stdio; start:http for HTTP)
 (cd services/api && npm ci && npm start)
 (cd services/copilot && npm ci && npm test)
-(cd services/mcp && npm ci && npm start)
+(cd services/mcp && npm ci && npm test && npm start)
 
 # The site (reads the live API) on http://localhost:5261, and the console
 (cd frontend && npm ci && npm run dev)
 (cd web && npm ci && npm run dev)
 
-# An operator machine (an Intel TDX VM)
-curl -fsSL https://archive.62-171-153-35.sslip.io/install.sh | sh
+# The operator agent's tests, then an operator machine (an Intel TDX VM)
+(cd packages/node && npm ci && npm test)
+curl -fsSL https://arc-hive.xyz/install.sh | sh
 archive-node doctor && archive-node pair && archive-node up --product 1 --tunnel
 ```
 
@@ -367,6 +368,7 @@ deployments.*.json  every deployed address and transaction: v2, v2.1 (live), v3,
 - Publish the enclave images, so any operator can run the allowed fingerprints; a second, independent operator.
 - Mainnet, with Intel's verifier first, then the contracts behind a 2-of-3 multisig and 48-hour timelocks.
 - Streaming in the `arcvault` proxy, so Claude Code can use a prepaid session behind the gateway.
+- Publish the SDK and the `arcvault` CLI on npm.
 
 ## Feedback for Arc and Circle
 
