@@ -19,6 +19,12 @@ import { useSt, type SpKey } from './strings'
 import './space.css'
 import { reveal } from '../ui/motion'
 
+/** a share in basis points, as a percentage (French: a no-break space before %) */
+const pct = (bps: number, lang = 'en') => {
+  const v = (bps / 100).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-US', { maximumFractionDigits: 2 })
+  return lang === 'fr' ? `${v}\u00a0%` : `${v}%`
+}
+
 const TABS = ['bounties', 'sessions', 'machines', 'services'] as const
 type Tab = typeof TABS[number]
 const TAB_KEY: Record<Tab, SpKey> = { bounties: 'sp.t.bounties', sessions: 'sp.t.sessions', machines: 'sp.t.machines', services: 'sp.t.services' }
@@ -92,7 +98,7 @@ function MyServices({ address, E }: { address: string; E: Engine | null }) {
                       {n[p.id] ? <NoteLine n={n[p.id]} /> : null}
                     </td>
                     <td className="mono" data-l={s('sp.s.h.price')}>{usdc(p.price, lang)}</td>
-                    <td className="mono" data-l={s('sp.s.h.share')}>{`${(p.bpsAuthor / 100).toLocaleString(lang)} %`}</td>
+                    <td className="mono" data-l={s('sp.s.h.share')}>{pct(p.bpsAuthor, lang)}</td>
                     <td>{st === 'Proposed' ? <button type="button" className="btn btn-line btn-s" disabled={at > now || !E} onClick={() => activate(p.id)}><span>{s('sp.s.activate')}</span></button> : null}</td>
                   </tr>
                 )

@@ -3,11 +3,13 @@
 // inside itself (like Network's column). It opens on the introduction; a chapter (index, in-text link, ?c=<id>) opens in
 // the column, with previous / next, and Esc or "Back to the start" returns to the introduction. No anchor jumps, the
 // page itself does not move.
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { useLive, rpc } from '../data/live'
 import { API_DIRECT } from '../data/endpoints'
 import { num, usdc } from '../data/fmt'
 import { link } from '../links'
+import { C } from '../data/facts'
+import { useSettlementAuth, useOpenBounties } from './arc'
 import { DOC, type Chapter } from './content'
 import { useDt } from './strings'
 import './doc-jb.css'
@@ -16,6 +18,14 @@ import { reveal } from '../ui/motion'
 
 const ids = DOC.en.chapters.map((c) => c.id)
 const initial = () => { const c = new URLSearchParams(location.search).get('c'); return c && ids.includes(c) ? c : null }
+
+/** JB's static HTML, set once per string. React 19 sets innerHTML again whenever the {__html} object changes, and the
+ *  live reading re-renders the chapter every 4 seconds: inline objects closed every open "In detail" again and wiped
+ *  the code read on Arc and the live status lines. */
+const Html = memo(function Html({ html, className }: { html: string; className: string }) {
+  const h = useMemo(() => ({ __html: html }), [html])
+  return <div className={className} dangerouslySetInnerHTML={h} />
+})
 
 /** links rewritten by the converter: the console developers' page and the read API */
 const fixHtml = (h: string) => h.replaceAll('href="@dev"', `href="${link.dev}"`).replace(/href="@api\//g, `href="${API_DIRECT}/`)
@@ -50,7 +60,15 @@ function LiveNumbers() {
   const { d, lang } = useDt()
   const s = useLive((x) => x.stats)
   const status = useLive((x) => x.status)
-  if (!s) return <p className="lbl muted">{status === 'error' ? d('doc.n.down') : d('doc.reading')}</p>
+  if (!s && status === 'error') return <p className="lbl muted">{d('doc.n.down')}</p>
+  // before the first reading: the same grid with its labels and dashes, so the chapter does not jump when it arrives
+  if (!s) return (
+    <dl className="figs tc-live" aria-busy="true">
+      {(['doc.n.products', 'doc.n.enclaves', 'doc.n.settled', 'doc.n.x402', 'doc.n.sessions', 'doc.n.verdicts', 'doc.n.bounty', 'doc.n.seized'] as const).map((k) => (
+        <div key={k}><dt>{d(k, { a: '—' })}</dt><dd className="tnum">—</dd></div>
+      ))}
+    </dl>
+  )
   const rows: [string, string | null][] = [
     [d('doc.n.products'), num(s.products, lang)],
     [d('doc.n.enclaves', { a: s.enclavesActive }), num(s.enclaves, lang)],
@@ -97,11 +115,46 @@ function ReadCode({ root }: { root: React.RefObject<HTMLDivElement | null> }) {
   )
 }
 
+/** a date read on Arc, in UTC like every date of the site */
+const utc = (unix: number, lang: string) => `${new Date(unix * 1000).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })} UTC`
+
+/** chapter 04's two status lines, written by JB while the machines were off, read live: the Proof of Cloud declaration
+ *  of our machine's chip (/api/levels: the chip with the latest token) and product 7 (its authorization on Arc, its
+ *  open demo bounty). The static text is the state of 19 November; nothing is changed until the reading answers. */
+function useIdentityLive(root: React.RefObject<HTMLDivElement | null>, on: boolean, c: Chapter) {
+  const { d, lang } = useDt()
+  const levels = useLive((s) => s.levels)
+  const auth = useSettlementAuth(C.SealedBountyVerified, on)
+  const bs = useOpenBounties(C.SealedBountyVerified, on)
+  useEffect(() => {
+    const el = root.current
+    if (!el || !on) return
+    const set = (k: string, f: (x: HTMLElement) => void) => el.querySelectorAll<HTMLElement>(`[data-live-v="${k}"]`).forEach(f)
+    const poc = (levels?.enclaves ?? []).filter((e) => e.ppid && e.proofOfCloud && !e.proofOfCloud.revoked)
+      .sort((a, b) => b.proofOfCloud!.lastTokenAt - a.proofOfCloud!.lastTokenAt)[0]
+    if (poc?.proofOfCloud && poc.ppid) {
+      const ok = poc.proofOfCloud.expiresAt * 1000 > Date.now()
+      const v = { chip: poc.ppid.replace(/^0x/, '').slice(0, 8), a: utc(poc.proofOfCloud.lastTokenAt, lang), b: utc(poc.proofOfCloud.expiresAt, lang) }
+      set('poc', (x) => { x.textContent = d(ok ? 'doc.poc.on' : 'doc.poc.off', v) })
+      set('poc-led', (x) => { x.className = `led ${ok ? 'led-green' : 'led-amber'}` })
+    }
+    if (auth) {
+      const ok = auth.settlement && auth.caller
+      const open = bs ? bs.reduce<(typeof bs)[number] | null>((a, b) => (!a || b.deadline > a.deadline ? b : a), null) : undefined
+      const more = !ok || open === undefined ? '' : open ? ` ${d('doc.p7.open', { a: usdc(open.balance, lang) ?? '', t: utc(open.deadline, lang) })}` : ` ${d('doc.p7.none')}`
+      set('p7', (x) => { x.textContent = `${d(ok ? 'doc.p7.on' : 'doc.p7.wait')}${more}` })
+      set('p7-led', (x) => { x.className = `led ${ok ? 'led-green' : 'led-amber'}` })
+    }
+  }, [root, on, c, lang, levels, auth, bs]) // eslint-disable-line react-hooks/exhaustive-deps
+}
+
 function ChapterView({ c, i, n, go, close, root }: { c: Chapter; i: number; n: number; go: (id: string) => void; close: () => void; root: React.RefObject<HTMLDivElement | null> }) {
   const { d, lang } = useDt()
   const stats = useLive((s) => s.stats)
   const all = DOC[lang].chapters
   const body = useMemo(() => c.body.map((p) => (typeof p === 'string' ? fixHtml(p) : p)), [c])
+  const title = useMemo(() => ({ __html: c.title }), [c])
+  useIdentityLive(root, c.id === 'identity', c)
   // figures marked "read live" in the static HTML take the live value
   useEffect(() => {
     if (!stats) return
@@ -119,11 +172,11 @@ function ChapterView({ c, i, n, go, close, root }: { c: Chapter; i: number; n: n
       </div>
       <p className="tc-kick mono" aria-hidden="true"><span className="tc-kn">{c.n}</span>{c.k}</p>
       <h2 className="doc-h tc-h" id="doc-ch-h" tabIndex={-1} aria-label={c.plain} data-doc-h>
-        <span dangerouslySetInnerHTML={{ __html: c.title }} />
+        <span dangerouslySetInnerHTML={title} />
         <span className="ttl-rule" aria-hidden="true" />
       </h2>
       {body.map((p, k) => (typeof p === 'string'
-        ? <div key={k} className="doc-b" dangerouslySetInnerHTML={{ __html: p }} />
+        ? <Html key={k} className="doc-b" html={p} />
         : <Fragment key={k}>{p.live === 'numbers' ? <LiveNumbers /> : p.live === 'code' ? <ReadCode root={root} /> : null}</Fragment>))}
       {i < n - 1 ? (
         <button type="button" className="doc-nextch" onClick={() => go(all[i + 1].id)}>
@@ -142,11 +195,26 @@ export function DocPage() {
   const all = DOC[lang].chapters
   const i = cur ? all.findIndex((c) => c.id === cur) : -1
   useEffect(() => { document.title = i >= 0 ? `${d('doc.title')}. ${all[i].k}` : d('doc.title') }, [i, lang]) // eslint-disable-line react-hooks/exhaustive-deps
+  // the introduction has no history entry of its own: a chapter opened from it pushes one, so the back gesture of a
+  // phone returns to the introduction instead of leaving the page; moving between chapters replaces it, and closing a
+  // chapter that was pushed goes back
+  const curRef = useRef(cur)
+  curRef.current = cur
   const open = useCallback((id: string | null) => {
+    const st = history.state as { doc?: string } | null
+    if (!id && curRef.current && st?.doc) { history.back(); return }
     setCur(id)
     const u = new URL(location.href)
     if (id) u.searchParams.set('c', id); else u.searchParams.delete('c')
-    history.replaceState(history.state, '', u)
+    if (id && !curRef.current) history.pushState({ ...(st ?? {}), doc: id }, '', u)
+    else history.replaceState(history.state, '', u)
+  }, [])
+  // back and forward: the chapter of the address; the browser puts the page back where the visitor left it
+  const popped = useRef(false)
+  useEffect(() => {
+    const f = () => { const n = initial(); if (n === curRef.current) return; popped.current = true; setCur(n) }
+    addEventListener('popstate', f)
+    return () => removeEventListener('popstate', f)
   }, [])
   // a new chapter starts at its top, its title focused (keyboard and screen readers); on a phone, the page goes to it
   const first = useRef(true)
@@ -157,7 +225,9 @@ export function DocPage() {
     if (first.current) { first.current = false; return }
     requestAnimationFrame(() => reveal(el))
     el.querySelector<HTMLElement>('[data-doc-h]')?.focus({ preventScroll: true })
-    if (matchMedia('(max-width: 1024px)').matches) el.closest('.doc-col')?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    const back = popped.current
+    popped.current = false
+    if (!back && matchMedia('(max-width: 1024px)').matches) el.closest('.doc-col')?.scrollIntoView({ block: 'start', behavior: 'smooth' })
   }, [cur])
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.key === 'Escape' && cur) { e.preventDefault(); open(null) } }

@@ -25,9 +25,28 @@ const dateOf = (unix: string | number | undefined, lang: string, time = false) =
 const encWord = (n: number) => t(n === 1 ? 'w.enclave' : 'w.enclaves')
 export const ledClass = (l: Led) => (l === 'off' ? 'led' : `led led-${l}`)
 
+/** strings of these sheets that the shared table (i18n.ts) does not carry yet, English and French in step; the page
+ *  language is the one i18n.ts writes on <html lang> */
+const LOCAL = {
+  en: {
+    'd.state.refuteDemo': 'Not for sale, a demonstration: its enclave was caught lying on 10 November and its operator’s whole bond was seized.',
+    'd.use.refuteDemo': 'Nothing to buy here: this product is the demonstration of an operator caught lying on 10 November. Its whole bond was seized, and each step is a real transaction on Arc.',
+    'd.use.lede.free': 'Use it from the Network page: it checks the enclave key on Arc and encrypts your request for the enclave alone.',
+    'd.use.proof': 'See the proof',
+  },
+  fr: {
+    'd.state.refuteDemo': 'Pas à vendre, une démonstration : son enclave a été prise à mentir le 10 novembre et toute la caution de son opérateur a été saisie.',
+    'd.use.refuteDemo': 'Rien à acheter ici : ce produit est la démonstration d’un opérateur pris à mentir le 10 novembre. Toute sa caution a été saisie, et chaque étape est une vraie transaction sur Arc.',
+    'd.use.lede.free': 'Utilisez-le depuis la page Network : elle vérifie la clé de l’enclave sur Arc et chiffre votre requête pour l’enclave seule.',
+    'd.use.proof': 'Voir la preuve',
+  },
+} as const
+const lt = (k: keyof typeof LOCAL.en) => LOCAL[document.documentElement.lang === 'fr' ? 'fr' : 'en'][k]
+
 /** a service status in one sentence */
 export function stateLine(r: SvcRow) {
   if (r.role?.role === 'superseded') return t('d.state.superseded', { id: r.role.by })
+  if (r.role?.role === 'refuteDemo') return lt('d.state.refuteDemo')
   if (r.p.state === 'Proposed') return t('d.state.proposed')
   if (r.led === 'red') return t('d.state.red')
   if (r.led === 'green') return r.encs.length === 1 ? t('d.state.green1') : t('d.state.green', { a: r.running, b: r.encs.length, enc: encWord(r.encs.length) })
@@ -195,10 +214,12 @@ function Events({ r }: { r: SvcRow }) {
  *  read from the BountyPaid events of the read window, and the demo refutation (bounty 2), too old for that window,
  *  from data/facts.ts */
 function bountyTruth(b: Bounty, events: Activity[]) {
-  const mine = events.filter((a) => String(a.args.bountyId) === b.id)
+  // bounty numbers repeat across the two levels: an event that names its product must name this bounty's product
+  const mine = events.filter((a) => String(a.args.bountyId) === b.id && (a.args.productId === undefined || String(a.args.productId) === String(b.productId)))
   const paid = mine.filter((a) => a.name === 'BountyPaid').reduce((s, a) => s + BigInt(a.args.amount ?? 0), 0n)
   const refutedEv = mine.find((a) => a.name === 'ClaimRefuted')
-  return { paid, refuted: refutationOfBounty(b.id), refutedEv }
+  const rf = refutationOfBounty(b.id)
+  return { paid, refuted: rf && rf.productId === String(b.productId) ? rf : undefined, refutedEv }
 }
 function Bounties({ r }: { r: SvcRow }) {
   const lang = useLang()
@@ -246,21 +267,29 @@ function RoleNote({ r }: { r: SvcRow }) {
   )
 }
 
+/** the action block's title: "Use it", or, for the refutation demo (not for sale), the proof it shows, as its Services
+ *  sheet calls it */
+const actTitle = (r: SvcRow) => (r.role?.role === 'refuteDemo' ? t('vit.proof') : t('d.use'))
+
 /** the action: the console (the front only reads). The text follows the product's settlement (the Copilot is free,
  *  a bounty pays from its reserve), says when no enclave is running, and points a replaced product to its replacement */
 function UseIt({ r, inPanel }: { r: SvcRow; inPanel: boolean }) {
   useLang()
   const free = /^0x0+$/.test(r.p.settlement)
   const pay = free ? t('d.use.free') : r.svc === 'bounty' && !Number(r.p.price) ? t('d.use.bounty') : t('d.use.paid')
+  // the refutation demo is not for sale: its sheet shows the proof; a free service has no payment to sign
+  const demo = r.role?.role === 'refuteDemo'
   return (
     <>
-      <p className="body">{r.role?.role === 'superseded' ? t('d.use.superseded', { id: r.role.by }) : `${t('d.use.lede')} ${pay}${r.running === 0 ? ` ${t('d.use.none')}` : ''}`}</p>
+      <p className="body">{r.role?.role === 'superseded' ? t('d.use.superseded', { id: r.role.by }) : demo ? lt('d.use.refuteDemo') : `${(free ? lt('d.use.lede.free') : t('d.use.lede'))} ${pay}${r.running === 0 ? ` ${t('d.use.none')}` : ''}`}</p>
       <div className="d-acts">
         {r.role?.role === 'superseded'
           ? <a className="btn btn-main" href={serviceHref(r.role.by)}><span>{t('d.role.open', { id: r.role.by })}</span></a>
+          : demo ? (inPanel ? <a className="btn btn-main" href={serviceHref(r.p.id)}><span>{lt('d.use.proof')}</span></a> : null)
           : <a className="btn btn-main" href={useHref(r.p.id)}><span>{t('d.use.btn')}</span></a>}
-        <a className="tlink" href={link.dev}>{t('d.dev')}</a>
-        {inPanel ? <a className="tlink" href={serviceHref(r.p.id)}>{t('d.page')}</a> : null}
+        {/* the refutation demo is not for sale: nothing to call from code */}
+        {demo ? null : <a className="tlink" href={link.dev}>{t('d.dev')}</a>}
+        {inPanel && !demo ? <a className="tlink" href={serviceHref(r.p.id)}>{t('d.page')}</a> : null}
       </div>
     </>
   )
@@ -323,7 +352,7 @@ export function ServiceDetail({ pid, inPanel = false, headingId, wide = false, b
       </section>
 
       <section className="d-sec d-use">
-        <h3 className="d-h">{t('d.use')}</h3>
+        <h3 className="d-h">{actTitle(r)}</h3>
         <UseIt r={r} inPanel={inPanel} />
       </section>
           </div>
@@ -398,7 +427,7 @@ export function ServiceDetail({ pid, inPanel = false, headingId, wide = false, b
       </section>
 
       {bare ? null : <section className="d-sec d-use">
-        <h3 className="d-h">{t('d.use')}</h3>
+        <h3 className="d-h">{actTitle(r)}</h3>
         <UseIt r={r} inPanel={inPanel} />
       </section>}
         </>
