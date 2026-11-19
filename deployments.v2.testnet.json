@@ -8,7 +8,8 @@
   "deployer": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
   "owner": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
   "treasury": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
-  "note": "Pile v2 (corrections de la revue adverse, 142 tests). Le registre est branché sur le VRAI module : TdxAttestationModule → AutomataDcapAttestationFee (deployments.dcap.testnet.json) : la chaîne vérifie la signature d'Intel sur chaque quote. Aucun module simulé. REQUIRE_SEPT_VE = 1. Timelock produits = 0 (testnet). Déploiement : contracts/script/DeployTestnet.s.sol, 10 tx, 13 530 315 gas, 0,338 USDC (contracts/broadcast/DeployTestnet.s.sol/5042002/run-latest.json).",
+  "status": "superseded by v2.1 on 9 Nov 2026 (deployments.v21.testnet.json); kept for the record",
+  "note": "Stack v2: fixes from an adversarial review, 142 tests at the time. The registry calls the production module TdxAttestationModule -> AutomataDcapAttestationFee (deployments.dcap.testnet.json), so the chain verifies Intel's signature on every quote. REQUIRE_SEPT_VE = 1; product timelock = 0 on testnet. Deployment: contracts/script/DeployTestnet.s.sol, 10 transactions, 13,530,315 gas, 0.338 USDC.",
   "external": {
     "USDC": "0x3600000000000000000000000000000000000000",
     "ERC8004_Validation": "0x8004Cb1BF31DAf7788923b405b754f57acEB4272",
@@ -29,21 +30,21 @@
     "DemoVault": "0xD4f4d2Bb6bf662e738cB8917b9Ade152c245F8a1"
   },
   "roles": {
-    "owner_and_productAuthor": "0x5724d89D610c3017b8DC161c025248341556f6Ab (clé du déployeur : reste hors du serveur)",
-    "operator": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a (enclaves + registrar ; caution 3 USDC ; agent ERC-8004 n° 897812)"
+    "owner_and_productAuthor": "0x5724d89D610c3017b8DC161c025248341556f6Ab (the deployer key, kept off the server)",
+    "operator": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a (enclaves and registrar; bond 3 USDC; ERC-8004 agent 897812)"
   },
   "products": {
     "1": {
-      "name": "Inférence privée",
+      "name": "Private AI inference",
       "settlement": "SessionPay",
-      "price": "0.0001 USDC / unité",
+      "price": "0.0001 USDC / unit",
       "unitTokens": 1,
       "outWeight": 1,
       "param": "keccak256(\"openai/gpt-oss-120b\")",
       "manifest": "https://archive.62-171-153-35.sslip.io/manifests/sealed-chat-v2.json"
     },
     "2": {
-      "name": "Prime scellée",
+      "name": "Sealed Bounty",
       "settlement": "SealedBounty",
       "deterministic": true,
       "param": "keccak256(\"anvil-1.5.1+arc-usdc-shim-v1\")",
@@ -71,7 +72,7 @@
     }
   },
   "fixedInV21": [
-    "Le workloadId inclut RTMR3, qui chez Phala/dstack contient des événements propres à l'instance de la VM : un redémarrage (ex. changement de variable chiffrée) change le workloadId ; l'auteur autorise aujourd'hui chaque instance. Correctif : rejouer le journal d'événements de RTMR3 et n'épingler que le hash du compose.",
-    "requestHash des verdicts non lié à l'adresse du contrat : un redéploiement sur la même chaîne pourrait entrer en collision (ERC-8004 répond « exists », verdict sauté sans trace). Correctif v2.1 : inclure chainid + address(this) et émettre un événement en cas d'échec."
+    "The workloadId included RTMR3, which on Phala/dstack holds events specific to the VM instance: a restart (for example a changed encrypted variable) changed the workloadId, so the author had to allow each instance. Fixed in v2.1: replay RTMR3's event log and pin only the compose hash.",
+    "Verdict requestHash was not bound to the contract address: a redeployment on the same chain could collide (ERC-8004 answers \"exists\" and the verdict was skipped without a trace). Fixed in v2.1: include chainid + address(this) and emit an event on failure."
   ]
 }

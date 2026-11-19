@@ -10,8 +10,8 @@
   "deployer": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
   "owner": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
   "treasury": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
-  "status": "DEPLOYED, NOT LIVE: the live site, API, registrar and enclaves still run on v2.1 (deployments.v21.testnet.json). Switch planned after the UBC submission (20/11).",
-  "note": "Fresh copy of every ArcHive contract (19/11/2026, 20:33-20:37 UTC), same source as v2.1 + corrected PckChip (contracts/src, solc 0.8.28 via-IR, prague, 200 runs), same constructor parameters as v2.1 (read on-chain from the v2.1 getters). Core and levels deployed together, so OperatorBond.initialize and VerdictLog.initialize wire ALL settlements at once, including SealedBountyVerified: no 8-day proposeSettlement/proposeCaller delay on v3. Simulated first on an anvil fork (same addresses). Deployer nonce 328 -> 344, 16 txs, 26,358,455 gas, about 0.64 USDC of gas.",
+  "status": "DEPLOYED, NOT LIVE: the live site, API, registrar and enclaves still run on v2.1 (deployments.v21.testnet.json). Switch planned after the UBC submission (20 Nov 2026).",
+  "note": "Fresh copy of every ArcHive contract (19 Nov 2026, 20:33-20:37 UTC), same source as v2.1 + corrected PckChip (contracts/src, solc 0.8.28 via-IR, prague, 200 runs), same constructor parameters as v2.1 (read on-chain from the v2.1 getters). Core and levels deployed together, so OperatorBond.initialize and VerdictLog.initialize wire ALL settlements at once, including SealedBountyVerified: no 8-day proposeSettlement/proposeCaller delay on v3. Simulated first on an anvil fork (same addresses). Deployer nonce 328 -> 344, 16 txs, 26,358,455 gas, about 0.64 USDC of gas.",
   "external": {
     "USDC": "0x3600000000000000000000000000000000000000",
     "ERC8004_Validation": "0x8004Cb1BF31DAf7788923b405b754f57acEB4272",
@@ -210,7 +210,7 @@
     "block": 73075174
   },
   "roles": {
-    "owner_and_productAuthor": "0x5724d89D610c3017b8DC161c025248341556f6Ab (clé du déployeur : reste hors du serveur)",
+    "owner_and_productAuthor": "0x5724d89D610c3017b8DC161c025248341556f6Ab (the deployer key, kept off the server)",
     "operator": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a (enclaves + registrar ; agent ERC-8004 n° 897812)"
   },
   "products": {
@@ -326,7 +326,7 @@
     }
   },
   "previous": "deployments.v21.testnet.json (v2.1, live until the switch)",
-  "productsNote": "Published 19/11/2026 20:42-20:43 UTC by the deployer (author), timelock 0, same economic parameters as the v2.1 products (read on-chain from the v2.1 ProductRegistry). The v3 manifests are served at https://archive.62-171-153-35.sslip.io/manifests/ (web/public/manifests/*-v3.json; the on-chain hashes are of these exact files).",
+  "productsNote": "Published on 19 Nov 2026, 20:42-20:43 UTC by the deployer (author), timelock 0, same economic parameters as the v2.1 products (read on-chain from the v2.1 ProductRegistry). The v3 manifests are served at https://archive.62-171-153-35.sslip.io/manifests/ (web/public/manifests/*-v3.json; the on-chain hashes are of these exact files).",
   "operatorSetup": {
     "operator": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a",
     "agentId": 897812,

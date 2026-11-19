@@ -7,7 +7,7 @@
   "updatedAt": "2026-11-09",
   "deployer": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
   "owner": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
-  "note": "Pile DCAP d'Automata (MIT, contrats inchangés) déployée en CREATE2 (fabrique 0x4e59…) par dcap-integration/arc-testnet/run.sh. P-256 = précompile 0x100 d'Arc. Aucun mock : vérification réelle d'un quote TDX v4 de notre enclave Phala.",
+  "note": "Automata's DCAP stack (MIT, contracts unchanged), deployed with CREATE2 (factory 0x4e59…) by dcap-integration/arc-testnet/run.sh. P-256 uses Arc's precompile at 0x100. Verified end to end on a real TDX v4 quote from our Phala enclave, with Intel's collateral.",
   "source": {
     "automataDcapAttestation": "vendor/automata-dcap-attestation @ 59b1f34",
     "automataOnChainPccs": "evm/lib/automata-on-chain-pccs @ c65b4b1",
@@ -120,7 +120,7 @@
   "module": {
     "address": "0x26c1803de523ac896ba7f1787f1401ec792951ca",
     "constructorDcap": "0x48640f7d94de64b13c89686f3d1240a31aeb4dc9",
-    "source": "contracts/src/attestation/TdxAttestationModule.sol (inchangé) — solc 0.8.28 via-IR prague (contracts/foundry.toml)",
+    "source": "contracts/src/attestation/TdxAttestationModule.sol (unchanged), solc 0.8.28, via-IR, EVM prague (contracts/foundry.toml)",
     "tx": {
       "hash": "0xdb3c70d612a8b0188da2d22b384a8c7cd65d8d3b45e1937a2b2bbae229dea0a2",
       "block": 71124302,
@@ -156,7 +156,7 @@
     }
   },
   "measurements": {
-    "method": "eth_estimateGas sur Arc, même état ; Daimo = code du V4QuoteVerifier surchargé (immutable P256_VERIFIER 0x100 -> Daimo 0xc2b7…) le temps de l'estimation",
+    "method": "eth_estimateGas on Arc, same state. For the Solidity P-256 comparison, the V4QuoteVerifier code is overridden for the estimate only (immutable P256_VERIFIER 0x100 -> Daimo's verifier 0xc2b7…)",
     "estimateGasPrecompile0x100": 5208699,
     "estimateGasDaimoSolidity": 6915287,
     "differenceGas": 1706588,
