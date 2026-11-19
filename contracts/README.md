@@ -30,9 +30,13 @@ profile without `via_ir` for Smooth CryptoLib, as in its own repository.
 
 The runtime code of all 14 contracts of the v3 deployment on Arc testnet matches a build of this folder with this
 `foundry.toml` (immutables and metadata masked; the record is `verification.bytecode` in
-[`../deployments.v3.testnet.json`](../deployments.v3.testnet.json)). The NatSpec in `src/` is written in French.
-Those files are kept exactly as deployed, because the compiler's metadata hash covers every byte of a source,
-comments included. This README is the English reference for them.
+[`../deployments.v3.testnet.json`](../deployments.v3.testnet.json)).
+
+On 20 Nov 2026 the comments and NatSpec in `src/` were translated from French to English. Nothing else changed:
+`forge build` gives every contract the same creation and runtime bytecode as before, apart from the metadata hash
+that solc appends (it covers every byte of a source, comments included), and `forge test` still passes all 253
+tests. The annotated tag `contracts-original-comments` keeps the sources exactly as deployed, with their original
+French comments.
 
 ## Contracts
 
