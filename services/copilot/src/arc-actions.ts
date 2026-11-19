@@ -158,8 +158,20 @@ export function railOf(arc: ArcClient, settlement: string): string {
   if (s === arc.d.sessionPay.toLowerCase()) return "SessionPay (session prépayée, reçus cumulatifs)";
   if (s === arc.d.x402Settler.toLowerCase()) return "X402Settler (paiement à l'appel, x402)";
   if (s === arc.d.sealedBounty.toLowerCase()) return "SealedBounty (Prime scellée)";
+  if (arc.d.levels && s === arc.d.levels.sealedBountyVerified.toLowerCase()) return "SealedBountyVerified (Prime scellée au niveau vérifié : puce déclarée par un auditeur, via PolicyEnclaves)";
   if (/^0x0{40}$/.test(s)) return "aucun (service gratuit, attesté : ex. le copilote en enclave)";
   return "contrat de règlement inconnu";
+}
+
+/** 18/11 : le contrat de Prime scellée qui règle ce produit : SealedBounty (niveau ouvert, produit 2) ou, sur la pile des
+ *  niveaux, SealedBountyVerified (niveau vérifié, produit 7 : même code, branché sur PolicyEnclaves) ; undefined pour tout
+ *  autre règlement (dont l'ancienne Prime vérifiée du produit 6, neutralisée le 11/11). createBounty refuse un produit
+ *  réglé par un autre contrat (WrongSettlement) : la prime se prépare donc toujours sur CE contrat. */
+export function bountyContractOf(arc: ArcClient, settlement: string): { address: Address; verified: boolean } | undefined {
+  const s = settlement.toLowerCase();
+  if (s === arc.d.sealedBounty.toLowerCase()) return { address: arc.d.sealedBounty, verified: false };
+  if (arc.d.levels && s === arc.d.levels.sealedBountyVerified.toLowerCase()) return { address: arc.d.levels.sealedBountyVerified, verified: true };
+  return undefined;
 }
 
 // ---------------------------------------------------------------- formats et entrées
@@ -700,7 +712,8 @@ export async function prepareBountyCreate(arc: ArcClient, q: any, cx: ActionCtx 
   const verifications: Array<{ ok: boolean; quoi: string }> = [];
   const infos: Record<string, unknown> = {};
 
-  // 1) le produit « Prime scellée » (règlement = SealedBounty)
+  // 1) le produit « Prime scellée » : sans productId, le niveau ouvert (règlement = SealedBounty) ; productId 7 (ou tout
+  //    produit réglé par SealedBountyVerified) = le niveau vérifié, préparé sur SealedBountyVerified (18/11)
   let product: ProductLite | undefined;
   if (present(q.productId)) product = await productLite(arc, parseId(q.productId, "productId"));
   else {
@@ -710,8 +723,26 @@ export async function prepareBountyCreate(arc: ArcClient, q: any, cx: ActionCtx 
   }
   if (!product || product.state === "None") throw new Error("Aucun produit « Prime scellée » actif trouvé (règlement SealedBounty).");
   verifications.push({ ok: product.state === "Active", quoi: `produit #${product.id} : ${product.state}${product.state === "Active" ? "" : " (createBounty reverterait : BadProduct)"}` });
-  if (product.settlement.toLowerCase() !== arc.d.sealedBounty.toLowerCase()) avertissements.push(`Le produit #${product.id} ne règle pas par SealedBounty (${railOf(arc, product.settlement)}) : ses enclaves ne savent pas rejouer d'exploit.`);
+  const rail = bountyContractOf(arc, product.settlement);
+  /** Le contrat de la prime : celui qui règle le produit (createBounty, autorisation EIP-3009, frais, MAX_SIGS). */
+  const bounty: Address = rail?.address ?? arc.d.sealedBounty;
+  const bountyName = rail?.verified ? "SealedBountyVerified" : "SealedBounty";
+  if (!rail) {
+    avertissements.push(`Le produit #${product.id} n'est réglé par aucune Prime scellée en service (${railOf(arc, product.settlement)}) : createBounty reverterait (WrongSettlement). Choisis le produit 2 (niveau ouvert) ou 7 (niveau vérifié) ; le produit 6, neutralisé le 11/11, est remplacé par le 7.`);
+    aCompleter.push("productId : un produit de Prime scellée en service (2 = niveau ouvert, 7 = niveau vérifié)");
+  }
   if (!product.deterministic) avertissements.push(`Le produit #${product.id} n'est pas déterministe : le rejeu d'un exploit doit l'être.`);
+  if (rail?.verified) {
+    // niveau vérifié : la prime se crée et se finance dès maintenant, mais acceptClaim appelle OperatorBond.consumeExposure,
+    // qui n'accepte qu'un contrat de règlement AUTORISÉ (8 jours après sa proposition, puis applySettlement)
+    infos.niveau = "vérifié : seules comptent les enclaves dont la puce (PPID lu dans le certificat d'Intel) est déclarée par un auditeur accepté par le produit (Proof of Cloud), vérifié au règlement par PolicyEnclaves";
+    const authorized = await read<boolean>(arc, arc.d.operatorBond, operatorBondAbi, "isSettlement", [bounty]);
+    const applyAt = authorized ? 0n : BigInt(await read<bigint | number>(arc, arc.d.operatorBond, operatorBondAbi, "settlementApplyAt", [bounty]));
+    verifications.push({ ok: authorized, quoi: authorized
+      ? `${bountyName} est autorisé dans OperatorBond : une réclamation prouvée peut être payée`
+      : `${bountyName} n'est pas encore autorisé dans OperatorBond${applyAt > 0n ? ` (applicable à partir du ${iso(applyAt)}, puis applySettlement)` : ""}` });
+    if (!authorized) avertissements.push(`Tant que ${bountyName} n'est pas autorisé dans OperatorBond${applyAt > 0n ? ` (possible à partir du ${iso(applyAt)}, puis applySettlement)` : ""}, la prime peut être créée et financée, mais aucune réclamation ne peut être acceptée : choisis une échéance au-delà.`);
+  }
 
   // 2) le prédicat : assistant guidé, ou prédicat complet fourni
   const token = optAddr(q.token, "token") ?? arc.d.usdc;
@@ -763,10 +794,10 @@ export async function prepareBountyCreate(arc: ArcClient, q: any, cx: ActionCtx 
     throw new Error("paliers : seuils de perte ET montants strictement croissants (sinon createBounty revert BadTiers)");
   }
 
-  // 4) frais lus on-chain, financement, k, plafond, échéance
-  const netBps = BigInt(await constant<number>(arc, arc.d.sealedBounty, "networkBountyBps"));
-  const opBps = BigInt(await constant<number>(arc, arc.d.sealedBounty, "operatorBountyBps"));
-  const maxSigs = await constant<bigint>(arc, arc.d.sealedBounty, "MAX_SIGS");
+  // 4) frais lus on-chain (sur le contrat de la prime), financement, k, plafond, échéance
+  const netBps = BigInt(await constant<number>(arc, bounty, "networkBountyBps"));
+  const opBps = BigInt(await constant<number>(arc, bounty, "operatorBountyBps"));
+  const maxSigs = await constant<bigint>(arc, bounty, "MAX_SIGS");
   const econ = tiers.map((t, i) => {
     const net = (t.amount * netBps) / 10_000n, op = (t.amount * opBps) / 10_000n;
     return { i, total: t.amount + net + op, vue: { palier: i, perteMinimale: fmtAmount(t.minLoss, lossDecimals, lossLabel), chasseur: usdc(t.amount), reseau: usdc(net), operateurs: usdc(op), totalPrisDuPool: usdc(t.amount + net + op) } };
@@ -783,7 +814,7 @@ export async function prepareBountyCreate(arc: ArcClient, q: any, cx: ActionCtx 
   if (!(days > 0 && days <= 365)) throw new Error("deadlineDays : entre 1 et 365 jours");
   const deadline = h.timestamp + BigInt(Math.round(days * 86_400));
   const targetToPause = optAddr(q.targetToPause, "targetToPause") ?? ZERO;
-  if (targetToPause !== ZERO) infos.miseEnPause = `${targetToPause} doit exposer pause() appelable par SealedBounty (${arc.d.sealedBounty}) ; l'appel n'est jamais bloquant.`;
+  if (targetToPause !== ZERO) infos.miseEnPause = `${targetToPause} doit exposer pause() appelable par ${bountyName} (${bounty}) ; l'appel n'est jamais bloquant.`;
 
   // 5) la clé du protocole : PUBLIQUE seulement, générée chez lui
   let protocolX25519 = "<ta clé PUBLIQUE X25519 (0x + 64 hex), générée chez toi>";
@@ -815,8 +846,8 @@ export async function prepareBountyCreate(arc: ArcClient, q: any, cx: ActionCtx 
 
   // 7) les données à signer
   const ph = predicate ? predicateHash(predicate) : undefined;
-  const a = eip3009(arc, from, arc.d.sealedBounty, funding, h.timestamp);
-  const ready = !!predicate && tiers.length > 0;
+  const a = eip3009(arc, from, bounty, funding, h.timestamp);
+  const ready = !!predicate && tiers.length > 0 && !!rail;
   const params = ready ? {
     productId: product.id.toString(), predicateHash: ph, protocolX25519,
     tierMinLoss: tiers.map((t) => t.minLoss.toString()), tierAmount: tiers.map((t) => t.amount.toString()),
@@ -824,7 +855,9 @@ export async function prepareBountyCreate(arc: ArcClient, q: any, cx: ActionCtx 
   } : null;
   const sdkCall = ready ? [
     "// sur ta machine ou dans ton navigateur : ton wallet signe l'autorisation EIP-3009, puis envoie la transaction",
-    "const arc = createArcClient({ publicClient, walletClient }); // @arcvault/sdk",
+    rail?.verified
+      ? "const arc = createArcClient({ publicClient, walletClient, deployment: { ...testnet, sealedBounty: testnet.levels!.sealedBountyVerified } }); // @arcvault/sdk : le niveau vérifié"
+      : "const arc = createArcClient({ publicClient, walletClient }); // @arcvault/sdk",
     "const { tx, bountyId } = await arc.createBounty({",
     `  productId: ${product.id}n, predicateHash: "${ph}", protocolX25519: "${protocolX25519}",`,
     `  tierMinLoss: [${tiers.map((t) => `${t.minLoss}n`).join(", ")}], tierAmount: [${tiers.map((t) => `${t.amount}n`).join(", ")}],`,
@@ -838,7 +871,7 @@ export async function prepareBountyCreate(arc: ArcClient, q: any, cx: ActionCtx 
     aCompleter,
     avertissements,
     verifications,
-    produit: { id: product.id.toString(), rail: railOf(arc, product.settlement), deterministe: product.deterministic },
+    produit: { id: product.id.toString(), rail: railOf(arc, product.settlement), deterministe: product.deterministic, niveau: rail?.verified ? "vérifié" : rail ? "ouvert" : "aucun" },
     ...infos,
     predicat: predicate ?? null,
     predicatCanonique: predicate ? canonicalize(predicate) : null,
@@ -853,7 +886,7 @@ export async function prepareBountyCreate(arc: ArcClient, q: any, cx: ActionCtx 
       echeance: `${iso(deadline)} (${days} j, valeur proposée à confirmer)`,
       k, singleCap: usdc(singleCap),
     },
-    contrat: { adresse: arc.d.sealedBounty, fonction: "createBounty(CreateParams)" },
+    contrat: { nom: bountyName, adresse: bounty, fonction: "createBounty(CreateParams)" },
     createBountyParams: params,
     autorisationEIP3009: a.typedData,
     appelSdk: sdkCall,
@@ -861,9 +894,9 @@ export async function prepareBountyCreate(arc: ArcClient, q: any, cx: ActionCtx 
       pourquoi: "L'exploit prouvé t'est livré chiffré pour cette clé ; seule ta clé privée le déchiffre. Elle ne doit jamais quitter ta machine.",
       snippet: 'import { generateX25519 } from "@arcvault/sdk";\nconst kp = generateX25519(); // garde kp.privateKey en lieu sûr, chez toi\nconsole.log(kp.publicKey);    // → protocolX25519',
     },
-    ouSigner: "Ton wallet signe : SDK arc.createBounty (ci-dessus) ou page Utiliser → « Publier une prime ». Le copilote n'envoie rien.",
+    ouSigner: `Ton wallet signe : SDK arc.createBounty (ci-dessus) ou la page Primes du site (« Publier une prime », niveau ${rail?.verified ? "vérifié" : "ouvert"}). Le copilote n'envoie rien.`,
     lueAuBloc: h.number.toString(),
-    sources: ["SealedBounty.createBounty / acceptClaim / deliver", "predicate.ts (langage v0)", "SealedBounty.networkBountyBps / operatorBountyBps / MAX_SIGS"],
+    sources: [`${bountyName}.createBounty / acceptClaim / deliver`, "predicate.ts (langage v0)", `${bountyName}.networkBountyBps / operatorBountyBps / MAX_SIGS`],
   };
 }
 
@@ -908,7 +941,9 @@ export async function operatorPlan(arc: ArcClient, q: any, cx: ActionCtx = {}) {
   }
   const pid = chosen ? chosen.id.toString() : "<id du produit>";
   const op = operator ?? "0x<ton adresse>";
-  const bountyRail = !!chosen && chosen.settlement.toLowerCase() === arc.d.sealedBounty.toLowerCase();
+  // la Prime du produit choisi : SealedBounty (2, 5) ou SealedBountyVerified (7) ; l'enclave la lit dans SEALEDBOUNTY
+  const bountyOf = chosen ? bountyContractOf(arc, chosen.settlement) : undefined;
+  const bountyRail = !!bountyOf;
   const appCompose = [
     "# app-compose (Phala Cloud dstack) — modèle : enclave/docker-compose.yml du dépôt",
     "services:",
@@ -920,7 +955,7 @@ export async function operatorPlan(arc: ArcClient, q: any, cx: ActionCtx = {}) {
     `      - CHAIN_ID=${arc.d.chainId}`,
     `      - PRODUCT_ID=${pid}`,
     `      - REGISTRY=${arc.d.enclaveRegistry}`,
-    bountyRail ? `      - SEALEDBOUNTY=${arc.d.sealedBounty}` : `      - SESSIONPAY=${arc.d.sessionPay}`,
+    bountyOf ? `      - SEALEDBOUNTY=${bountyOf.address}` : `      - SESSIONPAY=${arc.d.sessionPay}`,
     "      - OPERATOR_ALLOWLIST=${OPERATOR_ALLOWLIST}   # variable chiffrée : TON adresse d'opérateur (sans elle, /attest refuse tout)",
     ...(bountyRail ? [] : ["      - UNIT_TOKENS=1   # EN CLAIR (mesuré) : l'unité facturée du produit", "      - OUT_WEIGHT=1"]),
     "    volumes:",

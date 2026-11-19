@@ -211,6 +211,16 @@ export function apiStats(o: ApiOptions = {}): Promise<Record<string, unknown>> {
   });
 }
 
+/** 19/11 : les niveaux d'opérateur (/levels : niveau de chaque enclave active, Prime du niveau vérifié autorisée ou non),
+ *  pour la ligne LIVE STATUS du site (site-live.ts) ; objet brut, lu prudemment par son seul lecteur. */
+export function apiLevels(o: ApiOptions = {}): Promise<Record<string, any>> {
+  return cached(key(o, "/levels"), async () => {
+    const j = await getJson("niveaux", "/levels", o);
+    if (!j || typeof j !== "object" || Array.isArray(j)) throw new ListUnavailableError("niveaux", "réponse inattendue de l'API ArcHive");
+    return j as Record<string, any>;
+  });
+}
+
 export interface IndexStatus { lastBlock: number; head: number | null; lagBlocks: number | null; lastError: string | null }
 /** État de l'index de l'API (jusqu'à quel bloc il est complet) ; null s'il n'est pas lisible (jamais d'exception). */
 export function apiIndexStatus(o: ApiOptions = {}): Promise<IndexStatus | null> {

@@ -36,7 +36,11 @@
  *  d'entrée se compte AUSSI en JETONS ESTIMÉS (COPILOT_MAX_INPUT_TOKENS, 50 000 par défaut ; estimateTokens : 0,3 jeton
  *  par caractère ASCII, 3 par autre caractère, sur l'invite, les définitions d'outils et l'historique de CHAQUE appel).
  *  Borne DURE, premier appel compris : l'historique le plus ancien est retiré pour qu'il tienne (sinon, réponse locale,
- *  code input_budget). Le budget en caractères (COPILOT_MAX_INPUT_CHARS) reste, en plus. */
+ *  code input_budget). Le budget en caractères (COPILOT_MAX_INPUT_CHARS) reste, en plus.
+ *  18/11 au soir (surface site seulement ; la console ne change pas) : ui_guide validé dans la boucle comme les autres
+ *  outils d'interface (notes dans la langue de la réponse) ; filet des guides (une demande claire de faire sans guide joué :
+ *  sa page si elle n'est pas affichée, puis sa recette) ; ligne « où tu tournes » du site (whereNote) quand aucune note
+ *  d'enclave (systemNote) ne la remplace. */
 import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
 import { type Address, type Hex, toBytes, toHex } from "viem";
@@ -113,8 +117,9 @@ const TURN_MARGIN = 1_000;
 
 /** Résultat d'un outil d'interface du site : l'entrée normalisée (le navigateur l'exécute), ou le refus et sa raison. */
 export type UiResult = ({ ok: true } & Record<string, unknown>) | { ok: false; error: string };
-/** Les outils d'interface d'UNE requête (page courante, actions déjà acceptées). */
-export interface UiSession { run(name: string, args: unknown): UiResult }
+/** Les outils d'interface d'UNE requête (page courante, actions déjà acceptées) ; `current` : la page affichée après les
+ *  actions acceptées (18/11 au soir : le filet des guides en a besoin). */
+export interface UiSession { run(name: string, args: unknown): UiResult; current?(): string | undefined }
 /** Une entrée de `tools` dans la réponse du site, dans l'ordre d'exécution : l'outil, son libellé, son entrée ; `result`
  *  pour les outils d'interface (l'écho validé) et les outils prepare (les données complètes, comme dans `actions`). */
 export interface SiteToolEntry { tool: string; label: string; input?: unknown; result?: unknown; inline?: true; inferred?: true }
@@ -125,15 +130,36 @@ export interface SiteSurface {
   /** Le contexte `page` du corps de la requête : la ligne ajoutée à l'invite et la page de départ ; undefined s'il manque
    *  ou s'il est invalide. */
   pageContext(body: unknown): { line: string; page: string } | undefined;
-  /** Les outils d'interface d'une requête, à partir de la page affichée. */
-  uiSession(page: string | undefined): UiSession;
+  /** Les outils d'interface d'une requête, à partir de la page affichée ; `lang` : la langue de la réponse. */
+  uiSession(page: string | undefined, lang?: Lang): UiSession;
   /** La consigne de langue de la surface (à la fin de l'invite, à la place de celle de la console) : `lang`, la langue du
    *  site (libellés des pages et des boutons) ; `replyLang`, celle de la réponse (16/11 : celle de la question). */
   languageDirective(lang: Lang, replyLang?: Lang): string;
-  /** Un appel d'interface écrit dans le texte au lieu d'être appelé : retiré du texte, rendu comme un appel. */
-  extractInline(text: string): { text: string; input?: Record<string, unknown> };
+  /** Un appel d'interface écrit dans le texte au lieu d'être appelé : retiré du texte, rendu comme un appel (ui_navigate,
+   *  ou l'outil nommé par `tool`). */
+  extractInline(text: string): { text: string; input?: Record<string, unknown>; tool?: string };
   /** 16/11 : la page que la demande montre clairement (mots-clés), quand le modèle n'a rien montré ni préparé. */
   intentNav?(q: string, lang: Lang): Record<string, unknown> | undefined;
+  /** 18/11 au soir : le guide que la demande appelle clairement (installer, lancer une enclave…), quand le modèle n'en a
+   *  joué aucun : l'ouverture de sa page si elle n'est pas affichée (`navigate`), puis le guide. `prepared` : une carte à
+   *  signer est déjà préparée. */
+  intentGuide?(q: string, o: { lang: Lang; current?: string; start?: string; prepared?: boolean }): { navigate?: Record<string, unknown>; guide: Record<string, unknown> } | undefined;
+  /** 18/11 au soir : où tourne ce copilote, dit en une ligne de l'invite quand aucune `systemNote` ne le dit (enclave). */
+  whereNote?: string;
+  /** 18/11 au soir : la réponse quand le modèle n'a rien écrit et qu'un guide joue. */
+  guideText?(lang: Lang): string;
+  /** 19/11 : la phrase qui dit sur quelle page joue un guide ajouté par le filet (le modèle ne l'a pas vu), si la réponse
+   *  ne nomme pas déjà cette page ; undefined sinon. */
+  guidePageNote?(lang: Lang, page: string, text: string): string | undefined;
+  /** 19/11 au soir : ce qui ne s'affiche jamais dans une réponse (libellés internes de l'invite, marques de source de
+   *  docs_search, identifiants de page entre crochets), retiré du texte final. */
+  stripLabels?(text: string): string;
+  /** 19/11 au soir : la réponse fixe et vraie à « ce chat tourne-t-il dans une enclave ? » sur le serveur du site (seulement
+   *  avec whereNote : l'enclave du produit 4 la retire, elle garde sa propre réponse). */
+  whereAnswer?(text: string, lang: Lang): string | undefined;
+  /** 19/11 : l'état du réseau lu AU MOMENT de répondre (site-live.ts : enclaves actives, niveaux, primes ouvertes), en une
+   *  ligne de l'invite après celle de la page ; ne lève jamais (ligne de repli), borné dans le temps. */
+  liveNote?(): Promise<string | undefined>;
 }
 
 /** Une requête chiffrée ouverte : son texte, et de quoi sceller LA réponse pour ce seul client. */
@@ -329,10 +355,14 @@ async function runChat(
     : "\nAucun wallet connecté : les outils prepare renvoient des gabarits à compléter avec l'adresse de l'utilisateur.";
   // site : la page affichée, en une ligne de valeurs validées (site.ts) ; jamais pour la console
   const pageLine = o.site && page ? `\n${page.line}` : "";
+  // site (19/11) : l'état du réseau lu maintenant (LIVE STATUS), jamais un état écrit d'avance ; rien pour la console
+  const live = o.site?.liveNote ? await o.site.liveNote().catch(() => undefined) : undefined;
+  const liveLine = live ? `\n${live}` : "";
   const cutLineOf = (dropped: number) => dropped || cut.truncated
     ? `\nNote : la conversation reçue a été raccourcie (${dropped} message(s) ancien(s) retiré(s), ${cut.truncated} message(s) tronqué(s)) ; ne prétends pas avoir lu ce qui manque.`
     : "";
-  const note = o.systemNote ? `\n${o.systemNote({ sealed, lang })}` : "";
+  // où tourne le copilote : la note de l'enclave, sinon (site, 18/11 au soir) celle du serveur du site ; rien pour la console
+  const note = o.systemNote ? `\n${o.systemNote({ sealed, lang })}` : o.site?.whereNote ? `\n${o.site.whereNote}` : "";
   // site (16/11) : la réponse suit la langue du dernier message quand on la reconnaît (une question en français sur le
   // site anglais reçoit une réponse en français) ; les libellés des pages restent ceux de l'écran. Le modèle suit mal une
   // consigne souple (« réponds dans sa langue ») : la langue est décidée ici, et la consigne reste ferme.
@@ -343,10 +373,14 @@ async function runChat(
   const directive = o.site ? o.site.languageDirective(lang, replyLang) : languageDirective(lang);
   // la consigne de langue en DERNIER : elle prime sur l'invite (rédigée en français)
   const systemOf = (dropped: number): OpenAI.Chat.ChatCompletionMessageParam =>
-    ({ role: "system", content: `${o.system}${walletLine}${pageLine}${cutLineOf(dropped)}${note}\n${directive}` });
-  // site : les outils d'interface de cette requête (page courante, 3 actions au plus) et la liste détaillée des outils
-  const ui = o.site ? o.site.uiSession(page?.page) : null;
+    ({ role: "system", content: `${o.system}${walletLine}${pageLine}${liveLine}${cutLineOf(dropped)}${note}\n${directive}` });
+  // site : les outils d'interface de cette requête (page courante, 3 actions au plus, notes des guides dans la langue de
+  // la réponse) et la liste détaillée des outils
+  const ui = o.site ? o.site.uiSession(page?.page, replyLang) : null;
   const siteTools: SiteToolEntry[] = [];
+  /** 19/11 : la page où s'applique chaque action d'interface acceptée (après elle) : un guide qui joue sur une autre page
+   *  rend inutiles les gestes faits avant lui ailleurs (le navigateur ouvrirait une page pour la quitter aussitôt). */
+  const pageAt = new Map<SiteToolEntry, string | undefined>();
   // budget en JETONS estimés, premier appel compris : les messages les plus anciens tombent jusqu'à ce qu'il tienne
   const toolsTokens = estimateTokens(JSON.stringify(o.tools ?? []));
   let kept: ChatMsg[] = history;
@@ -394,23 +428,61 @@ async function runChat(
   };
   const reply = (text: string, code?: string) => {
     if (o.site && ui) {
-      // site : un appel écrit dans le texte devient un vrai ui_navigate (validé, dans la limite des 3 actions)
+      // site : un appel écrit dans le texte devient un vrai appel (ui_navigate, ou ui_guide pour une recette ; validé,
+      // dans la limite des 3 actions)
       const fs = o.site.extractInline(text);
       if (fs.input) {
-        const r = ui.run("ui_navigate", fs.input);
-        if (r.ok) siteTools.push({ tool: "ui_navigate", label: display.ui_navigate ?? "ui_navigate", input: fs.input, result: r, inline: true });
+        const tool = fs.tool ?? "ui_navigate";
+        const r = ui.run(tool, fs.input);
+        if (r.ok) { const e: SiteToolEntry = { tool, label: display[tool] ?? tool, input: fs.input, result: r, inline: true }; siteTools.push(e); pageAt.set(e, ui.current?.()); }
+      }
+      const played = (t: SiteToolEntry) => o.site!.uiTools.has(t.tool) && (t.result as { ok?: boolean } | undefined)?.ok === true;
+      const guided = () => siteTools.some((t) => t.tool === "ui_guide" && played(t));
+      // 18/11 au soir : filet des guides — une demande claire de faire (installer l'outil, lancer une enclave…) sans guide
+      // joué : sa page (si elle n'est pas affichée), puis sa recette ; rien si l'ouverture de la page est refusée
+      if (!code && !guided() && o.site.intentGuide) {
+        const g = o.site.intentGuide(lastUser, { lang: replyLang, current: ui.current?.(), start: page?.page, prepared: actions.length > 0 });
+        const nav = g?.navigate ? ui.run("ui_navigate", g.navigate) : undefined;
+        if (g?.navigate && nav?.ok) siteTools.push({ tool: "ui_navigate", label: display.ui_navigate ?? "ui_navigate", input: g.navigate, result: nav, inferred: true });
+        if (g && (!g.navigate || nav?.ok)) {
+          const r = ui.run("ui_guide", g.guide);
+          if (r.ok) siteTools.push({ tool: "ui_guide", label: display.ui_guide ?? "ui_guide", input: g.guide, result: r, inferred: true });
+        }
       }
       // 16/11 : filet — la demande montre clairement une page, et le modèle n'a rien montré ni préparé : on la montre
-      const shown = siteTools.some((t) => o.site!.uiTools.has(t.tool) && (t.result as { ok?: boolean } | undefined)?.ok === true);
+      const shown = siteTools.some(played);
       if (!code && !shown && !actions.length && o.site.intentNav) {
         const it = o.site.intentNav(lastUser, replyLang);
         const r = it ? ui.run("ui_navigate", it) : undefined;
         if (it && r?.ok) siteTools.push({ tool: "ui_navigate", label: display.ui_navigate ?? "ui_navigate", input: it, result: r, inferred: true });
       }
+      const empty = actions.length ? M.actionReady : guided() && o.site.guideText ? o.site.guideText(replyLang) : M.pageShown;
+      // 19/11 : un guide joue sur sa page ; les gestes du modèle faits avant lui sur une AUTRE page ne partent pas au
+      // navigateur (il les jouerait pour quitter la page aussitôt) ; le modèle en a reçu l'écho, rien d'autre ne change
+      const lastGuide = [...siteTools].reverse().find((t) => t.tool === "ui_guide" && played(t));
+      const guidePage = (lastGuide?.result as { page?: unknown } | undefined)?.page;
+      const shownTools = typeof guidePage === "string"
+        ? siteTools.filter((t) => t === lastGuide || !played(t) || !pageAt.has(t) || pageAt.get(t) === guidePage || t.inferred)
+        : siteTools;
+      // site (19/11) : les marques de citation du modèle, même longues ou non refermées, ne s'affichent jamais ; le libellé
+      // interne de la ligne d'état non plus, tel quel (« the LIVE STATUS line shows… » devient « the live status… »)
+      // 19/11 au soir : aussi WHERE YOU RUN, FACTS, LIVE STATUS quelle que soit l'espace (U+202F compris), [[site-v4#…]]
+      const unmarked = stripCitationMarks(fs.text);
+      let shownText = redactLiterals(cleanText(o.site.stripLabels ? o.site.stripLabels(unmarked) : unmarked, lang), secrets)
+        .replace(/\bLIVE[\s_-]+STATUS\b/g, "live status").trim();
+      // un guide ajouté par le filet : le modèle n'a pas vu sa page, la réponse la nomme (libellé de l'écran)
+      const inferredGuide = siteTools.find((t) => t.tool === "ui_guide" && t.inferred && played(t));
+      const gPage = (inferredGuide?.result as { page?: unknown } | undefined)?.page;
+      const pageNote = shownText && typeof gPage === "string" && o.site.guidePageNote ? o.site.guidePageNote(replyLang, gPage, shownText) : undefined;
+      if (pageNote) shownText = `${shownText}\n\n${pageNote}`;
+      // 19/11 au soir : où tourne CE chat se dit par un texte fixe sur le serveur du site (le modèle y ajoutait des libellés
+      // internes ou taisait la passerelle du fournisseur du modèle)
+      const whereFixed = o.site.whereNote && o.site.whereAnswer ? o.site.whereAnswer(lastUser, replyLang) : undefined;
+      if (whereFixed) shownText = whereFixed;
       return {
-        text: redactLiterals(cleanText(fs.text, lang), secrets).trim() || (actions.length ? M.actionReady : M.pageShown),
+        text: shownText || empty,
         ...(code ? { code } : {}),
-        tools: siteTools, citations: [...citations], actions,
+        tools: shownTools, citations: [...citations], actions,
         ...(refused ? { outilsNonExecutes: refused } : {}),
       };
     }
@@ -480,6 +552,7 @@ async function runChat(
                 // site : un outil d'interface n'est que validé ici (le navigateur l'exécute) ; le modèle reçoit l'écho
                 const r = ui!.run(name, args);
                 entry!.result = r;
+                if (r.ok) pageAt.set(entry!, ui!.current?.());
                 content = forModel(JSON.stringify(r), room);
               } else {
                 if (name === "ui_navigate" && args?.page) navigate = String(args.page);
@@ -566,6 +639,12 @@ function withDeadline<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
 }
 
 function bigintSafe(_k: string, v: unknown) { return typeof v === "bigint" ? v.toString() : v; }
+
+/** Site (19/11) : une marque de citation du modèle (【…】), quelle que soit sa longueur, ou ouverte sans être refermée avant
+ *  la fin de la ligne ; le texte qui l'entoure reste. */
+export function stripCitationMarks(s: string): string {
+  return s.replace(/[ \t]?【[^】\n]*】/g, "").replace(/[ \t]?【[^】\n]*$/gm, "");
+}
 
 /** Texte final : secrets masqués, et marques de citation internes du modèle (【…†…】) retirées (les sources sont dans
  *  `citations`) ; espaces avant la ponctuation selon la typographie de la langue (une espace avant : ; ! ? en français,

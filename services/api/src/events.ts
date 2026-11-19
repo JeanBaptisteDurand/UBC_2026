@@ -53,6 +53,45 @@ export const EVENTS = parseAbi([
   "event ManifestURIUpdated(uint256 indexed productId, string manifestURI)",
 ]);
 
+/** 19/11 : les événements du SECOND index (server.ts, idxLevels) : la caution des opérateurs (OperatorBond) et les deux
+ *  niveaux (MachineRegistry, ProofOfCloudAuditor). La Prime au niveau vérifié (SealedBountyVerified, même code que
+ *  SealedBounty) émet les événements d'EVENTS. Gardés hors d'EVENTS : l'empreinte de l'index principal ne change pas
+ *  (pas de relecture de toute la chaîne au déploiement). */
+export const EVENTS_LEVELS = parseAbi([
+  "event Bonded(address indexed operator, uint256 amount)",
+  "event UnbondRequested(address indexed operator, uint256 amount, uint64 withdrawableAt)",
+  "event Withdrawn(address indexed operator, uint256 amount)",
+  "event ExposureConsumed(address indexed operator, uint256 indexed productId, uint256 amount)",
+  "event Slashed(address indexed operator, address indexed reporter, address victim, uint256 amount)",
+  "event BondReserved(address indexed operator, address indexed signer, uint256 amount)",
+  "event BondReleased(address indexed operator, address indexed signer, uint256 amount)",
+  "event SettlementProposed(address indexed settlement, uint64 applyAt)",
+  "event SettlementAuthorized(address indexed settlement)",
+  "event SettlementRemoved(address indexed settlement)",
+  "event AgentIdSet(address indexed operator, uint256 agentId)",
+  "event MachineBound(address indexed signer, bytes16 indexed ppid, bytes32 quoteHash)",
+  "event MachineAttested(address indexed auditor, bytes16 indexed ppid, uint64 expiresAt, string site, string evidence)",
+  "event MachineRevoked(address indexed auditor, bytes16 indexed ppid, string reason)",
+  "event PolicyProposed(uint256 indexed productId, uint8 minLevel, address[] auditors, uint64 applyAt)",
+  "event PolicyApplied(uint256 indexed productId, uint8 minLevel, address[] auditors)",
+  "event ProofOfCloudToken(bytes16 indexed ppid, uint64 timestamp, uint64 expiresAt, bytes32 quoteSha256, string label)",
+]);
+
+/** Les écritures qui accompagnent CHAQUE inscription et chaque règlement : réserve, libération et exposition de la caution,
+ *  et la liaison de l'enclave à la puce de sa machine (refaite à chaque renouvellement, toutes les quatre heures). Comptées
+ *  et lisibles, mais hors de /activity par défaut (?minor=1 les montre) : la fenêtre des 100 derniers événements reste
+ *  celle des faits (inscriptions, paiements, primes, verdicts, saisies).
+ *  19/11 (r2) : aussi les écritures d'administration des deux niveaux (déclarations de machines et jetons de l'alliance
+ *  Proof of Cloud, renouvelés par le registrar ; contrats de règlement autorisés par la caution ; politiques des
+ *  produits ; identité ERC-8004 d'un opérateur) : sans cela, elles poussaient hors de la fenêtre de 100 des faits plus
+ *  anciens que le site lit pour dire l'état des produits (inscriptions, invalidations, manifestes). Les primes, les
+ *  dépôts de caution (Bonded) et les saisies (Slashed) restent dans la fenêtre par défaut. */
+export const MINOR_EVENTS: ReadonlySet<string> = new Set([
+  "BondReserved", "BondReleased", "ExposureConsumed", "MachineBound",
+  "MachineAttested", "ProofOfCloudToken", "SettlementProposed", "SettlementAuthorized", "SettlementRemoved",
+  "PolicyProposed", "PolicyApplied", "AgentIdSet",
+]);
+
 // ---------------------------------------------------------------- libellés (/activity)
 
 const usdc = (v: unknown): string => {
@@ -62,6 +101,8 @@ const short = (h: unknown): string => {
   const s = String(h ?? "");
   return s.length > 14 ? `${s.slice(0, 8)}…${s.slice(-4)}` : s;
 };
+/** les primes au niveau vérifié (SealedBountyVerified) ont leurs propres numéros : le libellé le dit */
+const lvl = (e: Ev): string => (e.contract === "SealedBountyVerified" ? " (verified level)" : "");
 
 /** Le libellé anglais d'un événement indexé, d'après son nom et ses valeurs (contrat émetteur pour les homonymes). */
 const LABELS: Record<string, (a: Record<string, unknown>, e: Ev) => string> = {
@@ -80,16 +121,34 @@ const LABELS: Record<string, (a: Record<string, unknown>, e: Ev) => string> = {
   RequestHashSalted: () => "Verdict request hash was taken: written under a salted hash",
   EquivocationSlashed: (_a, e) => `Bond slashed for double signing (${e.contract})`,
   CallSettled: (a) => `Pay-per-call settled (x402): ${usdc(a.amount)} (product #${a.productId})`,
-  BountyCreated: (a) => `Bounty #${a.bountyId} posted (pool ${usdc(a.funding)})`,
-  BountyFunded: (a) => `Bounty #${a.bountyId} funded (${usdc(a.amount)})`,
-  ExploitDelivered: (a) => `Encrypted report delivered (bounty #${a.bountyId})`,
-  BountyPaid: (a) => `Bounty #${a.bountyId} paid to the hunter (${usdc(a.amount)})`,
-  RemainingWithdrawn: (a) => `Bounty #${a.bountyId} remainder withdrawn (${usdc(a.amount)})`,
-  ClaimAccepted: (a) => `Claim accepted (bounty #${a.bountyId}): payout reserved`,
-  ClaimRefuted: (a) => `Claim refuted (bounty #${a.bountyId})`,
-  BountyReopened: (a) => `Bounty #${a.bountyId} re-armed`,
-  BountyPauseSet: (a) => `Bounty #${a.bountyId} ${String(a.paused) === "true" ? "paused" : "resumed"}`,
-  UndeliveredCancelled: (a) => `Undelivered payout returned to the pool (bounty #${a.bountyId}, ${usdc(a.returned)})`,
+  BountyCreated: (a, e) => `Bounty #${a.bountyId}${lvl(e)} posted (pool ${usdc(a.funding)})`,
+  BountyFunded: (a, e) => `Bounty #${a.bountyId}${lvl(e)} funded (${usdc(a.amount)})`,
+  ExploitDelivered: (a, e) => `Encrypted report delivered (bounty #${a.bountyId}${lvl(e)})`,
+  BountyPaid: (a, e) => `Bounty #${a.bountyId}${lvl(e)} paid to the hunter (${usdc(a.amount)})`,
+  RemainingWithdrawn: (a, e) => `Bounty #${a.bountyId}${lvl(e)} remainder withdrawn (${usdc(a.amount)})`,
+  ClaimAccepted: (a, e) => `Claim accepted (bounty #${a.bountyId}${lvl(e)}): payout reserved`,
+  ClaimRefuted: (a, e) => `Claim refuted (bounty #${a.bountyId}${lvl(e)}): nothing paid`,
+  BountyReopened: (a, e) => `Bounty #${a.bountyId}${lvl(e)} re-armed`,
+  BountyPauseSet: (a, e) => `Bounty #${a.bountyId}${lvl(e)} ${String(a.paused) === "true" ? "paused" : "resumed"}`,
+  UndeliveredCancelled: (a, e) => `Undelivered payout returned to the pool (bounty #${a.bountyId}${lvl(e)}, ${usdc(a.returned)})`,
+  // 19/11 : la caution et les deux niveaux (second index)
+  Bonded: (a) => `Operator ${short(a.operator)} posted a bond (${usdc(a.amount)})`,
+  UnbondRequested: (a) => `Operator ${short(a.operator)} asked to withdraw ${usdc(a.amount)} of bond`,
+  Withdrawn: (a) => `Operator ${short(a.operator)} withdrew ${usdc(a.amount)} of bond`,
+  ExposureConsumed: (a) => `Operator exposure used on product #${a.productId} (${usdc(a.amount)})`,
+  Slashed: (a) => `Bond seized from operator ${short(a.operator)}: ${usdc(a.amount)}`,
+  BondReserved: (a) => `Bond reserved for enclave ${short(a.signer)} (${usdc(a.amount)})`,
+  BondReleased: (a) => `Bond released for enclave ${short(a.signer)} (${usdc(a.amount)})`,
+  SettlementProposed: (a) => `Settlement contract ${short(a.settlement)} proposed for operator bonds`,
+  SettlementAuthorized: (a) => `Settlement contract ${short(a.settlement)} allowed to use operator bonds`,
+  SettlementRemoved: (a) => `Settlement contract ${short(a.settlement)} removed from operator bonds`,
+  AgentIdSet: (a) => `Operator ${short(a.operator)} linked to ERC-8004 agent ${a.agentId}`,
+  MachineBound: (a) => `Enclave ${short(a.signer)} tied to its machine's chip (PPID ${short(a.ppid)})`,
+  MachineAttested: (a) => `Machine ${short(a.ppid)} declared in a known datacenter (${String(a.site ?? "")})`,
+  MachineRevoked: (a) => `Machine ${short(a.ppid)} declaration revoked`,
+  PolicyProposed: (a) => `Product #${a.productId} level policy proposed`,
+  PolicyApplied: (a) => `Product #${a.productId} level policy applied (${String(a.minLevel) === "1" ? "verified" : "open"} level)`,
+  ProofOfCloudToken: (a) => `Proof of Cloud token checked on Arc for machine ${short(a.ppid)}`,
   Credited: (a) => `Payout credited (transfer refused): ${usdc(a.amount)}`,
   ProductProposed: (a) => `Product #${a.productId} proposed`,
   ProductActivated: (a) => `Product #${a.productId} activated`,

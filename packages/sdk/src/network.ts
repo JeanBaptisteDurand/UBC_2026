@@ -17,9 +17,8 @@ export const arcTestnet = defineChain({
 });
 
 export interface Deployment {
-  /** "v2" : pile v2 (registre branché sur le vrai module DCAP, sessions liées à une enclave, prime en deux temps) ;
-   *  "v1" : première pile (module d'attestation de test), gardée pour l'historique. */
-  version: "v1" | "v2";
+  /** "v2" : pile v2 et suivantes (registre branché sur le vrai module DCAP, sessions liées à une enclave, prime en deux temps). */
+  version: "v2";
   chainId: number;
   deployBlock: bigint; // borne basse pour lire les events (getLogs)
   blockscoutUrl?: string; // indexeur d'events (le RPC public plafonne getLogs) — la « hive » lit ici
@@ -28,7 +27,7 @@ export interface Deployment {
   /** Registre d'identité ERC-8004 (propriété des agentId ; OperatorBond.setAgentId exige d'en être propriétaire). */
   erc8004Identity: Address;
   history: Address;
-  /** Module d'attestation du registre : v2 = TdxAttestationModule (DCAP d'Automata) ; v1 = MockAttestationModule. */
+  /** Module d'attestation du registre : TdxAttestationModule (DCAP d'Automata). */
   attestationModule: Address;
   /** v2 : le vérificateur DCAP d'Automata appelé par le module (AutomataDcapAttestationFee). */
   dcapAttestation?: Address;
@@ -127,31 +126,6 @@ export const testnetV2: Deployment = {
   attestation: "dcap",
 };
 
-/** Pile v1 sur Arc testnet (deployments.testnet.json, 3/11), gardée pour l'historique (sessions et primes passées) :
- *  son registre utilise un module d'attestation de TEST (mesures déclarées, signature d'Intel non vérifiée). Les ABI
- *  du SDK sont celles de la v2 : pour la v1, seules les lectures communes aux deux piles sont sûres. */
-export const testnetV1: Deployment = {
-  version: "v1",
-  chainId: ARC_TESTNET_ID,
-  deployBlock: 70523000n,
-  blockscoutUrl: "https://explorer.testnet.arc.io",
-  usdc: "0x3600000000000000000000000000000000000000",
-  erc8004Validation: "0x8004Cb1BF31DAf7788923b405b754f57acEB4272",
-  erc8004Identity: "0x8004A818BFB912233c491871b3d84c89A494BD9e",
-  history: "0x0000F90827F1C53a10cb7A02335B175320002935",
-  attestationModule: "0x408035F0E84D1e84BA0582d07968d96128524158",
-  productRegistry: "0x0C1634bE7ba6b9615990BADD53De650A90EBb547",
-  operatorBond: "0xb1a198E58dC5706969f80Dd40Cf111e36871de95",
-  enclaveRegistry: "0x741788700D44dA802D579ECD2Aec27878711aeAA",
-  verdictLog: "0x5BfBd5A4c504732fC4EBA27792D8808E1b7A1A68",
-  sessionPay: "0xED501a02a14048118F2ecC21f25D6993707641c7",
-  sealedBounty: "0xAF5055e8559b96f9CE1a09A310a7c7C8dE143310",
-  x402Settler: "0x1FFf7a34d7a3F8562fD3400f05CCbf7BD575E7B9",
-  demoVault: "0xf217A8d61f90B47401216223dab69cfe3cCc1b27",
-  products: { inference: 6n, bounty: 7n },
-  attestation: "dev",
-};
-
 /**
  * Un fichier de déploiement (deployments.*.testnet.json : { chainId, deployBlock, external: { USDC, … }, contracts:
  * { EnclaveRegistry, … }, treasury, products: { "1": { settlement: "SessionPay" }, … } }) → Deployment. Sert à brancher un
@@ -240,5 +214,6 @@ export const SETTLE_GRACE_SECONDS = 3600;
 export const ENCLAVE_EXPIRY_MARGIN_SECONDS = 60;
 /** SealedBounty.MAX_SIGS : au plus 5 signatures (donc k ≤ 5). */
 export const BOUNTY_MAX_SIGS = 5;
-/** Gaz d'une inscription par le vrai DCAP (vérification du quote + politique), mesuré sur Arc testnet : ≈ 5,7 M. */
-export const DCAP_REGISTER_GAS_ESTIMATE = 5_700_000n;
+/** Gaz d'une inscription par le vrai DCAP (vérification du quote, rejeu du journal RTMR3, politique), mesuré sur Arc
+ *  testnet (pile v2.1) : 6 849 014 à 6 866 126. */
+export const DCAP_REGISTER_GAS_ESTIMATE = 6_860_000n;

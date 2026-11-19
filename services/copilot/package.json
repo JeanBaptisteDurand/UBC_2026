@@ -5,7 +5,7 @@
   "scripts": {
     "start": "tsx --env-file=.env src/server.ts",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test test/secrets.test.ts test/guard.test.ts test/net-guard.test.ts test/enclave-probe.test.ts test/archive-api.test.ts test/app.test.ts test/i18n.test.ts test/enclave.test.ts test/console-pin.test.ts test/site.test.ts",
+    "test": "tsx --test test/secrets.test.ts test/guard.test.ts test/net-guard.test.ts test/enclave-probe.test.ts test/archive-api.test.ts test/app.test.ts test/i18n.test.ts test/enclave.test.ts test/console-pin.test.ts test/site.test.ts test/enclave-site.test.ts test/site-live.test.ts",
     "start:enclave": "tsx src/enclave-server.ts",
     "test:live": "LIVE=1 tsx --test test/live.test.ts"
   },

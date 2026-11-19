@@ -22,6 +22,7 @@ import { openAiLlm } from "./llm";
 import { parseOrigins } from "./guard";
 import { archiveBase } from "./archive-api";
 import { SITE_DISPLAY, SITE_SURFACE, SITE_TOOL_DEFS, SITE_UI_PARAGRAPH, executeSiteTool } from "./site";
+import { createLiveNote } from "./site-live";
 
 /** L'invite système (en français ; la consigne de langue est ajoutée à la fin de chaque requête), en trois parties : le
  *  début (rôle, règles, parcours), le paragraphe qui pilote l'interface (console ou site), l'état de la vérification. */
@@ -131,8 +132,9 @@ export function copilotFromEnv(o: { deployment?: Deployment; deploymentSource?: 
       ...(site ? { surface: "site" } : {}),
     },
     secrets: key ? [key] : [], // la clé du modèle ne sort jamais : ni vers le visiteur, ni vers le modèle, ni au journal
-    // site : outils d'interface validés dans la boucle, contexte de page, consigne de langue du site
-    ...(site ? { site: SITE_SURFACE } : {}),
+    // site : outils d'interface validés dans la boucle, contexte de page, consigne de langue du site ; 19/11 : l'état du
+    // réseau lu à chaque réponse (site-live.ts : enclaves actives, niveaux, primes des deux niveaux)
+    ...(site ? { site: { ...SITE_SURFACE, liveNote: createLiveNote({ arc: ctx.arc }) } } : {}),
   };
   const banner = `modèle=${MODEL}  clé=${key ? "oui" : "NON"}  origines=${allowedOrigins.join(",")}  débit=${rate.perMinute}/min ${rate.perDay}/jour par IP, ${rate.globalPerDay || "∞"}/jour au total  max_tokens=${caps.maxTokensPerCall}  historique≤${caps.maxToolCharsPerRequest} car./requête  entrée≤${caps.maxInputCharsPerRequest} car. et ≤${caps.maxInputTokensPerRequest} jetons estimés/requête  listes=${archiveBase()}  pile=${dep.source}${site ? "  surface=site" : ""}`;
   return { options, port: PORT, model: MODEL, provider: BASE_URL ?? "openai", hasKey: !!key, deploymentSource: dep.source, surface, banner };

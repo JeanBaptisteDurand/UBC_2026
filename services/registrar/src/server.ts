@@ -179,20 +179,41 @@ const SETTLE_MIN = BigInt(process.env.SETTLE_MIN_MICRO_USDC ?? "20000"); // 0,02
 const SETTLE_BEFORE_END_S = BigInt(process.env.SETTLE_BEFORE_END_S ?? "1800");
 const opened = parseAbiItem("event SessionOpened(uint256 indexed sessionId, address indexed owner, uint256 indexed productId, uint256 deposit)");
 const sessionIds = new Set<bigint>();
-let scannedTo = D.deployBlock - 1n;
+// 19/11 : le relevé partait du bloc de déploiement (≈ 1,46 M blocs, ≈ 300 getLogs d'affilée) : le RPC public d'Arc limitait
+// le débit (HTTP 429) avant la fin, à chaque passage, et AUCUNE session n'était réglée. Une session ne paie que les reçus de
+// l'enclave liée à son ouverture, alors active : rien de ce que l'enclave servie ici peut régler n'a été ouvert avant le début
+// de sa fenêtre (fromBlock, gardé par les renouvellements sans trou). Le relevé part donc de là (SESSION_SCAN_FROM_BLOCK force
+// un autre départ ; jamais avant le déploiement), sans rafale (SESSION_SCAN_PAUSE_MS entre deux pages) ; la progression reste.
+let scannedTo: bigint | undefined;
+const SCAN_PAUSE_MS = Number(process.env.SESSION_SCAN_PAUSE_MS ?? "300");
 
-async function scanSessions() {
-  const head = await pub.getBlockNumber();
-  while (scannedTo < head) {
-    const from = scannedTo + 1n, to = from + 4_999n > head ? head : from + 4_999n;
-    const logs = await pub.getLogs({ address: D.sessionPay, event: opened, args: { productId: PRODUCT_ID }, fromBlock: from, toBlock: to });
-    for (const l of logs) sessionIds.add(l.args.sessionId!);
-    scannedTo = to;
-  }
+async function scanStart(signer: Address): Promise<bigint> {
+  const forced = process.env.SESSION_SCAN_FROM_BLOCK;
+  const from = forced ? BigInt(forced) : BigInt((await arc.getEnclave(signer))?.fromBlock ?? 0);
+  return from > D.deployBlock ? from : D.deployBlock;
 }
 
-async function settleSessions() {
-  await scanSessions();
+async function scanSessions(signer: Address) {
+  let at: bigint;
+  if (scannedTo === undefined) {
+    const start = await scanStart(signer);
+    console.log(`[${now()}] sessions : relevé des ouvertures depuis le bloc ${start}`);
+    at = start - 1n;
+  } else at = scannedTo;
+  const head = await pub.getBlockNumber();
+  while (at < head) {
+    const from = at + 1n, to = from + 4_999n > head ? head : from + 4_999n;
+    const logs = await pub.getLogs({ address: D.sessionPay, event: opened, args: { productId: PRODUCT_ID }, fromBlock: from, toBlock: to });
+    for (const l of logs) sessionIds.add(l.args.sessionId!);
+    at = to;
+    scannedTo = at;
+    if (at < head && SCAN_PAUSE_MS > 0) await sleep(SCAN_PAUSE_MS);
+  }
+  scannedTo = at;
+}
+
+async function settleSessions(signer: Address) {
+  await scanSessions(signer);
   const nowS = BigInt(Math.floor(Date.now() / 1000));
   for (const id of [...sessionIds]) {
     const s = await arc.getSession(id) as any;
@@ -273,7 +294,7 @@ async function loop() {
       await retirePrevious(signer).catch((e) => console.error(`[${now()}] retrait de l'ancienne clé impossible :`, explainArcError(e)));
       if (SETTLE) {
         const k = await settlementKind().catch(() => undefined);
-        if (k === "session") await settleSessions().catch((e) => console.error(`[${now()}] règlement automatique impossible :`, explainArcError(e)));
+        if (k === "session") await settleSessions(fresh?.signer ?? signer).catch((e) => console.error(`[${now()}] règlement automatique impossible :`, explainArcError(e)));
       }
       lastSigner = signer;
     } catch (e) {

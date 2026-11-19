@@ -183,8 +183,9 @@ export type ErrorCode =
   // appairage, machines, clés
   | "code_unknown" | "pair_already_approved" | "pair_already_yours" | "device_code_unknown" | "machine_unknown_for_key"
   | "machine_unknown" | "machine_not_found" | "key_not_found"
-  // lecture (server.ts) et imprévu
-  | "receipt_expected" | "receipt_unreadable" | "signature_unreadable" | "internal_error" | "server_error";
+  // lecture (server.ts) et imprévu ; 19/11 : paramètres de lecture refusés, produit ou enclave inconnus, route inconnue
+  | "receipt_expected" | "receipt_unreadable" | "signature_unreadable" | "internal_error" | "server_error"
+  | "invalid_param" | "unknown_param" | "unknown_product" | "unknown_enclave" | "not_found";
 type Params = Record<string, string | number | boolean>;
 export class HttpError extends Error {
   readonly retryAfter?: number;

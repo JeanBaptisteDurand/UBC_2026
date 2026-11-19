@@ -9,14 +9,19 @@
  *   5. /attest, /pubkeys et /health publics ; POST /chat (en clair ou chiffré) seulement avec le jeton du mandataire du
  *      site (COPILOT_PROXY_TOKEN, en-tête x-archive-proxy-token), qui seul fait croire X-Forwarded-For (débit par IP).
  *  Aucun secret au journal : ni la clé du modèle (OPENAI_API_KEY, variable chiffrée), ni le jeton du mandataire, ni la
- *  conversation. */
+ *  conversation.
+ *  18/11 : COPILOT_SURFACE=site (mesurée) : le copilote du PANNEAU DU SITE (enclave-site.ts) : même invite, mêmes outils
+ *  d'interface et prepare que le copilote du site sur le serveur, sa propre note « où tu tournes » (juste en TDX comme
+ *  hors TDX), une invite contrôlée (aucune phrase du serveur, sinon refus de démarrer) et des réponses scellées SIGNÉES
+ *  par la clé de l'enclave (champ sig, vérifié par le panneau). Sans la variable : la console, comme avant. */
 import { serve } from "@hono/node-server";
 import { EnclaveKit } from "../../../enclave/src/kit/enclave-kit";
 import { RpcQuorum } from "../../../enclave/src/kit/rpc-quorum";
 import { createDstackClient } from "../../../enclave/src/kit/dstack";
 import { copilotFromEnv } from "./copilot";
 import { readCopilotEnclaveConfig } from "./enclave-config";
-import { createCopilotEnclaveApp, enclaveSystemNote } from "./enclave-app";
+import { createCopilotEnclaveApp, enclaveSystemNote, type EnclaveFacts } from "./enclave-app";
+import { SITE_REPLY_TAG, siteEnclaveOptions } from "./enclave-site";
 import { stripProviderDebug } from "./llm";
 import { AttestedModel, composeHashesFromEnv, modelAttestationBody, osImagesFromEnv } from "../../../enclave/src/services/model-attestation";
 
@@ -41,23 +46,26 @@ async function main() {
     throw new Error("MODEL_ATTESTATION : « aci » ou « none »");
   }
   const c = copilotFromEnv({ deployment: cfg.deployment, deploymentSource: cfg.deploymentsPath, ...(attested ? { fetch: attested.fetch } : {}) });
+  // la même variable lue deux fois (configuration validée, puis copilotFromEnv) : jamais deux surfaces différentes
+  if (c.surface !== cfg.surface) throw new Error(`COPILOT_SURFACE : ${cfg.surface} validée, ${c.surface} montée`);
+  const site = cfg.surface === "site";
   const enclave = {
     signer: kit.keys.signer, x25519: kit.keys.x25519PublicKey, productId: cfg.productId.toString(), chainId: cfg.chainId,
     registry: cfg.registry, quote: dstack ? "tdx" : "mock",
   };
+  const facts: EnclaveFacts = {
+    signer: kit.keys.signer, productId: cfg.productId, chainId: cfg.chainId, registry: cfg.registry,
+    model: c.model, provider: c.provider, mock: !dstack,
+    ...(attested ? { modelAttested: { origin: attested.status().gatewayOrigin, composeHash: attested.status().composeHash } } : {}),
+  };
+  const base = { ...c.options, health: { ...c.options.health, enclave } };
   const app = createCopilotEnclaveApp({
     kit,
-    copilot: {
-      ...c.options,
-      health: { ...c.options.health, enclave },
-      systemNote: enclaveSystemNote({
-        signer: kit.keys.signer, productId: cfg.productId, chainId: cfg.chainId, registry: cfg.registry,
-        model: c.model, provider: c.provider, mock: !dstack,
-        ...(attested ? { modelAttested: { origin: attested.status().gatewayOrigin, composeHash: attested.status().composeHash } } : {}),
-      }),
-    },
+    // site : invite contrôlée (aucune phrase du serveur), note de l'enclave, /health qui dit où il tourne ; console : inchangé
+    copilot: site ? siteEnclaveOptions(base, facts) : { ...base, systemNote: enclaveSystemNote(facts) },
     proxyToken: cfg.proxyToken,
     attest: { operatorAllowlist: cfg.operatorAllowlist },
+    signReplies: site,
   });
 
   // public : ce que l'enclave a vérifié du fournisseur du modèle (11/11)
@@ -68,7 +76,8 @@ async function main() {
   serve({ fetch: (req, env) => modelAttestation(req) ?? app.fetch(req, env), port: cfg.port, hostname: "0.0.0.0" });
   console.log(
     `copilote en enclave sur http://0.0.0.0:${cfg.port}  signer=${kit.keys.signer}  x25519=${kit.keys.x25519PublicKey}  ` +
-      `produit=${cfg.productId}  registre=${cfg.registry}  quorum=${cfg.rpcUrls.length} RPC  /chat : jeton du mandataire exigé  ${c.banner}`,
+      `produit=${cfg.productId}  registre=${cfg.registry}  quorum=${cfg.rpcUrls.length} RPC  /chat : jeton du mandataire exigé  ` +
+      `${site ? `surface=site, réponses scellées signées (${SITE_REPLY_TAG})  ` : ""}${c.banner}`,
   );
 }
 
