@@ -12,6 +12,7 @@ import { G, SLOTS, NSLOTS, slotLabel, productLabel, priceText, reasonText, state
 import { onTick, REDUCED, getLenis, step } from '../clock'
 import { openService, slotHref } from './ServicePanel'
 import { MainNav } from './MainNav'
+import { useMenu, MenuButton, Drawer } from './Menu'
 import { HeaderWallet } from '../network/actions/HeaderWallet'
 import '../network/actions/actions.css'
 import { progress, ORDER } from '../story'
@@ -37,7 +38,7 @@ const amberNow = () => document.documentElement.dataset.amber === '1' || (stageE
 
 export function Header({ loaded }: { loaded: number | (() => number) }) {
   const lang = useLang()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useMenu()
   const block = useLive((s) => s.block)
   const stats = useLive((s) => s.stats)
   const activity = useLive((s) => s.activity)
@@ -76,7 +77,7 @@ export function Header({ loaded }: { loaded: number | (() => number) }) {
           <button className="lang" onClick={() => setLang(lang === 'fr' ? 'en' : 'fr')} lang={lang === 'fr' ? 'en' : 'fr'} aria-label={t('lang.to')}>{lang === 'fr' ? 'EN' : 'FR'}</button>
           {/* the visitor's wallet, as on the app pages */}
           <HeaderWallet />
-          <button className="menu-btn" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? t('nav.close') : t('nav.menu')}</button>
+          <MenuButton open={open} set={setOpen} />
         </div>
       </div>
       <div className="hd-row2 lbl" aria-live="off">
@@ -87,7 +88,7 @@ export function Header({ loaded }: { loaded: number | (() => number) }) {
         <span className="band-sec"><span ref={sec} className="sec-n">{t('sec.hero')}</span><span className="prog-pct mono tnum" ref={pct} aria-hidden="true">{lang === 'fr' ? '0\u00a0%' : '0%'}</span></span>
       </div>
       <div className="prog" aria-hidden="true"><div className="prog-bar" ref={bar} /></div>
-      {open ? <nav className="hd-drawer" aria-label={t('nav.main')}>{nav}</nav> : null}
+      {open ? <Drawer nav={nav} close={() => setOpen(false)} /> : null}
       <SelLayer />
     </header>
   )
@@ -123,14 +124,24 @@ export function usePointer() {
       P.overUi = overUi(e.target as Element | null)
     }
     const lv = () => { P.inside = false }
-    // touch: a tap on a slot locks it at once; elsewhere, it releases
+    // touch: a tap on a slot locks it; elsewhere, it releases. A tap, not a press: the lock waits for the finger to
+    // lift within 8 px of where it landed, so a swipe that starts on the wall scrolls the page without flashing a card
+    // (the browser cancels the pointer when the touch becomes a scroll)
+    let tap: { x: number; y: number; id: number } | null = null
     const down = (e: PointerEvent) => {
       mv(e)
-      if (e.pointerType !== 'touch') return
+      if (e.pointerType === 'touch') tap = { x: e.clientX, y: e.clientY, id: e.pointerId }
+    }
+    const up = (e: PointerEvent) => {
+      if (e.pointerType !== 'touch' || !tap || e.pointerId !== tap.id) return
+      const t0 = tap
+      tap = null
+      if (Math.hypot(e.clientX - t0.x, e.clientY - t0.y) > 8) return
       if ((e.target as Element)?.closest('.fiche')) return
       const i = !overUi(e.target as Element) && canPickNow() && world.pick ? world.pick(e.clientX, e.clientY) : -1
       setLock(i >= 0 && i !== world.lock ? i : -1)
     }
+    const cancel = (e: PointerEvent) => { if (tap && e.pointerId === tap.id) tap = null }
     // click on a slot: its service opens in place, the page does not scroll; elsewhere (outside the card), release
     const click = (e: MouseEvent) => {
       if ((e as PointerEvent).pointerType === 'touch') return
@@ -143,6 +154,8 @@ export function usePointer() {
     const key = (e: KeyboardEvent) => { if (e.key === 'Escape' && world.lock >= 0 && !world.svc.open) { setLock(-1); world.arming = 0; (document.activeElement as HTMLElement)?.blur?.() } }
     addEventListener('pointermove', mv, { passive: true })
     addEventListener('pointerdown', down, { passive: true })
+    addEventListener('pointerup', up, { passive: true })
+    addEventListener('pointercancel', cancel, { passive: true })
     addEventListener('click', click)
     addEventListener('keydown', key)
     document.documentElement.addEventListener('pointerleave', lv)
@@ -184,7 +197,7 @@ export function usePointer() {
       const r = world.lock >= 0 ? world.rects.get(world.lock) : null
       if (world.lock >= 0 && ((r && !r.vis) || !world.frontal)) setLock(-1)
     })
-    return () => { off(); removeEventListener('pointermove', mv); removeEventListener('pointerdown', down); removeEventListener('click', click); removeEventListener('keydown', key); document.documentElement.removeEventListener('pointerleave', lv) }
+    return () => { off(); removeEventListener('pointermove', mv); removeEventListener('pointerdown', down); removeEventListener('pointerup', up); removeEventListener('pointercancel', cancel); removeEventListener('click', click); removeEventListener('keydown', key); document.documentElement.removeEventListener('pointerleave', lv) }
   }, [])
 }
 
@@ -342,6 +355,10 @@ export function Cursor() {
 // On release, the card folds in 280 ms and the leader line retracts towards the slot in the same movement
 // (same duration, same curve); the content stays that of the slot during the fold.
 const CLOSE_MS = 240
+/** Phone layout (styles.css, 760 px): the card is a sheet placed by the stylesheet, with no leader line */
+const SHEET_MQ = typeof matchMedia === 'function' ? matchMedia('(max-width: 760px)') : null
+/** Landscape phones (a screen under 500 px tall): no room above or below a slot, the card stays beside it */
+const SHORT_MQ = typeof matchMedia === 'function' ? matchMedia('(max-height: 500px) and (orientation: landscape)') : null
 export function Fiche() {
   const lang = useLang()
   useWallVersion()
@@ -356,9 +373,10 @@ export function Fiche() {
   const bounties = useLive((s) => s.bounties)
   const box = useRef<HTMLDivElement>(null)
   const lead = useRef<HTMLDivElement>(null)
+  const safe = useRef<HTMLDivElement>(null)
   useEffect(() => {
     // the leader line: geometry kept from the last locked slot, scale 0 to 1 on the card curve
-    const L = { k: 0, from: 0, t0: 0, dir: 0, x: 0, y: 0, w: 0, h: 1, side: 1 as number }
+    const L = { k: 0, from: 0, t0: 0, dir: 0, x: 0, y: 0, w: 0, h: 1, side: 1 as number, ok: true }
     const ease = (x: number) => 1 - Math.pow(1 - x, 3)
     return onTick(() => {
       // keyboard: the focused mirror button sits exactly on the slot (visible focus, to the pixel)
@@ -370,37 +388,55 @@ export function Fiche() {
       const b = box.current, l = lead.current
       if (!b || !l) return
       const now = performance.now()
-      const want = world.lock >= 0 && innerWidth >= 760 ? 1 : 0
+      const sheet = SHEET_MQ ? SHEET_MQ.matches : innerWidth <= 760
+      const want = world.lock >= 0 && !sheet ? 1 : 0
       if (want !== L.dir) { L.from = L.k; L.dir = want; L.t0 = now }
       const u = Math.min(1, (now - L.t0) / (want ? 600 : CLOSE_MS))
       L.k = L.from + (want - L.from) * ease(u)
       const r = world.lock >= 0 ? world.rects.get(world.lock) : null
       if (r && world.lock >= 0) {
-        if (innerWidth < 760) { b.style.transform = ''; l.style.opacity = '0'; return }
+        if (sheet) { b.style.transform = ''; l.style.opacity = '0'; return }
         const w = b.offsetWidth, h = b.offsetHeight
+        // the card never goes over the header (its Menu stays in reach) nor past the bottom of the screen
+        const hdB = document.querySelector<HTMLElement>('.hd')?.getBoundingClientRect().bottom ?? 85
+        const short = !!SHORT_MQ?.matches
         // right of the slot if there is room, otherwise left (outside the text column), otherwise below or above,
-// aligned on its left edge: the card never covers the framed slot
-        const minX = innerWidth * 0.4
-        let x = r.x + r.w + 40, y = Math.max(96, Math.min(innerHeight - h - 24, r.y + r.h / 2 - 28))
+// aligned on its left edge: the card never covers the framed slot. A landscape phone has no room above or below a
+// slot: the card stays beside it, on the side with more room, over the text column if needed
+        // the notch of a landscape iPhone (viewport-fit=cover): the card keeps clear of it, read from a probe at the
+        // safe-area edges
+        const sb = short ? safe.current?.getBoundingClientRect() : null
+        const sl = Math.max(16, (sb?.left ?? 0) + 8), sr = Math.max(16, innerWidth - (sb?.right ?? innerWidth) + 8)
+        const minX = short ? sl : innerWidth * 0.4
+        let x = r.x + r.w + 40, y = r.y + r.h / 2 - 28
         let side = 1
-        if (x + w > innerWidth - 24) { x = r.x - 40 - w; side = -1 }
+        if (x + w > innerWidth - (short ? sr : 24)) { x = r.x - 40 - w; side = -1 }
         if (side < 0 && x < minX) {
-          side = 0
-          x = Math.max(minX, Math.min(innerWidth - 24 - w, r.x))
-          y = r.y + r.h + 24 + h < innerHeight - 16 ? r.y + r.h + 24 : r.y - 24 - h
+          if (short) {
+            side = innerWidth - (r.x + r.w) > r.x ? 1 : -1
+            x = side > 0 ? Math.min(r.x + r.w + 24, innerWidth - sr - w) : Math.max(sl, r.x - 24 - w)
+          } else {
+            side = 0
+            x = Math.max(minX, Math.min(innerWidth - 24 - w, r.x))
+            y = r.y + r.h + 24 + h < innerHeight - 16 ? r.y + r.h + 24 : r.y - 24 - h
+          }
         }
+        y = Math.max(short ? hdB + 8 : Math.max(96, hdB + 8), Math.min(innerHeight - h - (short ? 8 : 24), y))
         b.style.transform = `translate3d(${x.toFixed(0)}px, ${y.toFixed(0)}px, 0)`
         L.side = side
         if (b.dataset.side !== String(side)) b.dataset.side = String(side)
         if (side) {
           const lx0 = side > 0 ? r.x + r.w : x + w, lx1 = side > 0 ? x : r.x
-          L.x = Math.min(lx0, lx1); L.y = r.y + r.h / 2; L.w = Math.abs(lx1 - lx0); L.h = 1
+          L.x = Math.min(lx0, lx1); L.y = r.y + r.h / 2; L.w = Math.max(0, lx1 - lx0); L.h = 1
+          // a card held on screen away from its slot's height: no line that would end beside it
+          L.ok = L.y > y + 6 && L.y < y + h - 6 && L.w > 0
         } else {
           const ya = y > r.y ? r.y + r.h : y + h, yb = y > r.y ? y : r.y
           L.x = x + 24; L.y = ya; L.w = 1; L.h = Math.max(0, yb - ya)
+          L.ok = L.h > 0
         }
       }
-      if (L.k < 0.002) { if (l.style.opacity !== '0') l.style.opacity = '0'; return }
+      if (L.k < 0.002 || !L.ok) { if (l.style.opacity !== '0') l.style.opacity = '0'; return }
       // the retraction starts from the card and ends in the slot (origin on the slot side)
       l.style.opacity = '1'
       l.style.width = `${L.w.toFixed(0)}px`; l.style.height = `${L.h.toFixed(0)}px`
@@ -430,18 +466,24 @@ export function Fiche() {
   return (
     <>
       <div className="fiche-lead" ref={lead} aria-hidden="true" />
+      <div className="fi-safe" ref={safe} aria-hidden="true" />
       <div className={`fiche ${lock >= 0 ? 'on' : ''}`} ref={box} data-front-free role="dialog" aria-label={cur >= 0 ? `${slotLabel(cur)}, ${name}` : undefined} hidden={cur < 0} inert={lock < 0 ? true : undefined} data-ui>
-        <div className="fi-head lbl"><span className="mono">{cur >= 0 ? slotLabel(cur) : ''}</span><span className={`fi-st st-${led}`}><i />{stateText(sl, amber)}</span></div>
-        <p className="fi-t">{name}</p>
-        {!e ? <p className="fi-s">{t('card.empty')}</p> : null}
-        {amber && world.wall.replayBlock ? <p className="fi-s">{t('publish.replay', { s: name, b: num(world.wall.replayBlock, lang) ?? '' })}</p> : null}
-        <dl className="fi-dl">{rows.map(([k, v]) => <div key={k}><dt className="lbl">{k}</dt><dd className="mono">{v}</dd></div>)}</dl>
+        {/* the body scrolls inside the card on a short screen; the buttons below always stay in view */}
+        <div className="fi-body">
+          <div className="fi-head lbl"><span className="mono">{cur >= 0 ? slotLabel(cur) : ''}</span><span className={`fi-st st-${led}`}><i />{stateText(sl, amber)}</span></div>
+          <p className="fi-t">{name}</p>
+          {!e ? <p className="fi-s">{t('card.empty')}</p> : null}
+          {amber && world.wall.replayBlock ? <p className="fi-s">{t('publish.replay', { s: name, b: num(world.wall.replayBlock, lang) ?? '' })}</p> : null}
+          <dl className="fi-dl">{rows.map(([k, v]) => <div key={k}><dt className="lbl">{k}</dt><dd className="mono">{v}</dd></div>)}</dl>
+        </div>
         <div className="fi-foot">
           {/* renting out a machine only on a free slot; an occupied slot without a read product has no button */}
           {e && pr
             ? <a className="btn btn-main btn-s" href={cur >= 0 ? slotHref(cur) : '#'} onClick={open} data-slot="OPEN SERVICE"><span>{t('card.open')}</span></a>
             : !e ? <a className="btn btn-line btn-s" href={link.rent}><span>{t('card.rent')}</span></a> : null}
           <span className="lbl muted fi-esc no-touch">{t('card.esc')}</span>
+          {/* touch screens have no Escape key: the card closes here (or by tapping elsewhere) */}
+          <button type="button" className="svc-x fi-x" onClick={() => setLock(-1)}>{t('nav.close')}</button>
         </div>
       </div>
     </>
@@ -496,21 +538,36 @@ export function WallMirror() {
 }
 
 // ---------------- the three buttons that move down ----------------
+// kind: their style docked in their section; home: their style in the hero (Use is the main action there too)
 export const CTAS = [
-  { k: 'use', href: networkFor('use'), label: 'cta.use', kind: 'btn-main' },
-  { k: 'rent', href: networkFor('rent'), label: 'cta.rent', kind: 'btn-line' },
-  { k: 'publish', href: networkFor('publish'), label: 'cta.publish', kind: 'btn-line' },
+  { k: 'use', href: networkFor('use'), label: 'cta.use', kind: 'btn-main', home: 'btn-main' },
+  { k: 'rent', href: networkFor('rent'), label: 'cta.rent', kind: 'btn-line', home: 'btn-line' },
+  { k: 'publish', href: networkFor('publish'), label: 'cta.publish', kind: 'btn-line', home: 'btn-line' },
 ] as const
 export const carryOn = () => innerWidth >= 1100 && !REDUCED
 
-/** The button in its place (hero, section): rendered for real when the path is cut (mobile, reduced motion) */
+/** The button in its place (hero, section): rendered for real when the path is cut (mobile, reduced motion). When the
+ *  carried copy is drawn over it (Carrier, below), the place itself stays the link that the keyboard and screen readers
+ *  use, in the order of the page: invisible, never under the pointer (the carried copy takes the clicks), and shown
+ *  with a clear ring while it has the focus. The carried copies are hidden from both (they sit in a fixed layer after
+ *  the footer, and could be thousands of pixels off screen when tabbed to). */
 export function Slot({ k, home }: { k: (typeof CTAS)[number]['k']; home?: boolean }) {
   useLang()
   const c = CTAS.find((x) => x.k === k)!
   const [carry, setCarry] = useState(carryOn)
+  const [focus, setFocus] = useState(false)
   useEffect(() => { const r = () => setCarry(carryOn()); addEventListener('resize', r); return () => removeEventListener('resize', r) }, [])
-  if (carry) return <span className={`btn-slot ${c.kind}`} data-home={home ? k : undefined} data-dock={home ? undefined : k} aria-hidden="true"><span>{t(c.label)}</span></span>
-  return <a className={`btn ${c.kind}`} href={c.href} data-slot={k.toUpperCase()}><span>{t(c.label)}</span></a>
+  const kind = home ? c.home : c.kind
+  if (carry) {
+    return (
+      <a className={`btn-slot ${kind}`} href={c.href} data-home={home ? k : undefined} data-dock={home ? undefined : k}
+        style={{ visibility: 'visible', opacity: focus ? 1 : 0, pointerEvents: 'none', ...(focus ? { outline: '2px solid rgb(143 198 255)', outlineOffset: '4px' } : {}) }}
+        onFocus={() => setFocus(true)} onBlur={() => setFocus(false)}>
+        <span>{t(c.label)}</span>
+      </a>
+    )
+  }
+  return <a className={`btn ${kind}`} href={c.href} data-slot={k.toUpperCase()}><span>{t(c.label)}</span></a>
 }
 
 export function Carrier() {
@@ -590,7 +647,7 @@ export function Carrier() {
         el.dataset.state = atHome ? 'home' : isDock ? 'dock' : 'carry'
         // colour by role: in the hero each button keeps its own style; docked on its section it is the main action
         // (white), carried along it stays secondary (grey)
-        const cls = `btn ${atHome ? CTAS[j].kind : isDock ? 'btn-main' : 'btn-line'}`
+        const cls = `btn ${atHome ? CTAS[j].home : isDock ? 'btn-main' : 'btn-line'}`
         if (el.className !== cls) el.className = cls
         // no active state on the button of the current section (the frame only appears on hover, press or
 // keyboard focus)
@@ -612,8 +669,9 @@ export function Carrier() {
   if (!carry) return null
   return (
     <div className="carrier" data-ui data-front-free>
+      {/* a copy for the pointer only: the keyboard and screen readers use the button in its place (Slot) */}
       {CTAS.map((c, j) => (
-        <a key={c.k} ref={(e) => { refs.current[j] = e }} className={`btn ${c.kind}`} href={c.href} data-slot={c.k.toUpperCase()}><span>{t(c.label)}</span></a>
+        <a key={c.k} ref={(e) => { refs.current[j] = e }} className={`btn ${c.home}`} href={c.href} data-slot={c.k.toUpperCase()} tabIndex={-1} aria-hidden="true"><span>{t(c.label)}</span></a>
       ))}
     </div>
   )

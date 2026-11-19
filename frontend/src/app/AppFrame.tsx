@@ -13,6 +13,7 @@ import { PageCursor } from '../ui/PageCursor'
 import { reveal } from '../ui/motion'
 import { loadP, installPageExit } from '../ui/pageload'
 import { MainNav } from '../ui/MainNav'
+import { useMenu, MenuButton, Drawer } from '../ui/Menu'
 import { HeaderWallet } from '../network/actions/HeaderWallet'
 import '../network/actions/actions.css'
 
@@ -25,7 +26,7 @@ export type AppPage = 'use' | 'service' | 'demo' | 'rent' | 'publish' | 'network
 export function AppHeader({ page, section, sectionText, replay, wallet }: { page: AppPage; section: TKey; sectionText?: string; replay?: { block: number; date: string }; wallet?: ReactNode }) {
   const walletEl = wallet ?? (replay ? null : <HeaderWallet />)
   const lang = useLang()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useMenu()
   const block = useLive((s) => s.block)
   const stats = useLive((s) => s.stats)
   const status = useLive((s) => s.status)
@@ -61,12 +62,13 @@ export function AppHeader({ page, section, sectionText, replay, wallet }: { page
         <div className="hd-side">
           <button className="lang" onClick={() => setLang(lang === 'fr' ? 'en' : 'fr')} lang={lang === 'fr' ? 'en' : 'fr'} aria-label={t('lang.to')}>{lang === 'fr' ? 'EN' : 'FR'}</button>
           {walletEl}
-          <button className="menu-btn" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? t('nav.close') : t('nav.menu')}</button>
+          <MenuButton open={open} set={setOpen} />
         </div>
       </div>
       {replay ? (
         <div className="hd-row2 lbl" aria-live="off">
-          <span className="band-i"><b>{t('band.net')}</b></span>
+          {/* the narrowest phones keep the recorded block, whole; the network name goes (styles.css, under 360 px) */}
+          <span className="band-i band-net-r"><b>{t('band.net')}</b></span>
           <span className="band-i">{t('demo.band')} <span className="nowrap">{replay.date}</span></span>
           <span className="band-i">{t('demo.band.block')} <span className="mono tnum nowrap">{num(replay.block, lang)}</span></span>
           <span className="band-sec"><span className="sec-n">{sectionText ?? t(section)}</span></span>
@@ -81,7 +83,7 @@ export function AppHeader({ page, section, sectionText, replay, wallet }: { page
       </div>
       )}
       <div className="prog" aria-hidden="true"><div className="prog-bar" ref={bar} /></div>
-      {open ? <nav className="hd-drawer" aria-label={t('nav.main')}>{nav}</nav> : null}
+      {open ? <Drawer nav={nav} close={() => setOpen(false)} /> : null}
       <SelLayer />
       <PageCursor />
       <CopilotMount />

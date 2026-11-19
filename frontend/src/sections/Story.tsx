@@ -22,6 +22,27 @@ function usePinH(id: 'protocol' | 'arc', ref: React.RefObject<HTMLElement | null
   }, [id, ref])
 }
 
+/** Phones, upright or sideways (styles.css: under 761 px wide, or under 500 px tall in landscape): a pinned panel taller
+ *  than the screen sticks by its bottom instead of its top, so its last lines (the Arc check button and verdict) stay
+ *  in view for the whole pinned scroll; its title went by on the way in. The pinned stop keeps its length: the film and
+ *  the steps are unchanged. */
+const SHORT = '(max-width: 760px), (max-height: 500px) and (orientation: landscape)'
+function usePinFit(ref: React.RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    const pin = ref.current?.querySelector<HTMLElement>('.pin-in'); if (!pin) return
+    const mq = matchMedia(SHORT)
+    const fit = () => {
+      const over = mq.matches ? pin.offsetHeight - innerHeight : 0
+      const v = over > 1 ? `${-Math.ceil(over)}px` : ''
+      if (pin.style.top !== v) pin.style.top = v
+    }
+    const ro = new ResizeObserver(fit)
+    ro.observe(pin); fit()
+    mq.addEventListener('change', fit); addEventListener('resize', fit)
+    return () => { ro.disconnect(); mq.removeEventListener('change', fit); removeEventListener('resize', fit) }
+  }, [ref])
+}
+
 /** Progress of a pinned page: numbered steps (the real sequence) and a rule that fills */
 function Steps({ id, n, label, at }: { id: 'protocol' | 'arc'; n: number; label: (k: number) => string; at?: number[] }) {
   const bar = useRef<HTMLSpanElement>(null)
@@ -122,6 +143,7 @@ export function Protocol() {
   const ref = useRef<HTMLElement>(null)
   useIn(ref)
   usePinH('protocol', ref)
+  usePinFit(ref)
   useLang()
   return (
     <section className="sec pin pin-proto" data-sec="protocol" ref={ref} id="protocol">
@@ -173,6 +195,7 @@ export function ArcGate() {
   const ref = useRef<HTMLElement>(null)
   useIn(ref)
   usePinH('arc', ref)
+  usePinFit(ref)
   const lang = useLang()
   useWallVersion()
   const replayTx = world.wall.replayTx
