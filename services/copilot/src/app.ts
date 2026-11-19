@@ -157,6 +157,9 @@ export interface SiteSurface {
   /** 19/11 au soir : la réponse fixe et vraie à « ce chat tourne-t-il dans une enclave ? » sur le serveur du site (seulement
    *  avec whereNote : l'enclave du produit 4 la retire, elle garde sa propre réponse). */
   whereAnswer?(text: string, lang: Lang): string | undefined;
+  /** 19/11 (nuit) : une réponse fixe et vraie AVEC ses gestes d'interface (le MCP, la tokenomics, la place d'AskHive), sur le
+   *  serveur du site seulement (avec whereNote) : le texte remplace celui du modèle, les gestes ceux du modèle et des filets. */
+  fixedAnswer?(text: string, lang: Lang): { text: string; ui: Array<{ tool: string; input: Record<string, unknown> }> } | undefined;
   /** 19/11 : l'état du réseau lu AU MOMENT de répondre (site-live.ts : enclaves actives, niveaux, primes ouvertes), en une
    *  ligne de l'invite après celle de la page ; ne lève jamais (ligne de repli), borné dans le temps. */
   liveNote?(): Promise<string | undefined>;
@@ -479,10 +482,24 @@ async function runChat(
       // internes ou taisait la passerelle du fournisseur du modèle)
       const whereFixed = o.site.whereNote && o.site.whereAnswer ? o.site.whereAnswer(lastUser, replyLang) : undefined;
       if (whereFixed) shownText = whereFixed;
+      // 19/11 (nuit) : le MCP, la tokenomics (partage, séquestre, cautions, trésorerie) et la place d'AskHive : un texte fixe
+      // et vrai, et SES gestes, validés dans une session d'interface neuve (ceux du modèle et des filets ne partent pas)
+      const fixed = !whereFixed && o.site.whereNote && o.site.fixedAnswer ? o.site.fixedAnswer(lastUser, replyLang) : undefined;
+      let toolsOut = shownTools;
+      if (fixed) {
+        shownText = fixed.text;
+        const fresh = o.site.uiSession(page?.page, replyLang);
+        const forced: SiteToolEntry[] = [];
+        for (const g of fixed.ui) {
+          const r = fresh.run(g.tool, g.input);
+          if (r.ok) forced.push({ tool: g.tool, label: display[g.tool] ?? g.tool, input: g.input, result: r, inferred: true });
+        }
+        toolsOut = [...shownTools.filter((t) => !o.site!.uiTools.has(t.tool)), ...forced];
+      }
       return {
         text: shownText || empty,
         ...(code ? { code } : {}),
-        tools: shownTools, citations: [...citations], actions,
+        tools: toolsOut, citations: [...citations], actions,
         ...(refused ? { outilsNonExecutes: refused } : {}),
       };
     }

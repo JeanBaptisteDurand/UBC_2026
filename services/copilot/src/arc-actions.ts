@@ -894,7 +894,7 @@ export async function prepareBountyCreate(arc: ArcClient, q: any, cx: ActionCtx 
       pourquoi: "L'exploit prouvé t'est livré chiffré pour cette clé ; seule ta clé privée le déchiffre. Elle ne doit jamais quitter ta machine.",
       snippet: 'import { generateX25519 } from "@arcvault/sdk";\nconst kp = generateX25519(); // garde kp.privateKey en lieu sûr, chez toi\nconsole.log(kp.publicKey);    // → protocolX25519',
     },
-    ouSigner: `Ton wallet signe : SDK arc.createBounty (ci-dessus) ou la page Primes du site (« Publier une prime », niveau ${rail?.verified ? "vérifié" : "ouvert"}). Le copilote n'envoie rien.`,
+    ouSigner: `Ton wallet signe : SDK arc.createBounty (ci-dessus) ou Mon espace › Mes bounties du site (/space.html?tab=bounties, niveau ${rail?.verified ? "vérifié" : "ouvert"}). Le copilote n'envoie rien.`,
     lueAuBloc: h.number.toString(),
     sources: [`${bountyName}.createBounty / acceptClaim / deliver`, "predicate.ts (langage v0)", `${bountyName}.networkBountyBps / operatorBountyBps / MAX_SIGS`],
   };
@@ -968,7 +968,7 @@ export async function operatorPlan(arc: ArcClient, q: any, cx: ActionCtx = {}) {
     avertissements,
     produits,
     etapes: [
-      { n: 1, titre: "Un wallet et de l'USDC sur Arc", detail: "Le gas d'Arc se paie en USDC. Amène ton USDC d'autres chaînes par CCTP (page On-ramp)." },
+      { n: 1, titre: "Un wallet et de l'USDC sur Arc", detail: "Le gas d'Arc se paie en USDC. Amène ton USDC d'Ethereum Sepolia ou de Base Sepolia par CCTP (page Pont du site, /bridge.html)." },
       { n: 2, titre: "Choisir un produit", detail: "Ta part de chaque paiement = bpsOperator du produit ; il faut au moins sa caution minimale (voir produits)." },
       { n: 3, titre: "Déposer la caution (OperatorBond)", detail: "bond(montant, autorisation EIP-3009) en une transaction, ou approve puis bondFrom ; tu signes.", outil: "operator_prepare_bond" },
       { n: 4, titre: "Louer une VM Intel TDX sur Phala Cloud (dstack)", detail: "Déployer l'app-compose ci-dessous avec le CLI de Phala Cloud (image épinglée par digest ; modèles : enclave/phala/*.yml).", commande: `phala deploy -c docker-compose.yml -t tdx.small --name archive-produit-${pid} -e PRODUCT_ID=${pid}` },
@@ -1050,7 +1050,7 @@ export async function prepareBond(arc: ArcClient, q: any, cx: ActionCtx = {}) {
       { etape: "1. autoriser OperatorBond à prélever", to: arc.d.usdc, value: "0", data: encodeFunctionData({ abi: usdcAbi, functionName: "approve", args: [arc.d.operatorBond, amount] }) },
       { etape: "2. déposer", to: arc.d.operatorBond, value: "0", data: encodeFunctionData({ abi: operatorBondAbi, functionName: "bondFrom", args: [amount] }) },
     ],
-    ouSigner: `page « Louer sa puissance » (étape 1, wallet connecté), ou sur ta machine : arcvault operator bond --amount ${formatUnits(amount, 6)} (ta clé reste chez toi, jamais dans le chat)`,
+    ouSigner: `Network › Louer (/network.html?focus=rent, étape caution, wallet connecté), ou sur ta machine : arcvault operator bond --amount ${formatUnits(amount, 6)} (ta clé reste chez toi, jamais dans le chat)`,
     lueAuBloc: h.number.toString(),
     sources: ["OperatorBond.bondOf / availableBond / banned", "OperatorBond.bond / bondFrom"],
   };
@@ -1128,7 +1128,7 @@ export async function prepareRegister(arc: ArcClient, q: any, cx: ActionCtx = {}
     transaction = {
       from: operator, to: arc.d.enclaveRegistry, value: "0",
       dataOctets: size(data), dataKeccak: keccak256(data),
-      data: includeCalldata ? data : "(non incluse ici : la page « Louer sa puissance » ou arc.registerEnclave la reconstruisent)",
+      data: includeCalldata ? data : "(non incluse ici : Mon espace › Mes machines, /space.html?tab=machines, ou arc.registerEnclave la reconstruisent)",
     };
   }
   return {
@@ -1148,7 +1148,7 @@ export async function prepareRegister(arc: ArcClient, q: any, cx: ActionCtx = {}
     transaction,
     gazEstime: `≈ ${DCAP_REGISTER_GAS_ESTIMATE} (vérification de la signature d'Intel par DCAP on-chain)`,
     laChaineVerifie: "signature d'Intel sur le quote (DCAP d'Automata : collatéral chargé on-chain), quote TDX v4/v5, TCB acceptable, pas de mode DEBUG, SEPT_VE_DISABLE, workloadId autorisé par le produit, REPORTDATA = (chaîne, registre, produit, opérateur = expéditeur, signer, x25519), ancrage EIP-2935, quote jamais vu, caution libre ≥ minimum ; inscription valable VALIDITY_BLOCKS blocs (≈ 24 h), clé liée à vie à cet opérateur et à ce produit.",
-    ouSigner: "page « Louer sa puissance » → étape 2 (URL de l'enclave), ou SDK : await arc.registerEnclave(productId, enclaveUrl) avec TON wallet d'opérateur.",
+    ouSigner: "Mon espace › Mes machines (/space.html?tab=machines, section register : l'URL de l'enclave), ou SDK : await arc.registerEnclave(productId, enclaveUrl) avec TON wallet d'opérateur.",
     lueAuBloc: h.number.toString(),
     sources: ["EnclaveRegistry.registerEnclave (politique P1–P12)", "EnclaveRegistry.quoteSeen / enclaveOf", "OperatorBond.availableBond"],
   };
@@ -1447,7 +1447,7 @@ const FIXES: Record<string, string> = {
   port: "Port de l'enclave fermé : ouvrez-le (8802 par défaut) dans le pare-feu ou le groupe de sécurité, et publiez-le dans l'app-compose (ports: \"8802:8802\").",
   enclave_health: "Le service d'enclave ne répond pas sur /health : vérifiez que le conteneur tourne (docker ps, docker logs) et redémarrez-le.",
   attest: "L'enclave ne renvoie pas de quote (POST /attest) : vérifiez /dev/tdx_guest ou le socket dstack, puis relancez le conteneur ; sans quote, pas d'inscription on-chain.",
-  bond: "Caution insuffisante pour le produit : déposez-la sur la page Opérateur (« Louer sa puissance », étape 1) ; operator_prepare_bond prépare le dépôt.",
+  bond: "Caution insuffisante pour le produit : déposez-la sur Network › Louer (/network.html?focus=rent, étape caution) ; operator_prepare_bond prépare le dépôt.",
 };
 const TDX_CHECKS = new Set(["tdx_guest", "tsm_report", "dstack_socket"]);
 
