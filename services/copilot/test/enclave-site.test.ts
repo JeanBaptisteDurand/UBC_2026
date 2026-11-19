@@ -252,7 +252,8 @@ test("site en enclave : l'invite est celle du site, avec la page affichée, la n
   // la note du serveur du site (« on the ArcHive site's server, NOT in an enclave ») n'entre jamais dans l'enclave
   if (typeof SERVER_NOTE === "string") assert.ok(!sys.includes(SERVER_NOTE));
   assert.equal((h.copilot.site as unknown as Record<string, unknown>).whereNote, undefined);
-  assert.equal(sys.split("WHERE YOU RUN").length - 1, 1, "une seule vérité sur où il tourne");
+  // une seule section « WHERE YOU RUN » (la liste des libellés internes de l'invite la nomme aussi, entre parenthèses)
+  assert.equal((sys.match(/WHERE YOU RUN(?: \(|:)/g) ?? []).length, 1, "une seule vérité sur où il tourne");
   // le modèle reçoit les passages du site (docs_search), et les outils du site
   const toolMsg = h.m.calls[1]!.messages.find((x: any) => x.role === "tool" && x.tool_call_id === "c1") as any;
   assert.ok(toolMsg && /site-v\d#/.test(String(toolMsg.content)), "passages de la base du site");
