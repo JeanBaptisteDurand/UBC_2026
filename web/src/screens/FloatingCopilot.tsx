@@ -1,16 +1,16 @@
-/** FloatingCopilot.tsx — la bulle du copilote, sur toutes les pages.
- *  Deux copilotes, jamais mélangés en silence :
- *  - le copilote ATTESTÉ (si configuré : config.ts, ATTESTED_COPILOT) : sa clé est vérifiée sur Arc en lisant le RPC
- *    d'Arc directement, la conversation part chiffrée vers son enclave et la réponse revient scellée (SDK,
- *    createAttestedCopilotClient). Une réponse authentifiée (authenticated === true) porte le badge « attested copilot ·
- *    verified on Arc », avec un lien vers l'inscription de l'enclave sur l'explorateur ; un refus en clair (sans preuve
- *    d'origine) est dit par un message LOCAL tiré de son code, jamais par le texte du relais ;
- *  - le copilote du SERVEUR (VITE_COPILOT_URL), en clair : chaque réponse est étiquetée « server copilot (not attested) »
- *    dès que le copilote attesté existe.
- *  Si la clé ne se vérifie pas, si l'enclave ne répond pas ou si sa réponse ne s'ouvre pas : un message explicite, puis
- *  le repli VISIBLE sur le copilote du serveur (bandeau, étiquette de chaque réponse). La question qui a échoué n'est
- *  jamais renvoyée au serveur sans un clic, et le serveur ne reçoit jamais la partie attestée de la conversation.
- *  Les actions à signer proposées par l'un ou l'autre passent par la carte de vérification (CopilotActions.tsx). */
+/** FloatingCopilot.tsx — the copilot bubble (AskHive), on every page.
+ *  Two copilots, never mixed silently:
+ *  - the ATTESTED copilot (if configured: config.ts, ATTESTED_COPILOT): its key is verified on Arc by reading Arc's RPC
+ *    directly, the conversation goes encrypted to its enclave and the reply comes back sealed (SDK,
+ *    createAttestedCopilotClient). An authenticated reply (authenticated === true) carries the "attested copilot ·
+ *    verified on Arc" badge, with a link to the enclave's registration on the explorer; a clear-text refusal (with no
+ *    proof of origin) is described by a LOCAL message drawn from its code, never by the relay's text;
+ *  - the SERVER copilot (VITE_COPILOT_URL), in clear text: each reply is labelled "server copilot (not attested)" as
+ *    soon as the attested copilot exists.
+ *  If the key does not verify, if the enclave does not answer or if its reply does not open: an explicit message, then
+ *  the VISIBLE fallback to the server copilot (banner, label on each reply). The question that failed is never sent to
+ *  the server without a click, and the server never receives the attested part of the conversation.
+ *  Actions to sign proposed by either one go through the verification card (CopilotActions.tsx). */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useAccount, usePublicClient } from "wagmi";
 import { ExternalLink, Loader2, RotateCcw, ShieldCheck } from "lucide-react";
@@ -27,23 +27,23 @@ import { toEnglish } from "../i18n/sdk-messages.en";
 import { isKnownPage, resolveRoute, routeLabel, type RouteId } from "../routes";
 import { ActionCard, type CopilotAction } from "./CopilotActions";
 
-/** D'où vient une réponse (ou où est partie une question) : l'enclave attestée, ou le serveur en clair. */
+/** Where a reply comes from (or where a question went): the attested enclave, or the server in clear text. */
 type Via = "attested" | "server";
-/** L'enclave vérifiée qui a scellé une réponse (seulement si authenticated === true). */
+/** The verified enclave that sealed a reply (only if authenticated === true). */
 interface SealedBy { signer: Address; operator: Address; fromBlock: bigint }
 
-/** Un message de la bulle. `local` : écrit par le site (serveur injoignable, requête refusée, repli), jamais renvoyé au
- *  copilote comme s'il venait de lui : son texte est un message (`note`), mis en mots à l'affichage. Le texte du copilote
- *  est gardé tel qu'il est venu ; ses phrases connues sont traduites à l'affichage (serverText). `navTab` : la page
- *  ouverte par le copilote (son nom est lu à l'affichage). Tout suit donc la bascule de langue. `retry` : la question
- *  que le copilote attesté n'a pas pu prendre (l'envoyer au serveur demande un clic). `plain` : refus en clair. */
+/** A bubble message. `local`: written by the site (server unreachable, request refused, fallback), never sent back to
+ *  the copilot as if it came from it: its text is a message (`note`), put into words at display time. The copilot's text
+ *  is kept as it came; its known sentences are translated at display time (serverText). `navTab`: the page opened by
+ *  the copilot (its name is read at display time). Everything therefore follows the language switch. `retry`: the
+ *  question the attested copilot could not take (sending it to the server takes a click). `plain`: clear-text refusal. */
 interface Msg {
   role: "user" | "assistant"; content: string; tools?: string[]; citations?: string[]; navTab?: RouteId; actions?: CopilotAction[];
   local?: boolean; note?: Note; via: Via; sealedBy?: SealedBy; retry?: string; plain?: boolean;
 }
 
-/** Outil utilisé par le copilote → page du site à montrer (secours quand le serveur ne renvoie pas `navigate`).
- *  Le bot « pilote le front » : quand il fait quelque chose, il vous emmène sur la page concernée. */
+/** Tool used by the copilot → the site page to show (a fallback when the server does not return `navigate`).
+ *  The bot "drives the front end": when it does something, it takes you to the page concerned. */
 const TOOL_TO_TAB: Record<string, RouteId> = {
   products_list: "produits", products_get: "produits", pricing_quote: "produits",
   enclaves_list: "ruche", enclaves_status: "ruche",
@@ -55,13 +55,13 @@ const TOOL_TO_TAB: Record<string, RouteId> = {
   product_scaffold: "publier-produit",
 };
 
-/** Les bornes du serveur (services/copilot, guard.ts) : il garde les 20 derniers messages et refuse un corps de plus
- *  de 64 Kio (413). La bulle n'envoie donc que les 20 derniers, et retire les plus anciens si le corps dépasse 60 Kio. */
+/** The server's limits (services/copilot, guard.ts): it keeps the last 20 messages and refuses a body over 64 KiB (413).
+ *  So the bubble sends only the last 20, and removes the oldest if the body exceeds 60 KiB. */
 const MAX_MESSAGES = 20;
 const MAX_BODY_BYTES = 60 * 1024;
 
-/** Le corps de POST /chat du copilote du serveur : les derniers messages PARTIS AU SERVEUR (jamais la partie attestée
- *  de la conversation, ni les messages du site), le wallet connecté et la langue choisie. */
+/** The body of the server copilot's POST /chat: the latest messages SENT TO THE SERVER (never the attested part of the
+ *  conversation, nor the site's messages), the connected wallet and the chosen language. */
 function chatBody(history: Msg[], user: string | null, lang: Lang): string {
   let messages = history.filter((m) => !m.local && m.via === "server").slice(-MAX_MESSAGES).map(({ role, content }) => ({ role, content }));
   const enc = new TextEncoder();
@@ -75,16 +75,16 @@ function chatBody(history: Msg[], user: string | null, lang: Lang): string {
 
 const SUGGEST: StaticKey[] = ["copilot.s1", "copilot.s2", "copilot.s3", "copilot.s4"];
 
-/** Texte venu d'un copilote (attesté ou du serveur), à l'affichage : sans les marques de citation brutes du modèle (【…】,
- *  ses sources sont dans la ligne « sources ») ; tel quel en français ; en anglais, ses phrases connues (refus, secours)
- *  sont traduites. */
+/** Text from a copilot (attested or server), at display time: without the model's raw citation marks (【…】, its
+ *  sources are in the "sources" line); as is in French; in English, its known sentences (refusals, fallbacks) are
+ *  translated. */
 const serverText = (s: string): string => {
   const x = stripCitations(s);
   return getLang() === "en" ? toEnglish(x) : x;
 };
 
-/** 16/11 : le gras (**…**) et le code (`…`) des réponses, rendus au lieu d'afficher les astérisques et les accents graves
- *  bruts (le reste du texte, retours à la ligne compris, reste tel quel : jamais de HTML venu du modèle). */
+/** Bold (**…**) and code (`…`) in replies, rendered instead of showing the raw asterisks and backticks (the rest of the
+ *  text, line breaks included, stays as is: never any HTML from the model). */
 function rich(s: string): ReactNode[] {
   const out: ReactNode[] = [];
   const re = /\*\*([^*\n]+)\*\*|`([^`\n]+)`/g;
@@ -98,19 +98,19 @@ function rich(s: string): ReactNode[] {
   return out;
 }
 
-/** Un fetch qui n'a pas eu de réponse (hors ligne, DNS, CORS, serveur arrêté), ou qui a dépassé son délai. */
+/** A fetch that got no response (offline, DNS, CORS, server stopped), or that timed out. */
 const isNetwork = (e: any) => /^(Failed to fetch|Load failed|NetworkError|fetch failed|Network request failed)/i.test(String(e?.message ?? ""));
 const isTimeout = (e: any) => e?.name === "TimeoutError" || e?.name === "AbortError";
 
-/** Refus EN CLAIR du copilote attesté (avant le déchiffrement, sans preuve d'origine) : un message local par code. */
+/** A CLEAR-TEXT refusal from the attested copilot (before decryption, with no proof of origin): a local message per code. */
 const PLAIN: Record<string, StaticKey> = {
   proxy_required: "copilot.plain.proxy", origin_refused: "copilot.plain.origin", rate_minute: "copilot.plain.rateMinute",
   rate_day: "copilot.plain.rateDay", too_large: "copilot.plain.tooLarge", sealed_undecryptable: "copilot.plain.undecryptable",
   sealed_unavailable: "copilot.plain.unavailable", json_only: "copilot.plain.format", bad_json: "copilot.plain.format",
   bad_length: "copilot.plain.format", sealed_malformed: "copilot.plain.format",
 };
-/** Les refus qu'il suffit d'attendre (débit, taille, clé renouvelée) : on reste sur le copilote attesté. Tout autre
- *  refus en clair (mandataire, origine, format, 5xx) fait basculer, visiblement, sur le copilote du serveur. */
+/** The refusals that only need waiting (rate, size, renewed key): the bubble stays on the attested copilot. Any other
+ *  clear-text refusal (proxy, origin, format, 5xx) switches, visibly, to the server copilot. */
 const WAIT = new Set(["rate_minute", "rate_day", "too_large", "sealed_undecryptable"]);
 function plainNote(status: number, code?: string, retryAfterSec?: number): Note {
   if (code === "rate_minute" && retryAfterSec) return msg("copilot.plain.rateMinuteIn", { s: retryAfterSec });
@@ -118,31 +118,31 @@ function plainNote(status: number, code?: string, retryAfterSec?: number): Note 
   return k ? msg(k) : msg("copilot.plain.other", { status });
 }
 
-/** Une raison mise dans une autre phrase (« Le copilote attesté n'a pas pu répondre. {why} … ») : une phrase entière,
- *  majuscule au début et point à la fin, quelle que soit sa source (message du site, erreur expliquée). */
+/** A reason placed in another sentence ("The attested copilot could not answer. {why} …"): a whole sentence, capital
+ *  letter at the start and full stop at the end, whatever its source (the site's message, an explained error). */
 function sentence(s: string): string {
   const x = s.trim();
   if (!x) return x;
   return (x[0]!.toUpperCase() + x.slice(1)).replace(/([^.!?…])$/, "$1.");
 }
 
-/** Les longues valeurs hexadécimales d'une raison (clés X25519, adresses, empreintes) abrégées (« 0x492f…5665 »), pour
- *  que le bandeau du repli reste court ; la raison entière reste au survol. */
+/** The long hexadecimal values of a reason (X25519 keys, addresses, fingerprints) shortened ("0x492f…5665"), so the
+ *  fallback banner stays short; the full reason stays on hover. */
 const compactHex = (s: string): string => s.replace(/0x[0-9a-fA-F]{18,}/g, (h) => short(h, 4));
 
-/** Ce qu'a rencontré le copilote du serveur, sans le message brut du navigateur (« Failed to fetch ») : injoignable,
- *  trop lent, ou une autre erreur expliquée dans la langue du site. */
+/** What the server copilot ran into, without the browser's raw message ("Failed to fetch"): unreachable, too slow, or
+ *  another error explained in the site's language. */
 function serverFailure(e: unknown): Note {
   if (isTimeout(e)) return msg("copilot.slow", { url: COPILOT_URL });
   if (isNetwork(e)) return msg("copilot.unreachable", { url: COPILOT_URL });
   return msg("copilot.serverError", { url: COPILOT_URL, err: errorMsg(e) });
 }
 
-/** Ce qui a empêché le copilote attesté de répondre (clé non vérifiée, enclave injoignable, réponse refusée…). Une enclave
- *  qui ne répond pas (même à /pubkeys, pendant la vérification de sa clé) est dite comme telle, sans le message brut du
- *  navigateur ; une enclave active chez un autre opérateur que celui de la configuration du site (VITE_COPILOT_OPERATOR)
- *  aussi : sa clé est la bonne, il n'y a pas de session ; le reste est expliqué par explainError (clé qui ne correspond
- *  pas, enclave inactive, réponse qui ne vient pas de l'enclave vérifiée…). */
+/** What prevented the attested copilot from answering (key not verified, enclave unreachable, reply refused…). An
+ *  enclave that does not answer (even on /pubkeys, while its key is being verified) is described as such, without the
+ *  browser's raw message; so is an enclave active under another operator than the one in the site's configuration
+ *  (VITE_COPILOT_OPERATOR): its key is the right one, there is no session; the rest is explained by explainError (a key
+ *  that does not match, an inactive enclave, a reply that does not come from the verified enclave…). */
 function attestedFailure(e: unknown): Note {
   const x = e as any;
   if (isTimeout(x) || isTimeout(x?.cause)) return msg("copilot.att.slow");
@@ -155,8 +155,8 @@ function attestedFailure(e: unknown): Note {
   return errorMsg(e);
 }
 
-/** Le badge d'une réponse SCELLÉE par l'enclave vérifiée, avec le lien vers son inscription sur l'explorateur (la
- *  transaction EnclaveRegistered ; à défaut, la page de l'opérateur, qui l'a envoyée). */
+/** The badge of a reply SEALED by the verified enclave, with the link to its registration on the explorer (the
+ *  EnclaveRegistered transaction; failing that, the page of the operator who sent it). */
 function SealedBadge({ by }: { by: SealedBy }) {
   const pub = usePublicClient();
   const [tx, setTx] = useState<Hex | null>(null);
@@ -178,9 +178,9 @@ function SealedBadge({ by }: { by: SealedBy }) {
 
 type KeyState = { state: "idle" } | { state: "checking" } | { state: "ok"; keys: VerifiedCopilot } | { state: "bad" };
 
-/** 19/11 : sur téléphone (sous 640 px), la bulle est une feuille collée en bas de l'écran VISIBLE : quand le clavier
- *  s'ouvre (Safari d'iOS réduit la fenêtre visuelle, pas la mise en page), elle remonte au-dessus de lui et rétrécit,
- *  pour que le champ de saisie reste visible. Lu sur window.visualViewport ; sans lui, la feuille garde 85dvh. */
+/** On a phone (under 640 px), the bubble is a sheet pinned to the bottom of the VISIBLE screen: when the keyboard opens
+ *  (iOS Safari shrinks the visual viewport, not the layout), it moves above the keyboard and shrinks, so the input
+ *  field stays visible. Read from window.visualViewport; without it, the sheet keeps 85dvh. */
 function useSheet(open: boolean): { phone: boolean; inset: number; height?: number } {
   const [s, setS] = useState<{ phone: boolean; inset: number; height?: number }>({ phone: false, inset: 0 });
   useEffect(() => {
@@ -205,14 +205,14 @@ function useSheet(open: boolean): { phone: boolean; inset: number; height?: numb
 export default function FloatingCopilot({ onNavigate, open, setOpen }: { onNavigate: (tab: string) => void; open: boolean; setOpen: (v: boolean) => void }) {
   const { address } = useAccount();
   const pub = usePublicClient();
-  // le client du copilote attesté (null s'il n'est pas configuré) : il lit Arc par le RPC public, pas par notre API
+  // the attested copilot's client (null if it is not configured): it reads Arc through the public RPC, not the ArcHive API
   const client = useMemo<AttestedCopilotClient | null>(() => makeAttestedCopilot(pub as any), [pub]);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [status, setStatus] = useState<Note | null>(null);
   const [busy, setBusy] = useState(false);
   const [key, setKey] = useState<KeyState>({ state: "idle" });
-  // non nul : on a basculé sur le copilote du serveur, et pourquoi (affiché dans le bandeau, dans la langue du moment)
+  // non-null: the bubble has switched to the server copilot, and why (shown in the banner, in the current language)
   const [fallback, setFallback] = useState<Note | null>(null);
   const inflight = useRef<Promise<VerifiedCopilot> | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
@@ -221,8 +221,8 @@ export default function FloatingCopilot({ onNavigate, open, setOpen }: { onNavig
 
   useEffect(() => { scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" }); }, [msgs, open, status]);
 
-  /** Vérifie la clé du copilote sur Arc (une seule lecture à la fois ; le SDK la garde 5 minutes). Un échec fait
-   *  basculer sur le copilote du serveur, avec la raison ; seul « réessayer » rend la main au copilote attesté. */
+  /** Verifies the copilot's key on Arc (one read at a time; the SDK keeps it 5 minutes). A failure switches to the
+   *  server copilot, with the reason; only "retry" hands control back to the attested copilot. */
   function verify(force = false): Promise<VerifiedCopilot> {
     if (!client) return Promise.reject(new Error("attested copilot not configured"));
     if (!force && inflight.current) return inflight.current;
@@ -235,7 +235,7 @@ export default function FloatingCopilot({ onNavigate, open, setOpen }: { onNavig
     p.finally(() => { if (inflight.current === p) inflight.current = null; }).catch(() => {});
     return p;
   }
-  // la clé est vérifiée dès la première ouverture de la bulle : on sait AVANT d'écrire à quel copilote on parle
+  // the key is verified as soon as the bubble first opens: the user knows BEFORE typing which copilot they are talking to
   useEffect(() => {
     if (open && client && key.state === "idle" && fallback === null) verify().catch(() => {});
   }, [open, client]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -250,13 +250,13 @@ export default function FloatingCopilot({ onNavigate, open, setOpen }: { onNavig
     return undefined;
   }
 
-  /** Une réponse (texte, outils, sources, page, actions préparées) → le message de la bulle ; ouvre la page concernée. */
+  /** A reply (text, tools, sources, page, prepared actions) → the bubble message; opens the page concerned. */
   function answer(j: { text?: unknown; tools?: string[]; citations?: string[]; navigate?: string; actions?: CopilotAction[] }, via: Via, sealedBy?: SealedBy): Msg {
     const tools = Array.isArray(j.tools) ? j.tools.filter((x): x is string => typeof x === "string") : undefined;
     const go = typeof j.navigate === "string" && isKnownPage(j.navigate) ? resolveRoute(j.navigate) : navFromTools(tools);
-    // une seule carte par type d'action : la dernière préparée (le choix final du copilote)
+    // a single card per action type: the last one prepared (the copilot's final choice)
     const acts = Object.values(Object.fromEntries((Array.isArray(j.actions) ? j.actions : []).filter((a) => a && typeof a.tool === "string").map((a) => [a.tool, a])));
-    if (go) setTimeout(() => onNavigate(go), 0); // le copilote vous emmène sur la page concernée
+    if (go) setTimeout(() => onNavigate(go), 0); // the copilot takes you to the page concerned
     return {
       role: "assistant", content: String(j.text ?? ""), tools, citations: Array.isArray(j.citations) ? j.citations.map(String) : undefined,
       navTab: go, actions: acts, via, ...(sealedBy ? { sealedBy } : {}),
@@ -271,7 +271,7 @@ export default function FloatingCopilot({ onNavigate, open, setOpen }: { onNavig
       });
       const j = await res.json().catch(() => null) as { text?: unknown; tools?: string[]; citations?: string[]; navigate?: string; actions?: CopilotAction[] } | null;
       if (!res.ok || !j) {
-        // refus du serveur (400, 413, 415, 429…) : il explique pourquoi dans `text`, qu'on montre (traduit à l'affichage)
+        // server refusal (400, 413, 415, 429…): it explains why in `text`, which is shown (translated at display time)
         const said = typeof j?.text === "string" && j.text.trim() ? j.text : "";
         const why = said ? undefined : res.ok ? msg("err.unreadable", { status: res.status }) : msg("copilot.refused", { status: res.status });
         setMsgs([...history, { role: "assistant", content: said, local: true, note: why, via: "server" }]);
@@ -287,19 +287,19 @@ export default function FloatingCopilot({ onNavigate, open, setOpen }: { onNavig
     if (!client) return;
     try {
       await verify();
-      // seule la partie ATTESTÉE de la conversation part vers l'enclave : jamais une réponse du copilote du serveur (non
-      // attestée), qui pourrait orienter une réponse scellée (et ses actions à signer)
+      // only the ATTESTED part of the conversation goes to the enclave: never a reply from the server copilot (not
+      // attested), which could steer a sealed reply (and its actions to sign)
       const r = await client.chat({
         messages: history.filter((m) => !m.local && m.via === "attested").map(({ role, content }) => ({ role, content })),
         user: address ?? null, lang: getLang(),
       });
       if (r.authenticated === true) {
-        // scellée par l'enclave vérifiée pour CETTE requête : son texte et ses actions sont les siens ; le badge
+        // sealed by the verified enclave for THIS request: its text and its actions are its own, and it gets the badge
         const by: SealedBy = { signer: r.enclave.signer, operator: r.enclave.operator, fromBlock: r.enclave.fromBlock };
         setMsgs([...history, answer(r.reply, "attested", by)]);
         return;
       }
-      // refus EN CLAIR : rien ne prouve qu'il vienne de l'enclave ; un message local d'après son code, jamais son texte
+      // CLEAR-TEXT refusal: nothing proves it comes from the enclave; a local message from its code, never its text
       const code = r.reply.code;
       const note = plainNote(r.status, code, r.reply.retryAfterSec);
       if (code && WAIT.has(code)) {
@@ -309,8 +309,8 @@ export default function FloatingCopilot({ onNavigate, open, setOpen }: { onNavig
       setFallback(note);
       setMsgs([...history, { role: "assistant", content: "", local: true, plain: true, note: msg("copilot.fallbackNote", { why: () => sentence(show(note)) }), via: "attested", retry: question }]);
     } catch (e) {
-      // clé non vérifiée, enclave injoignable, réponse qui ne vient pas de l'enclave vérifiée : message explicite, puis
-      // repli visible ; la question n'est PAS renvoyée au serveur sans un clic
+      // key not verified, enclave unreachable, reply not from the verified enclave: an explicit message, then the
+      // visible fallback; the question is NOT sent to the server without a click
       const why = attestedFailure(e);
       setFallback(why);
       setMsgs([...history, { role: "assistant", content: "", local: true, note: msg("copilot.fallbackNote", { why: () => sentence(show(why)) }), via: "attested", retry: question }]);
@@ -335,7 +335,7 @@ export default function FloatingCopilot({ onNavigate, open, setOpen }: { onNavig
     setMsgs([]); setStatus(null);
   }
 
-  // n'importe quel écran peut ouvrir le copilote avec une question déjà posée (ex. « Déboguer ma machine »)
+  // any screen can open the copilot with a question already asked (e.g. "Debug my machine")
   const sendRef = useRef(send);
   sendRef.current = send;
   useEffect(() => {
@@ -348,10 +348,10 @@ export default function FloatingCopilot({ onNavigate, open, setOpen }: { onNavig
   }, []);
 
   if (!open) {
-    // 19/11 : sur téléphone, en paysage et sur tablette, un rond de 48 px (le libellé « Copilot » seulement sur grand
-    // écran, à partir de 1280 px) : il cache moins de texte ; le contenu garde 7 rem de marge en bas (Layout.tsx) pour
-    // finir au-dessus de lui. Sur un écran court (paysage, moins de 500 px de haut), il laisse sa place au bouton de la
-    // barre du haut (.copilot-fab / .copilot-top, index.css)
+    // on a phone, in landscape and on a tablet, a 48 px round button (the "Copilot" label only on a large screen, from
+    // 1280 px): it hides less text; the content keeps a 7 rem bottom margin (Layout.tsx) to end above it. On a short
+    // screen (landscape, under 500 px tall), it gives its place to the top bar's button (.copilot-fab / .copilot-top,
+    // index.css)
     return (
       <button onClick={() => setOpen(true)} aria-label={t("copilot.open")} title={t("copilot.open")}
         className="copilot-fab fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-[max(1rem,env(safe-area-inset-right))] z-50 flex h-12 min-w-12 items-center justify-center gap-2 rounded-full border border-accent/50 bg-accent px-3.5 font-medium text-ink shadow-xl transition hover:brightness-110 xl:bottom-5 xl:right-5 xl:h-auto xl:px-4 xl:py-3">
@@ -360,8 +360,8 @@ export default function FloatingCopilot({ onNavigate, open, setOpen }: { onNavig
     );
   }
 
-  // la 2e ligne de l'en-tête : à quel copilote on parle, maintenant. Elle passe à la ligne entre deux mots plutôt que
-  // d'être rognée (bulle de 380 px au plus, texte plus long en français) ; l'icône reste sur la 1re ligne
+  // the header's second line: which copilot the user is talking to, now. It wraps between two words rather than being
+  // clipped (a bubble of 380 px at most, longer text in French); the icon stays on the first line
   const modeLine = !client ? <span className="text-muted">{t("copilot.sub")}</span>
     : !attested ? <span className="text-warn">{t("copilot.serverLabel")}</span>
     : key.state === "ok" ? (
@@ -375,12 +375,12 @@ export default function FloatingCopilot({ onNavigate, open, setOpen }: { onNavig
       </span>
     );
 
-  // 19/11 : sur téléphone, une feuille pleine largeur collée en bas (hauteur : 85 % de l'écran visible, au-dessus du
-  // clavier : kb) ; plus large, la bulle flottante, jamais plus haute que l'écran (paysage)
+  // on a phone, a full-width sheet pinned to the bottom (height: 85 % of the visible screen, above the keyboard: kb);
+  // wider, the floating bubble, never taller than the screen (landscape)
   const sheet = kb.phone ? { bottom: kb.inset, height: kb.height } : undefined;
   return (
     <>
-    {/* téléphone : la page derrière la feuille est voilée ; un toucher dessus replie le copilote */}
+    {/* phone: the page behind the sheet is dimmed; a tap on it folds the copilot away */}
     {kb.phone && <button type="button" aria-label={t("copilot.minimize")} className="fixed inset-0 z-40 bg-black/50 sm:hidden" onClick={() => setOpen(false)} />}
     <div style={sheet}
       className="fixed inset-x-0 bottom-0 z-50 flex h-[85dvh] flex-col overflow-hidden rounded-t-2xl border border-edge bg-panel pb-[env(safe-area-inset-bottom)] shadow-2xl sm:inset-x-auto sm:bottom-5 sm:right-5 sm:h-[min(560px,calc(100dvh-2.5rem))] sm:w-[min(92vw,380px)] sm:rounded-2xl sm:pb-0">
@@ -402,9 +402,9 @@ export default function FloatingCopilot({ onNavigate, open, setOpen }: { onNavig
         </div>
       </div>
 
-      {/* repli : le copilote attesté n'est pas utilisé, et pourquoi ; « réessayer » revérifie sa clé sur Arc. Le bandeau
-          est montré en entier : jamais coupé au milieu d'une phrase (sa dernière dit à qui l'on parle maintenant) ; les
-          longues valeurs hexadécimales (clés, adresses) y sont abrégées, entières au survol */}
+      {/* fallback: the attested copilot is not in use, and why; "retry" verifies its key on Arc again. The banner is
+          shown in full: never cut mid-sentence (its last sentence says who the user is talking to now); long
+          hexadecimal values (keys, addresses) are shortened there, in full on hover */}
       {client && fallback && (
         <div className="flex items-start gap-2 border-b border-warn/30 bg-warn/10 px-4 py-2 text-[11px] leading-snug text-warn">
           <p className="min-w-0 flex-1 [overflow-wrap:anywhere]" title={show(fallback)}>
@@ -419,7 +419,7 @@ export default function FloatingCopilot({ onNavigate, open, setOpen }: { onNavig
       <div ref={scroller} className="flex-1 space-y-2 overflow-auto bg-ink/40 p-3">
         {msgs.length === 0 && (
           <div className="space-y-3">
-            {/* le bandeau du repli dit déjà à qui l'on parle : l'introduction ne le répète pas */}
+            {/* the fallback banner already says who the user is talking to: the introduction does not repeat it */}
             <p className="text-sm text-muted">{t(client && attested ? "copilot.introAttested" : "copilot.intro")}</p>
             <div className="flex flex-col gap-1.5">
               {SUGGEST.map((k) => {
@@ -434,7 +434,7 @@ export default function FloatingCopilot({ onNavigate, open, setOpen }: { onNavig
             <div className={`inline-block max-w-[88%] whitespace-pre-wrap rounded-xl px-3 py-2 text-left text-sm [overflow-wrap:anywhere] ${m.role === "user" ? "bg-accent/20" : m.local ? "bg-warn/10 text-warn" : "bg-edge"}`}>
               {m.role === "user" ? m.content : m.note ? show(m.note) : rich(serverText(m.content))}
             </div>
-            {/* d'où vient la réponse : le badge SEULEMENT pour une réponse scellée par l'enclave vérifiée */}
+            {/* where the reply comes from: the badge ONLY for a reply sealed by the verified enclave */}
             {m.role === "assistant" && !m.local && m.sealedBy && <div className="mt-1"><SealedBadge by={m.sealedBy} /></div>}
             {m.role === "assistant" && !m.local && !m.sealedBy && client && <div className="mt-1 text-[11px] text-muted">{t("copilot.serverLabel")}</div>}
             {m.role === "assistant" && m.plain && <div className="mt-1 text-[11px] text-muted">{t("copilot.plainTag")}</div>}
@@ -459,7 +459,7 @@ export default function FloatingCopilot({ onNavigate, open, setOpen }: { onNavig
           value={input} onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
           rows={1} placeholder={t(client && !attested ? "copilot.placeholderServer" : "copilot.placeholder")} aria-label={t("copilot.placeholder")}
-          // 16 px sur téléphone : Safari d'iOS ne zoome pas quand le champ prend le focus
+          // 16 px on a phone: iOS Safari does not zoom when the field takes focus
           className="tap max-h-24 flex-1 resize-none rounded-lg border border-edge bg-ink px-3 py-2 text-base outline-none focus:border-accent/50 sm:text-sm"
         />
         <button onClick={() => send()} disabled={busy || !input.trim()} aria-label={t("copilot.send")} title={t("copilot.send")}
