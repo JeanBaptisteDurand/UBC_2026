@@ -16,6 +16,18 @@
 //  - Iris sandbox (https://iris-api-sandbox.circle.com): /v2/burn/USDC/fees/{0|6}/26 answered a fast fee
 //    (threshold 1000) of 1 bp from Ethereum Sepolia and 1.3 bp from Base Sepolia, 0 for standard (2000); CORS "*";
 //    /v2/messages/0?transactionHash=… returned a real Sepolia to Arc message whose layout matches decodeMessage below.
+//
+// Every transfer here is a STANDARD one, free, 1 USDC burned = 1 USDC minted (VERIFIED 19/11/2026, about 21:50 UTC):
+//  - developers.circle.com/cctp/concepts/fees: "For USDC, CCTP charges fees on Fast Transfers only. Standard Transfers
+//    are free." Iris /v2/burn/USDC/fees/0/26 and /6/26 again gave minimumFee 0 at threshold 2000.
+//  - On-chain, TokenMessengerV2 on Ethereum Sepolia and Base Sepolia has no fee switch: getMinFeeAmount(uint256) and
+//    minFee() revert there (the older contract, as Circle's table says for Ethereum and Base), so nothing enforces a
+//    minimum fee on a burn; on Arc minFee() and getMinFeeAmount(1e6) return 0.
+//  - So the burn sets maxFee 0 and minFinalityThreshold 2000 (finalized): Circle may keep nothing, and the mint on Arc
+//    (handleReceiveFinalizedMessage) gives the recipient the whole amount.
+//  - The price is time: Circle attests once the burn is final. developers.circle.com/cctp/concepts/finality-and-block-
+//    confirmations gives about 65 blocks, 15 to 19 minutes, from Ethereum; from Base, 15 to 19 minutes after Base has
+//    posted its batch to Ethereum, which it does about every 15 minutes (so up to about 35).
 import { createPublicClient, http, pad, parseAbi, type Address, type Chain, type Hex, type PublicClient, type WalletClient } from 'viem'
 import { sepolia, baseSepolia } from 'viem/chains'
 
@@ -23,7 +35,8 @@ export const TOKEN_MESSENGER_V2: Address = '0x8FE6B999Dc680CcFDD5Bf7EB0974218be2
 export const MESSAGE_TRANSMITTER_V2: Address = '0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275'
 export const IRIS = 'https://iris-api-sandbox.circle.com'
 export const ARC_DOMAIN = 26
-/** fast transfer (Circle attests once the burn is confirmed) and standard (once it is final) */
+/** standard transfer: Circle attests once the burn is final (the only kind this page sends: free); FAST only names
+ *  the threshold of a fast transfer, which an older saved transfer may carry */
 export const FAST = 1000, STANDARD = 2000
 
 const arcChain: Chain = {
@@ -46,12 +59,15 @@ export interface Net {
   /** the gas token's symbol */
   gas: string
   chain: Chain
+  /** Circle's usual wait for a standard transfer from this chain, in minutes (finality, then the attestation), and
+   *  the longest usual one */
+  wait?: { from: number; to: number; upTo: number }
 }
 
 export const ARC: Net = { key: 'arc', name: 'Arc testnet', chainId: 5042002, domain: ARC_DOMAIN, rpc: 'https://rpc.testnet.arc.io', walletRpc: 'https://rpc.testnet.arc.io', usdc: '0x3600000000000000000000000000000000000000', explorer: 'https://explorer.testnet.arc.io', gas: 'USDC', chain: arcChain }
 export const SOURCES: Net[] = [
-  { key: 'eth-sepolia', name: 'Ethereum Sepolia', chainId: 11155111, domain: 0, rpc: 'https://ethereum-sepolia-rpc.publicnode.com', walletRpc: 'https://ethereum-sepolia-rpc.publicnode.com', usdc: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238', explorer: 'https://sepolia.etherscan.io', gas: 'ETH', chain: sepolia },
-  { key: 'base-sepolia', name: 'Base Sepolia', chainId: 84532, domain: 6, rpc: 'https://base-sepolia-rpc.publicnode.com', walletRpc: 'https://sepolia.base.org', usdc: '0x036CbD53842c5426634e7929541eC2318f3dCF7e', explorer: 'https://sepolia.basescan.org', gas: 'ETH', chain: baseSepolia },
+  { key: 'eth-sepolia', name: 'Ethereum Sepolia', chainId: 11155111, domain: 0, rpc: 'https://ethereum-sepolia-rpc.publicnode.com', walletRpc: 'https://ethereum-sepolia-rpc.publicnode.com', usdc: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238', explorer: 'https://sepolia.etherscan.io', gas: 'ETH', chain: sepolia, wait: { from: 15, to: 19, upTo: 19 } },
+  { key: 'base-sepolia', name: 'Base Sepolia', chainId: 84532, domain: 6, rpc: 'https://base-sepolia-rpc.publicnode.com', walletRpc: 'https://sepolia.base.org', usdc: '0x036CbD53842c5426634e7929541eC2318f3dCF7e', explorer: 'https://sepolia.basescan.org', gas: 'ETH', chain: baseSepolia, wait: { from: 15, to: 19, upTo: 35 } },
 ]
 export const netByKey = (k?: string | null) => [...SOURCES, ARC].find((n) => n.key === k)
 export const txLink = (n: Net, h?: string | null) => (h ? `${n.explorer}/tx/${h}` : undefined)
@@ -82,21 +98,14 @@ export const usdcOf = (n: Net, who: Address) => reader(n).readContract({ address
 /** the gas token in wei (18 decimals, Arc included) */
 export const gasOf = (n: Net, who: Address) => reader(n).getBalance({ address: who })
 
-/** Circle's fast-transfer fee from this source to Arc, in basis points (null: not offered, the transfer is standard) */
-export async function fastFeeBps(src: Net): Promise<number | null> {
+/** Circle's standard-transfer fee from this source to Arc, in basis points, read from Iris (0 on 19/11/2026; null:
+ *  not read). The page reads it only to check its "free" line; the burn itself never lets Circle keep anything. */
+export async function standardFeeBps(src: Net): Promise<number | null> {
   const r = await fetch(`${IRIS}/v2/burn/USDC/fees/${src.domain}/${ARC_DOMAIN}`)
   if (!r.ok) return null
   const j = (await r.json()) as { finalityThreshold: number; minimumFee: number }[]
-  const f = Array.isArray(j) ? j.find((x) => x.finalityThreshold === FAST) : undefined
+  const f = Array.isArray(j) ? j.find((x) => x.finalityThreshold === STANDARD) : undefined
   return typeof f?.minimumFee === 'number' ? f.minimumFee : null
-}
-/** the most the visitor lets Circle keep for a fast transfer: the fee plus a fifth, rounded up (at least 1 unit). If
- *  Circle's fee rose above it meanwhile, the transfer is not lost: it is attested as a standard one, later. */
-export function maxFeeFor(amount: bigint, bps: number): bigint {
-  const hundredths = BigInt(Math.ceil(bps * 100))
-  const fee = (amount * hundredths + 999_999n) / 1_000_000n
-  const cap = (fee * 12n + 9n) / 10n
-  return cap < 1n ? 1n : cap
 }
 
 // ---------- step 1, on the source chain ----------
@@ -108,13 +117,14 @@ export async function approveIfNeeded(w: WalletClient, src: Net, amount: bigint)
   if (have >= amount) return null
   return w.writeContract({ account: a, chain: src.chain, address: src.usdc, abi: ERC20, functionName: 'approve', args: [TOKEN_MESSENGER_V2, amount] })
 }
-/** burns `amount` on the source chain toward Arc; the mint goes to `recipient` on Arc, and anyone may relay it
- *  (destinationCaller zero) */
-export function burn(w: WalletClient, src: Net, amount: bigint, recipient: Address, maxFee: bigint, threshold: number): Promise<Hex> {
-  return w.writeContract({
-    account: acct(w), chain: src.chain, address: TOKEN_MESSENGER_V2, abi: TM, functionName: 'depositForBurn',
-    args: [amount, ARC_DOMAIN, pad(recipient, { size: 32 }), src.usdc, pad('0x00', { size: 32 }), maxFee, threshold],
-  })
+/** the depositForBurn arguments of a standard, free transfer: `amount` toward Arc for `recipient`, anyone may relay
+ *  it (destinationCaller zero), Circle may keep nothing (maxFee 0), attested once final (threshold 2000) */
+export function burnArgs(src: Net, amount: bigint, recipient: Address) {
+  return [amount, ARC_DOMAIN, pad(recipient, { size: 32 }), src.usdc, pad('0x00', { size: 32 }), 0n, STANDARD] as const
+}
+/** burns `amount` on the source chain toward Arc, standard and free; the mint goes to `recipient` on Arc */
+export function burn(w: WalletClient, src: Net, amount: bigint, recipient: Address): Promise<Hex> {
+  return w.writeContract({ account: acct(w), chain: src.chain, address: TOKEN_MESSENGER_V2, abi: TM, functionName: 'depositForBurn', args: burnArgs(src, amount, recipient) })
 }
 /** waits for a transaction; throws `reverted` when the chain refused it */
 export async function confirmed(n: Net, hash: Hex) {

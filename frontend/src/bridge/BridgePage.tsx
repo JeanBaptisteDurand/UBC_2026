@@ -1,6 +1,8 @@
 // The bridge page (bridge.html): the connected wallet brings its USDC from another testnet to Arc testnet with CCTP
 // V2, in three steps it signs itself (burn on the source chain, Circle's attestation, mint on Arc). The addresses and
 // calls are in ./cctp.ts (verified on-chain); a started transfer is kept in localStorage and resumes after a reload.
+// Every transfer is a standard one, free (maxFee 0, threshold 2000): 1 USDC sent = 1 USDC received, after Circle has
+// waited for the burn to be final (15 to 19 minutes from Ethereum Sepolia, cctp.ts).
 import { useEffect, useRef, useState } from 'react'
 import { createWalletClient, custom, formatUnits, parseUnits, type Address, type EIP1193Provider, type Hex } from 'viem'
 import { useLang, getLang } from '../i18n'
@@ -11,7 +13,7 @@ import { useIn } from '../ui/gestures'
 import { AppHeader } from '../app/AppFrame'
 import { HeaderWallet } from '../network/actions/HeaderWallet'
 import { useWallet, setWallet, engine } from '../network/actions/store'
-import { ARC, SOURCES, netByKey, txLink, usdcOf, gasOf, fastFeeBps, maxFeeFor, approveIfNeeded, burn, confirmed, attestation, decodeMessage, received, mint, setRpc, FAST, STANDARD, type Net } from './cctp'
+import { ARC, SOURCES, netByKey, txLink, usdcOf, gasOf, standardFeeBps, approveIfNeeded, burn, confirmed, attestation, decodeMessage, received, mint, setRpc, FAST, STANDARD, type Net } from './cctp'
 import { bt } from './strings'
 import './bridge.css'
 
@@ -39,6 +41,11 @@ const fmt = (units: bigint | string | undefined | null, dec = 6) => {
   return n.toLocaleString(getLang() === 'fr' ? 'fr-FR' : 'en-US', { maximumFractionDigits: dec === 6 ? 6 : 4 })
 }
 const usd = (u: bigint | string | undefined | null) => `${fmt(u)} USDC`
+/** Circle's usual wait from this chain, in words (cctp.ts, Net.wait) */
+const waitOf = (n: Net) => bt(n.key === 'base-sepolia' ? 'wait.base-sepolia' : 'wait.eth-sepolia')
+const rangeOf = (n: Net) => { const w = n.wait ?? { from: 15, to: 19, upTo: 19 }; return bt(w.upTo > w.to ? 'range.up' : 'range', w) }
+/** seconds as "4 min 07 s" */
+const elapsed = (secs: number) => bt('elapsed', { m: Math.floor(secs / 60), s: String(secs % 60).padStart(2, '0') })
 const AMOUNT_RE = /^\d{0,9}([.,]\d{0,6})?$/
 const toUnits = (s: string): bigint | null => { if (!s || !AMOUNT_RE.test(s) || !/\d/.test(s)) return null; try { return parseUnits(s.replace(',', '.'), 6) } catch { return null } }
 
@@ -141,7 +148,8 @@ function Bridge({ me }: { me: Address }) {
   const src = netByKey(job?.src ?? srcKey) ?? SOURCES[0]
   const [amount, setAmount] = useState(() => (job && !job.burn ? fmt(job.amount).replace(/\s/g, '') : ''))
   const [bals, setBals] = useState<Record<string, Bal>>({})
-  const [bps, setBps] = useState<number | null | undefined>(undefined)
+  // Circle's fee for a standard transfer from the chosen chain, read to check the "free" line (0; null: not read)
+  const [stdFee, setStdFee] = useState<number | null | undefined>(undefined)
   const [run, setRun] = useState<0 | 1 | 3>(0)
   const [n1, setN1] = useState<Note | null>(null)
   const [iris, setIris] = useState<{ seen: boolean; err?: string } | null>(null)
@@ -158,8 +166,7 @@ function Bridge({ me }: { me: Address }) {
     }
     return () => { alive = false }
   }, [me, reload])
-  // Circle's fast fee from the chosen chain (null: standard only)
-  useEffect(() => { let alive = true; setBps(undefined); fastFeeBps(src).then((v) => alive && setBps(v)).catch(() => alive && setBps(null)); return () => { alive = false } }, [src.key])
+  useEffect(() => { let alive = true; setStdFee(undefined); standardFeeBps(src).then((v) => alive && setStdFee(v)).catch(() => alive && setStdFee(null)); return () => { alive = false } }, [src.key])
 
   // step 2: ask Circle until the burn is attested (also after a reload)
   useEffect(() => {
@@ -200,8 +207,8 @@ function Bridge({ me }: { me: Address }) {
   }, [job?.burn]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const units = toUnits(amount)
-  const maxFee = units && bps != null ? maxFeeFor(units, bps) : 0n
-  const thr = bps != null ? FAST : STANDARD
+  // the page sends nothing if Circle ever starts charging standard transfers on this route
+  const notFree = typeof stdFee === 'number' && stdFee > 0
   const b = bals[src.key] ?? {}
   const started = !!job?.burn
   const done = !!job?.minted
@@ -210,9 +217,9 @@ function Bridge({ me }: { me: Address }) {
     if (run) return
     setN1(null); setIris(null); setN3(null)
     if (!units || units <= 0n || (typeof b.usdc === 'bigint' && units > b.usdc)) { setN1({ tone: 'bad', text: typeof b.usdc === 'bigint' && units && units > b.usdc ? bt('e.funds', { have: usd(b.usdc), net: src.name, need: usd(units) }) : bt('e.amount') }); return }
-    if (units <= maxFee) { setN1({ tone: 'bad', text: bt('e.small', { fee: usd(maxFee) }) }); return }
+    if (notFree) { setN1({ tone: 'bad', text: bt('e.notfree', { net: src.name }) }); return }
     if (b.gas === 0n) { setN1({ tone: 'bad', text: bt('gas.src', { gas: src.gas, net: src.name }), href: ETH_FAUCET[src.key], hrefLabel: bt(src.key === 'base-sepolia' ? 'faucet.base' : 'faucet.eth') }); return }
-    const j: Job = { v: 1, owner: me, src: src.key, amount: units.toString(), maxFee: maxFee.toString(), thr, t0: Date.now() }
+    const j: Job = { v: 1, owner: me, src: src.key, amount: units.toString(), maxFee: '0', thr: STANDARD, t0: Date.now() }
     setRun(1)
     try {
       const p = await providerOf()
@@ -223,7 +230,7 @@ function Bridge({ me }: { me: Address }) {
       const ah = await approveIfNeeded(w, src, units)
       if (ah) { j.approve = ah; setJob(j); setN1({ tone: 'muted', text: bt('n.approving', { net: src.name }) }); await confirmed(src, ah) }
       setN1({ tone: 'muted', text: bt('n.burn') })
-      const bh = await burn(w, src, units, me, maxFee, thr)
+      const bh = await burn(w, src, units, me)
       j.burn = bh; j.t0 = Date.now(); setJob(j)
       // the confirmation is the effect above (it also serves a reload)
     } catch (e) {
@@ -270,6 +277,7 @@ function Bridge({ me }: { me: Address }) {
   void tick
   const arc = bals.arc ?? {}
   const jSrc = netByKey(job?.src) ?? src
+  const late = secs > 60 * (jSrc.wait?.upTo ?? 19)
 
   return (
     <section className="work-sec acts br-sec" id="bridge" aria-labelledby="br-h">
@@ -299,8 +307,13 @@ function Bridge({ me }: { me: Address }) {
                 onChange={(e) => { const v = e.target.value.trim(); if (v === '' || AMOUNT_RE.test(v)) setAmount(v) }} aria-describedby="br-fee" />
               <button type="button" className="btn btn-line br-max" disabled={started || run !== 0 || typeof b.usdc !== 'bigint' || b.usdc === 0n} onClick={() => typeof b.usdc === 'bigint' && setAmount(formatUnits(b.usdc, 6))}><span>{bt('max')}</span></button>
             </div>
-            <p className="br-fee lbl muted" id="br-fee">{started ? (job!.thr === FAST ? bt('fee.fast', { fee: usd(job!.maxFee) }) : bt('fee.std')) : bps === undefined ? bt('fee.reading') : bps === null ? bt('fee.std') : units ? bt('fee.fast', { fee: usd(maxFee) }) : bt('fee.rate', { pct: (bps / 100).toLocaleString(getLang() === 'fr' ? 'fr-FR' : 'en-US', { maximumFractionDigits: 4 }) })}</p>
-            {units && units > maxFee && !started ? <p className="br-get">{bt('get', { v: usd(units - maxFee) })}</p> : null}
+            {started && job!.maxFee !== '0' ? <p className="br-fee lbl muted" id="br-fee">{bt('fee.old', { fee: usd(job!.maxFee) })}</p> : (
+              <div className="br-fee" id="br-fee">
+                <p className="br-free">{bt('free')}</p>
+                <p className="lbl muted">{bt('free.d', { net: jSrc.name, wait: waitOf(jSrc) })}</p>
+              </div>
+            )}
+            {units && !started && !notFree ? <p className="br-get">{bt('get', { v: usd(units) })}</p> : null}
           </div>
           {started ? null : <button type="button" className="btn btn-main br-btn br-go" onClick={start} disabled={run !== 0}><span>{bt('go')}</span></button>}
           {done ? <button type="button" className="btn btn-line br-btn" onClick={again}><span>{bt('new')}</span></button> : null}
@@ -313,7 +326,10 @@ function Bridge({ me }: { me: Address }) {
           <ol className="na-list" aria-label={bt('steps')}>
             <StepRow n={1} st={s1} on={active === 1} t={bt('s1.t', { net: jSrc.name })} d={bt('s1.d', { net: jSrc.name, gas: jSrc.gas })} note={n1}
               links={[{ net: jSrc, h: job?.approve, k: 'approve' }, { net: jSrc, h: job?.burn, k: 'depositForBurn' }]} />
-            <StepRow n={2} st={s2} on={active === 2} t={bt('s2.t')} d={bt('s2.d')} note={s2 === 'done' ? { tone: 'ok', text: bt('n.attested') } : s2 !== 'doing' ? null : iris?.err ? { tone: 'bad', text: bt('e.iris', { why: iris.err }) } : { tone: 'muted', text: bt(iris?.seen ? 'n.wait' : 'n.unseen', { s: secs }) }} />
+            <StepRow n={2} st={s2} on={active === 2} t={bt('s2.t')} d={bt('s2.d', { net: jSrc.name, wait: waitOf(jSrc) })} note={s2 === 'done' ? { tone: 'ok', text: bt('n.attested') } : s2 !== 'doing' ? null : iris?.err ? { tone: 'bad', text: bt('e.iris', { why: iris.err }) } : { tone: 'muted', text: bt(late ? 'n.late' : iris?.seen ? 'n.wait' : 'n.unseen', { t: elapsed(secs), range: rangeOf(jSrc) }) }}>
+              {/* the wait against Circle's usual longest one (never full before the attestation) */}
+              {s2 === 'doing' && job?.thr !== FAST ? <div className="br-wait" aria-hidden="true"><i style={{ transform: `scaleX(${Math.min(0.97, secs / (60 * (jSrc.wait?.upTo ?? 19))).toFixed(4)})` }} /></div> : null}
+            </StepRow>
             <StepRow n={3} st={s3} on={active === 3} t={bt('s3.t')} d={bt('s3.d')} note={done && !n3 ? { tone: 'ok', text: job?.relayed ? bt('n.already') : bt('n.done', { v: usd(job!.minted) }) } : n3}
               links={[{ net: ARC, h: job?.mint, k: 'receiveMessage' }]}>
               {job?.att && !done ? (

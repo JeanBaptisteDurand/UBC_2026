@@ -52,3 +52,10 @@
   .br-step .na-note, .br-tx, .acts .br-step .na-d, .acts .br-step .na-b { margin-left: 0; }
   .acts .br-h { grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; }
 }
+/* the free line (every transfer is a standard one: 1 USDC sent = 1 USDC received), and the wait for Circle */
+.br-fee { display: grid; gap: 4px; margin: 0; }
+.br-fee p { margin: 0; }
+.br-free { font-size: 15px; color: var(--ink); }
+.br-wait { height: 2px; margin: 12px 0 0; max-width: 30em; background: var(--rule2); overflow: hidden; }
+.br-wait > i { display: block; height: 100%; background: var(--acc); transform-origin: 0 50%; transition: transform 1s linear; }
+@media (prefers-reduced-motion: reduce) { .br-wait > i { transition: none; } }
