@@ -70,7 +70,7 @@
       "registerGas": 5609768
     }
   },
-  "knownLimits": [
+  "fixedInV21": [
     "Le workloadId inclut RTMR3, qui chez Phala/dstack contient des événements propres à l'instance de la VM : un redémarrage (ex. changement de variable chiffrée) change le workloadId ; l'auteur autorise aujourd'hui chaque instance. Correctif : rejouer le journal d'événements de RTMR3 et n'épingler que le hash du compose.",
     "requestHash des verdicts non lié à l'adresse du contrat : un redéploiement sur la même chaîne pourrait entrer en collision (ERC-8004 répond « exists », verdict sauté sans trace). Correctif v2.1 : inclure chainid + address(this) et émettre un événement en cas d'échec."
   ]

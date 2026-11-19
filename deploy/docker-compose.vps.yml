@@ -127,7 +127,7 @@ services:
     command: ["node", "registrar.mjs"]
     # clé de l'OPÉRATEUR seulement (0x344f…2e1a) : la clé du déployeur, propriétaire des contrats, ne vit pas sur ce serveur
     env_file: ["/opt/archive/registrar-v2.env"]
-    environment: ["ENCLAVE_URL=https://659d8740a0a8364fc0f805cb48f38a6977749783-8802.dstack-pha1-prod9.phala.network", "PRODUCT_ID=1", "SETTLE=1"]
+    environment: ["ENCLAVE_URL=https://54623c0974ceed19ccbcf121548937016f8cbab8-8802.dstack-pha1-prod9.phala.network", "PRODUCT_ID=1", "SETTLE=1"]
     restart: unless-stopped
     logging: *logging
     read_only: true
@@ -143,7 +143,7 @@ services:
     command: ["node", "registrar.mjs"]
     # clé de l'OPÉRATEUR seulement (0x344f…2e1a) : la clé du déployeur, propriétaire des contrats, ne vit pas sur ce serveur
     env_file: ["/opt/archive/registrar-v2.env"]
-    environment: ["ENCLAVE_URL=https://659d8740a0a8364fc0f805cb48f38a6977749783-8804.dstack-pha1-prod9.phala.network", "PRODUCT_ID=3", "SETTLE=1"]
+    environment: ["ENCLAVE_URL=https://54623c0974ceed19ccbcf121548937016f8cbab8-8804.dstack-pha1-prod9.phala.network", "PRODUCT_ID=3", "SETTLE=1"]
     restart: unless-stopped
     logging: *logging
     read_only: true
@@ -159,7 +159,7 @@ services:
     command: ["node", "registrar.mjs"]
     # clé de l'OPÉRATEUR seulement (0x344f…2e1a) : la clé du déployeur, propriétaire des contrats, ne vit pas sur ce serveur
     env_file: ["/opt/archive/registrar-v2.env"]
-    environment: ["ENCLAVE_URL=https://8be7a21dab8126efad80cc9a53fe11cea66bea1d-8803.dstack-pha1-prod9.phala.network", "PRODUCT_ID=2", "SETTLE=0"]
+    environment: ["ENCLAVE_URL=https://86400c7d73335cf87524acf9cf6590fec3e7c271-8803.dstack-pha1-prod9.phala.network", "PRODUCT_ID=2", "SETTLE=0"]
     restart: unless-stopped
     logging: *logging
     read_only: true
@@ -176,14 +176,15 @@ services:
     command: ["node", "registrar.mjs"]
     # clé de l'OPÉRATEUR seulement (0x344f…2e1a) : la clé du déployeur, propriétaire des contrats, ne vit pas sur ce serveur
     env_file: ["/opt/archive/registrar-v2.env"]
-    environment: ["ENCLAVE_URL=https://68182b56bf0b6214bd0ec8bb8edce2b4122343e1-8803.dstack-pha1-prod9.phala.network", "PRODUCT_ID=7", "SETTLE=0"]
+    environment: ["ENCLAVE_URL=https://bd32db73ff811e3424dad660ebcbd0c819ed3a8f-8803.dstack-pha1-prod9.phala.network", "PRODUCT_ID=7", "SETTLE=0"]
     restart: unless-stopped
     logging: *logging
     read_only: true
     tmpfs: ["/tmp:size=16m"]
     security_opt: ["no-new-privileges:true"]
     cap_drop: ["ALL"]
-  # copilote attesté : renouvelle seulement (service gratuit)
+  # copilote attesté (produit 4) : renouvelle seulement (service gratuit). Depuis le 19/11 : l'enclave du copilote du SITE
+  # (image v22, COPILOT_SURFACE=site, VM 8f4fd47e…), celle de la route /enclave/copilot-site/ de nginx.conf.
   registrar-copilot:
     image: node:22-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d
     user: "1000:1000"
@@ -192,7 +193,7 @@ services:
     command: ["node", "registrar.mjs"]
     # clé de l'OPÉRATEUR seulement (0x344f…2e1a) : la clé du déployeur, propriétaire des contrats, ne vit pas sur ce serveur
     env_file: ["/opt/archive/registrar-v2.env"]
-    environment: ["ENCLAVE_URL=https://587736778248fca43e8c09ae83dc6555162cc829-8808.dstack-pha1-prod9.phala.network", "PRODUCT_ID=4", "SETTLE=0"]
+    environment: ["ENCLAVE_URL=https://8f4fd47e27d281343b5ef9ee8a303717d2763997-8808.dstack-pha1-prod9.phala.network", "PRODUCT_ID=4", "SETTLE=0"]
     restart: unless-stopped
     logging: *logging
     read_only: true

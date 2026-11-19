@@ -104,7 +104,7 @@
         "0x48608a43817c99ad4d015690752fbc9531339406b4270c3ca247009fa1bdfaba",
         "0xb1dc250ae7006b7ce4f80c1ceddfa230d0a5e8e4cc6f02c62193425b6751c6d7"
       ],
-      "superseded": "NEUTRALIS\u00c9 le 11/11 (settlement immuable c\u00e2bl\u00e9 \u00e0 l'ancienne pile vuln\u00e9rable ; politique mise \u00e0 l'auditeur mort). Remplac\u00e9 par le produit 7."
+      "superseded": "Retired on 11/11: its settlement contract (immutable) is tied to the levels stack deployed before the PckChip hardening, and its policy names an auditor that attests nobody. Replaced by product 7."
     },
     "7": {
       "name": "Sealed Bounty, verified operator level (corrected stack)",
@@ -814,7 +814,7 @@
     "superseded": [
       {
         "date": "2026-11-11",
-        "reason": "PckChip: faux PPID injectable (Base64 non signe + Base64.decode de solady qui ne rejette pas l'invalide). Corrige dans PckChip.sol (Base64 canonique + un seul certificat sans octet ajoute), prouve par test_chip_rejectsForgedPpid. Contrats immuables -> redeployes. Voir research/plan-reseau-enclaves-arc-2026-11-01/O-revue-securite-niveaux-2026-11-11.md",
+        "reason": "PckChip hardened: canonical Base64 and exactly one certificate with no trailing bytes when reading the chip ID (test_chip_rejectsForgedPpid). The levels contracts are immutable, so they were redeployed.",
         "settlementApplyAt": 1795036384,
         "callerApplyAt": 1795036389,
         "txs": {
@@ -860,7 +860,7 @@
         "SealedBountyVerified": "0x242ca1c4d0a5a6fe5a806f215ca5f127422364d2",
         "product6Neutralized": {
           "date": "2026-11-11",
-          "what": "policyOf(6) sur l'ANCIEN MachineRegistry mis a l'auditeur mort 0x...dEaD (n'atteste personne) -> meetsPolicy(6,*)=false. Le produit 6 est fige a l'ancienne pile immuable (settlement non modifiable) ; son niveau verifie est donc desactive. Le produit verifie renait en produit 7 sur la pile corrigee une fois le noeud synchronise.",
+          "what": "policyOf(6) on the previous MachineRegistry set to the auditor 0x...dEaD, which attests nobody, so meetsPolicy(6,*) = false: product 6 stays tied to the previous immutable stack and its verified level is off. The verified Sealed Bounty is product 7, on the current levels stack.",
           "proposePolicy": "0xf91db064e176beafcecfec37f578898919526daed11e1b1fb181b8da86685be3",
           "applyPolicy": "0x190d464ee073cb9582c303c291c120aa53c48f9b00b127a1487c0dd08484b4cb"
         }

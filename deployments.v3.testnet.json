@@ -1,0 +1,350 @@
+{
+  "network": "Arc testnet",
+  "chainId": 5042002,
+  "rpc": "https://rpc.testnet.arc.network",
+  "explorer": "https://explorer.testnet.arc.io",
+  "version": "3",
+  "deployedAt": "2026-11-19",
+  "deployBlock": 73075189,
+  "lastBlock": 73076285,
+  "deployer": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
+  "owner": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
+  "treasury": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
+  "status": "DEPLOYED, NOT LIVE: the live site, API, registrar and enclaves still run on v2.1 (deployments.v21.testnet.json). Switch planned after the UBC submission (20/11).",
+  "note": "Fresh copy of every ArcHive contract (19/11/2026, 20:33-20:37 UTC), same source as v2.1 + corrected PckChip (contracts/src, solc 0.8.28 via-IR, prague, 200 runs), same constructor parameters as v2.1 (read on-chain from the v2.1 getters). Core and levels deployed together, so OperatorBond.initialize and VerdictLog.initialize wire ALL settlements at once, including SealedBountyVerified: no 8-day proposeSettlement/proposeCaller delay on v3. Simulated first on an anvil fork (same addresses). Deployer nonce 328 -> 344, 16 txs, 26,358,455 gas, about 0.64 USDC of gas.",
+  "external": {
+    "USDC": "0x3600000000000000000000000000000000000000",
+    "ERC8004_Validation": "0x8004Cb1BF31DAf7788923b405b754f57acEB4272",
+    "ERC8004_Identity": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+    "EIP2935_History": "0x0000F90827F1C53a10cb7A02335B175320002935",
+    "AutomataDcapAttestationFee": "0x48640f7d94dE64b13c89686F3d1240A31Aeb4dc9",
+    "Multicall3": "0xcA11bde05977b3631167028862bE2a173976CA11"
+  },
+  "contracts": {
+    "TdxAttestationModule": "0x3275fA3b519FAD912eA4a5e75Bf5078Def29D491",
+    "ProductRegistry": "0xd2e6f3fD0561C8823774A8C7054B414777E0228d",
+    "OperatorBond": "0x19C3438E997c2C513aA5E7D2dDd2666532095dd4",
+    "EnclaveRegistry": "0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E",
+    "VerdictLog": "0x3BEC55d2E50118ceACcD2E0045855123964D78cF",
+    "SealedBounty": "0xaA229Eda6b535DF6aEe0B4D892f39e0EC006d308",
+    "SessionPay": "0x606c379cd8758E3562e7ECC9972d0feF693F0763",
+    "X402Settler": "0x89B0381B18536f680fD952a0E7D375d7a4EC3fe6",
+    "DemoVault": "0xf5D51c805BFa4c1Fb3d5D3B248bEB1841DDc03b8",
+    "MachineRegistry": "0xC64e9556AA896b2E8c0bE0fdf3dC7b2c0be24b86",
+    "Ed25519Verifier": "0xf2c47D6eCD25290C9daa826b3D11AC43baaEcEf6",
+    "ProofOfCloudAuditor": "0xEaf8163fa5Eb2f047d4876bb3Ef2E67250360b73",
+    "PolicyEnclaves": "0x12c0C33C62666AbE0ab03B286b428C554De71BF8",
+    "SealedBountyVerified": "0x8958EA25c9cF7bbee39B32C43187d854B5d73ee6"
+  },
+  "params": {
+    "TdxAttestationModule.dcap": "0x48640f7d94dE64b13c89686F3d1240A31Aeb4dc9",
+    "ProductRegistry.timelock": 0,
+    "EnclaveRegistry": {
+      "requireSeptVeDisable": true,
+      "validityBlocks": 170000,
+      "graceBlocks": 170000,
+      "blockTimeMs": 509
+    },
+    "SealedBounty": {
+      "networkBountyBps": 1000,
+      "operatorBountyBps": 500
+    },
+    "SealedBountyVerified": {
+      "networkBountyBps": 1000,
+      "operatorBountyBps": 500,
+      "enclaves": "PolicyEnclaves"
+    },
+    "SessionPay.attemptsFor": "SealedBounty",
+    "ProofOfCloudAuditor": {
+      "allianceKey": "0x5ea69fede5bcf71054395b273bad67f67158c242d77945d436374020ece525cb",
+      "keyX": "0x2f8e34d2ac1e348d620b3df6bc952f50824f7c5d8a94d61bd921a27399c132fd",
+      "keyY": "0x4b25e5ec20403736d44579d742c25871f667ad3b275b395410f7bce5ed9fa65e"
+    },
+    "OperatorBond.settlements": [
+      "SessionPay",
+      "SealedBounty",
+      "X402Settler",
+      "SealedBountyVerified"
+    ],
+    "VerdictLog.callers": [
+      "SessionPay",
+      "SealedBounty",
+      "SealedBountyVerified"
+    ]
+  },
+  "deployTxs": {
+    "TdxAttestationModule": "0xb70b70868acc9c9ca4c64ae66279d68a936be6c950668cb603e6b286cb4f238a",
+    "ProductRegistry": "0x92d93e196c84b941695c3effde67ca8e73f7bc140acdd42c4f5a06927183add3",
+    "OperatorBond": "0xcf0e6c3cfd9daff6908d38d22a282383ca408782ea8e89f5748ad0ef203798ef",
+    "EnclaveRegistry": "0xdf5d2ad6529eb2bfdbc0f4dfda4368822cbe03eb7ee7b3087f145065f5679049",
+    "VerdictLog": "0x69398d3f43f6a88aec19b0dc61723b03d367be735b7c611830e036a68e67cb0a",
+    "SealedBounty": "0x4596530199d2eb46d1744d82f2d29a5a4a412664e97e0ca53e1b8fb373e2b70b",
+    "SessionPay": "0x5db4f8eabef8a9a3934ed75405524749b91f523630b1d99e73698a5eb2a7913e",
+    "X402Settler": "0xb46725d5ede9f727c314c0e2ee6e0d2acebdce35a52e52e5d58f11a23040cab3",
+    "DemoVault": "0x9177cc52bff60ea2eddd5ffddb51ba1ebe65d91c4e673c45651f8d3527ebc56b",
+    "MachineRegistry": "0x3e2b4613984e0036b007e837291b7b676d3fe1e0cf6c954476c999699b3cee6b",
+    "Ed25519Verifier": "0xf962c4c909e53f8675d43db4a278448409a1c41e134cd0b612a3be8db098be4d",
+    "ProofOfCloudAuditor": "0xc6870fd5005234de09c79426735d751efb1c0ffc46bd183498ad508a8f7149d0",
+    "PolicyEnclaves": "0x83470109e86071d1cb865432abf7dc6e146471944c4c8d6197ff3e17e91945fc",
+    "SealedBountyVerified": "0xd927f7fe46182b5d42aa8d334cad15426f6fd42356463cad905ff223604e718e"
+  },
+  "initTxs": {
+    "OperatorBond.initialize": "0x92233e31fefe8f153e2dd0be939910344a8cad4ec56df056618f482984796b15",
+    "VerdictLog.initialize": "0x5ef23fa5074e01b5711ae7e868957d1c89a16a41e791fe716023bbb6b16358f6"
+  },
+  "receipts": {
+    "TdxAttestationModule": {
+      "address": "0x3275fa3b519fad912ea4a5e75bf5078def29d491",
+      "tx": "0xb70b70868acc9c9ca4c64ae66279d68a936be6c950668cb603e6b286cb4f238a",
+      "status": "0x1",
+      "block": 73075189,
+      "gasUsed": 589932
+    },
+    "ProductRegistry": {
+      "address": "0xd2e6f3fd0561c8823774a8c7054b414777e0228d",
+      "tx": "0x92d93e196c84b941695c3effde67ca8e73f7bc140acdd42c4f5a06927183add3",
+      "status": "0x1",
+      "block": 73075196,
+      "gasUsed": 1485213
+    },
+    "OperatorBond": {
+      "address": "0x19c3438e997c2c513aa5e7d2ddd2666532095dd4",
+      "tx": "0xcf0e6c3cfd9daff6908d38d22a282383ca408782ea8e89f5748ad0ef203798ef",
+      "status": "0x1",
+      "block": 73075200,
+      "gasUsed": 1663166
+    },
+    "EnclaveRegistry": {
+      "address": "0xc854eba7c28f4b53f50018eacf40d617ba76e38e",
+      "tx": "0xdf5d2ad6529eb2bfdbc0f4dfda4368822cbe03eb7ee7b3087f145065f5679049",
+      "status": "0x1",
+      "block": 73075208,
+      "gasUsed": 3470054
+    },
+    "VerdictLog": {
+      "address": "0x3bec55d2e50118ceaccd2e0045855123964d78cf",
+      "tx": "0x69398d3f43f6a88aec19b0dc61723b03d367be735b7c611830e036a68e67cb0a",
+      "status": "0x1",
+      "block": 73075320,
+      "gasUsed": 653995
+    },
+    "SealedBounty": {
+      "address": "0xaa229eda6b535df6aee0b4d892f39e0ec006d308",
+      "tx": "0x4596530199d2eb46d1744d82f2d29a5a4a412664e97e0ca53e1b8fb373e2b70b",
+      "status": "0x1",
+      "block": 73075328,
+      "gasUsed": 4377721
+    },
+    "SessionPay": {
+      "address": "0x606c379cd8758e3562e7ecc9972d0fef693f0763",
+      "tx": "0x5db4f8eabef8a9a3934ed75405524749b91f523630b1d99e73698a5eb2a7913e",
+      "status": "0x1",
+      "block": 73075334,
+      "gasUsed": 2562566
+    },
+    "X402Settler": {
+      "address": "0x89b0381b18536f680fd952a0e7d375d7a4ec3fe6",
+      "tx": "0xb46725d5ede9f727c314c0e2ee6e0d2acebdce35a52e52e5d58f11a23040cab3",
+      "status": "0x1",
+      "block": 73075342,
+      "gasUsed": 1006233
+    },
+    "DemoVault": {
+      "address": "0xf5d51c805bfa4c1fb3d5d3b248beb1841ddc03b8",
+      "tx": "0x9177cc52bff60ea2eddd5ffddb51ba1ebe65d91c4e673c45651f8d3527ebc56b",
+      "status": "0x1",
+      "block": 73075348,
+      "gasUsed": 322569
+    },
+    "MachineRegistry": {
+      "address": "0xc64e9556aa896b2e8c0be0fdf3dc7b2c0be24b86",
+      "tx": "0x3e2b4613984e0036b007e837291b7b676d3fe1e0cf6c954476c999699b3cee6b",
+      "status": "0x1",
+      "block": 73075354,
+      "gasUsed": 2116898
+    },
+    "Ed25519Verifier": {
+      "address": "0xf2c47d6ecd25290c9daa826b3d11ac43baaecef6",
+      "tx": "0xf962c4c909e53f8675d43db4a278448409a1c41e134cd0b612a3be8db098be4d",
+      "status": "0x1",
+      "block": 73075362,
+      "gasUsed": 1794907
+    },
+    "ProofOfCloudAuditor": {
+      "address": "0xeaf8163fa5eb2f047d4876bb3ef2e67250360b73",
+      "tx": "0xc6870fd5005234de09c79426735d751efb1c0ffc46bd183498ad508a8f7149d0",
+      "status": "0x1",
+      "block": 73075368,
+      "gasUsed": 967548
+    },
+    "PolicyEnclaves": {
+      "address": "0x12c0c33c62666abe0ab03b286b428c554de71bf8",
+      "tx": "0x83470109e86071d1cb865432abf7dc6e146471944c4c8d6197ff3e17e91945fc",
+      "status": "0x1",
+      "block": 73075375,
+      "gasUsed": 711425
+    },
+    "SealedBountyVerified": {
+      "address": "0x8958ea25c9cf7bbee39b32c43187d854b5d73ee6",
+      "tx": "0xd927f7fe46182b5d42aa8d334cad15426f6fd42356463cad905ff223604e718e",
+      "status": "0x1",
+      "block": 73075383,
+      "gasUsed": 4377733
+    },
+    "OperatorBond.initialize": {
+      "tx": "0x92233e31fefe8f153e2dd0be939910344a8cad4ec56df056618f482984796b15",
+      "status": "0x1",
+      "block": 73075567,
+      "gasUsed": 141833
+    },
+    "VerdictLog.initialize": {
+      "tx": "0x5ef23fa5074e01b5711ae7e868957d1c89a16a41e791fe716023bbb6b16358f6",
+      "status": "0x1",
+      "block": 73075574,
+      "gasUsed": 116662
+    }
+  },
+  "fundingTx": {
+    "what": "operator 0x344f2d2fA5AeAe78871F0B882245069F887c2e1a -> deployer, 5 USDC (gas)",
+    "tx": "0x6c8a64b1e57cb4e165d0407d8b571c09f5d211f47192ed7d5c62fda843fa6197",
+    "block": 73075174
+  },
+  "roles": {
+    "owner_and_productAuthor": "0x5724d89D610c3017b8DC161c025248341556f6Ab (clé du déployeur : reste hors du serveur)",
+    "operator": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a (enclaves + registrar ; agent ERC-8004 n° 897812)"
+  },
+  "products": {
+    "1": {
+      "name": "Private AI inference (sessions)",
+      "settlement": "SessionPay",
+      "settlementAddress": "0x606c379cd8758E3562e7ECC9972d0feF693F0763",
+      "price": "0.0001 USDC / unit",
+      "param": "keccak256(\"openai/gpt-oss-120b\")",
+      "deterministic": false,
+      "bpsOperator": 9500,
+      "bpsAuthor": 0,
+      "bpsNetwork": 500,
+      "minBond": "1 USDC",
+      "exposureCap": "10 USDC",
+      "manifest": "https://archive.62-171-153-35.sslip.io/manifests/sealed-chat-v3.json",
+      "manifestHash": "0x1965db8fb3b2ba2819d3a6d3fd397c1053cf8d92c0c7dea700e6fb623e395eac",
+      "manifestFile": "web/public/manifests/sealed-chat-v3.json",
+      "proposeTx": "0x79c386300d6183aff253001bcaff82adfec4479e675ff514e42bfb6793963f44",
+      "activateTx": "0x8d620a555ca6f2b9ffaba3b336bf2fe28be37b075b25a5973c8273d926e7160c",
+      "state": "Active",
+      "workloads": "none yet: image fingerprints are allowed at the switch, when the v3 enclaves are built with their v3 compose",
+      "v21Equivalent": "product 1 of v2.1"
+    },
+    "2": {
+      "name": "Sealed Bounty (open level)",
+      "settlement": "SealedBounty",
+      "settlementAddress": "0xaA229Eda6b535DF6aEe0B4D892f39e0EC006d308",
+      "param": "keccak256(\"arc-foundry v0.8.0-4 arc-anvil --network arc\")",
+      "deterministic": true,
+      "bpsOperator": 9500,
+      "bpsAuthor": 0,
+      "bpsNetwork": 500,
+      "minBond": "1 USDC",
+      "exposureCap": "10 USDC",
+      "manifest": "https://archive.62-171-153-35.sslip.io/manifests/sealed-bounty-v3.json",
+      "manifestHash": "0x39345f03ba6e4be7b6df6268ea3ce8b838f8339b0d060ffecd243b0b9681a90b",
+      "manifestFile": "web/public/manifests/sealed-bounty-v3.json",
+      "proposeTx": "0xbf6c7e04c2945c17e9a4910cbabe52cbf981975eac64c4a86ba2c09c448f9eb7",
+      "activateTx": "0x0329125cd063f7324ed1e38979e5ef04354436c32b2e0780bc9664574bb74578",
+      "state": "Active",
+      "workloads": "none yet: image fingerprints are allowed at the switch, when the v3 enclaves are built with their v3 compose",
+      "v21Equivalent": "product 2 of v2.1"
+    },
+    "3": {
+      "name": "Pay-per-call private inference (x402)",
+      "settlement": "X402Settler",
+      "settlementAddress": "0x89B0381B18536f680fD952a0E7D375d7a4EC3fe6",
+      "price": "0.01 USDC / call",
+      "param": "keccak256(\"openai/gpt-oss-120b\")",
+      "deterministic": false,
+      "bpsOperator": 9500,
+      "bpsAuthor": 0,
+      "bpsNetwork": 500,
+      "minBond": "1 USDC",
+      "exposureCap": "10 USDC",
+      "manifest": "https://archive.62-171-153-35.sslip.io/manifests/sealed-x402-v3.json",
+      "manifestHash": "0xd2c68c35715aaa36292b5d22022352de20ecf3a6ca14ec26c3e74abe82d261e6",
+      "manifestFile": "web/public/manifests/sealed-x402-v3.json",
+      "proposeTx": "0x3e0019983a4b4fbc55a8ac07ba8f42d025c0c6b3e86e4acf5aca542de7b109b4",
+      "activateTx": "0xbc6d002cb33fa183804c50a5de1dbfa29eda50af1299c896e687090513ba0f63",
+      "state": "Active",
+      "workloads": "none yet: image fingerprints are allowed at the switch, when the v3 enclaves are built with their v3 compose",
+      "v21Equivalent": "product 3 of v2.1"
+    },
+    "4": {
+      "name": "Attested copilot",
+      "settlement": "none",
+      "price": "free",
+      "param": "keccak256(\"openai/gpt-oss-120b\")",
+      "deterministic": false,
+      "bpsOperator": 9500,
+      "bpsAuthor": 0,
+      "bpsNetwork": 500,
+      "minBond": "1 USDC",
+      "exposureCap": "10 USDC",
+      "manifest": "https://archive.62-171-153-35.sslip.io/manifests/copilot-enclave-v3.json",
+      "manifestHash": "0xdb31d925f9a41e4cca26056f16ebf50709372c567d6b99f989fcfc3d458f3fb1",
+      "manifestFile": "web/public/manifests/copilot-enclave-v3.json",
+      "proposeTx": "0xa9ef5380be37b2384fd43fea5941c2958d594ece1f34dd645021d7d0b31dd54d",
+      "activateTx": "0xf755e18d270d1f5227dae5f584655b14661b4e5e89681ce3b63be6e0a253e3a1",
+      "state": "Active",
+      "workloads": "none yet: image fingerprints are allowed at the switch, when the v3 enclaves are built with their v3 compose",
+      "v21Equivalent": "product 4 of v2.1"
+    },
+    "5": {
+      "name": "Sealed Bounty, verified operator level",
+      "settlement": "SealedBountyVerified",
+      "settlementAddress": "0x8958EA25c9cF7bbee39B32C43187d854B5d73ee6",
+      "param": "keccak256(\"arc-foundry v0.8.0-4 arc-anvil --network arc\")",
+      "deterministic": true,
+      "bpsOperator": 9500,
+      "bpsAuthor": 0,
+      "bpsNetwork": 500,
+      "minBond": "1 USDC",
+      "exposureCap": "10 USDC",
+      "manifest": "https://archive.62-171-153-35.sslip.io/manifests/sealed-bounty-verified-v3.json",
+      "manifestHash": "0x54214c4b264ec83b31c14e14e867e0203affee9ee583288867c716445035010b",
+      "manifestFile": "web/public/manifests/sealed-bounty-verified-v3.json",
+      "proposeTx": "0xd5ebcd8d7150c6e8672ad2831e2e706e3f0fc6850828f59dc0841a2a0a6bacf3",
+      "activateTx": "0xb3589c76e92930ac1f32173b3c63aae17867a719c87d7e43df31a05fbf39df83",
+      "state": "Active",
+      "workloads": "none yet: image fingerprints are allowed at the switch, when the v3 enclaves are built with their v3 compose",
+      "policy": {
+        "minLevel": 1,
+        "auditors": [
+          "ProofOfCloudAuditor"
+        ],
+        "proposeTx": "0x0c7eeba31a56d8ff4facf5daf84bc1592c39d316bdbf3e1ec2e0acc04e95d99f",
+        "applyTx": "0xeb1ceed13a7b8a79ffc2ae8c86f1901c47ebdf5f2eca7ca74a1159b585b0b4f3"
+      },
+      "v21Equivalent": "product 7 of v2.1"
+    }
+  },
+  "previous": "deployments.v21.testnet.json (v2.1, live until the switch)",
+  "productsNote": "Published 19/11/2026 20:42-20:43 UTC by the deployer (author), timelock 0, same economic parameters as the v2.1 products (read on-chain from the v2.1 ProductRegistry). The v3 manifests are served at https://archive.62-171-153-35.sslip.io/manifests/ (web/public/manifests/*-v3.json; the on-chain hashes are of these exact files).",
+  "operatorSetup": {
+    "operator": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a",
+    "agentId": 897812,
+    "bond": "10 USDC (bondFrom after approve)",
+    "verdictLogApprovalTx": "0xa90811213507f993651a514afcd68da7323a1325e55adbea284a93ecd96da7b9",
+    "approveTx": "0x7c3460ced5f54a97eb70112a3a1222bae47c62ab2f1b60a75f450a42f5befc86",
+    "bondTx": "0x7cf7bb7c5bd93f8d8f51390c7dd81ff07167c07aaee3883e99d6d38abb88c468",
+    "agentIdTx": "0x06041fa262f56dee68c35ef14d00327d98c12373e0a549ace6a25dc317e49b3c"
+  },
+  "enclaves": {},
+  "enclavesNote": "No enclave registered on v3 yet (the 5 live enclaves stay on v2.1 until the switch).",
+  "txCount": {
+    "deployer": "nonce 328 -> 356 (28 txs)",
+    "operator": "5 txs (5 USDC gas top-up to the deployer, VerdictLog approval, approve, bondFrom, setAgentId)"
+  },
+  "verification": {
+    "bytecode": "2026-11-19 20:45 UTC: the runtime code of all 14 v3 contracts equals the local build of contracts/src with contracts/foundry.toml (solc 0.8.28, via-IR, evm prague, 200 runs), immutables and metadata masked (eth_getCode vs forge artifacts).",
+    "wiring": "read back on-chain: OperatorBond.registry = EnclaveRegistry; isSettlement true for SessionPay, SealedBounty, X402Settler, SealedBountyVerified; VerdictLog.isCaller true for SessionPay, SealedBounty, SealedBountyVerified; SealedBountyVerified.enclaves = PolicyEnclaves; productCount 5, products 1-5 Active; MachineRegistry.policyOf(5) = (1, [ProofOfCloudAuditor]); operator bond 10 USDC, agentId 897812, VerdictLog approved on the ERC-8004 identity.",
+    "differenceWithV21": "SealedBounty runtime is 19,930 B on v3 vs 17,642 B on v2.1 (same selectors; 17,642 B is the size of an evm=cancun build of the same source): test the enclaves against v3 before the switch."
+  }
+}
