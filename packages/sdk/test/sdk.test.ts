@@ -12,7 +12,7 @@ describe("sdk crypto", () => {
     expect(new TextDecoder().decode(back)).toBe("prompt");
   });
 
-  it("deterministic seal reproductible + open", () => {
+  it("deterministic seal is reproducible + open", () => {
     const x = generateX25519();
     const r = new Uint8Array(32).fill(9);
     const a = deterministicSeal(toBytes(x.publicKey), new Uint8Array([1, 2, 3]), r);
@@ -21,7 +21,7 @@ describe("sdk crypto", () => {
     expect([...deterministicOpen(x.privateKey, a)]).toEqual([1, 2, 3]);
   });
 
-  it("session key + envelope digest déterministe", () => {
+  it("session key + deterministic envelope digest", () => {
     const sk = generateSessionKey();
     expect(sk.address).toMatch(/^0x[0-9a-fA-F]{40}$/);
     const d1 = envelopeDigest(1n, 1n, "0xdead", "0x" + "11".repeat(32) as any);
@@ -29,7 +29,7 @@ describe("sdk crypto", () => {
     expect(d1).toBe(d2);
   });
 
-  it("réseau + domaines", () => {
+  it("network + domains", () => {
     expect(testnet.chainId).toBe(5042002);
     expect(networkDomain(testnet.sessionPay).name).toBe("ArcEnclaveNetwork");
     expect(usdcDomain(testnet.usdc).version).toBe("2");

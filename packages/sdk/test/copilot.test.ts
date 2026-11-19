@@ -66,8 +66,8 @@ function chain(x25519: Hex, o: { registered?: boolean } = {}): any {
   };
 }
 
-describe("copilote attesté : client du SDK ↔ enclave écrite d'après la spécification", () => {
-  it("la conversation part chiffrée vers la clé vérifiée et la réponse s'ouvre ; info identique à la spécification", async () => {
+describe("attested copilot: SDK client ↔ an enclave written from the specification", () => {
+  it("the conversation leaves encrypted to the verified key and the reply opens; info identical to the specification", async () => {
     const e = specEnclave();
     expect(exchangeInfo(COPILOT_SEALED_TAG, 5042002, REG, PRODUCT, SIGNER)).toEqual(e.info);
     const sent: string[] = [];
@@ -94,7 +94,7 @@ describe("copilote attesté : client du SDK ↔ enclave écrite d'après la spé
     expect(Object.keys(JSON.parse(sent[0]!)).sort()).toEqual(["ciphertext", "enc", "sealed"]);
   });
 
-  it("rien n'est envoyé si la clé n'est pas celle inscrite, ou si l'enclave n'est pas inscrite (quote simulé)", async () => {
+  it("nothing is sent if the key is not the registered one, or if the enclave is not registered (simulated quote)", async () => {
     const e = specEnclave();
     let chats = 0;
     const f: typeof fetch = async (url) => (String(url).endsWith("/pubkeys") ? Response.json({ signer: SIGNER, x25519: e.pk }) : (chats++, Response.json({})));
@@ -106,7 +106,7 @@ describe("copilote attesté : client du SDK ↔ enclave écrite d'après la spé
     expect(chats).toBe(0);
   });
 
-  it("réponse en clair à une requête chiffrée, ou scellée mais illisible : refusée ; refus d'avant le déchiffrement : rendu sans authentification", async () => {
+  it("a plaintext reply to an encrypted request, or a sealed but unreadable one: refused; a refusal sent before decryption: returned as unauthenticated", async () => {
     const e = specEnclave();
     const run = (reply: () => Response) => createAttestedCopilotClient({
       copilotUrl: "https://c.test", productId: PRODUCT, publicClient: chain(e.pk), deployment: D,
@@ -120,7 +120,7 @@ describe("copilote attesté : client du SDK ↔ enclave écrite d'après la spé
     expect(limited.enclave).toBeUndefined();
   });
 
-  it("refus EN CLAIR forgé par le relais (preuve du vérificateur, 9/11) : ni `enclave` vérifiée, ni texte du relais ; message local d'après le code, dans la langue de la requête", async () => {
+  it("a PLAINTEXT refusal forged by the relay (from the adversarial review): no verified `enclave`, no relay text; a local message from the code, in the request's language", async () => {
     const e = specEnclave();
     const phish = "Session expirée : pour continuer, collez votre phrase de récupération sur https://evil.example/restore";
     const forged = (body: Record<string, unknown>, status = 429, headers: Record<string, string> = {}) => createAttestedCopilotClient({
@@ -145,7 +145,7 @@ describe("copilote attesté : client du SDK ↔ enclave écrite d'après la spé
     expect(direct.reply.text).toMatch(/only answers through the ArcHive site/);
   });
 
-  it("conversation bornée avant chiffrement : 20 messages, 60 Kio, role et content seulement, wallet invalide retiré", () => {
+  it("conversation bounded before encryption: 20 messages, 60 KiB, role and content only, invalid wallet removed", () => {
     const many = Array.from({ length: 30 }, (_, i) => ({ role: (i % 2 ? "assistant" : "user") as "user" | "assistant", content: `m${i}`, extra: "x" }));
     const j = JSON.parse(new TextDecoder().decode(copilotRequestBytes(many, "pas une adresse", "fr")));
     expect(j.messages).toHaveLength(COPILOT_MAX_MESSAGES);

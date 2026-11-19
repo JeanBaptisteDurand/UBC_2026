@@ -15,14 +15,14 @@ function browserLikeFetch(): typeof fetch {
   } as typeof fetch;
 }
 
-describe("fetch par défaut des clients du SDK (règle des navigateurs)", () => {
-  it("InferenceClient appelle fetch sans le lier à lui-même", async () => {
+describe("default fetch of the SDK clients (browser rule)", () => {
+  it("InferenceClient calls fetch without binding it to itself", async () => {
     globalThis.fetch = browserLikeFetch();
     const c = new InferenceClient({ enclaveUrl: "https://enclave.example", sessionKey: { privateKey: generatePrivateKey() } } as any);
     await expect(c.models.list()).resolves.toEqual({ data: [{ id: "m" }] });
   });
 
-  it("aucun client ne garde globalThis.fetch tel quel pour l'appeler comme méthode", () => {
+  it("no client keeps globalThis.fetch as is to call it as a method", () => {
     const dir = new URL("../src/", import.meta.url);
     for (const f of readdirSync(dir).filter((n) => n.endsWith(".ts"))) {
       const src = readFileSync(new URL(f, dir), "utf8");
