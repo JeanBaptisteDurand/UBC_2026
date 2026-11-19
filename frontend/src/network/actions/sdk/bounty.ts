@@ -30,35 +30,35 @@ import { PREDICATE_MAX_DEPTH, PredicateError, exploitFingerprint, jsonDepthExcee
 
 export interface ExploitInput {
   predicate: Predicate;
-  /** Transactions de l'attaque, abi.encode(address to, uint256 value, bytes data) (encodeExploitTx), 1 à 10. */
+  /** The attack's transactions, abi.encode(address to, uint256 value, bytes data) (encodeExploitTx), 1 to 10. */
   txs: Hex[];
-  /** Capital déclaré (unités de base), défaut 0. */
+  /** Declared capital (base units), default 0. */
   capital?: bigint | string;
-  /** Bytecode optionnel à déployer avant les transactions. */
+  /** Optional bytecode to deploy before the transactions. */
   attackCode?: Hex;
 }
 
 export interface SealedExploit {
   bountyId: bigint;
   payee: Address;
-  /** Chiffré vers le protocole (livré on-chain par deliver). */
+  /** Encrypted to the protocol (delivered on-chain by deliver). */
   cP: Hex;
-  /** Chiffré vers l'enclave vérifiée : le corps de POST {enclave}/bounty/submit. */
+  /** Encrypted to the verified enclave: the body of POST {enclave}/bounty/submit. */
   submitBody: { bountyId: string; enc: Hex; ciphertext: Hex };
-  /** Empreinte canonique de l'exploit (clé de la réclamation, de deliver et de l'anti-doublon). */
+  /** Canonical fingerprint of the exploit (key of the claim, of deliver and of the duplicate check). */
   fingerprint: Hex;
   predicateHash: Hex;
-  /** L'enclave visée (clés vérifiées on-chain). */
+  /** The target enclave (keys verified on-chain). */
   enclave: VerifiedEnclaveKeys;
-  /** Ancrage imposé aux k enclaves, s'il y en a un. */
+  /** Anchor imposed on the k enclaves, if any. */
   blockN?: bigint;
   deadline?: bigint;
 }
 
 const EVEN_HEX = /^0x([0-9a-fA-F]{2})*$/;
 
-/** Valide l'exploit (même règles que l'enclave : prédicat (règles P1–P4 de predicate.ts, PredicateError), hexadécimal pair,
- *  1 à 10 transactions). */
+/** Validates the exploit (same rules as the enclave: the predicate (rules P1–P4 of predicate.ts, PredicateError),
+ *  even-length hex, 1 to 10 transactions). */
 export function validateExploit(x: ExploitInput): void {
   validatePredicate(x.predicate);
   if (!Array.isArray(x.txs) || x.txs.length < 1 || x.txs.length > 10 || !x.txs.every((t) => typeof t === "string" && EVEN_HEX.test(t))) {
@@ -70,7 +70,7 @@ export function validateExploit(x: ExploitInput): void {
   if (x.capital !== undefined && !/^\d+$/.test(String(x.capital))) throw new Error("exploit : « capital » doit être un entier ≥ 0");
 }
 
-/** La forme canonique dont l'enclave recalcule cP (DeterministicProtocolCipher) : mêmes clés, même ordre. */
+/** The canonical form from which the enclave recomputes cP (DeterministicProtocolCipher): same keys, same order. */
 export function protocolCanonical(a: { bountyId: bigint; payee: Address; exploit: ExploitInput }): string {
   return JSON.stringify({
     bountyId: a.bountyId.toString(),
@@ -83,8 +83,8 @@ export function protocolCanonical(a: { bountyId: bigint; payee: Address; exploit
 }
 
 /**
- * Chiffre un exploit pour UNE enclave vérifiée (et pour le protocole). `protocolX25519` doit venir de la chaîne
- * (getBounty(bountyId).protocolX25519), jamais d'un serveur. Pour k enclaves : passer le même `r`, `blockN`, `deadline`.
+ * Encrypts an exploit for ONE verified enclave (and for the protocol). `protocolX25519` must come from the chain
+ * (getBounty(bountyId).protocolX25519), never from a server. For k enclaves: pass the same `r`, `blockN`, `deadline`.
  */
 export async function sealExploitForEnclave(a: {
   bountyId: bigint;
@@ -92,14 +92,14 @@ export async function sealExploitForEnclave(a: {
   exploit: ExploitInput;
   protocolX25519: Hex;
   enclave: VerifiedEnclaveKeys;
-  /** 32 octets d'aléa pour cP (défaut : tiré ici). Le même pour les k enclaves d'une même réclamation. */
+  /** 32 random bytes for cP (default: drawn here). The same for the k enclaves of one claim. */
   r?: Uint8Array;
   /** Block N of the replay, in [head − 256, head − 2] (the same for the k enclaves). */
   blockN?: bigint;
   /** Deadline of the claim (Unix seconds), in ]now, now + 10 min]. */
   deadline?: bigint;
 }): Promise<SealedExploit> {
-  assertVerifiedEnclaveKeys(a.enclave); // jamais de chiffrement vers une clé non confrontée à la chaîne
+  assertVerifiedEnclaveKeys(a.enclave); // never encrypt to a key that was not checked against the chain
   validateExploit(a.exploit);
   if (!/^0x[0-9a-fA-F]{64}$/.test(a.protocolX25519)) throw new Error("protocolX25519 : 32 octets attendus (lus on-chain)");
   const r = a.r ?? globalThis.crypto.getRandomValues(new Uint8Array(32));
@@ -121,7 +121,7 @@ export async function sealExploitForEnclave(a: {
   const plain = utf8(JSON.stringify(bundle));
   const cE = await hpkeSeal(toBytes(a.enclave.x25519), plain);
   plain.fill(0);
-  if (!a.r) r.fill(0); // l'aléa tiré ici ne sert qu'à ce chiffrement
+  if (!a.r) r.fill(0); // randomness drawn here serves only this encryption
   return {
     bountyId: a.bountyId,
     payee: a.payee,
@@ -149,7 +149,7 @@ export class ExploitNotProvenError extends Error {
   }
 }
 
-/** Contrôles d'une réclamation signée avant tout envoi on-chain (ce que le contrat ne pardonnerait pas). */
+/** Checks of a signed claim before anything is sent on-chain (what the contract would not forgive). */
 export async function checkProvenClaim(
   sealed: SealedExploit,
   res: { claim: unknown; signature: Hex; cP: Hex },
@@ -174,8 +174,8 @@ export async function checkProvenClaim(
 }
 
 /**
- * POST {enclave}/bounty/submit avec le bundle chiffré, puis contrôle de la réclamation rendue (checkProvenClaim).
- * Lève ExploitNotProvenError si l'enclave ne prouve pas l'exploit.
+ * POST {enclave}/bounty/submit with the encrypted bundle, then a check of the returned claim (checkProvenClaim).
+ * Throws ExploitNotProvenError if the enclave does not prove the exploit.
  */
 export async function submitSealedExploit(
   sealed: SealedExploit,
@@ -197,28 +197,28 @@ export async function submitSealedExploit(
 }
 
 // ======================================================================================================================
-// v2.1 — RÉFUTER une réclamation acceptée (SealedBounty.refute)
+// REFUTING an accepted claim (SealedBounty.refute)
 // ======================================================================================================================
-//  1. readAcceptedClaim / listAcceptedClaims : la réclamation et ses opérateurs depuis l'événement ClaimAccepted, son état
-//     depuis claimRecords (acceptée, non réfutée, fenêtre REFUTE_WINDOW), opsHash contrôlé ;
-//  2. la source de l'exploit, contrôlée ICI avant tout envoi (elle doit redonner le cPHash de la réclamation) :
-//     - le chasseur : bundle + aléa r (l'enclave recalcule cP) ;
-//     - le protocole, après deliver : cP + le secret X25519 de CE rapport (n'ouvre que lui), ou, si le rapport est illisible,
-//       la clé privée de la prime (revealKey : seule preuve possible qu'un rapport illisible n'en est pas un) ;
-//  3. requestRefutations : clés de chaque enclave vérifiées on-chain AVANT tout envoi (verifyEnclaveKeys), enclaves des
-//     opérateurs de la réclamation écartées, quorum calculé AVANT tout envoi (REFUTE_QUORUM opérateurs distincts au moins,
-//     et plus que ceux de la réclamation) : non atteignable → rien ne part ; sinon contre-rejeu, signatures vérifiées puis
-//     réunies par résultat (toutes signent la MÊME Refutation) et par opérateur distinct ;
-//  4. prepareRefuteCall : refute(claim, ops, refutation, signatures), à simuler puis envoyer (avec marge de gaz : le contrat
-//     exige VERDICT_GAS avant le verdict ERC-8004).
+//  1. readAcceptedClaim / listAcceptedClaims: the claim and its operators from the ClaimAccepted event, its state from
+//     claimRecords (accepted, not refuted, REFUTE_WINDOW), opsHash checked;
+//  2. the exploit's source, checked HERE before anything is sent (it must give back the claim's cPHash):
+//     - the hunter: bundle + randomness r (the enclave recomputes cP);
+//     - the protocol, after deliver: cP + the X25519 secret of THIS report (it opens only that one), or, if the report is
+//       unreadable, the bounty's private key (revealKey: the only possible proof that an unreadable report is not one);
+//  3. requestRefutations: each enclave's keys verified on-chain BEFORE anything is sent (verifyEnclaveKeys), the claim's
+//     operators' enclaves set aside, the quorum computed BEFORE anything is sent (at least REFUTE_QUORUM distinct
+//     operators, and more than the claim's): out of reach → nothing goes out; otherwise a counter-replay, signatures
+//     verified, then grouped by result (all sign the SAME Refutation) and by distinct operator;
+//  4. prepareRefuteCall: refute(claim, ops, refutation, signatures), to simulate, then send (with a gas margin: the
+//     contract requires VERDICT_GAS before the ERC-8004 verdict).
 
-/** SealedBounty.REFUTE_QUORUM : au moins 2 opérateurs distincts derrière une réfutation. */
+/** SealedBounty.REFUTE_QUORUM: at least 2 distinct operators behind a refutation. */
 export const REFUTE_QUORUM = 2;
-/** SealedBounty.REFUTE_WINDOW : 3 jours après l'acceptation (la valeur on-chain fait foi : readAcceptedClaim la lit). */
+/** SealedBounty.REFUTE_WINDOW: 3 days after acceptance (the on-chain value is authoritative: readAcceptedClaim reads it). */
 export const REFUTE_WINDOW_SECONDS = 259_200n;
 /** SealedBounty._countRefuters : au plus 2 × MAX_SIGS signatures. */
 export const REFUTE_MAX_SIGNATURES = 2 * BOUNTY_MAX_SIGS;
-/** aad HPKE d'une demande de réfutation (identique à l'enclave, enclave/src/services/bounty.ts). */
+/** HPKE aad of a refutation request (identical to the enclave's, enclave/src/services/bounty.ts). */
 export const REFUTE_AAD_LABEL = "arc-sealed-bounty/refute/v1";
 /** Tranche d'eth_getLogs (le RPC public d'Arc plafonne la plage). */
 const LOG_CHUNK = 5_000n;
@@ -232,12 +232,12 @@ export function claimOperatorsHash(operators: readonly Address[]): Hex {
   return keccak256(encodeAbiParameters([{ type: "address[]" }], [operators as Address[]]));
 }
 
-/** Opérateurs distincts qu'il faut derrière une réfutation : au moins REFUTE_QUORUM, et STRICTEMENT plus que la réclamation. */
+/** Distinct operators needed behind a refutation: at least REFUTE_QUORUM, and STRICTLY more than the claim's. */
 export function refutersNeeded(claimOperators: number): number {
   return Math.max(REFUTE_QUORUM, claimOperators + 1);
 }
 
-/** Digest EIP-712 d'une réfutation (ce que recouvre SealedBounty._countRefuters). */
+/** EIP-712 digest of a refutation (what SealedBounty._countRefuters recovers). */
 export function refutationDigestOf(sealedBounty: Address, f: Refutation, chainId?: number): Hex {
   return hashTypedData({ domain: networkDomain(sealedBounty, chainId) as TypedDataDomain, types: refutationTypes, primaryType: "Refutation", message: f });
 }
@@ -253,22 +253,22 @@ export class RefuteError extends Error {
   }
 }
 
-// ---------- 1. la réclamation acceptée ----------
+// ---------- 1. the accepted claim ----------
 
 export interface AcceptedClaim {
-  /** Digest EIP-712 (clé de claimRecords, porté par la réfutation). */
+  /** EIP-712 digest (key of claimRecords, carried by the refutation). */
   claimDigest: Hex;
   claim: Claim;
-  /** Opérateurs signataires, tels qu'émis par ClaimAccepted (à repasser tels quels à refute). */
+  /** Signing operators, as emitted by ClaimAccepted (passed back as is to refute). */
   operators: Address[];
-  /** Montant réservé au chasseur. */
+  /** Amount reserved for the hunter. */
   amount: bigint;
   /** Horodatage de l'acceptation (claimRecords.acceptedAt). */
   acceptedAt: bigint;
   refuted: boolean;
   /** acceptedAt + REFUTE_WINDOW (lu on-chain). */
   refuteWindowEndsAt: bigint;
-  /** Bloc et horodatage de la lecture ; fenêtre ouverte si checkedAtTimestamp ≤ refuteWindowEndsAt (comme le contrat). */
+  /** Block and timestamp of the read; the window is open if checkedAtTimestamp ≤ refuteWindowEndsAt (as in the contract). */
   checkedAtBlock: bigint;
   checkedAtTimestamp: bigint;
   windowOpen: boolean;
@@ -279,7 +279,7 @@ export interface AcceptedClaim {
 
 interface RawLog { topics: Hex[]; data: Hex; blockNumber: bigint; txHash: Hex }
 
-/** eth_getLogs par tranches (du plus ancien au plus récent) ; une tranche ratée lève : jamais de liste tronquée en silence. */
+/** eth_getLogs in chunks (oldest first); a failed chunk throws: a list is never silently truncated. */
 async function scanLogs(
   pub: PublicClient,
   q: { address: Address; topics: (Hex | null)[]; fromBlock: bigint; toBlock: bigint; firstOnly?: boolean },
@@ -355,8 +355,8 @@ function toAccepted(
 }
 
 /**
- * Une réclamation acceptée, par son digest : claimRecords (état), puis l'événement ClaimAccepted (réclamation, opérateurs),
- * cherché à partir du bloc de l'acceptation (retrouvé par son horodatage, ou `fromBlock`).
+ * An accepted claim, by its digest: claimRecords (state), then the ClaimAccepted event (claim, operators), searched from
+ * the block of the acceptance (found from its timestamp, or `fromBlock`).
  */
 export async function readAcceptedClaim(
   pub: PublicClient,
@@ -377,7 +377,7 @@ export async function readAcceptedClaim(
   return toAccepted(d, log, st, head, await chainContext(pub, d, head));
 }
 
-/** Les réclamations acceptées d'une prime (événements ClaimAccepted, du plus ancien au plus récent), avec leur état. */
+/** The accepted claims of a bounty (ClaimAccepted events, oldest first), with their state. */
 export async function listAcceptedClaims(
   pub: PublicClient,
   a: { bountyId: bigint; deployment?: Deployment; fromBlock?: bigint; toBlock?: bigint },
