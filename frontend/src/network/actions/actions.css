@@ -69,6 +69,12 @@
   .acts .na-grid > .na-f:has(select) { grid-column: 1 / -1; }
   .acts .na-d, .acts .na-b, .acts .na-note { margin-left: 0; }
 }
+/* narrow phones (360 px): price, bond and payment one under the other, so "Minimum bond (USDC)" stays on one line and
+   the payment choice reads in full */
+@media (max-width: 400px) {
+  .acts .na-grid { grid-template-columns: minmax(0, 1fr); }
+  .acts .na-grid .na-sel, .acts .na-grid select { width: 100%; }
+}
 /* controls and fields never overflow the column */
 .acts .na-list, .acts .na-b { grid-template-columns: minmax(0, 1fr); }
 .acts .na, .acts .na-b > *, .acts .na-cmds, .acts .na-cmds .cmd { min-width: 0; max-width: 100%; }
