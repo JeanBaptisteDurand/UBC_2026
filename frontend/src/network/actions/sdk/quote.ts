@@ -1,11 +1,11 @@
-/** quote.ts — lecture hors chaîne d'un quote Intel TDX (v4 ou v5) : les mesures que l'EnclaveRegistry exigera, pour
- *  savoir AVANT d'envoyer une inscription (≈ 5,7 M gas par le vrai DCAP) si elle passera la politique :
- *  image autorisée (workloadId, P5), DEBUG à 0 (P3), SEPT_VE_DISABLE (P4), liaison REPORTDATA (P6/P7).
- *  Rien ici ne VÉRIFIE la signature d'Intel : c'est le rôle du contrat (TdxAttestationModule → DCAP d'Automata). */
+/** quote.ts — off-chain reading of an Intel TDX quote (v4 or v5): the measurements EnclaveRegistry will require, to
+ *  know BEFORE sending a registration (millions of gas through the real DCAP verification) whether it meets the policy:
+ *  an allowed image (workloadId, P5), DEBUG at 0 (P3), SEPT_VE_DISABLE (P4), the REPORTDATA binding (P6/P7).
+ *  Nothing here VERIFIES Intel's signature: that is the contract's job (TdxAttestationModule → Automata's DCAP). */
 import { type Address, type Hex, concat, encodeAbiParameters, keccak256, size, slice, toBytes } from "viem";
 
 export interface TdxQuoteMeasurements {
-  version: number; // 4 ou 5
+  version: number; // 4 or 5
   bodyType: number; // 2 = TD1.0, 3 = TD1.5
   tdAttributes: Hex; // 8 octets
   xfam: Hex; // 8 octets
@@ -16,18 +16,18 @@ export interface TdxQuoteMeasurements {
   rtmr2: Hex;
   rtmr3: Hex;
   reportData: Hex; // 64 octets
-  /** keccak256(MRTD ‖ RTMR0..3 ‖ MRCONFIGID ‖ XFAM ‖ TDATTRIBUTES) : le calcul d'EnclaveRegistry._workloadId. */
+  /** keccak256(MRTD ‖ RTMR0..3 ‖ MRCONFIGID ‖ XFAM ‖ TDATTRIBUTES): the computation of EnclaveRegistry._workloadId. */
   workloadId: Hex;
-  /** bit DEBUG de tdAttributes (bit 0 de l'octet 0) : une enclave en DEBUG est refusée (DebugEnclave). */
+  /** DEBUG bit of tdAttributes (bit 0 of byte 0): an enclave in DEBUG is refused (DebugEnclave). */
   debug: boolean;
-  /** bit 28 SEPT_VE_DISABLE (bit 4 de l'octet 3) : exigé par la pile v2 de testnet (requireSeptVeDisable). */
+  /** bit 28 SEPT_VE_DISABLE (bit 4 of byte 3): required by the registry by default (requireSeptVeDisable). */
   septVeDisabled: boolean;
 }
 
 const HEADER = 48;
 const BODY = { tdAttributes: 120, xfam: 128, mrtd: 136, mrConfigId: 184, rtmr0: 328, rtmr1: 376, rtmr2: 424, rtmr3: 472, reportData: 520 };
 
-/** Découpe le corps TD d'un quote brut (même décalages que TdxAttestationModule ; v5 : descripteur de 6 octets). */
+/** Cuts the TD body out of a raw quote (same offsets as TdxAttestationModule; v5: a 6-byte descriptor). */
 export function parseTdxQuote(quote: Hex): TdxQuoteMeasurements {
   const b = toBytes(quote);
   if (b.length < HEADER + 584) throw new Error(`quote TDX trop court (${b.length} octets)`);
@@ -40,9 +40,9 @@ export function parseTdxQuote(quote: Hex): TdxQuoteMeasurements {
     bodyType = b[48]! | (b[49]! << 8);
     start = HEADER + 6;
   } else if (version !== 4) {
-    throw new Error(`version de quote ${version} non prise en charge (4 ou 5)`);
+    throw new Error(`quote version ${version} not supported (4 or 5)`);
   }
-  if (bodyType !== 2 && bodyType !== 3) throw new Error(`corps de quote de type ${bodyType} : TD1.0 (2) ou TD1.5 (3) attendu`);
+  if (bodyType !== 2 && bodyType !== 3) throw new Error(`quote body of type ${bodyType}: TD1.0 (2) or TD1.5 (3) expected`);
   const at = (off: number, len: number) => slice(quote, start + off, start + off + len);
   const m = {
     tdAttributes: at(BODY.tdAttributes, 8), xfam: at(BODY.xfam, 8), mrtd: at(BODY.mrtd, 48), mrConfigId: at(BODY.mrConfigId, 48),
@@ -58,13 +58,13 @@ export function parseTdxQuote(quote: Hex): TdxQuoteMeasurements {
   };
 }
 
-/** L'empreinte de l'image (workloadId) d'un quote : la valeur que l'auteur d'un produit autorise (ProposeParams.workloadIds,
- *  ou proposeWorkload → applyWorkload). */
+/** The image fingerprint (workloadId) of a quote: the value a product's author allows (ProposeParams.workloadIds,
+ *  or proposeWorkload → applyWorkload). */
 export function workloadIdFromQuote(quote: Hex): Hex {
   return parseTdxQuote(quote).workloadId;
 }
 
-/** REPORTDATA[0:32] attendu par EnclaveRegistry (P6) : la liaison chaîne, registre, produit, opérateur, clés. */
+/** REPORTDATA[0:32] expected by EnclaveRegistry (P6): the binding of chain, registry, product, operator and keys. */
 export function expectedReportData0(b: {
   chainId: number | bigint; registry: Address; productId: bigint; operator: Address; signer: Address; x25519: Hex;
 }): Hex {

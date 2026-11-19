@@ -1,6 +1,6 @@
-/** aek.ts — clé d'accès à distance : `aek_<réseau>_<sessionId>_<secret>`.
- *  Le secret EST la clé privée de session (elle peut dépenser jusqu'au dépôt, pas plus).
- *  Préfixe lisible pour les détecteurs de fuite. Naît dans le navigateur, jamais côté serveur. */
+/** aek.ts — remote access key: `aek_<network>_<sessionId>_<secret>`.
+ *  The secret IS the session's private key (it can spend up to the deposit, no more).
+ *  A readable prefix for leak scanners. Created in the browser, never on a server. */
 import { type Hex, toBytes, toHex } from "viem";
 
 function b64url(u8: Uint8Array): string {
@@ -22,11 +22,11 @@ export interface DecodedAek { net: string; sessionId: bigint; sessionPrivateKey:
 
 export function decodeAek(aek: string): DecodedAek {
   const m = aek.match(/^aek_([a-z0-9]+)_(\d+)_([A-Za-z0-9_-]+)$/);
-  if (!m) throw new Error("clé aek invalide");
+  if (!m) throw new Error("invalid aek key");
   return { net: m[1]!, sessionId: BigInt(m[2]!), sessionPrivateKey: toHex(unb64url(m[3]!)) };
 }
 
-/** Masque une clé pour l'affichage/les journaux : aek_arctest_12_abcd…WXYZ */
+/** Masks a key for display and logs: aek_arctest_12_abcd…WXYZ */
 export function maskAek(aek: string): string {
   const m = aek.match(/^(aek_[a-z0-9]+_\d+_)(.+)$/);
   if (!m) return "aek_…";

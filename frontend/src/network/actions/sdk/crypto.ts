@@ -1,4 +1,4 @@
-/** crypto.ts — HPKE (chiffrer vers l'enclave), scellé déterministe (cP de la prime), clés de session. */
+/** crypto.ts — HPKE (encrypting to the enclave), the deterministic seal (the bounty's cP), session keys. */
 import { CipherSuite, DhkemX25519HkdfSha256, HkdfSha256 } from "@hpke/core";
 import { Chacha20Poly1305 } from "@hpke/chacha20poly1305";
 import { x25519 } from "@noble/curves/ed25519";
@@ -21,7 +21,7 @@ export interface Sealed {
   ciphertext: Uint8Array;
 }
 
-/** HPKE vers une clé X25519 d'enclave (requêtes d'inférence, cE de la prime). */
+/** HPKE to an enclave's X25519 key (inference requests, the bounty's cE). */
 export async function hpkeSeal(recipientPublicRaw: Uint8Array, plaintext: Uint8Array, aad?: Uint8Array): Promise<Sealed> {
   const s = suite();
   const pk = await s.kem.importKey("raw", ab(recipientPublicRaw), true);
@@ -42,7 +42,7 @@ const INFO_KEY = utf8("arc-sealed-key-v1");
 const INFO_NONCE = utf8("arc-sealed-nonce-v1");
 const INFO_EPH = utf8("arc-sealed-eph-v1");
 
-/** Scellé DÉTERMINISTE (reproductible en `r`) : cP de la Prime scellée. Identique à l'enclave. */
+/** DETERMINISTIC seal (reproducible from `r`): the Sealed Bounty's cP. Identical to the enclave's. */
 export function deterministicSeal(recipientPublicRaw: Uint8Array, plaintext: Uint8Array, seedR: Uint8Array): Hex {
   const ephPriv = hkdf(sha256, seedR, new Uint8Array(), INFO_EPH, 32);
   const ephPub = x25519.getPublicKey(ephPriv);
@@ -68,13 +68,13 @@ export interface SessionKey {
   address: Hex;
 }
 
-/** Clé de session secp256k1, née côté client (jamais envoyée). */
+/** secp256k1 session key, created on the client (never sent). */
 export function generateSessionKey(): SessionKey {
   const privateKey = generatePrivateKey();
   return { privateKey, address: privateKeyToAccount(privateKey).address };
 }
 
-/** Paire X25519 éphémère du client pour recevoir la réponse d'inférence chiffrée. */
+/** The client's ephemeral X25519 pair, to receive the encrypted inference answer. */
 export function generateX25519(): { privateKey: Uint8Array; publicKey: Hex } {
   const priv = x25519.utils.randomPrivateKey();
   return { privateKey: priv, publicKey: toHex(x25519.getPublicKey(priv)) };
