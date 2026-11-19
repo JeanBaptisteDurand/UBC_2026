@@ -17,7 +17,8 @@ forge test
 ```
 
 `forge-std` and OpenZeppelin are installed by `forge install` (they are git-ignored). The two other libraries are
-vendored in `lib/`, each with a `VENDORED.md` that gives its upstream commit, license and file list:
+vendored in `lib/` (index: [`lib/VENDORED.md`](lib/VENDORED.md)), each with a `VENDORED.md` that gives its upstream
+commit, license and file list:
 `lib/solady-0.0.160` (the exact solady version compiled into Automata's DCAP verifier on Arc, so `PckChip` parses
 Intel's PCK certificate the same way) and `lib/smooth-crypto-lib` (audited Ed25519 verification, used by
 `Ed25519Verifier`).
