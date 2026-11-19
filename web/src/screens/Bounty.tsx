@@ -17,15 +17,15 @@ export const DEMO_PREDICATE: Predicate = {
   combine: "OR",
   clauses: [{ type: "ERC20_DROP", token: testnet.usdc, holder: testnet.demoVault, min: "1000000" }],
 };
-/** Le hash épinglé on-chain par les primes de démonstration : l'exploit de démo ne se prouve que contre celles-là. */
+/** The hash pinned on-chain by the demo bounties: the demo exploit can be proven only against those. */
 export const DEMO_PREDICATE_HASH = predicateHash(DEMO_PREDICATE);
-/** Palier de démonstration : une perte d'au moins 1 USDC paie 1 USDC (plus les frais réseau et opérateurs). */
+/** Demo tier: a loss of at least 1 USDC pays 1 USDC (plus network and operator fees). */
 const TIER_MIN_LOSS = 1_000_000n;
 const TIER_AMOUNT = 1_000_000n;
 const DEMO_VAULT_ABI = parseAbi(["function migrate(address to)"]);
 
-/** L'exploit de démonstration : la faille volontaire du coffre DemoVault (migrate sans contrôle d'accès), qui vide
- *  le coffre vers le chasseur. L'enclave le REJOUE pour de vrai sur un fork d'Arc ; rien ne bouge sur la chaîne. */
+/** The demo exploit: the deliberate flaw of the DemoVault (migrate without access control), which drains the vault to
+ *  the hunter. The enclave REALLY replays it on a fork of Arc; nothing moves on the chain. */
 export function demoExploitTxs(payee: Address): Hex[] {
   return [encodeExploitTx({ to: testnet.demoVault, data: encodeFunctionData({ abi: DEMO_VAULT_ABI, functionName: "migrate", args: [payee] }) })];
 }
@@ -44,7 +44,7 @@ export default function Bounty() {
   );
 }
 
-/** Fichier de clé lisible par la CLI (arcvault bounty reports <id> --key <fichier>). */
+/** A key file readable by the CLI (arcvault bounty reports <id> --key <file>). */
 function downloadProtocolKey(bountyId: bigint, publicKey: Hex, privateKey: Hex) {
   const body = {
     kind: "arcvault-protocol-x25519", publicKey, privateKey, createdAt: new Date().toISOString(),
@@ -77,7 +77,7 @@ export function ProtocolPanel({ onCreated }: { onCreated?: () => void } = {}) {
       setOut(msg("bounty.checking"));
       const p = await base.getProduct(pid);
       if (p.state !== "Active") throw new MsgError(msg("bounty.notActive", { id: pid, state: p.state }));
-      // 19/11 : une prime se poste au niveau de son produit (produit 2 : SealedBounty ; produit 7 : SealedBountyVerified)
+      // a bounty is posted at its product's level (product 2: SealedBounty; product 7: SealedBountyVerified)
       const level = bountyLevelOf(p.settlement);
       if (!p.deterministic || !level) throw new MsgError(msg("bounty.notSealed", { id: pid }));
       const arc = arcForLevel(base, level);
@@ -90,7 +90,7 @@ export function ProtocolPanel({ onCreated }: { onCreated?: () => void } = {}) {
         const fees = (Number(net) + Number(op)) / 100;
         throw new MsgError(msg("bounty.tooLow", { tier: () => usdc(TIER_AMOUNT), fees: () => fmtNum(fees), total: () => usdc(total) }));
       }
-      // la clé X25519 du protocole naît ici : elle seule déchiffrera les rapports d'exploit livrés pour cette prime
+      // the protocol's X25519 key is born here: only it will decrypt the exploit reports delivered for this bounty
       const k = generateX25519();
       setOut(msg("bounty.creating"));
       const r = await arc.createBounty({
@@ -107,7 +107,7 @@ export function ProtocolPanel({ onCreated }: { onCreated?: () => void } = {}) {
       setOut(msg("bounty.created", { id, amt: () => usdc(fund), tx: r.tx }));
       onCreated?.();
     } catch (e: any) {
-      if (e?.name === "TxRevertedError") setKey(null); // aucune prime créée : la clé ne servirait à rien
+      if (e?.name === "TxRevertedError") setKey(null); // no bounty created: the key would serve no purpose
       setOut(fail(e));
     }
   }
@@ -138,7 +138,7 @@ export function ProtocolPanel({ onCreated }: { onCreated?: () => void } = {}) {
   );
 }
 
-/** Les primes publiées par l'adresse connectée : après l'échéance, le protocole retire ce qui reste du pool. */
+/** The bounties posted by the connected address: after expiry, the protocol withdraws what is left of the pool. */
 export function MyBounties({ refreshKey = 0 }: { refreshKey?: number }) {
   const arc = useArc();
   const { address } = useAccount();
@@ -151,7 +151,7 @@ export function MyBounties({ refreshKey = 0 }: { refreshKey?: number }) {
   if (!address) return null;
   async function withdraw(b: BountyItem) {
     if (!arc) return;
-    // 19/11 : le retrait se fait sur le contrat du niveau de la prime
+    // the withdrawal goes to the contract of the bounty's level
     const a = arcForLevel(arc, b.level);
     setNote(msg("bounty.withdrawing", { id: b.id }));
     try {
@@ -174,7 +174,7 @@ export function MyBounties({ refreshKey = 0 }: { refreshKey?: number }) {
             <tr key={bountyKey(b)} className="hover:bg-panel/60">
               <Td main wrap><span className="whitespace-nowrap font-medium">{t("common.Bounty", { id: b.id.toString() })}</span> <span className="whitespace-nowrap text-[12px] text-muted">{t("common.product", { id: b.productId.toString() })}</span> <BountyLevelBadge level={b.level} /></Td>
               <Td label={t("bounties.h.pool")} className="font-mono">{usdc(b.balance)}</Td>
-              {/* ce qui a VRAIMENT été versé (BountyPaid) ; une réclamation réfutée n'a rien payé */}
+              {/* what was REALLY paid (BountyPaid); a refuted claim paid nothing */}
               <Td label={t("bounty.mine.paid")} className="font-mono">{b.paidOut && b.paidOut > 0n ? usdc(b.paidOut) : b.claimsRefuted > 0 ? t("bounties.refutedShort") : "—"}</Td>
               <Td label={t("bounties.h.deadline")} className="text-muted">{fmtUnix(b.deadline)}</Td>
               <Td label={t("bounties.h.status")}>{expired ? <Badge tone="muted">{t("common.expired")}</Badge> : b.paused ? <Badge tone="warn">{t("common.paused")}</Badge> : <Badge tone="good">{t("common.open")}</Badge>}</Td>
@@ -190,8 +190,8 @@ export function MyBounties({ refreshKey = 0 }: { refreshKey?: number }) {
   );
 }
 
-/** Un paiement de prime dont le transfert avait été refusé reste en crédit dans le contrat de la prime : on le retire ici.
- *  19/11 : sur les deux contrats (SealedBounty et SealedBountyVerified). */
+/** A bounty payment whose transfer was refused stays as a credit in the bounty's contract: it is withdrawn here, on
+ *  both contracts (SealedBounty and SealedBountyVerified). */
 export function CreditNotice() {
   const arc = useArc();
   const { address } = useAccount();
@@ -235,19 +235,19 @@ export function CreditNotice() {
   );
 }
 
-/** Les quatre étapes de la chasse ; leurs libellés ET leurs détails sont mis en mots à l'affichage (ils suivent la
- *  langue du site) : un détail est un message, ou une fonction qui rend une phrase avec ses liens. */
+/** The four steps of the hunt; their labels AND their details are put into words at display time (they follow the
+ *  site's language): a detail is a message, or a function that renders a sentence with its links. */
 const STEP_KEYS = ["hunt.step.key", "hunt.step.replay", "hunt.step.accepted", "hunt.step.paid"] as const;
 type StepRow = { state: StepState; detail?: Shown };
 const freshSteps = (): StepRow[] => STEP_KEYS.map(() => ({ state: "todo" as StepState }));
 
-/** 19/11 : le badge du niveau d'une prime (ouvert : SealedBounty ; vérifié : SealedBountyVerified, produit 7) */
+/** The badge of a bounty's level (open: SealedBounty; verified: SealedBountyVerified, product 7) */
 export function BountyLevelBadge({ level }: { level: BountyLevel }) {
   return level === "verified" ? <Badge tone="good">{t("bounties.level.verified")}</Badge> : <Badge tone="muted">{t("bounties.level.open")}</Badge>;
 }
 
 export function HunterPanel({ initialBountyId = "1", level = "open" }: { initialBountyId?: string; level?: BountyLevel } = {}) {
-  // 19/11 : la chasse se fait sur le contrat du niveau de la prime (même code, autre adresse) et avec son enclave
+  // the hunt runs on the contract of the bounty's level (same code, another address) and with its enclave
   const base = useArc();
   const arc = useMemo(() => (base ? arcForLevel(base, level) : null), [base, level]);
   const { address } = useAccount();
@@ -258,12 +258,12 @@ export function HunterPanel({ initialBountyId = "1", level = "open" }: { initial
   const [steps, setSteps] = useState<StepRow[]>(freshSteps);
   const [out, setOut] = useState<Msg | null>(null);
   const [busy, setBusy] = useState(false);
-  const [proven, setProven] = useState<ProvenClaim | null>(null); // réclamation prouvée : de quoi relancer le paiement
-  const [accepted, setAccepted] = useState(false); // acceptClaim confirmé : il ne reste qu'à livrer (deliver)
+  const [proven, setProven] = useState<ProvenClaim | null>(null); // proven claim: enough to resume the payment
+  const [accepted, setAccepted] = useState(false); // acceptClaim confirmed: only the delivery (deliver) is left
   const setStep = (i: number, state: StepState, detail?: Shown) =>
     setSteps((s) => s.map((x, j) => (j === i ? { ...x, state, detail } : x)));
 
-  /** Lecture de la prime sur Arc : est-elle chassable par l'exploit de démonstration ? (rien n'est envoyé) */
+  /** Reads the bounty on Arc: can the demo exploit hunt it? (nothing is sent) */
   async function precheck(id: bigint) {
     const b = await arc!.getBounty(id);
     if (b.protocol === zeroAddress) throw new MsgError(msg("hunt.noBounty", { id }));
@@ -278,7 +278,7 @@ export function HunterPanel({ initialBountyId = "1", level = "open" }: { initial
     }
   }
 
-  /** acceptClaim (réserve le paiement, cP hors transaction) puis deliver (livre cP au protocole et paie), par le SDK. */
+  /** acceptClaim (reserves the payment, cP outside the transaction) then deliver (delivers cP to the protocol and pays), through the SDK. */
   async function pay(p: ProvenClaim) {
     if (!arc) return;
     let delivering = false;
@@ -312,7 +312,7 @@ export function HunterPanel({ initialBountyId = "1", level = "open" }: { initial
     }));
   }
 
-  /** acceptClaim confirmé mais deliver pas fait : livrer avant 24 h, sinon la réservation retourne au pool. */
+  /** acceptClaim confirmed but deliver not done yet: deliver within 24 h, otherwise the reservation returns to the pool. */
   async function deliverOnly() {
     if (!arc || !proven) return;
     setBusy(true);
@@ -345,8 +345,8 @@ export function HunterPanel({ initialBountyId = "1", level = "open" }: { initial
 
     let step = 0;
     try {
-      // 1. clés de l'enclave confrontées à la chaîne, puis chiffrement : cP vers le protocole (clé lue on-chain),
-      //    cE vers l'enclave VÉRIFIÉE. Jamais vers une clé lue telle quelle sur /pubkeys.
+      // 1. the enclave's keys checked against the chain, then encryption: cP to the protocol (key read on-chain),
+      //    cE to the VERIFIED enclave. Never to a key read as is from /pubkeys.
       setStep(0, "doing", msg("hunt.checkingKeys"));
       const payee = address as Address;
       const sealed = await arc.prepareExploit({
@@ -356,14 +356,14 @@ export function HunterPanel({ initialBountyId = "1", level = "open" }: { initial
         enclave: <HexVal value={sealed.enclave.signer} n={4} />, operator: <HexVal value={sealed.enclave.operator} n={4} />,
       }));
 
-      // 2. rejeu dans l'enclave ; la réclamation signée est contrôlée avant tout envoi on-chain
+      // 2. replay in the enclave; the signed claim is checked before anything is sent on-chain
       step = 1;
       setStep(1, "doing", msg("hunt.replaying"));
       const p = await arc.proveExploit(sealed);
       setProven(p);
       setStep(1, "done", msg("hunt.proven", { loss: () => usdc(p.claim.loss), tier: p.claim.tier, n: () => fmtNum(p.claim.blockN) }));
 
-      // 3 et 4. paiement v2 en deux temps
+      // 3 and 4. two-step payment
       step = 2;
       await pay(p);
     } catch (e) {
