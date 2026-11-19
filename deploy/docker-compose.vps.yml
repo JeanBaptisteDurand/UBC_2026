@@ -1,0 +1,204 @@
+# ArcHive (un seul projet depuis le 16/11) : le site (front de Florent à la racine, console sous /console/, salle 3D),
+# l'API, les deux copilotes (console et site), le serveur MCP en HTTP et les registrars. Installé par deploy/deploy.sh.
+name: archive
+# Images épinglées par empreinte (celles qui tournaient sur le VPS le 7/11, lues par docker image inspect) : un pull
+# ne change plus rien en silence. Pour monter de version : docker pull <image:tag>, relire l'empreinte, la remplacer ici.
+# Chaque conteneur : aucun privilège nouveau (no-new-privileges), aucune capacité Linux sauf celles qu'il utilise ;
+# les services Node tournent sous l'utilisateur node (uid 1000), système de fichiers en lecture seule.
+# Journaux tournants (3 × 10 Mo par conteneur) : un flot de requêtes ne peut pas remplir le disque.
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "3" }
+services:
+  # HTTPS (une seule origine) : certificat automatique pour archive.62-171-153-35.sslip.io
+  caddy:
+    image: caddy:2-alpine@sha256:78bd35025c7ba85961dd149ae670315129954e77abe2383ac47c89106b35ade9
+    ports: ["80:80", "443:443"]
+    # 10/11 : la passerelle du nœud d'Arc (/arc-rpc/) écoute sur le pont Docker de l'hôte (172.17.0.1:8810)
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    volumes: ["/opt/archive/Caddyfile:/etc/caddy/Caddyfile:ro", "caddy_data:/data", "caddy_config:/config"]
+    depends_on: ["web", "api", "copilot", "copilot-site", "mcp"]
+    restart: unless-stopped
+    logging: *logging
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    cap_add: ["NET_BIND_SERVICE"] # écouter sur 80 et 443
+  web:
+    image: nginx:alpine@sha256:713fc2ebfd92e8217db451477182ee91944b123d2b1ee9fd5a8c6e91ca6c3a11
+    # nginx.conf est un GABARIT : au démarrage, l'image y remplace ${COPILOT_PROXY_TOKEN} (et rien d'autre, filtre
+    # ci-dessous) par la valeur de /opt/archive/nginx.env (hors dépôt, 0600) ; le jeton ne vit jamais dans le code.
+    volumes: ["/opt/archive/web:/usr/share/nginx/html:ro", "/opt/archive/nginx.conf:/etc/nginx/templates/default.conf.template:ro"]
+    env_file: ["/opt/archive/nginx.env"]
+    environment: ["NGINX_ENVSUBST_FILTER=^COPILOT_PROXY_TOKEN$$"]
+    restart: unless-stopped
+    logging: *logging
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    # le processus maître (root) écoute sur 80, prépare ses dossiers temporaires, puis passe ses workers sous « nginx »
+    cap_add: ["CHOWN", "SETUID", "SETGID", "NET_BIND_SERVICE"]
+  # Une seule fois à chaque « up » : le dossier de données appartient à l'utilisateur de l'API (uid 1000). Idempotent ;
+  # s'arrête aussitôt (sans réseau). L'API ne démarre qu'après lui.
+  data-perms:
+    image: node:22-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d
+    user: "0:0"
+    volumes: ["/opt/archive/data:/data"]
+    command: ["chown", "-R", "1000:1000", "/data"]
+    network_mode: none
+    restart: "no"
+    logging: *logging
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    cap_add: ["CHOWN", "DAC_READ_SEARCH"]
+  api:
+    image: node:22-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d
+    user: "1000:1000"
+    working_dir: /app
+    # chaque service ne voit QUE son propre fichier (jamais les .env des autres : clé du déployeur, jeton du mode test)
+    # /data : seul dossier inscriptible (machines appairées, empreintes des clés arcop_, index, budget du mode test)
+    volumes: ["/opt/archive/api.mjs:/app/api.mjs:ro", "/opt/archive/data:/data"]
+    command: ["node", "api.mjs"]
+    environment: ["PORT=8809", "DATA_DIR=/data", "WEB_URL=https://archive.62-171-153-35.sslip.io"]
+    # mode test (testnet) : wallet serveur provisionné + jeton ; sans ce fichier, le mode test est simplement désactivé
+    env_file:
+      - path: /opt/archive/test-signer.env
+        required: false
+    depends_on:
+      data-perms:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    logging: *logging
+    read_only: true
+    tmpfs: ["/tmp:size=16m"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+  copilot:
+    image: node:22-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d
+    user: "1000:1000"
+    working_dir: /app
+    volumes: ["/opt/archive/copilot.mjs:/app/copilot.mjs:ro"]
+    command: ["node", "copilot.mjs"]
+    env_file: ["/opt/archive/copilot.env"]
+    # deux copilotes, chacun 1 000 appels au modèle par jour au plus (le total reste celui de la v1 : 2 000)
+    environment: ["COPILOT_GLOBAL_PER_DAY=1000"]
+    restart: unless-stopped
+    logging: *logging
+    read_only: true
+    tmpfs: ["/tmp:size=16m"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+  # le copilote du nouveau site (même code que « copilot », surface « site » : il pilote les pages du front de Florent)
+  copilot-site:
+    image: node:22-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d
+    user: "1000:1000"
+    working_dir: /app
+    volumes: ["/opt/archive/copilot.mjs:/app/copilot.mjs:ro"]
+    command: ["node", "copilot.mjs"]
+    env_file: ["/opt/archive/copilot.env"]
+    # le site pilote les pages APRÈS avoir lu les données : un 2e tour d'outils doit rester permis (l'estimation compte
+    # 3 jetons par caractère accentué : l'invite française du site la gonfle). Coût borné par COPILOT_GLOBAL_PER_DAY.
+    environment: ["COPILOT_SURFACE=site", "COPILOT_GLOBAL_PER_DAY=1000", "COPILOT_MAX_INPUT_TOKENS=120000", "COPILOT_MAX_INPUT_CHARS=320000"]
+    restart: unless-stopped
+    logging: *logging
+    read_only: true
+    tmpfs: ["/tmp:size=16m"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+  # serveur MCP en HTTP (sans état, aucune clé : lectures et actions PRÉPARÉES seulement)
+  mcp:
+    image: node:22-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d
+    user: "1000:1000"
+    working_dir: /app
+    volumes: ["/opt/archive/mcp-http.mjs:/app/mcp-http.mjs:ro"]
+    command: ["node", "mcp-http.mjs"]
+    environment: ["MCP_PORT=8812", "ARCHIVE_API=http://api:8809", "RPC_URL=https://rpc.testnet.arc.io"]
+    restart: unless-stopped
+    logging: *logging
+    read_only: true
+    tmpfs: ["/tmp:size=16m"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+  # Pile v2.1 (SDK `testnet`) : un registrar par enclave. Chacun renouvelle l'inscription par DCAP avant la fin de sa fenêtre
+  # (contrôle toutes les 10 min) ; ceux des produits payants règlent aussi ce que l'enclave a servi (sessions, appels x402).
+  registrar-inference:
+    image: node:22-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d
+    user: "1000:1000"
+    working_dir: /app
+    volumes: ["/opt/archive/registrar.mjs:/app/registrar.mjs:ro"]
+    command: ["node", "registrar.mjs"]
+    # clé de l'OPÉRATEUR seulement (0x344f…2e1a) : la clé du déployeur, propriétaire des contrats, ne vit pas sur ce serveur
+    env_file: ["/opt/archive/registrar-v2.env"]
+    environment: ["ENCLAVE_URL=https://659d8740a0a8364fc0f805cb48f38a6977749783-8802.dstack-pha1-prod9.phala.network", "PRODUCT_ID=1", "SETTLE=1"]
+    restart: unless-stopped
+    logging: *logging
+    read_only: true
+    tmpfs: ["/tmp:size=16m"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+  # inférence payée à l'appel (x402) : renouvelle et règle les appels servis (toutes les 10 s)
+  registrar-x402:
+    image: node:22-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d
+    user: "1000:1000"
+    working_dir: /app
+    volumes: ["/opt/archive/registrar.mjs:/app/registrar.mjs:ro"]
+    command: ["node", "registrar.mjs"]
+    # clé de l'OPÉRATEUR seulement (0x344f…2e1a) : la clé du déployeur, propriétaire des contrats, ne vit pas sur ce serveur
+    env_file: ["/opt/archive/registrar-v2.env"]
+    environment: ["ENCLAVE_URL=https://659d8740a0a8364fc0f805cb48f38a6977749783-8804.dstack-pha1-prod9.phala.network", "PRODUCT_ID=3", "SETTLE=1"]
+    restart: unless-stopped
+    logging: *logging
+    read_only: true
+    tmpfs: ["/tmp:size=16m"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+  # Prime scellée : renouvelle seulement (les primes se paient dans le flux acceptClaim → deliver)
+  registrar-bounty:
+    image: node:22-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d
+    user: "1000:1000"
+    working_dir: /app
+    volumes: ["/opt/archive/registrar.mjs:/app/registrar.mjs:ro"]
+    command: ["node", "registrar.mjs"]
+    # clé de l'OPÉRATEUR seulement (0x344f…2e1a) : la clé du déployeur, propriétaire des contrats, ne vit pas sur ce serveur
+    env_file: ["/opt/archive/registrar-v2.env"]
+    environment: ["ENCLAVE_URL=https://8be7a21dab8126efad80cc9a53fe11cea66bea1d-8803.dstack-pha1-prod9.phala.network", "PRODUCT_ID=2", "SETTLE=0"]
+    restart: unless-stopped
+    logging: *logging
+    read_only: true
+    tmpfs: ["/tmp:size=16m"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+  # 10/11 : Prime scellée AU NIVEAU VÉRIFIÉ (produit 6) : renouvelle par DCAP, relie l'enclave à sa machine après chaque
+  # renouvellement, et redemande le jeton de l'alliance Proof of Cloud avant son expiration (niveau vérifié)
+  registrar-bounty-verified:
+    image: node:22-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d
+    user: "1000:1000"
+    working_dir: /app
+    volumes: ["/opt/archive/registrar.mjs:/app/registrar.mjs:ro"]
+    command: ["node", "registrar.mjs"]
+    # clé de l'OPÉRATEUR seulement (0x344f…2e1a) : la clé du déployeur, propriétaire des contrats, ne vit pas sur ce serveur
+    env_file: ["/opt/archive/registrar-v2.env"]
+    environment: ["ENCLAVE_URL=https://68182b56bf0b6214bd0ec8bb8edce2b4122343e1-8803.dstack-pha1-prod9.phala.network", "PRODUCT_ID=7", "SETTLE=0"]
+    restart: unless-stopped
+    logging: *logging
+    read_only: true
+    tmpfs: ["/tmp:size=16m"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+  # copilote attesté : renouvelle seulement (service gratuit)
+  registrar-copilot:
+    image: node:22-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d
+    user: "1000:1000"
+    working_dir: /app
+    volumes: ["/opt/archive/registrar.mjs:/app/registrar.mjs:ro"]
+    command: ["node", "registrar.mjs"]
+    # clé de l'OPÉRATEUR seulement (0x344f…2e1a) : la clé du déployeur, propriétaire des contrats, ne vit pas sur ce serveur
+    env_file: ["/opt/archive/registrar-v2.env"]
+    environment: ["ENCLAVE_URL=https://587736778248fca43e8c09ae83dc6555162cc829-8808.dstack-pha1-prod9.phala.network", "PRODUCT_ID=4", "SETTLE=0"]
+    restart: unless-stopped
+    logging: *logging
+    read_only: true
+    tmpfs: ["/tmp:size=16m"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+volumes:
+  caddy_data:
+  caddy_config:

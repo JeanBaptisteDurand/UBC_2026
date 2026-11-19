@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ArcHive. Network</title>
+    <meta name="description" content="Use a service, rent out a machine, publish a service: the three parts of ArcHive in one 3D room. Arc keeps the enclave keys, checks each machine and holds the USDC. Sealed requests go straight to the machine." />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#0b0d10" />
+    <meta property="og:title" content="ArcHive. Network" />
+    <meta property="og:description" content="Use a service, rent out your machine or publish your own. Arc checks the machines and settles the payments. Sealed requests go straight to the enclave." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/og-network.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href="/fonts/montserrat-wght.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/fragment-mono.woff2" as="font" type="font/woff2" crossorigin />
+    <style>
+      /* Initial state in HTML: the title and the sentence are there from the first frame, before JS */
+      @font-face { font-family: 'Montserrat'; src: url('/fonts/montserrat-wght.woff2') format('woff2'); font-weight: 100 900; font-display: block; }
+      :root { --brand: 'Montserrat'; }
+      html, body { background: #0b0d10; color: #e9edf1; margin: 0; }
+      .pre { padding: calc(86px + 72px) 72px 0; font-family: var(--brand), ui-sans-serif, system-ui, sans-serif; }
+      .pre h1 { font-size: clamp(48px, min(5.6vw, 9.4vh), 96px); line-height: 0.94; font-weight: 600; letter-spacing: 0; text-transform: uppercase; margin: 0; } /* Same as the hydrated headline */
+      .pre p { font-size: 17px; line-height: 1.55; color: #c5ccd4; max-width: 28em; margin: 24px 0 0; }
+      /* The first frame already has the page layout (header band, column, two-line title at its width): nothing jumps
+         on hydration */
+      .pre::before { content: ''; position: fixed; left: 0; right: 0; top: 0; height: 86px; border-bottom: 1px solid rgb(233 237 241 / 0.1); background: #0b0d10; }
+      .pre { padding: calc(86px + 40px) 0 0 72px; max-width: calc(min(600px, 44vw) - 112px); }
+      @media (max-width: 1024px) { .pre { max-width: 34em; padding-right: 32px; } }
+      @media (max-width: 760px) { .pre { padding: calc(84px + 38svh + 32px) 16px 0; } .pre h1 { font-size: 8vw; } } /* On phones the scene comes before the title */
+    </style>
+  </head>
+  <body>
+    <div id="root"><main class="pre"><h1>Join the<br />network</h1><p>Private AI and services, sealed in machines Arc verifies. Use them, rent out your hardware or publish your own, and every call is paid in USDC.</p></main></div>
+    <script type="module" src="/src/network/network.tsx"></script>
+  </body>
+</html>

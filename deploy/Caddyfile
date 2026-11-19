@@ -1,0 +1,90 @@
+# ArcHive (un seul projet depuis le 16/11) : le front de Florent à la racine, la console sous /console/, le copilote du site
+# (/copilot-site/) et le serveur MCP en HTTP (/mcp). Caddy ne relit ce fichier qu'à sa recréation : deploy.sh s'en charge.
+# ArcHive en HTTPS, une seule origine (le chiffrement HPKE du navigateur exige un contexte sécurisé).
+# Certificat obtenu et renouvelé automatiquement par Caddy (Let's Encrypt, sinon ZeroSSL).
+# Caddy remplace tout X-Forwarded-For reçu du client par l'IP réelle de la connexion (aucun proxy de confiance
+# n'est déclaré) : l'API s'en sert pour limiter le débit par IP.
+archive.62-171-153-35.sslip.io {
+	encode gzip
+
+	# API de lecture, appairage des machines, mode test (l'API borne aussi chaque route à 64 Kio)
+	handle_path /api/* {
+		request_body {
+			max_size 256KB
+		}
+		reverse_proxy api:8809
+	}
+
+	# copilote
+	handle_path /copilot/* {
+		request_body {
+			max_size 512KB
+		}
+		reverse_proxy copilot:8808 {
+			transport http {
+				read_timeout 180s
+			}
+		}
+	}
+
+	# nœud d'Arc d'ArcHive (10/11 ; supprimé du serveur le 16/11 faute de disque : 502 tant qu'il n'est pas réinstallé,
+	# voir deploy/arc-node) : LECTURES seulement (preuves d'état du rejeu de la Prime), par la passerelle
+	# deploy/arc-node/rpc-gate.mjs publiée sur le pont Docker (172.17.0.1:8810, jamais sur Internet). Le nœud n'est pas
+	# de confiance : l'enclave vérifie chaque preuve contre l'en-tête ancré.
+	@arcrpc path /arc-rpc /arc-rpc/*
+	handle @arcrpc {
+		uri strip_prefix /arc-rpc
+		request_body {
+			max_size 128KB
+		}
+		reverse_proxy host.docker.internal:8810 {
+			transport http {
+				read_timeout 30s
+			}
+		}
+	}
+
+	# le copilote du nouveau site (surface « site » : il pilote les pages du front de Florent)
+	handle_path /copilot-site/* {
+		request_body {
+			max_size 512KB
+		}
+		reverse_proxy copilot-site:8808 {
+			transport http {
+				read_timeout 180s
+			}
+		}
+	}
+
+	# serveur MCP en HTTP (Streamable HTTP, sans état) : d'autres agents (Claude, Cursor…) utilisent nos outils
+	@mcp path /mcp /mcp/*
+	handle @mcp {
+		request_body {
+			max_size 64KB
+		}
+		reverse_proxy mcp:8812
+	}
+
+	# site + proxy des enclaves (/enclave/inference/, /enclave/bounty/) : nginx du conteneur web
+	handle {
+		reverse_proxy web:80
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "DENY"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		# Scripts : seulement ceux du site (aucun script en ligne, aucun tiers)  ; 'wasm-unsafe-eval' pour le décodeur
+		# meshopt de three.js (la scène 3D du front de Florent) : il compile du WebAssembly, pas de JavaScript (eval reste interdit). Connexions : le site lui-même (API,
+		# copilote, proxy des enclaves), le RPC et l'explorateur d'Arc, les enclaves chez Phala et derrière un tunnel
+		# cloudflared (inscription d'une machine : le navigateur lit son /attest), les RPC Sepolia et Base Sepolia de
+		# la page Portefeuille (CCTP), WalletConnect, Coinbase Wallet et le résolveur ENS de RainbowKit.
+		# Styles en ligne permis (RainbowKit injecte ses thèmes) ; images https (icônes de wallets) ; jamais cadré.
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://rpc.testnet.arc.io https://explorer.testnet.arc.io https://*.phala.network https://*.trycloudflare.com https://ethereum-sepolia-rpc.publicnode.com https://base-sepolia-rpc.publicnode.com https://*.walletconnect.com wss://*.walletconnect.com https://*.walletconnect.org wss://*.walletconnect.org https://enhanced-provider.rainbow.me https://api.wallet.coinbase.com wss://www.walletlink.org; frame-src https://verify.walletconnect.com https://verify.walletconnect.org; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		# ni version ni logiciel annoncés (Server de nginx ou de Caddy, Via du proxy)
+		-Server
+		-Via
+	}
+}

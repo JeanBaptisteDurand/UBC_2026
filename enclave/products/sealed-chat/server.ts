@@ -31,8 +31,8 @@ const RPC = process.env.RPC_URL ?? "https://rpc.testnet.arc.io";
 const RPC_URLS = (process.env.RPC_URLS ?? RPC).split(",").map((s) => s.trim()).filter(Boolean);
 const CHAIN_ID = Number(process.env.CHAIN_ID ?? "5042002");
 const PRODUCT_ID = BigInt(process.env.PRODUCT_ID ?? "0");
-const SESSIONPAY = (process.env.SESSIONPAY ?? "0x1111111111111111111111111111111111111111") as Address;
-const REGISTRY = (process.env.REGISTRY ?? "0x1111111111111111111111111111111111111111") as Address;
+const SESSIONPAY = (process.env.SESSIONPAY ?? "0xED501a02a14048118F2ecC21f25D6993707641c7") as Address;
+const REGISTRY = (process.env.REGISTRY ?? "0x741788700D44dA802D579ECD2Aec27878711aeAA") as Address;
 const PORT = Number(process.env.PORT ?? "8802");
 
 const pub = createPublicClient({ transport: http(RPC) });

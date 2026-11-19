@@ -7,9 +7,16 @@
     "dev": "vite",
     "build": "node scripts/sizes.mjs && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:jb": "node scripts/sizes.mjs && vite build --mode jb",
+    "build:ext": "node scripts/sizes.mjs && vite build --mode ext"
   },
   "dependencies": {
+    "@hpke/chacha20poly1305": "1.6.1",
+    "@hpke/core": "1.7.1",
+    "@noble/ciphers": "1.2.1",
+    "@noble/curves": "1.9.1",
+    "@noble/hashes": "1.7.1",
     "gsap": "3.15.0",
     "lenis": "1.3.27",
     "react": "19.2.9",

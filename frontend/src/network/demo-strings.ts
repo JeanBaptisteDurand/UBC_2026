@@ -1,0 +1,271 @@
+// Texts of the Arc focus and the demo, EN and FR. Everything comes from the code (contracts/src, packages/sdk,
+// enclave/, deployments.v21.testnet.json, app-3d/src/demo/replay.json): no fact added. Function, event and error
+// names are those of the code. Real values: only those with their transaction; everything else is marked 'example'.
+import { lg } from './lang'
+import R from '../demo/replay.json'
+
+type Bi = { en: string; fr: string }
+export const tr = (b: Bi) => b[lg()]
+
+// ---------- Arc focus: contract by contract (Part A) ----------
+export interface Fn { sig: string; who: Bi; does: Bi; emits?: string[]; checks?: string[] }
+export interface Contract { id: string; name: string; addr?: string; role: Bi; fns: Fn[]; note?: Bi }
+
+export const ARC_INTRO: Bi = {
+  en: 'What ArcHive does on Arc testnet (chain 5042002), contract by contract, as written in the code. The addresses are from the v2.1 deployment and open in the Arc explorer. Gas is paid in USDC.',
+  fr: 'Ce qu’ArcHive fait sur Arc testnet (chaîne 5042002), contrat par contrat, tel que le code l’écrit. Les adresses sont celles du déploiement v2.1 et s’ouvrent dans l’explorateur d’Arc. Le gas se paie en USDC.',
+}
+export const ARC_TITLE: Bi = { en: 'What runs on Arc', fr: 'Ce qui tourne sur Arc' }
+
+export const CONTRACTS: Contract[] = [
+  { id: 'product', name: 'ProductRegistry', addr: '0x582a3076cf6A1347907565B57Ce9f548D33805A4',
+    role: { en: 'The catalog. Each product pins its manifest hash, the software images allowed to serve it, its price, its revenue shares, its minimum bond and its settlement contract.', fr: 'Le catalogue. Chaque produit fixe le hash de son manifeste, les images logicielles autorisées à le servir, son prix, ses parts de revenus, sa caution minimale et son contrat de règlement.' },
+    fns: [
+      { sig: 'propose(ProposeParams)', who: { en: 'author', fr: 'auteur' }, does: { en: 'Registers a product: manifest hash, allowed images, price, shares, min bond, exposure cap, settlement.', fr: 'Inscrit un produit : hash du manifeste, images autorisées, prix, parts, caution minimale, plafond d’exposition, règlement.' }, emits: ['WorkloadAdded', 'ProductProposed'], checks: ['BadShares', 'AuthorShareTooHigh', 'NetworkShareTooLow'] },
+      { sig: 'activate(productId)', who: { en: 'anyone, after the timelock (0 s on this testnet)', fr: 'n’importe qui, après le délai (0 s sur ce testnet)' }, does: { en: 'Turns the product on.', fr: 'Met le produit en service.' }, emits: ['ProductActivated'] },
+      { sig: 'proposeWorkload / applyWorkload / retireWorkload', who: { en: 'author (apply: anyone after the timelock)', fr: 'auteur (apply : n’importe qui après le délai)' }, does: { en: 'Adds or retires an allowed image.', fr: 'Ajoute ou retire une image autorisée.' }, emits: ['WorkloadProposed', 'WorkloadAdded', 'WorkloadRetired'] },
+    ] },
+  { id: 'bond', name: 'OperatorBond', addr: '0xe584F7590e4677372eE6259b967672c747eB6850',
+    role: { en: 'The operator’s USDC bond. It caps what can be paid on the word of that operator’s enclaves, and is seized on proven fault.', fr: 'La caution en USDC de l’opérateur. Elle plafonne ce qui peut être payé sur la parole de ses enclaves, et elle est saisie en cas de faute prouvée.' },
+    fns: [
+      { sig: 'bond(amount, Auth)', who: { en: 'operator (EIP-3009 signature)', fr: 'opérateur (signature EIP-3009)' }, does: { en: 'Pulls USDC by receiveWithAuthorization.', fr: 'Prélève les USDC par receiveWithAuthorization.' }, emits: ['Bonded'] },
+      { sig: 'requestUnbond / withdraw', who: { en: 'operator', fr: 'opérateur' }, does: { en: 'Withdraws free bond after 7 days, and 7 days after the last exposure.', fr: 'Retire la caution libre après 7 jours, et 7 jours après la dernière exposition.' }, emits: ['UnbondRequested', 'Withdrawn'] },
+      { sig: 'reserve / release', who: { en: 'EnclaveRegistry only', fr: 'EnclaveRegistry seul' }, does: { en: 'Reserves the product’s min bond per enclave key.', fr: 'Réserve la caution minimale du produit par clé d’enclave.' }, emits: ['BondReserved', 'BondReleased'] },
+      { sig: 'consumeExposure', who: { en: 'settlement contracts only', fr: 'contrats de règlement seuls' }, does: { en: 'Counts a payment against the bond: rolling 24 h exposure ≤ half the bond and ≤ the product cap.', fr: 'Compte un paiement sur la caution : exposition glissante sur 24 h ≤ la moitié de la caution et ≤ le plafond du produit.' }, emits: ['ExposureConsumed'], checks: ['TooMuchExposure', 'ExposureCapExceeded'] },
+      { sig: 'slash(operator, reporter, victim)', who: { en: 'settlement contracts only', fr: 'contrats de règlement seuls' }, does: { en: 'Seizes the whole bond and bans the operator: 50 % to the reporter, 50 % to the victim.', fr: 'Saisit toute la caution et bannit l’opérateur : 50 % au rapporteur, 50 % à la victime.' }, emits: ['Slashed'] },
+    ] },
+  { id: 'enclave', name: 'EnclaveRegistry', addr: '0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d',
+    role: { en: 'Admits an enclave key only if Intel’s signature on its TDX quote verifies on chain and the product’s policy passes. Then answers “was this key active for this product at block N”.', fr: 'N’admet une clé d’enclave que si la signature d’Intel sur son quote TDX se vérifie sur la chaîne et si la politique du produit passe. Répond ensuite à « cette clé était-elle active pour ce produit au bloc N ».' },
+    fns: [
+      { sig: 'registerEnclave(productId, quote, anchorR, signer, x25519, eventLog)', who: { en: 'operator', fr: 'opérateur' }, does: { en: 'Checks, in order: product active, operator bond, quote never seen, Intel DCAP signature chain, TCB, DEBUG off, SEPT_VE_DISABLE, RTMR3 replay, image allowlist, REPORTDATA binding, anchor block hash. Then reserves the bond.', fr: 'Vérifie dans l’ordre : produit actif, caution de l’opérateur, quote jamais vu, chaîne de signature DCAP d’Intel, TCB, DEBUG coupé, SEPT_VE_DISABLE, rejeu de RTMR3, liste des images, liaison REPORTDATA, hash du bloc d’ancrage. Puis réserve la caution.' }, emits: ['EnclaveImage', 'BondReserved', 'EnclaveRegistered'], checks: ['ProductNotActive', 'OperatorUnderbonded', 'QuoteReused', 'QuoteInvalid', 'NotTdx', 'TcbNotAllowed', 'DebugEnclave', 'SeptVeNotDisabled', 'Rtmr3Mismatch', 'WorkloadNotAllowed', 'ReportDataMismatch', 'AnchorTooOld', 'AnchorHashMismatch'] },
+      { sig: 'retire / invalidate / invalidateRetiredWorkload', who: { en: 'operator / anyone', fr: 'opérateur / n’importe qui' }, does: { en: 'Ends a key, or invalidates it with current collateral or a retired image.', fr: 'Termine une clé, ou l’invalide avec le collatéral courant ou une image retirée.' }, emits: ['EnclaveRetired', 'EnclaveInvalidated'] },
+      { sig: 'activeOperatorAt(signer, productId, block)', who: { en: 'the settlement contracts and the SDK, as a read', fr: 'les contrats de règlement et le SDK, en lecture' }, does: { en: 'Answers over a window of about 24 h (170 000 blocks).', fr: 'Répond sur une fenêtre d’environ 24 h (170 000 blocs).' } },
+    ] },
+  { id: 'tdx', name: 'TdxAttestationModule', addr: '0x26C1803dE523aC896Ba7F1787f1401ec792951ca',
+    role: { en: 'Calls Automata’s on-chain DCAP verifier (verifyAndAttestOnChain) and slices the TD quote body: MRTD, RTMR0 to RTMR3, mrConfigId, xfam, tdAttributes, REPORTDATA, FMSPC, TCB status.', fr: 'Appelle le vérificateur DCAP d’Automata sur la chaîne (verifyAndAttestOnChain) et découpe le corps du quote TD : MRTD, RTMR0 à RTMR3, mrConfigId, xfam, tdAttributes, REPORTDATA, FMSPC, état TCB.' },
+    fns: [{ sig: 'verify(quote, eventLog)', who: { en: 'EnclaveRegistry', fr: 'EnclaveRegistry' }, does: { en: 'Intel certificate chain, collateral and P-256 signatures, through Arc’s precompile. Tampered quotes (REPORTDATA, MRTD, signature) revert.', fr: 'Chaîne de certificats d’Intel, collatéral et signatures P-256, via le précompilé d’Arc. Les quotes modifiés (REPORTDATA, MRTD, signature) échouent.' } }],
+    note: { en: 'Automata DCAP verifier: 0x48640f7d94dE64b13c89686F3d1240A31Aeb4dc9.', fr: 'Vérificateur DCAP d’Automata : 0x48640f7d94dE64b13c89686F3d1240A31Aeb4dc9.' } },
+  { id: 'x402', name: 'X402Settler', addr: '0xccDb1a5641F2F3f2Cf2112c8E14669DBb6E11634',
+    role: { en: 'The pay-per-call rail: one transaction carries the enclave’s proof, pulls the exact USDC and splits it.', fr: 'Le rail à l’appel : une transaction porte la preuve de l’enclave, prélève les USDC exacts et les partage.' },
+    fns: [{ sig: 'settle(CallReceipt, enclaveSig, Auth)', who: { en: 'settler (the operator’s registrar, or anyone)', fr: 'régleur (le registrar de l’opérateur, ou n’importe qui)' }, does: { en: 'Enclave active at the receipt’s block, EIP-3009 pull from the payer, exposure counted, then the operator, author and network shares.', fr: 'Enclave active au bloc du reçu, prélèvement EIP-3009 chez le payeur, exposition comptée, puis les parts de l’opérateur, de l’auteur et du réseau.' }, emits: ['ExposureConsumed', 'Transfer', 'CallSettled'], checks: ['BadProduct', 'WrongSettlement', 'ZeroAmount', 'InactiveEnclave'] }] },
+  { id: 'session', name: 'SessionPay', addr: '0x8Bf8A8356f53006E9aB359AA6382f783923058a6',
+    role: { en: 'Prepaid sessions, paid on the latest cumulative receipt signed by the enclave. At close, it writes verdict 100.', fr: 'Sessions prépayées, réglées sur le dernier reçu cumulé signé par l’enclave. À la fermeture, le contrat écrit le verdict 100.' },
+    fns: [
+      { sig: 'openSession / topUp', who: { en: 'user (EIP-3009 deposit)', fr: 'utilisateur (dépôt EIP-3009)' }, does: { en: 'Locks price, model and unit.', fr: 'Fige le prix, le modèle et l’unité.' }, emits: ['SessionOpened', 'SessionToppedUp'] },
+      { sig: 'settle(Receipt, sig)', who: { en: 'anyone', fr: 'n’importe qui' }, does: { en: 'Pays the cumulative delta.', fr: 'Paie l’écart cumulé.' }, emits: ['Settled'] },
+      { sig: 'closeSession', who: { en: 'session owner', fr: 'titulaire de la session' }, does: { en: 'Refunds the rest and records verdict 100, tagged “tdx-dcap/inference”.', fr: 'Rembourse le reste et inscrit le verdict 100, étiqueté « tdx-dcap/inference ».' }, emits: ['SessionClosed'] },
+      { sig: 'reportEquivocation', who: { en: 'anyone', fr: 'n’importe qui' }, does: { en: 'Two receipts, same step, different answers: slash and verdict 0.', fr: 'Deux reçus, même étape, réponses différentes : saisie et verdict 0.' }, emits: ['EquivocationSlashed'] },
+    ] },
+  { id: 'verdict', name: 'VerdictLog', addr: '0x2B4AB39B461Ae2bA9ADfb6bC630D34553BAb9779',
+    role: { en: 'Writes each verified outcome into Circle’s ERC-8004 Validation Registry: 100 = verified and paid, 0 = proven fault.', fr: 'Inscrit chaque issue vérifiée dans le registre de validation ERC-8004 de Circle : 100 = vérifié et payé, 0 = faute prouvée.' },
+    fns: [{ sig: 'record(agentId, requestHash, requestURI, responseHash, responseURI, response, tag)', who: { en: 'SessionPay and SealedBounty only', fr: 'SessionPay et SealedBounty seuls' }, does: { en: 'validationRequest, then validationResponse.', fr: 'validationRequest, puis validationResponse.' }, emits: ['Recorded', 'RequestHashSalted'] }] },
+  { id: 'bounty', name: 'SealedBounty', addr: '0x182871d34438aB37a7FD4d8689f3e0812E447A9b',
+    role: { en: 'Pays a bug bounty on the proof of k attested enclaves that replayed the exploit in a fork. No exploit runs on chain.', fr: 'Paie une prime de bug sur la preuve de k enclaves attestées qui ont rejoué l’exploit dans un fork. Aucun exploit ne tourne sur la chaîne.' },
+    fns: [
+      { sig: 'acceptClaim(Claim, sigs[])', who: { en: 'anyone', fr: 'n’importe qui' }, does: { en: 'Block hash via EIP-2935, k distinct operators, each signer active.', fr: 'Hash du bloc via EIP-2935, k opérateurs distincts, chaque signataire actif.' }, emits: ['ClaimAccepted'], checks: ['NoValidSigner'] },
+      { sig: 'deliver / refute', who: { en: 'anyone / ≥ 2 other operators within 3 days', fr: 'n’importe qui / ≥ 2 autres opérateurs sous 3 jours' }, does: { en: 'Pays (verdict 100) or slashes the liars (verdict 0).', fr: 'Paie (verdict 100) ou saisit les menteurs (verdict 0).' }, emits: ['BountyPaid', 'ClaimRefuted'] },
+    ] },
+  { id: 'cctp', name: 'CCTP', role: { en: 'Arc is CCTP domain 26. No ArcHive contract takes part. Balances on other chains are read, and the burn (depositForBurn) is wired in the SDK. The mint on Arc is not wired, and the bridge has never run end to end.', fr: 'Arc est le domaine CCTP 26. Aucun contrat d’ArcHive n’y prend part. Les soldes des autres chaînes sont lus, et le brûlage (depositForBurn) est câblé dans le SDK. L’émission sur Arc ne l’est pas, et le pont n’a jamais tourné de bout en bout.' }, fns: [] },
+]
+
+// ---------- Demo: 15 steps (Part B) ----------
+export type Actor = 'publish' | 'rent' | 'use' | 'arc' | 'cctp'
+export type Pay = 'doc' | 'tx' | 'sig' | 'usdc' | 'quote' | 'sealed' | 'refused' | 'read' | 'verdict' | 'bridge' | 'code'
+export interface Seg { from: Actor; to: Actor; kind: Pay; label: Bi; dim?: boolean }
+// Two-level grammar. 'dio': the camera enters the room (shoulder pose) and the actor works there,
+// replaying a range of the overview thread (loop.ts, seconds) or the rejection; 'map': top-down view of the
+// actors, only the step's links drawn, the content travels on the active link (thread range that carries it)
+export type LinkId = 'useArc' | 'useRent' | 'publishArc' | 'rentArc' | 'publishRent' | 'cctp'
+export type Shot = { k: 'dio'; a: Actor; r?: [number, number] | 'refus' } | { k: 'map'; links: LinkId[]; r?: [number, number] }
+export const T2_END = 26 // end of racking in the thread (≈ T2 + 1.7 in loop.ts)
+export interface DStep {
+  shots: Shot[]
+  group: 'publish' | 'rent' | 'use' | 'verdict' | 'cctp'; cam: Actor[]; title: Bi; who: Bi; fn?: string; checks?: Bi; writes: Bi
+  segs: Seg[]; real?: { text: Bi; tx?: string }; example?: Bi; stage?: [Actor, number] | 'refus'
+}
+const ex = (en: string, fr: string): Bi => ({ en, fr })
+// The demo shows the target process of the finished product, as an explanation, not a recording; explorer
+// links only point to transactions that really exist; the rest is illustrative
+export const DEMO_LABEL = ex('How ArcHive works', 'Comment fonctionne ArcHive')
+export const DEMO_STEPS: DStep[] = [
+  { shots: [{ k: 'dio', a: 'publish', r: [0.05, 3.2] }], group: 'publish', cam: ['publish'], title: ex('Write the manifest and hash it', 'Écrire le manifeste et le hacher'), stage: ['publish', 1],
+    who: ex('Author, off chain', 'Auteur, hors chaîne'),
+    checks: ex('Later, the API shows the image as pinned only if keccak256 of the fetched manifest equals the hash on Arc.', 'Plus tard, l’API ne montre l’image comme épinglée que si le keccak256 du manifeste récupéré est égal au hash sur Arc.'),
+    writes: ex('Nothing yet.', 'Rien encore.'),
+    segs: [{ from: 'publish', to: 'publish', kind: 'doc', label: ex('keccak256(manifest.json)', 'keccak256(manifest.json)') }],
+    real: { text: ex('Product #3 manifest hash 0xc9cdf352…610da', 'Hash du manifeste du produit n° 3 : 0xc9cdf352…610da') } },
+  { shots: [{ k: 'dio', a: 'publish', r: [3.2, 5.0] }, { k: 'map', links: ['publishArc'], r: [5.0, 7.6] }], group: 'publish', cam: ['publish', 'arc'], title: ex('Register the product', 'Inscrire le produit'), stage: ['publish', 3],
+    who: ex('The author calls ProductRegistry', 'L’auteur appelle ProductRegistry'), fn: 'propose(ProposeParams)',
+    checks: ex('Shares add up to 100 %, author ≤ 30 %, network ≥ 5 % (BadShares, AuthorShareTooHigh, NetworkShareTooLow).', 'Les parts font 100 %, auteur ≤ 30 %, réseau ≥ 5 % (BadShares, AuthorShareTooHigh, NetworkShareTooLow).'),
+    writes: ex('The product in state Proposed, with the events WorkloadAdded and ProductProposed.', 'Le produit à l’état Proposé, avec les événements WorkloadAdded et ProductProposed.'),
+    segs: [{ from: 'publish', to: 'arc', kind: 'tx', label: ex('price 0.01 USDC, shares 7000 / 2500 / 500, allowed image', 'prix 0,01 USDC, parts 7000 / 2500 / 500, image autorisée') }],
+    real: { text: ex('Product #3 on testnet: price 0.01 USDC, shares 9500 / 0 / 500', 'Produit n° 3 sur le testnet : prix 0,01 USDC, parts 9500 / 0 / 500'), tx: '0xc7bb4c75225388bc52644a760ce5336976377fbf50365cef0aa949073d3dd350' } },
+  { shots: [{ k: 'map', links: ['publishArc'], r: [7.6, 10.4] }], group: 'publish', cam: ['publish', 'arc'], title: ex('Activate the product', 'Activer le produit'), stage: ['publish', 4],
+    who: ex('Anyone can call ProductRegistry', 'N’importe qui peut appeler ProductRegistry'), fn: 'activate(3)',
+    checks: ex('The timelock has passed (0 s on this testnet).', 'Le délai est écoulé (0 s sur ce testnet).'),
+    writes: ex('State Active, with the event ProductActivated(3).', 'État Actif, avec l’événement ProductActivated(3).'),
+    segs: [{ from: 'publish', to: 'arc', kind: 'tx', label: ex('activate(3)', 'activate(3)') }],
+    real: { text: ex('Product #3 activated on testnet', 'Produit n° 3 activé sur le testnet'), tx: '0x6f875e3da3dcc54783d81f0bb6563d1ae7374f7a224994a83402b6374e2109d4' } },
+  { shots: [{ k: 'dio', a: 'rent', r: [1.0, 3.1] }, { k: 'map', links: ['rentArc'], r: [3.1, 5.0] }], group: 'rent', cam: ['rent', 'arc'], title: ex('Lock the bond', 'Poser la caution'), stage: ['rent', 1],
+    who: ex('The operator calls OperatorBond', 'L’opérateur appelle OperatorBond'), fn: 'bond(amount, Auth)',
+    checks: ex('USDC checks the EIP-3009 signature and its one-time nonce, and the operator must not be banned.', 'USDC vérifie la signature EIP-3009 et son nonce à usage unique, et l’opérateur ne doit pas être banni.'),
+    writes: ex('USDC Transfer, Bonded(operator, amount).', 'Transfer USDC, Bonded(operator, amount).'),
+    segs: [{ from: 'rent', to: 'arc', kind: 'usdc', label: ex('8 USDC + EIP-3009 signature', '8 USDC + signature EIP-3009') }],
+    real: { text: ex('8 USDC, bond transaction', '8 USDC, transaction bond'), tx: '0x4cc68bc8690b3b36f1338f90ceb066a54e7e6cf9e1f6a9c07e43d9c499274c3c' } },
+  { shots: [{ k: 'dio', a: 'rent', r: [9.0, 12.5] }], group: 'rent', cam: ['rent'], title: ex('Install the agent and pair the machine', 'Installer l’agent et appairer la machine'), stage: ['rent', 3],
+    who: ex('The machine, the ArcHive API and the operator’s wallet talk to each other. Nothing goes on Arc.', 'La machine, l’API d’ArcHive et le wallet de l’opérateur échangent entre eux. Rien ne passe par Arc.'),
+    checks: ex('The API checks every line of the signed SIWE message and its one-time nonce. The human checks the address shown on the machine.', 'L’API vérifie chaque ligne du message SIWE signé et son nonce à usage unique. L’humain vérifie l’adresse affichée sur la machine.'),
+    writes: ex('Nothing. The machine gets a key that cannot spend.', 'Rien. La machine reçoit une clé qui ne peut rien dépenser.'),
+    segs: [{ from: 'rent', to: 'rent', kind: 'code', label: ex('code HIVE-XXXX-XXXX + wallet signature', 'code HIVE-XXXX-XXXX + signature du wallet') }] },
+  { shots: [{ k: 'dio', a: 'rent', r: [5.0, 9.0] }], group: 'rent', cam: ['rent'], title: ex('Produce the TDX attestation', 'Produire l’attestation TDX'), stage: ['rent', 2],
+    who: ex('The operator calls POST /attest on the enclave, which asks the TDX hardware', 'L’opérateur appelle POST /attest sur l’enclave, qui interroge le matériel TDX'),
+    checks: ex('The SDK pre-checks off chain: not a mock quote, DEBUG off, SEPT_VE_DISABLE, image allowed, REPORTDATA binding.', 'Le SDK pré-vérifie hors chaîne : pas un faux quote, DEBUG coupé, SEPT_VE_DISABLE, image autorisée, liaison REPORTDATA.'),
+    writes: ex('Nothing yet. REPORTDATA binds the operator, the keys and a recent Arc block.', 'Rien encore. REPORTDATA lie l’opérateur, les clés et un bloc récent d’Arc.'),
+    segs: [{ from: 'rent', to: 'rent', kind: 'quote', label: ex('quote 5 010 bytes, event log 2 752 bytes, 10 events', 'quote 5 010 octets, journal 2 752 octets, 10 événements') }],
+    real: { text: ex('The testnet registration of step 7: anchor block 72201032, signer 0x5E53…5b8A', 'L’inscription du testnet de l’étape 7 : bloc d’ancrage 72201032, signataire 0x5E53…5b8A') } },
+  { shots: [{ k: 'dio', a: 'rent', r: [12.5, 14.4] }, { k: 'map', links: ['rentArc', 'publishArc'], r: [14.4, 18.6] }, { k: 'dio', a: 'rent', r: [18.6, T2_END] }], group: 'rent', cam: ['rent', 'arc', 'publish'], title: ex('Register the enclave against the published product', 'Inscrire l’enclave sur le produit publié'), stage: ['rent', 4],
+    who: ex('The operator calls EnclaveRegistry. EnclaveRegistry calls TdxAttestationModule (which calls Automata DCAP), ProductRegistry and OperatorBond', 'L’opérateur appelle EnclaveRegistry. EnclaveRegistry appelle TdxAttestationModule (qui appelle le DCAP d’Automata), ProductRegistry et OperatorBond'), fn: 'registerEnclave(3, quote, anchorR, signer, x25519, eventLog)',
+    checks: ex('Bond, quote never seen, Intel DCAP signatures, TCB, DEBUG, SEPT_VE, RTMR3 replay and the image the author allowed, REPORTDATA, anchor block hash.', 'Caution, quote jamais vu, signatures DCAP d’Intel, TCB, DEBUG, SEPT_VE, rejeu de RTMR3 et image autorisée par l’auteur, REPORTDATA, hash du bloc d’ancrage.'),
+    writes: ex('EnclaveImage, BondReserved (1 USDC), EnclaveRegistered.', 'EnclaveImage, BondReserved (1 USDC), EnclaveRegistered.'),
+    segs: [{ from: 'rent', to: 'arc', kind: 'quote', label: ex('quote + event log', 'quote + journal') }, { from: 'publish', to: 'arc', kind: 'read', label: ex('allowed image, read from the product', 'image autorisée, lue sur le produit') }],
+    real: { text: ex('A registerEnclave on testnet (product 1, same image family): block 72201049, 6 586 702 gas, 0.1317 USDC', 'Un registerEnclave sur le testnet (produit 1, même famille d’images) : bloc 72201049, 6 586 702 gas, 0,1317 USDC'), tx: '0xb9b22bf3f28388c52bedf61d3e39b952fd773317549b2bd216ed9ae2e3da0129' } },
+  { shots: [{ k: 'dio', a: 'rent', r: 'refus' }], group: 'rent', cam: ['rent', 'arc'], title: ex('Refusal: one byte changed', 'Refus : un octet changé'), stage: 'refus',
+    who: ex('Same call, image log with one byte changed (184 becomes 185)', 'Même appel, journal de l’image avec un octet changé (184 devient 185)'), fn: 'EnclaveRegistry.replayEventLog',
+    checks: ex('The replayed RTMR3 no longer matches the quote: Rtmr3Mismatch. Even with a matching log, that image is not allowed: WorkloadNotAllowed.', 'Le RTMR3 rejoué ne correspond plus au quote : Rtmr3Mismatch. Même avec un journal cohérent, cette image n’est pas autorisée : WorkloadNotAllowed.'),
+    writes: ex('Nothing: the call reverts.', 'Rien : l’appel échoue.'),
+    segs: [{ from: 'rent', to: 'arc', kind: 'refused', label: ex('Rtmr3Mismatch', 'Rtmr3Mismatch') }] },
+  { shots: [{ k: 'map', links: ['useArc'], r: [31.0, 33.4] }], group: 'use', cam: ['use', 'arc'], title: ex('Read the price and check the enclave key', 'Lire le prix et vérifier la clé de l’enclave'), stage: ['use', 2],
+    who: ex('The user’s browser reads Arc and calls GET /pubkeys on the enclave', 'Le navigateur de l’utilisateur lit Arc et appelle GET /pubkeys sur l’enclave'), fn: 'getProduct(3), isActive(3), enclaveOf, activeOperatorAt',
+    checks: ex('At the same block: the product is active and settled by X402Settler, and the enclave key is registered for this product and active.', 'À un même bloc : le produit est actif et réglé par X402Settler, et la clé de l’enclave est inscrite pour ce produit et active.'),
+    writes: ex('Nothing: reads, no gas.', 'Rien : des lectures, sans gas.'),
+    segs: [{ from: 'arc', to: 'use', kind: 'read', label: ex('price 0.01 USDC, enclave key', 'prix 0,01 USDC, clé de l’enclave') }] },
+  { shots: [{ k: 'dio', a: 'use', r: [33.4, 34.4] }, { k: 'map', links: ['useRent'], r: [34.4, 38.4] }], group: 'use', cam: ['use', 'rent'], title: ex('Seal the request', 'Sceller la requête'), stage: ['use', 3],
+    who: ex('The user calls POST /v1/chat/completions on the enclave', 'L’utilisateur appelle POST /v1/chat/completions sur l’enclave'),
+    checks: ex('Sealed with HPKE (X25519, ChaCha20-Poly1305) to the key read on Arc. The enclave answers 402 with its payment terms, and the SDK checks each one against the chain.', 'Scellée en HPKE (X25519, ChaCha20-Poly1305) pour la clé lue sur Arc. L’enclave répond 402 avec ses conditions de paiement, et le SDK vérifie chacune sur la chaîne.'),
+    writes: ex('Nothing. The request goes straight to the machine, not through the chain.', 'Rien. La requête va droit à la machine, sans passer par la chaîne.'),
+    segs: [{ from: 'use', to: 'rent', kind: 'sealed', label: ex('sealed packet {enc, ciphertext}', 'paquet scellé {enc, ciphertext}') }] },
+  { shots: [{ k: 'dio', a: 'use', r: [28.0, 31.0] }, { k: 'map', links: ['useRent'] }], group: 'use', cam: ['use', 'rent'], title: ex('Sign the payment', 'Signer le paiement'), stage: ['use', 3],
+    who: ex('The user’s wallet, sent to the enclave in the X-PAYMENT header, no gas', 'Le wallet de l’utilisateur, envoyé à l’enclave dans l’en-tête X-PAYMENT, sans gas'),
+    checks: ex('The nonce commits to this exact request. The enclave checks amount, payee, signature, window and the payer’s balance before calling the model.', 'Le nonce engage cette requête exacte. L’enclave vérifie montant, destinataire, signature, fenêtre et solde du payeur avant d’appeler le modèle.'),
+    writes: ex('Nothing moves yet.', 'Rien ne bouge encore.'),
+    segs: [{ from: 'use', to: 'rent', kind: 'sig', label: ex('EIP-3009, 0.01 USDC, nonce 0x3f05…da02', 'EIP-3009, 0,01 USDC, nonce 0x3f05…da02') }],
+    real: { text: ex('Recorded authorization: nonce 0x3f05b396…da02, value 10000', 'Autorisation enregistrée : nonce 0x3f05b396…da02, valeur 10000') } },
+  { shots: [{ k: 'map', links: ['useRent'], r: [38.4, 41.8] }, { k: 'dio', a: 'use', r: [41.8, 45.3] }], group: 'use', cam: ['rent', 'use'], title: ex('The enclave answers, signed', 'L’enclave répond, en signant'), stage: ['use', 4],
+    who: ex('The enclave, to the user', 'L’enclave, vers l’utilisateur'),
+    checks: ex('The SDK checks that the receipt signer is the key checked on Arc and that every field matches. If not, the text is not shown.', 'Le SDK vérifie que le signataire du reçu est la clé vérifiée sur Arc et que chaque champ correspond. Sinon, le texte n’est pas montré.'),
+    writes: ex('Nothing yet: the enclave runs the model, seals the answer for the user and keeps the receipt for the operator.', 'Rien encore : l’enclave fait tourner le modèle, scelle la réponse pour l’utilisateur et garde le reçu pour l’opérateur.'),
+    segs: [{ from: 'rent', to: 'use', kind: 'sig', label: ex('sealed answer + CallReceipt signature', 'réponse scellée + signature du CallReceipt') }] },
+  { shots: [{ k: 'map', links: ['useArc', 'rentArc', 'publishArc'], r: [45.3, 48.9] }], group: 'use', cam: ['use', 'arc', 'rent', 'publish'], title: ex('Settle and split on Arc', 'Régler et partager sur Arc'), stage: ['use', 5],
+    who: ex('The operator’s registrar calls X402Settler, which calls USDC, OperatorBond and EnclaveRegistry', 'Le registrar de l’opérateur appelle X402Settler, qui appelle USDC, OperatorBond et EnclaveRegistry'), fn: 'settle(CallReceipt, enclaveSig, Auth)',
+    checks: ex('Enclave active at the receipt’s block, EIP-3009 pull, exposure ≤ half the bond and ≤ the product cap.', 'Enclave active au bloc du reçu, prélèvement EIP-3009, exposition ≤ la moitié de la caution et ≤ le plafond du produit.'),
+    writes: ex('Transfers to operator, author and network, ExposureConsumed, CallSettled(3, payer, operator, 10000, nonce).', 'Virements à l’opérateur, à l’auteur et au réseau, ExposureConsumed, CallSettled(3, payer, operator, 10000, nonce).'),
+    segs: [{ from: 'use', to: 'arc', kind: 'usdc', label: ex('0.01 USDC', '0,01 USDC') }, { from: 'arc', to: 'rent', kind: 'usdc', label: ex('operator 70 %, 0.007 USDC', 'opérateur 70 %, 0,007 USDC') }, { from: 'arc', to: 'publish', kind: 'usdc', label: ex('author 25 %, 0.0025 USDC', 'auteur 25 %, 0,0025 USDC') }, { from: 'arc', to: 'arc', kind: 'usdc', label: ex('network 5 %, 0.0005 USDC', 'réseau 5 %, 0,0005 USDC') }],
+    real: { text: ex('A settle on testnet: 0.01 USDC, block 71773088', 'Un settle sur le testnet : 0,01 USDC, bloc 71773088'), tx: '0x1995e88440bf443b32b9df7c1975c7a94ea003bc465999b34cc440570ea978ed' } },
+  { shots: [{ k: 'map', links: ['rentArc'] }], group: 'verdict', cam: ['arc', 'rent'], title: ex('Verdict logged', 'Verdict inscrit'),
+    who: ex('The settlement contract calls VerdictLog, which writes to the ERC-8004 Validation Registry', 'Le contrat de règlement appelle VerdictLog, qui écrit dans le registre de validation ERC-8004'), fn: 'record(agentId, requestHash, requestURI, responseHash, responseURI, response, tag)',
+    checks: ex('Each verified call leaves a public reputation entry for the operator: 100 = verified and paid, 0 = proven fault (the bond is seized and the operator banned).', 'Chaque appel vérifié laisse une entrée de réputation publique pour l’opérateur : 100 = vérifié et payé, 0 = faute prouvée (la caution est saisie et l’opérateur banni).'),
+    writes: ex('Recorded(agentId, requestHash, 100, tag).', 'Recorded(agentId, requestHash, 100, tag).'),
+    segs: [{ from: 'arc', to: 'arc', kind: 'verdict', label: ex('verdict 100 for operator agent 897812', 'verdict 100 pour l’agent de l’opérateur 897812') }],
+    real: { text: ex('A verdict on testnet: a refutation, verdict 0, block 71620138', 'Un verdict sur le testnet : une réfutation, verdict 0, bloc 71620138'), tx: '0x0ffca5433186735bf5525e525995f3589d842681da8ffcaa82acb5993025051f' } },
+  { shots: [{ k: 'dio', a: 'cctp' }, { k: 'map', links: ['cctp', 'useArc'], r: [26.0, 30.6] }], group: 'cctp', cam: ['cctp', 'arc', 'use'], title: ex('Fund from another chain with CCTP', 'Approvisionner depuis une autre chaîne par CCTP'),
+    who: ex('The user on Ethereum Sepolia or Base Sepolia, through Circle, to Arc (domain 26)', 'L’utilisateur sur Ethereum Sepolia ou Base Sepolia, via Circle, vers Arc (domaine 26)'), fn: 'depositForBurn(amount, 26, mintRecipient, burnToken, destinationCaller, maxFee, minFinalityThreshold), receiveMessage(message, attestation)',
+    checks: ex('Circle’s attesters and Arc’s CCTP contracts. No ArcHive contract takes part.', 'Les attesteurs de Circle et les contrats CCTP d’Arc. Aucun contrat d’ArcHive n’y prend part.'),
+    writes: ex('USDC minted to the user on Arc, then paid as in steps 9 to 13.', 'USDC émis pour l’utilisateur sur Arc, puis payés comme aux étapes 9 à 13.'),
+    segs: [{ from: 'cctp', to: 'arc', kind: 'bridge', label: ex('5 USDC burned on Base, attested by Circle, minted on Arc', '5 USDC brûlés sur Base, attestés par Circle, émis sur Arc') }, { from: 'arc', to: 'use', kind: 'usdc', label: ex('5 USDC on Arc, ready to pay', '5 USDC sur Arc, prêts à payer') }] },
+]
+export const GROUP: Record<DStep['group'], Bi> = { publish: ex('Publish', 'Publier'), rent: ex('Rent', 'Louer'), use: ex('Use', 'Utiliser'), verdict: ex('Verdict', 'Verdict'), cctp: ex('Other chains', 'Autres chaînes') }
+export const UI = {
+  step: ex('Step', 'Étape'), prev: ex('Previous step', 'Étape précédente'), next: ex('Next step', 'Étape suivante'), play: ex('Play', 'Lecture'), pause: ex('Pause', 'Pause'),
+  skip: ex('Skip to the next part', 'Passer à la partie suivante'), quit: ex('Quit the demo', 'Quitter la démo'),
+  who: ex('Who', 'Qui'), fn: ex('Call', 'Appel'), checks: ex('Checked', 'Vérifié'), writes: ex('Written on Arc', 'Écrit sur Arc'),
+  real: ex('Recorded', 'Enregistré'), example: ex('Example', 'Exemple'), tx: ex('transaction', 'transaction'),
+  keys: ex('Arrow keys: steps. Space: play or pause. Esc: quit.', 'Flèches : étapes. Espace : lecture ou pause. Échap : quitter.'),
+  contract: ex('Contract', 'Contrat'), calls: ex('Called by', 'Appelé par'), emits: ex('Events', 'Événements'), errs: ex('Refused with', 'Refusé avec'), addr: ex('Address', 'Adresse'),
+}
+
+// ---------- A single continuous shot in three acts ----------
+// Each beat: its duration, its subtitle (at most 42 chars per line, 2 lines), the tracked object's label,
+// the camera shot, the overview thread range (loop.ts, seconds) played during the beat, the tracked packet
+// on its link, and the step (DEMO_STEPS) whose 'Details' drawer shows the card (with its real transactions).
+export type Cam = { k: 'wide' } | { k: 'room'; a: 'use' | 'rent' | 'publish' } | { k: 'close'; a: 'use' | 'rent' | 'publish'; si?: number } | { k: 'arc' } | { k: 'chase' } | { k: 'screen' }
+export type Sfx = 'depart' | 'recv' | 'sign' | 'drone' | 'pay' | 'tick'
+export interface Beat { ch: 0 | 1 | 2; d: number; sub: Bi; tag?: Bi; cam: Cam; loop?: [number, number]; chase?: { link: LinkId; rev?: boolean; kind: Pay }; recv?: boolean; step: number; tech?: Bi; type?: boolean; sfx?: [number, Sfx][] }
+export const CHAPTERS: Bi[] = [ex('Publish the service', 'Publier le service'), ex('Bring an enclave', 'Installer une enclave'), ex('Use it', 'L’utiliser')]
+export const BEATS: Beat[] = [
+  { ch: 0, d: 2.5, cam: { k: 'wide' }, loop: [0, 0.05], step: 0, tech: ex('Author: ProductRegistry. Operator: USDC bond in OperatorBond, Intel TDX machines. User: pays each call through X402Settler.', 'Auteur : ProductRegistry. Opérateur : caution USDC dans OperatorBond, machines Intel TDX. Utilisateur : paie chaque appel via X402Settler.'), sub: ex('Three roles around Arc. First, an author publishes a service.', 'Trois rôles autour d’Arc. D’abord, un auteur publie un service.') },
+  { ch: 0, d: 4, cam: { k: 'close', a: 'publish' }, loop: [0.05, 3.2], step: 0, tag: ex('Manifest', 'Manifeste'), tech: ex('ProposeParams: manifestHash, workloadIds[], price (USDC, 6 decimals, per unit), bpsOperator / bpsAuthor / bpsNetwork, minBond, settlement.', 'ProposeParams : manifestHash, workloadIds[], price (USDC à 6 décimales, par unité), bpsOperator / bpsAuthor / bpsNetwork, minBond, settlement.'), sub: ex('The author writes the manifest: the image, the price, the shares.', 'L’auteur écrit le manifeste : l’image, le prix, les parts.') },
+  { ch: 0, d: 3, cam: { k: 'room', a: 'publish' }, loop: [3.2, 5.0], step: 1, tag: ex('Fingerprint', 'Empreinte'), tech: ex('Image fingerprint = keccak256(MRTD ‖ RTMR0..2 ‖ compose-hash ‖ os-image-hash ‖ xfam ‖ tdAttributes), pinned with the manifestHash.', 'Empreinte d’image = keccak256(MRTD ‖ RTMR0..2 ‖ compose-hash ‖ os-image-hash ‖ xfam ‖ tdAttributes), inscrite avec le manifestHash.'), sub: ex('The author hashes it. Only this exact image may serve the product.', 'L’auteur le hache. Seule cette image exacte pourra servir le produit.') },
+  { ch: 0, d: 3.5, cam: { k: 'chase' }, loop: [5.0, 7.6], chase: { link: 'publishArc', kind: 'tx' }, step: 1, tag: ex('propose()', 'propose()'), tech: ex('ProductRegistry.propose(): shares sum to 10 000 bps, author ≤ 3000, network ≥ 500. Emits WorkloadAdded per image, then ProductProposed.', 'ProductRegistry.propose() : parts = 10 000 bps, auteur ≤ 3000, réseau ≥ 500. Émet WorkloadAdded par image, puis ProductProposed.'), sub: ex('The fingerprint, price and shares go to Arc.', 'L’empreinte, le prix et les parts partent vers Arc.') },
+  { ch: 0, d: 3, cam: { k: 'arc' }, loop: [7.6, 10.4], step: 2, tag: ex('Product active', 'Produit actif'), tech: ex('activate(productId) after the timelock (0 s on this testnet) emits ProductActivated. isWorkloadAllowed() now answers for its images.', 'activate(productId) après le délai (0 s sur ce testnet) émet ProductActivated. isWorkloadAllowed() répond désormais pour ses images.'), sub: ex('Arc registers the product. It is live.', 'Arc inscrit le produit. Il est en service.') },
+  { ch: 1, d: 2, cam: { k: 'wide' }, loop: [0.8, 1.0], step: 3, tech: ex('Intel TDX machines. Each enclave holds a secp256k1 signing key and an X25519 key in memory, and never sends a transaction.', 'Machines Intel TDX. Chaque enclave tient en mémoire une clé secp256k1 de signature et une clé X25519, et n’envoie aucune transaction.'), sub: ex('Now an operator brings a machine.', 'Un opérateur apporte maintenant une machine.') },
+  { ch: 1, d: 3, cam: { k: 'room', a: 'rent' }, loop: [1.0, 3.1], step: 3, tag: ex('Bond', 'Caution'), tech: ex('OperatorBond.bond(amount, Auth): the operator signs an EIP-3009 ReceiveWithAuthorization (to = OperatorBond). One tx, Bonded event.', 'OperatorBond.bond(amount, Auth) : l’opérateur signe un ReceiveWithAuthorization EIP-3009 (to = OperatorBond). Une transaction, événement Bonded.'), sub: ex('First, the operator puts a USDC bond at stake.', 'D’abord, l’opérateur met une caution en USDC en jeu.') },
+  { ch: 1, d: 3, cam: { k: 'chase' }, loop: [3.1, 5.0], chase: { link: 'rentArc', kind: 'usdc' }, step: 3, tag: ex('8 USDC', '8 USDC'), tech: ex('Recorded bond: 8 USDC. On proven fault, slash() seizes all of it and bans the operator: 50 % to the reporter, 50 % to the victim.', 'Caution enregistrée : 8 USDC. Sur faute prouvée, slash() saisit tout et bannit l’opérateur : 50 % au rapporteur, 50 % à la victime.'), sub: ex('The bond goes to Arc. It is seized if the machine cheats.', 'La caution part vers Arc. Elle est saisie si la machine triche.') },
+  { ch: 1, d: 4.5, cam: { k: 'close', a: 'rent', si: 1 }, loop: [5.0, 9.0], step: 5, tag: ex('Blade', 'Lame'), tech: ex('The quote carries MRTD and RTMR0-3. The enclave creates its keys inside and requests a quote whose REPORTDATA binds them.', 'Le quote porte MRTD et RTMR0-3. L’enclave crée ses clés en interne et demande un quote dont le REPORTDATA les lie.'), sub: ex('The blade arrives on the belt and boots, measured by the chip.', 'La lame arrive sur le tapis et démarre, mesurée par la puce.') },
+  { ch: 1, d: 4.5, cam: { k: 'close', a: 'rent', si: 4 }, loop: [12.5, 18.6], step: 6, tag: ex('TDX quote', 'Quote TDX'), tech: ex('Automata DCAP verifies Intel’s signature chain on-chain, then TCB, DEBUG off, RTMR3 replay + allowed image, REPORTDATA binding.', 'Automata DCAP vérifie sur la chaîne les signatures d’Intel, puis TCB, DEBUG coupé, rejeu RTMR3 et image autorisée, liaison REPORTDATA.'), sub: ex('At the gate, Arc checks the Intel quote: five lights, then the seal.', 'Au portique, Arc vérifie le quote d’Intel : cinq lampes, puis le sceau.') },
+  { ch: 1, d: 4.5, cam: { k: 'close', a: 'rent', si: 5 }, loop: [18.6, 26.0], step: 6, tag: ex('Enclave', 'Enclave'), tech: ex('Admission reserves the product’s minBond from the operator’s free bond: OperatorBond.reserve(), event BondReserved.', 'L’admission réserve le minBond du produit sur la caution libre de l’opérateur : OperatorBond.reserve(), événement BondReserved.'), sub: ex('The operator slides the admitted blade into the rack.', 'L’opérateur glisse la lame admise dans la baie.') },
+  { ch: 1, d: 2.5, cam: { k: 'chase' }, loop: [26.0, 26.0], chase: { link: 'rentArc', kind: 'quote' }, step: 6, tag: ex('registerEnclave()', 'registerEnclave()'), tech: ex('EnclaveRegistry.registerEnclave() stores signer + X25519 for one productId and one operator, over a block window. Emits EnclaveRegistered.', 'EnclaveRegistry.registerEnclave() inscrit signer et X25519 pour un seul productId et un opérateur, sur une fenêtre de blocs. Émet EnclaveRegistered.'), sub: ex('Its key is registered on Arc, for that product only.', 'Sa clé est inscrite sur Arc, pour ce produit seulement.') },
+  { ch: 2, d: 2, cam: { k: 'wide' }, loop: [27.8, 28.0], step: 8, tech: ex('Pay-per-call rail (x402, scheme “exact”): the enclave answers 402 with payTo = X402Settler, asset = USDC, amount = price read on Arc.', 'Rail à l’appel (x402, schéma « exact ») : l’enclave répond 402 avec payTo = X402Settler, asset = USDC, montant = prix lu sur Arc.'), sub: ex('Last, a user calls the service.', 'Enfin, un utilisateur appelle le service.') },
+  { ch: 2, d: 3, cam: { k: 'room', a: 'use' }, loop: [28.0, 31.0], step: 8, tag: ex('Service', 'Service'), tech: ex('verifyEnclaveKeys(): reads /pubkeys, then enclaveOf(signer) and activeOperatorAt() at one block. The X25519 key must match the registered one.', 'verifyEnclaveKeys() : lit /pubkeys, puis enclaveOf(signer) et activeOperatorAt() au même bloc. La clé X25519 doit être celle inscrite.'), sub: ex('The user picks it, then the browser checks the enclave key on Arc.', 'L’utilisateur le choisit. Le navigateur vérifie la clé de l’enclave sur Arc.') },
+  { ch: 2, d: 4, cam: { k: 'screen' }, type: true, loop: [31.0, 34.4], step: 9, tag: ex('Request', 'Requête'), tech: ex('hpkeSeal() in the browser: HPKE RFC 9180, DHKEM(X25519, HKDF-SHA256) + ChaCha20-Poly1305, to the enclave’s registered X25519 key.', 'hpkeSeal() dans le navigateur : HPKE RFC 9180, DHKEM(X25519, HKDF-SHA256) + ChaCha20-Poly1305, vers la clé X25519 inscrite de l’enclave.'), sub: ex('The user types the request. It is sealed for that enclave alone.', 'L’utilisateur tape sa demande. Elle est scellée pour cette enclave seule.') },
+  { ch: 2, d: 4, cam: { k: 'chase' }, loop: [34.4, 38.4], chase: { link: 'useRent', kind: 'sealed' }, step: 9, tag: ex('Sealed request', 'Requête scellée'), tech: ex('HTTP POST to the enclave URL with {enc, ciphertext, clientEphemeralPub}. Nothing is written on Arc for the request.', 'POST HTTP vers l’URL de l’enclave avec {enc, ciphertext, clientEphemeralPub}. Rien n’est écrit sur Arc pour la requête.'), sub: ex('It goes straight to the machine, never through the chain.', 'Elle va droit à la machine, sans jamais passer par la chaîne.') },
+  { ch: 2, d: 2, cam: { k: 'close', a: 'rent', si: 5 }, loop: [38.4, 38.4], recv: true, step: 9, tag: ex('Received', 'Reçue'), tech: ex('kit.open() decrypts with the X25519 private key held in enclave memory. A request sealed to another key is refused as “undecryptable”.', 'kit.open() déchiffre avec la clé privée X25519 gardée en mémoire de l’enclave. Scellée vers une autre clé, la requête est refusée (« undecryptable »).'), sub: ex('The enclave receives it, and only the enclave can open it.', 'L’enclave la reçoit, et elle seule peut l’ouvrir.') },
+  { ch: 2, d: 3, cam: { k: 'chase' }, loop: [38.4, 41.8], chase: { link: 'useRent', rev: true, kind: 'sig' }, step: 11, tag: ex('Signed answer', 'Réponse signée'), tech: ex('signCallReceipt(): EIP-712 CallReceipt (domain ArcEnclaveNetwork, X402Settler) with requestHash and responseHash. Text sealed to clientEphemeralPub.', 'signCallReceipt() : CallReceipt EIP-712 (domaine ArcEnclaveNetwork, X402Settler), requestHash et responseHash. Texte scellé vers clientEphemeralPub.'), sub: ex('The answer comes back sealed, signed by the enclave.', 'La réponse revient scellée, signée par l’enclave.') },
+  { ch: 2, d: 2.5, cam: { k: 'screen' }, loop: [41.8, 41.8], step: 11, tag: ex('Signed answer', 'Réponse signée'), tech: ex('verifyCompletion(): recoverCallReceiptSigner() must return the key checked on Arc. Product, payer, nonce, units and both hashes must match.', 'verifyCompletion() : recoverCallReceiptSigner() doit rendre la clé vérifiée sur Arc. Produit, payeur, nonce, unités et hashs doivent concorder.'), sub: ex('The answer appears and the page checks the enclave signature.', 'La réponse s’affiche et la page vérifie la signature de l’enclave.') },
+  { ch: 2, d: 3.5, cam: { k: 'room', a: 'use' }, loop: [41.8, 45.3], step: 11, sfx: [[0.12, 'drone']], tag: ex('Drone', 'Drone'), tech: ex('The text shown is the one the enclave signed: responseHash = keccak256(abi.encode(requestHash, keccak256(text))).', 'Le texte affiché est celui que l’enclave a signé : responseHash = keccak256(abi.encode(requestHash, keccak256(text))).'), sub: ex('The user’s drone takes off: the service acted.', 'Le drone de l’utilisateur décolle : le service a agi.') },
+  { ch: 2, d: 3, cam: { k: 'chase' }, loop: [45.3, 46.9], chase: { link: 'useArc', kind: 'usdc' }, step: 12, tag: ex('0.01 USDC', '0,01 USDC'), tech: ex('EIP-3009 ReceiveWithAuthorization of 0.01 USDC to X402Settler, nonce bound to this request. settle() checks the enclave, then pulls it.', 'ReceiveWithAuthorization EIP-3009 de 0,01 USDC vers X402Settler, nonce lié à cette requête. settle() vérifie l’enclave, puis l’encaisse.'), sub: ex('One signature pays the exact price to Arc.', 'Une signature paie le prix exact à Arc.') },
+  { ch: 2, d: 2.5, cam: { k: 'wide' }, loop: [46.9, 48.9], step: 12, tag: ex('Split', 'Partage'), tech: ex('Same tx: operator gets amount × bpsOperator, author amount × bpsAuthor, the rest goes to the treasury. Emits CallSettled.', 'Même transaction : l’opérateur reçoit amount × bpsOperator, l’auteur amount × bpsAuthor, le reste va à la trésorerie. Émet CallSettled.'), sub: ex('Arc splits it between operator, author and network, on every call.', 'Arc le partage entre opérateur, auteur et réseau, à chaque appel.') },
+]
+export const UI15 = { mute: ex('Mute the sound', 'Couper le son'), soundOn: ex('Turn the sound on', 'Remettre le son'), onArc: ex('See the real transaction on the Arc explorer', 'Voir la vraie transaction dans l’explorateur d’Arc'), details: ex('Details', 'Détails'), close: ex('Close the details', 'Fermer les détails'), chapter: ex('Chapter', 'Chapitre') }
+// The page state on the client's screen, at demo time (i, u): 0 service chosen, 1 typing (k = fraction
+// of the text typed), 2 sent and sealed, 3 signed response (k = reveal)
+export function clientAt(i: number, u: number): { phase: number; k: number } {
+  const ty = BEATS.findIndex((b) => b.type), ans = BEATS.findIndex((b, j) => j > ty && b.cam.k === 'screen')
+  const c = (x: number) => Math.max(0, Math.min(1, x))
+  if (i < ty) return { phase: 0, k: 0 }
+  if (i === ty) return u < 0.92 ? { phase: 1, k: c((u - 0.06) / 0.78) } : { phase: 2, k: 0 }
+  if (i < ans) return { phase: 2, k: 0 }
+  if (i === ans) return { phase: 3, k: c(u / 0.6) }
+  return { phase: 3, k: 1 }
+}
+
+// ---------- What the landing demo explains, brought into the beats (src/demo, replay.json) ----------
+// why: one plain sentence the landing page says better (its steps s1 to s9, i18n 'demo.s*'); rec: the values recorded
+// on Arc testnet that the beat refers to, read from src/demo/replay.json (block 72318453) or, for the publish and bond
+// transactions, from DEMO_STEPS[].real above. Nothing here is computed or invented: product numbers say which product a
+// value belongs to (the recorded enclave serves product 1, the recorded payment is for product 3).
+export interface Rec { k: Bi; v: string | Bi; tx?: string }
+const sh = (h: string) => `${h.slice(0, 10)}…${h.slice(-6)}`
+const u6 = (n: number | string) => String(Number(n) / 1e6)
+const bps = (p: { bpsOperator: number; bpsAuthor: number; bpsNetwork: number }) => `${p.bpsOperator} / ${p.bpsAuthor} / ${p.bpsNetwork}`
+const P1 = R.product, P3 = R.payProduct, E = R.enclave, G = R.registration, OK = R.replay.ok, NO = R.replay.refused, PAY = R.payment
+const AMT = Number(PAY?.args.amount ?? 0)
+const split = (amt: number, b: number) => String((amt * b) / 10000 / 1e6)
+export const REC_HEAD: Bi = { en: `Recorded on Arc testnet, block ${R.head}`, fr: `Enregistré sur Arc testnet, bloc ${R.head}` }
+export const BEAT_MORE: Record<number, { why?: Bi; rec?: Rec[] }> = {
+  0: { why: ex('Four parties and two registries on Arc: an author publishes a service, an operator runs it in a sealed Intel TDX machine, Arc checks the machine, a user pays each call in USDC.', 'Quatre acteurs et deux registres sur Arc : un auteur publie un service, un opérateur le fait tourner dans une machine Intel TDX scellée, Arc vérifie la machine, un utilisateur paie chaque appel en USDC.'),
+    rec: [{ k: ex('On Arc at that block', 'Sur Arc à ce bloc'), v: { en: `${R.stats.enclaves} enclaves (${R.stats.enclavesActive} active), ${R.stats.products} products, ${R.stats.x402Calls} x402 calls`, fr: `${R.stats.enclaves} enclaves (${R.stats.enclavesActive} actives), ${R.stats.products} produits, ${R.stats.x402Calls} appels x402` } }] },
+  1: { rec: [{ k: ex('manifestHash, product #3', 'manifestHash, produit n° 3'), v: sh(P3.manifestHash) }] },
+  2: { why: ex('The fingerprint is the hash of the exact image an enclave must run. The author needs no machine.', 'L’empreinte est le hash de l’image exacte qu’une enclave doit exécuter. L’auteur n’a besoin d’aucune machine.'),
+    rec: [{ k: ex('Allowed image fingerprint, product #1', 'Empreinte d’image autorisée, produit n° 1'), v: sh(G.allowedId) }] },
+  3: { rec: [{ k: ex('Product #3: price, shares operator / author / network (bps)', 'Produit n° 3 : prix, parts opérateur / auteur / réseau (bps)'), v: `${u6(P3.price)} USDC · ${bps(P3)}`, tx: DEMO_STEPS[1].real?.tx }] },
+  4: { rec: [{ k: ex('activate(3)', 'activate(3)'), v: { en: `product #3 ${P3.state}`, fr: `produit n° 3 ${P3.state === 'Active' ? 'actif' : P3.state}` }, tx: DEMO_STEPS[2].real?.tx }] },
+  5: { rec: [{ k: ex('Recorded enclave: signing key, operator', 'Enclave enregistrée : clé de signature, opérateur'), v: `${sh(E.signer)} · ${sh(E.operator)}` }] },
+  6: { rec: [{ k: ex('Minimum bond asked by product #1', 'Caution minimale demandée par le produit n° 1'), v: `${u6(P1.minBond)} USDC` }] },
+  7: { rec: [{ k: ex('Bond locked', 'Caution posée'), v: '8 USDC', tx: DEMO_STEPS[3].real?.tx }] },
+  8: { why: ex('The enclave’s memory is encrypted: even the machine’s owner cannot read it. Intel measures what booted and signs a quote.', 'La mémoire de l’enclave est chiffrée : même le propriétaire de la machine ne la lit pas. Intel mesure ce qui a démarré et signe un quote.'),
+    rec: [{ k: ex('MRTD, quote, boot log', 'MRTD, quote, journal de démarrage'), v: { en: `${sh(G.measures.mrtd)} · ${G.quoteBytes} bytes · ${G.eventLogBytes} bytes, ${G.events.length} events`, fr: `${sh(G.measures.mrtd)} · ${G.quoteBytes} octets · ${G.eventLogBytes} octets, ${G.events.length} événements` } }] },
+  9: { why: ex('Arc replays the boot log in Solidity and recomputes RTMR3: it matches what Intel signed, byte for byte. Change one byte and the image no longer matches the author’s: Arc refuses.', 'Arc rejoue le journal de démarrage en Solidity et recalcule RTMR3 : il correspond, octet pour octet, à ce qu’Intel a signé. Un octet changé, et l’image ne correspond plus à celle de l’auteur : Arc refuse.'),
+    rec: [{ k: ex('RTMR3 signed by Intel = replayed by Arc, 48 of 48 bytes', 'RTMR3 signé par Intel = rejoué par Arc, 48 octets sur 48'), v: sh(OK.rtmr3) },
+      { k: { en: `Byte ${NO.flip} of compose-hash, ${NO.byteBefore} becomes ${NO.byteAfter}: refused`, fr: `Octet ${NO.flip} de compose-hash, ${NO.byteBefore} devient ${NO.byteAfter} : refusé` }, v: `RTMR3 ${sh(NO.rtmr3)} · image ${sh(NO.imageId)}` }] },
+  10: { why: ex('From the measurements, Arc recomputes the image fingerprint and compares it with the one the author allowed. They match: the enclave can serve the product.', 'À partir des mesures, Arc recalcule l’empreinte de l’image et la compare à celle que l’auteur a autorisée. Elles concordent : l’enclave peut servir le produit.'),
+    rec: [{ k: ex('Image fingerprint recomputed by Arc, allowed', 'Empreinte recalculée par Arc, autorisée'), v: sh(OK.imageId) }] },
+  11: { why: ex('One transaction carries the Intel quote and the boot log. The quote is anchored to a recent Arc block and binds the enclave’s signing key.', 'Une transaction porte le quote signé par Intel et le journal de démarrage. Le quote est ancré à un bloc récent d’Arc et lie la clé de signature de l’enclave.'),
+    rec: [{ k: { en: `registerEnclave, block ${G.block}, quote anchored at block ${G.anchorR}`, fr: `registerEnclave, bloc ${G.block}, quote ancré au bloc ${G.anchorR}` }, v: `gas ${G.costUsdc.toFixed(4)} USDC`, tx: G.tx }] },
+  12: { rec: [{ k: ex('Price per call, product #3', 'Prix par appel, produit n° 3'), v: { en: `${u6(P3.price)} USDC (${P3.price} units)`, fr: `${u6(P3.price)} USDC (${P3.price} unités)` } }] },
+  13: { rec: [{ k: { en: `Enclave key, product #${E.productId}, blocks ${E.fromBlock} to ${E.untilBlock}`, fr: `Clé de l’enclave, produit n° ${E.productId}, blocs ${E.fromBlock} à ${E.untilBlock}` }, v: `${sh(E.signer)} · X25519 ${sh(E.x25519)}` }] },
+  14: { rec: [{ k: ex('Sealed to the registered X25519 key', 'Scellée pour la clé X25519 inscrite'), v: sh(E.x25519) }] },
+  17: { rec: [{ k: ex('Receipt signed by the enclave key', 'Reçu signé par la clé de l’enclave'), v: sh(E.signer) }] },
+  20: { rec: [{ k: { en: `CallSettled, product #${PAY?.args.productId}, block ${PAY?.block}`, fr: `CallSettled, produit n° ${PAY?.args.productId}, bloc ${PAY?.block}` }, v: { en: `${u6(PAY?.args.amount ?? 0)} USDC · payer ${sh(PAY?.args.payer ?? '')} · nonce ${sh(PAY?.args.nonce ?? '')}`, fr: `${u6(PAY?.args.amount ?? 0)} USDC · payeur ${sh(PAY?.args.payer ?? '')} · nonce ${sh(PAY?.args.nonce ?? '')}` }, tx: PAY?.tx }] },
+  21: { why: ex('The split follows the product’s shares, read on Arc, in the same transaction. Both the registration and the paid call are public on the Arc testnet explorer.', 'Le partage suit les parts du produit, lues sur Arc, dans la même transaction. L’inscription et l’appel payé sont publics dans l’explorateur d’Arc testnet.'),
+    rec: [{ k: { en: `Split of ${u6(PAY?.args.amount ?? 0)} USDC, product #3 (${bps(P3)} bps)`, fr: `Partage de ${u6(PAY?.args.amount ?? 0)} USDC, produit n° 3 (${bps(P3)} bps)` }, v: { en: `operator ${split(AMT, P3.bpsOperator)} · author ${split(AMT, P3.bpsAuthor)} · network ${split(AMT, P3.bpsNetwork)} USDC`, fr: `opérateur ${split(AMT, P3.bpsOperator)} · auteur ${split(AMT, P3.bpsAuthor)} · réseau ${split(AMT, P3.bpsNetwork)} USDC` }, tx: PAY?.tx }] },
+}

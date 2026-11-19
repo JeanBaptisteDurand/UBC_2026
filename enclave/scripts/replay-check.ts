@@ -13,7 +13,7 @@ import { AnvilForkRunner, encodeExploitTx, ARC_USDC } from "../src/services/anvi
 import { evaluate, type Predicate } from "../src/services/predicate";
 
 const RPC = process.env.RPC_URL ?? "https://rpc.testnet.arc.io";
-const VAULT = (process.env.VAULT ?? "0x1111111111111111111111111111111111111111") as Address;
+const VAULT = (process.env.VAULT ?? "0xf217A8d61f90B47401216223dab69cfe3cCc1b27") as Address;
 const HUNTER = "0x000000000000000000000000000000000000c0de" as Address;
 const vaultAbi = parseAbi(["function migrate(address to)", "function pause()"]);
 const usdcAbi = parseAbi(["function balanceOf(address) view returns (uint256)", "function transfer(address,uint256) returns (bool)"]);

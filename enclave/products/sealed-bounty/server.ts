@@ -42,8 +42,8 @@ const RPC = process.env.RPC_URL ?? "https://rpc.testnet.arc.io";
 const RPC_URLS = (process.env.RPC_URLS ?? RPC).split(",").map((s) => s.trim()).filter(Boolean);
 const CHAIN_ID = Number(process.env.CHAIN_ID ?? "5042002");
 const PRODUCT_ID = BigInt(process.env.PRODUCT_ID ?? "0");
-const SEALED = (process.env.SEALEDBOUNTY ?? "0x1111111111111111111111111111111111111111") as Address;
-const REGISTRY = (process.env.REGISTRY ?? "0x1111111111111111111111111111111111111111") as Address;
+const SEALED = (process.env.SEALEDBOUNTY ?? "0xAF5055e8559b96f9CE1a09A310a7c7C8dE143310") as Address;
+const REGISTRY = (process.env.REGISTRY ?? "0x741788700D44dA802D579ECD2Aec27878711aeAA") as Address;
 const PORT = Number(process.env.PORT ?? "8803");
 
 // v2.1 quater : la faute de DÉMONSTRATION est contrôlée avant tout le reste (refusée → arrêt, rien n'est servi)

@@ -1,0 +1,61 @@
+/* Sled faces drawn like the landing wall (catalog in Network's Use part, bottom ticker): smoked black glass, the LED
+   slit, the name in Fragment Mono capitals with the plates' light recipe, the status word and number on the bottom
+   line. Usage: .blade[data-led] > .blade-face > .bl-led > i, .bl-title, .bl-word, .bl-u */
+/* The face copies the landing's sleds (film frame + live plates, video.css .lm-*): matte blue-grey lacquer lit from
+   above, a machined seam on the top edge, a vertical LED slit on the left, the name in Fragment Mono capitals printed
+   on the face itself, the status word bottom left and the unit bottom right. Lit names follow the plates' recipe: a
+   core leaning to white, the light in the state colour, spilling softly onto the lacquer. */
+.blade { --c: 255 158 74; position: relative; }
+.blade[data-led='green'] { --c: 84 255 146; }
+.blade[data-led='red'] { --c: 255 84 72; }
+.blade[data-led='off'] { --c: 170 180 196; }
+.blade-face { position: relative; z-index: 2; display: block; width: 100%; aspect-ratio: 3.3 / 1; min-height: 96px; container-type: inline-size; padding: 0; text-align: left; color: inherit; cursor: pointer; overflow: hidden;
+  /* smoked black glass: almost black with a cool tint, a soft diagonal reflection across the top, the name's light
+     glowing inside the glass, a bright bevel on the top edge and a dark one at the bottom */
+  background:
+    linear-gradient(118deg, transparent 0 28%, rgb(210 225 255 / 0.055) 34%, rgb(210 225 255 / 0.015) 46%, transparent 52%),
+    radial-gradient(ellipse 55% 75% at 30% 45%, rgb(var(--c) / 0.09), transparent 72%),
+    linear-gradient(180deg, rgb(160 180 215 / 0.07), transparent 22%),
+    linear-gradient(180deg, #0b0d11 0%, #07080a 60%, #050607 100%);
+  box-shadow: inset 0 1px 0 rgb(200 220 255 / 0.18), inset 1px 0 0 rgb(200 220 255 / 0.05), inset -1px 0 0 rgb(200 220 255 / 0.04), inset 0 -1px 0 rgb(0 0 0 / 0.8), 0 1px 0 rgb(0 0 0 / 0.7);
+  transform: translateY(0); transition: transform 280ms var(--productive), box-shadow 280ms var(--productive); }
+/* a fine lacquer grain, as on the film's facades */
+.blade-face::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0.55;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .8 0 0 0 0 .85 0 0 0 0 .95 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+/* the LED: a vertical slit (sharp core, almost white filament) leaking its light into the lacquer */
+.bl-led { position: absolute; left: 3.6%; top: 20%; height: 60%; width: 1.3%; min-width: 4px; border-radius: 999px; background: #020203; box-shadow: inset 0 1px 1px rgb(0 0 0 / 0.9), 0 1px 0 rgb(200 214 235 / 0.08); }
+.bl-led i { position: absolute; inset: 1px; border-radius: 999px;
+  background: linear-gradient(90deg, rgb(var(--c) / 0.85), color-mix(in srgb, rgb(var(--c)) 55%, #fff) 50%, rgb(var(--c) / 0.85));
+  box-shadow: 0 0 2px rgb(var(--c) / 1), 0 0 6px rgb(var(--c) / 0.7), 0 0 14px rgb(var(--c) / 0.35), 0 0 34px rgb(var(--c) / 0.18); }
+.blade[data-led='off'] .bl-led i { background: rgb(var(--c) / 0.08); box-shadow: none; }
+.bl-title, .bl-word, .bl-u { position: absolute; font-family: var(--mono); text-transform: uppercase; white-space: nowrap; }
+.bl-title { left: 9%; right: 5%; top: 17%; font-size: 6.4cqw; line-height: 1.02; letter-spacing: 0; white-space: normal; overflow-wrap: anywhere;
+  color: color-mix(in srgb, rgb(var(--c)) 76%, #fff);
+  text-shadow: 0 0 1.5px rgb(var(--c) / 1), 0 0 5px rgb(var(--c) / 0.85), 0 0 12px rgb(var(--c) / 0.55), 0 0 30px rgb(var(--c) / 0.3); }
+.bl-word, .bl-u { bottom: 15%; font-size: 3.1cqw; letter-spacing: 0.04em;
+  color: color-mix(in srgb, rgb(var(--c)) 88%, #fff);
+  text-shadow: 0 0 1px rgb(var(--c) / 0.9), 0 0 5px rgb(var(--c) / 0.5), 0 0 12px rgb(var(--c) / 0.2); }
+.bl-word { left: 9%; }
+.bl-u { right: 5%; }
+/* a replaced product reads like an engraved, unlit plate */
+.blade[data-led='off'] .bl-title, .blade[data-led='off'] .bl-word, .blade[data-led='off'] .bl-u { color: rgb(var(--c) / 0.3); text-shadow: 0 -0.6px 0 rgb(220 228 240 / 0.14); }
+
+
+/* long names take two lines in a smaller size, as on the wall's plates */
+.blade[data-long='1'] .bl-title { top: 14%; font-size: 4.6cqw; }
+
+/* The face itself is now a Blender studio render of the sled facade (design/blender/sled-face: polished black glass,
+   machined top edge, the LED slit cut in, LED off, empty plate). The HTML keeps only what changes: the state glow in
+   the glass, the lit filament in the slit, the name and the status line. */
+.blade-face { background:
+    radial-gradient(ellipse 55% 75% at 30% 45%, rgb(var(--c) / 0.08), transparent 72%),
+    url('/tex/sled-face.webp') center / 100% 100% no-repeat, #020306;
+  box-shadow: none; }
+.blade-face::after { content: none; }
+.bl-led { left: 3.57%; top: 16.8%; width: 1.68%; height: 64.75%; min-width: 3px; background: none; box-shadow: none; }
+.bl-led i { inset: 14% 22%; }
+.blade[data-led='off'] .bl-led i { background: none; }
+/* at catalog size the render's machined top edge is under a pixel: a hairline frame and the edge light keep each
+   sled apart from its neighbours and from the dark panel */
+.blade-face { box-shadow: inset 0 1px 0 rgb(220 232 255 / 0.22), inset 0 0 0 1px rgb(200 220 255 / 0.07), 0 2px 6px -2px rgb(0 0 0 / 0.9); }
+.blade-face:hover { box-shadow: inset 0 1px 0 rgb(220 232 255 / 0.34), inset 0 0 0 1px rgb(200 220 255 / 0.14), 0 4px 10px -3px rgb(0 0 0 / 0.9); }

@@ -4,13 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ArcHive. Sealed machines, open market.</title>
-    <meta name="description" content="Use a service, rent out your Intel TDX machine, or publish your own. Arc verifies every enclave, and every use is paid in USDC. Read live on Arc testnet." />
+    <meta name="description" content="Use a service, rent out your Intel TDX machine, or publish your own. Arc verifies every enclave, and paid uses settle in USDC. Read live on Arc testnet." />
     <meta name="robots" content="index, follow" />
     <meta name="theme-color" content="#060708" />
     <meta property="og:title" content="ArcHive. Sealed machines, open market." />
-    <meta property="og:description" content="Use a service, rent out your Intel TDX machine, or publish your own. Arc verifies every enclave, and every use is paid in USDC." />
+    <meta property="og:description" content="Use a service, rent out your Intel TDX machine, or publish your own. Arc verifies every enclave, and paid uses settle in USDC." />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="/og.jpg" />
+    <meta property="og:url" content="https://archive.62-171-153-35.sslip.io/" />
+    <meta property="og:image" content="https://archive.62-171-153-35.sslip.io/og.jpg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
@@ -19,8 +20,14 @@
       /* Brand font through a single variable (--brand); Montserrat (OFL) is the web font in use. */
       @font-face { font-family: 'Montserrat'; src: url('/fonts/montserrat-wght.woff2') format('woff2'); font-weight: 100 900; font-display: block; }
       :root { --brand: 'Montserrat'; }
+      /* Video landing: the first film frame, a high-priority <img> from the first byte of HTML (the set is chosen by
+         <picture>: phone, desktop, or Retina for a dense and wide enough screen); the canvas replaces it on its first
+         draw */
+      #poster, #poster img { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; display: block; }
+      #poster img { object-fit: cover; object-position: center; background: #050607; }
+      @media (max-width: 760px) { #poster img { object-position: top center; } }
       html, body { background: #060708; color: #e9e7e2; margin: 0; }
-      #root .page > .hero { padding: calc(86px + 62px) 72px 0; min-height: 100svh; box-sizing: border-box; }
+      #root .page > .hero { padding: calc(86px + 58px) 72px 0; min-height: 100svh; box-sizing: border-box; }
       #root .page > .hero .h1 { font: 500 clamp(52px, 6.2vw, 96px)/0.92 var(--brand), ui-sans-serif, system-ui, sans-serif; letter-spacing: 0.01em; text-transform: uppercase; margin: 0; max-width: 7em; }
       @media (max-width: 760px) { #root .page > .hero { padding: calc(84px + 30svh) 16px 0; } #root .page > .hero .h1 { font-size: 11.4vw; } }
     </style>
@@ -28,7 +35,13 @@
     <link rel="preload" href="/fonts/fragment-mono.woff2" as="font" type="font/woff2" crossorigin />
   </head>
   <body>
+    <picture id="poster" aria-hidden="true">
+      <source media="(max-width: 760px)" srcset="/film/phone/f0000.avif" type="image/avif" />
+      <source media="(min-resolution: 1.51dppx) and (min-width: 1151px)" srcset="/film/retina/f0000.avif" type="image/avif" />
+      <img src="/film/desktop/f0000.avif" alt="" fetchpriority="high" decoding="async" />
+    </picture>
+    <script type="application/json" id="film-man">/*FILM_MAN*/null</script>
     <div id="root"><main class="page"><section class="sec hero"><div class="txt"><h1 class="h1">Sealed machines,<br>open market.</h1></div></section></main></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="/src/main-video.tsx"></script>
   </body>
 </html>

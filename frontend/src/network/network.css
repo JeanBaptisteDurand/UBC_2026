@@ -1,0 +1,441 @@
+/* The Network page: the landing interface. The scene fills the whole block under the header; the left
+   column is a landing section (glowing title and its rule, support line, list with side bar, site buttons),
+      laid over the scene; on focus, the same column holds the steps panel, at the same rhythm. */
+.s3d { --hd: 0px; --m: var(--gut, 72px); --colw: min(520px, 40vw); position: relative; font-family: var(--sans); color: var(--ink); }
+.s3d .net { position: relative; inset: auto; height: calc(100svh - 118px); min-height: 640px; background: #020306; } /* the scene's own black: the text column and the 3D share one ground */
+.s3d .net-col { padding: 56px 40px 40px var(--gut, 72px); background: none; overflow: auto; }
+.s3d .net-col .txt { width: auto; }
+.s3d .net-col .lede { margin-top: 36px; max-width: 26em; }
+.s3d .net-choose { margin: 40px 0 0; color: var(--ink3); font-weight: 400; }
+.s3d .net-steps { margin-top: 16px; }
+.s3d .net-steps .steps-bar { transform: scaleY(1); opacity: 0.35; }
+.s3d .net-steps ol { gap: 20px; }
+.s3d .net-steps li { display: grid; gap: 8px; justify-items: start; color: var(--ink2); }
+.s3d .net-part { height: 48px; }
+.s3d .net-part-d { font-size: 15px; line-height: 1.5; color: var(--ink2); max-width: 26em; }
+.s3d .net-steps li[data-part='use']::before, .s3d .net-steps li[data-part='rent']::before, .s3d .net-steps li[data-part='publish']::before { content: none; }
+/* the steps panel, at the landing rhythm */
+.s3d .panel .kick { font-family: var(--mono); font-size: 13px; margin: 0 0 12px; }
+.s3d .p-title-w { margin: 0; }
+.s3d .p-title-w .ttl-rule { transform: none; }
+.s3d #col[data-col='use'] .p-title-w .ttl-rule { background: #5ff0ff; }
+.s3d #col[data-col='rent'] .p-title-w .ttl-rule { background: #ffe2b8; }
+.s3d #col[data-col='publish'] .p-title-w .ttl-rule { background: #c48dff; }
+.s3d .panel .lead { margin-top: 36px; font-size: 17px; color: var(--ink2); }
+.s3d .panel .steps { position: relative; margin: 32px 0 0; padding-left: 20px; }
+.s3d .panel .steps::before { content: ''; position: absolute; left: 0; top: 4px; bottom: 4px; width: 1px; background: var(--rule2); }
+.s3d .panel .steps > li { display: block; color: inherit; font-size: inherit; }
+.s3d .step { padding: 10px 0; }
+.s3d .step[aria-pressed='true'] .step-tt, .s3d .step[data-hl='1'] .step-tt { color: var(--ink); }
+.s3d .step-n { color: var(--ink3); }
+.s3d .back { position: relative; }
+.s3d .net-part, .s3d .back, .s3d .refus-b, .s3d .step { position: relative; }
+.s3d .step:not([aria-pressed='true'])::after, .s3d .back::after, .s3d .refus-b::after { display: none; }
+.s3d .back:focus-visible, .s3d .step:focus-visible, .s3d .refus-b:focus-visible { outline: 1px solid var(--acc); outline-offset: 4px; }
+.s3d .checks li { display: grid; font-size: 13px; }
+.s3d .net-nogl { position: absolute; inset: 0; margin: 0; }
+.s3d .net-nogl img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.s3d .net-nogl figcaption { position: absolute; right: 24px; bottom: 56px; font-size: 15px; color: var(--ink2); max-width: 32em; }
+@media (max-width: 760px) {
+  .s3d .net { height: auto; min-height: 0; }
+  .s3d .net-col { padding: 32px 16px 48px; background: none; }
+}
+.s3d .net { --colw: min(600px, 44vw); }
+.s3d .net-steps .net-part.btn { display: inline-flex; gap: 0; height: 48px; padding: 0 16px; box-shadow: none; font-size: 13px; }
+.s3d .net-steps .net-part.btn-main { background: var(--ink); color: var(--bg); }
+.s3d .net-steps .net-part.btn-line { background: var(--chip3); color: var(--ink); }
+.s3d .net-steps .net-part.btn-line:hover { background: var(--chip3); }
+.s3d .net-steps li { padding-top: 4px; }
+.s3d .net-steps { padding-left: 24px; }
+.s3d .net-steps li { border-top: 0; }
+@media (max-width: 760px) {
+  .s3d .net-col { min-width: 0; width: 100%; box-sizing: border-box; }
+  .s3d .net-steps ol { display: grid; grid-template-columns: minmax(0, 1fr); }
+}
+/* on tablets, the scene goes full width above the column, as on phones */
+@media (max-width: 1024px) {
+  .s3d .net { display: flex; flex-direction: column; height: auto; min-height: 0; }
+  .s3d .net-scene { position: relative; inset: auto; order: -1; }
+  .s3d .net .stage { position: relative; inset: auto; height: 62vh; min-height: 340px; }
+  .s3d .net-col { position: static; width: 100%; min-width: 0; box-sizing: border-box; background: none; padding: 40px var(--gut, 32px) 56px; }
+  .s3d .key { position: static; }
+}
+.s3d .net-browse { display: inline-block; margin: 16px 0 0; font-size: 15px; }
+.s3d .net-browse[hidden] { display: none; }
+
+/* ---------- Usage page. The wallet at the top of the column, the steps turned into actions ---------- */
+.s3d #steps { display: none; } /* the scene.ts steps give way to the actions (same text, same target element) */
+.s3d .net-wallet { display: grid; gap: 12px; margin: 0 0 32px; padding: 0 0 24px; box-shadow: inset 0 -1px 0 var(--rule); }
+.s3d .wb { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; gap: 4px 28px; margin: 0; }
+.s3d .wb div { display: grid; gap: 4px; }
+.s3d .wb dt { color: var(--ink3); }
+.s3d .wb dd { margin: 0; color: var(--ink); }
+.s3d .wb dd[data-ok='0'] { color: var(--red); }
+.s3d .wb-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.s3d .wb-pick { display: flex; flex-wrap: wrap; gap: 8px; }
+.s3d .wb-pick img { margin-right: 8px; position: relative; z-index: 1; }
+.s3d .wb-off { font-size: 13px; color: var(--ink2); }
+.s3d .wb-who { margin: 0; max-width: 34em; }
+.s3d .net-acts { margin-top: 32px; }
+.s3d .na-list { list-style: none; margin: 0; padding: 0 0 0 20px; position: relative; display: grid; gap: 4px; }
+.s3d .na-list::before { content: ''; position: absolute; left: 0; top: 4px; bottom: 4px; width: 1px; background: var(--rule2); }
+.s3d .na { position: relative; padding: 12px 0 16px; }
+.s3d .na::before { content: ''; position: absolute; left: -20px; top: 14px; width: 1px; height: 22px; background: transparent; transition: background var(--t2) var(--productive); }
+.s3d .na[data-on='1']::before { background: var(--acc); }
+.s3d .na[data-st='done']::before { background: var(--green); }
+.s3d .na[data-st='fail']::before { background: var(--red); }
+.s3d .na-h { display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: 12px; width: 100%; padding: 0; background: none; border: 0; color: var(--ink2); text-align: left; font: 600 15px/1.35 var(--sans); cursor: pointer; }
+.s3d .na[data-on='1'] .na-h, .s3d .na-h:hover { color: var(--ink); }
+.s3d .na-h:focus-visible { outline: 1px solid var(--acc); outline-offset: 4px; }
+.s3d .na-n { font: 400 13px/1 var(--mono); color: var(--ink3); }
+.s3d .na-st { font-size: 12px; color: var(--ink3); white-space: nowrap; }
+.s3d [data-st='doing'] > .na-h .na-st, .s3d .na-st[data-st='doing'] { color: var(--acc); }
+.s3d [data-st='done'] > .na-h .na-st { color: var(--green); }
+.s3d [data-st='fail'] > .na-h .na-st { color: var(--red); }
+.s3d .na-st[data-st='soon'] { color: var(--amber); }
+/* focus pages: the steps of each part are marked in Arc electric blue (same blue for every part): the step number,
+   the bar of the open step (with the logo's neon halo), the open step's title, the step in progress */
+.s3d .net-acts .na-n { color: var(--arc-elec, #4a86ff); font-weight: 500; }
+.s3d .net-acts .na[data-on='1'] .na-n { color: var(--arc-light, #9cc0ff); text-shadow: 0 0 6px rgb(74 134 255 / 0.85), 0 0 14px rgb(58 107 255 / 0.5); }
+.s3d .net-acts .na[data-on='1']::before { width: 2px; left: -20.5px; background: var(--arc-elec, #4a86ff); box-shadow: 0 0 4px rgb(74 134 255 / 0.9), 0 0 12px rgb(58 107 255 / 0.55); }
+.s3d .net-acts .na[data-on='1'] > .na-h .na-t { color: var(--arc-light, #9cc0ff); }
+.s3d .net-acts [data-st='doing'] > .na-h .na-st, .s3d .net-acts .na-st[data-st='doing'] { color: var(--arc-light, #9cc0ff); }
+.s3d .net-acts .na-list::before { background: linear-gradient(to bottom, rgb(74 134 255 / 0.55), rgb(74 134 255 / 0.12)); }
+.s3d .na-d { margin: 6px 0 0 calc(2ch + 12px); font-size: 14px; line-height: 1.5; color: var(--ink2); max-width: 34em; }
+.s3d .na[data-st='done']:not([data-on='1']) .na-d { display: none; }
+.s3d .na-b { display: grid; gap: 12px; margin: 14px 0 0 calc(2ch + 12px); justify-items: start; }
+.s3d .na-f { display: grid; gap: 8px; width: 100%; max-width: 24em; }
+.s3d .na-f-w { max-width: 34em; }
+.s3d .na-f .lbl { color: var(--ink2); }
+.s3d .na-f input, .s3d .na-f textarea { display: block; width: 100%; box-sizing: border-box; padding: 0 12px; height: 40px; border: 0; border-radius: 0; background: var(--panel); color: var(--ink); font: 400 14px/1.4 var(--sans); box-shadow: inset 0 -1px 0 var(--rule2); outline: none; }
+.s3d .na-f textarea { height: auto; padding: 10px 12px; font: 400 13px/1.45 var(--mono); resize: vertical; }
+.s3d .na-f input:focus-visible, .s3d .na-f textarea:focus-visible { box-shadow: inset 0 -2px 0 var(--acc); }
+.s3d .na-sel select { display: block; width: 100%; height: 40px; padding: 0 12px; border: 0; border-radius: 0; background: var(--panel); color: var(--ink); font: 400 14px/1 var(--sans); box-shadow: inset 0 -1px 0 var(--rule2); }
+.s3d .na-row { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; width: 100%; }
+.s3d .na-row .na-f { flex: 1 1 12em; max-width: 16em; }
+.s3d .na-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; width: 100%; max-width: 34em; }
+.s3d .na-kv { margin: 0; color: var(--ink); }
+.s3d .na-note { margin: 10px 0 0 calc(2ch + 12px); font-size: 14px; line-height: 1.5; color: var(--ink2); max-width: 34em; }
+.s3d .na-note[data-tone='bad'] { color: #ff9b8f; }
+.s3d .na-note[data-tone='ok'] { color: var(--ink); }
+.s3d .na-note .tlink { font-size: 13px; }
+.s3d .net-wallet .na-note { margin-left: 0; }
+.s3d .na-cmds { display: grid; gap: 8px; width: 100%; }
+.s3d .na-cmds .cmd { max-width: 34em; }
+.s3d .na-ans { max-width: 34em; padding: 14px 16px; background: var(--panel); box-shadow: inset 2px 0 0 var(--green); }
+.s3d .na-ans-t { margin: 0 0 8px; font-size: 15px; line-height: 1.55; color: var(--ink); white-space: pre-wrap; }
+.s3d .na-ans .lbl { margin: 0; }
+.s3d .na-encs { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.s3d .na-encs li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.s3d .na-encs .led { margin: 0; }
+.s3d .cctp { margin: 28px 0 0 20px; padding-top: 20px; box-shadow: inset 0 1px 0 var(--rule); }
+.s3d .cctp-t { margin: 0; color: var(--ink); font-weight: 600; font-size: 15px; }
+.s3d .cctp .na-d, .s3d .cctp .na-note { margin-left: 0; }
+.s3d .cctp-l { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; max-width: 34em; }
+.s3d .cctp-l li { display: grid; grid-template-columns: 1fr auto auto; gap: 16px; font-size: 14px; }
+.s3d .cctp-b { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+@media (max-width: 760px) {
+  .s3d .wb { grid-template-columns: 1fr 1fr; }
+  .s3d .na-grid { grid-template-columns: 1fr 1fr; }
+  .s3d .na-d, .s3d .na-b, .s3d .na-note { margin-left: 0; }
+}
+/* scene.css resets buttons inside .s3d: site buttons get their fill back in the column */
+.s3d .net-col .btn-main { background: var(--ink); color: var(--bg); }
+.s3d .net-col .btn-line { background: var(--chip3); color: var(--ink); }
+.s3d .net-col .btn { height: 40px; padding: 0 16px; }
+.s3d .net-col .btn > span { display: inline-flex; align-items: center; }
+/* controls and fields never overflow the column */
+.s3d .na-list, .s3d .na-b { grid-template-columns: minmax(0, 1fr); }
+.s3d .na, .s3d .na-b > *, .s3d .na-cmds, .s3d .na-cmds .cmd { min-width: 0; max-width: 100%; }
+.s3d .na-b { justify-items: stretch; }
+.s3d .na-b > .btn, .s3d .na-b > .na-kv { justify-self: start; }
+/* overview: the title first, the wallet after the three choices; on focus, the wallet at the top of the panel */
+.s3d #col { display: flex; flex-direction: column; }
+.s3d #col > * { flex: none; }
+.s3d #col[data-col='ensemble'] .net-wallet { order: 2; margin: 40px 0 0; padding: 24px 0 0; box-shadow: inset 0 1px 0 var(--rule); }
+@media (max-width: 1024px) { .s3d #col { display: block; } }
+.s3d .na-b .na-note { margin-left: 0; }
+.s3d .na-encs li { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; }
+
+/* ---------- The wallet in the header, the focus close cross, the catalog in place of the scene ---------- */
+.hd-wallet { position: relative; }
+.hd-w-b { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.hd-w-b .mono { font-size: 13px; }
+.hd-w-net { color: var(--ink2); }
+.hd-wallet[data-st='wrong'] .hd-w-net { color: var(--red); }
+.hd-w-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+.hd-wallet[data-st='wrong'] .hd-w-dot { background: var(--red); }
+.hd-w-pop { position: absolute; right: 0; top: calc(100% + 12px); z-index: 60; width: min(340px, calc(100vw - 32px)); box-sizing: border-box; display: grid; gap: 16px; padding: 20px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--rule2); text-align: left; }
+.hd-w-pop .wb { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 20px; margin: 0; }
+.hd-w-pop .wb div { display: grid; gap: 4px; }
+.hd-w-pop .wb dt { color: var(--ink3); }
+.hd-w-pop .wb dd { margin: 0; color: var(--ink); }
+.hd-w-pop .wb dd[data-ok='0'] { color: var(--red); }
+.hd-w-pop .wb-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.hd-w-pop .wb-pick { display: grid; gap: 8px; justify-items: start; }
+.hd-w-pop .wb-pick p { margin: 0; }
+.hd-w-pop .wb-pick img { margin-right: 8px; position: relative; z-index: 1; }
+.hd-w-pop .wb-off { font-size: 13px; color: var(--ink2); }
+.hd-w-pop .wb-who { margin: 0; }
+.hd-w-pop .na-note { margin: 0; font-size: 14px; line-height: 1.5; color: var(--ink2); }
+.hd-w-pop .na-note[data-tone='bad'] { color: #ff9b8f; }
+@media (max-width: 560px) { .hd-w-net { display: none; } }
+.net-x { display: inline-grid; place-items: center; width: 40px; height: 40px; background: var(--chip3); color: var(--ink); }
+.net-x svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+.s3d .net-x { background: var(--chip3); }
+.s3d .net-x:hover { background: var(--chip2); }
+.s3d #panel { position: relative; left: auto; top: auto; } /* .panel in scene.css sets left and top: neutralized */
+.s3d .net-x-panel { position: absolute; top: 0; right: 0; z-index: 2; }
+.s3d .na-pick { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.s3d .na-pick-n { color: var(--ink); font-weight: 600; }
+.s3d .net .stage, .s3d .net .key { transition: opacity 280ms var(--productive); }
+/* the catalog no longer hides the scene: it docks on the right, the room stays visible beside it */
+.s3d .net-cat { position: absolute; top: 16px; bottom: 112px; right: 16px; width: clamp(340px, 27vw, 440px); z-index: 7; display: flex; opacity: 0; visibility: hidden; transform: translateX(16px); transition: opacity 280ms var(--productive), transform 280ms var(--productive), visibility 0s linear 280ms;
+  background: linear-gradient(180deg, rgb(10 12 17 / 0.74), rgb(4 5 8 / 0.82)); -webkit-backdrop-filter: blur(14px) saturate(1.1); backdrop-filter: blur(14px) saturate(1.1); box-shadow: inset 0 1px 0 rgb(200 220 255 / 0.1), inset 0 0 0 1px rgb(200 220 255 / 0.06), 0 30px 60px -30px rgb(0 0 0 / 0.9); }
+.s3d .net-cat[data-on='1'] { opacity: 1; visibility: visible; transform: none; transition: opacity 280ms var(--productive) 120ms, transform 280ms var(--productive) 120ms, visibility 0s; }
+.s3d .net-cat-in { display: flex; flex-direction: column; min-height: 0; width: 100%; padding: 20px 20px 0; }
+.s3d .net-cat-sc { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; margin: 0 -20px; padding: 0 20px 20px; scrollbar-width: thin; }
+.s3d .net-cat-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.s3d .net-cat-h { margin: 0; font: 600 20px/1.2 var(--sans); color: var(--ink); }
+.s3d .net-cat-l { margin: 0 0 16px; max-width: 40em; }
+.s3d .net-cat .svc-b { grid-template-columns: 4px minmax(0, 2fr) minmax(96px, 1fr) minmax(120px, 1fr) auto; width: 100%; min-height: 72px; padding: 12px 20px; background: var(--panel); text-align: left; }
+.s3d .net-cat .svc-b:hover { background: var(--chip); }
+.s3d .net-cat .svc-b[aria-pressed='true'] { box-shadow: inset 0 0 0 1px var(--acc); }
+@media (prefers-reduced-motion: reduce) { .s3d .net-cat, .s3d .net-cat[data-on='1'], .s3d .net .stage, .s3d .net .key { transition: none; } }
+@media (max-width: 1024px) {
+  .s3d .net-scene { position: relative; }
+  .s3d .net-cat { left: 16px; width: auto; }
+  .s3d .net-cat-in { padding: 24px 16px; }
+  .s3d .net-cat .svc-b { grid-template-columns: 4px minmax(0, 1fr) auto; }
+  .s3d .net-cat .svc-encs { display: none; }
+  .s3d .net-cat .svc-price { grid-column: 2; }
+}
+.s3d .net-x-panel + .back { margin-right: 56px; }
+
+/* the command and its button do not overlap (scene.css resets buttons inside .s3d) */
+.s3d .cmd { display: flex; align-items: stretch; }
+.s3d .cmd-t { flex: 1 1 auto; min-width: 0; overflow-x: auto; white-space: nowrap; scrollbar-width: none; -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); }
+.s3d .cmd-b { flex: none; padding: 0 16px; min-height: 44px; background: var(--chip); color: var(--ink2); font-size: 13px; }
+/* catalog names in the site ink, not orange mono */
+.s3d .net-cat .plate { font-family: var(--sans); font-size: 16px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--ink); text-shadow: none; }
+/* the banner does not overflow below 480 px */
+@media (max-width: 480px) { .app-hd-bar .band-sec, .app-hd-bar .band-pay { display: none; } .app-hd-bar .hd-row2 { overflow: hidden; } }
+/* focus on phones: the title first, then the scene at 16:10, then the steps */
+@media (max-width: 760px) {
+  .s3d .net { position: relative; }
+  .s3d #col:not([data-col='ensemble']) { display: contents; }
+  .s3d #col:not([data-col='ensemble']) #panel { display: contents; }
+  .s3d #col:not([data-col='ensemble']) #panel > * { order: 1; margin-left: 16px; margin-right: 16px; }
+  .s3d #col:not([data-col='ensemble']) #panel > .back { margin-top: 24px; }
+  .s3d #col:not([data-col='ensemble']) ~ .net-scene { order: 2; margin-top: 24px; }
+  .s3d #col:not([data-col='ensemble']) ~ .net-scene .stage { height: auto; min-height: 0; aspect-ratio: 16 / 10; }
+  .s3d #col:not([data-col='ensemble']) #panel > .net-acts { order: 3; margin-bottom: 48px; }
+  .s3d #col:not([data-col='ensemble']) .net-x-panel { position: absolute; top: 16px; right: 16px; margin: 0; }
+  /* the catalog on phones: the LED full height, the choice on the right */
+  .s3d .net-cat .svc-led { grid-row: 1 / span 2; align-self: stretch; width: 4px; height: auto; margin: 0; }
+  .s3d .net-cat .svc-b { column-gap: 16px; }
+  .s3d .net-cat .svc-go { grid-column: 3; grid-row: 1 / span 2; }
+}
+/* under the sticky header, the keyboard-focused element stays whole, its outline too */
+.s3d .svc-b, .s3d .na-h, .s3d .net-col .btn, .s3d .net-x, .s3d .na-f input, .s3d .na-f textarea { scroll-margin-top: 150px; scroll-margin-bottom: 24px; }
+@media (max-width: 760px) {
+  .s3d #col:not([data-col='ensemble']) #panel > .back { align-self: flex-start; }
+  .s3d .net[data-cat='1'] .net-scene { min-height: 78svh; }
+}
+
+/* the glow margin of the burning words (ArcGlow, 0.6 em) rounded to the 4 px scale on this page */
+.s3d .ig-l { padding: round(up, var(--ig-pad, 0.6em), 4px); left: calc(-1 * round(up, var(--ig-pad, 0.6em), 4px)); top: calc(-1 * round(up, var(--ig-pad, 0.6em), 4px)); }
+
+/* on focus, the column is solid (no 3D under any word) */
+/* the focus background is the hero background (block at the end of the file) */
+/* the key is a solid band, the 3D stops above it */
+.s3d .key { background: var(--net-bg-key, var(--bg, #0b0d10)); } /* the bottom of the hero background */
+.s3d .key-t { display: none; }
+/* no kicker above the panel title, the color rule is enough */
+.s3d .panel .kick { display: none; }
+/* on tablets (scene above the text), the page bottom right corner hooks onto the scene bottom */
+@media (min-width: 761px) and (max-width: 1024px) {
+  body:has(.s3d) .pg-br { display: none; }
+  .s3d .net .stage::after { content: ''; position: absolute; right: 16px; bottom: 16px; z-index: 7; width: 16px; height: 16px; border: 0 solid rgb(var(--ink-c) / 0.5); border-right-width: 1px; border-bottom-width: 1px; pointer-events: none; }
+}
+/* on phones, the key folds under the scene. The overview follows the hero on phones
+   (the scene at the top, then the catchline, the support line and the buttons) */
+@media (max-width: 760px) {
+  .s3d .net .stage { height: 60svh; min-height: 320px; }
+  .s3d .key-t { display: inline-flex; align-items: center; height: 40px; margin: 8px 16px 0; padding: 0 12px; background: var(--chip3); color: var(--ink2); font: 400 12px/1 var(--mono); border: 0; }
+  .s3d .key[data-open='0'] { display: none; }
+}
+
+.s3d #col[data-col='cctp'] .p-title-w .ttl-rule { background: #5a9cff; }
+.s3d .net .stage[data-view='cctp']::before { opacity: 1; }
+.s3d .net-acts[data-part='cctp'] .cctp { margin-left: 0; }
+
+/* the roles column fits at 1440 x 900 (tightened spacing); if it scrolls, its end fades instead of being cut */
+@media (min-width: 1025px) {
+  .s3d .net-col { padding-top: 40px; padding-bottom: 32px; -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent); }
+  .s3d .net-col .lede { margin-top: 24px; }
+  .s3d .net-choose { margin-top: 28px; }
+  .s3d .net-steps ol { gap: 12px; }
+  .s3d .net-steps li { gap: 4px; padding-top: 0; }
+  .s3d .net-part-d { line-height: 1.45; }
+  /* in the overview too, the column is solid and the 3D fades under its edge */
+  /* the column background and its edge are in the block at the end of the file */
+}
+/* the replay badge is readable */
+/* the fallback image does not pass for the live scene */
+.s3d .net-still { position: absolute; right: 16px; top: 16px; padding: 4px 8px; font: 500 13px/16px var(--mono, ui-monospace, monospace); color: var(--ink2, #c5ccd4); background: rgb(11 13 16 / 0.8); box-shadow: inset 0 0 0 1px var(--rule2, rgb(233 237 241 / 0.18)); }
+/* on phones, 'Choose your role' under the sentence, then the scene with no empty band */
+@media (max-width: 760px) {
+  .s3d .net .stage { height: 50svh; min-height: 300px; }
+}
+
+/* the no-WebGL fallback reads to the right of the solid column, its caption above the key band */
+@media (min-width: 1025px) { .s3d .net-nogl figcaption { left: calc(var(--colw) + 32px); right: 24px; bottom: 112px; } }
+
+/* ---------- The overview has the hero interface, the column its background ---------- */
+/* The catchline (sections/Hero.tsx, .catch: uppercase, 600, glowing Arc words), the support line (.support) and
+   the hero buttons (.ctas), at its margins (title 130 px from the top at 1440, support +40, buttons +52, 500 px
+      column). The second half of the catchline stays in the column (the hero lays it over the bays; here it would
+      read as a sign of the scene, which already has its own in glowing capitals) */
+.s3d .net-catch .c2 { position: static; text-align: left; margin-top: 0; max-width: 6.6em; font-size: 1em; }
+.s3d .net-catch .ttl-rule { display: none; }
+.s3d #col .net-support { margin-top: 40px; max-width: 26em; }
+.s3d #col .net-ctas { margin-top: 52px; flex-wrap: wrap; }
+.s3d #col .net-ctas .btn { display: inline-flex; align-items: center; gap: 0; height: 48px; padding: 0 16px; font-size: 13px; letter-spacing: 0.01em; font-weight: var(--w-head); box-shadow: none; } /* scene.css sets font: inherit on .s3d buttons */
+.s3d #col .net-ctas .btn-main:hover { background: var(--ink); } /* scene.css turns .net-part into chip3 on hover */
+.s3d .net-more { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px; margin: 24px 0 0; }
+.s3d .net-more .tlink { padding: 0; background: none; border: 0; font: inherit; font-size: 15px; text-align: left; cursor: pointer; }
+@media (min-width: 1025px) {
+  .s3d .net-col { overflow-x: hidden; }
+  .s3d #col[data-col='ensemble'] { padding: 46px 28px 32px var(--gut, 72px); } /* the focus keeps its margins (40 px) */
+  .s3d .net-catch { font-size: clamp(50px, 5.3vw, 100px); }
+}
+@media (max-width: 760px) {
+  .s3d #col[data-col='ensemble'] { padding: 24px 16px 48px; }
+  .s3d #col .net-support { margin-top: 16px; }
+  .s3d #col .net-ctas { margin-top: 20px; }
+  .s3d #col .net-ctas .btn { padding: 0 18px; }
+  .s3d .net-more { margin-top: 20px; }
+}
+/* The background behind the text is the landing hero's (dark glass over the room: navy from 22,27,36 at the top
+   to 14,17,23 at the bottom) instead of solid black; it covers the column in the overview as on focus, and fades
+      into the scene over 96 px past its edge (the text stays on the flat part); the key takes the bottom of the same
+      background */
+.s3d .net { --net-bg: linear-gradient(to bottom, rgb(22 27 36) 0%, rgb(20 24 32) 28%, rgb(17 21 28) 60%, rgb(14 17 23) 100%); --net-bg-key: linear-gradient(to bottom, rgb(15 18 25), rgb(14 17 23)); }
+@media (min-width: 1025px) {
+  /* no ground behind the text */
+  .s3d #col, .s3d #col:not([data-col='ensemble']) { background: none; }
+  .s3d .net .stage::before, .s3d .net .stage[data-view]::before { display: none; }
+}
+@media (max-width: 760px) {
+  /* on phones, like the hero: the scene fades into the background below it, the text sits underneath */
+  .s3d .net { background: rgb(13 16 21); }
+  .s3d #col[data-col='ensemble'] { background: linear-gradient(to bottom, rgb(13 16 21), rgb(10 12 16)); }
+}
+
+/* phone, overview: a shorter scene without the key button, the title moves up close to its position in the
+   Hero (the key stays on focus) */
+@media (max-width: 760px) {
+  .s3d #col[data-col='ensemble'] ~ .net-scene .stage { height: 38svh; min-height: 280px; }
+  .s3d #col[data-col='ensemble'] ~ .net-scene .key-t, .s3d #col[data-col='ensemble'] ~ .net-scene .key { display: none; }
+}
+
+/* Title on two lines, line 1 the three roles, a clear gap, line 2 the demo in Arc blue and the two links;
+   everything fits without scrolling at 1440x900, 1280x800 and 1440x800 */
+.s3d .net-catch { font-size: clamp(48px, min(5.6vw, 9.4vh), 96px); }
+.s3d #col .net-support { margin-top: 24px; max-width: 28em; }
+.s3d #col .net-ctas { margin-top: 32px; }
+.s3d .net-more { margin-top: 40px; gap: 12px 24px; }
+.s3d .net-more .btn-arc { display: inline-flex; align-items: center; height: 48px; padding: 0 20px; border: 0; background: var(--arc-elec, #4a86ff); color: #fff; font: inherit; font-size: 13px; font-weight: var(--w-head, 600); letter-spacing: 0.01em; cursor: pointer; }
+.s3d .net-more .btn-arc:hover { background: #3a74f0; }
+.s3d .net-more .btn-arc:focus-visible { outline: 1px solid var(--arc-light, #9cc0ff); outline-offset: 2px; }
+.s3d .net-more .net-cctp { margin: 0; }
+@media (max-width: 760px) { .s3d .net-more { margin-top: 24px; } }
+
+@media (min-width: 1025px) { .s3d .net-more { flex-wrap: nowrap; gap: 12px; } .s3d .net-more .tlink { font-size: 15px; white-space: nowrap; } }
+
+/* the key floats over the scene, without background or gradient; a light text shadow
+   is enough to read it */
+.s3d .key, .s3d .net .key { background: none !important; border-top: 0; text-shadow: 0 1px 2px rgb(5 6 7 / 0.9), 0 0 8px rgb(5 6 7 / 0.7); }
+.s3d .key svg { filter: drop-shadow(0 1px 2px rgb(5 6 7 / 0.9)); }
+
+/* the scene fits exactly in the visible height under the header (scene.ts measures --net-h): nothing
+   that follows (the footer) enters the first screen */
+@media (min-width: 1025px) { .s3d .net { height: var(--net-h, calc(100svh - 84px)); min-height: 0; } }
+
+/* the catalog in the Use part: sleds in two columns, the picked one outlined in the accent */
+.s3d .net-cat .sled-bay { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)); gap: 6px 8px; list-style: none; margin: 0; padding: 0; }
+.s3d .net-cat .sled-bay .blade-face { min-height: 0; }
+.s3d .net-cat .sled-bay .blade-face[aria-pressed='true'] { box-shadow: inset 0 1px 0 rgb(200 220 255 / 0.26), inset 0 0 0 1px var(--acc); }
+
+/* catalog search: one field, the count of matches while typing */
+.s3d .net-cat-q { position: relative; display: flex; align-items: center; gap: 10px; margin: 14px 0 16px; height: 40px; padding: 0 12px; background: rgb(255 255 255 / 0.04); box-shadow: inset 0 0 0 1px rgb(200 220 255 / 0.12); transition: box-shadow 200ms var(--productive); }
+.s3d .net-cat-q:focus-within { box-shadow: inset 0 0 0 1px var(--acc); }
+.s3d .net-cat-q svg { flex: none; width: 15px; height: 15px; fill: none; stroke: var(--ink2); stroke-width: 1.5; }
+.s3d .net-cat-q input { flex: 1 1 auto; min-width: 0; height: 100%; border: 0; outline: 0; background: none; color: var(--ink); font: 400 14px/1 var(--sans); }
+.s3d .net-cat-q input::placeholder { color: var(--ink3, rgb(200 210 225 / 0.45)); }
+.s3d .net-cat-q input::-webkit-search-cancel-button { filter: grayscale(1) invert(0.7); }
+.s3d .net-cat-n { flex: none; color: var(--ink2); }
+/* the chosen service, described above the sleds (the former landing panel) */
+.s3d .net-cat-sheet { margin: 0 0 18px; padding: 16px 16px 14px; background: linear-gradient(180deg, rgb(var(--c) / 0.07), transparent 70%), rgb(255 255 255 / 0.025); box-shadow: inset 0 1px 0 rgb(var(--c) / 0.35), inset 0 0 0 1px rgb(200 220 255 / 0.08); }
+.s3d .net-cat-sheet > .lbl { margin: 0; }
+.s3d .net-cat-sheet-t { margin: 6px 0 8px; font: 600 22px/1.15 var(--sans); color: var(--ink); }
+.s3d .net-cat-sheet-d { margin: 0 0 14px; font-size: 14px; line-height: 1.5; color: var(--ink2); }
+.s3d .net-cat-dl { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; margin: 0; }
+.s3d .net-cat-dl > div { min-width: 0; }
+.s3d .net-cat-dl dt { margin: 0 0 2px; color: var(--ink2); }
+.s3d .net-cat-dl dd { margin: 0; font-size: 13px; color: var(--ink); overflow-wrap: anywhere; }
+@media (max-width: 1024px) { .s3d .net-cat { top: 8px; bottom: 8px; right: 8px; left: 8px; } }
+/* small sleds stay readable: floors on the printed sizes */
+.s3d .net-cat .bl-title { font-size: max(6.4cqw, 12px); }
+.s3d .net-cat .blade[data-long='1'] .bl-title { font-size: max(4.6cqw, 10px); }
+.s3d .net-cat .bl-word, .s3d .net-cat .bl-u { font-size: max(3.1cqw, 8.5px); letter-spacing: 0.02em; }
+
+/* "What runs on Arc" and "Pay from other chains": animated icons (the A draws itself, a packet crosses the bridge)
+   and the hero links' soft breathing halo (styles.css .hero-ic, hero-live, live-text) */
+.s3d .net-live { position: relative; isolation: isolate; display: inline-flex; align-items: center; gap: 10px; color: var(--ink); }
+.s3d .net-live::before { content: ''; position: absolute; left: -11px; top: 50%; width: 40px; height: 40px; margin-top: -20px; z-index: -1; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, color-mix(in srgb, var(--arc-elec) 55%, transparent) 0, color-mix(in srgb, var(--arc-elec) 18%, transparent) 38%, transparent 70%);
+  filter: blur(3px); animation: hero-live 3.2s ease-in-out infinite; }
+.s3d .net-cctp.net-live::before { animation-delay: -1.6s; }
+.s3d .net-live > span { text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--ink) 30%, transparent); text-underline-offset: 4px; animation: live-text 3.2s ease-in-out infinite; }
+.s3d .net-cctp.net-live > span { animation-delay: -1.6s; }
+.s3d .net-live:hover > span { text-decoration-color: currentColor; }
+.net-ic-arc .ic-a { fill: none; stroke: var(--arc-light, #9cc0ff); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 30; animation: ic-draw 3.2s ease-in-out infinite; }
+.net-ic-arc .ic-a2 { stroke-dasharray: 7; animation-name: ic-draw2; }
+.net-ic-arc .ic-dot { fill: #fff; stroke: none; filter: drop-shadow(0 0 3px var(--arc-elec)); }
+.net-ic-cctp .ic-node { fill: none; stroke: var(--arc-light, #9cc0ff); stroke-width: 1.4; }
+.net-ic-cctp .ic-arc { fill: none; stroke: var(--arc-light, #9cc0ff); stroke-width: 1.2; stroke-dasharray: 2 2; opacity: 0.8; }
+.net-ic-cctp .ic-pkt { fill: #fff; stroke: none; filter: drop-shadow(0 0 3px var(--arc-elec)); }
+@keyframes ic-draw { 0% { stroke-dashoffset: 30; } 45%, 80% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -30; } }
+@keyframes ic-draw2 { 0%, 30% { stroke-dashoffset: 7; } 55%, 80% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -7; } }
+@media (prefers-reduced-motion: reduce) { .s3d .net-live::before, .s3d .net-live > span, .net-ic-arc .ic-a { animation: none; } .net-ic-arc .ic-a { stroke-dashoffset: 0; } }
+
+/* Focus titles in the landing's accent: the glowing Arc blue of the section titles' marked words (styles.css .arc-w-t,
+   ui/ArcGlow.tsx), here as a light core and a soft blue halo; the rule under them in the same blue for every part */
+.s3d .p-title-w .p-title, .s3d #p-title { color: #9cc0ff; text-shadow: 0 0 1px rgb(234 244 255 / 0.9), 0 0 10px rgb(74 134 255 / 0.55), 0 0 26px rgb(58 107 255 / 0.32); }
+.s3d #col[data-col] .p-title-w .ttl-rule { background: var(--arc-elec, #4a86ff); box-shadow: 0 0 8px rgb(74 134 255 / 0.6); }
+/* with their icons the two entries no longer fit beside the demo button: they may go to a second line */
+@media (min-width: 1025px) { .s3d .net-more { flex-wrap: wrap; row-gap: 16px; column-gap: 28px; } }
+
+/* Network: the same reading blur behind the text column (styles.css, read-blur), between the scene and the column */
+@media (min-width: 1025px) {
+  .s3d .net::before { content: ''; position: absolute; z-index: 7; left: 0; top: 0; bottom: 0; width: calc(var(--colw) + 160px); pointer-events: none;
+    -webkit-backdrop-filter: blur(9px); backdrop-filter: blur(9px);
+    -webkit-mask-image: linear-gradient(to right, #000 0, #000 58%, rgb(0 0 0 / 0.55) 78%, transparent 100%); mask-image: linear-gradient(to right, #000 0, #000 58%, rgb(0 0 0 / 0.55) 78%, transparent 100%);
+    animation: read-blur 11s ease-in-out infinite alternate; }
+}
+@media (prefers-reduced-motion: reduce) { .s3d .net::before { animation: none; } }
+/* the search field shows focus through its own accent rule, not the site's outline */
+.s3d .net-cat-q input:focus, .s3d .net-cat-q input:focus-visible { outline: none; }
+/* overview: the two live links sit like the hero's, between the text and the buttons */
+.s3d .net-links { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 36px 0 0; }
+.s3d .net-links .tlink { padding: 6px 0; background: none; border: 0; font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
+.s3d #col .net-links + .net-ctas { margin-top: 28px; }
+.s3d .net-more { margin-top: 16px; }
+.s3d .net-cat-more { display: inline-flex; gap: 10px; align-items: center; margin-top: 14px; }
+
+/* Use: the catalog moved to the Services page, one way there */
+.net-go-cat { display: grid; gap: 14px; margin: 0 0 24px; padding: 18px 20px; background: rgb(var(--ink-c) / 0.04); box-shadow: inset 0 0 0 1px var(--rule2), inset 3px 0 0 var(--arc-elec); }
+.net-go-cat-t { margin: 0; font-size: 15px; line-height: 1.5; color: var(--ink2); }
+.net-go-cat .btn { justify-self: start; gap: 10px; }

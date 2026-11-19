@@ -81,27 +81,6 @@ function NetworkPill() {
   );
 }
 
-/** 16/11 : quand aucune enclave n'est active (VM en pause, pour limiter les coûts), un bandeau le dit sur toutes les pages,
- *  au lieu de laisser le visiteur découvrir des « HTTP 502 » (lu sur /api/stats, toutes les minutes). */
-function PauseBanner() {
-  useLang();
-  const [paused, setPaused] = useState(false);
-  useEffect(() => {
-    let alive = true;
-    const tick = () => fetchStats().then((s) => { if (alive) setPaused(Number(s.enclavesActive) === 0); }).catch(() => {});
-    tick();
-    const timer = setInterval(tick, 60_000);
-    return () => { alive = false; clearInterval(timer); };
-  }, []);
-  if (!paused) return null;
-  return (
-    <div role="status" className="border-b border-warn/30 bg-warn/10 px-4 py-2 text-[13px] leading-relaxed text-warn lg:px-8">
-      {t("layout.pause")}{" "}
-      <a href="/demo.html" className="whitespace-nowrap underline underline-offset-2 hover:text-text">{t("layout.pause.demo")}</a>
-    </div>
-  );
-}
-
 /** Le nom de chaque langue, dans cette langue : on le reconnaît quelle que soit la langue affichée. */
 const LANG_NAME = { en: "English", fr: "Français" } as const;
 
@@ -187,7 +166,6 @@ export default function Layout({ route, go, onOpenCopilot, children }: { route: 
             accountStatus={{ smallScreen: "avatar", largeScreen: "address" }} chainStatus="icon" />
         </div>
       </header>
-      <PauseBanner />
 
       <main className="mx-auto max-w-[1120px] px-4 py-7 pb-28 lg:px-8">{children}</main>
     </div>

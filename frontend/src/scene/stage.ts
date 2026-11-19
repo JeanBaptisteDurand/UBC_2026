@@ -16,22 +16,22 @@ import * as THREE from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js'
-import { onTick, sceneTime, REDUCED, FROZEN_T, getLenis } from '../clock'
+import { onTick, sceneTime, REDUCED, FROZEN_T, getLenis, TOURNAGE, scrollY } from '../clock'
 import { wallLot, heroLot, progress as loadP, mark, WALL_GLB, WALL_TEX, HERO_TEX } from '../assets'
 import { world } from '../world'
 import { G, K, FACE, SLOTS, NSLOTS, plateOf, ledOf3, productLabel, oklchToLinear, type Sled } from '../data/wall'
 import { getLive } from '../data/live'
 import { t, getLang } from '../i18n'
-import { ORDER, storyAt, type SecId } from '../story'
+import { ORDER, storyAt, secTop, secH, type SecId } from '../story'
 import { keyView, lerpView, protocolView, svcView, colEdge, PULL_OUT, mobileW, pinShift, MOB_SHIFT, stageCenter, STAGE_ROT, PT, type View } from './cam'
 import { GLSL_SUN, GLSL_FOG, GLSL_PAL, SUN_TO, SUN_COL, CEIL, NOISE2, NOISE3, noiseFills, shared } from './glsl'
 import { getPal, onPal, type Palette, type RGB } from '../palette'
 import { PlateAtlas, PLATE_VS, PLATE_FS, TROWS } from './plates'
 
-const SNAP = REDUCED || FROZEN_T !== null
+const SNAP = REDUCED || FROZEN_T !== null || TOURNAGE
 // Exposure (?e= overrides it). ?poster renders the no-WebGL poster: LEDs off and plates empty (no frozen state that
 // could become false)
-const POSTER = new URLSearchParams(location.search).has('poster')
+const POSTER = new URLSearchParams(location.search).has('poster') || TOURNAGE
 const Q = new URLSearchParams(location.search)
 let EXPO = Q.has('e') ? Number(Q.get('e')) : 1.15
 const OVK = Q.has('ov') ? Number(Q.get('ov')) : 1
@@ -42,7 +42,7 @@ const lin = (L: number, C: number, h: number) => new THREE.Color(...oklchToLinea
 export const LED = { green: lin(0.80, 0.26, 148), amber: lin(0.74, 0.20, 52), red: lin(0.64, 0.25, 27) }
 const INK_OFF = new THREE.Color(0.62, 0.64, 0.68)
 // "OPEN SLOT" engraved ink (?ink= overrides it)
-const OPEN_INK = Q.has('ink') ? Number(Q.get('ink')) : 0.04
+const OPEN_INK = TOURNAGE ? 0 : Q.has('ink') ? Number(Q.get('ink')) : 0.04
 const ARC_BLUE = new THREE.Color('#1C2998')
 // Lightmap scales. Misfire curve of the Invalid LED (intensity multiplier, time in s)
 const PANNE: [number, number][] = [[0, 1], [0.04, 0.03], [0.13, 0.03], [0.15, 1.35], [0.21, 1.1], [0.23, 0.03], [0.38, 0.03], [0.4, 0.55], [0.46, 0.5], [0.48, 0.03], [0.7, 0.03], [0.72, 1.2], [0.78, 1], [0.8, 0.12], [0.88, 0.12], [1.15, 1]]
@@ -376,7 +376,7 @@ export function mountStage(canvas: HTMLCanvasElement, onProgress: (k: number) =>
         vec2 v = uv - 0.5; c *= 1.0 - 0.36 * dot(v, v) * 1.5;
         c = pow(c, vec3(1.0 / 2.2));
         // Fixed dither against gradient banding: it does not change every frame, so dark flat areas never crawl
-        c += (h12(fc) - 0.5) * 0.008;
+        c += (h12(fc) - 0.5) * ${TOURNAGE ? '0.0' : '0.008'};
         // Intro: before it, the page background (#060708); then a horizontal slit at mid-height widens (0 to 0.45) and opens
         // vertically (0.2 to 1), soft edge, exposure rising from 0.35 to 1
         if (uReveal.x < 1.0) {
@@ -690,7 +690,9 @@ gl_FragColor.rgb = hfog(gl_FragColor.rgb, vWP);`)
             e += on * (0.0022 * 0.0022) / (r * r) * (1.0 - smoothstep(r * 0.6, r * 1.2, dd));
           }
           vec3 col = mix(vec3(0.42, 0.66, 1.0), vec3(0.35, 1.0, 0.55), step(0.82, hs) * 0.8);
-          em += col * e * (0.45 + 0.6 * fract(hs * 31.0));
+          // During film capture scene time is frozen; these light points in the dark of the far bays read as motionless
+          // particles: turned off for the capture
+          em += col * e * (0.45 + 0.6 * fract(hs * 31.0)) * ${TOURNAGE ? '0.0' : '1.0'};
         } else if (an.x > 0.9 && abs(vWP.x) > 7.5 || an.z > 0.9 && (vWP.z < -12.1 || vWP.z > 5.5)) {
           // Walls: 1.2 m acoustic panels
           alb *= mix(0.6, 1.0, seam(vec2((an.x > 0.9 ? vWP.z : vWP.x) / 1.2, vWP.y / 4.6 + 0.5), 0.004));
@@ -737,6 +739,8 @@ gl_FragColor.rgb = hfog(gl_FragColor.rgb, vWP);`)
   // Title and LED sit flush with the glass (0.3 to 0.4 mm in front), pulled forward with a depth offset
   plMat.polygonOffset = true; plMat.polygonOffsetFactor = -1; plMat.polygonOffsetUnits = -4
   const plates = new THREE.InstancedMesh(plGeo, plMat, NSLOTS); plates.frustumCulled = false; plates.renderOrder = 2
+  // Video landing: during film capture the plates stay empty (the HTML layer writes the names live)
+  if (TOURNAGE) plates.visible = false
   // Plate background. In the title window two facade surfaces (face_body and face_plate) are nearly coplanar: at oblique
   // angles or in motion they z-fought into hatched pixel blocks. A matte opaque background, pulled forward by a depth
   // offset just behind the ink, closes the window (one instance per sled, one draw call)
@@ -1184,14 +1188,15 @@ gl_FragColor.rgb = hfog(gl_FragColor.rgb, vWP);`)
   const plateText = (s: Sled, amber: boolean, admitted = false): [string, number, number] => {
     const live = getLive()
     // Once Arc admits it at the verdict, the replayed sled turns green even if its real registration has since expired;
-    // the Arc section labels it as a replay
-    if (admitted) return [productLabel(s.product, live.products, live.bounties), 1, 1.9]
+    // the Arc section labels it as a replay. Its plate says "Admitted (replay)" (word 5), never "Running"
+    if (admitted) return [productLabel(s.product, live.products, live.bounties), 5, 1.9]
     // The replayed sled keeps its service name everywhere (wall, readout, card, fallback); its status word says it is replayed
     if (amber) return [productLabel(s.product, live.products, live.bounties), 2, 1.4]
     if (s.led === 'green') return [productLabel(s.product, live.products, live.bounties), 1, 1.9]
     if (s.led === 'red') return [productLabel(s.product, live.products, live.bounties), 3, 1.4]
-    // Amber: usable but not running (inactive: window closed; or pending)
-    if (s.led === 'amber') return [productLabel(s.product, live.products, live.bounties), s.why === 'expired' ? 4 : 2, 1.1]
+    // Amber: usable but not running (inactive: window closed; or pending); replaced, removed or stopped on Arc also
+    // counts as inactive
+    if (s.led === 'amber') return [productLabel(s.product, live.products, live.bounties), s.why && s.why !== 'idle' ? 4 : 2, 1.1]
     return [t('plate.off'), 0, OPEN_INK]
   }
   function syncData(amberSlot: number, greenSlot = -1) {
@@ -1209,7 +1214,7 @@ gl_FragColor.rgb = hfog(gl_FragColor.rgb, vWP);`)
       if (!texts.includes(r[0])) texts.push(r[0])
       return r
     })
-    if (repaint) atlas.paint(texts, [t('plate.sub.off'), t('plate.sub.green'), t('plate.sub.amber'), t('plate.sub.red'), t('plate.sub.dim'), ''])
+    if (repaint) atlas.paint(texts, [t('plate.sub.off'), t('plate.sub.green'), t('plate.sub.amber'), t('plate.sub.red'), t('plate.sub.dim'), t('plate.sub.admitted')])
     SLOTS.forEach((s, i) => {
       const [title, sub, k] = rows[i]
       const d = sl[s.i]
@@ -1342,7 +1347,8 @@ gl_FragColor.rgb = hfog(gl_FragColor.rgb, vWP);`)
     scene.add(leds, plates, halos, joint, body)
     await document.fonts.load('70px "Fragment Mono"').catch(() => null)
     syncData(-1)
-    scene.add(dust)
+    // Video landing: no dust or floating points during film capture, where scene time is frozen (FROZEN_T)
+    if (!TOURNAGE) scene.add(dust)
     resize()
     mark('mur-construit')
     // The whole wall compiled at once, in parallel (the driver links programs off the main thread), hidden objects included
@@ -1495,6 +1501,7 @@ gl_FragColor.rgb = hfog(gl_FragColor.rgb, vWP);`)
 
   build().catch((e) => { console.error(e); onProgress(1); ready = true; onWallReady(); st.reveal = 1; onAllReady() })
 
+  let shY = NaN
   function cached(id: SecId) {
     let v = viewCache.get(id)
     if (!v) { v = keyView(id, world.wall, W, H); viewCache.set(id, v) }
@@ -1620,14 +1627,24 @@ gl_FragColor.rgb = hfog(gl_FragColor.rgb, vWP);`)
     // the second half of the section ----
     const k0 = ORDER.indexOf(id)
     let target: View
-    if (inProto) target = protocolView(pP, wall, W, H)
-    else if (inArc) target = f < 0.9 ? cached('arc') : lerpView(cached('arc'), cached('end'), easeIO(sm((f - 0.9) / 0.1)))
+    if (inProto) {
+      target = protocolView(pP, wall, W, H)
+      // Video landing: blend out of the protocol page. Once the pinned page ended, the camera stayed still until the Arc
+      // section and then jumped (29°, 1.9 m); it now glides toward the Arc framing over that range
+      const pa = secTop('protocol'), pEnd = pa + Math.max(1, secH('protocol') - H), aIn = secTop('arc') - H * 0.5
+      const y0 = scrollY()
+      if (aIn > pEnd + 1 && y0 > pEnd) target = lerpView(target, cached('arc'), easeIO(sm((y0 - pEnd) / (aIn - pEnd))))
+    }
+    // Video landing: arc -> end spread over f 0.75-1 (instead of 0.9-1)
+    else if (inArc) target = f < 0.75 ? cached('arc') : lerpView(cached('arc'), cached('end'), easeIO(sm((f - 0.75) / 0.25)))
     else {
       // At the hero and the end the camera drifts while the text is read
       const a = id === 'hero' ? keyView('hero', wall, W, H, Math.min(1, f / 0.5)) : id === 'end' ? keyView('end', wall, W, H, f) : cached(id)
       const next = ORDER[k0 + 1]
       const b = next ? (next === 'protocol' ? protocolView(0, wall, W, H) : cached(next)) : a
-      target = lerpView(a, b, easeIO(sm((f - 0.5) / 0.5)))
+      // Video landing: hero -> use spread over f 0.3-1 (instead of 0.5-1); the other transitions are unchanged
+      const f0 = id === 'hero' ? 0.3 : 0.5
+      target = lerpView(a, b, easeIO(sm((f - f0) / (1 - f0))))
     }
     // Service opened in place: the camera approaches its sled (0.9 s), then returns to the scroll framing
     { const want = world.svc.open ? 1 : 0
@@ -1637,6 +1654,11 @@ gl_FragColor.rgb = hfog(gl_FragColor.rgb, vWP);`)
         if (st.svcSlot !== world.svc.slot || st.svcW !== W) { st.svcV = svcView(world.svc.slot, W, H); st.svcSlot = world.svc.slot; st.svcW = W }
         target = lerpView(target, st.svcV!, easeIO(st.svcU))
       } else if (!world.svc.open && st.svcU === 0) world.svc.slot = -1 }
+    // Capture only (tournage.html): __faceOv = { slot, d, m } frames one sled face from the front, d metres away, its
+    // height times m filling the image; the service catalog uses that render as the face of its sleds
+    { const fo = (window as unknown as { __faceOv?: { slot: number; d: number; m: number; dx?: number } }).__faceOv
+      if (TOURNAGE && fo) { const sl = SLOTS[fo.slot], cy = sl.base + (G.FT + G.FB) / 2, hh = ((G.FT - G.FB) / 2) * fo.m
+        target = { p: new THREE.Vector3(sl.x + (fo.dx ?? 0), cy, fo.d), t: new THREE.Vector3(sl.x, cy, 0), fov: (2 * Math.atan(hh / fo.d) * 180) / Math.PI, shift: 0 } } }
     if (!st.cam) st.cam = { p: target.p.clone(), t: target.t.clone(), fov: target.fov, shift: target.shift }
     // The camera follows the scroll already smoothed by Lenis; its own smoothing is short (0.06 s) so the scene never lags
     // behind the text
@@ -1645,7 +1667,15 @@ gl_FragColor.rgb = hfog(gl_FragColor.rgb, vWP);`)
     cam.position.copy(st.cam.p); cam.lookAt(st.cam.t)
     // Phone: on pinned pages the image moves above the panel; elsewhere the rack sits in the top band (0.22 H)
     const shiftT = mobileW(W) ? (inProto || (inArc && f < 0.9) ? pinShift(H, world.pinH[id] ?? 0) : MOB_SHIFT) : 0
-    st.shift = SNAP ? shiftT : st.shift + (shiftT - st.shift) * kc
+    if (TOURNAGE) {
+      // Video landing: on phones the image offset (top band, pinned-page panels) changed abruptly at the edges of the
+      // pinned pages (up to 257 px); the real-time scene smooths it over time, the film smooths it over scroll (frames
+      // are captured in order, top to bottom)
+      const y = scrollY()
+      if (Number.isNaN(shY) || Math.abs(y - shY) > 400) st.shift = shiftT
+      else st.shift += (shiftT - st.shift) * (1 - Math.exp(-Math.abs(y - shY) / 140))
+      shY = y
+    } else st.shift = SNAP ? shiftT : st.shift + (shiftT - st.shift) * kc
     if (Math.abs(st.shift - shiftT) < 1e-4) st.shift = shiftT
     const sx = Math.round(st.cam.shift * 2000) / 2000
     if (st.shift !== projShift || Math.abs(cam.fov - st.cam.fov) > 1e-4 || sx !== projX || projFov !== cam.fov) {
@@ -1827,7 +1857,9 @@ gl_FragColor.rgb = hfog(gl_FragColor.rgb, vWP);`)
       { let y = 0; parts.forEach((p, j) => { y += p.d * exOf(j); p.y = y; p.o.position.y = p.base + y }) }
       // The lid rises straight and leaves the frame at the top (never in front of the sled)
       const lidUp = st.lid * 1.4
-      if (lid) { lid.position.y = lidBase + lidUp; lid.visible = st.lid < 0.6 }
+      // (film-qualite: hidden only once fully up, out of frame; at 0.6 it could still show at the top edge and vanish in
+      // place between two film frames)
+      if (lid) { lid.position.y = lidBase + lidUp; lid.visible = st.lid < 0.98 }
       // The sheet sits exactly on the lid (top of the ribs, 0.0791); it comes down from 1.3 m and never goes under the lid:
       // while the lid is up, it waits above it
       const shUp = Math.max(st.sheetY * 1.3, st.lid > 0.001 ? lidUp + 0.03 : 0)
@@ -1940,7 +1972,67 @@ gl_FragColor.rgb = hfog(gl_FragColor.rgb, vWP);`)
     compU.uLoupe.value.set(P.x * DPR, (H - P.y) * DPR, 10 * DPR, world.loupe && P.inside && !P.touch && document.documentElement.dataset.cur === '1' && world.lock < 0 && world.arming <= 0 ? 1 : 0)
 
     renderFrame()
+    if (TOURNAGE) filmMeta(rep)
   })
+
+  // ---- Video landing: metadata of one captured film frame (read by the capture script) ----
+  // Per frame: the view-projection matrix, the lens position, the facade matrix of the replayed sled when it is pulled
+  // out (facade frame -> world), the pull of Rent's free drawer, the column overlay, the explode anchors, and per sled
+  // the visibility (rays toward the plate and the LED, against the pulled sled, its rails and the sheet) and the air
+  // transmission (height fog, same formula as GLSL_FOG)
+  const fmRay = new THREE.Raycaster(), fmBox = new THREE.Box3(), fmV = new THREE.Vector3(), fmD = new THREE.Vector3(), fmVP = new THREE.Matrix4()
+  function fogT(x: number, y: number, z: number) {
+    const cp = cam.position, dx = x - cp.x, dy = y - cp.y, dz = z - cp.z
+    const dist = Math.max(Math.hypot(dx, dy, dz) - shared.uFogN.value, 0), k = shared.uFogK.value, y0 = Math.max(cp.y, 0)
+    const integ = Math.abs(dy) > 1e-3 ? (Math.exp(-k * y0) - Math.exp(-k * (y0 + dy))) / (k * dy) : Math.exp(-k * y0)
+    return 1 - Math.min(1, Math.max(0, 1 - Math.exp(-shared.uFogD.value * dist * integ)))
+  }
+  function filmMeta(rep: number) {
+    fmVP.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse)
+    const out = fSlot >= 0 ? heroG.matrixWorld.toArray() : null
+    const occ = heroG.visible ? [heroG, rails, sheet].filter((o) => o.visible) : []
+    const vis: number[] = [], fog: number[] = []
+    const W_ = world.wall
+    for (let i = 0; i < NSLOTS; i++) {
+      const s = SLOTS[i], p = plateOf(s), l = ledOf3(s)
+      const M = i === fSlot ? heroG.matrixWorld : null
+      const pz = faceAttr.pull[i]
+      const pts: [number, number][] = [[(p.x0 + p.x1) / 2, p.y], [p.x0 + 0.01, p.y + p.th * 0.6], [p.x1 - 0.01, p.y + p.th * 0.6], [p.x0 + 0.01, p.y - p.th * 0.6], [p.x1 - 0.01, p.y - p.th * 0.6], [l.x, l.y]]
+      let seen = 0
+      for (const [x, y] of pts) {
+        fmV.set(x - s.x, y - s.base, pz + 0.001)
+        if (M) fmV.applyMatrix4(M); else fmV.add(tmpV.set(s.x, s.base, 0))
+        if (!occ.length || i === fSlot) { seen++; continue }
+        fmD.subVectors(fmV, cam.position); const d = fmD.length(); fmD.normalize()
+        fmRay.set(cam.position, fmD); fmRay.far = d - 0.002
+        if (!fmRay.intersectObjects(occ, true).some((h) => h.object.visible)) seen++
+      }
+      vis.push(seen)
+      fmV.set((p.x0 + p.x1) / 2 - s.x, p.y - s.base, pz); if (M) fmV.applyMatrix4(M); else fmV.add(tmpV.set(s.x, s.base, 0))
+      fog.push(Math.round(fogT(fmV.x, fmV.y, fmV.z) * 255))
+    }
+    // Moving objects of the pinned protocol page (seven layers, lid, Arc sheet): the eight corners of each box on screen
+    // (CSS px), with the object's visibility. The sampling plan (plan.mjs) bounds their motion between two frames; the
+    // player does not read them
+    const movers: number[] = []
+    if (heroG.visible) heroG.updateMatrixWorld(true)
+    for (const o of [...parts.map((p) => p.o), lid, sheet]) {
+      const on = !!o && heroG.visible && o.visible
+      if (on) fmBox.setFromObject(o!)
+      for (let c = 0; c < 8; c++) {
+        if (!on || fmBox.isEmpty()) { movers.push(0, 0, 0); continue }
+        fmV.set(c & 1 ? fmBox.max.x : fmBox.min.x, c & 2 ? fmBox.max.y : fmBox.min.y, c & 4 ? fmBox.max.z : fmBox.min.z).project(cam)
+        movers.push((fmV.x + 1) / 2 * W, (1 - fmV.y) / 2 * H, fmV.z < 1 ? 1 : 0)
+      }
+    }
+    const anchors: number[] = []
+    for (const k of ['part.0', 'part.1', 'part.2', 'part.3', 'part.4', 'part.5', 'part.6', 'sheet']) { const a = world.anchors.get(k); anchors.push(a ? a.x : 0, a ? a.y : 0, a ? a.vis : 0) }
+    ;(window as unknown as { __filmMeta: unknown }).__filmMeta = {
+      vp: fmVP.toArray(), cam: cam.position.toArray(), rep: out, rentPull: W_.ex.rent >= 0 ? faceAttr.pull[W_.ex.rent] : 0,
+      ov: compU.uOv.value.toArray(), anchors, movers, frontal: world.frontal ? 1 : 0, wallX: world.wallX, vis, fog,
+      W, H, story: world.story, protoQ: world.protoQ, ex: W_.ex, replay: W_.replay,
+    }
+  }
 
   // Profiling: long animation frames and GPU counters, exposed under ?perf
   const perf = { loaf: [] as { d: number; t: number; s: string }[], programs: 0, textures: 0, geometries: 0, cam: [0, 0, 0] }
@@ -1950,7 +2042,7 @@ gl_FragColor.rgb = hfog(gl_FragColor.rgb, vWP);`)
   let po: PerformanceObserver | null = null
   try {
     po = new PerformanceObserver((l) => {
-      for (const e of l.getEntries() as (PerformanceEntry & { scripts?: { sourceURL: string; invoker: string; sourceFunctionName: string; duration: number }[] })[]) perf.loaf.push({ d: Math.round(e.duration), t: Math.round(e.startTime), s: (e.scripts ?? []).map((x) => `${x.invoker} ${x.sourceFunctionName} ${x.sourceURL.split('/').pop()} ${Math.round(x.duration)}`).join(' | ').slice(0, 300) })
+      for (const e of l.getEntries() as (PerformanceEntry & { scripts?: { sourceURL: string; invoker: string; sourceFunctionName: string; duration: number }[] })[]) perf.loaf.push({ d: Math.round(e.duration), t: Math.round(e.startTime), s: (e.scripts ?? []).map((x) => `${x.invoker} ${x.sourceFunctionName} ${x.sourceURL.split('/').pop()} ${Math.round(x.duration)}`).join(' | ').slice(0, 300) }); if (perf.loaf.length > 200) perf.loaf.splice(0, perf.loaf.length - 200)
     })
     po.observe({ type: 'long-animation-frame', buffered: true })
   } catch { /* browser without LoAF */ }

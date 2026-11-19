@@ -1,0 +1,192 @@
+/* The demo and the Arc focus panel. Site ink, rules and fonts (styles.css variables). */
+
+/* ---- demo: the column withdraws, the diagram in the center, the key fades too ---- */
+.s3d #col[data-col='demo'] { display: none; }
+.s3d .net:has(.stage[data-view='demo']) .key, .s3d .net:has(.stage[data-view='demo']) .key-t { display: none; }
+.s3d .net .stage[data-view='demo']::before { opacity: 0; }
+@media (max-width: 1024px) { .s3d .net .stage[data-view='demo'], .s3d #col[data-col='demo'] ~ .net-scene .stage { height: 84svh; min-height: 520px; aspect-ratio: auto; } }
+
+.s3d .dm { position: absolute; inset: 0; z-index: 9; pointer-events: none; font-family: var(--sans); color: var(--ink); }
+.s3d .dm[hidden] { display: none; }
+.s3d .dm > * { pointer-events: auto; }
+.s3d .dm-top { position: absolute; left: 0; right: 0; top: 0; display: grid; grid-template-columns: 1fr auto; column-gap: 16px; padding: 16px 24px 24px; background: linear-gradient(to bottom, rgb(11 13 16 / 0.92), rgb(11 13 16 / 0)); }
+.s3d .dm-label { grid-column: 1; margin: 0; font-size: 12px; color: var(--ink3); letter-spacing: 0.04em; text-transform: uppercase; }
+.s3d .dm-count { grid-column: 1; margin: 8px 0 0; font-size: 13px; color: var(--ink2); }
+.s3d .dm-title { grid-column: 1; margin: 4px 0 0; font-size: 24px; line-height: 1.2; font-weight: 600; }
+.s3d .dm-x { grid-column: 2; grid-row: 1 / span 3; align-self: start; width: 40px; height: 40px; display: grid; place-items: center; background: var(--chip3, #1d2229); border: 0; color: var(--ink); cursor: pointer; }
+.s3d .dm-x svg, .s3d .dm-b svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+.s3d .dm-card { position: absolute; left: 24px; top: 128px; width: min(380px, 34vw); max-height: calc(100% - 216px); overflow: auto; padding: 16px 20px; background: rgb(11 13 16 / 0.9); box-shadow: inset 0 0 0 1px var(--rule2); }
+.s3d .dm-c-t { margin: 0 0 12px; font-size: 17px; font-weight: 600; }
+.s3d .dm-card dl { margin: 0; display: grid; gap: 12px; }
+.s3d .dm-row { display: grid; gap: 4px; }
+.s3d .dm-row dt { font: 400 12px/16px var(--mono); color: var(--ink3); text-transform: uppercase; letter-spacing: 0.04em; }
+.s3d .dm-row dd { margin: 0; font-size: 15px; line-height: 1.45; color: var(--ink2); }
+.s3d .dm-row dd.mono { font-family: var(--mono); font-size: 13px; color: var(--ink); overflow-wrap: anywhere; }
+.s3d .dm-row .tlink { font-size: 13px; }
+.s3d .dm-ctl { position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 24px 24px 16px; background: linear-gradient(to top, rgb(11 13 16 / 0.92), rgb(11 13 16 / 0)); }
+.s3d .dm-b { height: 40px; min-width: 40px; display: inline-grid; place-items: center; padding: 0 12px; background: var(--chip3, #1d2229); border: 0; color: var(--ink); font: 400 13px/1 var(--sans); cursor: pointer; }
+.s3d .dm-b:focus-visible, .s3d .dm-x:focus-visible { outline: 1px solid var(--acc, #8fc6ff); outline-offset: 2px; }
+.s3d .dm-play[data-on='1'] .dm-i-play, .s3d .dm-play[data-on='0'] .dm-i-pause { display: none; }
+.s3d .dm-dots { display: flex; gap: 4px; margin: 0 0 0 8px; padding: 0; list-style: none; }
+.s3d .dm-dots li { width: 16px; height: 2px; background: var(--rule2); }
+.s3d .dm-dots li[data-on='done'] { background: var(--ink3); }
+.s3d .dm-dots li[data-on='on'] { background: var(--arc-elec, #4a86ff); }
+.s3d .dm-keys { margin: 0 0 0 auto; font-size: 12px; color: var(--ink3); }
+.s3d .dm-links path { fill: none; stroke: var(--arc-elec, #4a86ff); stroke-width: 1; stroke-opacity: 0.7; }
+.s3d .dm-links circle { fill: var(--arc-elec, #4a86ff); }
+.s3d .dm-pays { position: absolute; inset: 0; pointer-events: none; }
+.s3d .dm-pay { position: absolute; left: 0; top: 0; display: inline-flex; align-items: center; gap: 8px; padding: 4px 8px; font-size: 13px; line-height: 16px; white-space: nowrap; color: var(--ink); background: rgb(11 13 16 / 0.9); box-shadow: inset 0 0 0 1px var(--rule2); opacity: 0; transition: opacity 240ms; }
+.s3d .dm-pay b { font-size: 11px; font-weight: 500; color: var(--arc-light, #9cc0ff); }
+.s3d .dm-pay[data-k='usdc'] b { color: #7fb2ff; }
+.s3d .dm-pay[data-k='sealed'] b { color: #5ff0ff; }
+.s3d .dm-pay[data-k='verdict'] b { color: #2be263; }
+.s3d .dm-pay[data-k='refused']::before { content: ''; width: 10px; height: 10px; background: #ff3e3b; transform: rotate(45deg); }
+.s3d .dm-pay[data-k='refused'][data-stop='1'] { box-shadow: inset 0 0 0 1px #ff3e3b; color: #ff9b8f; }
+@media (max-width: 760px) {
+  .s3d .dm-top { padding: 12px 16px 20px; }
+  .s3d .dm-title { font-size: 19px; }
+  .s3d .dm-card { left: 12px; right: 12px; top: auto; bottom: 72px; width: auto; max-height: 38%; padding: 12px 16px; }
+  .s3d .dm-ctl { padding: 12px; gap: 8px; }
+  .s3d .dm-keys, .s3d .dm-dots { display: none; }
+  .s3d .dm-pay { font-size: 12px; }
+}
+@media (prefers-reduced-motion: reduce) { .s3d .dm-pay { transition: none; } }
+/* without WebGL: the card in the center, the steps as text */
+.s3d .dm[data-gl='0'] { background: rgb(11 13 16 / 0.72); }
+.s3d .stage[data-view='demo'] .net-still, .s3d .stage[data-view='demo'] .net-nogl figcaption { display: none; }
+.s3d .dm[data-gl='0'] .dm-card { left: 50%; transform: translateX(-50%); width: min(560px, calc(100% - 32px)); }
+
+/* ---- Arc focus: one collapsible block per contract ---- */
+.s3d .arcp { margin-top: 24px; display: grid; gap: 8px; }
+.s3d .arcp[hidden] { display: none; }
+.s3d .arcp-intro { margin: 0 0 8px; font-size: 15px; line-height: 1.5; color: var(--ink2); max-width: 34em; }
+.s3d .arcp-c { box-shadow: inset 0 -1px 0 var(--rule); }
+.s3d .arcp-c summary { display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: 12px; padding: 12px 0; cursor: pointer; list-style: none; }
+.s3d .arcp-c summary::-webkit-details-marker { display: none; }
+.s3d .arcp-c summary:focus-visible { outline: 1px solid var(--acc, #8fc6ff); outline-offset: 4px; }
+.s3d .arcp-n { font-size: 13px; color: var(--ink3); }
+.s3d .arcp-t { font-size: 15px; font-weight: 600; color: var(--ink); }
+.s3d .arcp-a { font-size: 12px; color: var(--ink3); }
+.s3d .arcp-r { margin: 0 0 12px; font-size: 15px; line-height: 1.5; color: var(--ink2); }
+.s3d .arcp-f { margin: 0 0 12px; padding-left: 12px; box-shadow: inset 1px 0 0 var(--rule2); }
+.s3d .arcp-sig { margin: 0 0 4px; font-size: 13px; color: var(--ink); overflow-wrap: anywhere; }
+.s3d .arcp-d { margin: 0 0 4px; font-size: 14px; line-height: 1.45; color: var(--ink2); overflow-wrap: anywhere; }
+.s3d .arcp-k { font: 400 12px/1 var(--mono); color: var(--ink3); text-transform: uppercase; letter-spacing: 0.04em; margin-right: 4px; }
+.s3d .arcp-d .tlink { font-size: 13px; }
+.s3d #col[data-col='arc'] .p-title-w .ttl-rule { background: var(--arc-elec, #4a86ff); }
+
+/* ---------- Shorter cards, title only once (in the card); on phones, the demo full screen under the header,
+   the card scrolls with a fade, counter and progress kept ---------- */
+.s3d .dm-top { grid-template-columns: 1fr auto; align-items: center; padding: 16px 24px; }
+.s3d .dm-count { margin: 0; font-size: 13px; }
+.s3d .dm-x { grid-row: auto; }
+.s3d .dm-card { top: 80px; max-height: calc(100% - 168px); padding: 16px 20px; }
+.s3d .dm-c-t { font-size: 20px; line-height: 1.25; margin-bottom: 12px; }
+.s3d .dm-card dl { gap: 8px; }
+.s3d .dm-row dd { font-size: 14px; line-height: 1.4; }
+@media (max-width: 760px) {
+  .s3d .net:has(.stage[data-view='demo']) .net-scene { position: fixed; left: 0; right: 0; top: 84px; bottom: 0; height: auto; min-height: 0; margin: 0; z-index: 60; background: #0b0d10; }
+  body:has(.stage[data-view='demo']) .foot { display: none; }
+  .s3d .net:has(.stage[data-view='demo']) .net-scene .stage { position: absolute; inset: 0; height: auto; min-height: 0; aspect-ratio: auto; }
+  .s3d .dm-top { padding: 12px 16px; }
+  .s3d .dm-card { top: auto; bottom: 64px; max-height: 44%; -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent); padding-bottom: 24px; }
+  .s3d .dm-c-t { font-size: 17px; }
+  .s3d .dm-dots { display: flex; margin: 0; }
+  .s3d .dm-dots li { width: 8px; }
+  .s3d .dm-skip { display: none; }
+}
+/* no black canvas rectangle before the first frame */
+.s3d #gl { opacity: 0; transition: opacity 400ms ease; }
+.s3d .stage[data-ready='1'] #gl { opacity: 1; }
+
+/* ---------- The continuous shot. A subtitle at the bottom (lower third), a label on the tracked object,
+   a 'Details' drawer on demand, a segmented chapter bar ---------- */
+.s3d .dm15 .dm-top { padding: 16px 24px; background: linear-gradient(to bottom, rgb(11 13 16 / 0.7), rgb(11 13 16 / 0)); }
+.s3d .dm15 .dm-tag { position: absolute; left: 0; top: 0; margin: 0; padding: 4px 8px; font-size: 13px; line-height: 16px; white-space: nowrap; color: var(--ink); background: rgb(11 13 16 / 0.82); box-shadow: inset 0 0 0 1px var(--rule2); pointer-events: none; opacity: 0; transition: opacity 240ms; }
+.s3d .dm15 .dm-low { position: absolute; left: 50%; bottom: 88px; transform: translateX(-50%); width: min(720px, calc(100% - 48px)); text-align: center; pointer-events: none; }
+.s3d .dm15 .dm-sub { display: inline-block; margin: 0; padding: 8px 16px; max-width: 42ch; font-size: 20px; line-height: 1.4; color: var(--ink); background: rgb(11 13 16 / 0.72); text-shadow: 0 1px 2px rgb(5 6 7 / 0.9); }
+.s3d .dm15 .dm-ctl { gap: 12px; padding: 24px 24px 16px; background: linear-gradient(to top, rgb(11 13 16 / 0.85), rgb(11 13 16 / 0)); }
+.s3d .dm15 .dm-chap { display: flex; flex: 1 1 auto; gap: 4px; min-width: 0; }
+.s3d .dm15 .dm-seg { flex-basis: 0; display: grid; gap: 8px; min-width: 0; padding: 4px 0; background: none; border: 0; color: var(--ink3); font: 400 12px/16px var(--mono); text-align: left; cursor: pointer; }
+.s3d .dm15 .dm-seg[data-on='1'] { color: var(--ink); }
+.s3d .dm15 .dm-seg-n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.s3d .dm15 .dm-seg-bar { position: relative; display: block; height: 4px; background: var(--rule2); overflow: hidden; }
+.s3d .dm15 .dm-seg-bar i { position: absolute; inset: 0; background: var(--arc-elec, #4a86ff); transform-origin: left; transform: scaleX(0); }
+.s3d .dm15 .dm-seg:focus-visible { outline: 1px solid var(--acc, #8fc6ff); outline-offset: 2px; }
+.s3d .dm15 .dm-drawer { position: absolute; right: 24px; top: 72px; bottom: 96px; width: min(380px, 34vw); overflow: auto; padding: 16px 20px; background: rgb(11 13 16 / 0.92); box-shadow: inset 0 0 0 1px var(--rule2); }
+.s3d .dm15 .dm-drawer[hidden] { display: none; }
+.s3d .dm15 .dm-det { white-space: nowrap; }
+.s3d .stage.dm-fade #gl { animation: dmfade 260ms ease-out; }
+@keyframes dmfade { from { opacity: 0.25; } to { opacity: 1; } }
+@media (max-width: 760px) {
+  .s3d .dm15 .dm-low { bottom: 120px; width: calc(100% - 24px); }
+  .s3d .dm15 .dm-sub { font-size: 16px; }
+  .s3d .dm15 .dm-ctl { flex-wrap: wrap; }
+  .s3d .dm15 .dm-chap { order: -1; flex-basis: 100%; }
+  .s3d .dm15 .dm-seg-n { display: none; }
+  .s3d .dm15 .dm-drawer { left: 12px; right: 12px; width: auto; top: 64px; bottom: 120px; }
+}
+
+/* ---------- The narration sits in a side block, like the page column (chapter, sentence of the moment,
+   technical line, real transaction); the scene shifts accordingly. Solid background: a packet trail never
+      passes under the text. Mute button in the controls ---------- */
+.s3d .dm15 .dm-side { position: absolute; left: 24px; top: 64px; width: min(380px, 30vw); max-height: calc(100% - 64px - 96px); overflow: auto; margin: 0; padding: 20px 24px 24px; background: var(--bg, #0b0d10); box-shadow: inset 0 0 0 1px var(--rule2); }
+.s3d .dm15 .dm-side-ch { margin: 0; font-size: 12px; line-height: 16px; color: var(--ink3); }
+.s3d .dm15 .dm-side-t { margin: 8px 0 0; font-size: 24px; line-height: 1.25; font-weight: 600; color: var(--ink); }
+.s3d .dm15 .dm-side-sub { margin: 16px 0 0; padding-top: 16px; border-top: 1px solid var(--rule2); font-size: 18px; line-height: 1.45; color: var(--ink); }
+.s3d .dm15 .dm-side-tech { margin: 12px 0 0; font-size: 13px; line-height: 1.6; color: var(--ink2); }
+.s3d .dm15 .dm-side-tech:empty, .s3d .dm15 .dm-side-real:empty { display: none; }
+.s3d .dm15 .dm-side-real { margin: 12px 0 0; font-size: 14px; line-height: 1.4; }
+.s3d .dm15 .dm-snd .dm-i-off { display: none; }
+.s3d .dm15 .dm-snd[data-off='1'] .dm-i-on { display: none; }
+.s3d .dm15 .dm-snd[data-off='1'] .dm-i-off { display: inline; }
+@media (min-width: 761px) {
+  .s3d .dm15 .dm-low, .s3d .dm15 .dm-det, .s3d .dm15 .dm-drawer { display: none; }
+  .s3d .dm15 .dm-top .dm-count { visibility: hidden; }
+}
+@media (max-width: 760px) { .s3d .dm15 .dm-side { display: none; } }
+
+/* the part's demo, at the top of a focus (NetworkPage.tsx PlayDemo, scene.ts playShow): the button, its label as a
+   replay, and the step the scene is playing, marked like the open step (Arc electric blue) */
+.s3d .net-show { margin: 24px 0 0; display: grid; gap: 10px; justify-items: start; }
+.s3d .net-show-b { display: inline-flex; align-items: center; gap: 10px; height: 44px; padding: 0 16px; font-size: 13px; font-weight: var(--w-head, 600); box-shadow: inset 0 0 0 1px var(--rule2); }
+.s3d .net-show-b svg { width: 14px; height: 14px; fill: currentColor; stroke: none; flex: none; }
+.s3d .net-show[data-st='done'] .net-show-b svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.s3d .net-show[data-st='on'] .net-show-b { box-shadow: inset 0 0 0 1px var(--arc-elec, #4a86ff), 0 0 12px rgb(58 107 255 / 0.35); }
+.s3d .net-show-n { margin: 0; max-width: 34em; font-size: 12px; }
+.s3d .net-show[data-st='on'] .net-show-n { color: var(--arc-light, #9cc0ff); }
+.s3d .net-acts .na[data-demo='1'] .na-h { color: var(--ink); }
+.s3d .net-acts .na[data-demo='1'] .na-n { color: var(--arc-light, #9cc0ff); text-shadow: 0 0 6px rgb(74 134 255 / 0.85), 0 0 14px rgb(58 107 255 / 0.5); }
+.s3d .net-acts .na[data-demo='1']::before { width: 2px; left: -20.5px; background: var(--arc-elec, #4a86ff); box-shadow: 0 0 4px rgb(74 134 255 / 0.9), 0 0 12px rgb(58 107 255 / 0.55); }
+/* while the demo marks a step, the visitor's own open step steps back */
+.s3d .net-acts:has(.na[data-demo='1']) .na[data-on='1']:not([data-demo='1']) .na-n { color: var(--arc-elec, #4a86ff); text-shadow: none; }
+.s3d .net-acts:has(.na[data-demo='1']) .na[data-on='1']:not([data-demo='1'])::before { background: transparent; box-shadow: none; }
+@media (prefers-reduced-motion: reduce) { .s3d .net-acts .na::before { transition: none; } }
+
+/* the demo side block: the plain sentence the landing page says (why), then the values recorded on Arc testnet
+   (replay.json), one mono line each with its explorer link */
+.s3d .dm15 .dm-side-why { margin: 10px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink2); }
+.s3d .dm15 .dm-side-why:empty { display: none; }
+.s3d .dm15 .dm-side-real { padding-top: 12px; border-top: 1px solid var(--rule); }
+.s3d .dm-rec-h { margin: 0; font-size: 11px; line-height: 16px; letter-spacing: 0.02em; color: var(--ink3); }
+.s3d .dm-rec { margin: 8px 0 0; display: grid; gap: 2px; }
+.s3d .dm-rec-k { font-size: 12px; line-height: 1.4; color: var(--ink2); }
+.s3d .dm-rec-v { font-size: 12px; line-height: 1.45; color: var(--ink); overflow-wrap: anywhere; }
+.s3d .dm-rec-tx { justify-self: start; font-size: 12px; }
+.s3d .dm-c-why { margin: 12px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink2); }
+.s3d .dm-c-rec:empty { display: none; }
+.s3d .dm-c-rec { margin: 12px 0 0; }
+/* the demo takes the whole stage: the column's reading blur (network.css, .net::before) has no text to serve there and
+   would blur the demo's own side block */
+.s3d .net:has(.stage[data-view='demo'])::before { display: none; }
+/* while the part's demo plays, its button stays in reach at the top of the column (the marked step scrolls into view
+   below it) */
+.s3d .net-show[data-st='on'], .s3d .net-show[data-st='done'] { position: sticky; top: 0; z-index: 3; margin-top: 12px; padding: 12px 0 20px; background: linear-gradient(to bottom, rgb(11 13 16) 82%, rgb(11 13 16 / 0)); }
+.s3d .net-acts .na { scroll-margin-top: 104px; }
+.s3d .net-show-r { display: flex; align-items: center; gap: 20px; }
+.s3d .net-show-x { font-size: 13px; }
+.s3d .net-show-n { color: var(--ink3); }
+.s3d .net-show-n[data-ok='1'] { color: var(--green); }
+/* the steps while the demo fills them: a badge above, fields read-only and tinted as simulated */
+.s3d .na-demo-badge { display: inline-block; margin: 20px 0 0; padding: 4px 10px; font-size: 12px; color: var(--arc-light, #9cc0ff); box-shadow: inset 0 0 0 1px rgb(74 134 255 / 0.55); background: rgb(58 107 255 / 0.08); }
+.s3d .na-list[data-demo='1'] input, .s3d .na-list[data-demo='1'] textarea, .s3d .na-list[data-demo='1'] select { color: var(--arc-light, #9cc0ff); }

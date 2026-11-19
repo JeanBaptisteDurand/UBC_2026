@@ -31,7 +31,8 @@
   --rule2: rgb(var(--ink-c) / 0.20);
   --m: 32px;
   --gut: calc(var(--m) + 40px);
-  --hd: 86px;
+  /* The network-paused banner (ui/PauseBand.tsx) sets its height in --pause-h; the page accounts for it */
+  --hd: calc(86px + var(--pause-h, 0px));
   --sans: var(--brand, 'Montserrat'), ui-sans-serif, system-ui, sans-serif;
   /* Weights and tracking tuned for a wide geometric sans: positive tracking in caps, slightly negative in lowercase,
      medium rather than bold weights on a dark background */
@@ -77,6 +78,8 @@ html[data-pin='1'] .veil { opacity: 0; }
 .stage canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; touch-action: pan-y; }
 /* Poster: only used as the no-WebGL fallback */
 .stage .poster { position: absolute; inset: 0; background: url('/tex/poster.jpg') center / cover no-repeat; }
+/* Loading bar at mid-height, centred on the wall area (the same centre as the stage.ts entry slot: halfway between
+   the column fade edge and the right edge) */
 .nogl-list { position: fixed; right: var(--gut); top: calc(var(--hd) + 32px); z-index: 5; width: min(420px, 40vw); height: min(46vh, 420px); overflow: auto; background: rgb(var(--pan-c) / 0.9); padding: 16px; }
 .nogl-list ul { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
 .nogl-list li { display: grid; grid-template-columns: 16px 1fr auto; gap: 4px 8px; align-items: baseline; }
@@ -86,10 +89,11 @@ html[data-pin='1'] .veil { opacity: 0; }
 .hd { position: fixed; top: 0; left: 0; right: 0; z-index: 50; background: var(--bg); }
 .hd-row1 { height: 56px; display: flex; align-items: center; gap: 40px; padding: 0 var(--gut); border-bottom: 1px solid var(--rule); }
 .logo { display: inline-flex; align-items: center; gap: 8px; font-weight: var(--w-head); font-size: 17px; letter-spacing: -0.01em; }
-.logo-svg { display: block; height: 30px; width: auto; color: var(--ink); }
+.logo-svg { display: block; height: 30px; width: auto; color: var(--ink); } /* ArcHive logo */
 @media (max-width: 640px) { .logo-svg { height: 26px; } }
 /* Logo rectangle (without the arrow) on the axis of the menu links: its centre sits at 52.91 / 83.40 of the drawing
-   height (Logo.tsx), so centred in the row the drawing moves up by (0.6344 - 0.5) h */
+   height (Logo.tsx), so centred in the row the drawing moves up by (0.6344 - 0.5) h; the arrow overhangs above
+   (still 9 px below the top of the header at 30 px) */
 .hd .logo-svg { transform: translateY(calc(-0.1344 * 30px)); }
 @media (max-width: 640px) { .hd .logo-svg { transform: translateY(calc(-0.1344 * 26px)); } }
 .mark { color: var(--ink); flex: none; }
@@ -114,9 +118,18 @@ html[data-pin='1'] .veil { opacity: 0; }
 .prog-bar { position: absolute; inset: 0; background: var(--acc); transform-origin: 0 50%; transform: scaleX(0); }
 .prog-bar[data-load='1'] { background: var(--ink2); transition: transform 400ms var(--productive); }
 .hd-drawer { display: flex; flex-direction: column; padding: 16px var(--gut) 24px; gap: 16px; font-size: 20px; background: var(--bg); }
+/* Network-paused banner, third header row, calm: an amber LED, a sentence, the link to the replayed demo; the long
+   sentence on desktop, the short one under 1100 px */
+.pause { display: flex; align-items: flex-start; min-height: 30px; padding: 5px var(--gut); color: var(--ink2); border-bottom: 1px solid var(--rule); background: var(--bg); }
+.pause .led { flex: none; width: 12px; height: 4px; margin: 8px 12px 0 0; }
+.pause-t { margin: 0; }
+.pause-a { color: var(--ink); white-space: nowrap; }
+.pause-short { display: none; }
 
 /* ---------- cursor: an outlined square, axes, locking ---------- */
 @media (pointer: fine) { html.scene-ready[data-cur='1'], html.scene-ready[data-cur='1'] * { cursor: none !important; } }
+/* app pages (ui/PageCursor.tsx): the same drawn cursor; text fields keep the text caret */
+@media (pointer: fine) { html.pg-cur[data-cur='1'], html.pg-cur[data-cur='1'] * { cursor: none !important; } html.pg-cur[data-cur='1'] :is(input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea, [contenteditable='true']) { cursor: text !important; } }
 .cursor { position: fixed; left: 0; top: 0; z-index: 70; width: 22px; height: 22px; pointer-events: none; color: rgb(var(--ink-c) / 0.9); opacity: 0; transition: opacity var(--t1) var(--productive), box-shadow var(--t2) var(--productive); overflow: hidden; }
 html[data-cur='1'] .cursor { opacity: 1; }
 .cursor[data-s='over'] { color: rgb(var(--ink-c) / 1); }
@@ -155,7 +168,7 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
 .js .ttl.in .ttl-rule { transition: transform 280ms var(--ease); transform: scaleX(1); }
 .st-use .ttl-rule { background: var(--green); }
 .st-rent .ttl-rule { background: var(--ink3); }
-.st-publish .ttl-rule { background: var(--amber); } /* the rule takes the colour of the targeted slot */
+.st-publish .ttl-rule { background: var(--amber); } /* The rule takes the colour of the targeted slot (Publish targets an amber slot) */
 .st-invalid .ttl-rule { background: var(--red); }
 .js .unfold .row { clip-path: inset(0 0 100% 0); transform: translateY(-4px); transition: clip-path 240ms var(--ease), transform 240ms var(--ease); transition-delay: calc(160ms + var(--j, 0) * 45ms); }
 .js .unfold.in .row { clip-path: inset(-2px -2px -2px -2px); transform: none; }
@@ -192,11 +205,29 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
 /* The text stops before the hero rack, which sits mid-screen */
 .hero .txt { width: min(500px, 36vw); position: static; }
 .pin-proto .txt { width: min(460px, 32vw); }
-.hero { min-height: 100svh; padding-top: calc(var(--hd) + 44px); padding-bottom: 40px; }
+.hero { min-height: 100svh; padding-top: calc(var(--hd) + 58px); padding-bottom: 40px; }
+/* The lighter column breathes: more air under the headline and before the buttons */
 .hero .support { margin-top: 40px; }
-.hero .ctas { margin-top: 52px; }
+.hero .ctas { margin-top: 0; }
+/* the hero actions: the three buttons, then the copilot bar as wide as the three together */
+.hero-acts { display: inline-grid; gap: 8px; margin-top: 52px; max-width: 100%; }
+.hero-cp { width: 0; min-width: 100%; gap: 12px; justify-content: flex-start; } /* as wide as the buttons, never wider */
+/* the copilot bar takes the chat panel's grammar: no fill, a one-pixel rule, data in mono; it lights up like the panel on
+   hover */
+.hero-cp.btn-line { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1px var(--rule2); transition: background var(--t2) var(--productive), box-shadow var(--t2) var(--productive); }
+.hero-cp.btn-line:hover, .hero-cp.btn-line:focus-visible { background: rgb(var(--pan-c) / 0.72); box-shadow: inset 0 0 0 1px var(--ink3); }
+.hero-cp .hero-cp-k { font-family: var(--mono); font-size: 12px; letter-spacing: 0; }
+.hero-cp-t { flex: none; }
+.hero-cp-mk { position: relative; display: inline-block; flex: none; width: 14px; height: 14px; box-shadow: inset 0 0 0 1px currentColor; }
+.hero-cp-mk i { position: absolute; left: 4px; top: 4px; width: 6px; height: 6px; background: var(--arc-elec); }
+.hero-cp-k { min-width: 0; margin-left: auto; padding-left: 16px; color: var(--ink3); font-weight: 400; overflow: hidden; text-overflow: ellipsis; }
+.hero-demo { margin-top: 20px; font-size: 14px; color: var(--ink2); }
+.hero-demo-r { width: 12px; height: 1px; background: currentColor; }
 /* Headline in opposite corners: "Sealed machines," top left, filling the space before the hero rack; "open market."
-   bottom right, over the racks, larger. The size is tuned so "MACHINES," keeps about 40 px of air before the racks */
+   bottom right, over the racks */
+/* Weight 600, larger. The rack bounds the width of "MACHINES," (at 1440 px its left edge is at 565 px): tracking is 0
+   and the size keeps about 40 px of air before the servers. "OPEN MARKET.", over the racks, has room and grows more
+   (x 1.22) */
 .catch { position: static; font-size: clamp(58px, 5.3vw, 100px); line-height: 0.94; font-weight: 600; letter-spacing: 0; }
 .catch .c1 { display: block; max-width: 6.6em; }
 .catch .c2 { display: block; position: absolute; right: var(--gut); bottom: clamp(20px, 3.4vh, 40px); text-align: right; max-width: 6.4em; font-size: 1.22em; }
@@ -212,7 +243,7 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
 .h2.ttl[data-lit='1'] .ttl-m { overflow: visible; }
 .ig-host { position: relative; display: block; }
 .ig { position: relative; display: inline-block; }
-.ig-l { position: absolute; left: calc(-1 * var(--ig-pad, 0.6em)); top: calc(-1 * var(--ig-pad, 0.6em)); padding: var(--ig-pad, 0.6em); white-space: nowrap; opacity: 0; pointer-events: none; will-change: opacity, transform; color: #fff; } /* transform too: the filtered layer is scaled by the compositor instead of being re-filtered every frame */
+.ig-l { position: absolute; left: calc(-1 * var(--ig-pad, 0.6em)); top: calc(-1 * var(--ig-pad, 0.6em)); padding: var(--ig-pad, 0.6em); white-space: nowrap; opacity: 0; pointer-events: none; color: #fff; } /* transform too: the filtered layer is scaled by the compositor instead of being re-filtered every frame; will-change is set by ArcIgnite during the ignition only */
 .arc-w-c { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; } /* zero size before measuring: no layout shift */
 .js .catch .c2 .ttl-t { transition-delay: 420ms; }
 .hero .txt:has(.mirror :focus-visible) .hint-k { display: inline; }
@@ -223,14 +254,16 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
 .mirror button { position: absolute; left: 0; top: 0; width: 24px; height: 24px; }
 /* With the keyboard, the focused slot is framed to the pixel (the button sits on it) */
 .mirror:focus-within { overflow: visible; clip-path: none; }
-.mirror button:focus-visible { position: fixed; outline: 1px solid rgb(143 198 255 / 0.55); outline-offset: 0; z-index: 40; }
+.mirror button:focus-visible { position: fixed; outline: 1px solid rgb(143 198 255 / 0.55); outline-offset: 0; z-index: 40; } /* On a slot, the frame hugs it to the pixel */
 .led { display: inline-block; width: 18px; height: 5px; border-radius: 1px; margin-right: 12px; vertical-align: middle; background: var(--led-off); }
 .led-green { background: var(--green); }
 .led-amber { background: var(--amber); }
 .led-red { background: var(--red); }
 .st { min-height: 150svh; padding-top: 200px; padding-bottom: 0; }
 /* The text of a state section stays put while the camera frames its slot (the 3D never lags behind the text) */
-.st .txt { position: sticky; top: calc(var(--hd) + 14vh); }
+/* every title lands at the same height, the highest one (header + 58 px, as in the pinned pages); each state stop is
+   placed exactly where its block sticks, so the next scroll moves the page, never the block first */
+.st .txt { position: sticky; top: calc(var(--hd) + 58px); }
 .key { margin: 28px 0 0; color: var(--ink); display: flex; align-items: center; flex-wrap: wrap; gap: 4px 0; font-size: 15px; }
 .key-n { margin-left: 16px; color: var(--ink2); }
 .replay { margin: 16px 0 0; color: var(--amber); text-wrap: pretty; }
@@ -261,7 +294,7 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
 .parts-layer svg { position: absolute; inset: 0; }
 .parts-layer path { fill: none; stroke: rgb(var(--ink-c) / 0.72); stroke-width: 1; }
 .parts-layer path.arc { stroke: var(--arc-t); }
-.plab { position: absolute; left: 0; top: 0; height: 24px; display: inline-flex; align-items: center; padding: 0 8px; color: var(--ink); text-shadow: 0 0 6px rgb(var(--pan-c)), 0 0 2px rgb(var(--pan-c));  white-space: nowrap; opacity: 0; transition: opacity var(--t1) var(--productive); }
+.plab { position: absolute; left: 0; top: 0; height: 24px; display: inline-flex; align-items: center; padding: 0 8px; color: var(--ink); text-shadow: 0 0 6px rgb(var(--pan-c)), 0 0 2px rgb(var(--pan-c)); white-space: nowrap; opacity: 0; transition: opacity var(--t1) var(--productive); }
 /* A light veil under the labels, faded at its edges (the rack reads through), never a block */
 .plab-bg { position: absolute; left: 0; top: 0; width: 0; height: 0; background: rgb(var(--pan-c) / 0.7); -webkit-mask-image: linear-gradient(to right, transparent, black 28px, black calc(100% - 28px), transparent), linear-gradient(to bottom, transparent, black 18px, black calc(100% - 18px), transparent); -webkit-mask-composite: source-in; mask-image: linear-gradient(to right, transparent, black 28px, black calc(100% - 28px), transparent), linear-gradient(to bottom, transparent, black 18px, black calc(100% - 18px), transparent); mask-composite: intersect; opacity: 0; transition: opacity var(--t1) var(--productive); }
 .parts-layer circle { fill: var(--ink); opacity: 0; transition: opacity var(--t1) var(--productive); }
@@ -321,7 +354,7 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
 
 /* ---------- end: back to the hero framing; a column in the room, the wall on the right ---------- */
 .end { padding: 0; margin-top: 24svh; }
-.end-in { position: relative; padding: 72px var(--gut) 96px; display: grid; gap: 36px; width: calc(min(460px, 33vw) + 2 * var(--gut)); } 
+.end-in { position: relative; padding: 72px var(--gut) 96px; display: grid; gap: 36px; width: calc(min(460px, 33vw) + 2 * var(--gut)); }
 .end-hd .lede { max-width: 30em; }
 .figs { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; }
 .figs > div { display: grid; gap: 8px; align-content: start; padding-top: 12px; box-shadow: inset 0 1px 0 var(--rule2); }
@@ -372,14 +405,18 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
   .hd-nav, .hd-console { display: none; }
   .menu-btn { display: inline-flex; align-items: center; }
   .band-pay { display: none; }
+  /* Under 1100 px the banner shows the short sentence (one or two lines, never three) */
+  .pause-long { display: none; }
+  .pause-short { display: inline; }
   .txt, .pin-proto .txt { width: min(520px, 46vw); }
+  /* Tablet and phone: the headline stays in one block in the column (over the veil) */
   .catch .c2 { position: static; text-align: left; margin-top: 0; max-width: 6.6em; font-size: 1em; }
   .catch { font-size: 8vw; }
   /* Between 761 and 1100 px the wall passes under the column: a dark veil with a soft edge covers it */
   .veil { display: block; position: absolute; top: 0; bottom: 0; left: 0; width: calc(var(--gut) + min(520px, 46vw) + 56px); background: rgb(var(--bg-c) / 0.9); mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent); }
 }
 @media (max-width: 760px) {
-  :root { --m: 16px; --hd: 84px; --gut: 16px; }
+  :root { --m: 16px; --hd: calc(84px + var(--pause-h, 0px)); --gut: 16px; }
   .veil { display: none; }
   .h1 { font-size: 11.4vw; }
   .catch { font-size: 12.6vw; }
@@ -391,7 +428,9 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
   .hero { padding-top: calc(var(--hd) + 24svh); }
   /* Phone first screen: the headline, one sentence, then the action (thumb reach) */
   .hero .txt { display: flex; flex-direction: column; }
-  .hero .ctas { order: 3; }
+  .hero .hero-acts { order: 3; display: grid; width: 100%; margin-top: 20px; }
+  .hero .hero-acts .ctas { margin-top: 0; }
+  .hero-cp-k { display: none; }
   /* Phone: the checks stay in the step text (the panel fits under the 3D) */
   .pin .checks { display: none; }
   .pin .proto-text .swap { margin-top: 8px; }
@@ -438,6 +477,7 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 1ms !important; animation-duration: 1ms !important; }
 }
+
 
 /* ---------- the cursor square also wraps interactive elements (buttons, links); their own hover rule fades
               when the square frames them (no double outline) ---------- */
@@ -508,3 +548,184 @@ html.svc-open .page, html.svc-open .carrier, html.svc-open .leads, html.svc-open
 /* Footer: the centre of the logo rectangle (without the arrow) on the axis of the neighbouring content, like the header */
 .foot .logo-svg { transform: translateY(calc(-0.13437 * 84px)); }
 @media (max-width: 760px) { .foot .logo-svg { transform: translateY(calc(-0.13437 * 72px)); } }
+
+/* Video landing: during film capture only the canvas shows (the HTML keeps its place: same measurements, same camera) */
+html.tournage body * { visibility: hidden !important; }
+html.tournage .stage, html.tournage .stage canvas { visibility: visible !important; }
+html.tournage .stage .veil { display: none !important; }
+html.tournage, html.tournage body { cursor: none; }
+
+/* Pinned pages on shorter windows (laptops with the browser toolbar): everything of a stop stays on screen, down to the
+   last button of the Arc check. Spacing tightens first, then text sizes, never content. */
+@media (min-width: 761px) and (max-height: 940px) {
+  .pin .steps { margin-top: 18px; }
+  .pin .steps ol { gap: 6px; }
+  .pin .lede { margin-top: 12px; font-size: 16px; line-height: 1.5; }
+  .pin .gate { margin-top: 14px; padding: 12px 14px; gap: 8px; }
+  .pin .verdict { min-height: 2.6em; }
+}
+@media (min-width: 761px) and (max-height: 820px) {
+  .pin-in { padding-bottom: 16px; }
+  .pin .steps li { font-size: 14px; }
+  .pin .lede { font-size: 15px; line-height: 1.45; }
+  .pin .gate .row { gap: 4px; }
+  .pin .verdict p { font-size: 14px; }
+}
+/* very short windows (720 px class): the step list becomes one line showing the current step, as on the phone */
+@media (min-width: 761px) and (max-height: 760px) {
+  .pin .steps { margin: 12px 0 0; padding: 0 0 10px; }
+  .pin .steps-rail { left: 0; right: 0; top: auto; bottom: 0; width: auto; height: 1px; }
+  .pin .steps-bar { transform-origin: 0 50%; transform: scaleX(var(--p, 0)); }
+  .pin .steps ol { display: flex; gap: 12px; align-items: baseline; }
+  .pin .steps li:not(.on) { display: none; }
+}
+@media (min-width: 761px) and (max-height: 760px) {
+  .pin .gate { padding: 10px 12px; gap: 6px; margin-top: 10px; }
+  .pin .verdict { min-height: 0; }
+  .pin .lede { margin-top: 8px; }
+}
+
+/* the title rule sits 14 px under the title: the step list (and its vertical rail) keeps clear of it at every height */
+.pin .ttl + .steps { margin-top: 40px; }
+@media (min-width: 761px) and (max-height: 940px) { .pin .ttl + .steps { margin-top: 34px; } }
+@media (min-width: 761px) and (max-height: 760px) { .pin .ttl + .steps { margin-top: 30px; } }
+
+/* 720 px class windows: the Arc intro paragraph goes (as on the phone) so the check and its button stay on screen */
+@media (min-width: 761px) and (max-height: 760px) { .pin-arc .lede { display: none; } }
+/* the two hero links (demo, catalog) stack, one per line */
+.hero-demo { display: flex; width: max-content; max-width: 100%; }
+.hero-cat { margin-top: 8px; }
+
+/* Arc check: the "change one byte" button sits above the verdict, so a longer verdict (refused) never pushes it off
+   screen; the verdict keeps room for its longest message */
+.pin-arc .gate > .row { order: 0; }
+.pin-arc .gate > .btn { order: 1; }
+.pin-arc .gate > .verdict { order: 2; }
+
+/* Use section: the wall is the catalog (a click on a sled opens it in Network's Use part). The pointer clicks on a
+   loop (press, ring) and the line has the hero links' breathing backlight */
+.st .pick-hint { position: relative; isolation: isolate; display: flex; align-items: center; gap: 12px; width: max-content; max-width: 100%; margin: 18px 0 0; padding: 6px 0; color: var(--arc-light); }
+.st .pick-hint::before { content: ''; position: absolute; left: -11px; top: 50%; width: 40px; height: 40px; margin-top: -20px; z-index: -1; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, color-mix(in srgb, var(--arc-elec) 55%, transparent) 0, color-mix(in srgb, var(--arc-elec) 18%, transparent) 38%, transparent 70%);
+  filter: blur(3px); animation: hero-live 1.8s ease-in-out infinite; }
+.st .pick-hint > span:last-child { animation: live-text 1.8s ease-in-out infinite; }
+.pick-ic { position: relative; flex: none; width: 16px; height: 16px; }
+.pick-ic svg { position: absolute; inset: 0; width: 16px; height: 16px; fill: #fff; transform-origin: 4px 2px; filter: drop-shadow(0 0 5px var(--arc-elec)); animation: pick-press 1.8s cubic-bezier(.3,0,.2,1) infinite; }
+.pick-ring { position: absolute; left: 4px; top: 2px; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; border: 1.5px solid var(--arc-light); opacity: 0; animation: pick-ring 1.8s ease-out infinite; }
+@keyframes pick-press { 0%, 38%, 100% { transform: translate(0, 0) scale(1); } 46% { transform: translate(0.5px, 0.5px) scale(0.84); } 56% { transform: translate(0, 0) scale(1); } }
+@keyframes pick-ring { 0%, 44% { opacity: 0; transform: scale(0.3); } 48% { opacity: 0.95; transform: scale(0.45); } 90%, 100% { opacity: 0; transform: scale(1.5); } }
+@media (prefers-reduced-motion: reduce) { .st .pick-hint::before, .st .pick-hint > span:last-child, .pick-ic svg, .pick-ring { animation: none; } .st .pick-hint::before { opacity: 0.7; } }
+
+/* Hero: the two links read as things to press: an icon, a soft backlight that breathes, the text in ink. They sit
+   with the buttons (a clear gap after the support line, a short one before the buttons) */
+.hero .support { margin-bottom: 0; }
+.hero-live:is(.hero *, .end *) { position: relative; isolation: isolate; align-items: center; gap: 12px; margin-left: 0; padding: 6px 0; font-size: 14px; color: var(--ink); text-decoration: none; }
+.hero-live:is(.hero *, .end *):first-of-type { margin-top: 36px; }
+.hero .hero-cat { margin-top: 6px; }
+.hero-live:is(.hero *, .end *)::before { content: ''; position: absolute; left: -11px; top: 50%; width: 40px; height: 40px; margin-top: -20px; z-index: -1; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, color-mix(in srgb, var(--arc-elec) 55%, transparent) 0, color-mix(in srgb, var(--arc-elec) 18%, transparent) 38%, transparent 70%);
+  filter: blur(3px); animation: hero-live 3.2s ease-in-out infinite; }
+.hero .hero-cat::before { animation-delay: -1.6s; }
+.hero-live:is(.hero *, .end *):hover::before, .hero-live:is(.hero *, .end *):focus-visible::before { animation: none; opacity: 1; }
+.hero-live:is(.hero *, .end *) > span { animation: live-text 3.2s ease-in-out infinite; }
+.hero .hero-cat > span { animation-delay: -1.6s; }
+.hero-live:is(.hero *, .end *):hover > span { text-decoration-color: currentColor; }
+.hero-live:is(.hero *, .end *) > span { text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--ink) 30%, transparent); text-underline-offset: 4px; }
+.hero-ic { flex: none; width: 18px; height: 18px; fill: none; stroke: var(--arc-light, #9cc0ff); stroke-width: 1.4; filter: drop-shadow(0 0 4px var(--arc-elec)); }
+.hero-ic path:not(.hero-ic-led) { fill: var(--arc-light, #9cc0ff); stroke: none; }
+.hero-ic .hero-ic-led { stroke: #fff; stroke-width: 1.6; }
+.hero .hero-acts { margin-top: 28px; }
+@keyframes hero-live { 0%, 100% { opacity: 0.35; transform: scale(0.85); } 50% { opacity: 1; transform: scale(1.1); } }
+@keyframes live-text { 0%, 100% { text-shadow: 0 0 0 transparent; } 50% { text-shadow: 0 0 10px color-mix(in srgb, var(--arc-elec) 55%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .hero-live:is(.hero *, .end *)::before, .hero-live:is(.hero *, .end *) > span { animation: none; } .hero-live:is(.hero *, .end *)::before { opacity: 0.7; } }
+
+/* Page transitions (ui/veil.ts): a veil in the page colour from the first paint, lifted once the page is ready, back
+   down before leaving. Without JS it lifts on its own after a moment */
+/* the veil never covers the header (design/MOTION.md, M9): it starts under it, so the header and its loading bar stay
+   on screen from page to page */
+body::after { content: ''; position: fixed; inset: 0; top: var(--hd, 86px); z-index: 2147483000; background: var(--bg, #020306); pointer-events: none; opacity: 1; animation: veil-auto 360ms ease 1.2s forwards; }
+html.veil-js body::after { animation: none; }
+html.veil-off body::after { opacity: 0; transition: opacity 420ms cubic-bezier(.2,0,.2,1); }
+html.veil-on body::after { opacity: 1; transition: opacity 220ms cubic-bezier(.4,0,1,1); }
+html.veil-none body::after { display: none; }
+@keyframes veil-auto { to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { html.veil-off body::after, html.veil-on body::after { transition-duration: 1ms; } }
+
+/* End: every title lands under the header like the others. The closing block is tall enough for its title to reach
+   that line (viewport minus the header, the 58 px gap and the footer); on short screens the proof chain tightens so
+   the figures stay in view under its title */
+@media (min-width: 761px) {
+  .end-hd { min-height: calc(100svh - 85px - 58px - 168px - 96px); align-content: start; } /* 96: .end-in bottom padding */
+}
+@media (min-width: 761px) and (max-height: 860px) {
+  .chain ol { margin-top: 24px; gap: 8px; }
+  .end-in { gap: 24px; }
+  .chain-note { margin-top: 8px; }
+}
+@media (min-width: 761px) and (max-height: 720px) {
+  .chain-note { display: none; }
+  .chain ol { margin-top: 16px; gap: 4px; }
+  .figs { gap: 10px 24px; }
+}
+/* animated icons: the play mark nudges forward, the ring draws round; the sled stack lights its LEDs in turn */
+.hero-ic-play { transform-box: fill-box; transform-origin: center; animation: ic-play 3.2s ease-in-out infinite; }
+.hero-ic-ring { stroke-dasharray: 40 14; animation: ic-ring 3.2s linear infinite; transform-origin: 10px 10px; }
+.hero-ic .hero-ic-led { stroke: rgb(255 255 255 / 0.25); animation: ic-led 2.4s steps(1) infinite; }
+.hero-ic .l2 { animation-delay: 0.8s; } .hero-ic .l3 { animation-delay: 1.6s; }
+@keyframes ic-play { 0%, 60%, 100% { transform: translateX(0); } 70% { transform: translateX(1.4px); } 80% { transform: translateX(0); } }
+@keyframes ic-ring { to { transform: rotate(360deg); } }
+@keyframes ic-led { 0% { stroke: #fff; filter: drop-shadow(0 0 2px var(--arc-elec)); } 33% { stroke: rgb(255 255 255 / 0.25); filter: none; } }
+@media (prefers-reduced-motion: reduce) { .hero-ic-play, .hero-ic-ring, .hero-ic .hero-ic-led { animation: none; } .hero-ic .hero-ic-led { stroke: #fff; } }
+
+/* Reading blur behind the left text columns (landing): no colour, only the film behind softly out of focus, the blur
+   fading out to the right and at both ends so it never shows an edge; it breathes slowly (opacity and a few px of
+   drift, on the compositor). Each column is its own stacking context (isolation) and the layer sits at its back
+   (z -1): above the film, under the text, without touching the children's positions */
+@media (min-width: 761px) {
+  html.film-page .txt, html.film-page .end-in { isolation: isolate; }
+  html.film-page .txt::before, html.film-page .end-in::before { content: ''; position: absolute; z-index: -1; pointer-events: none;
+    top: -72px; bottom: -72px; left: calc(-1 * var(--gut)); right: -160px;
+    -webkit-backdrop-filter: blur(9px); backdrop-filter: blur(9px);
+    -webkit-mask-image: linear-gradient(to right, #000 0, #000 52%, rgb(0 0 0 / 0.55) 74%, transparent 100%), linear-gradient(to bottom, transparent 0, #000 72px, #000 calc(100% - 72px), transparent 100%);
+    -webkit-mask-composite: source-in; mask-image: linear-gradient(to right, #000 0, #000 52%, rgb(0 0 0 / 0.55) 74%, transparent 100%), linear-gradient(to bottom, transparent 0, #000 72px, #000 calc(100% - 72px), transparent 100%); mask-composite: intersect;
+    animation: read-blur 11s ease-in-out infinite alternate; }
+  /* the hero column is static (its second title is placed on the section): the layer spans the section's left side */
+  html.film-page .hero .txt::before { top: 0; bottom: 0; left: 0; right: auto; width: calc(var(--gut) + min(500px, 36vw) + 160px); }
+  html.film-page .end-in::before { left: 0; right: -160px; top: 0; bottom: 0; }
+}
+@keyframes read-blur { from { opacity: 0.82; transform: translateX(-6px); } to { opacity: 1; transform: translateX(6px); } }
+@media (prefers-reduced-motion: reduce) { html.film-page .txt::before, html.film-page .end-in::before { animation: none; } }
+
+/* Motion rule M1 (ui/motion.ts, design/MOTION.md): from page to page the header never moves. A cross-document view
+   transition keeps it in place (its new state replaces the old at once); the old page fades out in 140 ms (M3) and
+   the new one's content arrives block by block (M2, ui/motion.ts reveal). */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition { navigation: auto; }
+  .hd { view-transition-name: site-hd; }
+  ::view-transition-group(site-hd), ::view-transition-old(site-hd), ::view-transition-new(site-hd) { animation: none; }
+  ::view-transition-old(site-hd) { display: none; }
+  ::view-transition-old(root) { animation: 140ms cubic-bezier(.22, 1, .36, 1) both vt-page-out; }
+  ::view-transition-new(root) { animation: none; }
+}
+@keyframes vt-page-out { to { opacity: 0; } }
+
+
+/* The landing's live calls are shared by the first screen and the last section (the replayed demo) */
+.end .hero-live.end-demo { margin-top: 32px; }
+
+/* Invitation to scroll (Hero.tsx): a 1 px rule where a short Arc segment runs down, and a mono label; it fades out
+   once the page has moved */
+.scroll-cue { position: absolute; left: var(--gut); bottom: 32px; z-index: 3; display: flex; align-items: center; gap: 12px; color: var(--ink3); pointer-events: none; transition: opacity 420ms var(--productive); }
+.scroll-cue[data-on='0'] { opacity: 0; }
+.scroll-cue-l { position: relative; width: 1px; height: 40px; overflow: hidden; background: rgb(var(--ink-c) / 0.16); }
+.scroll-cue-l i { position: absolute; left: 0; top: 0; width: 1px; height: 14px; background: var(--arc-light, #9cc0ff); box-shadow: 0 0 6px var(--arc-elec); animation: scroll-cue 2.4s cubic-bezier(.65, 0, .35, 1) infinite; }
+.scroll-cue-t { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; }
+@keyframes scroll-cue { 0% { transform: translateY(-14px); opacity: 0; } 15% { opacity: 1; } 70% { transform: translateY(40px); opacity: 1; } 71%, 100% { transform: translateY(40px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .scroll-cue-l i { animation: none; transform: translateY(13px); } }
+@media (max-width: 760px) { .scroll-cue { display: none; } }
+
+/* AskHive's mark (copilot/AskHiveMark.tsx), used by the hero bar and the copilot */
+.ah-mark { flex: none; display: inline-block; overflow: visible; color: currentColor; }
+/* the eyes: the right one Arc blue (the logo's diode), the left one the amber of the site's LEDs, both lit */
+.ah-mark .ah-eye-b { fill: #eaf4ff; filter: drop-shadow(0 0 2px #4a86ff) drop-shadow(0 0 5px #3a6bff); }
+.ah-mark .ah-eye-a { fill: #fff1e0; filter: drop-shadow(0 0 2px #ff7a24) drop-shadow(0 0 5px #c4400c); }

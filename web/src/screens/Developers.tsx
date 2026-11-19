@@ -3,15 +3,12 @@ import { API_URL, ATTESTED_COPILOT, ENCLAVE_URL, X402_URL } from "../config";
 import { DCAP, INFERENCE_PRODUCT, X402_PRODUCT } from "../arc";
 import { PageHeader, Section, Table, Td, Hex } from "../ui";
 import { getLang, t, tx, type StaticKey } from "../i18n";
-import type { LevelsView } from "../api";
-import { useLevels } from "./Levels";
 
 const ENDPOINTS: Array<[string, StaticKey]> = [
   ["/stats", "dev.ep.stats"],
   ["/proof", "dev.ep.proof"],
   ["/activity?limit=25", "dev.ep.activity"],
   ["/enclaves", "dev.ep.enclaves"],
-  ["/levels", "dev.ep.levels"],
   ["/products", "dev.ep.products"],
   ["/bounties", "dev.ep.bounties"],
   [`/pricing?productId=${INFERENCE_PRODUCT}&units=1000`, "dev.ep.pricing"],
@@ -28,15 +25,6 @@ const CONTRACTS: Array<[string, string, StaticKey]> = [
   ["SealedBounty", testnet.sealedBounty, "dev.c.bounty"],
   ["VerdictLog", testnet.verdictLog, "dev.c.verdict"],
   ["DemoVault", testnet.demoVault, "dev.c.vault"],
-];
-
-/** 16/11 : les contrats des deux niveaux d'opérateur ; leurs adresses viennent de GET /levels. */
-const LEVEL_CONTRACTS: Array<[string, keyof NonNullable<LevelsView["contracts"]>, StaticKey]> = [
-  ["MachineRegistry", "machineRegistry", "dev.c.machines"],
-  ["ProofOfCloudAuditor", "proofOfCloudAuditor", "dev.c.poc"],
-  ["Ed25519Verifier", "ed25519Verifier", "dev.c.ed25519"],
-  ["PolicyEnclaves", "policyEnclaves", "dev.c.policy"],
-  ["SealedBountyVerified", "sealedBountyVerified", "dev.c.bountyVerified"],
 ];
 
 const ROUTES: Array<[string, string, StaticKey]> = [
@@ -56,7 +44,6 @@ function Code({ children }: { children: string }) {
 
 export default function Developers() {
   const api = API_URL.replace(/\/$/, "");
-  const levels = useLevels();
   return (
     <>
       <PageHeader title={t("dev.title")} lead={t("dev.lead")} />
@@ -141,16 +128,6 @@ if (r.authenticated) {
         </Section>
       </div>
       <Section title={t("dev.mcp.title")} lead={t("dev.mcp.lead")}>
-        {/* 16/11 : le serveur MCP est en ligne (Streamable HTTP, sans état) : d'abord l'adresse, puis la variante locale */}
-        <Code>{`{
-  "mcpServers": {
-    "archive": { "url": "https://archive.62-171-153-35.sslip.io/mcp" }
-  }
-}
-
-# Claude Code
-claude mcp add --transport http archive https://archive.62-171-153-35.sslip.io/mcp`}</Code>
-        <p className="mt-3 text-[13px] text-muted">{t("dev.mcp.local")}</p>
         <Code>{`{
   "mcpServers": {
     "archive": {
@@ -164,7 +141,6 @@ claude mcp add --transport http archive https://archive.62-171-153-35.sslip.io/m
       <Section title={t("dev.contracts.title")} lead={t("dev.contracts.lead")}>
         <Table stack="sm" head={[t("dev.contracts.h.contract"), t("dev.contracts.h.address"), t("dev.contracts.h.role")]}>
           {CONTRACTS.map(([n, a, r]) => <tr key={n}><Td main className="font-medium">{n}</Td><Td label={t("dev.contracts.h.address")}><Hex value={a} n={6} /></Td><Td label={t("dev.contracts.h.role")} wrap className="text-muted">{t(r)}</Td></tr>)}
-          {levels?.contracts && LEVEL_CONTRACTS.map(([n, k, r]) => <tr key={n}><Td main className="font-medium">{n}</Td><Td label={t("dev.contracts.h.address")}><Hex value={levels.contracts![k]} n={6} /></Td><Td label={t("dev.contracts.h.role")} wrap className="text-muted">{t(r)}</Td></tr>)}
         </Table>
       </Section>
       <Section title={t("dev.enclave.title")} lead={t("dev.enclave.lead")}>

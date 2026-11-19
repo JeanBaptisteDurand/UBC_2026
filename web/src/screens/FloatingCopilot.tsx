@@ -11,7 +11,7 @@
  *  le repli VISIBLE sur le copilote du serveur (bandeau, étiquette de chaque réponse). La question qui a échoué n'est
  *  jamais renvoyée au serveur sans un clic, et le serveur ne reçoit jamais la partie attestée de la conversation.
  *  Les actions à signer proposées par l'un ou l'autre passent par la carte de vérification (CopilotActions.tsx). */
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAccount, usePublicClient } from "wagmi";
 import { ExternalLink, Loader2, RotateCcw, ShieldCheck } from "lucide-react";
 import type { Address, Hex } from "viem";
@@ -82,21 +82,6 @@ const serverText = (s: string): string => {
   const x = stripCitations(s);
   return getLang() === "en" ? toEnglish(x) : x;
 };
-
-/** 16/11 : le gras (**…**) et le code (`…`) des réponses, rendus au lieu d'afficher les astérisques et les accents graves
- *  bruts (le reste du texte, retours à la ligne compris, reste tel quel : jamais de HTML venu du modèle). */
-function rich(s: string): ReactNode[] {
-  const out: ReactNode[] = [];
-  const re = /\*\*([^*\n]+)\*\*|`([^`\n]+)`/g;
-  let last = 0, k = 0;
-  for (let m = re.exec(s); m; m = re.exec(s)) {
-    if (m.index > last) out.push(s.slice(last, m.index));
-    out.push(m[1] !== undefined ? <strong key={k++}>{m[1]}</strong> : <code key={k++} className="rounded bg-ink/40 px-1 font-mono text-[12px]">{m[2]}</code>);
-    last = re.lastIndex;
-  }
-  if (last < s.length) out.push(s.slice(last));
-  return out;
-}
 
 /** Un fetch qui n'a pas eu de réponse (hors ligne, DNS, CORS, serveur arrêté), ou qui a dépassé son délai. */
 const isNetwork = (e: any) => /^(Failed to fetch|Load failed|NetworkError|fetch failed|Network request failed)/i.test(String(e?.message ?? ""));
@@ -395,7 +380,7 @@ export default function FloatingCopilot({ onNavigate, open, setOpen }: { onNavig
         {msgs.map((m, i) => (
           <div key={i} className={m.role === "user" ? "text-right" : ""}>
             <div className={`inline-block max-w-[88%] whitespace-pre-wrap rounded-xl px-3 py-2 text-left text-sm [overflow-wrap:anywhere] ${m.role === "user" ? "bg-accent/20" : m.local ? "bg-warn/10 text-warn" : "bg-edge"}`}>
-              {m.role === "user" ? m.content : m.note ? show(m.note) : rich(serverText(m.content))}
+              {m.role === "user" ? m.content : m.note ? show(m.note) : serverText(m.content)}
             </div>
             {/* d'où vient la réponse : le badge SEULEMENT pour une réponse scellée par l'enclave vérifiée */}
             {m.role === "assistant" && !m.local && m.sealedBy && <div className="mt-1"><SealedBadge by={m.sealedBy} /></div>}

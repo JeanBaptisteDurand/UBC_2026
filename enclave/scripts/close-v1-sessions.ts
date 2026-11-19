@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import { createPublicClient, createWalletClient, http, parseAbi, formatUnits, type Hex, type Address } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-const V1: Address = "0x1111111111111111111111111111111111111111";
+const V1: Address = "0xED501a02a14048118F2ecC21f25D6993707641c7";
 const abi = parseAbi([
   "struct Session { address owner; uint256 productId; address operator; address sessionKey; uint256 deposit; uint256 cap; uint128 paidUnits; uint256 paid; uint64 expiresAt; bool closed; }",
   "function getSession(uint256 id) view returns (Session)", "function sessionCount() view returns (uint256)", "function closeSession(uint256 sessionId)",
