@@ -99,7 +99,7 @@ export function ConnectStep({ part, el, k, active, demo, copilot }: { part: Part
   // no wallet on a touch screen: the way forward stays in the step (the header popover also offers the wallet apps)
   const note: Note = s.phase === 'connected' && s.chainId !== ARC_ID ? { tone: 'bad', text: w('e.wrongNet') }
     : onArc(s) && s.address ? { tone: 'ok', text: w('s1.ok', { addr: short(s.address, 4) }) }
-      : s.phase === 'none' && onPhone() ? { tone: 'muted', text: w('w.nonePhone'), href: `${import.meta.env.BASE_URL}demo.html`, hrefLabel: w('show.play') }
+      : s.phase === 'none' && onPhone() ? { tone: 'muted', text: w('w.nonePhone'), href: `${import.meta.env.BASE_URL}network.html?focus=demo`, hrefLabel: w('show.play') }
         : { tone: 'muted', text: s.note?.text ?? w('s1.need') }
   return <Step n={1} part={part} el={el} st={connectSt(s)} t={w(`${k}.s1` as WKey)} d={w(`${k}.s1d` as WKey)} note={note} active={active} copilot={copilot} />
 }

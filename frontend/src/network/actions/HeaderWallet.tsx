@@ -74,7 +74,7 @@ export function HeaderWallet() {
             <div className="hd-w-apps">
               <a className="btn btn-main btn-s" href={`https://metamask.app.link/dapp/${location.host}${location.pathname}${location.search}`}><span>{w('w.openIn', { app: 'MetaMask' })}</span></a>
               <a className="btn btn-line btn-s" href={`https://go.cb-w.com/dapp?cb_url=${encodeURIComponent(location.href)}`}><span>{w('w.openIn', { app: 'Coinbase Wallet' })}</span></a>
-              <a className="btn btn-line btn-s" href={`${import.meta.env.BASE_URL}demo.html`}><span>{w('show.play')}</span></a>
+              <a className="btn btn-line btn-s" href={`${import.meta.env.BASE_URL}network.html?focus=demo`}><span>{w('show.play')}</span></a>
             </div>
           ) : null}
           {connected || (s.phase !== 'pick' && !phone) ? (
@@ -84,7 +84,7 @@ export function HeaderWallet() {
               {connected ? <button type="button" className="tlink wb-off" onClick={() => { E?.disconnect(); setOpen(false) }}>{w('w.disconnect')}</button> : null}
               {!connected ? <button type="button" className="btn btn-main btn-s" onClick={begin}><span>{w('w.connect')}</span></button> : null}
               {/* no wallet in this browser: the demo needs none */}
-              {s.phase === 'none' ? <a className="btn btn-line btn-s" href={`${import.meta.env.BASE_URL}demo.html`}><span>{w('show.play')}</span></a> : null}
+              {s.phase === 'none' ? <a className="btn btn-line btn-s" href={`${import.meta.env.BASE_URL}network.html?focus=demo`}><span>{w('show.play')}</span></a> : null}
             </div>
           ) : null}
           {!connected ? <p className="lbl muted wb-who">{w('w.who')}</p> : null}
