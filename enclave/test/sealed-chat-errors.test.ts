@@ -1,9 +1,10 @@
 /**
- * sealed-chat — erreurs du modèle amont et erreurs internes (point du vérificateur du 9/11) : avant, server.ts levait
- * `redpill ${status}: ${corps}` et le gestionnaire par défaut de Hono journalisait cette erreur ; un fournisseur qui
- * recopie la clé reçue dans son erreur 401 la faisait ainsi passer dans les journaux de la CVM.
- * Ici : le corps de l'erreur amont n'est jamais lu (model.ts) ; l'application répond un message générique avec un code
- * (onError) ; le journal ne porte qu'un code et un nom d'erreur ; aucun reçu n'est signé et le même seq reste rejouable.
+ * sealed-chat — upstream model errors and internal errors (a reviewer's finding of 9 Nov 2026): server.ts used to throw
+ * `redpill ${status}: ${body}` and Hono's default handler logged that error, so a provider that echoes the received key
+ * in its 401 error could get it into the CVM's logs.
+ * Now: the upstream error's body is never read (model.ts); the app answers a generic message with a code (onError); the
+ * log carries only a code and an error name; no receipt is signed and the same seq can be replayed.
+ * Messages that the enclave image prints are matched as it prints them.
  */
 import { afterEach, describe, it, expect, vi } from "vitest";
 import { type Address, type Hex, toBytes } from "viem";
@@ -24,14 +25,14 @@ const KIT = new EnclaveKit({ productId: 1n, chainId: CHAIN, registry: "0x0000000
 
 afterEach(() => vi.restoreAllMocks());
 
-/** Un amont qui recopie la clé reçue dans son erreur ; le corps ne se lit qu'à la demande (pull compté). */
+/** An upstream that echoes the received key in its error; the body is read only on demand (pulls counted). */
 function leakyUpstream(status = 401) {
   const seen = { calls: 0, pulled: 0, cancelled: 0, ok: false };
   const f: typeof fetch = async (_url, init) => {
     seen.calls++;
     const auth = String((init?.headers as Record<string, string>)?.authorization ?? "");
     if (seen.ok) {
-      return Response.json({ choices: [{ message: { content: "réponse du modèle" } }], usage: { prompt_tokens: 7, completion_tokens: 3 } });
+      return Response.json({ choices: [{ message: { content: "model answer" } }], usage: { prompt_tokens: 7, completion_tokens: 3 } });
     }
     const body = new ReadableStream<Uint8Array>(
       {
@@ -42,7 +43,7 @@ function leakyUpstream(status = 401) {
         },
         cancel() { seen.cancelled++; },
       },
-      { highWaterMark: 0 }, // rien n'est tiré tant que personne ne lit
+      { highWaterMark: 0 }, // nothing is pulled until someone reads
     );
     return new Response(body, { status, headers: { "content-type": "application/json" } });
   };
@@ -82,8 +83,8 @@ function harness(o: { log?: (m: string) => void; reader?: SessionReader } = {}) 
   return { app, chat, up, gw };
 }
 
-describe("sealed-chat : erreurs du modèle amont et erreurs internes (9/11)", () => {
-  it("model.ts : une erreur amont ne remonte que son statut ; le corps (qui recopie la clé) n'est jamais lu, il est abandonné", async () => {
+describe("sealed-chat: upstream model errors and internal errors", () => {
+  it("model.ts: an upstream error reports only its status; the body (which echoes the key) is never read, it is cancelled", async () => {
     const up = leakyUpstream(401);
     const llama = createRedpillLlama({ baseUrl: "https://api.redpill.example/v1/", model: "m", apiKey: KEY, fetch: up.f });
     const err = await llama.infer("bonjour", {}).catch((e: unknown) => e);
@@ -91,14 +92,14 @@ describe("sealed-chat : erreurs du modèle amont et erreurs internes (9/11)", ()
     expect((err as UpstreamModelError).message).toBe("modèle amont : HTTP 401");
     expect((err as UpstreamModelError).upstreamStatus).toBe(401);
     expect(JSON.stringify(err) + String(err) + (err as Error).stack).not.toContain("SECRET");
-    expect(up.seen.pulled).toBe(0); // jamais lu
-    expect(up.seen.cancelled).toBe(1); // abandonné
+    expect(up.seen.pulled).toBe(0); // never read
+    expect(up.seen.cancelled).toBe(1); // cancelled
   });
 
-  it("app : 502 upstream_model, message générique ; ni la clé ni le corps amont au client ou au journal ; aucun reçu, le même seq repasse", async () => {
+  it("app: 502 upstream_model, generic message; neither the key nor the upstream body reaches the client or the log; no receipt, the same seq goes through again", async () => {
     const logs: string[] = [];
     const h = harness({ log: (m) => logs.push(m) });
-    const res = await h.chat(1n, "question privée");
+    const res = await h.chat(1n, "private question");
     expect(res.status).toBe(502);
     const raw = await res.text();
     expect(JSON.parse(raw)).toEqual({
@@ -109,19 +110,19 @@ describe("sealed-chat : erreurs du modèle amont et erreurs internes (9/11)", ()
     for (const out of [raw, logs.join("\n")]) {
       expect(out).not.toContain("SECRET");
       expect(out).not.toMatch(/Invalid API key/i);
-      expect(out).not.toContain("question privée");
+      expect(out).not.toContain("private question");
     }
     expect(logs).toEqual(["[sealed-chat] upstream_model : HTTP 401"]);
     expect(h.up.seen.pulled).toBe(0);
-    expect(h.gw.lastReceipt(1n)).toBeUndefined(); // aucun reçu signé
-    // l'amont revient : la MÊME requête (même seq) est servie et facturée normalement
+    expect(h.gw.lastReceipt(1n)).toBeUndefined(); // no receipt signed
+    // the upstream is back: the same request (same seq) is served and billed normally
     h.up.seen.ok = true;
-    const again = await h.chat(1n, "question privée");
+    const again = await h.chat(1n, "private question");
     expect(again.status).toBe(200);
     expect(h.gw.lastReceipt(1n)?.receipt.seq).toBe(1n);
   });
 
-  it("sans journal fourni : console.error ne reçoit que le code (plus le gestionnaire par défaut de Hono, qui imprimait l'erreur)", async () => {
+  it("with no logger given: console.error receives only the code (Hono's default handler, which printed the error, is no longer used)", async () => {
     const printed: string[] = [];
     vi.spyOn(console, "error").mockImplementation((...a: unknown[]) => { printed.push(a.map((x) => (x instanceof Error ? `${x.message} ${x.stack}` : String(x))).join(" ")); });
     const h = harness();
@@ -129,7 +130,7 @@ describe("sealed-chat : erreurs du modèle amont et erreurs internes (9/11)", ()
     expect(printed).toEqual(["[sealed-chat] upstream_model : HTTP 401"]);
   });
 
-  it("erreur interne (lecture on-chain en panne, message avec une URL de RPC à clé) : 500 internal_error, journal sans le message", async () => {
+  it("internal error (on-chain read down, a message with a keyed RPC URL): 500 internal_error, log without the message", async () => {
     const logs: string[] = [];
     const reader: SessionReader = { getSession: async () => { throw new Error("HTTP request failed. URL: https://rpc.example/v2/RPC-KEY-SECRET-42"); } };
     const h = harness({ log: (m) => logs.push(m), reader });
@@ -138,6 +139,6 @@ describe("sealed-chat : erreurs du modèle amont et erreurs internes (9/11)", ()
       expect(await res.json()).toEqual({ error: "erreur interne de l'enclave", code: "internal_error" });
     }
     expect(logs).toEqual(["[sealed-chat] internal_error : Error", "[sealed-chat] internal_error : Error"]);
-    expect(h.up.seen.calls).toBe(0); // le modèle n'a jamais été appelé
+    expect(h.up.seen.calls).toBe(0); // the model was never called
   });
 });
