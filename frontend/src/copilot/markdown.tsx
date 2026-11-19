@@ -1,11 +1,15 @@
 // Lightweight markdown for copilot responses, rendered as React elements (never injected HTML): paragraphs, lists,
-// headings, code blocks, bold, italic, inline code, links (http, https or site path), addresses to the Arc explorer.
+// headings, code blocks, tables, bold, italic, inline code, links (http, https or site path), addresses to the Arc explorer.
 // Long hexadecimal values are shortened (the only place where an ellipsis appears).
 import { useState, type ReactNode } from 'react'
 import { addrUrl } from './wallet'
 import { ct } from './strings'
 
-type Block = { t: 'p'; text: string } | { t: 'h'; text: string } | { t: 'ul' | 'ol'; items: string[] } | { t: 'code'; text: string }
+type Block = { t: 'p'; text: string } | { t: 'h'; text: string } | { t: 'ul' | 'ol'; items: string[] } | { t: 'code'; text: string } | { t: 'table'; head?: string[]; rows: string[][] }
+
+/** A table row's cells: the outer pipes dropped, an escaped pipe (\|) kept in its cell */
+const cells = (row: string) => row.trim().replace(/^\|/, '').replace(/\|$/, '').replace(/\\\|/g, '\u0001').split('|').map((c) => c.split('\u0001').join('|').trim())
+const isRule = (row: string) => /^\s*\|?[\s:|-]+\|?\s*$/.test(row) && row.includes('-')
 
 function blocks(src: string): Block[] {
   const out: Block[] = []
@@ -22,12 +26,18 @@ function blocks(src: string): Block[] {
       continue
     }
     if (/^\s*\|.*\|\s*$/.test(l)) {
-      // a table: kept as a monospace block (readable, no grid to rebuild)
+      // a table: a real grid, its first row the head when a rule line (|---|---|) follows it
       flush()
-      const rows: string[] = []
-      for (; i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i]!); i++) if (!/^\s*\|[\s:|-]+\|\s*$/.test(lines[i]!)) rows.push(lines[i]!.trim())
+      const raw: string[] = []
+      for (; i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i]!); i++) raw.push(lines[i]!)
       i--
-      out.push({ t: 'code', text: rows.join('\n') })
+      const hasHead = raw.length > 1 && isRule(raw[1]!)
+      const rows = raw.filter((r) => !isRule(r)).map(cells)
+      if (!rows.length) continue
+      const head = hasHead ? rows.shift() : undefined
+      const n = Math.max(head?.length ?? 0, ...rows.map((r) => r.length))
+      const pad = (r: string[]) => (r.length < n ? [...r, ...Array<string>(n - r.length).fill('')] : r)
+      out.push({ t: 'table', ...(head ? { head: pad(head) } : {}), rows: rows.map(pad) })
       continue
     }
     const h = /^\s{0,3}#{1,6}\s+(.*)$/.exec(l)
@@ -99,6 +109,15 @@ export function Markdown({ text }: { text: string }) {
       {blocks(text).map((b, i) => {
         if (b.t === 'code') return <Code key={i} text={b.text} />
         if (b.t === 'h') return <p key={i} className="cp-md-h">{inline(b.text)}</p>
+        if (b.t === 'table') return (
+          // its own scroll box: a wide table scrolls sideways inside the answer, never the panel
+          <div key={i} className="cp-tbl" tabIndex={0} role="region" aria-label={ct('table')}>
+            <table>
+              {b.head ? <thead><tr>{b.head.map((c, j) => <th key={j} scope="col">{inline(c)}</th>)}</tr></thead> : null}
+              <tbody>{b.rows.map((r, j) => <tr key={j}>{r.map((c, k) => <td key={k}>{inline(c)}</td>)}</tr>)}</tbody>
+            </table>
+          </div>
+        )
         if ('items' in b) { const L = b.t === 'ol' ? 'ol' : 'ul'; return <L key={i}>{b.items.map((x, j) => <li key={j}>{inline(x)}</li>)}</L> }
         return <p key={i}>{b.text.split('\n').map((l: string, j: number, a: string[]) => <span key={j}>{inline(l)}{j < a.length - 1 ? <br /> : null}</span>)}</p>
       })}
