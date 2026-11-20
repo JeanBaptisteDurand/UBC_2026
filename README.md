@@ -470,8 +470,8 @@ a session. An attestation proves which code ran, not that an AI answer is right,
   plan is a 2-of-3 multisig and 48-hour timelocks.
 - **The treasury is the deployer's address on testnet**, so the network's share of every payment and the victimless
   half of a slash go back to that same key.
-- **No state proofs yet.** A bounty replay reads Arc's state through a strict relay that re-hashes every block header.
-  Per-read state proofs (`eth_getProof`) are implemented and tested, and turn on once an Arc RPC serves historical
+- **State proofs.** A bounty replay reads Arc's state through a strict relay that re-hashes every block header.
+  Per-read `eth_getProof` proofs are implemented and tested; they turn on with an Arc RPC that serves historical
   proofs.
 - **Scope.** Arc testnet only; 253 Foundry tests and three adversarial reviews by us (no third-party audit), and every payment so far came from our own wallets.
 

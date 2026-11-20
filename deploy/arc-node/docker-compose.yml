@@ -40,8 +40,8 @@ services:
       - download
       - --chain=arc-testnet
       # MINIMAL profile (state + headers + a small buffer): the full profile (about 270 GB with the consensus layer) does
-      # not fit a 290 GB disk (measured: stopped by the guard at 14 GB free). Snapshot pinned to the same one Arc published
-      # (10 Nov, 16:20 UTC), so its 120 GB are not downloaded again.
+      # not fit a 290 GB disk (measured: stopped by the guard at 14 GB free). Snapshot pinned to the one Arc published, so
+      # its 120 GB are not downloaded again.
       - --el-profile=minimal
       - --execution-url=https://snapshots.arc.network/api/download/testnet/storage-v2/archive/71734683-20261110T1620Z/execution/manifest.json
       - --consensus-url=https://snapshots.arc.network/api/download/testnet/storage-v2/archive/71734683-20261110T1620Z/consensus.tar.lz4
