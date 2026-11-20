@@ -68,7 +68,7 @@ export class People {
     this.skins = this.poses.map((_, n) => {
       const root = skClone(src); root.updateMatrixWorld(true)
       const bones = BONES.map(([nm]) => root.getObjectByName(nm) as THREE.Bone)
-      if (bones.some((b) => !b)) throw new Error('os manquant')
+      if (bones.some((b) => !b)) throw new Error('missing bone')
       const rig = bones[0].parent!, rigW = rig.matrixWorld.clone(), rigQ = new THREE.Quaternion().setFromRotationMatrix(rigW)
       if (n === 0) BONES.forEach(([, a, b], i) => {
         // (clone: sub would modify the shared joint, and the next bone of the chain would start from a wrong point)
