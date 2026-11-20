@@ -121,9 +121,9 @@ test("anti-rebinding: the host is resolved ONCE and the connection goes to the c
   const res = await safeFetch(`${base}/pubkeys`, {}, { resolve, isAllowed: () => true, timeoutMs: 5_000 });
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { signer: "0x01", x25519: "0x02" });
-  assert.equal(calls, 1, "une seule résolution DNS");
+  assert.equal(calls, 1, "a single DNS resolution");
   assert.equal(seen.length, 1);
-  assert.equal(seen[0]!.host, `rebind.test:${port}`, "le nom d'hôte est gardé dans Host");
+  assert.equal(seen[0]!.host, `rebind.test:${port}`, "the host name is kept in Host");
   // POST : corps et Content-Length transmis
   seen.length = 0;
   const p = await safeFetch(`${base}/attest`, { method: "POST", headers: { "content-type": "application/json" }, body: '{"operator":"0xabc"}' }, { resolve: async () => [{ address: "127.0.0.1", family: 4 }], isAllowed: () => true });
@@ -155,8 +155,8 @@ test("anti-rebinding: a public then a private answer → only the public one is 
   assert.equal(res.status, 200);
   assert.equal(calls, 1);
   assert.deepEqual(lookedUp, [{ address: "93.184.216.34", family: 4 }]);
-  assert.equal(captured.servername, "evil.example", "le certificat TLS reste vérifié pour le nom d'hôte");
-  assert.equal(captured.agent, false, "pas d'agent partagé : pas de connexion réutilisée vers une autre adresse");
+  assert.equal(captured.servername, "evil.example", "the TLS certificate stays verified for the host name");
+  assert.equal(captured.agent, false, "no shared agent: no connection reused toward another address");
   // and when the only resolution is private: refused, no connection
   captured = null;
   await assert.rejects(safeFetch("https://evil.example/pubkeys", {}, { resolve: async () => [{ address: "127.0.0.1", family: 4 }], request }), BlockedUrlError);

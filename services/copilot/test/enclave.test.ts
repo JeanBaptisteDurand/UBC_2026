@@ -134,7 +134,7 @@ test("encrypted round trip: the model reads the question, the client reads the r
   const sent = h.llm.calls[0]!.messages;
   assert.equal(sent.at(-1)!.content, SECRET_Q);
   const sys = String(sent[0]!.content);
-  assert.ok(sys.includes(OWNER), "wallet connecté transmis");
+  assert.ok(sys.includes(OWNER), "connected wallet passed on");
   assert.match(sys, /arrivée CHIFFRÉE \(HPKE\)/);
   assert.ok(sys.endsWith(languageDirective("fr")));
   // the proxy saw only ciphertext, both ways
@@ -179,7 +179,7 @@ test("X25519 key swapped by the proxy: refused BEFORE anything is sent", async (
   const h = harness();
   h.tamper = (s, res) => (s.path !== "/pubkeys" ? res : Response.json({ ...JSON.parse(s.resBody), x25519: `0x${"42".repeat(32)}` }));
   await assert.rejects(h.client().chat(ask()), (e: unknown) => e instanceof EnclaveKeyMismatchError && e.reason === "x25519_mismatch");
-  assert.equal(chats(h).length, 0, "rien n'est parti vers /chat");
+  assert.equal(chats(h).length, 0, "nothing went to /chat");
 });
 
 test("simulated quote (outside TDX): /attest says so, the enclave is not registered, the client refuses without sending anything", async () => {
@@ -208,7 +208,7 @@ test("/attest: operator outside OPERATOR_ALLOWLIST → 403; no list → nobody; 
   const closed = harness({ allowlist: [] });
   assert.equal((await attest(closed.app, OP)).status, 403);
   const pk = await (await h.app.fetch(new Request(`${URL_}/pubkeys`, { headers: { origin: "https://dev.example" } })));
-  assert.equal(pk.headers.get("access-control-allow-origin"), "*", "clés publiques : CORS ouvert");
+  assert.equal(pk.headers.get("access-control-allow-origin"), "*", "public keys: open CORS");
   const j = await pk.json() as { signer: string; x25519: string };
   assert.equal(j.signer, h.kit.keys.signer);
   assert.equal(j.x25519, h.kit.keys.x25519PublicKey);
@@ -243,7 +243,7 @@ test("enclave restart (new keys, registered again): \"undecryptable\", on-chain 
   assert.notEqual(after.enclave.signer, oldSigner);
   assert.equal(after.enclave.signer, h.kit.keys.signer);
   const c = chats(h);
-  assert.equal(c.length, 3, "1 avant, puis 1 refus et 1 renvoi");
+  assert.equal(c.length, 3, "1 before, then 1 refusal and 1 resend");
   assert.equal(JSON.parse(c[1]!.resBody).code, "sealed_undecryptable");
   // a new key NOT YET registered again (registrar late): one re-check, then a refusal; no resend loop
   const h2 = harness();
@@ -253,7 +253,7 @@ test("enclave restart (new keys, registered again): \"undecryptable\", on-chain 
   h2.restart(); // the enclave (and its /pubkeys) has new keys…
   h2.kit = old; // …but the chain still has only the old one
   await assert.rejects(c2.chat(ask()), (e: unknown) => e instanceof EnclaveKeyMismatchError && e.reason === "not_registered");
-  assert.equal(chats(h2).length, 2, "1 avant, 1 refusée après le redémarrage, aucun renvoi");
+  assert.equal(chats(h2).length, 2, "1 before, 1 refused after the restart, no resend");
 });
 
 test("invalid envelopes and ciphertext for another product: refused in clear, without opening anything", async () => {
@@ -286,7 +286,7 @@ test("invalid envelopes and ciphertext for another product: refused in clear, wi
     const r = await post({ sealed: COPILOT_SEALED_TAG, enc: toHex(sx.enc), ciphertext: toHex(sx.ciphertext) });
     assert.equal((await r.json() as any).code, "sealed_undecryptable");
   }
-  assert.equal(h.llm.calls.length, 0, "le modèle n'a jamais été appelé");
+  assert.equal(h.llm.calls.length, 0, "the model was never called");
 });
 
 test("refusals AFTER opening (invalid conversation, language): sealed, HTTP 200; clear mode still served; copilot outside an enclave: envelope refused", async () => {
@@ -297,7 +297,7 @@ test("refusals AFTER opening (invalid conversation, language): sealed, HTTP 200;
   assert.equal(bad.status, 400);
   assert.equal(bad.reply.code, "bad_conversation");
   assert.equal(bad.reply.text, "Request refused: empty message.");
-  assert.equal(chats(h).at(-1)!.status, 200, "le statut réel ne se voit pas sur le fil");
+  assert.equal(chats(h).at(-1)!.status, 200, "the real status does not show on the wire");
   // clear mode (compatibility) on the enclave: served, and the copilot knows it arrived in clear
   const clear = await h.app.fetch(new Request(`${URL_}/chat`, { method: "POST", headers: { "content-type": "application/json", ...PROXIED }, body: JSON.stringify({ messages: [{ role: "user", content: "Montre-moi la ruche" }] }) }));
   assert.equal(clear.status, 200);
@@ -326,14 +326,14 @@ test("enclave configuration: required, consistent with the deployments file, fai
     COPILOT_MODEL: "openai/gpt-oss-120b", ALLOWED_ORIGINS: SITE, COPILOT_PROXY_TOKEN: PROXY_TOKEN,
   };
   const ok = readCopilotEnclaveConfig(base, read);
-  assert.equal(ok.registry, "0x54AeCc6500a1CfB33FD5BFB3008ed7A600Ae7d38", "registre lu dans le fichier, jamais en dur");
+  assert.equal(ok.registry, "0x54AeCc6500a1CfB33FD5BFB3008ed7A600Ae7d38", "registry read from the file, never hard-coded");
   assert.equal(ok.chainId, 5042002);
   assert.equal(ok.productId, 4n);
   assert.deepEqual(ok.operatorAllowlist, [], "OPERATOR_ALLOWLIST absente : personne");
   assert.equal(ok.port, 8808);
   assert.deepEqual(ok.rpcUrls, ["https://rpc.testnet.arc.io"]);
   assert.equal(ok.proxyToken, PROXY_TOKEN);
-  assert.equal(readCopilotEnclaveConfig({ ...base, DEBUG: "" }, read).port, 8808, "DEBUG vide : accepté (et retiré au démarrage)");
+  assert.equal(readCopilotEnclaveConfig({ ...base, DEBUG: "" }, read).port, 8808, "empty DEBUG: accepted (and removed at start-up)");
   assert.equal(readCopilotEnclaveConfig({ ...base, REGISTRY: "0x54aecc6500a1cfb33fd5bfb3008ed7a600ae7d38", CHAIN_ID: "5042002" }, read).registry, ok.registry);
   for (const [over, why] of [
     [{ PRODUCT_ID: undefined }, /PRODUCT_ID required/], [{ PRODUCT_ID: "0" }, /PRODUCT_ID required/], [{ DEPLOYMENTS: undefined }, /DEPLOYMENTS required/],
@@ -378,7 +378,7 @@ test("per-IP rate in the enclave (the reviewer's cost-xff case): without the pro
   for (const bad of [PROXY_TOKEN.slice(0, -1) + "x", PROXY_TOKEN + "x", "", "x"]) {
     assert.equal((await chat({ "x-archive-proxy-token": bad, "x-forwarded-for": "203.0.113.5" })).status, 403, JSON.stringify(bad));
   }
-  assert.equal(m.calls.length, 0, "le modèle n'a jamais été appelé");
+  assert.equal(m.calls.length, 0, "the model was never called");
   // through the proxy (right token): Caddy's X-Forwarded-For is trusted, one IP = 20 requests per minute, another passes
   const viaSite = [];
   for (let i = 0; i < 21; i++) viaSite.push((await chat({ ...PROXIED, "x-forwarded-for": "203.0.113.9" })).status);

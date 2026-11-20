@@ -46,7 +46,7 @@ test("0x + 64 hex NEAR a word that names a secret: masked", () => {
     `{\n  "wallet": "${KEY}"\n}`, // indented JSON
   ]) {
     const out = scrubSecrets(s);
-    assert.ok(!out.includes(HEX), `non masqué : ${s}`);
+    assert.ok(!out.includes(HEX), `not masked: ${s}`);
     assert.ok(out.includes(MASK_KEY), s);
   }
 });
@@ -86,9 +86,9 @@ test("BIP-39 recovery phrase (12 to 24 words from one list): masked", () => {
   ];
   for (const s of cases) {
     const out = scrubSecrets(`Ma phrase : ${s} — merci`);
-    assert.ok(out.includes(MASK_PHRASE), `non masquée : ${s.slice(0, 60)}`);
+    assert.ok(out.includes(MASK_PHRASE), `not masked: ${s.slice(0, 60)}`);
     const words = s.match(/[\p{L}]+/gu)!.filter((w) => w.length > 3);
-    assert.ok(words.filter((w) => out.includes(w)).length <= 1, `mots restés visibles : ${out.slice(0, 120)}`);
+    assert.ok(words.filter((w) => out.includes(w)).length <= 1, `words left visible: ${out.slice(0, 120)}`);
   }
 });
 
@@ -134,9 +134,9 @@ test("idempotent, and a secret in a JSON tool result stays valid JSON", () => {
 const W12 = english.slice(100, 112); // arrive arrow art artefact artist artwork ask aspect assault asset assist assume
 const assertPhraseMasked = (s: string, label: string, scrub: (x: string) => string = scrubSecrets) => {
   const out = scrub(s);
-  assert.ok(out.includes(MASK_PHRASE), `non masquée (${label}) : ${out.slice(0, 160)}`);
+  assert.ok(out.includes(MASK_PHRASE), `not masked (${label}): ${out.slice(0, 160)}`);
   const visible = W12.filter((w) => new RegExp(`\\b${w}\\b`, "i").test(out));
-  assert.ok(visible.length === 0, `mots restés visibles (${label}) : ${visible.join(", ")}`);
+  assert.ok(visible.length === 0, `words left visible (${label}): ${visible.join(", ")}`);
 };
 
 test("phrase numbered with colons, \"Mot n°1 :\", \"Word #1:\", aligned columns: masked", () => {
@@ -175,9 +175,9 @@ test("phrase with ONE typo (extra, missing, changed, swapped, beyond the first 4
     for (const at of [0, 5, 11]) { // at the start, in the middle, at the end
       const words = W12.map((w, i) => (i === at ? edit(w) : w));
       const out = scrubSecrets(`ma phrase : ${words.join(" ")} merci`);
-      assert.ok(out.includes(MASK_PHRASE), `non masquée (${label}, mot ${at + 1}) : ${out}`);
-      assert.ok(!words.some((w) => out.includes(` ${w} `) || out.endsWith(w)), `un mot est resté visible (${label}, mot ${at + 1}) : ${out}`);
-      assert.match(out, /merci$/, "le mot qui suit la phrase reste lisible");
+      assert.ok(out.includes(MASK_PHRASE), `not masked (${label}, word ${at + 1}): ${out}`);
+      assert.ok(!words.some((w) => out.includes(` ${w} `) || out.endsWith(w)), `a word stayed visible (${label}, word ${at + 1}): ${out}`);
+      assert.match(out, /merci$/, "the word after the phrase stays readable");
     }
   }
   // 24 words, one typo per slice of 12

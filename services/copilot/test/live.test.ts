@@ -44,16 +44,16 @@ test("outils de liste du copilote contre l'API en ligne", { skip }, async () => 
   const b = await tool("bounty_list");
   assert.ok(b.r.total >= 0 && Array.isArray(b.r.primes));
   const s = await tool("sessions_list", { owner: OWNER });
-  assert.ok(s.r.total > 0, "le compte de démonstration a des sessions");
+  assert.ok(s.r.total > 0, "the demo account has sessions");
   const a = await tool("activity_list", { limit: 5 });
   assert.equal(a.r.nombre, 5);
   for (const page of ["ruche", "produits", "vue"]) {
     const n = await tool("ui_navigate", { page });
     assert.ok(n.r.donneesReelles && !n.r.donneesReelles.indisponible, `${page} : ${JSON.stringify(n.r.donneesReelles)}`);
   }
-  for (const x of [e, p, s, a]) assert.ok(x.ms < 8_500, "chaque liste tient dans le délai de 8 s");
+  for (const x of [e, p, s, a]) assert.ok(x.ms < 8_500, "each list fits in the 8 s timeout");
   const hosts = [...new Set(contacted.map((u) => new URL(u).host))];
   console.log("  hôtes contactés :", hosts.join(", "));
-  assert.ok(contacted.some((u) => u.startsWith(api)), "l'API de l'index a servi les listes");
-  assert.ok(contacted.every((u) => !/explorer|blockscout/i.test(u)), "l'explorateur n'est jamais contacté");
+  assert.ok(contacted.some((u) => u.startsWith(api)), "the index API served the lists");
+  assert.ok(contacted.every((u) => !/explorer|blockscout/i.test(u)), "the explorer is never contacted");
 });

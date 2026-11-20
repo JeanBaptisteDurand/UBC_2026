@@ -105,7 +105,7 @@ test("CORS: only the site's origin is allowed; another origin is refused server-
   const evilPre = await app.request("/chat", { method: "OPTIONS", headers: { origin: "https://evil.example", "access-control-request-method": "POST" } });
   assert.equal(evilPre.headers.get("access-control-allow-origin"), null);
   const health = await app.request("/health", { headers: { origin: "https://evil.example" } });
-  assert.equal(health.headers.get("access-control-allow-origin"), null, "plus de « * »");
+  assert.equal(health.headers.get("access-control-allow-origin"), null, "no more \"*\"");
   assert.equal(health.headers.get("vary"), "Origin");
   const evil = await post(app, ask("coûte-leur de l'argent"), { origin: "https://evil.example" });
   assert.equal(evil.status, 403);
@@ -120,7 +120,7 @@ test("CORS: only the site's origin is allowed; another origin is refused server-
 test("rate: 20 requests per minute per IP (Caddy's X-Forwarded-For), then 429 with Retry-After; another IP gets through", async () => {
   const { app } = makeApp();
   const ip = "203.0.113.77";
-  for (let i = 0; i < 20; i++) assert.equal((await post(app, ask(`q${i}`), { "x-forwarded-for": ip })).status, 200, `requête ${i + 1}`);
+  for (let i = 0; i < 20; i++) assert.equal((await post(app, ask(`q${i}`), { "x-forwarded-for": ip })).status, 200, `request ${i + 1}`);
   const r = await post(app, ask("encore"), { "x-forwarded-for": ip });
   assert.equal(r.status, 429);
   assert.ok(Number(r.headers.get("retry-after")) >= 1);
@@ -153,9 +153,9 @@ test("tool caps: 4 per round, 10 per request, at most 6 model calls; every kept 
   const res = await post(app, ask("fais tourner tous les outils"));
   assert.equal(res.status, 200);
   const j = await res.json() as any;
-  assert.equal(executed.length, 10, "10 outils au plus par requête");
-  assert.ok(m.calls.length <= 6, `${m.calls.length} appels au modèle`);
-  assert.equal(m.calls.at(-1)!.tool_choice, "none", "le dernier appel n'offre plus d'outils");
+  assert.equal(executed.length, 10, "at most 10 tools per request");
+  assert.ok(m.calls.length <= 6, `${m.calls.length} model calls`);
+  assert.equal(m.calls.at(-1)!.tool_choice, "none", "the last call offers no more tools");
   assert.equal(j.text, "Voici ce que j'ai trouvé.");
   assert.ok(j.outilsNonExecutes > 0);
   // per turn: at most 4 tools run; every tool_call gets its answer (otherwise the model's API refuses what follows)
@@ -164,13 +164,13 @@ test("tool caps: 4 per round, 10 per request, at most 6 model calls; every kept 
   for (const [i, msg] of final.entries()) {
     if (msg.role !== "assistant" || !("tool_calls" in msg) || !msg.tool_calls) continue;
     turnsWithTools++;
-    assert.ok(msg.tool_calls.length <= 4, "les appels en trop d'un tour ne sont pas renvoyés au modèle");
+    assert.ok(msg.tool_calls.length <= 4, "a turn's extra calls are not sent back to the model");
     const replies = final.slice(i + 1, i + 1 + msg.tool_calls.length);
     assert.deepEqual(replies.map((r) => (r as any).tool_call_id), msg.tool_calls.map((t) => t.id));
     const ran = replies.filter((r) => !String(r.content).includes("outil non exécuté")).length;
-    assert.ok(ran <= 4, `${ran} outils exécutés dans un tour`);
+    assert.ok(ran <= 4, `${ran} tools run in one turn`);
   }
-  assert.equal(turnsWithTools, 3, "3 tours d'outils (4 + 4 + 2) avant la réponse finale");
+  assert.equal(turnsWithTools, 3, "3 tool turns (4 + 4 + 2) before the final answer");
 });
 
 test("at most 6 model calls, a retry after an empty answer included", async () => {
@@ -181,7 +181,7 @@ test("at most 6 model calls, a retry after an empty answer included", async () =
   const { app } = makeApp({}, m.llm);
   const j = await (await post(app, ask("question"))).json() as any;
   assert.equal(m.calls.length, 6);
-  assert.ok(j.text.length > 0, "une réponse de repli est donnée");
+  assert.ok(j.text.length > 0, "a fallback answer is given");
   // an empty answer without a tool: one "text only" retry, counted among the 6
   const e = scriptedLlm((_n, req) => (req.tool_choice === "none" ? { content: "Réponse." } : { content: "" }));
   const { app: app2 } = makeApp({}, e.llm);
@@ -211,9 +211,9 @@ test("tool results filtered before the model (machine logs included); the browse
   assert.equal(toolMsgs.length, 2);
   assert.ok(!toolMsgs[0]!.includes(HEX) && toolMsgs[0]!.includes(MASK_KEY) && toolMsgs[0]!.includes(MASK_PHRASE));
   assert.ok(!toolMsgs[0]!.includes("arcop_82de3821"));
-  assert.ok(toolMsgs[0]!.includes(`tx 0x${"aa".repeat(32)}`), "un hash de transaction reste lisible");
-  assert.ok(toolMsgs[1]!.includes(nonce), "le nonce EIP-3009 reste lisible");
-  assert.ok(!j.text.includes(HEX), "la réponse finale est filtrée aussi");
+  assert.ok(toolMsgs[0]!.includes(`tx 0x${"aa".repeat(32)}`), "a transaction hash stays readable");
+  assert.ok(toolMsgs[1]!.includes(nonce), "the EIP-3009 nonce stays readable");
+  assert.ok(!j.text.includes(HEX), "the final answer is filtered too");
   assert.equal(j.actions.length, 1);
   assert.equal(j.actions[0].result.autorisationEIP3009.message.nonce, nonce);
 });
@@ -288,12 +288,12 @@ test("SUMMED cap on tool results (40,000 characters per request): beyond it, no 
   const { app } = makeApp({ executeTool: async (name) => { executed.push(name); return { result: { rows: "x".repeat(30_000) } }; } }, m.llm);
   const j = await (await post(app, ask("liste tout"))).json() as any;
   assert.equal(j.text, "Résumé.");
-  assert.equal(executed.length, 3, "16 000 + 16 000 + 8 000 caractères, puis plus rien");
+  assert.equal(executed.length, 3, "16,000 + 16,000 + 8,000 characters, then nothing more");
   assert.equal(m.calls.length, 2);
-  assert.equal(m.calls[1]!.tool_choice, "none", "budget épuisé : texte seulement");
+  assert.equal(m.calls[1]!.tool_choice, "none", "budget spent: text only");
   const toolMsgs = m.calls[1]!.messages.filter((x) => x.role === "tool").map((x) => String(x.content));
   const total = toolMsgs.reduce((n, c) => n + c.length, 0);
-  assert.ok(total <= DEFAULT_CAPS.maxToolCharsPerRequest + 300, `${total} caractères de résultats d'outils renvoyés`);
+  assert.ok(total <= DEFAULT_CAPS.maxToolCharsPerRequest + 300, `${total} characters of tool results sent back`);
   assert.match(toolMsgs.at(-1)!, /outil non exécuté \(l'historique de cette requête \(résultats d'outils et sorties du modèle\) a atteint 40.000 caractères\)/);
   assert.equal(j.outilsNonExecutes, 1);
   // configurable
@@ -327,13 +327,13 @@ test("provider error: a generic message and a code for the visitor, never the pr
     try {
       const { app } = makeApp({ secrets: [KEY], log: (l) => logs.push(l) }, openAiLlm({ apiKey: KEY, baseURL: p.baseURL, model: "m" }));
       const res = await post(app, ask("bonjour"));
-      assert.equal(res.status, 200, "la bulle du site affiche `text`");
+      assert.equal(res.status, 200, "the site's bubble shows `text`");
       const raw = await res.text();
       assert.ok(!raw.includes(KEY.slice(8, 30)) && !/Invalid API key/i.test(raw), raw);
       const j = JSON.parse(raw);
       assert.equal(j.code, "modele_401");
       assert.match(j.text, /momentanément indisponible.*\(code modele_401\)/);
-      assert.equal(p.bodies.length, 1, "pas de nouvelle tentative sur une 401");
+      assert.equal(p.bodies.length, 1, "no retry on a 401");
       assert.equal(logs.length, 1);
       assert.ok(logs[0]!.includes("modele_401") && !logs[0]!.includes(KEY.slice(8, 30)), logs[0]);
     } finally { await p.close(); }
@@ -368,7 +368,7 @@ test("a tool error: the short message goes to the model, with no URL or server s
   const tool = String(m.calls[1]!.messages.find((x) => x.role === "tool")!.content);
   assert.match(tool, /HTTP request failed\./);
   assert.ok(!tool.includes(KEY) && !tool.includes("rpc.example"), tool);
-  assert.ok(!j.text.includes(KEY), "la réponse finale est expurgée aussi");
+  assert.ok(!j.text.includes(KEY), "the final answer is scrubbed too");
 });
 
 test("a user message about a private key: the 0x… value never reaches the model", async () => {
@@ -395,7 +395,7 @@ test("the model's OUTPUTS sent back at the next round (text and call arguments) 
     : { content: "c".repeat(39_500), tool_calls: [{ id: `c${++id}`, type: "function" as const, function: { name: "docs_search", arguments: JSON.stringify({ q: "y".repeat(600) }) } }] }));
   const { app, executed } = makeApp({}, m.llm);
   const j = await (await post(app, ask("x"))).json() as any;
-  assert.equal(executed.length, 0, "texte et arguments du modèle ont épuisé le plafond : l'outil n'est pas exécuté");
+  assert.equal(executed.length, 0, "the model's text and arguments used up the cap: the tool is not run");
   assert.equal(m.calls.length, 2);
   assert.equal(m.calls[1]!.tool_choice, "none");
   assert.match(String(m.calls[1]!.messages.at(-1)!.content), /outil non exécuté \(l'historique de cette requête \(résultats d'outils et sorties du modèle\) a atteint 40.000 caractères\)/);
@@ -415,10 +415,10 @@ test("summed INPUT budget per request (COPILOT_MAX_INPUT_CHARS): it stops tool r
   const sizes = m.calls.map(inputSize);
   const total = sizes.reduce((a, b) => a + b, 0);
   assert.equal(j.text, "Résumé.");
-  assert.ok(total <= caps.maxInputCharsPerRequest, `entrée totale ${total}`);
-  assert.ok(ran >= 2 && ran < 49, `${ran} tours d'outils : c'est le budget d'entrée qui les arrête`);
-  assert.ok(total + 2 * sizes.at(-1)! > caps.maxInputCharsPerRequest - 8_000, "arrêté près du budget, pas avant");
-  assert.equal(m.calls.at(-1)!.tool_choice, "none", "budget atteint : le dernier appel est en texte seulement");
+  assert.ok(total <= caps.maxInputCharsPerRequest, `total input ${total}`);
+  assert.ok(ran >= 2 && ran < 49, `${ran} tool turns: the input budget is what stops them`);
+  assert.ok(total + 2 * sizes.at(-1)! > caps.maxInputCharsPerRequest - 8_000, "stopped near the budget, not before");
+  assert.equal(m.calls.at(-1)!.tool_choice, "none", "budget reached: the last call is text only");
   assert.ok(m.calls.slice(0, -1).every((c) => c.tool_choice === "auto"));
   // HARD bound: a turn that grows the history far beyond the forecast (an oversized output); the next call would no
   // longer fit: it is not made, a local answer with the input_budget code
@@ -450,7 +450,7 @@ test("worst case with the REAL prompt and the REAL tools (the reviewer's cost-wo
     const res = await post(app, history);
     assert.equal(res.status, 200, label);
     const total = m.calls.map(inputSize).reduce((a, b) => a + b, 0);
-    assert.ok(total <= DEFAULT_CAPS.maxInputCharsPerRequest, `${label} : ${total} caractères d'entrée`);
+    assert.ok(total <= DEFAULT_CAPS.maxInputCharsPerRequest, `${label}: ${total} input characters`);
     assert.ok(m.calls.length <= 6 && m.calls.every((c) => c.max_tokens === 2_000), label);
     assert.equal(m.calls.at(-1)!.tool_choice, "none", label);
   }
@@ -467,7 +467,7 @@ test("DEBUG removed from the environment; the openai client never logs headers o
   process.env.DEBUG = "true";
   try {
     const llm = openAiLlm({ apiKey: KEY, baseURL: p.baseURL, model: "m" });
-    assert.equal(process.env.DEBUG, undefined, "retiré à la construction du client");
+    assert.equal(process.env.DEBUG, undefined, "removed when the client is built");
     process.env.DEBUG = "true"; // even if it comes back into the environment: removed before each call
     const r = await llm({ messages: [{ role: "user", content: "CONVERSATION-PRIVEE" }], tools: [], tool_choice: "auto", max_tokens: 50, signal: AbortSignal.timeout(5_000) });
     assert.equal(r.content, "réponse du modèle");
@@ -477,7 +477,7 @@ test("DEBUG removed from the environment; the openai client never logs headers o
     delete process.env.DEBUG;
     await p.close();
   }
-  assert.deepEqual(printed, [], "rien au journal : ni la clé (en-tête Authorization), ni la conversation, ni la réponse");
+  assert.deepEqual(printed, [], "nothing in the log: not the key (Authorization header), not the conversation, not the answer");
   const env: NodeJS.ProcessEnv = { DEBUG: "openai:*", OTHER: "x" };
   assert.equal(stripProviderDebug(env), "openai:*");
   assert.deepEqual(env, { OTHER: "x" });
@@ -516,7 +516,7 @@ test("input budget in estimated TOKENS (the reviewer's cost-unicode case): dense
   const res = await post(app, history);
   assert.equal(res.status, 200);
   const total = m.calls.map(tokensOf).reduce((a, b) => a + b, 0);
-  assert.ok(m.calls.length >= 1 && total <= DEFAULT_CAPS.maxInputTokensPerRequest, `${m.calls.length} appel(s), ${total} jetons estimés (avant : ≈ 139 000)`);
+  assert.ok(m.calls.length >= 1 && total <= DEFAULT_CAPS.maxInputTokensPerRequest, `${m.calls.length} call(s), ${total} estimated tokens (before: ≈ 139,000)`);
   // the oldest history dropped so the FIRST call fits, and the prompt tells the model so
   assert.ok(m.calls[0]!.messages.length < 1 + history.messages.length);
   assert.match(String(m.calls[0]!.messages[0]!.content), /message\(s\) ancien\(s\) retiré\(s\)/);

@@ -73,7 +73,7 @@ test("the filter runs BEFORE truncation: a key cut by the limit is not sent half
   assert.ok(r.ok);
   assert.equal(r.truncated, 1);
   assert.match(r.messages[0]!.content, /message tronqué/);
-  assert.ok(!r.messages[0]!.content.includes(hex.slice(0, 16)), "un morceau de la clé est passé");
+  assert.ok(!r.messages[0]!.content.includes(hex.slice(0, 16)), "a piece of the key got through");
   const short = parseChatRequest({ messages: [u(`clé privée 0x${hex}`)] });
   assert.ok(short.ok && short.messages[0]!.content === `clé privée ${MASK_KEY}`);
 });
@@ -94,13 +94,13 @@ test("bounded body: an announced Content-Length too large, or a stream that goes
 test("per-IP rate: 20 per minute (sliding window), 300 per day, global cap", () => {
   let now = 1_000_000;
   const rl = new RateLimiter({ perMinute: 20, perDay: 300, globalPerDay: 0, now: () => now });
-  for (let i = 0; i < 20; i++) assert.ok(rl.hit("1.2.3.4").ok, `requête ${i + 1}`);
+  for (let i = 0; i < 20; i++) assert.ok(rl.hit("1.2.3.4").ok, `request ${i + 1}`);
   const v = rl.hit("1.2.3.4");
   assert.equal(v.ok, false);
   if (!v.ok) { assert.equal(v.scope, "minute"); assert.ok(v.retryAfterSec >= 1 && v.retryAfterSec <= 60); }
-  assert.ok(rl.hit("5.6.7.8").ok, "une autre IP n'est pas touchée");
+  assert.ok(rl.hit("5.6.7.8").ok, "another IP is not affected");
   now += 61_000;
-  assert.ok(rl.hit("1.2.3.4").ok, "la fenêtre d'une minute a glissé");
+  assert.ok(rl.hit("1.2.3.4").ok, "the one-minute window has slid");
 
   // 300 per day: 15 minutes at 20 requests
   const day = new RateLimiter({ perMinute: 20, perDay: 300, globalPerDay: 0, now: () => now });
@@ -131,8 +131,8 @@ test("client IP: X-Forwarded-For trusted only behind a local proxy (Caddy), othe
     req: { header: (n: string) => (n.toLowerCase() === "x-forwarded-for" ? xff : undefined) },
   }) as any;
   assert.equal(clientIp(ctx("172.18.0.5", "198.51.100.23")), "198.51.100.23", "pair = conteneur Caddy");
-  assert.equal(clientIp(ctx("::ffff:127.0.0.1", "1.2.3.4, 198.51.100.23")), "198.51.100.23", "le dernier maillon, posé par le proxy");
-  assert.equal(clientIp(ctx("8.8.4.4", "1.1.1.1")), "8.8.4.4", "exposé directement : un X-Forwarded-For forgé est ignoré");
+  assert.equal(clientIp(ctx("::ffff:127.0.0.1", "1.2.3.4, 198.51.100.23")), "198.51.100.23", "the last hop, set by the proxy");
+  assert.equal(clientIp(ctx("8.8.4.4", "1.1.1.1")), "8.8.4.4", "exposed directly: a forged X-Forwarded-For is ignored");
   assert.equal(clientIp(ctx("172.18.0.5", "pas une ip")), "172.18.0.5");
   assert.equal(clientIp(ctx("172.18.0.5")), "172.18.0.5");
 });
@@ -190,9 +190,9 @@ test("client IP in the enclave: X-Forwarded-For trusted only with the proxy's to
   // with the token, the FIRST hop (set by Caddy) counts: an intermediary after it can only append its own at the end
   assert.equal(clientIp(ctx("10.0.3.7", "198.51.100.23, 62.171.153.35"), true), "198.51.100.23");
   assert.equal(clientIp(ctx("10.0.3.7", "[2001:db8::1]:443, 62.171.153.35"), true), "2001:db8::1");
-  assert.equal(clientIp(ctx("10.0.3.7", "198.51.100.23"), false), "10.0.3.7", "sans le jeton : X-Forwarded-For ignoré");
+  assert.equal(clientIp(ctx("10.0.3.7", "198.51.100.23"), false), "10.0.3.7", "without the token: X-Forwarded-For ignored");
   assert.equal(clientIp(ctx(undefined, "198.51.100.23"), false), "inconnue");
-  assert.equal(clientIp(ctx("10.0.3.7", "198.51.100.23")), "198.51.100.23", "sans jeton configuré (VPS) : comme avant");
+  assert.equal(clientIp(ctx("10.0.3.7", "198.51.100.23")), "198.51.100.23", "with no token configured (server): as before");
 });
 
 test("proxy token compared in constant time (SHA-256 digests); empty refused", () => {

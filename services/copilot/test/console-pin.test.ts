@@ -69,7 +69,7 @@ test("COPILOT_SURFACE absent, empty or \"console\": the same prompt, the same to
     assert.equal(sha(JSON.stringify(c.options.tools)), PIN.oaiTools, String(v));
     assert.equal(sha(JSON.stringify(c.options.display)), PIN.display, String(v));
     assert.equal((c.options as { site?: unknown }).site, undefined, String(v));
-    assert.equal((c.options.health as Record<string, unknown>).surface, undefined, "le /health de la console ne change pas");
+    assert.equal((c.options.health as Record<string, unknown>).surface, undefined, "the console's /health does not change");
   }
 });
 

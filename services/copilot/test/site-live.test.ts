@@ -98,7 +98,7 @@ test("LIVE STATUS: active enclaves per product, verified level, products with no
     assert.ok(line.includes("no bounty is open right now (all 3 are past their deadline: 2 at the open level, 1 at the verified level): a hunt needs a new bounty first"), line);
     assert.ok(!/paused|deleted|0 of 15/.test(line), line);
     assert.ok(/^[\x20-\x7e]+$/.test(line), "ASCII seulement (budget en jetons)");
-    assert.ok(line.length < 900, `${line.length} caractères`);
+    assert.ok(line.length < 900, `${line.length} characters`);
   } finally { await api.close(); }
 });
 
@@ -118,7 +118,7 @@ test("LIVE STATUS: a fresh verified-level bounty is counted; no active enclave i
     const line = await readLiveStatus({ base: none.base, now: () => NOW * 1000 });
     assert.ok(line.includes("0 of 2 registered enclaves are active: no paid use can be served right now"), line);
     assert.ok(line.includes("product 7's settlement is not authorized yet: it cannot pay a claim"), line);
-    assert.ok(!/bounties open now|no bounty is open/.test(line), `sans client Arc, le niveau vérifié n'est pas lu : rien n'est dit des primes ouvertes (${line})`);
+    assert.ok(!/bounties open now|no bounty is open/.test(line), `without an Arc client, the verified level is not read: nothing is said about open bounties (${line})`);
   } finally { await none.close(); }
 });
 
@@ -134,7 +134,7 @@ test("LIVE STATUS: silent or failing API → the fallback line (never a guessed 
   try {
     const t0 = Date.now();
     assert.equal(await createLiveNote({ base: slow.base, timeoutMs: 300 })(), LIVE_FALLBACK);
-    assert.ok(Date.now() - t0 < 1_500, "borné dans le temps");
+    assert.ok(Date.now() - t0 < 1_500, "bounded in time");
   } finally { await slow.close(); }
   fresh();
   const api = await startFakeApi(routes({ "/levels": { status: 404, body: {} } }));
@@ -144,7 +144,7 @@ test("LIVE STATUS: silent or failing API → the fallback line (never a guessed 
     assert.ok(a.includes("4 of 19 registered enclaves are active") && !a.includes("verified level (chip"), a);
     api.set("/enclaves", { body: [] });
     clearListCache();
-    assert.equal(await note(), a, "la ligne est gardée 30 s");
+    assert.equal(await note(), a, "the line is kept 30 s");
     assert.equal(api.hits("/enclaves"), 1);
   } finally { await api.close(); }
 });
@@ -202,7 +202,7 @@ test("site bounty_list: the open level (API) and the verified level (SealedBount
     fresh();
     const bad = (await siteBountyList({}, { arc: arcWith([], true) })).result as any;
     assert.match(bad.niveauVerifie.indisponible, /ne dis pas qu'il n'y a aucune prime à ce niveau/);
-    assert.equal(bad.niveauOuvert.total, 2, "le niveau ouvert reste donné");
+    assert.equal(bad.niveauOuvert.total, 2, "the open level is still given");
     assert.match(bad.resume, /lecture incomplète/);
     fresh();
     const none = (await siteBountyList({}, { arc: arcWith([{ productId: 7, balance: 1_000_000n, deadline: NOW - 30_000 }]) })).result as any;

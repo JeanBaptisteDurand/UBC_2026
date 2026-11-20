@@ -82,7 +82,7 @@ test("/pubkeys read by the SDK: an error answer returned WITHOUT its body (the S
   });
   const r = await guardedFetch(dev)(`${base}/pubkeys`);
   assert.equal(r.status, 404);
-  assert.equal(await r.text(), "", "le corps de l'erreur n'est jamais lu");
+  assert.equal(await r.text(), "", "the error body is never read");
 });
 
 test("free path, a route other than /attest or /pubkeys: refused BEFORE any connection", async () => {
@@ -134,10 +134,10 @@ test("public mode: https on port 443, fixed path, pinned public address; error b
   assert.deepEqual(await fetchEnclaveJson("https://enclave.example/enclave/inference/", "/attest", { operator: "0xabc" }, pub, { resolve, request: ok.request }), KEYS);
   const c = ok.calls[0];
   assert.equal(c.protocol, "https:");
-  assert.equal(c.port, undefined, "port par défaut : 443");
+  assert.equal(c.port, undefined, "default port: 443");
   assert.equal(c.path, "/enclave/inference/attest");
   assert.equal(c.method, "POST");
-  assert.equal(c.servername, "enclave.example", "certificat TLS vérifié pour le nom d'hôte");
+  assert.equal(c.servername, "enclave.example", "TLS certificate verified for the host name");
   assert.deepEqual(c.lookedUp, [{ address: "93.184.216.34", family: 4 }]);
   const err = fakeRequester(502, BODY, { "content-type": "text/html" });
   await assert.rejects(

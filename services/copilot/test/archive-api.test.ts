@@ -32,7 +32,7 @@ test("lists read the API's index: typed rows, normalized addresses", async () =>
   assert.ok(api.urls.some((u) => u === "/activity?limit=5"));
   await apiActivity(-3, { base: api.base });
   await apiActivity(10_000, { base: api.base });
-  assert.ok(api.urls.includes("/activity?limit=1") && api.urls.includes("/activity?limit=100"), "limite bornée de 1 à 100");
+  assert.ok(api.urls.includes("/activity?limit=1") && api.urls.includes("/activity?limit=100"), "limit bounded from 1 to 100");
 });
 
 test("silent API: 8 s timeout by default (200 ms here), then \"list temporarily unavailable\"", async () => {
@@ -44,7 +44,7 @@ test("silent API: 8 s timeout by default (200 ms here), then \"list temporarily 
     assert.match(e.message, /aucune liste partielle/);
     return true;
   });
-  assert.ok(Date.now() - t0 < 1_500, "le délai est tenu");
+  assert.ok(Date.now() - t0 < 1_500, "the timeout holds");
 });
 
 test("HTTP error, unreadable JSON, unexpected shape, unreachable API: unavailable, never an empty list", async () => {
@@ -76,7 +76,7 @@ test("15 s cache of successful answers only", async () => {
   api.set("/bounties", { status: 500, body: {} });
   await assert.rejects(apiBounties({ base: api.base }));
   api.set("/bounties", { body: fixture("bounties.json") });
-  assert.equal((await apiBounties({ base: api.base })).length, 2, "un échec n'est jamais gardé");
+  assert.equal((await apiBounties({ base: api.base })).length, 2, "a failure is never kept");
 });
 
 test("freshness: the block up to which the index is complete, a warning when it lags", async () => {

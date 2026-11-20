@@ -85,7 +85,7 @@ test("lang \"en\": the English directive comes LAST in the prompt, even for a qu
   assert.equal(j.text, "Here is the Hive.");
   const s = sys(m.calls[0]!);
   assert.match(s, /^SYSTÈME/);
-  assert.ok(s.trimEnd().endsWith(languageDirective("en").trimEnd()), "consigne anglaise à la fin");
+  assert.ok(s.trimEnd().endsWith(languageDirective("en").trimEnd()), "English instruction at the end");
   assert.equal(j.navigate, "ruche");
   // without lang: the last message's language
   await post(app, { messages: [{ role: "user", content: "Show me the hive" }] });
@@ -162,7 +162,7 @@ test("action, fallback and error messages in the language; English punctuation w
   assert.match(j.text, /^The model provider has an outage right now.*\(code modele_503\)$/);
   assert.equal(modelFailure({ name: "TimeoutError" }, "en").code, "modele_delai");
   assert.match(modelFailure({ name: "TimeoutError" }, "en").text, /didn't answer in time/);
-  assert.match(modelFailure({ name: "TimeoutError" }).text, /n'a pas répondu à temps/, "défaut inchangé : français");
+  assert.match(modelFailure({ name: "TimeoutError" }).text, /n'a pas répondu à temps/, "default unchanged: French");
   // typographie
   const t = makeApp({}, async () => ({ content: "Hello ! Ready ? Note : yes ." }));
   assert.equal((await (await post(t, { messages: [{ role: "user", content: "hi" }], lang: "en" })).json() as any).text, "Hello! Ready? Note: yes.");
