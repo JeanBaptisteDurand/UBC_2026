@@ -1,4 +1,4 @@
-/** status.ts — « archive-node status » : le diagnostic résumé, le conteneur, l'agent, et ce que le site sait de la machine. */
+/** status.ts — "archive-node status": the diagnosis in short, the container, the agent, and what the site knows of the machine. */
 import { loadConfig, loadState, resolveApi } from "./config";
 import { DEFAULT_PORT, DEFAULT_WEB } from "./constants";
 import { dockerState, inspectContainer } from "./docker";
@@ -17,8 +17,8 @@ export interface StatusFlags {
 
 type Remote = { ok: true; machine: any } | { ok: false; error: string; gone?: boolean; refused?: boolean };
 
-/** Ce que l'API sait de CETTE machine. Avec sa clé (Authorization), l'API rend la vue de l'opérateur (adresse
- *  d'enclave, diagnostic) ; sans, une vue publique réduite (durcissement du 7/11, faille n° 9). */
+/** What the API knows of THIS machine. With its key (Authorization), the API returns the operator's view (enclave
+ *  address, diagnosis); without it, a reduced public view. */
 async function fetchMachine(api: string, id: string, key: string | null): Promise<Remote> {
   try {
     const r = await request(`${api}/machines/${encodeURIComponent(id)}`, { timeoutMs: 8000, headers: key ? { authorization: `Bearer ${key}` } : undefined });
@@ -39,7 +39,7 @@ export async function statusCommand(f: StatusFlags): Promise<number> {
   const lastMode = (c?.labels["io.archive.mode"] ?? st?.mode) as Mode | undefined;
   const [report, remote, agentAlive] = await Promise.all([
     runDoctor({ api, port, demo: lastMode === "demo" }),
-    // la clé ne part que vers l'API qui l'a délivrée (une autre --api reçoit une lecture anonyme)
+    // the key goes only to the API that issued it (another --api gets an anonymous read)
     cfg?.machineId ? fetchMachine(api, cfg.machineId, cfg.api === api ? cfg.key : null) : Promise.resolve(null),
     isAgentAlive(st?.pid ?? null),
   ]);
@@ -71,7 +71,7 @@ export async function statusCommand(f: StatusFlags): Promise<number> {
     row("Pairing", `${OK} account ${short(cfg.operator)} · machine ${short(cfg.machineId, 8, 4)} · key ${maskKey(cfg.key)}${kid ? ` (#${kid})` : ""}`);
   } else row("Pairing", `${KO} not paired yet`);
 
-  // ce que le site (l'API) sait
+  // what the site (the API) knows
   if (!cfg) row("Site", dim("—"));
   else if (!cfg.machineId) row("Site", `${WARN} machine id unknown: it arrives with the first heartbeat (archive-node up)`);
   else if (!remote || !remote.ok) {
@@ -116,7 +116,7 @@ export async function statusCommand(f: StatusFlags): Promise<number> {
   if (!report.ok) next = "archive-node doctor, then fix the ✗ lines";
   else if (!cfg) next = "archive-node pair";
   else if (!agentAlive || !c?.running) next = upCommand(lastMode ?? mode);
-  else if (remote?.ok && remote.machine.registered === false) next = `register the enclave from the site: ${web}/#/operateur`;
+  else if (remote?.ok && remote.machine.registered === false) next = `register the enclave from the site: ${web}/#/operator`;
   if (next) out(`${ARROW} Next step: ${bold(next)}`);
   return report.ok ? 0 : 1;
 }

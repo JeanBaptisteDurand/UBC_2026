@@ -1,4 +1,4 @@
-/** version.ts — injectée au bundle (esbuild --define), « -dev » quand on lance les sources avec tsx. */
+/** version.ts — injected into the bundle (esbuild --define); "-dev" when the sources run with tsx. */
 declare const __ARCHIVE_NODE_VERSION__: string | undefined;
 
 export const VERSION: string =

@@ -1,4 +1,4 @@
-/** tunnel.ts — une adresse https publique sans rien configurer : tunnel rapide cloudflared (trycloudflare.com). */
+/** tunnel.ts — a public https address with nothing to configure: a cloudflared quick tunnel (trycloudflare.com). */
 import { spawn, type ChildProcess } from "node:child_process";
 import { run } from "./exec";
 
@@ -9,7 +9,7 @@ export interface Tunnel {
   stop(): Promise<void>;
 }
 
-/** l'URL publique dans la sortie de cloudflared (pas api.trycloudflare.com, cité dans ses erreurs) */
+/** the public URL in cloudflared's output (not api.trycloudflare.com, which its errors mention) */
 export function parseTunnelUrl(line: string): string | null {
   for (const m of line.matchAll(/https:\/\/([a-z0-9-]+)\.trycloudflare\.com/gi)) {
     if (m[1]!.toLowerCase() !== "api") return m[0];
@@ -34,7 +34,7 @@ function stopChild(child: ChildProcess): Promise<void> {
       try {
         child.kill("SIGKILL");
       } catch {
-        /* déjà mort */
+        /* already dead */
       }
       resolve();
     }, 3000);
@@ -51,7 +51,7 @@ function stopChild(child: ChildProcess): Promise<void> {
   });
 }
 
-/** lance « cloudflared tunnel --url http://localhost:{port} » et rend l'URL dès qu'elle est annoncée */
+/** starts "cloudflared tunnel --url http://localhost:{port}" and returns the URL as soon as it is announced */
 export function startQuickTunnel(port: number, onExit: (code: number | null, tail: string[]) => void, timeoutMs = 45_000): Promise<Tunnel> {
   return new Promise((resolve, reject) => {
     const child = spawn("cloudflared", ["tunnel", "--no-autoupdate", "--url", `http://localhost:${port}`], { stdio: ["ignore", "pipe", "pipe"] });
@@ -78,7 +78,7 @@ export function startQuickTunnel(port: number, onExit: (code: number | null, tai
         }
       }
     };
-    // on lit la sortie jusqu'au bout, sinon le tuyau se remplit et cloudflared se bloque
+    // the output is read to the end, otherwise the pipe fills up and cloudflared blocks
     child.stdout!.on("data", onData);
     child.stderr!.on("data", onData);
     child.once("error", (e) => {

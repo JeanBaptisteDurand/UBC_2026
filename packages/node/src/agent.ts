@@ -1,7 +1,7 @@
-/** agent.ts — « archive-node up » : lance l'enclave dans Docker, la surveille, et envoie son état au site
- *  (diagnostic, statut, journaux, clés publiques, adresse) toutes les 30 s. Ctrl+C arrête proprement.
- *  La clé opérateur vient de ~/.archive/node.json (appairage), d'un fichier (--key-file) ou de la variable ARCHIVE_KEY ;
- *  jamais d'un argument (--key est refusé : il se lirait dans la liste des processus et l'historique du shell). */
+/** agent.ts — "archive-node up": starts the enclave in Docker, watches it, and sends its state to the site
+ *  (diagnosis, status, logs, public keys, address) every 30 s. Ctrl+C stops it cleanly.
+ *  The operator key comes from ~/.archive/node.json (pairing), from a file (--key-file) or from the ARCHIVE_KEY variable;
+ *  never from an argument (--key is refused: it would show in the process list and the shell history). */
 import { readFileSync, statSync } from "node:fs";
 import { hostname } from "node:os";
 import { configPath, loadConfig, loadState, normalizeUrl, resolveApi, saveConfig, saveState, tilde, type NodeConfig } from "./config";
@@ -28,9 +28,9 @@ export interface UpFlags {
   port?: string;
   image?: string;
   demo?: boolean;
-  /** refusé (voir KEY_ARG_REFUSED) : lu seulement pour l'expliquer */
+  /** refused (see KEY_ARG_REFUSED): read only to explain why */
   key?: string;
-  /** fichier qui contient la clé opérateur (arcop_…, seule) */
+  /** a file that holds the operator key (arcop_…, alone) */
   keyFile?: string;
   publicUrl?: string;
   tunnel?: boolean;
@@ -40,11 +40,11 @@ export interface UpFlags {
 export interface UpPlan {
   api: string;
   key: string;
-  /** la clé vient de ~/.archive/node.json (on peut y ranger machineId et operator) */
+  /** the key comes from ~/.archive/node.json (machineId and operator can be stored there) */
   keyFromConfig: boolean;
-  /** d'où vient la clé, pour l'affichage : ~/.archive/node.json, « --key-file <fichier> » ou « ARCHIVE_KEY » */
+  /** where the key comes from, for display: ~/.archive/node.json, "--key-file <file>" or "ARCHIVE_KEY" */
   keySource: string | null;
-  /** avertissement sur la clé (fichier lisible par d'autres comptes), ou null */
+  /** a warning about the key (a file readable by other accounts), or null */
   keyWarning: string | null;
   cfg: NodeConfig | null;
   mode: Mode;
@@ -62,7 +62,7 @@ export const NO_TDX_HELP =
 
 const KEY_RE = /^arcop_[A-Za-z0-9_-]{8,}$/;
 
-/** --key est refusé : une clé en argument se lit dans la liste des processus (ps) et dans l'historique du shell. */
+/** --key is refused: a key passed as an argument shows in the process list (ps) and in the shell history. */
 export const KEY_ARG_REFUSED =
   "--key is no longer accepted: a key passed as an argument shows in the process list (ps) and in the shell history.\n" +
   "Give it through a file only you can read (chmod 600 <file>, then --key-file <file>) or through the ARCHIVE_KEY " +
@@ -70,13 +70,13 @@ export const KEY_ARG_REFUSED =
 
 export interface SuppliedKey {
   key: string;
-  /** « --key-file <fichier> » ou « ARCHIVE_KEY » */
+  /** "--key-file <file>" or "ARCHIVE_KEY" */
   source: string;
   warning: string | null;
 }
 
-/** La clé donnée hors de node.json : --key-file <fichier> (prioritaire), sinon la variable ARCHIVE_KEY ; null sinon.
- *  Le fichier contient la clé seule (espaces et fin de ligne tolérés) ; un tube (--key-file <(pass show …)) convient. */
+/** The key given outside node.json: --key-file <file> (first), otherwise the ARCHIVE_KEY variable; null otherwise.
+ *  The file holds the key alone (spaces and a final newline are tolerated); a pipe (--key-file <(pass show …)) works. */
 export function suppliedKey(keyFile: string | undefined, env: NodeJS.ProcessEnv = process.env): SuppliedKey | null {
   if (keyFile !== undefined) {
     const path = keyFile.trim();
@@ -109,9 +109,9 @@ export function suppliedKey(keyFile: string | undefined, env: NodeJS.ProcessEnv 
   return { key: v, source: "ARCHIVE_KEY", warning: null };
 }
 
-/** valide les options de « up » (partagé avec « service install ») */
+/** validates the options of "up" (shared with "service install") */
 export function planUp(f: UpFlags, opts: { requireKey: boolean }): UpPlan {
-  // d'abord les valeurs des options (erreurs d'usage), puis le mode, puis la clé
+  // first the option values (usage errors), then the mode, then the key
   if (f.key !== undefined) throw new UsageError(KEY_ARG_REFUSED);
   const port = parsePort(f.port ?? String(DEFAULT_PORT));
   const image = (f.image ?? DEFAULT_IMAGE).trim();
@@ -177,16 +177,16 @@ export class Agent {
       throw new CliError(`An archive-node agent is already running on this machine (pid ${st.pid}).\nStop it first: Ctrl+C in its terminal, or sudo systemctl stop archive-node.`);
     }
     this.printHeader();
-    // pas SIGHUP : « nohup archive-node up & » doit survivre à la fermeture du terminal
+    // not SIGHUP: "nohup archive-node up &" must survive the terminal closing
     for (const sig of ["SIGINT", "SIGTERM"] as const) process.on(sig, () => void this.shutdown(sig));
     process.on("exit", () => {
       try {
         this.tunnel?.child.kill("SIGTERM");
       } catch {
-        /* déjà arrêté */
+        /* already stopped */
       }
     });
-    if (this.p.tunnel) void this.ensureTunnel(); // s'ouvre pendant que le conteneur démarre
+    if (this.p.tunnel) void this.ensureTunnel(); // opens while the container starts
     while (!this.stopping) {
       this.tickPromise = this.tick().catch((e) => this.note("error", `Internal agent error: ${errMsg(e)}`));
       await this.tickPromise;
@@ -194,11 +194,11 @@ export class Agent {
       await this.sleep(this.status === "starting" ? HEARTBEAT_STARTING_MS : HEARTBEAT_MS);
     }
     return new Promise<number>(() => {
-      /* shutdown() termine le processus */
+      /* shutdown() ends the process */
     });
   }
 
-  // ---------- un tour : enclave, diagnostic, statut, journaux, battement de cœur ----------
+  // ---------- one round: enclave, diagnosis, status, logs, heartbeat ----------
 
   private async tick(): Promise<void> {
     let launchError: string | null = null;
@@ -229,7 +229,7 @@ export class Agent {
       "io.archive.product": String(this.p.product),
       "io.archive.port": String(this.p.port),
       "io.archive.mode": this.p.mode,
-      // l'opérateur autorisé à recevoir un quote : quand l'appairage le fait connaître, le conteneur est remplacé
+      // the operator allowed to receive a quote: when the pairing makes it known, the container is replaced
       "io.archive.operator": this.operator ?? "",
     };
   }
@@ -248,7 +248,7 @@ export class Agent {
     };
   }
 
-  /** le conteneur tourne avec la bonne configuration (sinon : on le crée, le relance ou le remplace) */
+  /** the container runs with the right configuration (otherwise: it is created, restarted or replaced) */
   private async ensureEnclave(): Promise<void> {
     const sig = this.ac.signal;
     const ds = await dockerState(sig);
@@ -267,12 +267,12 @@ export class Agent {
       return;
     }
 
-    // l'image d'abord : si elle est introuvable, l'ancien conteneur reste en place
+    // the image first: if it cannot be found, the old container stays in place
     let platform = await imagePlatform(this.p.image, sig);
     if (!platform) {
       if (this.stopping) return;
       this.note("info", `Downloading the image ${short(this.p.image, 60, 8)} (the first time: one to a few minutes)…`, "pull");
-      // pendant un long téléchargement, le site doit continuer de voir la machine (« démarrage »)
+      // during a long download, the site must keep seeing the machine ("starting")
       const beat = () => void this.collectLogs(sig).then((logs) => this.heartbeat("starting", null, logs, 10_000));
       if (!this.lastBeatAt || Date.now() - this.lastBeatAt > 20_000) beat();
       const keepAlive = setInterval(beat, HEARTBEAT_MS);
@@ -349,7 +349,7 @@ export class Agent {
     return mergeLogLines([container, this.events], MAX_LOG_LINES).map(formatLogLine);
   }
 
-  // ---------- battement de cœur ----------
+  // ---------- heartbeat ----------
 
   private async heartbeat(status: Status, report: DoctorReport | null, logs: string[], timeoutMs: number): Promise<boolean> {
     const body = {
@@ -396,7 +396,7 @@ export class Agent {
         if (reg !== null && reg !== this.registered) {
           this.registered = reg;
           if (reg) this.note("ok", "Enclave registered on Arc: it can receive sessions paid in USDC.");
-          else this.note("info", `Not registered on Arc yet: on the site, Operator page, click “Register” (wallet signature) → ${this.web()}/#/operateur`);
+          else this.note("info", `Not registered on Arc yet: on the site, Operator page, click “Register” (wallet signature) → ${this.web()}/#/operator`);
         }
         out(dim(`${hhmmss()} ♥ heartbeat #${this.beats} · ${STATUS_LABEL[status]}`));
       }
@@ -425,18 +425,18 @@ export class Agent {
     this.note(state === "unreachable" ? "warn" : "error", message);
   }
 
-  /** range machineId/operator dans node.json, si la clé en vient et n'a pas changé entre-temps */
+  /** stores machineId/operator in node.json, if the key comes from there and has not changed in between */
   private persistIdentity(): void {
     if (!this.p.keyFromConfig) return;
     try {
       const cur = loadConfig();
       if (cur && cur.key === this.p.key) saveConfig({ ...cur, machineId: this.machineId, operator: this.operator });
     } catch {
-      /* ce n'est qu'un cache */
+      /* it is only a cache */
     }
   }
 
-  // ---------- adresse publique ----------
+  // ---------- public address ----------
 
   private fallbackUrl(): string {
     return `http://${this.ip?.address ?? "127.0.0.1"}:${this.p.port}`;
@@ -482,7 +482,7 @@ export class Agent {
     return this.tunnelPromise;
   }
 
-  // ---------- affichage, état local, arrêt ----------
+  // ---------- display, local state, shutdown ----------
 
   private note(level: "ok" | "info" | "warn" | "error", text: string, onceKey?: string): void {
     if (onceKey) {

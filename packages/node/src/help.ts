@@ -1,4 +1,4 @@
-/** help.ts — l'aide, en anglais (comme tous les messages de l'agent). */
+/** help.ts — the help text, in English (like every message of the agent). */
 import { DEFAULT_API, DEFAULT_PORT, PRODUCT_TDX } from "./constants";
 import { VERSION } from "./version";
 

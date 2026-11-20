@@ -1,4 +1,4 @@
-/** doctor.ts — le diagnostic : 12 vérifications aux identifiants fixes, lues aussi par le site et le copilote. */
+/** doctor.ts — the diagnosis: 12 checks with fixed ids, also read by the site and the copilot. */
 import { hostname, platform } from "node:os";
 import { CLOCK_MAX_SKEW_S, CONTAINER, DEFAULT_RPC, DSTACK_SOCKET, TSM_REPORT_DIR } from "./constants";
 import { dockerState, inspectContainer, type ContainerInfo, type DockerState } from "./docker";
@@ -14,7 +14,7 @@ export const CHECK_IDS = [
 ] as const;
 export type CheckId = (typeof CHECK_IDS)[number];
 
-/** le format exact envoyé à l'API dans chaque battement de cœur */
+/** the exact format sent to the API in each heartbeat */
 export interface Check {
   id: CheckId;
   label: string;
@@ -32,7 +32,7 @@ export interface DoctorReport {
   api: string;
   port: number;
   checks: Check[];
-  /** vérifications qui comptent pour « ok » dans ce mode ; les autres sont facultatives */
+  /** checks that count for "ok" in this mode; the others are optional */
   required: CheckId[];
   blocking: CheckId[];
   facts: {
@@ -48,9 +48,9 @@ export interface DoctorReport {
 export interface DoctorOptions {
   api: string;
   port: number;
-  /** forcer le mode démo (TDX facultatif) */
+  /** force demo mode (TDX optional) */
   demo?: boolean;
-  /** l'enclave doit tourner (dans « up ») ; par défaut : si le conteneur existe */
+  /** the enclave must run (in "up"); by default: if the container exists */
   expectEnclave?: boolean;
   rpc?: string;
   signal?: AbortSignal;
@@ -71,7 +71,7 @@ const LABELS: Record<CheckId, string> = {
   attest: "Attestation keys",
 };
 
-// l'API tronque à 300 caractères : on coupe proprement avant
+// the API truncates at 300 characters: cut cleanly before
 const clip = (s: string, n = 300): string => (s.length <= n ? s : s.slice(0, n - 1) + "…");
 
 interface Probe {
@@ -92,10 +92,10 @@ async function probe(url: string, init: { body?: unknown; timeoutMs: number; sig
   }
 }
 
-/** arrêt normal : sortie propre, ou arrêtée par docker stop (SIGTERM = 143, SIGKILL après délai = 137) */
+/** a normal stop: a clean exit, or stopped by docker stop (SIGTERM = 143, SIGKILL after a delay = 137) */
 const cleanStop = (c: ContainerInfo): boolean => !c.oomKilled && [0, 137, 143].includes(c.exitCode);
 
-/** « quote simulé », « quote TDX réel », ou pas encore de quote (il naît à l'inscription) */
+/** "simulated quote", "real TDX quote", or no quote yet (it is born at registration) */
 function quoteLabel(q: unknown): string {
   if (typeof q !== "string" || q === "0x" || q === "") return "no quote yet (it is produced at registration, from the site)";
   if (q.toLowerCase().startsWith("0x4d4f434b2d544458")) return "last quote simulated (demo mode)";
@@ -118,7 +118,7 @@ export async function runDoctor(o: DoctorOptions): Promise<DoctorReport> {
     probe(`${local}/pubkeys`, { timeoutMs: 3000, signal: sig }),
   ]);
   const container = docker.ok ? await inspectContainer(CONTAINER, sig) : null;
-  // après les sondes HTTP locales : l'essai d'écoute ne doit pas intercepter leurs connexions
+  // after the local HTTP probes: the listen test must not intercept their connections
   const portState = await probePort(o.port);
 
   const checks: Check[] = [];
@@ -138,7 +138,7 @@ export async function runDoctor(o: DoctorOptions): Promise<DoctorReport> {
   // docker
   add("docker", docker.ok, docker.ok ? `Docker ${docker.version}, daemon reachable` : docker.detail);
 
-  // TDX : périphérique invité, rapport TSM, agent dstack
+  // TDX: guest device, TSM report, dstack agent
   const dev = tdxDevice();
   if (dev) add("tdx_guest", true, `${dev} present: Intel TDX VM`);
   else if (mode === "dstack") add("tdx_guest", false, "Not visible here: normal in a dstack CVM, the quote goes through the dstack agent.");
@@ -154,7 +154,7 @@ export async function runDoctor(o: DoctorOptions): Promise<DoctorReport> {
   else if (mode === "tdx") add("dstack_socket", false, `No dstack agent (${DSTACK_SOCKET}): the current image only gets a real quote through dstack (Phala Cloud); without it, the attestation stays simulated.`);
   else add("dstack_socket", false, "No dstack agent: normal outside a dstack CVM (Phala Cloud). Optional in demo mode.");
 
-  // clock : l'heure du RPC d'Arc (en-tête Date), à défaut celle de l'API
+  // clock: the time of Arc's RPC (Date header), otherwise the API's
   const skew = rpcP.skewS ?? apiP.skewS ?? null;
   const src = rpcP.skewS != null ? hostOf(rpc) : "the ArcHive API";
   if (skew == null) add("clock", false, "Reference time unreadable (RPC and API unreachable): restore the network, then check the clock (Linux: timedatectl).");
@@ -178,7 +178,7 @@ export async function runDoctor(o: DoctorOptions): Promise<DoctorReport> {
   if (apiP.ok && apiP.json?.ok === true) add("api", true, `ArcHive API reachable (${o.api} · ${apiP.ms} ms)`);
   else add("api", false, `ArcHive API unreachable (${o.api}/health: ${apiP.error ?? "unexpected answer"}). Check --api or ARCHIVE_API, and that this outbound port is open.`);
 
-  // port : libre, ou déjà le nôtre
+  // port: free, or already ours
   const portLabel = `Enclave port (${o.port})`;
   const ours = !!container && container.hostPort === o.port && (container.running || container.restarting);
   if (ours) add("port", true, `Port ${o.port}: used by the ArcHive enclave (container ${CONTAINER})`, portLabel);
@@ -189,7 +189,7 @@ export async function runDoctor(o: DoctorOptions): Promise<DoctorReport> {
     add("port", false, `Port ${o.port} already taken by another program${who ? ` (${who})` : ""}: stop it or pick another port (--port ${o.port + 1}).`, portLabel);
   }
 
-  // enclave_health : GET /health de l'enclave locale
+  // enclave_health: GET /health of the local enclave
   const healthOk = health.ok && health.json?.ok === true;
   const up = upCommand(mode);
   if (!container) {
@@ -219,7 +219,7 @@ export async function runDoctor(o: DoctorOptions): Promise<DoctorReport> {
   const required: CheckId[] = ["os", "node", "docker", "clock", "rpc", "api", "port"];
   if (mode === "tdx") required.push("tdx_guest", "tsm_report");
   if (mode === "dstack") required.push("dstack_socket");
-  // par défaut, l'enclave compte si son conteneur tourne ou s'est arrêté sur une erreur (pas après un arrêt normal)
+  // by default, the enclave counts if its container runs or stopped on an error (not after a normal stop)
   if (o.expectEnclave ?? (!!container && !(!container.running && !container.restarting && cleanStop(container)))) {
     required.push("enclave_health", "attest");
   }
@@ -241,7 +241,7 @@ export async function runDoctor(o: DoctorOptions): Promise<DoctorReport> {
   };
 }
 
-/** la sortie --json : les vérifications + « required » pour chacune */
+/** the --json output: the checks + "required" for each */
 export function doctorJson(r: DoctorReport) {
   return {
     ok: r.ok,
@@ -260,7 +260,7 @@ export function doctorJson(r: DoctorReport) {
 export function printChecks(r: DoctorReport): void {
   const labelW = 26;
   const indent = " ".repeat(4 + labelW + 1);
-  // hors terminal (tuyau, journal) : pas de coupure, une vérification par ligne
+  // outside a terminal (pipe, log): no line cutting, one check per line
   const width = isTTY() ? Math.min(columns(), 120) - indent.length : Infinity;
   for (const c of r.checks) {
     const req = r.required.includes(c.id);

@@ -1,5 +1,5 @@
-// build.mjs — un seul fichier exécutable : dist/archive-node.mjs, copié dans web/public/ (servi par le site
-// pour « curl -fsSL …/install.sh | sh »). Aucune dépendance à l'exécution : seulement les modules de Node.
+// build.mjs — one executable file, dist/archive-node.mjs, copied into web/public/ (served by the site
+// for "curl -fsSL …/install.sh | sh"). No runtime dependency: only Node's own modules.
 import { build } from "esbuild";
 import { chmodSync, copyFileSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -18,7 +18,7 @@ await build({
   target: "node20",
   outfile,
   legalComments: "none",
-  // lisible exprès : un opérateur doit pouvoir relire ce qu'il exécute
+  // readable on purpose: an operator must be able to read again what they run
   minify: false,
   define: { __ARCHIVE_NODE_VERSION__: JSON.stringify(pkg.version) },
   banner: {

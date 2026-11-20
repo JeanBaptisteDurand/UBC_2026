@@ -1,8 +1,8 @@
-/** exec.ts — lancer une commande système (docker, cloudflared, systemctl…) sans shell, avec délai et annulation. */
+/** exec.ts — runs a system command (docker, cloudflared, systemctl…) without a shell, with a timeout and cancellation. */
 import { execFile } from "node:child_process";
 
 export interface ExecResult {
-  /** code de sortie ; null si la commande n'a pas pu tourner jusqu'au bout */
+  /** exit code; null if the command could not run to the end */
   code: number | null;
   stdout: string;
   stderr: string;
@@ -31,7 +31,7 @@ export function run(cmd: string, args: string[], opts: { timeoutMs?: number; sig
   });
 }
 
-/** dernière ligne non vide d'une sortie (le message d'erreur utile de docker) */
+/** the last non-empty line of an output (docker's useful error message) */
 export function lastLine(s: string): string {
   const lines = s.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   return (lines[lines.length - 1] ?? "").replace(/^(Error response from daemon|docker): /i, "").slice(0, 240);

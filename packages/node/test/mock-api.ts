@@ -4,16 +4,16 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 
 export interface MockOptions {
-  /** réponses successives de /pair/poll (la dernière se répète) ; 404 = demande inconnue */
+  /** successive answers of /pair/poll (the last one repeats); 404 = unknown request */
   poll?: (string | 404)[];
-  /** /pair/start répond 404 (API pas encore à jour) */
+  /** /pair/start answers 404 (an API not updated yet) */
   startMissing?: boolean;
-  /** /pair/start refuse avec cette erreur de l'API (statut et corps { error, code, params }) */
+  /** /pair/start refuses with this API error (status and body { error, code, params }) */
   startError?: { status: number; body: unknown };
-  /** /machines/heartbeat répond 401 */
+  /** /machines/heartbeat answers 401 */
   rejectKey?: boolean;
   key?: string;
-  /** le compte qui « approuve » le code (rendu par /pair/poll) ; null : aucun */
+  /** the account that "approves" the code (returned by /pair/poll); null: none */
   operator?: string | null;
 }
 
@@ -23,7 +23,7 @@ export interface MockApi {
   /** demandes de code (POST /pair/start) */
   starts: number;
   polls: number;
-  /** en-têtes Authorization reçus par POST /pair/reject (la machine a refusé l'appairage) */
+  /** Authorization headers received by POST /pair/reject (the machine refused the pairing) */
   rejects: string[];
   close(): Promise<void>;
 }
@@ -50,7 +50,7 @@ export async function startMockApi(o: MockOptions = {}): Promise<MockApi> {
         state.starts++;
         if (o.startMissing) return send(404, { error: "Not Found" });
         if (o.startError) return send(o.startError.status, o.startError.body);
-        return send(200, { deviceCode: "dev-123", userCode: TEST_CODE, verifyUrl: `http://site.test/#/operateur?code=${TEST_CODE}`, expiresIn: 60, interval: 1 });
+        return send(200, { deviceCode: "dev-123", userCode: TEST_CODE, verifyUrl: `http://site.test/#/operator?code=${TEST_CODE}`, expiresIn: 60, interval: 1 });
       }
       if (req.method === "POST" && req.url === "/pair/poll") {
         const seq = o.poll ?? ["approved"];

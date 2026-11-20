@@ -1,4 +1,4 @@
-/** system.ts — ce que la machine sait d'elle-même : mode (TDX, dstack, démo), système, adresse IP, port, agent en cours. */
+/** system.ts — what the machine knows of itself: mode (TDX, dstack, demo), system, IP address, port, running agent. */
 import { existsSync, readFileSync } from "node:fs";
 import { arch, networkInterfaces, platform, release } from "node:os";
 import net from "node:net";
@@ -11,7 +11,7 @@ export const tdxDevice = (): string | null => TDX_DEVICES.find((p) => existsSync
 export const hasTsmReport = (): boolean => existsSync(TSM_REPORT_DIR);
 export const hasDstack = (): boolean => existsSync(DSTACK_SOCKET);
 
-/** dstack si le socket de l'agent dstack existe, tdx si /dev/tdx_guest existe, sinon démo */
+/** dstack if the dstack agent's socket exists, tdx if /dev/tdx_guest exists, otherwise demo */
 export function detectMode(): Mode {
   if (hasDstack()) return "dstack";
   if (tdxDevice()) return "tdx";
@@ -24,7 +24,7 @@ export function modeLabel(m: Mode): string {
   return "no-TDX (local trial only: a simulated attestation can't register)";
 }
 
-/** la commande que le site affiche, à l'identique */
+/** the command the site shows, identical */
 export const upCommand = (m: Mode): string =>
   m === "demo" ? `archive-node up --demo   (local trial; to serve the network, rent an Intel TDX VM: Phala Cloud from $0.06/h)` : `archive-node up --product ${PRODUCT_TDX} --tunnel`;
 
@@ -35,7 +35,7 @@ export async function osDescription(): Promise<string> {
     try {
       pretty = /^PRETTY_NAME="?([^"\n]+)"?/m.exec(readFileSync("/etc/os-release", "utf8"))?.[1] ?? pretty;
     } catch {
-      /* pas de /etc/os-release */
+      /* no /etc/os-release */
     }
     return `${pretty} · kernel ${release()} · ${arch()}`;
   }
@@ -51,10 +51,10 @@ export function isPrivateIPv4(ip: string): boolean {
   return a === 10 || a === 127 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254);
 }
 
-// interfaces virtuelles (Docker, VPN, ponts) : leur adresse n'est jamais celle à annoncer
+// virtual interfaces (Docker, VPN, bridges): their address is never the one to announce
 const VIRTUAL_IFACE = /^(docker|br-|veth|virbr|vmnet|vboxnet|cni|flannel|kube|cali|weave|tun|tap|utun|wg|tailscale|zt|lo|bridge|awdl|llw|anpi|gif|stf)/i;
 
-/** la première IPv4 non interne (publique de préférence) */
+/** the first non-internal IPv4 (public by preference) */
 export function primaryIPv4(): { address: string; iface: string; isPrivate: boolean } | null {
   const cands: { address: string; iface: string; isPrivate: boolean }[] = [];
   for (const [iface, addrs] of Object.entries(networkInterfaces())) {
@@ -70,7 +70,7 @@ export function primaryIPv4(): { address: string; iface: string; isPrivate: bool
 
 export type PortState = "free" | "busy" | "denied";
 
-/** libre, occupé, ou interdit (port < 1024 sans root) */
+/** free, taken, or forbidden (port < 1024 without root) */
 export async function probePort(port: number): Promise<PortState> {
   if (await canConnect(port)) return "busy";
   return tryListen(port);
@@ -98,7 +98,7 @@ function tryListen(port: number): Promise<PortState> {
   });
 }
 
-/** « node, pid 1234 » : qui écoute sur ce port (si lsof est là) */
+/** "node, pid 1234": who listens on this port (if lsof is there) */
 export async function portOwner(port: number): Promise<string | null> {
   const r = await run("lsof", ["-nP", `-iTCP:${port}`, "-sTCP:LISTEN", "-Fpc"], { timeoutMs: 4000 });
   if (r.code !== 0) return null;
@@ -107,7 +107,7 @@ export async function portOwner(port: number): Promise<string | null> {
   return pid ? `${cmd ?? "?"}, pid ${pid}` : null;
 }
 
-/** vrai si `pid` est un agent archive-node vivant (autre que nous) */
+/** true if `pid` is a live archive-node agent (other than us) */
 export async function isAgentAlive(pid: number | null | undefined): Promise<boolean> {
   if (!pid || pid === process.pid) return false;
   try {

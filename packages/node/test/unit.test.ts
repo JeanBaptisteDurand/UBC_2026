@@ -1,5 +1,5 @@
-/** unit.test.ts — les fonctions pures de l'agent : masquage, police, bannière, coupure, journaux, tunnel, docker,
- *  systemd, origine de la clé (--key-file, ARCHIVE_KEY ; --key refusé), réponse oui/non, refus de l'API par code. */
+/** unit.test.ts — the agent's pure functions: masking, font, banner, line cutting, logs, tunnel, docker, systemd,
+ *  the key's origin (--key-file, ARCHIVE_KEY; --key refused), yes/no answers, API refusals by code. */
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync } from "node:fs";
@@ -44,20 +44,20 @@ test("code banner (14 characters): readable on an 80-column terminal, a narrower
   assert.equal(bigWidth(code), 77);
   assert.ok(bigText(code)!.every((r) => r.length <= 77));
   const b80 = codeBanner(code, 80);
-  assert.ok(b80 && !b80.short, "le code entier tient sur 80 colonnes");
+  assert.ok(b80 && !b80.short, "the whole code fits in 80 columns");
   assert.equal(b80.rows.length, 5);
-  assert.ok(b80.rows.every((r) => r.length <= 79), "une colonne reste libre : pas de retour à la ligne automatique");
-  // le haut de « M », dernier signe : rien n'est coupé
+  assert.ok(b80.rows.every((r) => r.length <= 79), "one column stays free: no automatic line wrap");
+  // the top of "M", the last character: nothing is cut
   assert.ok(b80.rows[0]!.endsWith("█   █"));
   const b60 = codeBanner(code, 60);
-  assert.ok(b60 && b60.short && b60.rows.every((r) => r.length <= 59), "repli : 7K2P-QX9M seul, le préfixe est facultatif");
+  assert.ok(b60 && b60.short && b60.rows.every((r) => r.length <= 59), "fallback: 7K2P-QX9M alone, the prefix is optional");
   assert.equal(bigWidth("7K2P-QX9M"), 51);
   assert.equal(codeBanner(code, 40), null);
 });
 
 test("operator key: --key refused; --key-file (first) then ARCHIVE_KEY; never the key in the service", () => {
   const dir = mkdtempSync(join(tmpdir(), "archive-node-key-"));
-  process.env.ARCHIVE_HOME = join(dir, ".archive"); // aucun node.json
+  process.env.ARCHIVE_HOME = join(dir, ".archive"); // no node.json
   const file = join(dir, "cle");
   writeFileSync(file, `  ${KEY}\n`, { mode: 0o600 });
   assert.deepEqual(suppliedKey(file, {}), { key: KEY, source: `--key-file ${file}`, warning: null });
@@ -68,7 +68,7 @@ test("operator key: --key refused; --key-file (first) then ARCHIVE_KEY; never th
   assert.equal(suppliedKey(file, { ARCHIVE_KEY: other })!.key, KEY, "--key-file passe avant ARCHIVE_KEY");
   assert.deepEqual(suppliedKey(undefined, { ARCHIVE_KEY: ` ${other} ` }), { key: other, source: "ARCHIVE_KEY", warning: null });
   assert.equal(suppliedKey(undefined, {}), null);
-  assert.throws(() => suppliedKey(undefined, { ARCHIVE_KEY: "pas-une-cle" }), (e: unknown) => e instanceof UsageError);
+  assert.throws(() => suppliedKey(undefined, { ARCHIVE_KEY: "not-a-key" }), (e: unknown) => e instanceof UsageError);
   assert.throws(() => suppliedKey(dir, {}), (e: unknown) => e instanceof UsageError && /directory/.test(e.message));
   assert.throws(() => planUp({ demo: true, key: KEY }, { requireKey: true }), (e: unknown) => e instanceof UsageError && e.message === KEY_ARG_REFUSED);
   const plan = planUp({ demo: true, keyFile: file }, { requireKey: true });
@@ -77,7 +77,7 @@ test("operator key: --key refused; --key-file (first) then ARCHIVE_KEY; never th
   assert.equal(plan.keySource, `--key-file ${file}`);
   const args = upArgsFromPlan(plan, { demo: true, keyFile: file });
   assert.deepEqual(args.slice(-2), ["--key-file", file]);
-  assert.ok(!args.join(" ").includes("arcop_"), "le service ne reçoit que le chemin du fichier");
+  assert.ok(!args.join(" ").includes("arcop_"), "the service receives only the file's path");
 });
 
 test("line wrapping never breaks a command, even inside quotes", () => {
@@ -103,7 +103,7 @@ test("API refusals: shown in English through their stable code; otherwise the AP
     "HTTP 409: limit of 20 machines per operator reached: remove one on the Operator page");
   assert.equal(apiError(res(400, { error: "mode invalide : attendu tdx, dstack, demo", code: "invalid_enum", params: { field: "mode", allowed: "tdx, dstack, demo" } })),
     "HTTP 400: invalid mode: expected tdx, dstack, demo");
-  // API d'avant les codes, ou code inconnu de cette version de l'agent : le texte reçu
+  // an API from before the codes, or a code this agent version does not know: the text received
   assert.equal(apiError(res(503, { error: "panne" })), "HTTP 503: panne");
   assert.equal(apiError(res(418, { error: "théière", code: "teapot" })), "HTTP 418: théière");
   assert.equal(apiError({ ...res(502, null), text: "<html>Bad Gateway</html>" }), "HTTP 502: <html>Bad Gateway</html>");
@@ -117,13 +117,13 @@ test("the quick tunnel address is read from cloudflared's output", () => {
 
 test("logs: stdout and stderr put back in order, even with chunks of different lengths", () => {
   const so = parseLogLines("2026-11-07T01:03:50.123456789Z a\n2026-11-07T01:03:52Z c\n");
-  const se = parseLogLines("2026-11-07T01:03:50.1234Z b-avant-a\n2026-11-07T01:03:51.5Z b\nsuite sans horodatage\n");
+  const se = parseLogLines("2026-11-07T01:03:50.1234Z b-before-a\n2026-11-07T01:03:51.5Z b\nnext line without a timestamp\n");
   const merged = mergeLogLines([so, se], 100).map((l) => l.text);
-  assert.deepEqual(merged, ["b-avant-a", "a", "b", "suite sans horodatage", "c"]);
+  assert.deepEqual(merged, ["b-before-a", "a", "b", "next line without a timestamp", "c"]);
   assert.equal(mergeLogLines([so, se], 2).length, 2);
   assert.equal(formatLogLine(so[0]!), "2026-11-07T01:03:50Z a");
   assert.ok(formatLogLine({ ts: 0, frac: 0, text: "x".repeat(1000) }).length <= 400);
-  assert.equal(parseLogLines("2026-11-07T01:03:50Z \x1b[32mvert\x1b[0m")[0]!.text, "vert");
+  assert.equal(parseLogLines("2026-11-07T01:03:50Z \x1b[32mgreen\x1b[0m")[0]!.text, "green");
 });
 
 test("docker run: the expected command", () => {
@@ -133,7 +133,7 @@ test("docker run: the expected command", () => {
   assert.ok(!a.includes("-v"));
   const b = runArgs({ port: 9000, product: 1, image: "img", platform: "linux/amd64", dstack: true, labels: {}, env: { REGISTRY: "0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d", OPERATOR_ALLOWLIST: "0x5724d89D610c3017b8DC161c025248341556f6Ab", REDPILL_API_KEY: "" } });
   assert.ok(b.join(" ").includes("-e REGISTRY=0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d -e OPERATOR_ALLOWLIST=0x5724d89D610c3017b8DC161c025248341556f6Ab"));
-  assert.ok(b.join(" ").includes("-e REDPILL_API_KEY -v"), "un secret est hérité de l'environnement, jamais écrit dans la commande");
+  assert.ok(b.join(" ").includes("-e REDPILL_API_KEY -v"), "a secret is inherited from the environment, never written in the command");
   assert.ok(b.join(" ").includes("-v /var/run/dstack.sock:/var/run/dstack.sock"));
   assert.ok(b.join(" ").includes("-p 9000:8802"));
   assert.ok(b.join(" ").includes("--platform linux/amd64"));

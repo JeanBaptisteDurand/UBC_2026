@@ -1,4 +1,4 @@
-/** docker.ts — tout ce que l'agent demande à Docker : démon, image, conteneur de l'enclave, journaux. */
+/** docker.ts — everything the agent asks of Docker: daemon, image, the enclave's container, logs. */
 import { CONTAINER, DSTACK_SOCKET, ENCLAVE_INNER_PORT } from "./constants";
 import { lastLine, run, type ExecResult } from "./exec";
 import { stripAnsi } from "./ui";
@@ -43,7 +43,7 @@ export interface ContainerInfo {
 
 const when = (iso: unknown): number | null => {
   const t = Date.parse(String(iso ?? ""));
-  return Number.isFinite(t) && t > 0 ? t : null; // « 0001-01-01T00:00:00Z » = jamais démarré
+  return Number.isFinite(t) && t > 0 ? t : null; // "0001-01-01T00:00:00Z" = never started
 };
 
 export async function inspectContainer(name = CONTAINER, signal?: AbortSignal): Promise<ContainerInfo | null> {
@@ -72,7 +72,7 @@ export async function inspectContainer(name = CONTAINER, signal?: AbortSignal): 
   }
 }
 
-/** « linux/amd64 » si l'image est présente localement, sinon null */
+/** "linux/amd64" if the image is present locally, otherwise null */
 export async function imagePlatform(image: string, signal?: AbortSignal): Promise<string | null> {
   const r = await run("docker", ["image", "inspect", image, "--format", "{{.Os}}/{{.Architecture}}"], { timeoutMs: 12_000, signal });
   if (r.code !== 0) return null;
@@ -116,18 +116,18 @@ export function runError(stderr: string, port: number): string {
 export interface RunSpec {
   port: number;
   product: number;
-  /** variables passées au conteneur (contrats, opérateurs autorisés…) ; une valeur vide = héritée de l'environnement
-   *  de l'agent (docker run -e NOM), pour qu'un secret n'apparaisse jamais dans la ligne de commande */
+  /** variables passed to the container (contracts, allowed operators…); an empty value = inherited from the agent's
+   *  environment (docker run -e NAME), so that a secret never shows in the command line */
   env?: Record<string, string>;
   image: string;
-  /** à passer seulement si l'image n'est pas de l'architecture de la machine (émulation) */
+  /** pass it only if the image is not of the machine's architecture (emulation) */
   platform: string | null;
   dstack: boolean;
   labels: Record<string, string>;
 }
 
 /** docker run -d --name archive-enclave --restart unless-stopped -p {port}:8802 -e PRODUCT_ID={product} [-e …] [-v dstack.sock] {image}
- *  (+ --init : node n'est pas PID 1, il reçoit SIGTERM et l'arrêt est immédiat au lieu d'attendre 10 s) */
+ *  (+ --init: node is not PID 1, it receives SIGTERM and stops at once instead of waiting 10 s) */
 export function runArgs(s: RunSpec): string[] {
   return [
     "run", "-d", "--init", "--name", CONTAINER, "--restart", "unless-stopped",
@@ -141,13 +141,13 @@ export function runArgs(s: RunSpec): string[] {
   ];
 }
 
-/** architecture Docker de cette machine (amd64, arm64…) */
+/** this machine's Docker architecture (amd64, arm64…) */
 export const hostDockerArch = (): string => ({ x64: "amd64", arm64: "arm64", arm: "arm", ia32: "386" } as Record<string, string>)[process.arch] ?? process.arch;
 
 // ---------- journaux ----------
 
 export interface LogLine {
-  /** horodatage en ms et fraction en ns (docker donne la nanoseconde) pour trier stdout et stderr ensemble */
+  /** timestamp in ms and fraction in ns (docker gives the nanosecond) to sort stdout and stderr together */
   ts: number;
   frac: number;
   text: string;
@@ -171,7 +171,7 @@ export function parseLogLines(chunk: string): LogLine[] {
   return outLines;
 }
 
-/** les dernières lignes du conteneur, stdout et stderr remis dans l'ordre */
+/** the container's last lines, stdout and stderr put back in order */
 export async function containerLogs(name: string, tail: number, signal?: AbortSignal): Promise<LogLine[]> {
   const r = await run("docker", ["logs", "--timestamps", "--tail", String(tail), name], { timeoutMs: 12_000, signal });
   if (r.code !== 0) return [];
@@ -184,7 +184,7 @@ export function mergeLogLines(groups: LogLine[][], max: number): LogLine[] {
   return all.slice(-max).map((x) => x.l);
 }
 
-/** « 2026-11-07T01:03:50Z message », tronqué pour l'API (500 caractères au plus par ligne) */
+/** "2026-11-07T01:03:50Z message", truncated for the API (500 characters at most per line) */
 export function formatLogLine(l: LogLine): string {
   const stamp = l.ts > 0 ? new Date(l.ts).toISOString().slice(0, 19) + "Z " : "";
   return (stamp + l.text).slice(0, 400);

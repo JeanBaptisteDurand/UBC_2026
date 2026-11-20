@@ -1,4 +1,4 @@
-/** logs.ts — « archive-node logs [-f] » : les journaux du conteneur de l'enclave. */
+/** logs.ts — "archive-node logs [-f]": the logs of the enclave's container. */
 import { spawn } from "node:child_process";
 import { CONTAINER } from "./constants";
 import { dockerState, inspectContainer } from "./docker";
@@ -15,7 +15,7 @@ export async function logsCommand(f: { follow?: boolean; tail?: number }): Promi
   return new Promise((resolve) => {
     const child = spawn("docker", args, { stdio: "inherit" });
     const onSig = () => {
-      /* Ctrl+C : docker le reçoit aussi et s'arrête ; on attend sa sortie */
+      /* Ctrl+C: docker receives it too and stops; wait for it to exit */
     };
     process.on("SIGINT", onSig);
     child.once("error", (e) => {

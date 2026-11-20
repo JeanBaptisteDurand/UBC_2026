@@ -1,4 +1,4 @@
-/** config.ts — ~/.archive : la clé opérateur (node.json, droits 0600) et l'état du dernier lancement (state.json). */
+/** config.ts — ~/.archive: the operator key (node.json, mode 0600) and the state of the last run (state.json). */
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
@@ -10,7 +10,7 @@ export interface NodeConfig {
   key: string;
   machineId?: string | null;
   operator?: string | null;
-  /** origine du site (déduite de l'URL d'appairage) pour les liens affichés */
+  /** the site's origin (derived from the pairing URL) for the links shown */
   web?: string | null;
   pairedAt?: string;
 }
@@ -38,7 +38,7 @@ export const archiveDir = (): string => process.env.ARCHIVE_HOME?.trim() || join
 export const configPath = (): string => join(archiveDir(), "node.json");
 export const statePath = (): string => join(archiveDir(), "state.json");
 
-/** écriture atomique, lisible par le seul propriétaire (dossier 0700, fichier 0600) */
+/** atomic write, readable by the owner alone (folder 0700, file 0600) */
 export function writePrivateFile(path: string, content: string): void {
   mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
   const tmp = `${path}.${process.pid}.tmp`;
@@ -62,9 +62,9 @@ export function loadConfig(): NodeConfig | null {
     throw new CliError(`The file ${p} is unreadable: delete it, then pair again with archive-node pair.`);
   }
   try {
-    if ((statSync(p).mode & 0o077) !== 0) chmodSync(p, 0o600); // la clé ne doit être lisible que par vous
+    if ((statSync(p).mode & 0o077) !== 0) chmodSync(p, 0o600); // the key must be readable by you alone
   } catch {
-    /* système de fichiers sans droits Unix */
+    /* a file system without Unix rights */
   }
   return c;
 }
@@ -85,11 +85,11 @@ export function saveState(s: NodeState): void {
   try {
     writePrivateJson(statePath(), s);
   } catch {
-    /* l'état local n'est qu'un confort pour « status » */
+    /* the local state is only a convenience for "status" */
   }
 }
 
-/** http(s)://hôte[:port][/chemin], sans « / » final */
+/** http(s)://host[:port][/path], without a final "/" */
 export function normalizeUrl(raw: string, what: string): string {
   let u: URL;
   try {
@@ -103,13 +103,13 @@ export function normalizeUrl(raw: string, what: string): string {
   return u.toString().replace(/\/+$/, "");
 }
 
-/** ordre : --api, puis $ARCHIVE_API, puis l'API de l'appairage, puis l'API publique d'ArcHive */
+/** order: --api, then $ARCHIVE_API, then the pairing's API, then ArcHive's public API */
 export function resolveApi(flag: string | undefined, cfg: NodeConfig | null): string {
   const raw = flag ?? (process.env.ARCHIVE_API?.trim() || undefined) ?? cfg?.api ?? DEFAULT_API;
   return normalizeUrl(raw, flag ? "--api" : process.env.ARCHIVE_API ? "ARCHIVE_API" : "API");
 }
 
-/** le chemin affiché à l'humain : ~/.archive/… plutôt que /home/jb/.archive/… */
+/** the path shown to a person: ~/.archive/… rather than /home/jb/.archive/… */
 export function tilde(p: string): string {
   const h = homedir();
   return h && p.startsWith(h + "/") ? "~" + p.slice(h.length) : p;

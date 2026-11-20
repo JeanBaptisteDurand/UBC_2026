@@ -1,5 +1,5 @@
-/** net.ts — appels HTTP (fetch natif) avec délai, des erreurs réseau dites en anglais, et les refus de l'API traduits
- *  par leur code stable (champ « code » de chaque erreur de l'API ; son texte « error » est en français). */
+/** net.ts — HTTP calls (native fetch) with a timeout, network errors put into English words, and the API's refusals
+ *  translated by their stable code (the "code" field of each API error; its "error" text is in French). */
 import { VERSION } from "./version";
 
 export interface HttpResult {
@@ -9,7 +9,7 @@ export interface HttpResult {
   text: string;
   headers: Headers;
   ms: number;
-  /** heure locale moins l'heure du serveur (en-tête Date), en secondes ; null si pas d'en-tête */
+  /** local time minus the server's time (Date header), in seconds; null if there is no header */
   skewS: number | null;
 }
 
@@ -50,12 +50,12 @@ export async function request(url: string, init: RequestInit2 = {}): Promise<Htt
     json = null;
   }
   const date = Date.parse(res.headers.get("date") ?? "");
-  // l'en-tête Date est tronqué à la seconde : on vise le milieu de cette seconde
+  // the Date header is truncated to the second: aim at the middle of that second
   const skewS = Number.isFinite(date) ? ((t0 + t1) / 2 - (date + 500)) / 1000 : null;
   return { status: res.status, ok: res.ok, json, text, headers: res.headers, ms: t1 - t0, skewS };
 }
 
-/** « connection refused », « host name not found »… plutôt que « fetch failed » */
+/** "connection refused", "host name not found"… rather than "fetch failed" */
 export function netError(e: unknown, timeoutMs = 10_000): string {
   const x = e as { name?: string; message?: string; code?: string; cause?: { code?: string; message?: string } };
   if (x?.name === "TimeoutError") return `no answer within ${Math.round(timeoutMs / 1000)} s`;
@@ -89,7 +89,7 @@ export function netError(e: unknown, timeoutMs = 10_000): string {
 type Params = Record<string, unknown>;
 const v = (p: Params, k: string, dflt = "?"): string => (p[k] === undefined || p[k] === null ? dflt : String(p[k]));
 
-/** Ce qu'un débit refusé comptait (params.scope de « rate_limited »). */
+/** What a refused rate was counting (params.scope of "rate_limited"). */
 const SCOPE_EN: Record<string, string> = {
   signatures: "signatures", signed_reads: "signed reads", nonce_requests: "nonce requests", code_requests: "code requests",
   code_lookups: "code lookups", pairing_polls: "pairing polls", pairing_refusals: "pairing refusals", key_reads: "key reads",
@@ -98,7 +98,7 @@ const SCOPE_EN: Record<string, string> = {
   invalid_signatures: "invalid signatures",
 };
 
-/** Les refus de l'API que l'agent peut recevoir (appairage, battements, lecture de sa machine), en anglais, par code. */
+/** The API refusals the agent can receive (pairing, heartbeats, reading its machine), in English, by code. */
 const API_EN: Record<string, (p: Params) => string> = {
   rate_limited: (p) => `too many requests (${SCOPE_EN[v(p, "scope")] ?? v(p, "scope")}): try again in ${v(p, "retryAfter")} s`,
   pairings_full: () => "too many pairings in progress: try again in a few minutes",
@@ -128,7 +128,7 @@ const API_EN: Record<string, (p: Params) => string> = {
   server_error: () => "the API failed to answer (server error)",
 };
 
-/** Le refus de l'API en anglais : par son code stable ; sinon son texte tel quel (français), ou le début de la réponse. */
+/** The API's refusal in English: by its stable code; otherwise its text as it came (French), or the start of the answer. */
 export function apiMessage(r: HttpResult): string {
   const code = typeof r.json?.code === "string" ? r.json.code : null;
   const params = r.json?.params && typeof r.json.params === "object" ? (r.json.params as Params) : {};
@@ -137,7 +137,7 @@ export function apiMessage(r: HttpResult): string {
   return typeof r.json?.error === "string" ? r.json.error : r.text.replace(/\s+/g, " ").trim().slice(0, 160);
 }
 
-/** « HTTP 404: the API's message » */
+/** "HTTP 404: the API's message" */
 export function apiError(r: HttpResult): string {
   const m = apiMessage(r);
   return `HTTP ${r.status}${m ? `: ${m}` : ""}`;

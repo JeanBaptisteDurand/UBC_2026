@@ -1,11 +1,11 @@
-/** args.ts — lecture des options (node:util parseArgs) avec des erreurs en anglais, et validation des valeurs. */
+/** args.ts — option parsing (node:util parseArgs) with errors in English, and value validation. */
 import util from "node:util";
 import { UsageError } from "./errors";
 
 export type OptionSpec = Record<string, { type: "string" | "boolean"; short?: string }>;
 export type Values = Record<string, string | boolean | undefined>;
 
-/** les options d'une commande ; « -h/--help » est toujours accepté */
+/** a command's options; "-h/--help" is always accepted */
 export function parseCommand(argv: string[], spec: OptionSpec, cmd: string): { values: Values; positionals: string[] } {
   try {
     const r = util.parseArgs({

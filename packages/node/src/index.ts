@@ -1,4 +1,4 @@
-/** index.ts — archive-node : l'agent opérateur d'ArcHive. Point d'entrée et aiguillage des commandes. */
+/** index.ts — archive-node: ArcHive's operator agent. The entry point and the command dispatch. */
 import { runUp, type UpFlags } from "./agent";
 import { parseCommand, parseCount, parsePort, str, type OptionSpec, type Values } from "./args";
 import { loadConfig, resolveApi } from "./config";
@@ -22,7 +22,7 @@ const UP: OptionSpec = {
   port: { type: "string" },
   image: { type: "string" },
   demo: { type: "boolean" },
-  // --key est lu pour être refusé avec une explication (la clé passe par --key-file ou ARCHIVE_KEY)
+  // --key is read in order to refuse it with an explanation (the key goes through --key-file or ARCHIVE_KEY)
   key: { type: "string" },
   "key-file": { type: "string" },
   "public-url": { type: "string" },
@@ -80,7 +80,7 @@ async function main(argv: string[]): Promise<number> {
       if (v.json) out(JSON.stringify(doctorJson(r), null, 2));
       else {
         let next: string | null = null;
-        if (process.env.ARCHIVE_INSTALLING) next = null; // install.sh affiche lui-même la suite
+        if (process.env.ARCHIVE_INSTALLING) next = null; // install.sh shows the next step itself
         else if (r.ok && !cfg) next = "archive-node pair";
         else if (r.ok && !r.facts.container?.running) next = upCommand(r.mode);
         printDoctor(r, next);

@@ -1,4 +1,4 @@
-/** errors.ts — erreurs attendues : un message (en anglais) pour l'humain et un code de sortie, jamais une pile. */
+/** errors.ts — expected errors: a message (in English) for the person and an exit code, never a stack. */
 
 export class CliError extends Error {
   constructor(message: string, readonly exitCode = 1) {
@@ -6,7 +6,7 @@ export class CliError extends Error {
   }
 }
 
-/** mauvaise utilisation (option inconnue, valeur invalide) : code de sortie 2 */
+/** misuse (unknown option, invalid value): exit code 2 */
 export class UsageError extends CliError {
   constructor(message: string) {
     super(message, 2);

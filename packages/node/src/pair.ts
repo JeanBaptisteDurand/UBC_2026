@@ -1,4 +1,4 @@
-/** pair.ts — « archive-node pair » : appairage par code (flux « appareil », comme une TV).
+/** pair.ts — "archive-node pair": pairing by code (a "device" flow, like a TV).
  *  The machine shows HIVE-XXXX-XXXX; a person approves it on the site by signing with their wallet; the machine receives
  *  an operator key arcop_… (which cannot spend anything).
  *  Before keeping it, the machine shows the FULL ADDRESS of the account that approved and asks for confirmation
@@ -20,15 +20,15 @@ import { VERSION } from "./version";
 export interface PairFlags {
   api?: string;
   force?: boolean;
-  /** accepter le compte qui approuve sans poser la question (automatisation) */
+  /** accept the approving account without asking (automation) */
   yes?: boolean;
-  /** n'accepter que ce compte (automatisation sûre) : tout autre compte est refusé et sa clé révoquée */
+  /** accept only this account (safe automation): any other account is refused and its key revoked */
   operator?: string;
 }
 
 const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
 
-/** sans terminal : personne ne peut voir l'adresse du compte qui approuve ET répondre ; la décision se prend d'avance */
+/** without a terminal, nobody can both see the approving account's address AND answer; the decision is made beforehand */
 export const NO_TTY =
   "standard input is not a terminal (pipe, script, cloud-init): the machine can't show you the account that will " +
   "approve the code and then read YOUR answer (an answer from a pipe, as in “echo y | archive-node pair”, doesn't prove " +
@@ -52,7 +52,7 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
   });
 }
 
-/** une ligne d'attente qui se réécrit (terminal seulement) */
+/** a waiting line that rewrites itself (terminal only) */
 class Waiting {
   private timer: NodeJS.Timeout | null = null;
   private frame = 0;
@@ -82,7 +82,7 @@ class Waiting {
   }
 }
 
-/** Garder ou non la clé : `how` dit pourquoi elle est gardée ; sinon `why`, et le code de sortie. */
+/** Keep the key or not: `how` says why it is kept; otherwise `why`, and the exit code. */
 type Verdict = { keep: true; how: string } | { keep: false; why: string; exitCode: number };
 
 /** Shows the account that approved, in full, and decides (--operator, --yes, otherwise the y/N question). */
@@ -105,14 +105,14 @@ async function confirmOperator(operator: string, f: PairFlags, signal: AbortSign
   const a = await askYesNo("  Keep this pairing and save the key on this machine? [y/N] ", signal);
   if (a === "yes") return { keep: true, how: "confirmed on this machine" };
   if (a === "cancel") return { keep: false, exitCode: 130, why: "Pairing cancelled." };
-  // pairCommand l'a déjà exigé avant de demander un code : jamais atteint, sauf terminal disparu entre-temps
+  // pairCommand already required it before asking for a code: never reached, unless the terminal vanished in between
   if (a === "notty") return { keep: false, exitCode: 2, why: `Pairing refused: ${NO_TTY}` };
   if (a === "eof") return { keep: false, exitCode: 1, why: "No answer (input closed): refused by default." };
   return { keep: false, exitCode: 1, why: "Pairing refused." };
 }
 
-/** La clé n'est pas gardée : l'API la révoque, et la machine (jamais vue) quitte le compte qui l'avait approuvée.
- *  Même sans réponse de l'API, rien n'est perdu : la clé n'a été remise qu'à cette machine, qui ne la garde pas. */
+/** The key is not kept: the API revokes it, and the machine (never seen) leaves the account that approved it.
+ *  Even with no answer from the API, nothing is lost: the key was handed to this machine alone, which does not keep it. */
 async function rejectPairing(api: string, key: string): Promise<string> {
   try {
     const r = await request(`${api}/pair/reject`, { method: "POST", headers: { authorization: `Bearer ${key}` }, timeoutMs: 10_000 });
@@ -136,7 +136,7 @@ export async function pairCommand(f: PairFlags): Promise<number> {
     out(`${ARROW} To start the enclave: ${bold(upCommand(mode))}`);
     return 0;
   }
-  // sans terminal, la question y/N ne serait pas lue (askYesNo) : on le dit AVANT de demander un code, pas 15 min après
+  // without a terminal, the y/N question would not be read (askYesNo): say so BEFORE asking for a code, not 15 min later
   if (!flags.yes && !flags.operator && !process.stdin.isTTY) throw new UsageError(`${NO_TTY.charAt(0).toUpperCase()}${NO_TTY.slice(1)}`);
   const api = resolveApi(flags.api, existing);
   const host = hostname();
@@ -161,7 +161,7 @@ export async function pairCommand(f: PairFlags): Promise<number> {
   const expiresIn = clampNum(s.expiresIn, 30, 3600, 900) * 1000;
   const deadline = Date.now() + expiresIn;
 
-  // 2) afficher le code, en grand (lisible sur un terminal de 80 colonnes)
+  // 2) show the code, in big letters (readable on an 80-column terminal)
   out(`${bold("archive-node")} ${VERSION} · pairing “${host}” (mode ${modeLabel(mode).split(" ")[0]})`);
   out();
   out(`  Open ${cyan(s.verifyUrl)}`);
@@ -177,7 +177,7 @@ export async function pairCommand(f: PairFlags): Promise<number> {
   out(dim("  Don't show this code to anyone: after the approval, this machine will ask you to confirm the account."));
   out();
 
-  // 3) attendre la validation, puis la confirmer ici
+  // 3) wait for the approval, then confirm it here
   const ac = new AbortController();
   const onSig = () => ac.abort();
   process.once("SIGINT", onSig);
@@ -226,7 +226,7 @@ export async function pairCommand(f: PairFlags): Promise<number> {
         throw new CliError(`The API approved the pairing without saying which account approved it: to be safe, ${await rejectPairing(api, key)}.\nRun archive-node pair again.`);
       }
 
-      // 4) l'humain confirme le compte (adresse complète) avant que la clé ne soit enregistrée
+      // 4) the person confirms the account (full address) before the key is saved
       const verdict = await confirmOperator(operator, flags, ac.signal);
       if (!verdict.keep) {
         const what = await rejectPairing(api, key);

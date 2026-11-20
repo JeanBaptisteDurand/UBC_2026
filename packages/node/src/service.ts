@@ -1,6 +1,6 @@
-/** service.ts — « archive-node service install | uninstall » : l'agent lancé au démarrage de la machine
- *  (systemd sous Linux ; sous macOS, on affiche l'équivalent launchd). La clé n'est JAMAIS écrite dans l'unité : le
- *  service lit ~/.archive/node.json, ou le fichier donné par --key-file (seul son chemin figure dans l'unité). */
+/** service.ts — "archive-node service install | uninstall": the agent started at boot
+ *  (systemd on Linux; on macOS, the launchd equivalent is shown). The key is NEVER written into the unit: the
+ *  service reads ~/.archive/node.json, or the file given by --key-file (only its path appears in the unit). */
 import { existsSync, readFileSync, realpathSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir, platform, userInfo } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -15,7 +15,7 @@ export const UNIT_NAME = "archive-node";
 export const UNIT_PATH = `/etc/systemd/system/${UNIT_NAME}.service`;
 export const LAUNCHD_LABEL = "io.archive.node";
 
-/** les options de « up » à rejouer au démarrage : jamais la clé, seulement le chemin de --key-file (absolu) */
+/** the "up" options to replay at boot: never the key, only the (absolute) --key-file path */
 export function upArgsFromPlan(p: UpPlan, f: UpFlags): string[] {
   const a = ["up", "--product", String(p.product), "--port", String(p.port)];
   if (p.image !== DEFAULT_IMAGE) a.push("--image", p.image);
@@ -27,10 +27,10 @@ export function upArgsFromPlan(p: UpPlan, f: UpFlags): string[] {
   return a;
 }
 
-/** ARCHIVE_KEY n'est pas recopiée dans le service : elle y serait lisible en clair */
+/** ARCHIVE_KEY is not copied into the service: it would be readable in clear there */
 const ENV_KEY_NOTE = "The ARCHIVE_KEY variable is not copied into the service (it would be readable in clear there): the service will read ~/.archive/node.json, or the file given with --key-file.";
 
-/** un argument d'ExecStart= : entre guillemets, avec les échappements de systemd (\, ", %, $) */
+/** an ExecStart= argument: in quotes, with systemd's escapes (\, ", %, $) */
 export function systemdQuote(s: string): string {
   return `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/%/g, "%%").replace(/\$/g, "$$$$")}"`;
 }
@@ -93,7 +93,7 @@ export function renderLaunchdPlist(program: string[], env: Record<string, string
   ].join("\n");
 }
 
-/** le PATH du service : celui d'ici (docker, cloudflared) + le dossier de node */
+/** the service's PATH: the one here (docker, cloudflared) + node's folder */
 function servicePath(): string {
   const parts = (process.env.PATH ?? "").split(":").filter(Boolean);
   const nodeDir = dirname(process.execPath);
@@ -101,7 +101,7 @@ function servicePath(): string {
   return parts.join(":");
 }
 
-/** un chemin de node qui survit aux mises à jour (/usr/bin/node, /opt/homebrew/bin/node…) plutôt que /…/Cellar/node/25.2.1/bin/node */
+/** a node path that survives updates (/usr/bin/node, /opt/homebrew/bin/node…) rather than /…/Cellar/node/25.2.1/bin/node */
 function stableNodePath(): string {
   const real = (p: string): string | null => {
     try {
@@ -118,7 +118,7 @@ function stableNodePath(): string {
   return process.execPath;
 }
 
-/** le dossier personnel d'un autre utilisateur (sous sudo : celui qui a tapé la commande) */
+/** another user's home folder (under sudo: the one who typed the command) */
 function homeOf(user: string): string | null {
   try {
     for (const line of readFileSync("/etc/passwd", "utf8").split("\n")) {
@@ -126,7 +126,7 @@ function homeOf(user: string): string | null {
       if (f[0] === user && f[5]) return f[5];
     }
   } catch {
-    /* pas de /etc/passwd lisible */
+    /* no readable /etc/passwd */
   }
   return null;
 }
@@ -142,7 +142,7 @@ function scriptPath(): string {
 }
 
 export async function serviceInstall(f: UpFlags): Promise<number> {
-  const plan = planUp(f, { requireKey: false }); // mêmes validations que « up » (dont le refus de --key)
+  const plan = planUp(f, { requireKey: false }); // the same checks as "up" (including the refusal of --key)
   const program = [stableNodePath(), scriptPath(), ...upArgsFromPlan(plan, f)];
   const os = platform();
   const keyFile = !!f.keyFile?.trim();
@@ -234,7 +234,7 @@ export async function serviceUninstall(): Promise<number> {
     out(`No ${UNIT_NAME} service installed (${UNIT_PATH} missing).`);
     return 0;
   }
-  await run("systemctl", ["disable", "--now", UNIT_NAME], { timeoutMs: 90_000 }); // l'agent arrête l'enclave et prévient le site
+  await run("systemctl", ["disable", "--now", UNIT_NAME], { timeoutMs: 90_000 }); // the agent stops the enclave and tells the site
   unlinkSync(UNIT_PATH);
   await run("systemctl", ["daemon-reload"], { timeoutMs: 30_000 });
   out(`${OK} Service ${UNIT_NAME} stopped and removed.`);
