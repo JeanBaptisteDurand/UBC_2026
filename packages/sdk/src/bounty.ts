@@ -807,7 +807,7 @@ async function askOne(
       };
     }
   } catch {
-    return err("compte rendu de rejeu illisible");
+    return err("unreadable replay report");
   }
   if (j?.status === "confirmed") return { ...who, status: "confirmed", replay, reason: String(j.reason ?? "") };
   if (j?.status === "refused") return { ...who, status: "refused", code: String(j.code ?? ""), reason: String(j.reason ?? "") };
@@ -827,7 +827,7 @@ async function askOne(
   try {
     signer = await recoverRefutationSigner(o.d.sealedBounty, ref, j.signature as Hex, o.d.chainId);
   } catch {
-    return err("signature illisible");
+    return err("unreadable signature");
   }
   if (signer.toLowerCase() !== k.signer.toLowerCase()) return err(`refutation signed by ${signer}, not by the verified enclave ${k.signer}`);
   return { ...who, status: "refuted", refutation: ref, signature: j.signature as Hex, replay };

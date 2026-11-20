@@ -204,7 +204,7 @@ function hex32(x: unknown, name: string): Hex {
   return lower(x) as Hex;
 }
 function sig65(x: unknown, name: string): Hex {
-  if (typeof x !== "string" || !/^0x[0-9a-fA-F]{130}$/.test(x)) throw new Error(`${name} : signature de 65 octets attendue`);
+  if (typeof x !== "string" || !/^0x[0-9a-fA-F]{130}$/.test(x)) throw new Error(`${name}: 65-byte signature expected`);
   return lower(x) as Hex;
 }
 
@@ -248,7 +248,7 @@ export function normalizeEcdsaSignature(sig: Hex): Hex {
 
 /** What would stop USDC from accepting this signature (null if canonical). */
 export function eip3009SignatureProblem(sig: unknown): string | null {
-  if (typeof sig !== "string" || !/^0x[0-9a-fA-F]{130}$/.test(sig)) return "signature ECDSA de 65 octets attendue";
+  if (typeof sig !== "string" || !/^0x[0-9a-fA-F]{130}$/.test(sig)) return "65-byte ECDSA signature expected";
   const s = BigInt(`0x${sig.slice(66, 130)}`);
   const v = parseInt(sig.slice(130, 132), 16);
   if (BigInt(`0x${sig.slice(2, 66)}`) === 0n || s === 0n) return "signature nulle";
@@ -454,7 +454,7 @@ export function parseX402PaidRequest(json: string): X402PaidRequest {
   });
   if (!Array.isArray(j.authorizations) || j.authorizations.length === 0) throw new Error("authorizations: at least one");
   const r = j.requirement;
-  if (!r || typeof r !== "object" || typeof r.network !== "string") throw new Error("requirement illisible");
+  if (!r || typeof r !== "object" || typeof r.network !== "string") throw new Error("unreadable requirement");
   return {
     enclaveUrl: String(j.enclaveUrl ?? ""), productId: dec(j.productId, "productId", MAX_U256), payer: addr(j.payer, "payer"),
     enclave: addr(j.enclave, "enclave"),
@@ -561,7 +561,7 @@ export class X402Client {
       this.pub.readContract({ address: this.d.productRegistry, abi: productRegistryAbi, functionName: "getProduct", args: [id] }),
       this.pub.readContract({ address: this.d.productRegistry, abi: productRegistryAbi, functionName: "isActive", args: [id] }),
     ])) as [{ author: Address; price: bigint; settlement: Address; param: Hex }, boolean];
-    if (!active) throw new X402ChallengeError(`produit #${id} inactif`, "product");
+    if (!active) throw new X402ChallengeError(`product #${id} inactive`, "product");
     if (lower(p.settlement) !== lower(this.d.x402Settler)) {
       throw new X402ChallengeError(`product #${id} is not paid per call: it settles through ${p.settlement}, not through X402Settler ${this.d.x402Settler}`, "product");
     }
@@ -679,7 +679,7 @@ export class X402Client {
     if (!p || !Array.isArray(p.authorizations) || p.authorizations.length === 0 || !p.authorization) throw new Error("x402: resume without an authorization");
     if (lower(p.payer) !== lower(this.account.address)) throw new Error(`x402: call paid by ${p.payer}, not by this client (${this.account.address})`);
     if (p.productId !== this.o.productId) throw new Error(`x402: call for product #${p.productId}, client for product #${this.o.productId}`);
-    if (o.maxPrice !== undefined && (typeof o.maxPrice !== "bigint" || o.maxPrice <= 0n)) throw new Error("x402 : maxPrice : montant positif (bigint) attendu");
+    if (o.maxPrice !== undefined && (typeof o.maxPrice !== "bigint" || o.maxPrice <= 0n)) throw new Error("x402: maxPrice: a positive amount (bigint) expected");
     const ceiling = o.maxPrice ?? priceCeilingOf(p);
     const q: X402PaidRequest = { ...p, authorizations: [...p.authorizations], maxPrice: ceiling };
     // keys read again (not the cache): the enclave may have restarted; unreachable, the request is resent anyway (paid call error)

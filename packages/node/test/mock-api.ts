@@ -56,17 +56,17 @@ export async function startMockApi(o: MockOptions = {}): Promise<MockApi> {
         const seq = o.poll ?? ["approved"];
         const st = seq[Math.min(state.polls, seq.length - 1)]!;
         state.polls++;
-        if (st === 404) return send(404, { error: "deviceCode inconnu", code: "device_code_unknown" });
+        if (st === 404) return send(404, { error: "unknown deviceCode", code: "device_code_unknown" });
         if (st === "approved") return send(200, { status: "approved", key, machineId: "m-0001", ...(operator ? { operator } : {}) });
         return send(200, { status: st });
       }
       if (req.method === "POST" && req.url === "/pair/reject") {
         state.rejects.push(String(req.headers.authorization ?? ""));
-        if (req.headers.authorization !== `Bearer ${key}`) return send(401, { error: "clé opérateur inconnue ou révoquée", code: "key_unknown_or_revoked" });
+        if (req.headers.authorization !== `Bearer ${key}`) return send(401, { error: "unknown or revoked operator key", code: "key_unknown_or_revoked" });
         return send(200, { ok: true });
       }
       if (req.method === "POST" && req.url === "/machines/heartbeat") {
-        if (o.rejectKey || req.headers.authorization !== `Bearer ${key}`) return send(401, { error: "clé opérateur inconnue ou révoquée", code: "key_unknown_or_revoked" });
+        if (o.rejectKey || req.headers.authorization !== `Bearer ${key}`) return send(401, { error: "unknown or revoked operator key", code: "key_unknown_or_revoked" });
         state.heartbeats.push(body);
         return send(200, { ok: true, machineId: "m-0001", operator: operator ?? TEST_OPERATOR, next: { registered: false } });
       }

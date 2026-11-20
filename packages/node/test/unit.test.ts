@@ -58,10 +58,10 @@ test("code banner (14 characters): readable on an 80-column terminal, a narrower
 test("operator key: --key refused; --key-file (first) then ARCHIVE_KEY; never the key in the service", () => {
   const dir = mkdtempSync(join(tmpdir(), "archive-node-key-"));
   process.env.ARCHIVE_HOME = join(dir, ".archive"); // no node.json
-  const file = join(dir, "cle");
+  const file = join(dir, "key");
   writeFileSync(file, `  ${KEY}\n`, { mode: 0o600 });
   assert.deepEqual(suppliedKey(file, {}), { key: KEY, source: `--key-file ${file}`, warning: null });
-  const loose = join(dir, "cle-ouverte");
+  const loose = join(dir, "open-key");
   writeFileSync(loose, KEY, { mode: 0o644 });
   assert.match(suppliedKey(loose, {})!.warning!, /readable by other accounts on this machine: chmod 600 /);
   const other = "arcop_99999999_ZyXwVuTsRqPoNmLkJiHgFeDcBa987654";

@@ -198,7 +198,7 @@ describe("quorum: at least 2 distinct operators, more than the claim's, none of 
     expect(alone.message).toMatch(/the only operator has signed the claim/);
     const one = refuteQuorumPlan({ claimOperators: [OP_A], candidateOperators: [OP_A, OP_B, OP_B] });
     expect(one.message).toMatch(/only one eligible operator.*0x000000000000000000000000000000000000b002/i);
-    expect(refuteQuorumPlan({ claimOperators: [OP_A, OP_B], candidateOperators: [OP_C, getAddress("0x00000000000000000000000000000000000000d4")] }).reachable).toBe(false); // 3 requis
+    expect(refuteQuorumPlan({ claimOperators: [OP_A, OP_B], candidateOperators: [OP_C, getAddress("0x00000000000000000000000000000000000000d4")] }).reachable).toBe(false); // 3 required
     expect(refuteQuorumPlan({ claimOperators: [OP_A], candidateOperators: [OP_B, OP_C, zeroAddress] })).toMatchObject({ reachable: true, eligibleOperators: [OP_B, OP_C] });
   });
 });

@@ -667,7 +667,7 @@ test("heartbeat: fields strictly validated, bounded body", async () => {
     ["signer", "0x1234", "invalid_hex"], ["x25519", { a: 1 }, "invalid_hex"], ["productId", "12345678901", "invalid_product_id"],
     ["mode", "evil", "invalid_enum"], ["status", "pwned", "invalid_enum"], ["enclaveUrl", "javascript:alert(1)", "enclave_url_scheme"],
     ["enclaveUrl", "http://[::1", "unreadable_enclave_url"], ["enclaveUrl", "https://" + "a".repeat(200), "invalid_enclave_url"],
-    ["logs", "pas un tableau", "invalid_logs"], ["doctor", { checks: "non" }, "invalid_doctor"],
+    ["logs", "not an array", "invalid_logs"], ["doctor", { checks: "no" }, "invalid_doctor"],
   ] as const) {
     const x = await call("/machines/heartbeat", { body: { ...good, [field]: bad }, auth });
     assert.equal(x.status, 400, `an invalid ${field} must be refused`);
@@ -731,7 +731,7 @@ test("reads: the list requires ?operator, a reduced public view; logs and diagno
   const full = list.json.find((x: any) => x.machineId === machineA);
   assert.equal(full.hostname, "tdx-paris-1");
   assert.equal(full.enclaveUrl, "http://203.0.113.50:8802");
-  assert.equal(full.logs, undefined, "la liste ne porte pas les journaux");
+  assert.equal(full.logs, undefined, "the list carries no logs");
   // another operator's read does not see this machine; a read allows no action
   assert.equal((await call(`/machines/${machineA}/detail`, { body: await signIn(opB, { kind: "read" }) })).status, 404);
   assert.equal((await call(`/machines/${machineA}/remove`, { body: read })).status, 400);
@@ -747,7 +747,7 @@ test("explicit origin: pairedBy \"code\" or \"key\", the address that approved, 
   assert.equal((await call("/machines/heartbeat", { body: { hostname: "tdx-austin-1", status: "running" }, auth: `Bearer ${machineKey}` })).status, 200);
   let pub = (await call(`/machines?operator=${opE.address}`)).json;
   assert.equal(pub.length, 1);
-  assert.deepEqual([pub[0].pairedBy, pub[0].approvedBy, pub[0].viaKey], ["code", op, null], "vue publique : la provenance, sans le nom");
+  assert.deepEqual([pub[0].pairedBy, pub[0].approvedBy, pub[0].viaKey], ["code", op, null], "public view: the provenance, without the name");
   assert.ok(typeof pub[0].pairedAt === "number");
   // a FREE key adds another machine: "key", with its key
   const free = (await call("/operator/keys", { body: { label: "cli", ...(await signIn(opE, { kind: "createKey" })) } })).json;
@@ -807,7 +807,7 @@ test("machines: 20 per operator; heartbeats rate-limited per key; a signed remov
   for (let i = 0; i < 12; i++) codes.push((await call("/machines/heartbeat", { body: { hostname: "hote-0", status: "running" }, auth: `Bearer ${k}` })).status);
   assert.ok(codes.includes(429), "above 30 heartbeats per minute and per key: 429");
   const [m1, m2] = (await call(`/machines?operator=${opD.address}`)).json.map((x: any) => x.machineId);
-  assert.equal((await call(`/machines/${m2}/remove`, { body: await signIn(opD, { kind: "removeMachine", machineId: m1 }) })).status, 400, "la signature nomme UNE machine");
+  assert.equal((await call(`/machines/${m2}/remove`, { body: await signIn(opD, { kind: "removeMachine", machineId: m1 }) })).status, 400, "the signature names ONE machine");
   assert.equal((await call(`/machines/${m1}/remove`, { body: await signIn(opD, { kind: "removeMachine", machineId: m1 }) })).status, 200);
   assert.equal((await call(`/machines?operator=${opD.address}`)).json.length, 19);
 });
@@ -953,7 +953,7 @@ test("test mode: x402 payment for one call, to the SDK deployment's X402Settler,
     domain: one.td.domain, types: receiveWithAuthorizationTypes, primaryType: "ReceiveWithAuthorization", message: one.td.message, signature: ok.json.result,
   });
   assert.equal(who, testWallet.address, "signed for X402Settler, as USDC will verify it (receiveWithAuthorization)");
-  assert.equal(eip3009SignatureProblem(ok.json.result), null, "signature canonique pour l'USDC (v = 27/28, s bas)");
+  assert.equal(eip3009SignatureProblem(ok.json.result), null, "canonical signature for USDC (v = 27/28, low s)");
   const line = logs.filter((l) => l.startsWith("test mode {")).map((l) => JSON.parse(l.slice("test mode ".length))).reverse()
     .find((e) => e.method === "eth_signTypedData_v4" && e.ok);
   assert.equal(line?.to, testnet.x402Settler.toLowerCase());
@@ -985,8 +985,8 @@ test("test mode: decoded transactions, allowlist, ownership read on-chain, gas s
     ["OperatorBond.bondFrom", send(testnet.operatorBond, encodeFunctionData({ abi: tx, functionName: "bondFrom", args: [1n] }))],
     ["openSession > 2 USDC", send(testnet.sessionPay, openData(3_000_000n))],
     ["topUp session d'un tiers", send(testnet.sessionPay, encodeFunctionData({ abi: tx, functionName: "topUp", args: [2n, 1n, anAuth] }))],
-    ["fund prime d'un tiers", send(testnet.sealedBounty, encodeFunctionData({ abi: tx, functionName: "fund", args: [2n, 1n, anAuth] }))],
-    ["withdrawRemaining prime d'un tiers", send(testnet.sealedBounty, encodeFunctionData({ abi: tx, functionName: "withdrawRemaining", args: [2n] }))],
+    ["fund of a third party's bounty", send(testnet.sealedBounty, encodeFunctionData({ abi: tx, functionName: "fund", args: [2n, 1n, anAuth] }))],
+    ["withdrawRemaining of a third party's bounty", send(testnet.sealedBounty, encodeFunctionData({ abi: tx, functionName: "withdrawRemaining", args: [2n] }))],
     ["gas above the cap", send(testnet.sealedBounty, REOPEN_7)],
   ];
   for (const [what, p] of refusals) assert.equal((await p).json.error?.code, 4001, `${what} : ${JSON.stringify((await p).json)}`);
@@ -995,8 +995,8 @@ test("test mode: decoded transactions, allowlist, ownership read on-chain, gas s
   const accepted: Array<[string, Hex, string]> = [
     ["openSession 1 USDC", openData(1_000_000n), testnet.sessionPay],
     ["topUp de sa session", encodeFunctionData({ abi: tx, functionName: "topUp", args: [1n, 500_000n, anAuth] }), testnet.sessionPay],
-    ["fund de sa prime", encodeFunctionData({ abi: tx, functionName: "fund", args: [1n, 500_000n, anAuth] }), testnet.sealedBounty],
-    ["withdrawRemaining de sa prime", encodeFunctionData({ abi: tx, functionName: "withdrawRemaining", args: [1n] }), testnet.sealedBounty],
+    ["fund of its own bounty", encodeFunctionData({ abi: tx, functionName: "fund", args: [1n, 500_000n, anAuth] }), testnet.sealedBounty],
+    ["withdrawRemaining of its own bounty", encodeFunctionData({ abi: tx, functionName: "withdrawRemaining", args: [1n] }), testnet.sealedBounty],
     ["claim (chasseur)", encodeFunctionData({ abi: tx, functionName: "claim", args: [{ bountyId: 2n, payee: DEAD, blockN: 1n, blockHashN: ("0x" + "00".repeat(32)) as Hex, predicateHash: ("0x" + "00".repeat(32)) as Hex, loss: 1n, tier: 0, fingerprint: ("0x" + "00".repeat(32)) as Hex, cPHash: ("0x" + "00".repeat(32)) as Hex, deadline: 1n }, [], "0x"] }), testnet.sealedBounty],
   ];
   for (const [what, data, to] of accepted) {
@@ -1026,9 +1026,9 @@ test("test mode: daily budget of 10 USDC (authorizations + gas), then refusal", 
 });
 
 test("log: one line per test-mode request, never the token; token refusals capped", async () => {
-  for (let i = 0; i < 10; i++) await rpcCall("eth_accounts", [], "Bearer faux-jeton-" + i);
+  for (let i = 0; i < 10; i++) await rpcCall("eth_accounts", [], "Bearer fake-token-" + i);
   const refusals = logs.filter((l) => l.startsWith("test mode {") && l.includes("token missing or invalid"));
-  assert.ok(refusals.length <= 5, `au plus 5 lignes de refus de jeton par minute (vu : ${refusals.length})`);
+  assert.ok(refusals.length <= 5, `at most 5 token-refusal lines per minute (seen: ${refusals.length})`);
   const lines = logs.filter((l) => l.startsWith("test mode {"));
   assert.ok(lines.length > 20);
   assert.ok(lines.every((l) => !l.includes(TOKEN)), "the token must never be logged");

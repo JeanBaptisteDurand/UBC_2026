@@ -18,7 +18,7 @@ export function productLine(p: ProductView): string {
     `${formatUnits(p.price, 6)} USDC/unit (${p.unitTokens} token${p.unitTokens > 1 ? "s" : ""}${p.outWeight > 1 ? `, output ×${p.outWeight}` : ""})`,
     p.deterministic ? "deterministic" : "not deterministic",
     `shares op/author/network ${pct(p.bpsOperator)}/${pct(p.bpsAuthor)}/${pct(p.bpsNetwork)} %`,
-    `caution min ${usdc(p.minBond)}`,
+    `min bond ${usdc(p.minBond)}`,
     `settlement ${contractName(p.settlement)}`,
     `auteur ${p.author}`,
     ...(p.manifestURI ? [`manifeste ${p.manifestURI}`] : []),

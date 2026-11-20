@@ -17,7 +17,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** python3 and its pty module (macOS, Linux): without them, the terminal tests are skipped */
 const NO_PTY = (() => {
-  if (process.platform === "win32") return "pas de pseudo-terminal sous Windows";
+  if (process.platform === "win32") return "no pseudo-terminal on Windows";
   try {
     execFileSync("python3", ["-c", "import pty"], { stdio: "ignore" });
     return false;
@@ -213,7 +213,7 @@ test("automation: --operator accepts only that account; --yes accepts without a 
   try {
     const r = await cli(["pair", "--api", api.url, "--operator", TEST_OPERATOR.toUpperCase().replace("0X", "0x")], h);
     assert.equal(r.code, 0, r.stderr);
-    assert.ok(!r.stdout.includes("[y/N]"), "aucune question");
+    assert.ok(!r.stdout.includes("[y/N]"), "no question");
     assert.match(r.stdout, /it is the expected account \(--operator\)/);
     assert.equal(JSON.parse(readFileSync(join(h, "node.json"), "utf8")).operator, TEST_OPERATOR);
   } finally {
@@ -304,10 +304,10 @@ test("API without pairing (404) or unreachable: a clear message, no stack trace"
     await busy.close();
   }
   // a code the agent does not know: the API's text, as is (better than nothing)
-  const odd = await startMockApi({ startError: { status: 503, body: { error: "panne inconnue", code: "nouveau_code" } } });
+  const odd = await startMockApi({ startError: { status: 503, body: { error: "unknown outage", code: "new_code" } } });
   try {
     const r = await cli(["pair", "--api", odd.url, "--yes"], home());
-    assert.match(r.stderr, /HTTP 503: panne inconnue/);
+    assert.match(r.stderr, /HTTP 503: unknown outage/);
   } finally {
     await odd.close();
   }
@@ -342,7 +342,7 @@ test("up refuses a machine without TDX unless --demo, and without pairing; the k
   assert.match(svc.stderr, /--key is no longer accepted/);
   // --key-file and ARCHIVE_KEY: a malformed key or a missing file are usage errors, before any start
   mkdirSync(h, { recursive: true });
-  const bad = join(h, "mauvaise-cle");
+  const bad = join(h, "bad-key");
   writeFileSync(bad, "not a key\n", { mode: 0o600 });
   const badFile = await cli(["up", "--demo", "--key-file", bad], h);
   assert.equal(badFile.code, 2);

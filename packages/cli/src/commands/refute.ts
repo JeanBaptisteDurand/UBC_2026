@@ -86,7 +86,7 @@ function resultLine(r: RefuteEnclaveResult): string {
     case "skipped":
       return `  · not queried ${who}: ${r.reason}`;
     default:
-      return `  ! erreur    ${who} : ${r.reason}`;
+      return `  ! error     ${who}: ${r.reason}`;
   }
 }
 

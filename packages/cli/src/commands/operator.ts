@@ -70,7 +70,7 @@ const init: Command = {
     out(`  ${ids === undefined ? "?" : check(ids > 0n)} 1. ERC-8004 identity: ${ids === undefined ? "unreadable" : `${ids} agent token(s)`}`);
     out(`  ${check(linked > 0n)} 2. agentId linked to the bond: ${linked > 0n ? linked : "none"}`);
     out(`  ${approved === undefined ? "?" : check(approved)} 3. VerdictLog approved: ${approved === undefined ? "unreadable" : approved ? "yes" : "no"}`);
-    out(`  ${check(bond > 0n)} 4. caution : ${usdc(bond)}`);
+    out(`  ${check(bond > 0n)} 4. bond: ${usdc(bond)}`);
   },
 };
 

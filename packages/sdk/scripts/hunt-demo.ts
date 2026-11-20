@@ -36,7 +36,7 @@ const evAbi = parseAbi([
 
 async function main() {
   const bounty = await arc.getBounty(BOUNTY);
-  if (bounty.protocol === "0x0000000000000000000000000000000000000000") throw new Error(`prime #${BOUNTY} inexistante`);
+  if (bounty.protocol === "0x0000000000000000000000000000000000000000") throw new Error(`bounty #${BOUNTY} does not exist`);
   console.log(`bounty #${BOUNTY}: product #${bounty.productId}, pool ${Number(bounty.balance) / 1e6} USDC`);
 
   // the REAL exploit: the demo vault's deliberate flaw (migrate without access control), replayed on an Arc fork

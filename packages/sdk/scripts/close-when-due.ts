@@ -13,7 +13,7 @@ const account = privateKeyToAccount(SEC.privateKey as Hex);
 const pub = createPublicClient({ chain: arcTestnet, transport: http(undefined, { retryCount: 5, retryDelay: 1000 }) });
 const wallet = createWalletClient({ account, chain: arcTestnet, transport: http() });
 const arc = createArcClient({ publicClient: pub as any, walletClient: wallet as any, account });
-if (!process.env.SESSION) { console.error("SESSION=<id> requis"); process.exit(1); }
+if (!process.env.SESSION) { console.error("SESSION=<id> required"); process.exit(1); }
 const id = BigInt(process.env.SESSION);
 
 async function main() {

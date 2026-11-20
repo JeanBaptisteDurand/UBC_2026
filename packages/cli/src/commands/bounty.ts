@@ -132,7 +132,7 @@ async function verifyAndClaim(w: Writer, a: {
     throw new CliError(`claim refused before sending: ${m} (claim saved at: ${a.savedAt})`);
   };
   const b = await w.arc.getBounty(claim.bountyId);
-  if (b.protocol === ZERO) fail(`prime #${claim.bountyId} inexistante`);
+  if (b.protocol === ZERO) fail(`bounty #${claim.bountyId} does not exist`);
   const pending = await w.arc.pendingOf(claim.bountyId, claim.fingerprint);
   const reserved = pending.payee !== ZERO;
   if (reserved) {
@@ -214,7 +214,7 @@ const status: Command = {
     const id = parseId(ctx.args[0], "<id>");
     const { arc, pub } = reader(ctx.rpc);
     const b = await arc.getBounty(id);
-    if (b.protocol === ZERO) throw new CliError(`prime #${id} inexistante`);
+    if (b.protocol === ZERO) throw new CliError(`bounty #${id} does not exist`);
     const tiers = await readTiers(pub, id);
     const fees = await bountyFeesBps(pub);
     const p = await arc.getProduct(b.productId);
@@ -375,7 +375,7 @@ const submit: Command = {
 
     info(`1/6 · bounty #${id}: on-chain read`);
     const b = await w.arc.getBounty(id);
-    if (b.protocol === ZERO) throw new CliError(`prime #${id} inexistante`);
+    if (b.protocol === ZERO) throw new CliError(`bounty #${id} does not exist`);
     if (b.paused) warn(`bounty #${id} paused for claims anchored from block ${b.pausedFromBlock}`);
     if (Number(b.deadline) < nowS()) throw new CliError(`bounty #${id} expired`);
     const ph = predicateHash(exploit.predicate);
@@ -457,7 +457,7 @@ const reports: Command = {
     const outDir = opt(ctx, "out");
     const { arc, pub } = reader(ctx.rpc);
     const b = await arc.getBounty(id);
-    if (b.protocol === ZERO) throw new CliError(`prime #${id} inexistante`);
+    if (b.protocol === ZERO) throw new CliError(`bounty #${id} does not exist`);
     const { key, path: keyPath } = findBountyKey(b.protocolX25519, { path: opt(ctx, "key") });
     info(`bounty key: ${keyPath}`);
     const logs = await deliveredReports(pub, id);

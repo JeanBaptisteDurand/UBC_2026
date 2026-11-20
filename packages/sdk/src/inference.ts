@@ -90,7 +90,7 @@ export class InferenceClient {
     const maxAge = this.o.reverifyMs ?? 5 * 60_000;
     if (!force && this.keys && Date.now() - this.keys.checkedAtMs < maxAge) return this.keys;
     const s = await readSession(this.o.publicClient, this.d, this.o.sessionId);
-    if (s.owner === zeroAddress) throw new Error(`session #${this.o.sessionId} inconnue de SessionPay`);
+    if (s.owner === zeroAddress) throw new Error(`session #${this.o.sessionId} unknown to SessionPay`);
     if (s.closed) throw new SessionExpiredError(`session #${this.o.sessionId} close`);
     if (s.sessionKey.toLowerCase() !== this.account.address.toLowerCase()) {
       throw new Error(`the session key given (${this.account.address}) is not the key of session #${this.o.sessionId} (${s.sessionKey}): rotated or wrong key`);

@@ -72,11 +72,11 @@ async function main(argv: string[]): Promise<void> {
 
 main(process.argv.slice(2)).catch((e) => {
   if (e instanceof UsageError) {
-    info(`erreur : ${e.message}`);
+    info(`error: ${e.message}`);
     const c = e.command ?? current;
     info(c ? `→ arcvault ${c.path.join(" ")} --help` : "→ arcvault --help");
     process.exit(2);
   }
-  info(`erreur : ${e instanceof CliError ? e.message : explainError(e)}`);
+  info(`error: ${e instanceof CliError ? e.message : explainError(e)}`);
   process.exit(1);
 });

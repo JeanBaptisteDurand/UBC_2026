@@ -78,7 +78,7 @@ export function checkPredicateBounds(p: unknown): void {
     } else if (typeof v === "number") {
       if (!Number.isFinite(v)) throw new PredicateError("predicate: non-finite number (NaN or infinity)", "json");
     } else if (typeof v === "boolean" || v === null) {
-      // rien
+      // nothing
     } else if (Array.isArray(v)) {
       if (depth > PREDICATE_MAX_DEPTH) throw new PredicateError(`predicate: nesting deeper than ${PREDICATE_MAX_DEPTH} levels`, "depth");
       fields += v.length;

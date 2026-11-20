@@ -1,6 +1,6 @@
 # ArcHive API
 
-The read API of ArcHive, served under `https://arc-hive.xyz/api/` (for example
+The ArcHive API, served under `https://arc-hive.xyz/api/` (for example
 [`/api/stats`](https://arc-hive.xyz/api/stats) and [`/api/health`](https://arc-hive.xyz/api/health)). It serves the state of the network over HTTP to the site, the console, the MCP server and any other client. It never holds a user's key or funds.
 
 - Events come from the API's own index (`src/indexer.ts`). The indexer reads Arc's RPC from the deployment block and saves the index to `DATA_DIR`. State reads are batched with Multicall3: one RPC call covers dozens of reads.

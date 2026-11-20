@@ -472,7 +472,7 @@ describe("x402: the operator queue's reports are signed and never duplicated", (
     c.balances.set(L(payer.address), 1_000_000n);
     const cancelled = await servedCall({ enclave, payer });
     const mine = await servedCall({ enclave, payer });
-    c.used.add(`${L(payer.address)}:${L(cancelled.receipt.nonce)}`); // cancelAuthorization du payeur
+    c.used.add(`${L(payer.address)}:${L(cancelled.receipt.nonce)}`); // the payer's cancelAuthorization
     const asItem = (x: PendingCall) => ({ receipt: serializeCallReceipt(x.receipt), signature: x.signature, auth: { validAfter: "0", validBefore: x.auth.validBefore.toString(), nonce: x.auth.nonce, signature: x.auth.signature }, amount: "10000", servedAt: 1 });
     const posted: any[] = [];
     let ackStatus = 503;

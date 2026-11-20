@@ -48,7 +48,7 @@ export interface Command {
 
 export const GLOBAL_OPTS: OptSpec[] = [
   { name: "rpc", value: "<url>", desc: "Arc testnet RPC (default https://rpc.testnet.arc.io)" },
-  { name: "help", short: "h", desc: "affiche cette aide" },
+  { name: "help", short: "h", desc: "shows this help" },
 ];
 export const DRY_RUN_OPT: OptSpec = {
   name: "dry-run",

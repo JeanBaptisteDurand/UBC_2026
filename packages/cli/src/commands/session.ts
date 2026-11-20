@@ -200,7 +200,7 @@ const rotate: Command = {
   ],
   args: [{ name: "id", desc: "the session's id" }],
   write: true,
-  examples: ["arcvault session rotate 12 > nouvelle-cle.txt"],
+  examples: ["arcvault session rotate 12 > new-key.txt"],
   async run(ctx) {
     const id = parseId(ctx.args[0], "<id>");
     const w = await writer(ctx);
