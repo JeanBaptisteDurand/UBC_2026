@@ -44,6 +44,34 @@ Limits: at most 1,024 output tokens per call and 32 KB per request; streaming ar
 at most 3 unsettled calls per payer, so the bridge waits for the settlements; the bridge sees your requests in clear
 before sealing them (it runs on your machine).
 
+### Add the ArcHive MCP server
+
+The agent can also read the live network (the machines Arc verified, the products and their prices) through ArcHive's
+MCP server. Add it to [`opencode.json`](opencode.json), the file `opencode-arc` reads, with OpenCode's
+[`mcp` remote entry](https://opencode.ai/v1/docs/mcp-servers/), and keep only a few of its 16 tools for the `build`
+agent: the bridge writes the tools into the system message of every request, which must stay under 32 KB.
+
+```jsonc
+"mcp": {
+  "archive": { "type": "remote", "url": "https://arc-hive.xyz/mcp", "enabled": true, "timeout": 30000 }
+},
+"agent": {
+  "build": {
+    "tools": {
+      // ...the entries already there, plus the ArcHive tools this agent does not need:
+      "archive_arc_bounties": false, "archive_arc_sessions": false, "archive_arc_activity": false,
+      "archive_arc_verify_receipt": false, "archive_arc_enclave_status": false, "archive_arc_session_status": false,
+      "archive_arc_bounty_prepare_create": false, "archive_arc_operator_prepare_register": false,
+      "archive_arc_product_scaffold": false, "archive_arc_machines_list": false, "archive_arc_machine_diagnostics": false
+    }
+  }
+}
+```
+
+Five tools stay: `archive_arc_enclaves`, `archive_arc_products`, `archive_arc_pricing`, `archive_arc_operator_plan`
+and `archive_arc_operator_prepare_bond`. The MCP server needs no key: it reads Arc and prepares transactions, and never
+signs. OpenCode names each tool after the server (`archive_` + the tool's name).
+
 ## Pay from a Circle wallet
 
 Instead of a local test key, the bridge can pay from a
@@ -134,7 +162,9 @@ goose session
 ```
 
 Claude Code, through a [LiteLLM](https://docs.litellm.ai/) gateway that turns its Anthropic requests into chat
-completions: text only, as tested on 19 Nov 2026 (see the main README). Start the bridge with `ARCHIVE_TOOLS=off`, then:
+completions: text only, as tested on 19 Nov 2026 (see
+[Claude Code on ArcHive's private inference](../../docs/use-from-your-tools.md#claude-code-on-archives-private-inference)).
+Start the bridge with `ARCHIVE_TOOLS=off`, then:
 
 ```yaml
 # litellm.yaml

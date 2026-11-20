@@ -5,7 +5,7 @@
 
 **Sealed machines, open market.** AI agents pay per use in USDC for compute on Intel TDX machines. Arc checks the machine before anyone is paid. A proven lie costs its operator's bond.
 
-**Live:** https://arc-hive.xyz · **For AI agents:** [`/llms.txt`](https://arc-hive.xyz/llms.txt) and the [MCP server](https://arc-hive.xyz/mcp)
+**Live:** https://arc-hive.xyz · **For AI agents:** [`/llms.txt`](https://arc-hive.xyz/llms.txt) and the [MCP server](docs/use-from-your-tools.md#the-mcp-server-in-claude-code-cursor-or-any-mcp-client), `https://arc-hive.xyz/mcp`
 
 <p>
   <img src="docs/img/arc-hive-home.png" alt="ArcHive's home page: sealed machines, open market" width="49%">
@@ -29,8 +29,12 @@
 ## Try it in two minutes
 
 1. **Arc refuses a wrong machine.** On https://arc-hive.xyz, in the *Arc check* section, press **Change one byte**: Arc recomputes the image fingerprint and refuses the machine. It's a read-only call, with no wallet.
-2. **Ask AskHive**, bottom right of the site: *"Does this chat run in an enclave?"* It answers from its own enclave, admitted by Arc.
+2. **Ask AskHive**, in the Ask AskHive bar on the home page: *"Is this chat sealed in an enclave?"* It answers from its own enclave, admitted by Arc.
 3. **Plug your agent in:** `claude mcp add --transport http archive https://arc-hive.xyz/mcp`, then ask it what runs on ArcHive.
+
+<img src="docs/img/opencode-mcp-enclaves.png" alt="OpenCode on ArcHive's private AI calls the ArcHive MCP: five enclaves Arc verified right now, one per product" width="80%">
+
+*OpenCode runs on ArcHive's private AI (0.01 USDC per call) and reads the live network through our MCP server, added to its config.*
 
 With a wallet: get test USDC at https://faucet.circle.com, then pay one 0.01 USDC call or open a prepaid session on the site.
 
@@ -46,7 +50,7 @@ Anyone can publish a service. These five are ours, live on Arc testnet.
 | 4 | AskHive, the site's assistant in its own enclave | free | — |
 | 5 | Sealed Bounty, verified level | a protocol | as #2, on chips Arc and the Proof of Cloud alliance verified |
 
-On each paid use, 95 % goes to the operator whose enclave served it and 5 % to the network.
+On each paid AI session or call, 95 % goes to the operator whose enclave served it and 5 % to the network. On a bounty payout, the hunter gets the whole tier, and the pool adds 10 % for the network and 5 % for the operator.
 
 ## Architecture
 
