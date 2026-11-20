@@ -1,14 +1,14 @@
 /**
- * Prime scellée v2.1 ter — RELAIS STRICT entre le moteur de rejeu et le RPC du fork (src/services/rpc-relay.ts).
- * Vérification adverse du 9/11 (cas e1-blockhash-null, matrices, e7-amplification) : le moteur
- * prenait des réponses INVALIDES du RPC du fork pour des valeurs (bloc rendu null → BLOCKHASH = keccak256(""), « 0x » pour
- * une case de stockage → 0) et l'enclave signait. Règle d'or : une enclave ne signe JAMAIS un résultat qui dépend d'une
- * panne ou d'une réponse invalide du RPC : 503, rien de signé.
- *  1. le relais seul, devant un RPC du fork scripté : formes, blocs ≤ N jamais null, chaîne ancrée, lectures au bloc N,
- *     méthodes permises, erreurs du RPC, budget, verrou ;
- *  2. moteur réel (anvil ; arc-anvil si ARC_ANVIL_BIN) : BLOCKHASH null (preuve e1, réclamation et réfutation), case de
- *     stockage mal formée, budget de lectures (preuve e7 : 503, jamais « non prouvée »), contrôle du démarrage ;
- *  3. replay() compare le hash du bloc N chargé par le moteur à l'ancre (faux moteur).
+ * Sealed Bounty v2.1 ter: the STRICT RELAY between the replay engine and the fork's RPC (src/services/rpc-relay.ts).
+ * Adversarial verification of 9 Nov (cases e1-blockhash-null, matrices, e7-amplification): the engine took INVALID
+ * answers of the fork's RPC for values (a block returned as null → BLOCKHASH = keccak256(""), "0x" for a storage slot →
+ * 0) and the enclave signed. The golden rule: an enclave NEVER signs a result that depends on an outage or an invalid
+ * answer of the RPC: 503, nothing signed.
+ *  1. the relay alone, in front of a scripted fork RPC: shapes, blocks ≤ N never null, anchored chain, reads at block
+ *     N, allowed methods, RPC errors, budget, lock;
+ *  2. a real engine (anvil; arc-anvil if ARC_ANVIL_BIN): null BLOCKHASH (proof e1, claim and refutation), a malformed
+ *     storage slot, the read budget (proof e7: 503, never "not proven"), the start-up check;
+ *  3. replay() compares the hash of block N loaded by the engine with the anchor (a fake engine).
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
@@ -34,7 +34,7 @@ import { type Claim } from "../src/kit/eip712";
 const ANVIL = [process.env.ANVIL_BIN, join(homedir(), ".foundry", "bin", "anvil")].find(
   (p): p is string => !!p && existsSync(p) && spawnSync(p, ["--version"]).status === 0,
 );
-/** arc-anvil (Arc Foundry), facultatif : ARC_ANVIL_BIN=/chemin/vers/arc-anvil. */
+/** arc-anvil (Arc Foundry), optional: ARC_ANVIL_BIN=/path/to/arc-anvil. */
 const ARC_ANVIL = [process.env.ARC_ANVIL_BIN].find((p): p is string => !!p && existsSync(p) && spawnSync(p, ["--version"]).status === 0);
 
 const CHAIN = 5042002;
@@ -66,21 +66,21 @@ async function rpc(url: string, method: string, params: unknown[] = []): Promise
   if (j.error) throw new Error(`${method} : ${j.error.message}`);
   return j.result;
 }
-/** Requête JSON-RPC brute (le relais rend toujours une enveloppe JSON-RPC, erreur comprise). */
+/** A raw JSON-RPC request (the relay always returns a JSON-RPC envelope, errors included). */
 async function raw(url: string, body: unknown): Promise<any> {
   const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
   return res.json();
 }
 
 // =====================================================================================================================
-// 1. le relais seul, devant un RPC du fork scripté
+// 1. the relay alone, in front of a scripted fork RPC
 // =====================================================================================================================
 
 const h32 = (s: string) => keccak256(toBytes(s));
 const N = 100n;
-/** Un bloc bien formé (les 21 champs d'en-tête d'Arc, relevé du 9/11). v2.1 quater : le relais LIE l'en-tête à son hash :
- *  `hash` = keccak256(RLP(en-tête)) (blockHeaderHash), recalculé APRÈS `o` (un bloc « d'une autre chaîne » ou au numéro faux
- *  garde un hash cohérent avec son contenu) ; si `o` rend l'en-tête incalculable (champ retiré), un hash quelconque. */
+/** A well-formed block (the 21 Arc header fields, recorded on 9 Nov). v2.1 quater: the relay BINDS the header to its
+ *  hash: `hash` = keccak256(RLP(header)) (blockHeaderHash), recomputed AFTER `o` (a block "from another chain" or with a
+ *  wrong number keeps a hash consistent with its content); if `o` makes the header impossible to compute (a field removed), any hash. */
 function blockOf(n: bigint, parentHash: Hex, o: Record<string, unknown> = {}) {
   const b: Record<string, unknown> = {
     number: numberToHex(n), parentHash, timestamp: numberToHex(1_700_000_000n + n), gasLimit: "0x1c9c380", gasUsed: "0x0",
@@ -98,7 +98,7 @@ function blockOf(n: bigint, parentHash: Hex, o: Record<string, unknown> = {}) {
   }
   return { ...b, hash };
 }
-/** Une petite chaîne cohérente : hash(n) = keccak256(RLP(en-tête n)), parentHash(n) = hash(n − 1). */
+/** A small consistent chain: hash(n) = keccak256(RLP(header n)), parentHash(n) = hash(n − 1). */
 const chain: Hex[] = [];
 const hashOf = (n: bigint): Hex => {
   if (n < 0n) return zeroHash;
@@ -109,7 +109,7 @@ const goodBlock = (n: bigint, o: Record<string, unknown> = {}) => blockOf(n, has
 
 type Answer = { result: unknown } | { error: { code: number; message: string } } | { http: number } | { body: string } | { wrongId: true };
 
-/** Un RPC du fork scripté : `answer(method, params)` ; compte et journalise ses requêtes. */
+/** A scripted fork RPC: `answer(method, params)`; counts and logs its requests. */
 async function scriptedUpstream(answer: (method: string, params: any[]) => Answer) {
   const calls: Array<{ method: string; params: any[] }> = [];
   const server: Server = createHttpServer((rq, rs) => {
@@ -135,7 +135,7 @@ async function scriptedUpstream(answer: (method: string, params: any[]) => Answe
   return { url: `http://127.0.0.1:${port}`, calls, close: () => new Promise<void>((r) => { server.closeAllConnections(); server.close(() => r()); }) };
 }
 
-/** Le RPC sain de la petite chaîne : blocs ≤ N, état quelconque bien formé. */
+/** The healthy RPC of the small chain: blocks ≤ N, any well-formed state. */
 const healthy = (method: string, params: any[]): Answer => {
   switch (method) {
     case "eth_chainId": return { result: "0x4cef52" };
@@ -155,24 +155,24 @@ const healthy = (method: string, params: any[]): Answer => {
   }
 };
 
-describe("1 — relais strict : chaque réponse du RPC du fork est contrôlée avant d'être rendue au moteur", () => {
+describe("1 — strict relay: each answer of the fork's RPC is checked before it goes back to the engine", () => {
   const A = "0x0000000000000000000000000000000000007777";
   const atN = numberToHex(N);
 
-  it("formes : stockage = 32 octets, quantités canoniques, code pair, compte { balance, nonce, code }, reçu null ; sinon erreur + violation", async () => {
+  it("shapes: storage = 32 bytes, canonical quantities, even code, account { balance, nonce, code }, null receipt; otherwise an error + a violation", async () => {
     const cases: Array<[string, unknown[], unknown, "ok" | string]> = [
       ["eth_getStorageAt", [A, "0x1", atN], pad("0x07", { size: 32 }), "ok"],
-      ["eth_getStorageAt", [A, "0x1", atN], "0x", "shape"], // la matrice : 0 en silence
-      ["eth_getStorageAt", [A, "0x1", atN], 5, "shape"], // la matrice : 5 en silence
+      ["eth_getStorageAt", [A, "0x1", atN], "0x", "shape"], // the matrix: 0 in silence
+      ["eth_getStorageAt", [A, "0x1", atN], 5, "shape"], // the matrix: 5 in silence
       ["eth_getStorageAt", [A, "0x1", atN], "0x" + "00".repeat(31), "shape"],
       ["eth_getStorageAt", [A, "0x1", atN], null, "shape"],
       ["eth_getBalance", [A, atN], "0x75bcd15", "ok"],
-      ["eth_getBalance", [A, atN], "0x075bcd15", "shape"], // zéro de tête : pas canonique
+      ["eth_getBalance", [A, atN], "0x075bcd15", "shape"], // a leading zero: not canonical
       ["eth_getBalance", [A, atN], 123456789, "shape"],
       ["eth_getBalance", [A, atN], "0x", "shape"],
       ["eth_getTransactionCount", [A, atN], "0x0", "ok"],
       ["eth_getTransactionCount", [A, atN], "0x00", "shape"],
-      ["eth_getCode", [A, atN], "0x", "ok"], // compte sans code : réponse VALIDE
+      ["eth_getCode", [A, atN], "0x", "ok"], // an account without code: a VALID answer
       ["eth_getCode", [A, atN], "0x600", "shape"],
       ["eth_getAccountInfo", [A, atN], { balance: "0x1", nonce: "0x0", code: "0x" }, "ok"],
       ["eth_getAccountInfo", [A, atN], { balance: "0x1", nonce: "0x0" }, "shape"],
@@ -180,12 +180,12 @@ describe("1 — relais strict : chaque réponse du RPC du fork est contrôlée a
       ["eth_getAccountInfo", [A, atN], "0x", "shape"],
       ["eth_getAccountInfo", [A, atN], null, "shape"],
       ["eth_getTransactionReceipt", [h32("tx")], null, "ok"],
-      ["eth_getTransactionReceipt", [h32("tx")], { status: "0x1" }, "shape"], // une transaction du fork, « connue » du RPC : faux
+      ["eth_getTransactionReceipt", [h32("tx")], { status: "0x1" }, "shape"], // a fork transaction "known" to the RPC: false
       ["eth_chainId", [], "0x4cef52", "ok"],
       ["eth_chainId", [], "0x04cef52", "shape"],
       ["eth_gasPrice", [], 5, "shape"],
       ["eth_blockNumber", [], numberToHex(N + 5n), "ok"],
-      ["eth_blockNumber", [], numberToHex(N - 1n), "shape"], // tête avant N : le RPC ne peut pas servir le bloc N
+      ["eth_blockNumber", [], numberToHex(N - 1n), "shape"], // a head before N: the RPC cannot serve block N
     ];
     for (const [method, params, result, want] of cases) {
       const up = await scriptedUpstream(() => ({ result }));
@@ -207,7 +207,7 @@ describe("1 — relais strict : chaque réponse du RPC du fork est contrôlée a
     }
   });
 
-  it("bloc ≤ N rendu null (réponse d'un nœud en retard) → erreur JSON-RPC au moteur, violation null_block MÉMORISÉE même si la suite est saine", async () => {
+  it("a block ≤ N returned as null (a lagging node's answer) → a JSON-RPC error to the engine, a null_block violation REMEMBERED even if what follows is healthy", async () => {
     let nullOnce = true;
     const up = await scriptedUpstream((m, p) => {
       if (m === "eth_getBlockByNumber" && BigInt(p[0]) === N - 1n && nullOnce) {
@@ -222,7 +222,7 @@ describe("1 — relais strict : chaque réponse du RPC du fork est contrôlée a
       expect(first.error).toMatchObject({ code: -32603 });
       expect(relay.violation).toBeInstanceOf(RelayViolation);
       expect(relay.violation?.kind).toBe("null_block");
-      // le moteur réessaie : la réponse est saine cette fois, mais le verrou reste (le rejeu ne sera pas signé)
+      // the engine retries: the answer is healthy this time, but the lock stays (the replay will not be signed)
       const retry = await raw(relay.url, { jsonrpc: "2.0", id: 2, method: "eth_getBlockByNumber", params: [numberToHex(N - 1n), false] });
       expect(retry.result.hash).toBe(hashOf(N - 1n));
       expect(relay.violation?.kind).toBe("null_block");
@@ -232,17 +232,17 @@ describe("1 — relais strict : chaque réponse du RPC du fork est contrôlée a
     }
   });
 
-  it("chaîne : bloc N = ancre ; bloc n < N rattaché par les parentHash (lus au besoin) ; champ d'en-tête mal formé ou numéro faux → refusé", async () => {
-    // RPC dont le bloc N − 3 est celui d'une autre chaîne (en-tête cohérent avec son hash, mais pas le parentHash de N − 2)
+  it("chain: block N = anchor; block n < N tied through the parentHash values (read as needed); a malformed header field or a wrong number → refused", async () => {
+    // an RPC whose block N − 3 belongs to another chain (a header consistent with its hash, but not the parentHash of N − 2)
     const up = await scriptedUpstream((m, p) => {
-      if (m === "eth_getBlockByNumber" && BigInt(p[0]) === N - 3n) return { result: goodBlock(N - 3n, { stateRoot: h32("autre chaîne") }) };
+      if (m === "eth_getBlockByNumber" && BigInt(p[0]) === N - 3n) return { result: goodBlock(N - 3n, { stateRoot: h32("another chain") }) };
       return healthy(m, p);
     });
     const get = async (relay: Awaited<ReturnType<typeof startStrictRelay>>, n: bigint) =>
       raw(relay.url, { jsonrpc: "2.0", id: 1, method: "eth_getBlockByNumber", params: [numberToHex(n), false] });
     try {
       const ok = await startStrictRelay({ upstream: up.url, blockN: N, anchorHash: hashOf(N) });
-      expect((await get(ok, N - 2n)).result.hash).toBe(hashOf(N - 2n)); // rattaché par N, N − 1
+      expect((await get(ok, N - 2n)).result.hash).toBe(hashOf(N - 2n)); // tied through N, N − 1
       expect(ok.violation).toBeUndefined();
       expect((await get(ok, N - 3n)).error).toMatchObject({ code: -32603 });
       expect(ok.violation?.kind).toBe("chain");
@@ -255,7 +255,7 @@ describe("1 — relais strict : chaque réponse du RPC du fork est contrôlée a
 
       const beyond = await startStrictRelay({ upstream: up.url, blockN: N });
       const before = up.calls.length;
-      expect((await get(beyond, N + 1n)).error).toBeDefined(); // au-delà de N : refusé sans rien transmettre
+      expect((await get(beyond, N + 1n)).error).toBeDefined(); // beyond N: refused without forwarding anything
       expect(up.calls.length).toBe(before);
       expect(beyond.violation?.kind).toBe("params");
       await beyond.close();
@@ -263,9 +263,9 @@ describe("1 — relais strict : chaque réponse du RPC du fork est contrôlée a
       await up.close();
     }
     for (const [what, bad] of [
-      ["sans parentHash", { parentHash: undefined }], ["mixHash de 31 octets", { mixHash: "0x" + "00".repeat(31) }],
-      ["timestamp non canonique", { timestamp: "0x0065" }], ["numéro faux", { number: numberToHex(N - 7n) }],
-      ["transactions qui ne sont pas des hashes", { transactions: ["0x1234"] }], ["logsBloom tronqué", { logsBloom: "0x00" }],
+      ["without parentHash", { parentHash: undefined }], ["mixHash of 31 bytes", { mixHash: "0x" + "00".repeat(31) }],
+      ["non-canonical timestamp", { timestamp: "0x0065" }], ["wrong number", { number: numberToHex(N - 7n) }],
+      ["transactions that are not hashes", { transactions: ["0x1234"] }], ["truncated logsBloom", { logsBloom: "0x00" }],
     ] as const) {
       const up2 = await scriptedUpstream((m, p) => (m === "eth_getBlockByNumber" ? { result: goodBlock(BigInt(p[0]), bad as any) } : healthy(m, p)));
       const relay = await startStrictRelay({ upstream: up2.url, blockN: N });
@@ -277,13 +277,13 @@ describe("1 — relais strict : chaque réponse du RPC du fork est contrôlée a
         await up2.close();
       }
     }
-    // transactions complètes : objets avec hash
+    // full transactions: objects with a hash
     expect(checkBlockShape("m", goodBlock(N, { transactions: [{ hash: h32("t"), from: HUNTER }] }), true).number).toBe(N);
     expect(() => checkBlockShape("m", goodBlock(N, { transactions: [h32("t")] }), true)).toThrow(RelayViolation);
     expect(() => checkBlockShape("m", null, false)).toThrow(expect.objectContaining({ kind: "null_block" }));
   });
 
-  it("état lu AU BLOC N seulement ; méthode non prévue : refusée SANS rien transmettre au RPC du fork", async () => {
+  it("state read AT BLOCK N only; a method not provided for: refused WITHOUT forwarding anything to the fork's RPC", async () => {
     const up = await scriptedUpstream(healthy);
     const relay = await startStrictRelay({ upstream: up.url, blockN: N });
     try {
@@ -304,14 +304,14 @@ describe("1 — relais strict : chaque réponse du RPC du fork est contrôlée a
     }
   });
 
-  it("échecs PASSAGERS du RPC du fork rendus tels quels au moteur, sans verrou (erreur JSON-RPC, même statut HTTP, 502) ; enveloppe invalide → violation mémorisée", async () => {
+  it("PASSING failures of the fork's RPC returned as they are to the engine, without a lock (JSON-RPC error, same HTTP status, 502); an invalid envelope → a remembered violation", async () => {
     for (const [what, ans, want] of [
-      ["erreur JSON-RPC (relayée telle quelle)", { error: { code: -32005, message: "rate limited, retry later" } }, { rpc: { code: -32005, message: "rate limited, retry later" } }],
-      ["HTTP 429 (même statut)", { http: 429 }, { http: 429 }],
-      ["HTTP 503 (même statut)", { http: 503 }, { http: 503 }],
-      ["JSON tronqué (502)", { body: '{"jsonrpc":"2.0","id":1,"res' }, { http: 502 }],
+      ["JSON-RPC error (relayed as it is)", { error: { code: -32005, message: "rate limited, retry later" } }, { rpc: { code: -32005, message: "rate limited, retry later" } }],
+      ["HTTP 429 (same status)", { http: 429 }, { http: 429 }],
+      ["HTTP 503 (same status)", { http: 503 }, { http: 503 }],
+      ["truncated JSON (502)", { body: '{"jsonrpc":"2.0","id":1,"res' }, { http: 502 }],
       ["mauvais id", { wrongId: true }, { violation: "envelope" }],
-      ["result ET error", { body: '{"jsonrpc":"2.0","id":1,"result":"0x1","error":{"code":1,"message":"x"}}' }, { violation: "envelope" }],
+      ["result AND error", { body: '{"jsonrpc":"2.0","id":1,"result":"0x1","error":{"code":1,"message":"x"}}' }, { violation: "envelope" }],
     ] as const) {
       const up = await scriptedUpstream(() => ans as Answer);
       const relay = await startStrictRelay({ upstream: up.url, blockN: N });
@@ -339,7 +339,7 @@ describe("1 — relais strict : chaque réponse du RPC du fork est contrôlée a
     }
   });
 
-  it("budget : au-delà de maxRequests, plus RIEN n'est transmis (violation « budget ») ; failFast : après une violation, plus rien non plus", async () => {
+  it("budget: beyond maxRequests, NOTHING more is forwarded (\"budget\" violation); failFast: after a violation, nothing more either", async () => {
     const up = await scriptedUpstream(healthy);
     const relay = await startStrictRelay({ upstream: up.url, blockN: N, maxRequests: 5 });
     try {
@@ -360,7 +360,7 @@ describe("1 — relais strict : chaque réponse du RPC du fork est contrôlée a
       const n = up2.calls.length;
       expect((await raw(ff.url, { jsonrpc: "2.0", id: 2, method: "eth_getBalance", params: [A, numberToHex(N)] })).error).toBeDefined();
       expect(up2.calls.length).toBe(n);
-      // lot JSON-RPC : chaque élément a sa réponse
+      // a JSON-RPC batch: each element gets its answer
       const batch = await raw(ff.url, [{ jsonrpc: "2.0", id: 3, method: "eth_chainId", params: [] }, { jsonrpc: "2.0", id: 4, method: "eth_gasPrice", params: [] }]);
       expect(batch.map((x: any) => x.id)).toEqual([3, 4]);
     } finally {
@@ -372,18 +372,18 @@ describe("1 — relais strict : chaque réponse du RPC du fork est contrôlée a
 });
 
 // =====================================================================================================================
-// 2. moteur réel : les preuves e1 (BLOCKHASH null), matrices (stockage mal formé), e7 (budget)
+// 2. a real engine: proofs e1 (null BLOCKHASH), matrices (malformed storage), e7 (budget)
 // =====================================================================================================================
 
-/** COIN_PLAY : vide sa caisse vers l'appelant si blockhash(numéro − 2) == SLOAD(0). */
+/** COIN_PLAY: empties its till to the caller if blockhash(number − 2) == SLOAD(0). */
 const COIN_PLAY_CODE = "0x600243034060005414600d57005b600060006000600047335af100" as Hex;
-/** COIN_NOT : vide sa caisse si blockhash(numéro − 2) != SLOAD(0). */
+/** COIN_NOT: empties its till if blockhash(number − 2) != SLOAD(0). */
 const COIN_NOT_CODE = "0x60024303406000541415600e57005b600060006000600047335af100" as Hex;
-/** USDC minimal d'une chaîne de base locale (0x3600…) : balanceOf(a) = solde natif / 1e12, comme sur Arc. */
+/** A minimal USDC of a local base chain (0x3600…): balanceOf(a) = native balance / 1e12, as on Arc. */
 const FAKE_USDC_CODE = "0x64e8d4a51000600435310460005260206000f3" as Hex;
-/** T : sans données → slot0 = 42 ; vue → slot0 == 42 ? slot1 : 0 (base : slot1 = 7). */
+/** T: without data → slot0 = 42; view → slot0 == 42 ? slot1 : 0 (base: slot1 = 7). */
 const T_CODE = "0x3615602457600054602a14601857600060005260206000f35b60015460005260206000f35b602a60005500" as Hex;
-/** SPRAY : lit 6 000 cases froides (0x1000…) : chacune est une requête au RPC du fork (preuve e7). */
+/** SPRAY: reads 6,000 cold slots (0x1000…): each one is a request to the fork's RPC (proof e7). */
 const SPRAY_CODE = ("0x6117706000" + "5b8181101560" + "1a5780611000" + "0154506001016005565b00") as Hex;
 
 const USDC = "0x3600000000000000000000000000000000000000" as Address;
@@ -394,8 +394,8 @@ const SPRAY = "0x0000000000000000000000000000000000005a5a" as Address;
 const KECCAK_EMPTY = keccak256("0x");
 
 type Forged = { result: unknown } | { error: { code: number; message: string } } | { http: number };
-/** Mandataire devant la chaîne de base : `fault(q)` rend une réponse forgée, une erreur JSON-RPC ou un statut HTTP (au plus
- *  `times` fois). */
+/** A proxy in front of the base chain: `fault(q)` returns a forged answer, a JSON-RPC error or an HTTP status (at most
+ *  `times` times). */
 async function forgingProxy(target: string, fault: (q: any) => Forged | undefined, times = 1) {
   let hits = 0;
   const one = async (q: any): Promise<unknown> => {
@@ -415,7 +415,7 @@ async function forgingProxy(target: string, fault: (q: any) => Forged | undefine
       const out = Array.isArray(j) ? await Promise.all(j.map(one)) : await one(j);
       if (!Array.isArray(out) && out && typeof out === "object" && "http" in out) {
         rs.writeHead((out as { http: number }).http, { "content-type": "text/html" });
-        rs.end("<html>trop de requêtes</html>");
+        rs.end("<html>too many requests</html>");
         return;
       }
       rs.writeHead(200, { "content-type": "application/json" });
@@ -452,7 +452,7 @@ class FakeChain implements RefuteReader {
 const engines: Array<[string, string | undefined, "anvil" | "arc"]> = [["anvil", ANVIL, "anvil"], ["arc-anvil", ARC_ANVIL, "arc"]];
 
 for (const [ename, bin, engine] of engines) {
-  describe.skipIf(!ANVIL || !bin)(`2 — moteur réel « ${ename} » derrière le relais strict (chaîne de base locale)`, () => {
+  describe.skipIf(!ANVIL || !bin)(`2 — real engine "${ename}" behind the strict relay (local base chain)`, () => {
     let base: ChildProcess | undefined;
     let url = "";
     let Nb = 0n;
@@ -502,7 +502,7 @@ for (const [ename, bin, engine] of engines) {
       return { svc, kit, cE, txs, view };
     }
 
-    it("preuve e1-A : un RPC qui rend null UNE fois le bloc N − 1 → AUCUNE réclamation signée (503) ; témoin sain : « non prouvée »", async () => {
+    it("proof e1-A: an RPC that returns block N − 1 as null ONCE → NO claim signed (503); healthy control: \"not proven\"", async () => {
       const p: Predicate = { combine: "OR", clauses: [{ type: "NATIVE_DROP", holder: COIN_PLAY, min: "1" }] };
       const ok = await claimWith(p, COIN_PLAY, "0x", url);
       expect(await ok.svc.submit(ok.cE)).toMatchObject({ status: "not_proven", reason: "predicate not satisfied" });
@@ -519,7 +519,7 @@ for (const [ename, bin, engine] of engines) {
       }
     }, 240_000);
 
-    it("preuve e1-B : réclamation VRAIE ; le réfutant dont le RPC rend null une fois → 503, AUCUNE réfutation signée ; RPC sain → « confirmée »", async () => {
+    it("proof e1-B: a TRUE claim; the refuter whose RPC returns null once → 503, NO refutation signed; healthy RPC → \"confirmed\"", async () => {
       const p: Predicate = { combine: "OR", clauses: [{ type: "NATIVE_DROP", holder: COIN_NOT, min: "1" }] };
       const c = await claimWith(p, COIN_NOT, "0x", url);
       const sub = (await c.svc.submit(c.cE)) as Extract<SubmitResult, { status: "proven" }>;
@@ -543,7 +543,7 @@ for (const [ename, bin, engine] of engines) {
       expect((await ask(url)).status).toBe("confirmed");
     }, 240_000);
 
-    it("échec PASSAGER (limite de débit -32005, HTTP 429, HTTP 503) : rendu tel quel au moteur, qui réessaie → même réclamation qu'avec un RPC sain (pas de 503)", async () => {
+    it("PASSING failure (rate limit -32005, HTTP 429, HTTP 503): returned as it is to the engine, which retries → the same claim as with a healthy RPC (no 503)", async () => {
       const p: Predicate = { combine: "OR", clauses: [{ type: "NATIVE_DROP", holder: COIN_NOT, min: "1" }] };
       const ref = await claimWith(p, COIN_NOT, "0x", url);
       const want = (await ref.svc.submit(ref.cE)) as Extract<SubmitResult, { status: "proven" }>;
@@ -562,8 +562,8 @@ for (const [ename, bin, engine] of engines) {
       }
     }, 240_000);
 
-    it("matrice : une case de stockage rendue « 0x » (au lieu de 32 octets) pour une lecture de vue → 503, jamais la valeur 0", async () => {
-      // vue = slot1 de T (7 sur la chaîne) : « eq 0 » n'est vrai que si la case est lue 0 — ce qu'un « 0x » faisait en silence
+    it("matrix: a storage slot returned as \"0x\" (instead of 32 bytes) for a view read → 503, never the value 0", async () => {
+      // view = slot1 of T (7 on the chain): "eq 0" is true only if the slot is read as 0, which a "0x" did in silence
       const p: Predicate = { combine: "OR", clauses: [{ type: "VIEW_CHANGED", target: T, call: "0x01", op: "eq", value: "0" }] };
       const healthyClaim = await claimWith(p, T, "0x", url);
       expect(await healthyClaim.svc.submit(healthyClaim.cE)).toMatchObject({ status: "not_proven" });
@@ -577,7 +577,7 @@ for (const [ename, bin, engine] of engines) {
       }
     }, 240_000);
 
-    it("preuve e7 : un exploit qui lit 6 000 cases froides dépasse le budget du rejeu → 503 « budget », jamais « non prouvée » ; sans budget serré : « non prouvée »", async () => {
+    it("proof e7: an exploit that reads 6,000 cold slots exceeds the replay's budget → 503 \"budget\", never \"not proven\"; without a tight budget: \"not proven\"", async () => {
       const p: Predicate = { combine: "OR", clauses: [{ type: "NATIVE_DROP", holder: COIN_PLAY, min: "1" }] };
       const tight = await claimWith(p, SPRAY, "0x01", url, { maxForkRequests: 300 });
       await expect(tight.svc.submit(tight.cE)).rejects.toMatchObject({ reason: "budget" });
@@ -591,7 +591,7 @@ for (const [ename, bin, engine] of engines) {
       expect(await wide.svc.submit(wide.cE)).toMatchObject({ status: "not_proven", reason: "predicate not satisfied" });
     }, 240_000);
 
-    it("contrôle du démarrage : réponses invalides refusées par le relais (bloc null, stockage mal formé), contrôle positif ; relais transparent → refus de démarrer", async () => {
+    it("start-up check: invalid answers refused by the relay (null block, malformed storage), positive check; a transparent relay → refusing to start", async () => {
       const r = runner(url);
       const st = await r.selfTest();
       expect(st.checks).toEqual([
@@ -599,10 +599,10 @@ for (const [ename, bin, engine] of engines) {
         "positive check: BLOCKHASH and balance identical to the fork's RPC", "execution (eth_call): error", "transaction: never mined",
       ]);
       expect(st.revertCode).toBe(3);
-      // sans les contrôles du relais, le moteur avale les deux réponses invalides : le contrôle le voit et refuse de démarrer
+      // without the relay's checks, the engine swallows the two invalid answers: the check sees it and refuses to start
       const lax = await r.selfTest({ simulateLaxRelay: true }).catch((e) => e as Error);
       expect(lax).toBeInstanceOf(Error);
-      expect((lax as Error).message).toMatch(/MAL FORMÉE/);
+      expect((lax as Error).message).toMatch(/MALFORMED/);
       expect((lax as Error).message).toMatch(/NULL/);
       expect((lax as Error).message).toMatch(/refusing to start/);
       await expect(r.selfTest({ simulateSwallow: true })).rejects.toThrow(/swallows the fork RPC's failures/);
@@ -611,17 +611,17 @@ for (const [ename, bin, engine] of engines) {
 }
 
 // =====================================================================================================================
-// 3. replay() compare le hash du bloc N CHARGÉ PAR LE MOTEUR à l'ancre (faux moteur, sans anvil)
+// 3. replay() compares the hash of block N LOADED BY THE ENGINE with the anchor (a fake engine, without anvil)
 // =====================================================================================================================
 
-describe("3 — le bloc N chargé par le moteur doit être celui de l'ancre", () => {
+describe("3 — the block N loaded by the engine must be the anchor's", () => {
   let dir = "";
   beforeAll(() => {
     dir = mkdtempSync(join(tmpdir(), "faux-moteur-"));
   });
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
-  /** Un « moteur » minimal : sert eth_chainId, eth_blockNumber (N, ou `head`) et un bloc N dont le hash est `servedHash`. */
+  /** A minimal "engine": serves eth_chainId, eth_blockNumber (N, or `head`) and a block N whose hash is `servedHash`. */
   function fakeEngine(servedHash: Hex, head?: string): string {
     const file = join(dir, `moteur-${servedHash.slice(2, 10)}-${head ?? "n"}.mjs`);
     writeFileSync(file, `#!${process.execPath}
@@ -630,7 +630,7 @@ const a = process.argv.slice(2);
 const port = Number(a[a.indexOf("--port") + 1]);
 const n = BigInt(a[a.indexOf("--fork-block-number") + 1]);
 const forkUrl = a[a.indexOf("--fork-url") + 1];
-// comme un vrai moteur : lit le bloc N au RPC du fork (le relais) au démarrage
+// like a real engine: reads block N from the fork's RPC (the relay) at start-up
 await fetch(forkUrl, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_getBlockByNumber", params: ["0x" + n.toString(16), true] }) });
 createServer((rq, rs) => {
   let b = ""; rq.on("data", (d) => (b += d)); rq.on("end", () => {
@@ -645,7 +645,7 @@ createServer((rq, rs) => {
     return file;
   }
 
-  it("RPC du fork sain (ancre vérifiée par le relais) mais moteur qui charge un AUTRE bloc N → ReplayUnavailableError « anchor », rien n'est mesuré", async () => {
+  it("healthy fork RPC (anchor verified by the relay) but an engine that loads ANOTHER block N → ReplayUnavailableError \"anchor\", nothing is measured", async () => {
     const up = await scriptedUpstream(healthy);
     try {
       const bundle: ExploitBundle = {
@@ -657,13 +657,13 @@ createServer((rq, rs) => {
       expect(err).toBeInstanceOf(ReplayUnavailableError);
       expect(err.reason).toBe("anchor");
       expect(err.message).toMatch(/engine did not load the claim's block N/);
-      // et un RPC du fork qui ne sert pas l'ancre est arrêté AVANT de lancer le moteur
+      // and a fork RPC that does not serve the anchor is stopped BEFORE the engine is started
       const before = up.calls.length;
       const wrong = new AnvilForkRunner({ forkUrl: up.url, anvilBin: "/nonexistent/anvil", engine: "anvil", log: () => {} });
       await expect(wrong.run({ blockN: N, bundle, expectedBlockHash: h32("autre ancre") })).rejects.toMatchObject({ reason: "anchor" });
       expect(up.calls.length).toBe(before + 1);
-      // exception INATTENDUE pendant le rejeu (ici : le moteur rend une tête illisible, BigInt lève) : 503 « internal »,
-      // jamais mémorisée comme un échec du rejeu (point 5 : rien de mémorisé)
+      // an UNEXPECTED exception during the replay (here: the engine returns an unreadable head, BigInt throws): 503 "internal",
+      // never cached as a replay failure (point 5: nothing cached)
       const odd = new AnvilForkRunner({ forkUrl: up.url, anvilBin: fakeEngine(hashOf(N), "pas-un-nombre"), engine: "anvil", log: () => {}, timeoutMs: 20_000 });
       const e2 = await odd.run({ blockN: N, bundle, expectedBlockHash: hashOf(N) }).catch((e) => e);
       expect(e2).toMatchObject({ reason: "internal" });

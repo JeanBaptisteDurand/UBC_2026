@@ -1,17 +1,17 @@
 /**
- * Prime scellée v2.1 quater — RELAIS STRICT contre un RPC du fork MENTEUR (src/services/rpc-relay.ts). Vérification du relais
- * du 9/11 au soir (cas r1-B, r1-E, r1-G ; r2 et r3-1a avec les moteurs réels :
- * relay-hardening-engines.test.ts). Le relais seul, devant un RPC du fork scripté :
- *  1. en-tête LIÉ à son hash (politique « arc », défaut) : keccak256(RLP(21 champs d'en-tête d'Arc)) = hash, VÉRIFIÉ sur deux
- *     blocs réels consécutifs d'Arc testnet (71 609 813 et 71 609 814, lus le 9/11/2026 vers 23 h 40 sur rpc.testnet.arc.io,
- *     en hashes et en transactions complètes) ; un en-tête au bon hash mais au contenu changé → violation « header » ;
- *     parentHash empoisonné → « header » (ou « chain » si le hash du bloc forgé est recalculé) ;
- *  2. les 21 champs d'en-tête d'Arc sont obligatoires : un bloc sans l'un d'eux → « shape » (verrou) ;
- *  3. redirections jamais suivies : 502 passager, l'autre hôte ne reçoit rien ;
- *  4. réponses lues en flux, coupées au-delà de la borne : 300 Mio → 502, lecture coupée, mémoire bornée ;
- *  5. mémoire des réponses d'un rejeu : la même lecture rendue avec une autre valeur → « inconsistent » (verrou).
- * Chaque faille a son TÉMOIN quand c'est possible (politique « shape » = l'ancien contrat) : le banc reproduit bien ce que le
- * contrôle ferme.
+ * Sealed Bounty v2.1 quater: the STRICT RELAY against a LYING fork RPC (src/services/rpc-relay.ts). The relay
+ * verification of the evening of 9 Nov (cases r1-B, r1-E, r1-G; r2 and r3-1a with the real engines:
+ * relay-hardening-engines.test.ts). The relay alone, in front of a scripted fork RPC:
+ *  1. the header BOUND to its hash ("arc" policy, the default): keccak256(RLP(21 Arc header fields)) = hash, CHECKED on
+ *     two consecutive real Arc testnet blocks (71,609,813 and 71,609,814, read on 9 Nov 2026 around 23:40 from
+ *     rpc.testnet.arc.io, as hashes and as full transactions); a header with the right hash but changed content → a
+ *     "header" violation; a poisoned parentHash → "header" (or "chain" if the forged block's hash is recomputed);
+ *  2. the 21 Arc header fields are mandatory: a block without one of them → "shape" (lock);
+ *  3. redirects never followed: a passing 502, the other host receives nothing;
+ *  4. answers read as a stream, cut beyond the bound: 300 MiB → 502, the read cut, bounded memory;
+ *  5. the memory of a replay's answers: the same read returned with another value → "inconsistent" (lock).
+ * Each flaw has its CONTROL when possible ("shape" policy = the earlier contract): the bench does reproduce what the
+ * check closes.
  */
 import { describe, it, expect } from "vitest";
 import { createServer as createHttpServer, type Server } from "node:http";
@@ -22,7 +22,7 @@ import {
 } from "../src/services/rpc-relay";
 
 // =====================================================================================================================
-// Blocs RÉELS d'Arc testnet (lecture seule, 9/11/2026 vers 23 h 40, rpc.testnet.arc.io : 6 requêtes en tout)
+// REAL Arc testnet blocks (read only, 9 Nov 2026 around 23:40, rpc.testnet.arc.io: 6 requests in all)
 // =====================================================================================================================
 
 /** Arc testnet, bloc 71 609 814 (0x444add6), transactions en hashes. */
@@ -58,7 +58,7 @@ const ARC_N: Record<string, any> = {
   ],
   "withdrawals": []
 };
-/** Arc testnet, bloc 71 609 813 : le parent de ARC_N. */
+/** Arc testnet, block 71,609,813: the parent of ARC_N. */
 const ARC_N1: Record<string, any> = {
   "hash": "0x36b7911235caa73bd18284568871cfae89d9d856db22ab0675bb652aa13c495b",
   "parentHash": "0xd6cc4a0c30379888fe065b14b096cdb7ecb898ee07dd11e9ea2b9a174a0fbca8",
@@ -92,7 +92,7 @@ const ARC_N1: Record<string, any> = {
   ],
   "withdrawals": []
 };
-/** Les 3 transactions complètes de ARC_N (eth_getBlockByNumber(…, true)) ; le reste du bloc est identique. */
+/** The 3 full transactions of ARC_N (eth_getBlockByNumber(…, true)); the rest of the block is identical. */
 const ARC_N_TXS: any[] = [
   {
     "type": "0x0",
@@ -156,7 +156,7 @@ const ARC_N_FULL = { ...ARC_N, transactions: ARC_N_TXS };
 const N = BigInt(ARC_N.number);
 const h32 = (s: string) => keccak256(toBytes(s));
 
-/** Les 21 champs d'en-tête d'Arc (Londres → Prague) et leur nature : l'ordre du protocole, celui de l'RLP du hash. */
+/** The 21 Arc header fields (London → Prague) and their kind: the protocol's order, that of the RLP behind the hash. */
 const FIELDS: Array<[string, "b32" | "addr" | "bloom" | "qty" | "bytes" | "nonce8"]> = [
   ["parentHash", "b32"], ["sha3Uncles", "b32"], ["miner", "addr"], ["stateRoot", "b32"], ["transactionsRoot", "b32"],
   ["receiptsRoot", "b32"], ["logsBloom", "bloom"], ["difficulty", "qty"], ["number", "qty"], ["gasLimit", "qty"],
@@ -164,13 +164,13 @@ const FIELDS: Array<[string, "b32" | "addr" | "bloom" | "qty" | "bytes" | "nonce
   ["baseFeePerGas", "qty"], ["withdrawalsRoot", "b32"], ["blobGasUsed", "qty"], ["excessBlobGas", "qty"],
   ["parentBeaconBlockRoot", "b32"], ["requestsHash", "b32"],
 ];
-/** Les champs qui étaient FACULTATIFS en v2.1 ter (le relais acceptait un bloc sans eux). */
+/** The fields that were OPTIONAL in v2.1 ter (the relay accepted a block without them). */
 const WERE_OPTIONAL = ["baseFeePerGas", "difficulty", "mixHash", "nonce", "sha3Uncles", "withdrawalsRoot", "blobGasUsed", "excessBlobGas", "parentBeaconBlockRoot", "requestsHash"];
 
-/** Une autre valeur, de la même forme, pour un champ d'en-tête. */
+/** Another value, of the same shape, for a header field. */
 function otherValue(field: string, kind: (typeof FIELDS)[number][1], v: string): string {
   switch (kind) {
-    case "b32": return h32(`faux ${field}`);
+    case "b32": return h32(`forged ${field}`);
     case "addr": return "0x00000000000000000000000000000000000000ff";
     case "bloom": return `0x${v[2] === "f" ? "e" : "f"}${v.slice(3)}`;
     case "qty": return numberToHex(BigInt(v) + (field === "timestamp" ? 1000n : 1n));
@@ -180,7 +180,7 @@ function otherValue(field: string, kind: (typeof FIELDS)[number][1], v: string):
 }
 
 // =====================================================================================================================
-// Outils : un RPC du fork scripté (réponses JSON-RPC, statuts HTTP, corps géants en flux, corps au compte-gouttes)
+// Tools: a scripted fork RPC (JSON-RPC answers, HTTP statuses, giant streamed bodies, trickled bodies)
 // =====================================================================================================================
 
 type Reply =
@@ -190,12 +190,12 @@ type Reply =
   | { huge: { bytes: number; contentLength?: boolean } }
   | { trickle: { result: unknown; msPerByte: number } };
 
-/** RPC du fork scripté : `answer(method, params)` ; journalise les requêtes, compte les octets de corps géant écrits. */
+/** A scripted fork RPC: `answer(method, params)`; logs the requests, counts the bytes of giant body written. */
 async function scripted(answer: (method: string, params: any[]) => Reply) {
   const calls: Array<{ method: string; params: any[]; path: string }> = [];
   let written = 0;
   let cutEarly = 0;
-  const CHUNK = Buffer.alloc(1 << 20, "0"); // 1 Mio de « 0 »
+  const CHUNK = Buffer.alloc(1 << 20, "0"); // 1 MiB of "0"
   const server: Server = createHttpServer((rq, rs) => {
     let body = "";
     rq.on("data", (d) => (body += d));
@@ -209,7 +209,7 @@ async function scripted(answer: (method: string, params: any[]) => Reply) {
         return;
       }
       if ("huge" in a) {
-        // une réponse JSON-RPC valide : un code de `bytes` octets d'hexadécimal (eth_getCode), écrite en flux avec contre-pression
+        // a valid JSON-RPC answer: a code of `bytes` bytes of hexadecimal (eth_getCode), written as a stream with back-pressure
         const head = `{"jsonrpc":"2.0","id":${q.id},"result":"0x`;
         rs.writeHead(200, { "content-type": "application/json", ...(a.huge.contentLength ? { "content-length": String(head.length + a.huge.bytes + 2) } : {}) });
         rs.write(head);
@@ -261,7 +261,7 @@ async function scripted(answer: (method: string, params: any[]) => Reply) {
   };
 }
 
-/** Une requête du « moteur » au relais : statut HTTP et corps JSON (s'il y en a un). */
+/** A request from the "engine" to the relay: the HTTP status and the JSON body (if any). */
 async function ask(relay: StrictRelay, method: string, params: unknown[], id = 1): Promise<{ status: number; json: any }> {
   const res = await fetch(relay.url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id, method, params }) });
   const text = await res.text();
@@ -274,7 +274,7 @@ async function ask(relay: StrictRelay, method: string, params: unknown[], id = 1
   return { status: res.status, json };
 }
 
-/** La vraie chaîne d'Arc (N, N − 1), avec `lie(n, full, rang de la lecture)` qui peut remplacer un bloc. */
+/** The real Arc chain (N, N − 1), with `lie(n, full, rank of the read)` that can replace a block. */
 function arcChain(lie: (n: bigint, full: boolean, k: number) => unknown = () => undefined) {
   const reads = new Map<string, number>();
   return (method: string, params: any[]): Reply => {
@@ -294,11 +294,11 @@ function arcChain(lie: (n: bigint, full: boolean, k: number) => unknown = () => 
 const at = (n: bigint) => numberToHex(n);
 
 // =====================================================================================================================
-// 1. en-tête LIÉ à son hash
+// 1. the header BOUND to its hash
 // =====================================================================================================================
 
-describe("1 — en-tête LIÉ à son hash : keccak256(RLP(21 champs)) = hash (politique « arc », défaut)", () => {
-  it("blocs RÉELS d'Arc testnet : le hash se recalcule (hashes et transactions complètes), N.parentHash = hash(N − 1) : acceptés", () => {
+describe("1 — the header BOUND to its hash: keccak256(RLP(21 fields)) = hash (\"arc\" policy, the default)", () => {
+  it("REAL Arc testnet blocks: the hash recomputes (hashes and full transactions), N.parentHash = hash(N − 1): accepted", () => {
     expect(blockHeaderHash(ARC_N)).toBe(ARC_N.hash);
     expect(blockHeaderHash(ARC_N1)).toBe(ARC_N1.hash);
     expect(blockHeaderHash(ARC_N_FULL)).toBe(ARC_N.hash);
@@ -307,11 +307,11 @@ describe("1 — en-tête LIÉ à son hash : keccak256(RLP(21 champs)) = hash (po
     expect(checkBlockShape("eth_getBlockByNumber", ARC_N, false)).toEqual({ number: N, hash: ARC_N.hash, parentHash: ARC_N1.hash, stateRoot: ARC_N.stateRoot });
     expect(checkBlockShape("eth_getBlockByNumber", ARC_N_FULL, true).hash).toBe(ARC_N.hash);
     expect(checkBlockShape("eth_getBlockByHash", ARC_N1, false).number).toBe(N - 1n);
-    // hexadécimal en majuscules (même valeur) : même hash
+    // upper-case hexadecimal (same value): same hash
     expect(checkBlockShape("m", { ...ARC_N, stateRoot: ARC_N.stateRoot.toUpperCase().replace("0X", "0x") }, false).hash).toBe(ARC_N.hash);
   });
 
-  it("chacun des 21 champs changé au MÊME hash (horodatage, base fee, mixHash, mineur, parentHash…) → « header » ; témoin « shape » : accepté (la faille)", () => {
+  it("each of the 21 fields changed at the SAME hash (timestamp, base fee, mixHash, miner, parentHash…) → \"header\"; \"shape\" control: accepted (the flaw)", () => {
     for (const [field, kind] of FIELDS) {
       const forged = { ...ARC_N, [field]: otherValue(field, kind, ARC_N[field]) };
       let err: unknown;
@@ -323,12 +323,12 @@ describe("1 — en-tête LIÉ à son hash : keccak256(RLP(21 champs)) = hash (po
       expect(err, field).toBeInstanceOf(RelayViolation);
       expect((err as RelayViolation).kind, field).toBe("header");
       expect((err as RelayViolation).message, field).not.toContain(String(forged[field]).slice(2, 12)); // message fixe
-      // l'ancien contrat ne voyait rien : même hash, autre contenu, accepté
+      // the earlier contract saw nothing: same hash, other content, accepted
       expect(checkBlockShape("eth_getBlockByNumber", forged, false, "shape").hash, field).toBe(ARC_N.hash);
     }
   });
 
-  it("preuve r3-1a vue du relais : le RPC ment sur TOUTES les lectures du bloc N (horodatage +1000 s, même hash) → l'ancre elle-même est refusée (« header ») ; témoin « shape » : ancre acceptée, horodatage forgé rendu au moteur", async () => {
+  it("proof r3-1a seen from the relay: the RPC lies on ALL the reads of block N (timestamp +1000 s, same hash) → the anchor itself is refused (\"header\"); \"shape\" control: anchor accepted, forged timestamp returned to the engine", async () => {
     const forgedN = { ...ARC_N, timestamp: numberToHex(BigInt(ARC_N.timestamp) + 1000n) };
     const up = await scripted(arcChain((n) => (n === N ? forgedN : undefined)));
     try {
@@ -341,7 +341,7 @@ describe("1 — en-tête LIÉ à son hash : keccak256(RLP(21 champs)) = hash (po
       const lax = await startStrictRelay({ upstream: up.url, blockN: N, anchorHash: ARC_N.hash as Hex, failFast: true, headerPolicy: "shape" });
       expect(await lax.anchor()).toBe(ARC_N.hash);
       const seen = await ask(lax, "eth_getBlockByNumber", [at(N), false]);
-      expect(seen.json.result.timestamp).toBe(forgedN.timestamp); // le moteur aurait pris l'horodatage forgé
+      expect(seen.json.result.timestamp).toBe(forgedN.timestamp); // the engine would have taken the forged timestamp
       expect(lax.violation).toBeUndefined();
       await lax.close();
     } finally {
@@ -349,15 +349,15 @@ describe("1 — en-tête LIÉ à son hash : keccak256(RLP(21 champs)) = hash (po
     }
   });
 
-  it("preuve r1-G (1) : la vraie chaîne est servie (ancre, N en hashes et complet, N − 1), puis le bloc N relu au MÊME hash avec un autre contenu → « header », verrou, plus rien n'est transmis", async () => {
-    const up = await scripted(arcChain((n, full, k) => (n === N && !full && k >= 2 ? { ...ARC_N, baseFeePerGas: "0x1", mixHash: h32("autre aléa"), miner: "0x00000000000000000000000000000000000000ff" } : undefined)));
+  it("proof r1-G (1): the real chain is served (anchor, N as hashes and full, N − 1), then block N read again at the SAME hash with other content → \"header\", lock, nothing more is forwarded", async () => {
+    const up = await scripted(arcChain((n, full, k) => (n === N && !full && k >= 2 ? { ...ARC_N, baseFeePerGas: "0x1", mixHash: h32("other randomness"), miner: "0x00000000000000000000000000000000000000ff" } : undefined)));
     const relay = await startStrictRelay({ upstream: up.url, blockN: N, anchorHash: ARC_N.hash as Hex, failFast: true });
     try {
-      expect(await relay.anchor()).toBe(ARC_N.hash); // 1re lecture du bloc N : saine
+      expect(await relay.anchor()).toBe(ARC_N.hash); // first read of block N: healthy
       expect((await ask(relay, "eth_getBlockByNumber", [at(N), true])).json.result).toEqual(ARC_N_FULL);
       expect((await ask(relay, "eth_getBlockByNumber", [at(N - 1n), false])).json.result).toEqual(ARC_N1);
       expect(relay.violation).toBeUndefined();
-      const lie = await ask(relay, "eth_getBlockByNumber", [at(N), false]); // 2e lecture : même hash, autre contenu
+      const lie = await ask(relay, "eth_getBlockByNumber", [at(N), false]); // second read: same hash, other content
       expect(lie.json.error.code).toBe(RELAY_ERROR_CODE);
       expect(lie.json).not.toHaveProperty("result");
       expect(relay.violation?.kind).toBe("header");
@@ -370,29 +370,29 @@ describe("1 — en-tête LIÉ à son hash : keccak256(RLP(21 champs)) = hash (po
     }
   });
 
-  it("preuve r1-G (2) : parentHash empoisonné — N − 1 au bon hash mais au parentHash forgé → « header » ; N − 1 forgé ET re-hashé → « chain » ; N − 2 forgé jamais rendu ; témoin « shape » : N − 2 forgé ACCEPTÉ", async () => {
-    // le faux bloc N − 2 est lui-même cohérent (son hash est celui de son contenu) : seul le lien N − 1 → N − 2 est forgé
-    const fakeBody = { ...ARC_N1, number: at(N - 2n), parentHash: h32("x"), stateRoot: h32("faux état") };
+  it("proof r1-G (2): a poisoned parentHash; N − 1 at the right hash but with a forged parentHash → \"header\"; N − 1 forged AND rehashed → \"chain\"; forged N − 2 never returned; \"shape\" control: forged N − 2 ACCEPTED", async () => {
+    // the forged block N − 2 is itself consistent (its hash is that of its content): only the link N − 1 → N − 2 is forged
+    const fakeBody = { ...ARC_N1, number: at(N - 2n), parentHash: h32("x"), stateRoot: h32("forged state") };
     const FAKE = blockHeaderHash(fakeBody);
     const fakeN2 = { ...fakeBody, hash: FAKE };
-    const poisoned = { ...ARC_N1, parentHash: FAKE }; // hash d'origine, contenu changé
-    const rehashed = { ...poisoned, hash: blockHeaderHash(poisoned) }; // en-tête cohérent, mais pas celui que N désigne
+    const poisoned = { ...ARC_N1, parentHash: FAKE }; // original hash, changed content
+    const rehashed = { ...poisoned, hash: blockHeaderHash(poisoned) }; // a consistent header, but not the one N designates
     for (const [what, n1, policy, want] of [
-      ["parentHash forgé au même hash", poisoned, "arc", "header"],
-      ["parentHash forgé, hash recalculé", rehashed, "arc", "chain"],
-      ["témoin : ancien contrat", poisoned, "shape", undefined],
+      ["parentHash forged at the same hash", poisoned, "arc", "header"],
+      ["parentHash forged, hash recomputed", rehashed, "arc", "chain"],
+      ["control: the earlier contract", poisoned, "shape", undefined],
     ] as Array<[string, Record<string, unknown>, HeaderPolicy, string | undefined]>) {
       const up = await scripted(arcChain((n) => (n === N - 1n ? n1 : n === N - 2n ? fakeN2 : undefined)));
       const relay = await startStrictRelay({ upstream: up.url, blockN: N, anchorHash: ARC_N.hash as Hex, failFast: true, headerPolicy: policy });
       try {
         await relay.anchor();
-        const n2 = await ask(relay, "eth_getBlockByNumber", [at(N - 2n), false]); // BLOCKHASH(N − 2) : le relais remonte N, N − 1
+        const n2 = await ask(relay, "eth_getBlockByNumber", [at(N - 2n), false]); // BLOCKHASH(N − 2): the relay walks up N, N − 1
         if (want === undefined) {
-          expect(n2.json.result?.hash, what).toBe(FAKE); // l'ancienne faille : BLOCKHASH(N − 2) forgé, sans verrou
+          expect(n2.json.result?.hash, what).toBe(FAKE); // the old flaw: a forged BLOCKHASH(N − 2), without a lock
           expect(relay.violation, what).toBeUndefined();
         } else {
           expect(n2.json.error?.code, what).toBe(RELAY_ERROR_CODE);
-          expect(n2.json, what).not.toHaveProperty("result"); // BLOCKHASH(N − 2) forgé jamais rendu au moteur
+          expect(n2.json, what).not.toHaveProperty("result"); // the forged BLOCKHASH(N − 2) is never returned to the engine
           expect(relay.violation?.kind, what).toBe(want);
         }
       } finally {
@@ -402,7 +402,7 @@ describe("1 — en-tête LIÉ à son hash : keccak256(RLP(21 champs)) = hash (po
     }
   });
 
-  it("eth_getBlockByHash : même contrôle (un bloc demandé par hash au contenu changé → « header ») ; un RPC du fork honnête relu plusieurs fois : aucune violation", async () => {
+  it("eth_getBlockByHash: the same check (a block requested by hash with changed content → \"header\"); an honest fork RPC read several times: no violation", async () => {
     const up = await scripted((m, p) => {
       if (m === "eth_getBlockByHash") return { result: p[0] === ARC_N1.hash ? { ...ARC_N1, gasUsed: "0x1" } : null };
       return arcChain()(m, p);
@@ -424,11 +424,11 @@ describe("1 — en-tête LIÉ à son hash : keccak256(RLP(21 champs)) = hash (po
 });
 
 // =====================================================================================================================
-// 2. les 21 champs d'en-tête d'Arc sont obligatoires
+// 2. the 21 Arc header fields are mandatory
 // =====================================================================================================================
 
-describe("2 — champs d'en-tête d'Arc OBLIGATOIRES (absents → réponse invalide → verrou)", () => {
-  it("bloc réel d'Arc privé de l'un des 21 champs (ou champ à null) → « shape » ; témoin « shape » : les 10 champs autrefois facultatifs pouvaient manquer", () => {
+describe("2 — Arc header fields MANDATORY (missing → invalid answer → lock)", () => {
+  it("a real Arc block missing one of the 21 fields (or a field set to null) → \"shape\"; \"shape\" control: the 10 formerly optional fields could be missing", () => {
     for (const [field] of FIELDS) {
       const { [field]: _gone, ...without } = ARC_N;
       for (const b of [without, { ...ARC_N, [field]: null }]) {
@@ -443,12 +443,12 @@ describe("2 — champs d'en-tête d'Arc OBLIGATOIRES (absents → réponse inval
       }
       if (WERE_OPTIONAL.includes(field)) expect(checkBlockShape("eth_getBlockByNumber", without, false, "shape").hash, field).toBe(ARC_N.hash);
     }
-    // hash absent : toujours refusé
+    // a missing hash: always refused
     const { hash: _h, ...noHash } = ARC_N;
     expect(() => checkBlockShape("m", noHash, false)).toThrow(expect.objectContaining({ kind: "shape" }));
   });
 
-  it("preuves r2 / r3-1b vues du relais : bloc N SANS baseFeePerGas (puis sans mixHash) servi au moteur après une ancre saine → erreur JSON-RPC, verrou « shape »", async () => {
+  it("proofs r2 / r3-1b seen from the relay: block N WITHOUT baseFeePerGas (then without mixHash) served to the engine after a healthy anchor → a JSON-RPC error, \"shape\" lock", async () => {
     for (const field of ["baseFeePerGas", "mixHash", "excessBlobGas", "parentBeaconBlockRoot"]) {
       const { [field]: _gone, ...without } = ARC_N;
       const up = await scripted(arcChain((n, full, k) => (n === N && !full && k >= 2 ? without : undefined)));
@@ -467,17 +467,17 @@ describe("2 — champs d'en-tête d'Arc OBLIGATOIRES (absents → réponse inval
 });
 
 // =====================================================================================================================
-// 3. redirections jamais suivies
+// 3. redirects never followed
 // =====================================================================================================================
 
-describe("3 — redirections du RPC du fork : JAMAIS suivies (preuve r1-B)", () => {
-  it("301, 302, 303, 307, 308 vers un AUTRE hôte (ou le même) : 502 passager au moteur, sans verrou ; l'autre hôte ne reçoit RIEN", async () => {
+describe("3 — redirects of the fork's RPC: NEVER followed (proof r1-B)", () => {
+  it("301, 302, 303, 307, 308 to ANOTHER host (or the same one): a passing 502 to the engine, without a lock; the other host receives NOTHING", async () => {
     const other = await scripted(() => ({ result: "0x75bcd15" }));
     try {
       for (const status of [301, 302, 303, 307, 308]) {
-        for (const where of ["autre hôte", "même hôte"]) {
+        for (const where of ["another host", "same host"]) {
           let selfUrl = "";
-          const up = await scripted(() => ({ status, headers: { location: where === "autre hôte" ? `${other.url}/vol` : `${selfUrl}/encore` } }));
+          const up = await scripted(() => ({ status, headers: { location: where === "another host" ? `${other.url}/elsewhere` : `${selfUrl}/again` } }));
           selfUrl = up.url;
           const relay = await startStrictRelay({ upstream: up.url, blockN: N, anchorHash: ARC_N.hash as Hex });
           try {
@@ -485,7 +485,7 @@ describe("3 — redirections du RPC du fork : JAMAIS suivies (preuve r1-B)", () 
             expect(out.status, `${status} ${where}`).toBe(502);
             expect(relay.violation, `${status} ${where}`).toBeUndefined();
             expect(relay.upstreamFailures, `${status} ${where}`).toBe(1);
-            expect(up.calls.length, `${status} ${where}`).toBe(1); // jamais redemandé ailleurs (ni ici)
+            expect(up.calls.length, `${status} ${where}`).toBe(1); // never requested again elsewhere (nor here)
           } finally {
             await relay.close();
             await up.close();
@@ -500,13 +500,13 @@ describe("3 — redirections du RPC du fork : JAMAIS suivies (preuve r1-B)", () 
 });
 
 // =====================================================================================================================
-// 4. réponses lues en flux, coupées au-delà de la borne
+// 4. answers read as a stream, cut beyond the bound
 // =====================================================================================================================
 
-describe("4 — réponses lues EN FLUX, coupées au-delà de la borne (preuve r1-E)", () => {
+describe("4 — answers read AS A STREAM, cut beyond the bound (proof r1-E)", () => {
   const A = "0x0000000000000000000000000000000000007777";
 
-  it(`300 Mio (borne par défaut : ${MAX_RESPONSE_BYTES >> 20} Mio) : 502 passager, lecture COUPÉE (le RPC n'a pas pu tout écrire), mémoire bornée — avant : +683 Mio`, async () => {
+  it(`300 MiB (default bound: ${MAX_RESPONSE_BYTES >> 20} MiB): a passing 502, the read CUT (the RPC could not write everything), bounded memory; before: +683 MiB`, async () => {
     const up = await scripted((m) => (m === "eth_getCode" ? { huge: { bytes: 300 << 20 } } : { result: null }));
     const relay = await startStrictRelay({ upstream: up.url, blockN: N, anchorHash: ARC_N.hash as Hex });
     const base = process.memoryUsage().rss;
@@ -516,14 +516,14 @@ describe("4 — réponses lues EN FLUX, coupées au-delà de la borne (preuve r1
       const out = await ask(relay, "eth_getCode", [A, at(N)]);
       clearInterval(t);
       const grew = Math.round((peak - base) / 2 ** 20);
-      console.log(`[4] 300 Mio : statut ${out.status} ; octets écrits par le RPC avant la coupure : ${Math.round(up.written() / 2 ** 20)} Mio ; RSS +${grew} Mio au pic`);
+      console.log(`[4] 300 MiB: status ${out.status}; bytes written by the RPC before the cut: ${Math.round(up.written() / 2 ** 20)} MiB; RSS +${grew} MiB at the peak`);
       expect(out.status).toBe(502);
       expect(relay.violation).toBeUndefined();
       expect(relay.upstreamFailures).toBe(1);
       await new Promise((r) => setTimeout(r, 50));
       expect(up.cutEarly()).toBe(1);
-      expect(up.written()).toBeLessThan(MAX_RESPONSE_BYTES + (24 << 20)); // la borne + les tampons du système
-      expect(grew).toBeLessThan(256); // mesuré le 9/11 : +93 Mio (avant le correctif : +683 Mio pour la même réponse)
+      expect(up.written()).toBeLessThan(MAX_RESPONSE_BYTES + (24 << 20)); // the bound + the system's buffers
+      expect(grew).toBeLessThan(256); // measured on 9 Nov: +93 MiB (before the fix: +683 MiB for the same answer)
     } finally {
       clearInterval(t);
       await relay.close();
@@ -531,7 +531,7 @@ describe("4 — réponses lues EN FLUX, coupées au-delà de la borne (preuve r1
     }
   }, 120_000);
 
-  it("Content-Length au-delà de la borne : coupé dès les en-têtes ; borne réduite (1 Mio) : 2 Mio → 502, 256 Kio de code → rendu intact", async () => {
+  it("Content-Length beyond the bound: cut from the headers; a reduced bound (1 MiB): 2 MiB → 502, 256 KiB of code → returned intact", async () => {
     const big = await scripted(() => ({ huge: { bytes: 300 << 20, contentLength: true } }));
     const r1 = await startStrictRelay({ upstream: big.url, blockN: N });
     try {
@@ -550,7 +550,7 @@ describe("4 — réponses lues EN FLUX, coupées au-delà de la borne (preuve r1
     try {
       expect((await ask(r2, "eth_getCode", [A, at(N)])).status).toBe(502);
       expect(r2.violation).toBeUndefined();
-      bytes = 512 << 10; // 256 Kio de code = 512 Ki caractères hexadécimaux
+      bytes = 512 << 10; // 256 KiB of code = 512 Ki hexadecimal characters
       const ok = await ask(r2, "eth_getCode", [A, at(N)]);
       expect(ok.status).toBe(200);
       expect(ok.json.result.length).toBe(2 + (512 << 10));
@@ -561,7 +561,7 @@ describe("4 — réponses lues EN FLUX, coupées au-delà de la borne (preuve r1
     }
   }, 60_000);
 
-  it("corps au compte-gouttes : le délai du relais coupe la lecture en flux (502 dans le délai, sans verrou)", async () => {
+  it("a trickled body: the relay's timeout cuts the streamed read (502 within the timeout, without a lock)", async () => {
     const up = await scripted(() => ({ trickle: { result: "0x75bcd15", msPerByte: 100 } }));
     const relay = await startStrictRelay({ upstream: up.url, blockN: N, timeoutMs: 1_000 });
     try {
@@ -578,14 +578,14 @@ describe("4 — réponses lues EN FLUX, coupées au-delà de la borne (preuve r1
 });
 
 // =====================================================================================================================
-// 5. mémoire des réponses d'un rejeu
+// 5. the memory of a replay's answers
 // =====================================================================================================================
 
-describe("5 — mémoire des réponses d'un rejeu : la même lecture rendue avec une autre valeur → verrou « inconsistent » (preuve r1-G (3))", () => {
+describe("5 — the memory of a replay's answers: the same read returned with another value → \"inconsistent\" lock (proof r1-G (3))", () => {
   const A = "0x000000000000000000000000000000000000aBcD";
   const word = (n: bigint) => pad(numberToHex(n), { size: 32 });
 
-  it("même case relue (même écriture, puis autre écriture de la même case et de l'adresse) avec une autre valeur → « inconsistent », verrou ; la 1re valeur seule a été rendue", async () => {
+  it("the same slot read again (same spelling, then another spelling of the same slot and address) with another value → \"inconsistent\", lock; only the first value was returned", async () => {
     for (const second of [[A, "0x1"], [A, "0x01"], [A.toLowerCase(), "0x0000000000000000000000000000000000000000000000000000000000000001"]] as const) {
       let k = 0n;
       const up = await scripted((m) => (m === "eth_getStorageAt" ? { result: word(++k) } : { result: null }));
@@ -604,21 +604,21 @@ describe("5 — mémoire des réponses d'un rejeu : la même lecture rendue avec
     }
   });
 
-  it("recoupements : solde, nonce et code d'eth_getAccountInfo contre eth_getBalance, eth_getTransactionCount et eth_getCode ; chainId ; un bloc relu avec une autre liste de transactions", async () => {
+  it("cross-checks: balance, nonce and code of eth_getAccountInfo against eth_getBalance, eth_getTransactionCount and eth_getCode; chainId; a block read again with another list of transactions", async () => {
     const cases: Array<[string, Array<[string, unknown[]]>, (m: string, i: number) => unknown]> = [
       ["solde", [["eth_getAccountInfo", [A, at(N)]], ["eth_getBalance", [A, at(N)]]], (m) => (m === "eth_getAccountInfo" ? { balance: "0x10", nonce: "0x1", code: "0x" } : "0x11")],
       ["nonce", [["eth_getTransactionCount", [A, at(N)]], ["eth_getAccountInfo", [A, at(N)]]], (m) => (m === "eth_getAccountInfo" ? { balance: "0x10", nonce: "0x2", code: "0x" } : "0x1")],
       ["code", [["eth_getCode", [A, at(N)]], ["eth_getAccountInfo", [A, at(N)]]], (m) => (m === "eth_getAccountInfo" ? { balance: "0x10", nonce: "0x1", code: "0x6001" } : "0x")],
       ["chainId", [["eth_chainId", []], ["eth_chainId", []]], (_m, i) => (i === 0 ? "0x4cef52" : "0x1")],
-      ["bloc N relu : autre liste de transactions", [["eth_getBlockByNumber", [at(N), false]], ["eth_getBlockByNumber", [at(N), false]]],
+      ["block N read again: another list of transactions", [["eth_getBlockByNumber", [at(N), false]], ["eth_getBlockByNumber", [at(N), false]]],
         (_m, i) => (i === 0 ? ARC_N : { ...ARC_N, transactions: ARC_N.transactions.slice(1) })],
-      ["bloc N − 1 par numéro puis par hash : autre liste de transactions", [["eth_getBlockByNumber", [at(N - 1n), false]], ["eth_getBlockByHash", [ARC_N1.hash, false]]],
+      ["block N − 1 by number then by hash: another list of transactions", [["eth_getBlockByNumber", [at(N - 1n), false]], ["eth_getBlockByHash", [ARC_N1.hash, false]]],
         (_m, i) => (i === 0 ? ARC_N1 : { ...ARC_N1, transactions: [] })],
     ];
     for (const [what, reads, value] of cases) {
       let i = 0;
       const up = await scripted((m, p) => {
-        if (m === "eth_getBlockByNumber" && BigInt(p[0]) === N && i === 0 && what.startsWith("bloc N − 1")) return { result: ARC_N }; // l'ancre
+        if (m === "eth_getBlockByNumber" && BigInt(p[0]) === N && i === 0 && what.startsWith("block N − 1")) return { result: ARC_N }; // the anchor
         return { result: value(m, i++) };
       });
       const relay = await startStrictRelay({ upstream: up.url, blockN: N, anchorHash: ARC_N.hash as Hex, failFast: true });
@@ -637,7 +637,7 @@ describe("5 — mémoire des réponses d'un rejeu : la même lecture rendue avec
     }
   });
 
-  it("pas de faux positif : lectures honnêtes répétées (mêmes valeurs, casse de l'hexadécimal comprise), nouvel essai après un échec passager, eth_blockNumber et eth_gasPrice qui changent → aucun verrou", async () => {
+  it("no false positive: honest repeated reads (same values, hexadecimal case included), a new attempt after a passing failure, eth_blockNumber and eth_gasPrice that change → no lock", async () => {
     let n = 0;
     let failed = false;
     const up = await scripted((m) => {
@@ -663,7 +663,7 @@ describe("5 — mémoire des réponses d'un rejeu : la même lecture rendue avec
         expect((await ask(relay, "eth_gasPrice", [])).json.result).toBeDefined();
         expect((await ask(relay, "eth_getStorageAt", [A, "0x5", at(N)])).json.result).toBeDefined();
       }
-      expect((await ask(relay, "eth_getBalance", [A, at(N)])).status).toBe(429); // échec passager, rendu tel quel
+      expect((await ask(relay, "eth_getBalance", [A, at(N)])).status).toBe(429); // a passing failure, returned as it is
       expect((await ask(relay, "eth_getBalance", [A, at(N)])).json.result).toBe("0x75bcd15");
       expect((await ask(relay, "eth_getAccountInfo", [A, at(N)])).json.result).toEqual({ balance: "0x75bcd15", nonce: "0x1", code: "0x6001" });
       expect((await ask(relay, "eth_getCode", [A, at(N)])).json.result).toBe("0x6001");
