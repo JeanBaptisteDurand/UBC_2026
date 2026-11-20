@@ -1,8 +1,8 @@
 /**
- * Produit « inférence payée à l'appel » (x402, schéma « exact ») : l'enclave sealed-x402 de bout en bout côté serveur,
- * avec une chaîne et un modèle factices. 402 sans paiement, paiement valide → réponse + reçu (CallReceipt d'X402Settler),
- * rejeu d'autorisation refusé, montant faux refusé, file d'attente de l'opérateur, et les autres refus (solde, caution,
- * payeur à code, signature malléable, fenêtre de validité, taille, enclave non payable).
+ * The "inference paid per call" product (x402, "exact" scheme): the sealed-x402 enclave end to end on the server side,
+ * with a fake chain and a fake model. A 402 without payment, a valid payment → answer + receipt (X402Settler's
+ * CallReceipt), an authorization replay refused, a wrong amount refused, the operator's queue, and the other refusals
+ * (balance, bond, payer with code, malleable signature, validity window, size, an enclave that cannot be paid).
  */
 import { describe, it, expect } from "vitest";
 import {
@@ -61,12 +61,12 @@ const REGISTRY = "0x00000000000000000000000000000000000000c2" as Address;
 const SETTLER = "0x00000000000000000000000000000000000000bb" as Address;
 const SESSIONPAY = "0x00000000000000000000000000000000000000aa" as Address;
 const USDC = "0x3600000000000000000000000000000000000000" as Address;
-/** L'opérateur : sa clé signe les signalements « appels réglés » (POST /x402/settled, réservé à OPERATOR_ALLOWLIST). */
+/** The operator: its key signs the "calls settled" reports (POST /x402/settled, restricted to OPERATOR_ALLOWLIST). */
 const operatorAccount = privateKeyToAccount("0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba");
 const OPERATOR = operatorAccount.address;
 const PRODUCT = 3n;
 const MODEL = keccak256(toBytes("openai/gpt-oss-120b"));
-const PRICE = 10_000n; // 0,01 USDC par appel
+const PRICE = 10_000n; // 0.01 USDC per call
 const NOW = 1_800_000_000n;
 const payer = privateKeyToAccount("0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d");
 const other = privateKeyToAccount("0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a");
@@ -84,7 +84,7 @@ class FakeChain implements X402ChainReader {
   withCode = new Set<string>();
   capacity: bigint | null = 10_000_000n;
   paymentReads = 0;
-  /** Lectures lentes (ms) : pour faire se recouvrir des requêtes concurrentes. */
+  /** Slow reads (ms): to make concurrent requests overlap. */
   delayMs = 0;
   async status() {
     return { block: this.block, product: { ...this.product }, operator: this.operator };
@@ -117,7 +117,7 @@ class FakeModel implements ChatModel {
     this.last = r;
     if (this.delayMs) await sleep(this.delayMs);
     if (this.fail) throw new Error("amont : HTTP 500");
-    return { text: `réponse : ${r.messages[r.messages.length - 1]!.content}`, tokensIn: 7, tokensOut: 5 };
+    return { text: `answer: ${r.messages[r.messages.length - 1]!.content}`, tokensIn: 7, tokensOut: 5 };
   }
 }
 
@@ -154,7 +154,7 @@ function setup(over: Partial<X402GatewayConfig> = {}) {
   return { kit, chain, model, gw, app, clock };
 }
 
-/** Ce que fait le SDK : requête salée, chiffrée vers la clé X25519 de l'enclave ; nonce = engagement sur la requête. */
+/** What the SDK does: a salted request, encrypted to the enclave's X25519 key; nonce = a commitment to the request. */
 async function makeRequest(kit: EnclaveKit, content = "Bonjour ?", extra: Record<string, unknown> = {}) {
   const plain = new TextEncoder().encode(
     JSON.stringify({ messages: [{ role: "user", content }], ...extra, salt: toHex(globalThis.crypto.getRandomValues(new Uint8Array(32))) }),
@@ -182,7 +182,7 @@ function requirement(over: Partial<PaymentRequirements> = {}): PaymentRequiremen
   };
 }
 
-/** En-tête X-PAYMENT : autorisation EIP-3009 vers X402Settler (ou `to`), montant `value`, échéance `validBefore`. */
+/** The X-PAYMENT header: an EIP-3009 authorization to X402Settler (or `to`), amount `value`, deadline `validBefore`. */
 async function pay(nonce: Hex, o: { value?: bigint; validBefore?: bigint; account?: typeof payer; to?: Address } = {}) {
   const acc = o.account ?? payer;
   const p = await buildPayerAuthorization(
@@ -191,14 +191,14 @@ async function pay(nonce: Hex, o: { value?: bigint; validBefore?: bigint; accoun
     CHAIN,
     acc.address,
     nonce,
-    o.validBefore ?? NOW + 900n, // AUTH_VALIDITY_SECONDS par défaut (900 s)
+    o.validBefore ?? NOW + 900n, // AUTH_VALIDITY_SECONDS by default (900 s)
     o.value ?? PRICE,
   );
   return encodeXPayment(p);
 }
 
-/** POST /x402/settled SIGNÉ par l'opérateur (EIP-712), horodaté à l'horloge de l'enclave, nonce aléatoire ; chaque item
- *  « réglé par X402Settler » (settled: true) sauf s'il dit le contraire. */
+/** POST /x402/settled SIGNED by the operator (EIP-712), timestamped with the enclave's clock, a random nonce; each item
+ *  "settled by X402Settler" (settled: true) unless it says otherwise. */
 async function signedAck(
   s: { app: ReturnType<typeof setup>["app"]; kit: EnclaveKit; clock: { now: bigint } },
   raw: Array<{ payer: Address; nonce: Hex; settled?: boolean }>,
@@ -242,8 +242,8 @@ function receiptOf(out: X402CallResponse): CallReceipt {
   };
 }
 
-describe("x402 — 402 sans paiement", () => {
-  it("rend les exigences x402 : payTo = X402Settler, asset = USDC, prix FIXE par appel lu dans le produit on-chain, domaine EIP-712 de l'USDC", async () => {
+describe("x402: a 402 without payment", () => {
+  it("returns the x402 requirements: payTo = X402Settler, asset = USDC, a FIXED price per call read from the on-chain product, USDC's EIP-712 domain", async () => {
     const { app, model, kit, chain } = setup();
     const q = await makeRequest(kit);
     const res = await post(app, q.envelope);
@@ -258,19 +258,19 @@ describe("x402 — 402 sans paiement", () => {
       maxAmountRequired: "10000",
       payTo: SETTLER,
       asset: USDC,
-      // 9/11 : 900 s au plus (au lieu de 3 600) ; au soir : 60 s de moins annoncées, pour l'horloge des clients
+      // 9 Nov: 900 s at most (instead of 3,600); in the evening: 60 s less announced, for the clients' clocks
       maxTimeoutSeconds: 840,
       extra: { name: "USDC", version: "2", productId: "3", unitsPerCall: "1", enclave: kit.keys.signer },
     });
-    // le prix suit le produit on-chain
+    // the price follows the on-chain product
     chain.product = { ...chain.product, price: 25_000n };
     expect((await json(await post(app, q.envelope))).accepts[0].maxAmountRequired).toBe("25000");
-    // découverte du prix sans corps du tout
+    // price discovery without any body
     expect((await app.request("/v1/chat/completions", { method: "POST" })).status).toBe(402);
     expect(model.calls).toBe(0);
   });
 
-  it("503 (et pas de 402) quand un reçu de cette enclave ne serait pas payé : autre règlement, autre modèle, enclave inactive, opérateur hors liste, produit inactif", async () => {
+  it("503 (and no 402) when a receipt of this enclave would not be paid: another settlement, another model, an inactive enclave, an operator outside the list, an inactive product", async () => {
     const { app, model, kit, chain } = setup();
     const q = await makeRequest(kit);
     const cases: Array<[() => void, string]> = [
@@ -295,15 +295,15 @@ describe("x402 — 402 sans paiement", () => {
 });
 
 describe("x402 — paiement valide", () => {
-  it("réponse chiffrée vers la clé du client + CallReceipt signé par l'enclave, exactement ce que X402Settler.settle vérifie", async () => {
+  it("an answer encrypted to the client's key + a CallReceipt signed by the enclave, exactly what X402Settler.settle verifies", async () => {
     const { app, model, kit, chain, gw } = setup();
-    const q = await makeRequest(kit, "Combien font 2 + 2 ?", { temperature: 0.1, max_tokens: 99_999 });
+    const q = await makeRequest(kit, "What is 2 + 2?", { temperature: 0.1, max_tokens: 99_999 });
     const res = await post(app, q.envelope, await pay(q.nonce));
     expect(res.status).toBe(200);
     const out = (await json(res)) as X402CallResponse;
     const text = new TextDecoder().decode(await open(q.ephPriv, toBytes(out.enc), toBytes(out.ciphertext)));
-    expect(text).toBe("réponse : Combien font 2 + 2 ?");
-    expect(model.last).toMatchObject({ temperature: 0.1, maxTokens: 1024 }); // max_tokens borné (prix fixe par appel)
+    expect(text).toBe("answer: What is 2 + 2?");
+    expect(model.last).toMatchObject({ temperature: 0.1, maxTokens: 1024 }); // max_tokens bounded (fixed price per call)
 
     const cr = receiptOf(out);
     const requestHash = keccak256(q.plain);
@@ -318,7 +318,7 @@ describe("x402 — paiement valide", () => {
     });
     expect(await recoverCallReceiptSigner({ chainId: CHAIN, verifyingContract: SETTLER }, cr, out.signature)).toBe(kit.keys.signer);
 
-    // le digest « à la main », comme X402Settler._recover : CALL_RECEIPT_TYPEHASH, abi.encode, domaine ArcEnclaveNetwork/1
+    // the digest "by hand", as in X402Settler._recover: CALL_RECEIPT_TYPEHASH, abi.encode, domain ArcEnclaveNetwork/1
     const TYPEHASH = keccak256(
       toBytes("CallReceipt(uint256 productId,address payer,bytes32 requestHash,bytes32 responseHash,uint128 units,uint64 anchorBlock,bytes32 nonce)"),
     );
@@ -356,7 +356,7 @@ describe("x402 — paiement valide", () => {
     expect(gw.stats()).toMatchObject({ pending: 1, pendingAmount: "10000", inFlight: 0 });
   });
 
-  it("le modèle échoue : rien n'est signé ni gardé ; la même requête avec la même autorisation est servie ensuite", async () => {
+  it("the model fails: nothing is signed or kept; the same request with the same authorization is served afterwards", async () => {
     const { app, model, kit, gw } = setup();
     const q = await makeRequest(kit);
     const xp = await pay(q.nonce);
@@ -371,7 +371,7 @@ describe("x402 — paiement valide", () => {
     expect(gw.pending().total).toBe(1);
   });
 
-  it("des requêtes identiques concurrentes (même requête, même autorisation) : UN appel au modèle, UN reçu", async () => {
+  it("identical concurrent requests (same request, same authorization): ONE call to the model, ONE receipt", async () => {
     const { app, model, kit } = setup();
     model.delayMs = 20;
     const q = await makeRequest(kit);
@@ -384,20 +384,20 @@ describe("x402 — paiement valide", () => {
   });
 });
 
-describe("x402 — rejeu d'autorisation refusé", () => {
-  it("le même X-PAYMENT ne paie qu'UNE requête ; la même requête rejouée reçoit la même réponse ; une 2e autorisation du même nonce, un nonce consommé on-chain : refusés", async () => {
+describe("x402: an authorization replay is refused", () => {
+  it("the same X-PAYMENT pays only ONE request; the same request replayed receives the same answer; a second authorization of the same nonce, a nonce consumed on-chain: refused", async () => {
     const { app, model, kit, chain, gw } = setup();
-    const q = await makeRequest(kit, "première");
+    const q = await makeRequest(kit, "first");
     const xp = await pay(q.nonce);
     const first = await json(await post(app, q.envelope, xp));
 
-    // (a) même en-tête X-PAYMENT, AUTRE requête : le nonce n'engage pas cette requête
-    const other2 = await makeRequest(kit, "seconde, gratuite ?");
+    // (a) the same X-PAYMENT header, ANOTHER request: the nonce does not commit to this request
+    const other2 = await makeRequest(kit, "second, for free?");
     const r2 = await post(app, other2.envelope, xp);
     expect(r2.status).toBe(402);
     expect((await json(r2)).error).toBe("nonce_not_bound");
 
-    // (b) même requête, même autorisation : la MÊME réponse (reprise idempotente), sans 2e appel ni 2e reçu
+    // (b) the same request, the same authorization: the SAME answer (idempotent resumption), without a second call or receipt
     const r3 = await post(app, q.envelope, xp);
     expect(r3.status).toBe(200);
     const again = await json(r3);
@@ -405,25 +405,25 @@ describe("x402 — rejeu d'autorisation refusé", () => {
     expect(again.signature).toBe(first.signature);
     expect(again.receipt).toEqual(first.receipt);
 
-    // (c) même requête, AUTRE autorisation (autre échéance) pour le même nonce : 409
+    // (c) the same request, ANOTHER authorization (another deadline) for the same nonce: 409
     const r4 = await post(app, q.envelope, await pay(q.nonce, { validBefore: NOW + 800n }));
     expect(r4.status).toBe(409);
     expect((await json(r4)).code).toBe("nonce_reused");
 
-    // (d) nonce déjà consommé on-chain (réglé, ou annulé par le payeur) : refusé sans appel au modèle
+    // (d) a nonce already consumed on-chain (settled, or cancelled by the payer): refused without a call to the model
     const q5 = await makeRequest(kit, "x");
     chain.used.add(keyOf(payer.address, q5.nonce));
     const r5 = await post(app, q5.envelope, await pay(q5.nonce));
     expect(r5.status).toBe(402);
     expect((await json(r5)).error).toBe("authorization_used");
 
-    // (e) un nonce quelconque (pas l'engagement de la requête) : refusé
+    // (e) an arbitrary nonce (not the request's commitment): refused
     const q6 = await makeRequest(kit, "y");
     const r6 = await post(app, q6.envelope, await pay(("0x" + "11".repeat(32)) as Hex));
     expect((await json(r6)).error).toBe("nonce_not_bound");
 
-    // (f) la reprise passe AVANT toute lecture de la chaîne : l'appel déjà servi est rendu même si l'enclave n'est plus
-    //     payable entre-temps (inscription échue), et aucun nouvel appel n'est servi
+    // (f) the resumption runs BEFORE any read of the chain: the call already served is returned even if the enclave can
+    //     no longer be paid in the meantime (registration expired), and no new call is served
     chain.operator = zeroAddress;
     const r7 = await post(app, q.envelope, xp);
     expect(r7.status).toBe(200);
@@ -436,8 +436,8 @@ describe("x402 — rejeu d'autorisation refusé", () => {
   });
 });
 
-describe("x402 — montant faux et autres paiements invalides refusés", () => {
-  it("montant ≠ prix d'un appel (moins, plus, zéro) : 402, sans appel au modèle", async () => {
+describe("x402: a wrong amount and other invalid payments are refused", () => {
+  it("amount ≠ the price of one call (less, more, zero): 402, without a call to the model", async () => {
     const { app, model, kit } = setup();
     for (const value of [PRICE - 1n, PRICE + 1n, 0n]) {
       const q = await makeRequest(kit);
@@ -450,10 +450,10 @@ describe("x402 — montant faux et autres paiements invalides refusés", () => {
     expect(model.calls).toBe(0);
   });
 
-  it("le prix on-chain change entre le 402 et le paiement : 402 avec le nouveau prix", async () => {
+  it("the on-chain price changes between the 402 and the payment: a 402 with the new price", async () => {
     const { app, model, kit, chain } = setup();
     const q = await makeRequest(kit);
-    const xp = await pay(q.nonce); // signée au prix 10 000
+    const xp = await pay(q.nonce); // signed at the price of 10,000
     chain.product = { ...chain.product, price: 20_000n };
     const b = await json(await post(app, q.envelope, xp));
     expect(b.error).toBe("invalid_exact_evm_payload_authorization_value");
@@ -461,7 +461,7 @@ describe("x402 — montant faux et autres paiements invalides refusés", () => {
     expect(model.calls).toBe(0);
   });
 
-  it("payTo ≠ X402Settler, signataire ≠ from, signature malléable (s haut), échéance trop proche ou trop lointaine : 402", async () => {
+  it("payTo ≠ X402Settler, signer ≠ from, a malleable signature (high s), a deadline too close or too far: 402", async () => {
     const { app, model, kit } = setup();
     const expectRefused = async (xp: string, code: string) => {
       const q = await makeRequestFor(xp);
@@ -469,7 +469,7 @@ describe("x402 — montant faux et autres paiements invalides refusés", () => {
       expect(res.status, code).toBe(402);
       expect((await json(res)).error, code).toBe(code);
     };
-    // chaque cas : une requête neuve dont le nonce est celui de l'autorisation fabriquée
+    // each case: a new request whose nonce is the forged authorization's
     const reqs = new Map<string, unknown>();
     const makeRequestFor = async (xp: string) => reqs.get(xp)!;
     const make = async (f: (nonce: Hex) => Promise<string>) => {
@@ -482,7 +482,7 @@ describe("x402 — montant faux et autres paiements invalides refusés", () => {
     await expectRefused(
       await make(async (n) => {
         const p = decodeXPayment(await pay(n, { account: other }));
-        p.payload.authorization.from = payer.address; // signée par un autre que le payeur annoncé
+        p.payload.authorization.from = payer.address; // signed by someone other than the announced payer
         return encodeXPayment(p);
       }),
       "invalid_exact_evm_payload_signature",
@@ -490,7 +490,7 @@ describe("x402 — montant faux et autres paiements invalides refusés", () => {
     await expectRefused(
       await make(async (n) => {
         const p = decodeXPayment(await pay(n));
-        p.payload.signature = malleate(p.payload.signature); // même signataire pour viem, refusée par l'USDC
+        p.payload.signature = malleate(p.payload.signature); // the same signer for viem, refused by USDC
         return encodeXPayment(p);
       }),
       "invalid_exact_evm_payload_signature",
@@ -498,22 +498,22 @@ describe("x402 — montant faux et autres paiements invalides refusés", () => {
     await expectRefused(await make((n) => pay(n, { validBefore: NOW + 300n })), "invalid_exact_evm_payload_authorization_valid_before");
     await expectRefused(await make((n) => pay(n, { validBefore: NOW - 1n })), "invalid_exact_evm_payload_authorization_valid_before");
     await expectRefused(await make((n) => pay(n, { validBefore: NOW + 30n * 86_400n })), "authorization_validity_too_long");
-    // en-tête illisible
+    // an unreadable header
     const q = await makeRequest(kit);
-    const res = await post(app, q.envelope, "pas du base64 !");
+    const res = await post(app, q.envelope, "not base64 !");
     expect((await json(res)).error).toBe("invalid_payload");
     expect(model.calls).toBe(0);
   });
 
-  it("le facilitateur v1 exige lui aussi le montant EXACT", async () => {
+  it("the v1 facilitator also requires the EXACT amount", async () => {
     const r = requirement();
     const p = decodeXPayment(await pay(("0x" + "7d".repeat(32)) as Hex, { value: PRICE + 1n }));
     expect(await facilitatorVerify(p, r, CHAIN, NOW)).toEqual({ ok: false, reason: "amount" });
   });
 });
 
-describe("x402 — protections de l'opérateur (avant tout appel au modèle)", () => {
-  it("solde : les appels non réglés d'un payeur ne dépassent jamais son solde USDC", async () => {
+describe("x402: the operator's protections (before any call to the model)", () => {
+  it("balance: a payer's unsettled calls never exceed their USDC balance", async () => {
     const { app, model, kit, chain } = setup();
     chain.defaultBalance = 2n * PRICE;
     for (let i = 0; i < 2; i++) {
@@ -527,9 +527,9 @@ describe("x402 — protections de l'opérateur (avant tout appel au modèle)", (
     expect(model.calls).toBe(2);
   });
 
-  it("des requêtes CONCURRENTES du même payeur ne passent pas sur le même solde (réservation sans attente après le dernier contrôle)", async () => {
+  it("CONCURRENT requests of the same payer do not pass on the same balance (a reservation without a wait after the last check)", async () => {
     const { app, model, kit, chain } = setup();
-    chain.defaultBalance = PRICE; // un seul appel couvert
+    chain.defaultBalance = PRICE; // one single call covered
     const reqs = await Promise.all(["a", "b", "c"].map((x) => makeRequest(kit, x)));
     const xs = await Promise.all(reqs.map((q) => pay(q.nonce)));
     const rs = await Promise.all(reqs.map((q, i) => post(app, q.envelope, xs[i])));
@@ -537,16 +537,16 @@ describe("x402 — protections de l'opérateur (avant tout appel au modèle)", (
     expect(model.calls).toBe(1);
   });
 
-  it("des requêtes qui attendent le MÊME rapprochement ne passent pas toutes sur la place qu'il libère", async () => {
+  it("requests waiting for the SAME reconciliation do not all pass on the room it frees", async () => {
     const { app, model, kit, chain } = setup();
     chain.capacity = 3n * PRICE;
     for (const x of ["1", "2", "3"]) {
       const q = await makeRequest(kit, x);
       expect((await post(app, q.envelope, await pay(q.nonce))).status).toBe(200);
     }
-    chain.capacity = PRICE; // place pour UN appel de plus, une fois les impayés retirés de l'exposition
-    chain.balances.set(payer.address.toLowerCase(), 0n); // le payeur vide son solde : ses 3 appels deviennent impayables
-    chain.delayMs = 20; // lectures lentes : les deux requêtes attendent le même rapprochement
+    chain.capacity = PRICE; // room for ONE more call, once the unpaid calls are removed from the exposure
+    chain.balances.set(payer.address.toLowerCase(), 0n); // the payer empties their balance: their 3 calls become unpayable
+    chain.delayMs = 20; // slow reads: the two requests wait for the same reconciliation
     const b = await makeRequest(kit, "b");
     const c = await makeRequest(kit, "c");
     const [xb, xc] = [await pay(b.nonce, { account: other }), await pay(c.nonce, { account: third })];
@@ -555,7 +555,7 @@ describe("x402 — protections de l'opérateur (avant tout appel au modèle)", (
     expect(model.calls).toBe(4);
   });
 
-  it("au plus MAX_PENDING_PER_PAYER appels non réglés par payeur (429) ; un payeur à code (contrat, EIP-7702) est refusé", async () => {
+  it("at most MAX_PENDING_PER_PAYER unsettled calls per payer (429); a payer with code (a contract, EIP-7702) is refused", async () => {
     const { app, model, kit, chain } = setup({ maxPendingPerPayer: 2 });
     for (let i = 0; i < 2; i++) {
       const q = await makeRequest(kit);
@@ -563,7 +563,7 @@ describe("x402 — protections de l'opérateur (avant tout appel au modèle)", (
     }
     const q = await makeRequest(kit);
     expect((await post(app, q.envelope, await pay(q.nonce))).status).toBe(429);
-    // un autre payeur, mais avec du code
+    // another payer, but with code
     chain.withCode.add(other.address.toLowerCase());
     const q2 = await makeRequest(kit);
     const res = await post(app, q2.envelope, await pay(q2.nonce, { account: other }));
@@ -571,9 +571,9 @@ describe("x402 — protections de l'opérateur (avant tout appel au modèle)", (
     expect(model.calls).toBe(2);
   });
 
-  it("caution de l'opérateur épuisée (OperatorBond) : 503 sans appel au modèle", async () => {
+  it("the operator's bond exhausted (OperatorBond): 503 without a call to the model", async () => {
     const { app, model, kit, chain } = setup();
-    chain.capacity = PRICE; // de quoi régler UN appel
+    chain.capacity = PRICE; // enough to settle ONE call
     const q1 = await makeRequest(kit);
     expect((await post(app, q1.envelope, await pay(q1.nonce))).status).toBe(200);
     const q2 = await makeRequest(kit);
@@ -586,19 +586,19 @@ describe("x402 — protections de l'opérateur (avant tout appel au modèle)", (
     expect(exposureCapacity({ availableBond: 3_000_000n, totalExposure: 0n, productExposure: 0n, cap: 0n, banned: true })).toBe(0n);
   });
 
-  it("requête trop grande (413), enveloppe ou requête illisibles (400) : rien n'est facturé", async () => {
+  it("a request too large (413), an unreadable envelope or request (400): nothing is billed", async () => {
     const { app, model, kit } = setup({ maxRequestBytes: 256 });
     const big = await makeRequest(kit, "x".repeat(400));
     expect((await post(app, big.envelope, await pay(big.nonce))).status).toBe(413);
     const q = await makeRequest(kit);
     expect((await post(app, { ...q.envelope, enc: "0x1234" }, await pay(q.nonce))).status).toBe(400);
-    // chiffrée vers une AUTRE clé : indéchiffrable par cette enclave
+    // encrypted to ANOTHER key: undecryptable by this enclave
     const stranger = new EnclaveKit({ productId: PRODUCT, chainId: CHAIN, registry: REGISTRY, mockBlockHash: true });
     const sealed = await seal(toBytes(stranger.keys.x25519PublicKey), new TextEncoder().encode('{"messages":[{"role":"user","content":"a"}]}'));
     const env = { enc: toHex(sealed.enc), ciphertext: toHex(sealed.ciphertext), clientEphemeralPub: q.envelope.clientEphemeralPub };
     const n = callNonce({ chainId: CHAIN, settler: SETTLER, productId: PRODUCT, enclave: kit.keys.signer, ...env });
     expect((await json(await post(app, env, await pay(n)))).code).toBe("undecryptable");
-    // JSON valide mais sans messages
+    // valid JSON but without messages
     const sealed2 = await seal(toBytes(kit.keys.x25519PublicKey), new TextEncoder().encode('{"prompt":"a"}'));
     const env2 = { enc: toHex(sealed2.enc), ciphertext: toHex(sealed2.ciphertext), clientEphemeralPub: q.envelope.clientEphemeralPub };
     const n2 = callNonce({ chainId: CHAIN, settler: SETTLER, productId: PRODUCT, enclave: kit.keys.signer, ...env2 });
@@ -607,13 +607,13 @@ describe("x402 — protections de l'opérateur (avant tout appel au modèle)", (
   });
 });
 
-describe("x402 — file d'attente de l'opérateur", () => {
-  it("GET /x402/pending rend les arguments de X402Settler.settle, les plus urgents d'abord ; POST /x402/settled ne sort que ce que la chaîne dit consommé ; les échus sortent", async () => {
+describe("x402: the operator's queue", () => {
+  it("GET /x402/pending returns the arguments of X402Settler.settle, the most urgent first; POST /x402/settled removes only what the chain says is consumed; expired calls leave", async () => {
     const st = setup();
     const { app, kit, chain, model, clock } = st;
-    const a = await makeRequest(kit, "un");
+    const a = await makeRequest(kit, "one");
     const xa = await pay(a.nonce);
-    const b = await makeRequest(kit, "deux");
+    const b = await makeRequest(kit, "two");
     const xb = await pay(b.nonce, { validBefore: NOW + 700n });
     const ra = await json(await post(app, a.envelope, xa));
     const rb = await json(await post(app, b.envelope, xb));
@@ -626,17 +626,17 @@ describe("x402 — file d'attente de l'opérateur", () => {
       auth: { validAfter: "0", validBefore: String(NOW + 700n), nonce: b.nonce, signature: decodeXPayment(xb).payload.signature },
       amount: "10000",
       servedAt: Number(NOW),
-      covered: true, // le solde du payeur (relu au relevé) couvre ses deux appels
+      covered: true, // the payer's balance (read again at collection) covers their two calls
     });
     expect(p1.items[1].receipt).toEqual(ra.receipt);
-    // relever deux fois ne change rien (lecture sans effet)
+    // collecting twice changes nothing (a read without effect)
     expect(await json(await app.request("/x402/pending"))).toEqual(p1);
 
     const ack = (items: Array<{ payer: Address; nonce: Hex }>) => signedAck(st, items).then(json);
-    // signalé mais PAS réglé on-chain : il reste (rien n'est cru sur parole)
+    // reported but NOT settled on-chain: it stays (nothing is taken on trust)
     expect(await ack([{ payer: payer.address, nonce: a.nonce }])).toEqual({ settled: [], pending: [keyOf(payer.address, a.nonce)], unknown: [] });
     expect((await json(await app.request("/x402/pending"))).total).toBe(2);
-    // réglé on-chain : il sort
+    // settled on-chain: it leaves
     chain.used.add(keyOf(payer.address, a.nonce));
     expect((await ack([{ payer: payer.address, nonce: a.nonce }, { payer: payer.address, nonce: ("0x" + "22".repeat(32)) as Hex }])).settled).toEqual([
       keyOf(payer.address, a.nonce),
@@ -644,33 +644,33 @@ describe("x402 — file d'attente de l'opérateur", () => {
     const p2 = await json(await app.request("/x402/pending"));
     expect(p2.total).toBe(1);
     expect(p2.items[0].receipt.nonce).toBe(b.nonce);
-    // le client qui rejoue après le règlement reçoit encore sa réponse, sans 2e appel
+    // the client who replays after the settlement still receives their answer, without a second call
     const again = await json(await post(app, a.envelope, xa));
     expect(again.replay).toBe(true);
     expect(model.calls).toBe(2);
-    // l'autorisation de b échoit : plus réglable, b sort de la file (perdu pour l'opérateur)
+    // b's authorization expires: no longer settleable, b leaves the queue (lost for the operator)
     clock.now = NOW + 700n;
     expect((await json(await app.request("/x402/pending"))).total).toBe(0);
-    // un corps invalide
+    // an invalid body
     expect((await app.request("/x402/settled", { method: "POST", body: "{}" })).status).toBe(400);
   });
 
-  it("le solde réservé se libère quand l'appel est réglé", async () => {
+  it("the reserved balance is freed when the call is settled", async () => {
     const st = setup();
     const { app, kit, chain } = st;
-    chain.defaultBalance = PRICE; // un seul appel couvert à la fois
+    chain.defaultBalance = PRICE; // one single call covered at a time
     const a = await makeRequest(kit);
     expect((await post(app, a.envelope, await pay(a.nonce))).status).toBe(200);
     const b = await makeRequest(kit);
     expect((await json(await post(app, b.envelope, await pay(b.nonce)))).error).toBe("insufficient_funds");
-    chain.used.add(keyOf(payer.address, a.nonce)); // a est réglé (le solde on-chain serait 0 : on simule un rechargement)
+    chain.used.add(keyOf(payer.address, a.nonce)); // a is settled (the on-chain balance would be 0: a top-up is simulated)
     expect((await signedAck(st, [{ payer: payer.address, nonce: a.nonce }])).status).toBe(200);
     expect((await post(app, b.envelope, await pay(b.nonce))).status).toBe(200);
   });
 });
 
-describe("x402 — configuration, modèle amont et ABI", () => {
-  it("la configuration exige les adresses de la pile (aucune par défaut) et valide les bornes", () => {
+describe("x402: configuration, upstream model and ABI", () => {
+  it("the configuration requires the stack's addresses (none by default) and validates the bounds", () => {
     const base = { PRODUCT_ID: "3", REGISTRY, X402SETTLER: SETTLER, USDC, OPERATOR_ALLOWLIST: OPERATOR };
     const c = readSealedX402Config(base);
     expect(c).toMatchObject({ productId: 3n, settler: SETTLER, registry: REGISTRY, usdc: USDC, network: "arc-testnet", port: 8804, maxOutputTokens: 1024, checkBalance: true });
@@ -683,10 +683,10 @@ describe("x402 — configuration, modèle amont et ABI", () => {
     expect(() => readSealedX402Config({ ...base, X402SETTLER: zeroAddress })).toThrow("X402SETTLER");
     expect(() => readSealedX402Config({ ...base, MAX_OUTPUT_TOKENS: "abc" })).toThrow("MAX_OUTPUT_TOKENS");
     expect(() => readSealedX402Config({ ...base, AUTH_VALIDITY_SECONDS: "600" })).toThrow("AUTH_VALIDITY_SECONDS");
-    expect(readSealedX402Config({ ...base, OPERATOR_ALLOWLIST: undefined }).operatorAllowlist).toEqual([]); // échoue fermé
+    expect(readSealedX402Config({ ...base, OPERATOR_ALLOWLIST: undefined }).operatorAllowlist).toEqual([]); // fails closed
   });
 
-  it("une erreur du modèle amont ne remonte jamais son corps (il peut recopier la clé)", async () => {
+  it("an error of the upstream model never surfaces its body (it can copy the key)", async () => {
     const KEY = "rpk_super_secret_key_123";
     const m = createRedpillModel({
       baseUrl: "https://api.example/v1",
@@ -699,7 +699,7 @@ describe("x402 — configuration, modèle amont et ABI", () => {
     expect(err.message).not.toContain(KEY);
   });
 
-  it("les fragments d'ABI de l'enclave sont ceux des contrats (packages/sdk/src/abis.ts, généré depuis contracts/out)", () => {
+  it("the enclave's ABI fragments are the contracts' (packages/sdk/src/abis.ts, generated from contracts/out)", () => {
     const shape = (abi: readonly unknown[], name: string) => {
       const f = (abi as AbiFunction[]).find((x) => x.type === "function" && x.name === name);
       if (!f) throw new Error(`${name} absent`);
@@ -722,13 +722,13 @@ describe("x402 — configuration, modèle amont et ABI", () => {
   });
 });
 
-/** Type ABI complet (tuples développés), noms ignorés. */
+/** A full ABI type (tuples expanded), names ignored. */
 function formatType(p: { type: string; components?: readonly any[] }): string {
   if (p.type.startsWith("tuple")) return `(${(p.components ?? []).map(formatType).join(",")})${p.type.slice(5)}`;
   return p.type;
 }
 
-/** La même signature ECDSA, rendue malléable (s → n − s, v basculé) : viem retrouve le même signataire, pas l'USDC. */
+/** The same ECDSA signature, made malleable (s → n − s, v flipped): viem finds the same signer, USDC does not. */
 function malleate(sig: Hex): Hex {
   const n = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n;
   const r = sig.slice(2, 66);

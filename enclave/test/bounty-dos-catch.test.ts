@@ -1,13 +1,13 @@
 /**
- * Prime scellée v2.1 ter — déni de service et exceptions sans tri (vérification adverse du 9/11 : cas D1–D4,
- * amplification, exceptions d'environnement).
- *  2. /v1/refute : le jeton du seau est pris APRÈS la forme du corps et claimRecords (réclamation vivante) ; les corps
- *     invalides ont leur propre limite par IP vue, qui ne prive jamais les demandes valides (preuve D1) ;
- *  3. /bounty/submit : débit limité ; même chiffré répété → même résultat sans relire la chaîne (preuve D2) ; prime et
- *     paliers en cache par prime ; un échec du rejeu (budget…) est un 503, jamais « non prouvée » ;
- *  4. file pleine (« busy ») ou réfutations en cours (« refute_busy ») : jamais mémorisées comme échec (preuves D3, D4) ;
- *  5. seules des erreurs DÉTERMINISTES identifiées deviennent une faute ou un refus ; toute autre exception → 503, rien de
- *     signé, rien de mémorisé (preuve e8).
+ * Sealed Bounty v2.1 ter: denial of service and unsorted exceptions (adversarial verification of 9 Nov: cases D1–D4,
+ * amplification, environment exceptions).
+ *  2. /v1/refute: the bucket's token is taken AFTER the body's shape and claimRecords (a live claim); invalid bodies have
+ *     their own limit per seen IP, which never starves valid requests (proof D1);
+ *  3. /bounty/submit: a limited rate; the same ciphertext repeated → the same result without reading the chain again
+ *     (proof D2); bounty and tiers cached per bounty; a replay failure (budget…) is a 503, never "not proven";
+ *  4. a full queue ("busy") or refutations in progress ("refute_busy"): never cached as a failure (proofs D3, D4);
+ *  5. only identified DETERMINISTIC errors become a fault or a refusal; any other exception → 503, nothing signed,
+ *     nothing cached (proof e8).
  */
 import { describe, it, expect, afterEach } from "vitest";
 import { createServer as createHttpServer } from "node:http";
@@ -56,7 +56,7 @@ const view: BountyView = { predicateHash: predicateHash(pred), protocolX25519: p
 const okCtx = (loss = 5_000_000n): EvalContext => ({ erc20Drop: () => loss, nativeDrop: () => 0n, attackerProfit: () => 0n, viewValue: () => 0n, invariantHeld: () => true });
 const json = (o: unknown) => ({ method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(o) });
 
-/** La chaîne vue par une enclave réfutante, avec lecture bon marché (record) ; compte ses lectures. */
+/** The chain as a refuting enclave sees it, with the cheap read (record); counts its reads. */
 class FakeChain implements RefuteReader {
   records = new Map<string, { acceptedAt: bigint; refuted: boolean; opsHash: Hex }>();
   active = new Map<string, Address>();
@@ -84,7 +84,7 @@ class FakeChain implements RefuteReader {
   }
 }
 
-/** Une réclamation HONNÊTE (cP réel du bundle) : le contre-rejeu d'okCtx() la confirme. */
+/** An HONEST claim (the bundle's real cP): the counter-replay of okCtx() confirms it. */
 async function honestClaim(capital = 0n) {
   const txs = [encodeExploitTx({ to: HOLDER, data: "0x" })];
   const b: ExploitBundle = { bountyId: 1n, payee: HUNTER, capital, predicate: pred, txs, r: R, cP: "0x" };
@@ -96,11 +96,11 @@ async function honestClaim(capital = 0n) {
   return { claim, cP, txs, hunter: { from: "hunter", bountyId: "1", payee: HUNTER, capital: capital.toString(), predicate: pred, txs, r: R } };
 }
 
-/** Une réclamation dont le cP est un octet-à-octet quelconque (forgée par des enclaves fautives). */
+/** A claim whose cP is arbitrary bytes (forged by faulty enclaves). */
 function forgedClaimFor(cP: Hex): Claim {
   return {
     bountyId: 1n, payee: getAddress(HUNTER), blockN: 10n, blockHashN: zeroHash, predicateHash: view.predicateHash, loss: 5_000_000n, tier: 0,
-    fingerprint: keccak256(toBytes("empreinte")), cPHash: keccak256(cP), deadline: 99n,
+    fingerprint: keccak256(toBytes("fingerprint")), cPHash: keccak256(cP), deadline: 99n,
   };
 }
 
@@ -128,7 +128,7 @@ const abi = parseAbi([
   "function REFUTE_WINDOW() view returns (uint64)",
   "function activeOperatorAt(address signer, uint256 productId, uint256 blockNumber) view returns (address)",
 ]);
-/** Fournisseur RPC émulé : prime #1 (16 paliers, existe), prime #2 (jamais créée : protocol = 0) ; compte par méthode. */
+/** An emulated RPC provider: bounty #1 (16 tiers, exists), bounty #2 (never created: protocol = 0); counts per method. */
 function provider(counter: Record<string, number>, state: { acceptedAt: bigint } = { acceptedAt: 0n }) {
   const count = (k: string) => { counter[k] = (counter[k] ?? 0) + 1; counter.total = (counter.total ?? 0) + 1; };
   return custom({
@@ -155,26 +155,26 @@ function provider(counter: Record<string, number>, state: { acceptedAt: bigint }
 }
 
 // =====================================================================================================================
-// 2. /v1/refute : jeton après la forme du corps et claimRecords ; corps invalides limités à part (preuve D1)
+// 2. /v1/refute: the token after the body's shape and claimRecords; invalid bodies limited separately (proof D1)
 // =====================================================================================================================
 
-describe("2 — /v1/refute : un corps invalide ou une réclamation inventée ne vident plus le seau (preuve D1)", () => {
+describe("2 — /v1/refute: an invalid body or an invented claim no longer empties the bucket (proof D1)", () => {
   const invented = {
     claim: { bountyId: "1", payee: HUNTER, blockN: "1", blockHashN: zeroHash, predicateHash: zeroHash, loss: "1", tier: 0, fingerprint: zeroHash, cPHash: zeroHash, deadline: "1" },
     operators: [OP_A], enc: "0x" + "11".repeat(32), ciphertext: "0x" + "22".repeat(16),
   };
 
-  it("preuve D1 rejouée (débit PAR DÉFAUT) : corps vides en rafale → 400 puis 429 pour EUX seuls, 0 lecture ; la demande valide est TOUJOURS servie, 10 minutes durant", async () => {
+  it("proof D1 replayed (DEFAULT rate): a burst of empty bodies → 400 then 429 for THEM alone, 0 reads; the valid request is ALWAYS served, for 10 minutes", async () => {
     const counter: Record<string, number> = {};
     const kit = newKit();
-    const refuter = new RefutationService(kit, { sealedBounty: SEALED }, chainRefuteReader(new RpcQuorum([provider(counter)]), SEALED, REGISTRY), new DeterministicProtocolCipher(), { run: async () => { throw new Error("jamais"); } });
+    const refuter = new RefutationService(kit, { sealedBounty: SEALED }, chainRefuteReader(new RpcQuorum([provider(counter)]), SEALED, REGISTRY), new DeterministicProtocolCipher(), { run: async () => { throw new Error("never"); } });
     let clock = 1_000_000;
     const app = createSealedBountyApp({ kit, service: undefined as any, refuter, attest, nowMs: () => clock });
     const post = (b: string) => app.request("/v1/refute", { method: "POST", headers: { "content-type": "application/json" }, body: b });
     const junk: number[] = [];
-    for (let i = 0; i < 40; i++) junk.push((await post(i % 2 ? "{}" : "pas du json")).status);
+    for (let i = 0; i < 40; i++) junk.push((await post(i % 2 ? "{}" : "not json")).status);
     expect(junk.slice(0, 30)).toEqual(Array(30).fill(400));
-    expect(junk.slice(30)).toEqual(Array(10).fill(429)); // limite par IP vue, propre aux corps invalides
+    expect(junk.slice(30)).toEqual(Array(10).fill(429)); // the limit per seen IP, specific to invalid bodies
     expect(counter.total ?? 0).toBe(0);
     const legit = await post(JSON.stringify(invented));
     expect(legit.status).toBe(200);
@@ -185,10 +185,10 @@ describe("2 — /v1/refute : un corps invalide ou une réclamation inventée ne 
       await post("{}");
       if (t % 1000 === 0) { tries++; if ((await post(JSON.stringify(invented))).status === 200) served++; }
     }
-    expect(served).toBe(tries); // 600 sur 600 (avant : 0 sur 600)
+    expect(served).toBe(tries); // 600 out of 600 (before: 0 out of 600)
   }, 120_000);
 
-  it("le jeton n'est pris que pour une réclamation VIVANTE, après claimRecords ; une réclamation au résultat mémorisé n'en prend pas", async () => {
+  it("the token is taken only for a LIVE claim, after claimRecords; a claim with a cached result takes none", async () => {
     const chain = new FakeChain();
     const one = await honestClaim(0n);
     const two = await honestClaim(1n);
@@ -200,27 +200,27 @@ describe("2 — /v1/refute : un corps invalide ou une réclamation inventée ne 
     const ask = async (c: Awaited<ReturnType<typeof honestClaim>>) => app.request("/v1/refute", json(httpBody(await refuteRequest(B.kit, c.claim, c.hunter))));
     const first = await ask(one);
     expect(first.status).toBe(200);
-    expect(await first.json()).toMatchObject({ status: "confirmed" }); // le seul jeton
-    // même réclamation : résultat mémorisé, aucun jeton, aucun rejeu de plus
+    expect(await first.json()).toMatchObject({ status: "confirmed" }); // the only token
+    // the same claim: a cached result, no token, no further replay
     for (let i = 0; i < 5; i++) expect((await ask(one)).status).toBe(200);
     expect(runs).toBe(1);
-    // une AUTRE réclamation vivante, sans résultat : plus de jeton → 429 (lecture bon marché seule), Retry-After
+    // ANOTHER live claim, without a result: no more tokens → 429 (cheap read only), Retry-After
     const fullBefore = chain.reads.full;
     const limited = await ask(two);
     expect(limited.status).toBe(429);
     expect(await limited.json()).toEqual({ error: RATE_LIMITED.refute });
     expect(Number(limited.headers.get("retry-after"))).toBeGreaterThan(0);
     expect(chain.reads.full).toBe(fullBefore);
-    // une réclamation INVENTÉE : refusée après la lecture bon marché, jamais 429
+    // an INVENTED claim: refused after the cheap read, never 429
     expect(await (await app.request("/v1/refute", json(invented))).json()).toMatchObject({ code: "unknown_claim" });
   });
 });
 
 // =====================================================================================================================
-// 3. /bounty/submit : débit, déduplication par hachage du chiffré, cache des primes, budget = 503 (preuves D2, E7)
+// 3. /bounty/submit: rate, deduplication by the ciphertext's hash, bounty cache, budget = 503 (proofs D2, E7)
 // =====================================================================================================================
 
-describe("3 — /bounty/submit : débit limité, même chiffré = même résultat sans relecture, primes en cache", () => {
+describe("3 — /bounty/submit: a limited rate, the same ciphertext = the same result without a new read, bounties cached", () => {
   async function sealed(kit: EnclaveKit, o: { capital?: bigint; predicate?: Predicate; plain?: string } = {}) {
     const p = o.predicate ?? pred;
     const txs = [encodeExploitTx({ to: HOLDER, data: "0x" })];
@@ -237,11 +237,11 @@ describe("3 — /bounty/submit : débit limité, même chiffré = même résulta
     return { kit, svc };
   }
 
-  it("preuve D2 rejouée : le MÊME chiffré envoyé 50 fois → UNE lecture de la prime (19 appels JSON-RPC au total, pas 950), 50 réponses identiques", async () => {
+  it("proof D2 replayed: the SAME ciphertext sent 50 times → ONE read of the bounty (19 JSON-RPC calls in all, not 950), 50 identical answers", async () => {
     const counter: Record<string, number> = {};
     const kit = newKit();
     const svc = new BountyService(kit, { sealedBounty: SEALED }, chainBountyReader(new RpcQuorum([provider(counter)]), SEALED), new DeterministicProtocolCipher(),
-      { run: async () => { throw new Error("jamais atteint"); }, validate: () => {} }, { current: async () => 7_000n, blockHash: async () => zeroHash }, () => 1_000n);
+      { run: async () => { throw new Error("never reached"); }, validate: () => {} }, { current: async () => 7_000n, blockHash: async () => zeroHash }, () => 1_000n);
     const app = createSealedBountyApp({ kit, service: svc, attest });
     const body = await sealed(kit);
     const texts = new Set<string>();
@@ -251,20 +251,20 @@ describe("3 — /bounty/submit : débit limité, même chiffré = même résulta
       texts.add(await res.text());
     }
     expect(texts.size).toBe(1);
-    expect(counter.total).toBe(19); // tête + getBounty + 17 paliers, une seule fois
-    // un AUTRE chiffré pour la même prime : la prime est en cache (immuable) : AUCUNE lecture de plus
+    expect(counter.total).toBe(19); // head + getBounty + 17 tiers, only once
+    // ANOTHER ciphertext for the same bounty: the bounty is cached (immutable): NO further read
     const other = await sealed(kit, { capital: 5n });
     expect((await app.request("/bounty/submit", json({ enc: other.enc, ciphertext: other.ciphertext }))).status).toBe(200);
     expect(counter.total).toBe(19);
   });
 
-  it("débit : jeton pris APRÈS les contrôles locaux (un bundle illisible n'en prend pas), AVANT toute lecture ; au-delà → 429 sans lecture", async () => {
+  it("rate: the token is taken AFTER the local checks (an unreadable bundle takes none), BEFORE any read; beyond → 429 without a read", async () => {
     const reads = { n: 0 };
     const { kit, svc } = service({ run: async () => ({ ctx: okCtx() }) }, { reads });
     const app = createSealedBountyApp({ kit, service: svc, attest, submitRateLimit: { burst: 2, perMinute: 0.001 } });
     const post = async (b: { enc: string; ciphertext: string }) => app.request("/bounty/submit", json({ enc: b.enc, ciphertext: b.ciphertext }));
     for (let i = 0; i < 5; i++) {
-      const res = await post(await sealed(kit, { plain: `{"pas":"un bundle ${i}"` }));
+      const res = await post(await sealed(kit, { plain: `{"not":"a bundle ${i}"` }));
       expect(await res.json()).toMatchObject({ status: "not_proven", reason: "unreadable bundle: JSON expected" });
     }
     expect((await post(await sealed(kit, { capital: 1n }))).status).toBe(200);
@@ -274,10 +274,10 @@ describe("3 — /bounty/submit : débit limité, même chiffré = même résulta
     expect(limited.status).toBe(429);
     expect(await limited.json()).toEqual({ error: RATE_LIMITED.submit });
     expect(Number(limited.headers.get("retry-after"))).toBeGreaterThan(0);
-    expect(reads.n).toBe(2); // rien n'a été lu
+    expect(reads.n).toBe(2); // nothing was read
   });
 
-  it("déduplication : soumissions identiques SIMULTANÉES → un seul traitement ; après le délai, relu ; un chiffré indéchiffrable n'est jamais mémorisé", async () => {
+  it("deduplication: SIMULTANEOUS identical submissions → one processing; after the delay, read again; an undecryptable ciphertext is never cached", async () => {
     let clock = 0;
     let runs = 0;
     let release!: () => void;
@@ -295,8 +295,8 @@ describe("3 — /bounty/submit : débit limité, même chiffré = même résulta
     expect(reads.n).toBe(1);
     clock += 61_000;
     await svc.submit(b.raw);
-    expect(reads.n).toBe(2); // délai écoulé : relu (et la MÊME réclamation, par l'anti-équivocation)
-    // un chiffré qui ne s'ouvre pas : rien n'est gardé (il ne coûte qu'un essai HPKE)
+    expect(reads.n).toBe(2); // delay elapsed: read again (and the SAME claim, through the anti-equivocation)
+    // a ciphertext that does not open: nothing is kept (it costs only one HPKE attempt)
     const realOpen = kit.open.bind(kit);
     let opens = 0;
     (kit as any).open = async (...a: Parameters<EnclaveKit["open"]>) => { opens++; return realOpen(...a); };
@@ -305,15 +305,15 @@ describe("3 — /bounty/submit : débit limité, même chiffré = même résulta
     expect(opens).toBe(2);
   });
 
-  it("un échec du rejeu (budget, RPC) est un 503 — jamais « non prouvée » — gardé 15 s ; une file pleine ou une exception d'environnement : rien n'est gardé", async () => {
+  it("a replay failure (budget, RPC) is a 503, never \"not proven\", kept 15 s; a full queue or an environment exception: nothing is kept", async () => {
     let clock = 0;
     let mode: "budget" | "busy" | "env" | "ok" = "budget";
     let runs = 0;
     const fork: ForkRunner = {
       run: async () => {
         runs++;
-        if (mode === "budget") throw new ReplayUnavailableError("budget", "rejeu : budget de lectures du RPC du fork dépassé : rien n'est signé");
-        if (mode === "busy") throw new ReplayUnavailableError("busy", "file de rejeu pleine");
+        if (mode === "budget") throw new ReplayUnavailableError("budget", "replay: the read budget of the fork's RPC is exceeded: nothing is signed");
+        if (mode === "busy") throw new ReplayUnavailableError("busy", "replay queue full");
         if (mode === "env") throw new RangeError("Array buffer allocation failed");
         return { ctx: okCtx() };
       },
@@ -326,21 +326,21 @@ describe("3 — /bounty/submit : débit limité, même chiffré = même résulta
     expect(r1.status).toBe(503);
     expect(await r1.json()).toEqual({ error: UNAVAILABLE.submit });
     expect((await post()).status).toBe(503);
-    expect(runs).toBe(1); // gardé : pas de rejeu répété
+    expect(runs).toBe(1); // kept: no repeated replay
     clock += 15_001;
     mode = "busy";
     expect((await post()).status).toBe(503);
     expect(runs).toBe(2);
     mode = "env";
-    expect((await post()).status).toBe(503); // file pleine : rien n'était gardé, on rejoue aussitôt
+    expect((await post()).status).toBe(503); // full queue: nothing was kept, the replay runs again at once
     expect(runs).toBe(3);
     mode = "ok";
-    const ok = await post(); // exception d'environnement : rien n'était gardé
+    const ok = await post(); // environment exception: nothing was kept
     expect(runs).toBe(4);
     expect(await ok.json()).toMatchObject({ status: "proven" });
   });
 
-  it("cache des primes : une prime qui EXISTE est lue une fois (partagé avec la réfutation) ; un identifiant jamais créé n'est jamais figé", async () => {
+  it("bounty cache: a bounty that EXISTS is read once (shared with the refutation); an id never created is never frozen", async () => {
     const counter: Record<string, number> = {};
     const q = new RpcQuorum([provider(counter, { acceptedAt: BigInt(Math.floor(Date.now() / 1000)) })]);
     const cache = new BountyCache();
@@ -352,9 +352,9 @@ describe("3 — /bounty/submit : débit limité, même chiffré = même résulta
     expect(counter.tierMinLoss).toBe(17);
     await reader.getBounty(2n);
     await reader.getBounty(2n);
-    expect(counter.getBounty).toBe(3); // prime #2 inexistante : relue à chaque fois
+    expect(counter.getBounty).toBe(3); // bounty #2 does not exist: read again each time
     expect(cache.size).toBe(1);
-    // la réfutation réutilise la prime en cache : ni getBounty ni paliers ; REFUTE_WINDOW lu une fois
+    // the refutation reuses the cached bounty: neither getBounty nor tiers; REFUTE_WINDOW read once
     const refuteReader = chainRefuteReader(q, SEALED, REGISTRY, cache);
     for (let i = 0; i < 3; i++) {
       const v = await refuteReader.read({ claimDigest: zeroHash, bountyId: 1n, signer: HOLDER });
@@ -362,22 +362,22 @@ describe("3 — /bounty/submit : débit limité, même chiffré = même résulta
       expect(v.refuteWindow).toBe(WINDOW);
     }
     expect(counter.getBounty).toBe(3);
-    expect(counter.tierMinLoss).toBe(17 + 2); // les deux lectures de la prime #2 (fin de tableau dès l'indice 0)
+    expect(counter.tierMinLoss).toBe(17 + 2); // the two reads of bounty #2 (end of the array from index 0)
     expect(counter.REFUTE_WINDOW).toBe(1);
   });
 });
 
 // =====================================================================================================================
-// 4. file pleine : jamais mémorisée comme un échec du rejeu (preuves D3, D4)
+// 4. a full queue: never cached as a replay failure (proofs D3, D4)
 // =====================================================================================================================
 
-describe("4 — « busy » et « refute_busy » ne bloquent pas la réclamation 60 s", () => {
-  it("preuve D3 rejouée : file pleine à la 1re demande ; 1 s plus tard, file libre → contre-rejeu fait (« confirmée »), pas « échec récent »", async () => {
+describe("4 — \"busy\" and \"refute_busy\" do not block the claim for 60 s", () => {
+  it("proof D3 replayed: queue full at the first request; 1 s later, free queue → counter-replay done (\"confirmed\"), not \"recent failure\"", async () => {
     const { claim, hunter } = await honestClaim();
     const chain = new FakeChain();
     chain.accept(claim, [OP_A]);
     let busy = true, runs = 0, clock = 0;
-    const B = refuterOf(chain, { run: async () => { runs++; if (busy) throw new ReplayUnavailableError("busy", "file de rejeu pleine"); return { ctx: okCtx() }; } }, { nowMs: () => clock });
+    const B = refuterOf(chain, { run: async () => { runs++; if (busy) throw new ReplayUnavailableError("busy", "replay queue full"); return { ctx: okCtx() }; } }, { nowMs: () => clock });
     await expect(B.service.refute(await refuteRequest(B.kit, claim, hunter))).rejects.toMatchObject({ reason: "busy" });
     busy = false;
     clock += 1_000;
@@ -385,9 +385,9 @@ describe("4 — « busy » et « refute_busy » ne bloquent pas la réclamation 
     expect(runs).toBe(2);
   });
 
-  it("preuve D4 (file RÉELLE du moteur pleine) : 503 « occupée », puis dès que la file se libère, la réclamation est rejouée (jamais « échec récent »)", async () => {
-    // un RPC du fork qui ne répond pas : le rejeu en tête de file attend (contrôle de l'ancre)
-    const hang = createHttpServer(() => { /* jamais de réponse */ });
+  it("proof D4 (the engine's REAL queue full): 503 \"busy\", then as soon as the queue frees up, the claim is replayed (never \"recent failure\")", async () => {
+    // a fork RPC that does not answer: the replay at the head of the queue waits (anchor check)
+    const hang = createHttpServer(() => { /* never an answer */ });
     await new Promise<void>((r) => hang.listen(0, "127.0.0.1", () => r()));
     const port = (hang.address() as { port: number }).port;
     const runner = new AnvilForkRunner({ forkUrl: `http://127.0.0.1:${port}`, anvilBin: "/nonexistent/anvil", engine: "anvil", log: () => {}, maxQueued: 1 });
@@ -396,7 +396,7 @@ describe("4 — « busy » et « refute_busy » ne bloquent pas la réclamation 
     const { claim, hunter } = await honestClaim();
     const chain = new FakeChain();
     chain.accept(claim, [OP_A]);
-    // le réfutant partage la file du moteur ; ensuite, un moteur qui confirme
+    // the refuter shares the engine's queue; then, an engine that confirms
     let useRunner = true;
     const B = refuterOf(chain, { run: async (i) => (useRunner ? runner.run(i) : { ctx: okCtx() }), validate: (b) => runner.validate(b) });
     const app = createSealedBountyApp({ kit: B.kit, service: undefined as any, refuter: B.service, attest });
@@ -412,7 +412,7 @@ describe("4 — « busy » et « refute_busy » ne bloquent pas la réclamation 
     expect(await again.json()).toMatchObject({ status: "confirmed" });
   });
 
-  it("refute_busy (réfutations en cours) : refus immédiat, rien de mémorisé ; la réclamation est servie dès qu'une place se libère", async () => {
+  it("refute_busy (refutations in progress): immediate refusal, nothing cached; the claim is served as soon as a slot frees up", async () => {
     let release!: () => void;
     const gate = new Promise<void>((r) => { release = r; });
     const chain = new FakeChain();
@@ -430,10 +430,10 @@ describe("4 — « busy » et « refute_busy » ne bloquent pas la réclamation 
 });
 
 // =====================================================================================================================
-// 5. exceptions : seules des erreurs DÉTERMINISTES identifiées deviennent une faute ; le reste → 503 (preuve e8)
+// 5. exceptions: only identified DETERMINISTIC errors become a fault; the rest → 503 (proof e8)
 // =====================================================================================================================
 
-describe("5 — catch triés : environnement → 503, rien de signé, rien de mémorisé ; règles déterministes → faute", () => {
+describe("5 — sorted catches: environment → 503, nothing signed, nothing cached; deterministic rules → fault", () => {
   const realDecode = TextDecoder.prototype.decode;
   const realParse = JSON.parse;
   afterEach(() => {
@@ -442,7 +442,7 @@ describe("5 — catch triés : environnement → 503, rien de signé, rien de m�
   });
   const key = { from: "protocol", protocolPrivateKey: toHex(protocol.x25519PrivateKey) };
 
-  it("preuve e8 rejouée : RangeError d'environnement au décodage du clair de cP → 503, AUCUNE réfutation signée, rien de mémorisé (ensuite : « confirmée »)", async () => {
+  it("proof e8 replayed: an environment RangeError while decoding cP's plaintext → 503, NO refutation signed, nothing cached (then: \"confirmed\")", async () => {
     const { claim, cP } = await honestClaim();
     const chain = new FakeChain();
     chain.accept(claim, [OP_A]);
@@ -451,7 +451,7 @@ describe("5 — catch triés : environnement → 503, rien de signé, rien de m�
     const body = httpBody(await refuteRequest(B.kit, claim, { ...key, cP }));
     let fatal = 0;
     TextDecoder.prototype.decode = function (this: TextDecoder, input?: any, opts?: any) {
-      if (this.fatal && ++fatal === 2) throw new RangeError("Array buffer allocation failed"); // 1er : la demande ; 2e : le clair de cP
+      if (this.fatal && ++fatal === 2) throw new RangeError("Array buffer allocation failed"); // 1st: the request; 2nd: cP's plaintext
       return realDecode.call(this, input, opts);
     };
     const res = await app.request("/v1/refute", json(body));
@@ -464,7 +464,7 @@ describe("5 — catch triés : environnement → 503, rien de signé, rien de m�
     expect(await again.json()).toMatchObject({ status: "confirmed" });
   });
 
-  it("JSON.parse, HPKE : une exception d'environnement → 503 (réfutation et soumission), jamais « non canonique », « illisible » ni « indéchiffrable »", async () => {
+  it("JSON.parse, HPKE: an environment exception → 503 (refutation and submission), never \"not canonical\", \"unreadable\" or \"undecryptable\"", async () => {
     const { claim, cP, hunter } = await honestClaim();
     const chain = new FakeChain();
     chain.accept(claim, [OP_A]);
@@ -476,22 +476,22 @@ describe("5 — catch triés : environnement → 503, rien de signé, rien de m�
         return realParse.call(JSON, text, reviver);
       } as typeof JSON.parse;
     };
-    parseFailing('{"bountyId"'); // le clair de cP (canonicalContent)
+    parseFailing('{"bountyId"'); // cP's plaintext (canonicalContent)
     await expect(B.service.refute(await refuteRequest(B.kit, claim, { ...key, cP }))).rejects.toBeInstanceOf(RangeError);
     JSON.parse = realParse;
-    parseFailing('{"from"'); // la demande elle-même (establish)
+    parseFailing('{"from"'); // the request itself (establish)
     await expect(B.service.refute(await refuteRequest(B.kit, claim, hunter))).rejects.toBeInstanceOf(RangeError);
     JSON.parse = realParse;
-    // HPKE : une erreur de la bibliothèque (déterministe) reste un refus ; une autre exception → 503
+    // HPKE: an error of the library (deterministic) stays a refusal; another exception → 503
     const open = B.kit.open.bind(B.kit);
     (B.kit as any).open = async () => { throw new RangeError("Array buffer allocation failed"); };
     await expect(B.service.refute(await refuteRequest(B.kit, claim, hunter))).rejects.toBeInstanceOf(RangeError);
     (B.kit as any).open = open;
     expect(await B.service.refute({ claim, operators: [OP_A], enc: new Uint8Array(32), ciphertext: new Uint8Array(16) })).toMatchObject({ code: "undecryptable" });
-    // rien n'a été mémorisé : la demande saine aboutit
+    // nothing was cached: the healthy request succeeds
     expect((await B.service.refute(await refuteRequest(B.kit, claim, { ...key, cP }))).status).toBe("confirmed");
 
-    // soumission : JSON.parse du bundle et HPKE
+    // submission: JSON.parse of the bundle and HPKE
     const kit = newKit();
     let runs = 0;
     const svc = new BountyService(kit, { sealedBounty: SEALED }, { getBounty: async () => view }, new DeterministicProtocolCipher(), { run: async () => { runs++; return { ctx: okCtx() }; } }, { current: async () => 7_000n, blockHash: async () => zeroHash }, () => 1_000n);
@@ -507,25 +507,25 @@ describe("5 — catch triés : environnement → 503, rien de signé, rien de m�
     (kit as any).open = async () => { throw new TypeError("environnement"); };
     expect((await post()).status).toBe(503);
     (kit as any).open = kopen;
-    const ok = await post(); // rien de mémorisé : le même chiffré est traité
+    const ok = await post(); // nothing cached: the same ciphertext is processed
     expect(await ok.json()).toMatchObject({ status: "proven" });
     expect(runs).toBe(1);
   });
 
-  it("fautes DÉTERMINISTES conservées (clé de la prime) : clé éphémère d'ordre faible, cP trop court, étiquette fausse, UTF-8 invalide, JSON illisible, entier non entier", async () => {
+  it("DETERMINISTIC faults kept (the bounty's key): low-order ephemeral key, cP too short, false tag, invalid UTF-8, unreadable JSON, non-integer integer", async () => {
     const P = (1n << 255n) - 19n;
     const le = (n: bigint) => { const b = new Uint8Array(32); for (let i = 0; i < 32; i++) { b[i] = Number(n & 255n); n >>= 8n; } return b; };
     const small = [0n, 1n, P - 1n, 325606250916557431795983626356110631294008115727848805560023387167927233504n,
       39382357235489614581723060781553021112529911719440698176882885853963445705823n, P, P + 1n, 1n << 255n];
     const sealOf = (plain: Uint8Array) => deterministicSeal(toBytes(protocol.x25519PublicKey), plain, toBytes(R));
     const cases: Array<[string, Hex, string]> = [
-      ...small.map((u, i) => [`point d'ordre faible n° ${i}`, toHex(concat([le(u), new Uint8Array(64).fill(7)])), FAULT.ephemeralKey] as [string, Hex, string]),
-      ["cP de 5 octets", "0x0102030405", FAULT.ephemeralKey],
-      ["cP de 40 octets (pas d'étiquette)", toHex(concat([x25519.getPublicKey(new Uint8Array(32).fill(3)), new Uint8Array(8)])), FAULT.unreadable],
-      ["étiquette fausse", toHex(concat([x25519.getPublicKey(new Uint8Array(32).fill(3)), new Uint8Array(80).fill(1)])), FAULT.unreadable],
-      ["clair qui n'est pas de l'UTF-8", sealOf(new Uint8Array([0x7b, 0xff, 0xfe, 0x7d])), FAULT.unreadable],
-      ["clair qui n'est pas du JSON", sealOf(utf8('{"bountyId":"1",')), FAULT.notCanonical],
-      ["bountyId non entier", sealOf(utf8(`{"bountyId":1.5,"payee":"${HUNTER}","capital":"0","predicate":{},"txs":[],"attackCode":null}`)), FAULT.notCanonical],
+      ...small.map((u, i) => [`low-order point no. ${i}`, toHex(concat([le(u), new Uint8Array(64).fill(7)])), FAULT.ephemeralKey] as [string, Hex, string]),
+      ["cP of 5 bytes", "0x0102030405", FAULT.ephemeralKey],
+      ["cP of 40 bytes (no tag)", toHex(concat([x25519.getPublicKey(new Uint8Array(32).fill(3)), new Uint8Array(8)])), FAULT.unreadable],
+      ["false tag", toHex(concat([x25519.getPublicKey(new Uint8Array(32).fill(3)), new Uint8Array(80).fill(1)])), FAULT.unreadable],
+      ["plaintext that is not UTF-8", sealOf(new Uint8Array([0x7b, 0xff, 0xfe, 0x7d])), FAULT.unreadable],
+      ["plaintext that is not JSON", sealOf(utf8('{"bountyId":"1",')), FAULT.notCanonical],
+      ["non-integer bountyId", sealOf(utf8(`{"bountyId":1.5,"payee":"${HUNTER}","capital":"0","predicate":{},"txs":[],"attackCode":null}`)), FAULT.notCanonical],
     ];
     for (const [what, cP, note] of cases) {
       const claim = forgedClaimFor(cP);
@@ -537,7 +537,7 @@ describe("5 — catch triés : environnement → 503, rien de signé, rien de m�
     }
   });
 
-  it("les classifieurs sont épinglés sur les bibliothèques : X25519 d'ordre faible, étiquette ChaCha20-Poly1305, UTF-8, HPKE, BigInt", async () => {
+  it("the classifiers are pinned to the libraries: low-order X25519, ChaCha20-Poly1305 tag, UTF-8, HPKE, BigInt", async () => {
     const P = (1n << 255n) - 19n;
     const le = (n: bigint) => { const b = new Uint8Array(32); for (let i = 0; i < 32; i++) { b[i] = Number(n & 255n); n >>= 8n; } return b; };
     const k = randomBytes(32);
@@ -553,24 +553,24 @@ describe("5 — catch triés : environnement → 503, rien de signé, rien de m�
     }
     for (let v = 2n; v < 600n; v++) expect(isSmallOrderX25519(le(v))).toBe(throwsX(le(v)));
     expect(isSmallOrderX25519(new Uint8Array(31))).toBe(false);
-    // étiquette invalide : Error exactement, message « invalid tag »
+    // an invalid tag: exactly Error, message "invalid tag"
     let tag: unknown;
     try { chacha20poly1305(new Uint8Array(32), new Uint8Array(12)).decrypt(new Uint8Array(20)); } catch (e) { tag = e; }
     expect(isInvalidTagError(tag)).toBe(true);
     expect(isInvalidTagError(new RangeError("invalid tag"))).toBe(false);
     expect(isInvalidTagError(new Error("Array buffer allocation failed"))).toBe(false);
-    // UTF-8 invalide : TypeError ERR_ENCODING_INVALID_ENCODED_DATA
+    // invalid UTF-8: TypeError ERR_ENCODING_INVALID_ENCODED_DATA
     let u8: unknown;
     try { new TextDecoder("utf-8", { fatal: true }).decode(new Uint8Array([0xff])); } catch (e) { u8 = e; }
     expect(isInvalidUtf8Error(u8)).toBe(true);
     expect(isInvalidUtf8Error(new TypeError("autre"))).toBe(false);
-    // HPKE : toutes les erreurs de la bibliothèque sont des HpkeError
+    // HPKE: every error of the library is an HpkeError
     const kit = newKit();
     for (const [enc, ct] of [[randomBytes(32), randomBytes(40)], [randomBytes(5), randomBytes(40)], [new Uint8Array(32), randomBytes(40)], [new Uint8Array(0), new Uint8Array(0)]] as const) {
       const e = await kit.open(enc, ct).catch((x) => x);
       expect(e).toBeInstanceOf(HpkeError);
     }
-    // BigInt d'une valeur JSON
+    // BigInt of a JSON value
     expect(jsonBigInt("12")).toBe(12n);
     expect(jsonBigInt("0x10")).toBe(16n);
     expect(jsonBigInt(7)).toBe(7n);
