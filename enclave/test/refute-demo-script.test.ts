@@ -53,10 +53,10 @@ describe("refute-demo.ts — the demo's compose files and manifest", () => {
 
   it("refused: fault missing or encrypted on the liar, a fault on an honest one, two images, another product, another SealedBounty", () => {
     const liar = pinned(text(COMPOSE_FILES.liar)), honest = pinned(text(COMPOSE_FILES.honest));
-    expect(() => checkComposes(load(liar.replace("      - DEMO_FAULT=inflate-loss\n", ""), honest), stack)).toThrow(/DEMO_FAULT=inflate-loss doit être mesurée/);
+    expect(() => checkComposes(load(liar.replace("      - DEMO_FAULT=inflate-loss\n", ""), honest), stack)).toThrow(/DEMO_FAULT=inflate-loss must be measured/);
     expect(() => checkComposes(load(liar.replace("      - DEMO_FAULT=inflate-loss", "      - DEMO_FAULT=${DEMO_FAULT}"), honest), stack)).toThrow(/DEMO_FAULT/);
-    expect(() => checkComposes(load(liar, honest.replace("      - PORT=8813\n", "      - PORT=8813\n      - DEMO_FAULT=inflate-loss\n")), stack)).toThrow(/honnête/);
-    expect(() => checkComposes(load(liar.replace(DIGEST, "cd".repeat(32)), honest), stack)).toThrow(/une seule image/);
+    expect(() => checkComposes(load(liar, honest.replace("      - PORT=8813\n", "      - PORT=8813\n      - DEMO_FAULT=inflate-loss\n")), stack)).toThrow(/honest enclave/);
+    expect(() => checkComposes(load(liar.replace(DIGEST, "cd".repeat(32)), honest), stack)).toThrow(/one single image/);
     expect(() => checkComposes(load(liar.replace("PRODUCT_ID=5", "PRODUCT_ID=2"), honest), stack)).toThrow(/PRODUCT_ID=2/);
     expect(() => checkComposes(load(liar, honest.replace("${OPERATOR_ALLOWLIST_C}", "${OPERATOR_ALLOWLIST_B}")), stack)).toThrow(/OPERATOR_ALLOWLIST_C/);
     expect(() => checkComposes(load(), { ...stack, sealedBounty: "0x0000000000000000000000000000000000000001" })).toThrow(/SEALEDBOUNTY/);

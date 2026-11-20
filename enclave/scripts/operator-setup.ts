@@ -62,6 +62,8 @@ async function main() {
 
   let agentId: bigint | undefined = OP.agentId !== undefined ? BigInt(OP.agentId) : undefined;
   if (agentId === undefined) {
+    // The agent card exactly as registered on Arc for operator 1 (its data URI is on-chain, in French): "ArcHive, enclave
+    // operator no. 1; runs Intel TDX enclaves (at Phala) whose attestation DCAP verifies on Arc; bonded in OperatorBond."
     const card = { type: "agent", name: "ArcHive — opérateur d'enclaves n° 1", description: "Fait tourner des enclaves Intel TDX (chez Phala) dont l'attestation est vérifiée par DCAP sur Arc ; cautionné dans OperatorBond.", url: "https://archive.62-171-153-35.sslip.io" };
     const uri = "data:application/json;base64," + Buffer.from(JSON.stringify(card)).toString("base64");
     const r = await send(asOp, X.ERC8004_Identity!, idAbi as unknown as Abi, "register", [uri], "ERC-8004 identity created");

@@ -18,6 +18,8 @@ async function send(fn: string, args: unknown[]) {
 }
 const manifest = readFileSync(new URL("web/public/manifests/sealed-bounty-v1.json", ROOT)); // the product's URL = "current manifest"
 const hash = keccak256(manifest);
+// The param text below is the one this script hashed on-chain for product 2 ("arc-anvil v0.8.0-4 (Arc Foundry), Arc's
+// native precompiles"): it stays byte for byte, in French.
 await send("proposeUpdate", [2n, hash, 0n, keccak256(toBytes("arc-anvil v0.8.0-4 (Arc Foundry), précompilés d'Arc natifs"))]);
 await send("applyUpdate", [2n]);
 const p = await pub.readContract({ address: K.ProductRegistry!, abi: pr, functionName: "getProduct", args: [2n] }) as any;
