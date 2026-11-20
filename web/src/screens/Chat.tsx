@@ -2,9 +2,10 @@ import { ENCLAVE_URL } from "../config";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type Hex } from "viem";
 import {
-  createInferenceClient, InferenceClient, serializeReceipt, testnet,
+  createInferenceClient, InferenceClient, serializeReceipt,
   type ArcClient, type ChatMessage, type Completion, type EnclaveView, type Receipt, type ReceiptCheck, type ReceiptVerification,
 } from "@arcvault/sdk";
+import { testnet } from "../deployment";
 import { useArc } from "../useArc";
 import { fetchEnclaves, fetchProducts } from "../api";
 import { INFERENCE_PRODUCT, parseUsdc, useVerifiedEnclave, waitOk } from "../arc";
@@ -175,7 +176,7 @@ export default function Chat() {
       const r = await arc.openSession({ productId: BigInt(productId.trim()), deposit: amount, enclaveUrl: url, enclave: check.keys.signer });
       setStatus(msg("order.sent", { id: r.sessionId }));
       await waitOk(arc, r.tx, "tx.openSession");
-      ic.current = createInferenceClient({ enclaveUrl: url, sessionId: r.sessionId, sessionKey: r.sessionKey, publicClient: arc.pub });
+      ic.current = createInferenceClient({ enclaveUrl: url, sessionId: r.sessionId, sessionKey: r.sessionKey, publicClient: arc.pub, deployment: arc.d });
       setMsgs([]); setLast(null); setRefill(null); setEnded(false);
       setSession({ id: r.sessionId, enclave: r.enclave, operator: r.operator, expiresAt: r.expiresAt });
       setStatus(msg("chat.opened", { id: r.sessionId, enclave: short(r.enclave) }));

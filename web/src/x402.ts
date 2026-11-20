@@ -1,4 +1,4 @@
-/** x402.ts — private inference paid per call, on the site side (the x402 rail: product 3 of the v2.1 stack, settled by
+/** x402.ts — private inference paid per call, on the site side (the x402 rail: product 3 of the v3 stack, settled by
  *  X402Settler).
  *  - readX402Price reads a call's price on Arc (ProductRegistry.getProduct and isActive, at the same block). It also
  *    checks that the product really is paid per call: its settlement is the deployment's X402Settler. The page shows
@@ -14,9 +14,10 @@
 import { useEffect, useState } from "react";
 import type { Address, Hex } from "viem";
 import {
-  callSettledEvent, createX402Client, productRegistryAbi, testnet, usdcAuthAbi, X402_UNITS_PER_CALL,
+  callSettledEvent, createX402Client, productRegistryAbi, usdcAuthAbi, X402_UNITS_PER_CALL,
   type ArcClient, type X402Client,
 } from "@arcvault/sdk";
+import { testnet } from "./deployment";
 import { fetchActivity } from "./api";
 import { usdc } from "./fmt";
 import { MsgError, msg } from "./msg";

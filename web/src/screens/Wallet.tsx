@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
-import { testnet } from "@arcvault/sdk";
+import { testnet } from "../deployment";
 import { useArc } from "../useArc";
 import { PageHeader, Section, Stat, Badge, Hex, NeedWallet, Btn, usdc } from "../ui";
 import { t } from "../i18n";

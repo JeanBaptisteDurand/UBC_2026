@@ -4,7 +4,7 @@ import { PageHeader, Section, Table, Td, Badge, Btn, Hex, usdc, Empty } from "..
 import { fmtUnix, t } from "../i18n";
 import { BountyLevelBadge, CreditNotice, DEMO_PREDICATE_HASH, HunterPanel } from "./Bounty";
 
-/** Bounties at BOTH levels (open: SealedBounty; verified: SealedBountyVerified, product 7), read from
+/** Bounties at BOTH levels (open: SealedBounty; verified: SealedBountyVerified, product 5), read from
  *  /bounties?level=all. A bounty is identified by its level AND its number ("verified:2"): numbers exist at both levels.
  *  What was paid comes from BountyPaid events (paidOut), never from the paidAmount field (a refuted claim leaves it at
  *  0.5 USDC without anything paid). */

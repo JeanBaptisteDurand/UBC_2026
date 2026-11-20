@@ -12,17 +12,17 @@ export const CONTAINER = "archive-enclave";
 export const DEFAULT_IMAGE =
   "ghcr.io/jeanbaptistedurand/archive-sealed-chat@sha256:5699da226fb3f1e0f09234c8f9330b5a5414eb8d5bc619854953d10dbe7edc3f";
 
-/** Default product: 1, private inference on the v2.1 stack (a real Intel TDX machine). Without TDX (--demo): a LOCAL
+/** Default product: 1, private inference on the v3 stack (a real Intel TDX machine). Without TDX (--demo): a LOCAL
  *  trial only, nothing is registered on the network (the registry verifies every quote through DCAP: a simulated
  *  attestation is refused). */
 export const PRODUCT_TDX = 1;
 export const PRODUCT_DEMO = 1;
 
-/** Arc testnet, v2.1 stack (deployments.v21.testnet.json): passed to the container (the image has no default address
- *  valid for the v2.1 stack). */
+/** Arc testnet, v3 stack (deployments.v3.testnet.json, deployed on 19 Nov 2026): passed to the container (the image
+ *  has no default address valid for the v3 stack). */
 export const CHAIN_ID = 5042002;
-export const ENCLAVE_REGISTRY = "0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d";
-export const SESSION_PAY = "0x8Bf8A8356f53006E9aB359AA6382f783923058a6";
+export const ENCLAVE_REGISTRY = "0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E";
+export const SESSION_PAY = "0x606c379cd8758E3562e7ECC9972d0feF693F0763";
 
 export const HEARTBEAT_MS = 30_000;
 /** while the enclave starts, heartbeats are faster so the site shows "in service" sooner */
@@ -39,5 +39,6 @@ export const TSM_REPORT_DIR = "/sys/kernel/config/tsm/report";
 /** Docker labels set on the container: they say it is ours and with which configuration */
 export const LABEL_OWNER = "io.archive.owner";
 /** revision of the "docker run" command: changing it replaces the existing containers
- *  (revision 3 brought the v2 contracts, OPERATOR_ALLOWLIST and the v2 image) */
-export const RUN_SPEC = "3";
+ *  (revision 3 brought the v2 contracts, OPERATOR_ALLOWLIST and the v2 image; revision 4, the v3 contracts: a
+ *  container started with the v2.1 addresses is replaced, not kept) */
+export const RUN_SPEC = "4";

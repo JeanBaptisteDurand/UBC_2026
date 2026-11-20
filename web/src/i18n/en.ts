@@ -404,7 +404,7 @@ export const en = {
   "ev.ManifestURIUpdateProposed": "Product #{id}: new manifest URI proposed",
   "ev.d.applyAt": "{uri}, applicable from {when}",
   "ev.ManifestURIUpdated": "Product #{id}: manifest URI changed",
-  "ev.d.verifiedLevel": "verified level (product #7 contract)",
+  "ev.d.verifiedLevel": "verified level (product #5 contract)",
   "ev.Bonded": "Operator bond posted",
   "ev.UnbondRequested": "Operator asked to withdraw bond",
   "ev.Withdrawn": "Operator bond withdrawn",
@@ -483,7 +483,6 @@ export const en = {
   "order.x402": "This product is paid per call (x402): call it from the {link} page, with “Pay per call”.",
   "order.free": "This is the attested copilot, free of charge. It answers in the copilot panel of {link} (bottom right), its answers sealed and signed by this enclave; in this console, the copilot button can fall back to the server copilot (not attested).",
   "order.free.site": "the site's pages",
-  "order.bountyOld": "This was the first verified-level sealed bounty: retired after our security review hardened the chip reading, and replaced by product #7. Verified-level bounties are hunted from the {link} page.",
   "order.productState": "product: {state}",
   "order.proof": "Proof chain of this enclave",
   "order.proofUnavailable": "Couldn't read this enclave's proof chain right now.",
@@ -505,7 +504,6 @@ export const en = {
   "prod.author": "#{id}, author {author}",
   "prod.poolPaid": "paid by the pool",
   "prod.free": "free",
-  "prod.name.refuteDemo": "Sealed Bounty (refutation demo, 10 Nov)",
   "prod.unit": (v: { tokens: number; weight: number }) =>
     `1 unit = ${v.tokens} ${plural(v.tokens, "token", "tokens")}${v.weight > 1 ? `, output ×${v.weight}` : ""}`,
   "prod.split": "{op} / {author} / {net}%",
@@ -518,14 +516,13 @@ export const en = {
   "prod.retired": (v: { n: number }) => v.n === 1
     ? "1 product retired by its author is hidden (it stays readable on-chain)."
     : `${v.n} products retired by their authors are hidden (they stay readable on-chain).`,
-  "prod.testnetNote": "Testnet values: a 95 / 0 / 5 split on all 7 products, a 1 USDC minimum bond (0.25 on product 5) and a 10 USDC exposure cap per product. Production target, our proposal: 95% operator and 5% network on compute, 10% to the network and 5% to the verifying operators on top of a paid bounty, a 100 USDC bond for a CPU machine and 1,000 USDC for a GPU.",
+  "prod.testnetNote": "Testnet values: a 95 / 0 / 5 split on all 5 products, a 1 USDC minimum bond and a 10 USDC exposure cap per product. Production target, our proposal: 95% operator and 5% network on compute, 10% to the network and 5% to the verifying operators on top of a paid bounty, a 100 USDC bond for a CPU machine and 1,000 USDC for a GPU.",
   "prod.name.bounty": "Sealed Bounty",
   "prod.name.x402": "Pay-per-call inference",
   "prod.name.copilot": "Attested copilot",
   "prod.rail.free": "free, no settlement",
   "prod.name.other": "Other product",
   "prod.name.bountyVerified": "Sealed Bounty, verified tier",
-  "prod.name.bountyOld": "Sealed Bounty, verified tier (old, superseded by #7)",
   "prod.name.inference": "Private inference",
   "prod.rail.session": "Prepaid session",
 
@@ -1132,7 +1129,7 @@ export const en = {
   "dev.cop.c3": "sealed by the enclave verified on Arc: show it as attested",
   "dev.cop.c4": "refusal in clear text (proxy, rate limit…): not authenticated, a local message from its code",
   "dev.contracts.title": "Contracts on Arc testnet",
-  "dev.contracts.lead": "chainId 5042002; gas is paid in USDC.",
+  "dev.contracts.lead": "The v3 stack (deployments.v3.testnet.json, deployed on 19 Nov 2026); chainId 5042002; gas is paid in USDC.",
   "dev.contracts.h.contract": "Contract",
   "dev.contracts.h.address": "Address",
   "dev.contracts.h.role": "Role",
@@ -1150,7 +1147,7 @@ export const en = {
   "dev.c.poc": "the Proof of Cloud alliance as a verifier: its signed token is checked on-chain",
   "dev.c.ed25519": "Ed25519 signature check (RFC 8032), for the alliance's token",
   "dev.c.policy": "the enclave registry seen through each product's level: at the verified level, an enclave on an undeclared machine does not count",
-  "dev.c.bountyVerified": "the sealed bounty at the verified level (product #7)",
+  "dev.c.bountyVerified": "the sealed bounty at the verified level (product #5)",
   "dev.c.vault": "deliberately vulnerable vault, target of the demo bounty",
   "dev.enclave.title": "The inference enclave",
   "dev.enclave.lead": "An Intel TDX VM on Phala; its routes are OpenAI-compatible (they answer 502 when no inference enclave is running).",
@@ -1180,7 +1177,7 @@ export const en = {
   "copilot.placeholder": "Type here…",
   "copilot.send": "Send",
   "copilot.attested": "attested copilot",
-  // attested copilot (product 4 of v2.1): its key checked on Arc, the conversation encrypted to its enclave, answers sealed
+  // attested copilot (product 4): its key checked on Arc, the conversation encrypted to its enclave, answers sealed
   "copilot.thinkingSealed": "The attested copilot is thinking (encrypted to its enclave)…",
   "copilot.slow": "The copilot server ({url}) took too long to answer: try again in a moment.",
   "copilot.serverError": "The copilot server ({url}) failed: {err}",

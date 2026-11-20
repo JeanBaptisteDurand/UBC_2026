@@ -1,4 +1,4 @@
-/** contract-errors.en.ts — the English for the network's contract errors (v2.1 stack), by error name.
+/** contract-errors.en.ts — the English for the network's contract errors (v3 stack, the same contracts as v2.1), by error name.
  *  The SDK's own table (ARC_ERRORS_FR in packages/sdk/src/errors.ts) stays French and is shown as is in French;
  *  this one mirrors it for English, every error included. An error missing here still shows its name with a generic
  *  sentence (errors.ts). */

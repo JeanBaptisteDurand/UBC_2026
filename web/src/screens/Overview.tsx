@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { MessageSquareLock, Crosshair, Server, PackagePlus, ChevronRight } from "lucide-react";
-import { testnet } from "@arcvault/sdk";
+import { testnet } from "../deployment";
 import { fetchStats, fetchActivity, fetchProof, type Stats, type ActivityEvent, type Proof } from "../api";
 import { PageHeader, Section, Hex, usdc, short } from "../ui";
 import { skipReason } from "../arc";
@@ -67,7 +67,7 @@ export function ProofChain({ p }: { p: Proof | null }) {
   );
 }
 
-/** Link 6 in words: the verdict written; otherwise (v2.1 stack) why the session shown has none: closed without payment
+/** Link 6 in words: the verdict written; otherwise (since v2.1) why the session shown has none: closed without payment
  *  (not applicable), write skipped (with the reason), closed without a verdict, or still open; or a rail that writes no
  *  verdict (paid call, free), or a bounty not paid yet. */
 function verdictWhat(p: Proof | null): string {
@@ -128,7 +128,7 @@ const LABEL: Record<string, (a: Record<string, any>) => [string, ReactNode]> = {
   Credited: (a) => [t("ev.Credited"), usdc(a.amount)],
   ProductUpdateProposed: (a) => [t("ev.ProductUpdateProposed", { id: a.productId }), ""],
   WorkloadProposed: (a) => [t("ev.WorkloadProposed", { id: a.productId }), ""],
-  // pile v2.1
+  // since v2.1
   EnclaveImage: (a) => [t("ev.EnclaveImage"), tx("ev.d.image", { id: String(a.productId), img: <span className="whitespace-nowrap">{short(String(a.imageId))}</span> })],
   VerdictNotApplicable: (a) => [t("ev.VerdictNotApplicable", { id: a.sessionId }), t("ev.d.noPayment")],
   VerdictSkipped: (a) => [t("ev.VerdictSkipped"), t("ev.d.reason", { reason: skipReason(a.reason) })],
@@ -238,7 +238,7 @@ export default function Overview({ go }: { go: (r: string) => void }) {
             {(act ?? []).map((e, i) => {
               const known = Object.prototype.hasOwnProperty.call(LABEL, e.name);
               const [label, base]: [string, ReactNode] = known ? LABEL[e.name]!(e.args) : [e.name, ""];
-              // a verified-level bounty has its own numbers (product 7's contract): the detail says so
+              // a verified-level bounty has its own numbers (product 5's contract): the detail says so
               const lvl = e.contract === "SealedBountyVerified" ? t("ev.d.verifiedLevel") : "";
               const detail: ReactNode = lvl ? (base ? <>{base}, {lvl}</> : lvl) : base;
               const block = fmtNum(e.block);

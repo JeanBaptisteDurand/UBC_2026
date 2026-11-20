@@ -2,7 +2,8 @@ import { ENCLAVE_URL } from "../config";
 import { useEffect, useRef, useState } from "react";
 import { useAccount } from "wagmi";
 import { parseEventLogs, type Address, type Hex } from "viem";
-import { testnet, operatorBondAbi, productRegistryAbi, type EnclaveView } from "@arcvault/sdk";
+import { operatorBondAbi, productRegistryAbi, type EnclaveView } from "@arcvault/sdk";
+import { testnet } from "../deployment";
 import { Check, Copy } from "lucide-react";
 import { useArc } from "../useArc";
 import {

@@ -1,4 +1,4 @@
-/** operatorActions.ts — operator actions signed by the wallet, from the site (v2.1 stack).
+/** operatorActions.ts — operator actions signed by the wallet, from the site (v3 stack).
  *  - signAction signs an EIP-4361 message ("Sign-In with Ethereum", signin.ts) with a fresh nonce from the API. The
  *    wallet shows the site, the action, the network and the expiry, and flags an impostor site. No transaction, no fee.
  *  - registerMachineEnclave registers through the REAL DCAP verifier. The SDK reads the machine's attestation (/attest)
@@ -11,7 +11,8 @@
  *    language.
  *  - sendTx sends a transaction the SDK does not wrap (e.g. setAgentId), simulated first, then awaited. */
 import { type Address, type Hex } from "viem";
-import { arcErrorsAbi, testnet, type ArcClient } from "@arcvault/sdk";
+import { arcErrorsAbi, type ArcClient } from "@arcvault/sdk";
+import { testnet } from "./deployment";
 import { fetchNonce, type Signed } from "./api";
 import { dcapGasLabel, verifiedLabel, waitOk } from "./arc";
 import { MsgError, msg, type Msg } from "./msg";

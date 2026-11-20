@@ -6,12 +6,12 @@ export const API_URL: string = env.VITE_API_URL ?? "http://localhost:8809"; // s
 export const COPILOT_URL: string = env.VITE_COPILOT_URL ?? "http://localhost:8808"; // the server's copilot (requests in clear text)
 export const ENCLAVE_URL: string = env.VITE_ENCLAVE_URL ?? "http://localhost:8802"; // inference (O2)
 export const O3_URL: string = env.VITE_O3_URL ?? "http://localhost:8803"; // Sealed bounty (O3)
-/** The enclave of the bounty at the verified level (product 7), served next to the open-level one (/enclave/bounty-verified) */
+/** The enclave of the bounty at the verified level (product 5), served next to the open-level one (/enclave/bounty-verified) */
 export const O3V_URL: string = env.VITE_O3V_URL ?? O3_URL.replace(/\/enclave\/bounty\/?$/, "/enclave/bounty-verified");
-/** Inference paid per call (x402, product 3 of v2.1): optional (empty = typed on the page). */
+/** Inference paid per call (x402, product 3): optional (empty = typed on the page). */
 export const X402_URL: string = String(env.VITE_X402_URL ?? "").trim();
 
-/** The ATTESTED copilot (product 4 of v2.1): optional. All three variables together, otherwise the bubble talks to the
+/** The ATTESTED copilot (product 4): optional. All three variables together, otherwise the bubble talks to the
  *  server's copilot (VITE_COPILOT_URL). The expected operator is required: the enclave must be active under THAT operator. */
 export interface AttestedCopilotConfig { url: string; productId: bigint; operator: Address }
 
