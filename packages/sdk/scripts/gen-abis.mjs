@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * gen-abis.mjs — génère packages/sdk/src/abis.ts À PARTIR DES ARTEFACTS COMPILÉS (contracts/out), jamais à la main :
- * chaque fonction, événement et erreur de chaque contrat, en ABI lisible (viem parseAbi) avec structures nommées.
+ * gen-abis.mjs writes packages/sdk/src/abis.ts FROM THE COMPILED ARTIFACTS (contracts/out), never by hand.
+ * It emits every function, event and error of each contract as a human-readable ABI (viem parseAbi), with named structs.
  *
- *   node packages/sdk/scripts/gen-abis.mjs           # réécrit src/abis.ts
- *   node packages/sdk/scripts/gen-abis.mjs --check   # vérifie que src/abis.ts est à jour (code 1 sinon)
+ *   node packages/sdk/scripts/gen-abis.mjs           # rewrites src/abis.ts
+ *   node packages/sdk/scripts/gen-abis.mjs --check   # checks that src/abis.ts is up to date (exit code 1 otherwise)
  *
- * À relancer après toute recompilation des contrats (forge build).
+ * Run it again after every contract rebuild (forge build).
  */
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -15,17 +15,17 @@ import { fileURLToPath } from "node:url";
 const OUT_DIR = fileURLToPath(new URL("../../../contracts/out/", import.meta.url));
 const TARGET = fileURLToPath(new URL("../src/abis.ts", import.meta.url));
 
-/** nom exporté → contrat (contracts/out/<C>.sol/<C>.json) */
+/** exported name → contract (contracts/out/<C>.sol/<C>.json) → label */
 const CONTRACTS = [
-  ["productRegistryAbi", "ProductRegistry", "ProductRegistry : la place de marché des produits (C3)"],
-  ["operatorBondAbi", "OperatorBond", "OperatorBond : la caution des opérateurs (C4)"],
-  ["enclaveRegistryAbi", "EnclaveRegistry", "EnclaveRegistry : l'inscription des enclaves vérifiées par DCAP (C2)"],
-  ["sessionPayAbi", "SessionPay", "SessionPay : les sessions prépayées et leurs reçus cumulatifs (C5)"],
-  ["sealedBountyAbi", "SealedBounty", "SealedBounty : la Prime scellée (C6)"],
-  ["x402Abi", "X402Settler", "X402Settler : le paiement à l'appel (x402)"],
-  ["verdictLogAbi", "VerdictLog", "VerdictLog : les verdicts écrits dans le registre de validation ERC-8004"],
-  ["tdxAttestationModuleAbi", "TdxAttestationModule", "TdxAttestationModule : le module d'attestation (DCAP d'Automata)"],
-  ["demoVaultAbi", "DemoVault", "DemoVault : la cible jetable des démonstrations de la Prime scellée"],
+  ["productRegistryAbi", "ProductRegistry", "ProductRegistry: the product marketplace"],
+  ["operatorBondAbi", "OperatorBond", "OperatorBond: the operator bond"],
+  ["enclaveRegistryAbi", "EnclaveRegistry", "EnclaveRegistry: enclave registration, verified by DCAP"],
+  ["sessionPayAbi", "SessionPay", "SessionPay: prepaid sessions and their cumulative receipts"],
+  ["sealedBountyAbi", "SealedBounty", "SealedBounty: the sealed bounty"],
+  ["x402Abi", "X402Settler", "X402Settler: pay per call (x402)"],
+  ["verdictLogAbi", "VerdictLog", "VerdictLog: verdicts written to the ERC-8004 validation registry"],
+  ["tdxAttestationModuleAbi", "TdxAttestationModule", "TdxAttestationModule: the attestation module (Automata DCAP)"],
+  ["demoVaultAbi", "DemoVault", "DemoVault: the disposable target of the sealed bounty demos"],
 ];
 
 function structName(p) {
@@ -35,7 +35,7 @@ function structName(p) {
 }
 
 function makeFormatter(contract) {
-  const structs = new Map(); // nom → définition
+  const structs = new Map(); // name → definition
   const typeOf = (p) => {
     if (!p.type.startsWith("tuple")) return p.type;
     const suffix = p.type.slice("tuple".length); // "", "[]", "[2]"…
@@ -45,7 +45,7 @@ function makeFormatter(contract) {
     const def = `struct ${name} { ${comps.map((c) => `${typeOf(c)} ${c.name};`).join(" ")} }`;
     const prev = structs.get(name);
     if (prev !== undefined && prev !== def) {
-      throw new Error(`${contract} : deux structures « ${name} » différentes :\n  ${prev}\n  ${def}`);
+      throw new Error(`${contract}: two different structs named "${name}":\n  ${prev}\n  ${def}`);
     }
     structs.set(name, def);
     return name + suffix;
@@ -64,7 +64,7 @@ function makeFormatter(contract) {
       case "error":
         return `error ${it.name}(${params(it.inputs)})`;
       default:
-        return null; // constructor, receive, fallback : sans objet pour un client
+        return null; // constructor, receive, fallback: irrelevant to a client
     }
   };
   return { structs, item };
@@ -75,17 +75,17 @@ const q = (s) => JSON.stringify(s);
 
 function generate() {
   const L = [];
-  const errors = new Map(); // signature complète → [contrats]
+  const errors = new Map(); // full signature → [contracts]
   L.push(
     "/**",
-    " * abis.ts — FICHIER GÉNÉRÉ par packages/sdk/scripts/gen-abis.mjs depuis les artefacts compilés (contracts/out).",
-    " * Ne pas modifier à la main : recompiler les contrats (forge build), puis `node packages/sdk/scripts/gen-abis.mjs`.",
-    " * Chaque ABI contient TOUTES les fonctions, tous les événements et toutes les erreurs du contrat (pile v2) : viem",
-    " * décode donc les refus par leur nom (WrongEnclave, BadExpiry, TierAlreadyPaid…).",
+    " * abis.ts is a GENERATED FILE, written by packages/sdk/scripts/gen-abis.mjs from the compiled artifacts (contracts/out).",
+    " * Do not edit it by hand: rebuild the contracts (forge build), then run `node packages/sdk/scripts/gen-abis.mjs`.",
+    " * Each ABI holds every function, event and error of its contract, so viem decodes a revert by its name",
+    " * (WrongEnclave, BadExpiry, TierAlreadyPaid…).",
     " */",
     'import { parseAbi } from "viem";',
     "",
-    "/** USDC d'Arc (contrat externe, pas dans contracts/out) : le sous-ensemble utilisé par le réseau. */",
+    "/** Arc's USDC (an external contract, not in contracts/out): the subset the network uses. */",
     "export const usdcAbi = parseAbi([",
     '  "function balanceOf(address a) view returns (uint256)",',
     '  "function approve(address spender, uint256 value) returns (bool)",',
@@ -110,8 +110,8 @@ function generate() {
     const nr = abi.filter((x) => x.type === "error").length;
     L.push(
       "",
-      `/** ${label}. Source : contracts/out/${contract}.sol/${contract}.json (ABI sha256 ${sha(JSON.stringify(abi))}) — ` +
-        `${nf} fonctions, ${ne} événements, ${nr} erreurs. */`,
+      `/** ${label}. Source: contracts/out/${contract}.sol/${contract}.json (ABI sha256 ${sha(JSON.stringify(abi))}), ` +
+        `${nf} functions, ${ne} events, ${nr} errors. */`,
       `export const ${exportName} = parseAbi([`,
       ...[...structs.values()].map((s) => `  ${q(s)},`),
       ...lines.map((s) => `  ${q(s)},`),
@@ -120,8 +120,8 @@ function generate() {
   }
   L.push(
     "",
-    "/** Toutes les erreurs des contrats du réseau, sans doublon : pour nommer un refus remonté d'un contrat appelé",
-    " *  (ex. TooMuchExposure d'OperatorBond pendant SessionPay.settle). */",
+    "/** Every error of the network's contracts, without duplicates: it names a revert raised inside a called contract",
+    " *  (e.g. OperatorBond's TooMuchExposure during SessionPay.settle). */",
     "export const arcErrorsAbi = parseAbi([",
     ...[...errors.keys()].map((s) => `  ${q(s)},`),
     "]);",
@@ -133,13 +133,13 @@ function generate() {
 const text = generate();
 if (process.argv.includes("--check")) {
   let cur = "";
-  try { cur = readFileSync(TARGET, "utf8"); } catch { /* absent */ }
+  try { cur = readFileSync(TARGET, "utf8"); } catch { /* missing */ }
   if (cur !== text) {
-    console.error("src/abis.ts n'est pas à jour avec contracts/out : node packages/sdk/scripts/gen-abis.mjs");
+    console.error("src/abis.ts is out of date with contracts/out: run node packages/sdk/scripts/gen-abis.mjs");
     process.exit(1);
   }
-  console.log("src/abis.ts est à jour avec contracts/out");
+  console.log("src/abis.ts is up to date with contracts/out");
 } else {
   writeFileSync(TARGET, text);
-  console.log(`src/abis.ts généré (${text.split("\n").length} lignes) depuis ${OUT_DIR}`);
+  console.log(`src/abis.ts generated (${text.split("\n").length} lines) from ${OUT_DIR}`);
 }
