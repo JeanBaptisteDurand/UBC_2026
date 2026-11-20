@@ -1,5 +1,5 @@
 /**
- * sealed-chat/server.ts — product B: AI inference in an enclave (O2), as an HTTP service.
+ * sealed-chat/server.ts — product 1: private AI in an enclave, prepaid sessions (O2), as an HTTP service.
  * OpenAI-compatible routes (see ./app.ts). The enclave decrypts the request, queries the model, signs a cumulative
  * receipt and encrypts the answer. The model is RedPill (verified, see MODEL_ATTESTATION below), or a local mock in
  * development.

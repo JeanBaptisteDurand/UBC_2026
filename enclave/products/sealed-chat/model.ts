@@ -1,5 +1,5 @@
 /**
- * sealed-chat/model.ts — the model the inference enclave calls (product B, sessions): RedPill (OpenAI-compatible,
+ * sealed-chat/model.ts — the model the inference enclave calls (product 1, prepaid sessions): RedPill (OpenAI-compatible,
  * confidential inference in a TEE) if a key is given, otherwise a local fake model (development: its fingerprint,
  * keccak256("mock-echo-model"), is no real product's).
  *
