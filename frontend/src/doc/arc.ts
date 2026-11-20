@@ -1,15 +1,15 @@
-// Product 7 on Arc, read live with free eth_calls (no wallet), for the Doc's live lines: is its settlement contract
-// authorized by OperatorBond (it can then pay and seize bonds) and by VerdictLog (it can write ERC-8004 verdicts), and
-// which of its bounties are open. The verified level's bounties (SealedBountyVerified, product 7) are not in
-// /api/bounties, so they are read here. Selectors: isSettlement(address) 0xee7f41c2, settlementApplyAt(address)
-// 0xca398188, isCaller(address) 0x7ac07dcc, bountyCount() 0x3e362c96, getBounty(uint256) 0xee8c4bbf.
+// The verified level's product on Arc (product 5 on v3, 7 on v2.1), read live with free eth_calls (no wallet), for the
+// Doc's live lines: is its settlement contract authorized by OperatorBond (it can then pay and seize bonds) and by
+// VerdictLog (it can write ERC-8004 verdicts), and which of its bounties are open. The verified level's bounties
+// (SealedBountyVerified) are not in /api/bounties, so they are read here. Selectors: isSettlement(address) 0xee7f41c2,
+// settlementApplyAt(address) 0xca398188, isCaller(address) 0x7ac07dcc, bountyCount() 0x3e362c96, getBounty(uint256)
+// 0xee8c4bbf.
 import { useEffect, useState } from 'react'
 import { rpc } from '../data/live'
 import { C } from '../data/facts'
 
-/** VerdictLog of the v2.1 stack (deployments.v21.testnet.json), the ERC-8004 verdict log */
-const VERDICT_LOG = '0x2B4AB39B461Ae2bA9ADfb6bC630D34553BAb9779'
-const ADDR = { OperatorBond: C.OperatorBond, VerdictLog: VERDICT_LOG }
+/** OperatorBond and VerdictLog (the ERC-8004 verdict log) of the v3 stack (deployments.v3.testnet.json, data/facts.ts) */
+const ADDR = { OperatorBond: C.OperatorBond, VerdictLog: C.VerdictLog }
 
 const word = (a: string) => a.toLowerCase().replace(/^0x/, '').padStart(64, '0')
 async function call(to: string, selector: string, arg: string): Promise<bigint> {
@@ -22,7 +22,7 @@ async function call(to: string, selector: string, arg: string): Promise<bigint> 
 export interface OpenBounty { id: string; balance: string; deadline: number }
 /** The open bounties of a sealed-bounty contract, read on Arc (bountyCount() 0x3e362c96, then getBounty(id) 0xee8c4bbf
  *  for the last ten: a static tuple, word 7 the deadline, 8 the pool, 9 paused). The verified level's bounties
- *  (SealedBountyVerified, product 7) are not in /api/bounties, so they are read here. Open: not paused, before its
+ *  (SealedBountyVerified, product 5 on v3) are not in /api/bounties, so they are read here. Open: not paused, before its
  *  deadline, with a pool. undefined while reading, null when Arc did not answer. */
 export function useOpenBounties(contract: string, on = true): OpenBounty[] | null | undefined {
   const [v, setV] = useState<OpenBounty[] | null | undefined>(undefined)

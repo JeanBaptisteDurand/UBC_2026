@@ -11,7 +11,7 @@ import { decodeAbiParameters, decodeFunctionData, decodeFunctionResult, encodeAb
 import { rpc } from './live'
 import { C } from './facts'
 
-export const REGISTRY = C.EnclaveRegistry          // deployments.v21.testnet.json (data/facts.ts)
+export const REGISTRY = C.EnclaveRegistry          // deployments.v3.testnet.json (data/facts.ts)
 export const PRODUCT_REGISTRY = C.ProductRegistry
 
 const REG_ABI = parseAbi([

@@ -10,11 +10,15 @@ import { C } from '../data/facts'
 
 const PRODUCT_REGISTRY = C.ProductRegistry
 
+/** date of the v2.1 copies (the v3 copy is of 19 November, the v3 stack's publication) */
 export const SNAPSHOT_DATE = '2026-11-14'
-// the exact bytes served upstream, under a neutral extension (.snapshot): third-party data, not site text
+// the exact bytes served upstream, under a neutral extension (.snapshot): third-party data, not site text. The v2.1
+// copies stay for history; the v3 one is the verified bounty's (product 5 on v3), whose keccak256 equals the
+// manifestHash of products.5 in deployments.v3.testnet.json (0x54214c4b…010b)
 const COPIES: Record<string, string> = {
   'sealed-bounty-refute-demo-v21.json': '/manifests/sealed-bounty-refute-demo-v21.snapshot',
   'sealed-bounty-verified-v21.json': '/manifests/sealed-bounty-verified-v21.snapshot',
+  'sealed-bounty-verified-v3.json': '/manifests/sealed-bounty-verified-v3.snapshot',
 }
 export interface Manifest { state: 'none' | 'ok' | 'changed' | 'unread'; uri?: string; product?: string; summary?: string; image?: string; version?: string }
 

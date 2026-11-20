@@ -2,10 +2,10 @@
 // everything the Use page and a service page display. An enclave's status is the wall's (ledOf, badOf from wall.ts):
 // the same LED on the landing and in the app.
 // No hand-written numbers: what is not read stays "unknown", never zero. Only roles the chain does not state
-// (product 6 replaced by 7, product 5 as demo) come from data/facts.ts.
+// (product 5 at the verified operator level on v3) come from data/facts.ts.
 import type { Activity, Bounty, Enclave, LiveState, Product } from '../data/live'
 import { ledOf, badOf, serviceOf, svcName, signerHistory, type Led, type RedWhy, type Service } from '../data/wall'
-import { C, roleOf, type ProductRole } from '../data/facts'
+import { C, C21, roleOf, type ProductRole } from '../data/facts'
 import { t, getLang, type TKey } from '../i18n'
 
 export interface EncRow { e: Enclave; led: Led; why?: RedWhy; reason?: string; reg?: Activity }
@@ -19,7 +19,7 @@ export interface SvcRow {
   bounties: Bounty[]
   /** latest events of this product (newest first) */
   events: Activity[]
-  /** role taken from deployments.v21 (refutation demo, replaced, verified level) */
+  /** role taken from deployments.v3 (verified level); the v2.1 roles (refutation demo, replaced) are history */
   role?: ProductRole
 }
 
@@ -60,8 +60,8 @@ export function catalog(s: Pick<LiveState, 'products' | 'enclaves' | 'activity' 
     const encs = enclaves.filter((e) => e.productId === p.id).map((e): EncRow => ({ e, ...ledOf(e, p, bad), reg: last.get(e.signer.toLowerCase()) }))
       .sort((a, b) => RANK[a.led] - RANK[b.led] || Number(b.e.registeredAt) - Number(a.e.registeredAt))
     const running = encs.filter((x) => x.led === 'green').length
-    // the refutation demo (product 5) is the operator caught lying: red with "Bond seized" (stateLabel), as on the
-    // landing and its family face, never "waiting" as if it would run again
+    // the refutation demo (product 5 of v2.1) is the operator caught lying: red with "Bond seized" (stateLabel), as on
+    // the landing and its family face, never "waiting" as if it would run again
     const led: Led = role?.role === 'superseded' ? 'off' : p.state === 'Retired' || role?.role === 'refuteDemo' ? 'red' : running > 0 ? 'green' : 'amber'
     const events = desc.filter((a) => productOfEvent(a, activity, bySigner, byBounty) === p.id && a.name !== 'EnclaveImage')
     const pay = events.find(isPay)
@@ -102,13 +102,18 @@ export function matches(r: SvcRow, q: string) {
 }
 export const kindsOf = (rows: SvcRow[]) => [...new Set(rows.map((r) => r.svc))]
 
-/** name of the settlement contract (deployments.v21.testnet.json, via data/facts.ts), or its short address */
+/** name of the settlement contract (deployments.v3.testnet.json, and the v2.1 ones for history, via data/facts.ts), or
+ *  its short address */
 export const RAIL_NAME: Record<string, string> = {
   [C.SessionPay.toLowerCase()]: 'SessionPay',
   [C.X402Settler.toLowerCase()]: 'X402Settler',
   [C.SealedBounty.toLowerCase()]: 'SealedBounty',
   [C.SealedBountyVerified.toLowerCase()]: 'SealedBountyVerified',
-  [C.SealedBountyVerifiedOld.toLowerCase()]: 'SealedBountyVerified (11/11)',
+  [C21.SessionPay.toLowerCase()]: 'SessionPay',
+  [C21.X402Settler.toLowerCase()]: 'X402Settler',
+  [C21.SealedBounty.toLowerCase()]: 'SealedBounty',
+  [C21.SealedBountyVerified.toLowerCase()]: 'SealedBountyVerified',
+  [C21.SealedBountyVerifiedOld.toLowerCase()]: 'SealedBountyVerified (11/11)',
 }
 /** a product's type line (catalog, service page): its settlement rail, and its role if any */
 export const railKey = (p: Product): TKey => {

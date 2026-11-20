@@ -119,8 +119,9 @@ function ReadCode({ root }: { root: React.RefObject<HTMLDivElement | null> }) {
 const utc = (unix: number, lang: string) => `${new Date(unix * 1000).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })} UTC`
 
 /** chapter 04's two status lines, read live on Arc: the Proof of Cloud declaration
- *  of our machine's chip (/api/levels: the chip with the latest token) and product 7 (its authorization on Arc, its
- *  open demo bounty). The static text is the state of 19 November; nothing is changed until the reading answers. */
+ *  of our machine's chip (/api/levels: the chip with the latest token) and the verified level's product (5 on v3: its
+ *  authorization on Arc, its open demo bounty). The static text is the state at the switch to v3; nothing is changed
+ *  until the reading answers. */
 function useIdentityLive(root: React.RefObject<HTMLDivElement | null>, on: boolean, c: Chapter) {
   const { d, lang } = useDt()
   const levels = useLive((s) => s.levels)

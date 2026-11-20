@@ -69,11 +69,11 @@ export function StateSection({ id }: { id: Id }) {
   const s = ex >= 0 ? w.sleds[ex] : undefined
   const e = s?.enclave, p = s?.product
   // The Publish section does not refer to amber: its label counts the published services (active products);
-// without product 6, replaced by 7
-// "published on Arc" counts all active products on Arc, the replaced no. 6 included (7, like the console)
+// without a replaced product (v2.1: product 6, replaced by 7; v3 has none)
+// "published on Arc" counts all active products on Arc, like the console (5 on v3; on v2.1, 7 with the replaced no. 6)
   const count = id === 'publish' ? (products ? products.filter((x) => x.state === 'Active').length : null) : w.counts[LEDK[id]]
   const rows: [string, React.ReactNode][] = []
-  // the minimum bond of a real service, neither the refutation demo (product 5) nor the replaced product (6)
+  // the minimum bond of a real service, without the products data/facts.ts gives a role (v3: the verified level, 5)
   const minBond = products?.filter((x) => x.state === 'Active' && !roleOf(x.id)).reduce((m, x) => Math.min(m, Number(x.minBond)), Infinity)
   const opShare = products?.find((x) => x.state === 'Active')
   if (id === 'use' && s) {

@@ -54,7 +54,7 @@ const EN = {
   'vit.k': 'Services', 'vit.back': 'All services', 'vit.toc': 'On this page', 'hero.scroll': 'Scroll', 'vit.cta': 'The sleds on the right are interactive: click one to see its service and use it.', 'vit.of': '{a} of {b}', 'vit.prev': 'Previous chapter', 'vit.next': 'Next chapter', 'vit.more': 'Also on this page',
   'vit.w.on': 'Running', 'vit.run': '{a} of the {n} sealed machines are running now. Every past payment and proof stays readable on Arc.',
   'vit.src': 'Read live on Arc testnet', 'vit.reading': 'Reading Arc testnet…', 'vit.down': 'The ArcHive API did not answer. It is read again every 4 seconds.',
-  'vit.fig.p': 'Products published on Arc', 'vit.fig.p.s': 'one of them retired, #6', 'vit.fig.e': 'Sealed machines registered', 'vit.fig.e.s': '{a} running now',
+  'vit.fig.p': 'Products published on Arc', 'vit.fig.p.s': 'on the v3 stack, deployed on 19 November', 'vit.fig.e': 'Sealed machines registered', 'vit.fig.e.s': '{a} running now',
   'vit.fig.u': 'USDC settled by the contracts', 'vit.fig.u.s': 'plus {b} paid to a bounty hunter', 'vit.fig.v': 'Public verdicts, ERC-8004', 'vit.fig.v.s': 'written by the contracts on Arc',
   'vit.shares': 'Read on Arc now: {o} to the operator, {a} to the author and {n} to the network, on all {k} products.',
   'vit.live': 'Read live on Arc, product #{id}', 'vit.copied': 'Copied', 'vit.servers': 'The ArcHive server', 'vit.list': 'The products, family by family',
@@ -151,7 +151,7 @@ const EN = {
   // ---- demo ----
   'demo.skip': 'Skip to the demo', 'demo.sec': 'Demo', 'demo.doc': 'ArcHive. The demo, replayed', 'demo.nav': 'Demo steps', 'demo.stage': 'How the four parties connect',
   'demo.prev': 'Previous', 'demo.next': 'Next', 'demo.keys': 'Arrow keys or space to move, 1 to 9 to jump', 'demo.toUse': 'Open the live catalog of services',
-  'demo.replay': 'Replay of a recording made on {d}, at Arc testnet block {n}. It plays without a network.', 'demo.band': 'Replay', 'demo.band.block': 'Recorded at block',
+  'demo.replay': 'Replay of a recording made on {d} on the v2.1 stack, at Arc testnet block {n}. It plays without a network.', 'demo.band': 'Replay', 'demo.band.block': 'Recorded at block',
   'demo.live': 'Check it live on Arc', 'demo.live.off': 'Arc did not answer, so the recording stands.', 'demo.live.same': 'Checked live at block {n}: same result.', 'demo.live.diff': 'Checked live at block {n}: the result differs from the recording.',
   'demo.n.author': 'Author', 'demo.n.author.s': 'publishes a service', 'demo.n.machine': 'Operator machine', 'demo.n.machine.s': 'Intel TDX enclave', 'demo.n.arc': 'Arc', 'demo.n.arc.s': 'contracts on testnet', 'demo.n.user': 'User or agent', 'demo.n.user.s': 'pays in USDC',
   'demo.s1.t': 'How {ArcHive works}.', 'demo.s1.p': 'Four parties and two registries on Arc. An author publishes a service, an operator runs it in a sealed Intel TDX machine, Arc checks the machine, and a user pays for each call in USDC.', 'demo.s1.x': 'Replayed from Arc testnet: every figure here was read on the chain at block {n}.',

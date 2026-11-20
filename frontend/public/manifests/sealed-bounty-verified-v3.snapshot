@@ -1,0 +1,45 @@
+{
+  "product": "ArcHive - Sealed Bounty, verified operator level (sealed-bounty)",
+  "version": "3",
+  "status": "v3 stack deployed on Arc testnet on 2026-11-19 (deployments.v3.testnet.json); the live site and enclaves switch to it after the UBC submission (2026-11-20): this product's enclaves register on v3 then, with their v3 compose (measured env pointing to the v3 contracts); the manifest is then updated on-chain (proposeUpdateWithURI)",
+  "summary": "The Sealed Bounty for protocols that need more than a correct attestation: only enclaves whose MACHINE is declared in an inspected datacenter count. A protocol funds a bounty with a machine-checkable loss predicate; a hunter's exploit is replayed inside the enclave on a fork of Arc at block N; if the predicate shows a real loss, the hunter is paid in the same flow (acceptClaim then deliver), the target is paused, and the encrypted report goes to the protocol only.",
+  "operatorLevel": {
+    "required": "verified",
+    "meaning": "an enclave counts only if its machine (PPID read on-chain from Intel's PCK certificate in its registered quote, MachineRegistry.bindMachine) is declared in a known datacenter by an auditor this product accepts; enforced on-chain: the settlement contract reads the registry through PolicyEnclaves",
+    "policy": "MachineRegistry 0xC64e9556AA896b2E8c0bE0fdf3dC7b2c0be24b86 (policyOf(5))",
+    "auditors": [
+      "ProofOfCloudAuditor 0xEaf8163fa5Eb2f047d4876bb3Ef2E67250360b73: the Proof of Cloud alliance's token (EdDSA, co-signed by the Secret, Nillion and iExec trust servers) verified on-chain"
+    ],
+    "whyItMatters": "physical attacks published in 2025 (TEE.fail, Battering RAM, Wiretap) extract attestation keys from a server the attacker can touch"
+  },
+  "stateProofs": "OPTIONAL, currently OFF: when STATE_PROOF_RPC_URL is set, every state read of the replay is an eth_getProof (EIP-1186) verified against the state root of block N's anchored header (a wrong proof is a violation, a missing proof fails closed); disabled for now because a testnet archive node does not fit the current host (measured, tested) - re-enable with a larger disk or an archive RPC that serves historical eth_getProof",
+  "replay": "arc-anvil from Arc Foundry (circlefin/arc-foundry v0.8.0-4, x86_64 archive sha256 78330505af7dc0d2c9b55fc1aed00d9d063581bb57054949d31ef1c1b4bdbc5e) --network arc: Arc's precompiles (native USDC, blocklist, EIP-7708 logs) without emulation; gas paid at Arc's base fee from a 20 USDC fork-only allowance, subtracted from the measured profit",
+  "exploitTx": "abi.encode(address to, uint256 value, bytes data), sent from the hunter's address",
+  "fingerprint": "keccak256(abi.encode(keccak256(attackCode), keccak256(tx)[]))",
+  "settlement": "SealedBounty (verified level) 0x8958EA25c9cF7bbee39B32C43187d854B5d73ee6 (Arc testnet), same code as product 2's, wired to PolicyEnclaves 0x12c0C33C62666AbE0ab03B286b428C554De71BF8: acceptClaim then deliver; it can slash bonds and write ERC-8004 verdicts from its deployment: on v3 it was wired by OperatorBond.initialize and VerdictLog.initialize together with the core, so no 8-day wait",
+  "build": {
+    "context": "enclave/",
+    "dockerfile": "enclave/Dockerfile.bounty",
+    "base": "node:22-trixie-slim",
+    "lockfile": "enclave/package-lock.json",
+    "entry": "enclave/products/sealed-bounty/server.ts"
+  },
+  "composeFile": "enclave/phala/sealed-bounty-verified-v3.yml",
+  "service": "sealed-bounty",
+  "image": "ghcr.io/jeanbaptistedurand/archive-sealed-bounty@sha256:f3bff732179c7f6a6d24a9de4e61b49372e4d2ff178d5aa08630efebd3142c15",
+  "measuredEnv": {
+    "RPC_URL": "https://rpc.testnet.arc.io",
+    "FORK_RPC_URL": "https://rpc.testnet.arc.io",
+    "CHAIN_ID": "5042002",
+    "PRODUCT_ID": "5",
+    "REGISTRY": "0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E",
+    "SEALEDBOUNTY": "0x8958EA25c9cF7bbee39B32C43187d854B5d73ee6"
+  },
+  "encryptedEnv": [
+    "OPERATOR_ALLOWLIST"
+  ],
+  "tee": "Intel TDX confidential VM (dstack) on Phala Cloud",
+  "verifiedOnArc": "Intel's signature on each TDX quote is checked on-chain by Automata DCAP: TdxAttestationModule 0x3275fA3b519FAD912eA4a5e75Bf5078Def29D491 -> AutomataDcapAttestationFee 0x48640f7d94dE64b13c89686F3d1240A31Aeb4dc9",
+  "imageFingerprint": "the registry replays the dstack RTMR3 event log on-chain (SHA-384), requires it to reproduce the quote's RTMR3, and allows the image by keccak256(MRTD | RTMR0 | RTMR1 | RTMR2 | compose-hash | os-image-hash | XFAM | TDATTRIBUTES) - no instance id, so a restart keeps the same fingerprint",
+  "reportData": "REPORTDATA[0:32] binds chain id, registry, product id, operator, enclave signer and X25519 key; REPORTDATA[32:64] is a recent block hash (EIP-2935)"
+}

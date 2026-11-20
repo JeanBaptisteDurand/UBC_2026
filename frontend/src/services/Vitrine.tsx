@@ -32,8 +32,9 @@ const isTouch = () => typeof matchMedia === 'function' && matchMedia('(hover: no
 
 const SLOT = 'slot'
 const FAM = ['bounty', 'private-ai', 'attested-copilot', 'refutation', 'retired'] as const
-/** the products of each family, in the presentation's order */
-const PIDS: Record<string, string[]> = { bounty: ['2', '7'], 'private-ai': ['1', '3'], 'attested-copilot': ['4'], refutation: ['5'], retired: ['6'] }
+/** the products of each family on the v3 stack, in the presentation's order. The refutation (v2.1 product 5) and the
+ *  retired product (v2.1 product 6) are v2.1 history: no v3 product is theirs (v3's product 5 is the verified bounty) */
+const PIDS: Record<string, string[]> = { bounty: ['2', '5'], 'private-ai': ['1', '3'], 'attested-copilot': ['4'], refutation: [], retired: [] }
 /** a product (landing wall, catalog, copilot links: ?p=<id>) opens its family */
 const FAM_OF: Record<string, string> = Object.fromEntries(Object.entries(PIDS).flatMap(([f, ps]) => ps.map((p) => [p, f])))
 const IDS = VIT.en.chapters.map((c) => c.id)
@@ -154,7 +155,7 @@ const ls = (k: keyof typeof LIVE_STR.en, v?: Record<string, string>) => {
 const utcDay = (unix: number, lang: string) => `${new Date(unix * 1000).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })} UTC`
 
 /** the presentation's sentences that name the running products ("the verified enclaves of products #1, #2, #3, #4 and
- *  #7"), read live: the list becomes the products whose enclave runs now. With none running, the sentence becomes one
+ *  #5"), read live: the list becomes the products whose enclave runs now. With none running, the sentence becomes one
  *  short line. Only a list that follows "enclaves of products" changes. The original text is kept per text node. */
 const RUNS = /(enclaves of products |enclaves vérifiées des produits )(#\d+(?:(?:, #\d+)* and #\d+)?|n°\s\d+(?:(?:, \d+)* et \d+)?)/
 const SENT = /(The verified enclaves of products|Les enclaves vérifiées des produits)[^.]*\./
@@ -193,7 +194,7 @@ function useLiveFill(root: React.RefObject<HTMLDivElement | null>, key: string) 
     // live words are written now and once more when it has settled
     const fill = () => {
     const running = (ids: string[]) => (rows ?? []).filter((r) => ids.includes(r.p.id)).reduce((a, r) => a + r.running, 0)
-    // a sled face (#2 #7 in its unit line): green and "Running" while one of its products runs
+    // a sled face (#2 #5 in its unit line): green and "Running" while one of its products runs
     el.querySelectorAll<HTMLElement>('.vit-face').forEach((f) => {
       const ids = (f.querySelector('.bl-u')?.textContent ?? '').match(/\d+/g) ?? []
       const w = f.querySelector<HTMLElement>('.bl-word')

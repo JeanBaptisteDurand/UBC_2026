@@ -17,7 +17,7 @@ export const arcTestnet = defineChain({
 });
 
 export interface Deployment {
-  /** "v2": the v2 family of stacks, v2.1 included (registry wired to the real DCAP module, sessions bound to one
+  /** "v2": the v2 family of stacks, v2.1 and v3 included (registry wired to the real DCAP module, sessions bound to one
    *  enclave, two-step bounty payment). */
   version: "v2";
   chainId: number;
@@ -61,11 +61,53 @@ export interface Deployment {
   };
 }
 
-/** The v2.1 stack on Arc testnet (deployments.v21.testnet.json, deployed on 2026-11-09, block 71481927): as v2 (registry
- *  wired to the REAL DCAP module, REQUIRE_SEPT_VE, timelock 0 on testnet), plus the IMAGE id from an on-chain replay of
- *  dstack's RTMR3 event log (stable across restarts), ERC-8004 verdicts bound to the contract and salted, and
- *  pay-per-call inference (x402, product 3). The attested copilot is product 4 (no settlement). */
+/** The v3 stack on Arc testnet (deployments.v3.testnet.json, deployed on 2026-11-19, blocks 73075189 to 73075383, 20:33
+ *  to 20:35 UTC): a fresh copy of every ArcHive contract, the v2.1 code with the corrected PckChip, the same constructor
+ *  parameters (registry wired to the REAL DCAP module, REQUIRE_SEPT_VE, timelock 0 on testnet). Core and levels were
+ *  deployed together, so OperatorBond.initialize and VerdictLog.initialize wired every settlement contract at once
+ *  (20:37 UTC), the verified level included: no 8-day delay on v3. Products: 1 private inference (SessionPay), 2 the
+ *  Sealed Bounty (SealedBounty), 3 pay-per-call inference (x402), 4 the attested copilot (no settlement), 5 the Sealed
+ *  Bounty at the verified operator level (SealedBountyVerified; product 7 on v2.1). */
 export const testnet: Deployment = {
+  version: "v2",
+  chainId: ARC_TESTNET_ID,
+  deployBlock: 73075189n,
+  blockscoutUrl: "https://explorer.testnet.arc.io",
+  usdc: "0x3600000000000000000000000000000000000000",
+  erc8004Validation: "0x8004Cb1BF31DAf7788923b405b754f57acEB4272",
+  erc8004Identity: "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+  history: "0x0000F90827F1C53a10cb7A02335B175320002935",
+  attestationModule: "0x3275fA3b519FAD912eA4a5e75Bf5078Def29D491",
+  dcapAttestation: "0x48640f7d94dE64b13c89686F3d1240A31Aeb4dc9",
+  productRegistry: "0xd2e6f3fD0561C8823774A8C7054B414777E0228d",
+  operatorBond: "0x19C3438E997c2C513aA5E7D2dDd2666532095dd4",
+  enclaveRegistry: "0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E",
+  verdictLog: "0x3BEC55d2E50118ceACcD2E0045855123964D78cF",
+  sessionPay: "0x606c379cd8758E3562e7ECC9972d0feF693F0763",
+  sealedBounty: "0xaA229Eda6b535DF6aEe0B4D892f39e0EC006d308",
+  x402Settler: "0x89B0381B18536f680fD952a0E7D375d7a4EC3fe6",
+  demoVault: "0xf5D51c805BFa4c1Fb3d5D3B248bEB1841DDc03b8",
+  treasury: "0x5724d89D610c3017b8DC161c025248341556f6Ab",
+  products: { inference: 1n, bounty: 2n, x402: 3n },
+  attestation: "dcap",
+  // The verified Sealed Bounty is PRODUCT 5 on v3 (MachineRegistry.policyOf(5) = level 1, ProofOfCloudAuditor). It can
+  // slash bonds and write verdicts since its stack was initialized (2026-11-19 20:37 UTC), and is Active since 20:42 UTC.
+  levels: {
+    machineRegistry: "0xC64e9556AA896b2E8c0bE0fdf3dC7b2c0be24b86",
+    proofOfCloudAuditor: "0xEaf8163fa5Eb2f047d4876bb3Ef2E67250360b73",
+    ed25519Verifier: "0xf2c47D6eCD25290C9daa826b3D11AC43baaEcEf6",
+    policyEnclaves: "0x12c0C33C62666AbE0ab03B286b428C554De71BF8",
+    sealedBountyVerified: "0x8958EA25c9cF7bbee39B32C43187d854B5d73ee6",
+  },
+};
+
+/** The v2.1 stack on Arc testnet (deployments.v21.testnet.json, deployed on 2026-11-09, block 71481927), in service until
+ *  the switch to v3 and kept for history: every proof of 9 to 19 November (sessions, x402 calls, bounties, the
+ *  refutation, the ERC-8004 verdicts) was made on it. As v2 (registry wired to the REAL DCAP module, REQUIRE_SEPT_VE,
+ *  timelock 0 on testnet), plus the IMAGE id from an on-chain replay of dstack's RTMR3 event log (stable across
+ *  restarts), ERC-8004 verdicts bound to the contract and salted, and pay-per-call inference (x402, product 3). The
+ *  attested copilot is product 4 (no settlement). */
+export const testnetV21: Deployment = {
   version: "v2",
   chainId: ARC_TESTNET_ID,
   deployBlock: 71481927n,
@@ -88,8 +130,8 @@ export const testnet: Deployment = {
   products: { inference: 1n, bounty: 2n, x402: 3n },
   attestation: "dcap",
   // The levels stack was REDEPLOYED after the security review (PckChip fixed); the previous one is abandoned
-  // (see deployments.v21.testnet.json → levels.superseded). The verified Sealed Bounty is PRODUCT 7 (product 6 is
-  // neutralized). Past its 8-day delay, it can slash bonds since 2026-11-18 23:59 UTC and write verdicts since
+  // (see deployments.v21.testnet.json → levels.superseded). On v2.1 the verified Sealed Bounty is PRODUCT 7 (product 6
+  // is neutralized). Past its 8-day delay, it could slash bonds from 2026-11-18 23:59 UTC and write verdicts from
   // 2026-11-19 00:15 UTC.
   levels: {
     machineRegistry: "0xd671013f556b1272b25e3cc17c889d402f4dc26d",
@@ -131,7 +173,7 @@ export const testnetV2: Deployment = {
 /**
  * A deployment file (deployments.*.testnet.json: { chainId, deployBlock, external: { USDC, … }, contracts:
  * { EnclaveRegistry, … }, treasury, products: { "1": { settlement: "SessionPay" }, … } }) → Deployment. Wires a
- * service to the chosen stack (e.g. DEPLOYMENTS=deployments.v21.testnet.json) with no hard-coded address. A missing or
+ * service to the chosen stack (e.g. DEPLOYMENTS=deployments.v3.testnet.json) with no hard-coded address. A missing or
  * invalid contract address throws (never a silent fallback to another stack).
  */
 export function deploymentFromJson(j: any): Deployment {
@@ -217,5 +259,5 @@ export const ENCLAVE_EXPIRY_MARGIN_SECONDS = 60;
 /** SealedBounty.MAX_SIGS: at most 5 signatures (so k ≤ 5). */
 export const BOUNTY_MAX_SIGS = 5;
 /** Gas of a registration through the real DCAP (quote verification, RTMR3 event-log replay, policy), measured on Arc
- *  testnet (v2.1 stack): 6,849,014 to 6,866,126. */
+ *  testnet on the v2.1 stack (v3 runs the same registry source): 6,849,014 to 6,866,126. */
 export const DCAP_REGISTER_GAS_ESTIMATE = 6_860_000n;

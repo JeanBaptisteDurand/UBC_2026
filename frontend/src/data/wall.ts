@@ -11,7 +11,7 @@
 import type { Activity, Bounty, ChainState, Enclave, Product } from './live'
 import { t, getLang, type TKey } from '../i18n'
 import { usdc } from './fmt'
-import { C } from './facts'
+import { C, C21 } from './facts'
 
 export type Led = 'off' | 'amber' | 'green' | 'red'
 export type RedWhy = 'expired' | 'idle' | 'invalidated' | 'retired' | 'slashed' | 'productRetired' | 'replaced' | 'stopped'
@@ -64,14 +64,18 @@ export const slotLabel = (i: number) => { const s = SLOTS[i]; return `${t('bay')
 export const unitText = (i: number) => `U${p2(SLOTS[i].u)}`
 
 // ---- Services ----
-// Settlement rails, as in productName() of the ArcHive SDK; both SealedBountyVerified contracts (the current one and
-// the older one) are sealed bounties too
+// Settlement rails, as in productName() of the ArcHive SDK: the v3 stack's, and the v2.1 ones for history; every
+// SealedBountyVerified contract (v3, v2.1 and the older v2.1 one) is a sealed bounty too
 const RAIL: Record<string, Service> = {
   [C.SessionPay.toLowerCase()]: 'ai',
   [C.X402Settler.toLowerCase()]: 'x402',
   [C.SealedBounty.toLowerCase()]: 'bounty',
   [C.SealedBountyVerified.toLowerCase()]: 'bounty',
-  [C.SealedBountyVerifiedOld.toLowerCase()]: 'bounty',
+  [C21.SessionPay.toLowerCase()]: 'ai',
+  [C21.X402Settler.toLowerCase()]: 'x402',
+  [C21.SealedBounty.toLowerCase()]: 'bounty',
+  [C21.SealedBountyVerified.toLowerCase()]: 'bounty',
+  [C21.SealedBountyVerifiedOld.toLowerCase()]: 'bounty',
   '0x0000000000000000000000000000000000000000': 'copilot',
 }
 export function serviceOf(p?: Product | null, bounties?: Bounty[]): Service {

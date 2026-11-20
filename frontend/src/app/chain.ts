@@ -5,7 +5,7 @@ import { rpc } from '../data/live'
 import { C } from '../data/facts'
 
 const PRODUCT_REGISTRY = C.ProductRegistry
-export const OPERATOR_BOND = C.OperatorBond // deployments.v21.testnet.json (data/facts.ts)
+export const OPERATOR_BOND = C.OperatorBond // deployments.v3.testnet.json (data/facts.ts)
 const BOND_ABI = parseAbi([
   'function bondOf(address operator) view returns (uint256)',
   'function freeBond(address operator) view returns (uint256)',

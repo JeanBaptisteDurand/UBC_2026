@@ -67,7 +67,7 @@ export interface AttestedCopilotClientOptions {
   /** The copilot's product, registered on Arc. */
   productId: bigint;
   publicClient: PublicClient;
-  /** Stack to read (default: the SDK's testnet stack; or deploymentFromJson(deployments.v21.testnet.json)). */
+  /** Stack to read (default: the SDK's testnet stack; or deploymentFromJson(deployments.v3.testnet.json)). */
   deployment?: Deployment;
   /** Default requested language (otherwise the copilot answers in the language of the last message). */
   lang?: CopilotLang;
