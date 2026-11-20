@@ -100,7 +100,7 @@ describe("OPERATOR_ALLOWLIST", () => {
 
   it("invalid inputs => 400", async () => {
     const app = createAttestServer(mockKit(), { operatorAllowlist: null, registeredOperator: async () => zeroAddress, warn: () => {} });
-    expect((await attest(app, "pas-une-adresse")).status).toBe(400);
+    expect((await attest(app, "not-an-address")).status).toBe(400);
     expect((await attest(app, OP, "-1")).status).toBe(400);
     expect((await attest(app, OP, "douze")).status).toBe(400);
   });

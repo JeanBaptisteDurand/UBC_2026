@@ -275,7 +275,7 @@ describe("x402: a 402 without payment", () => {
     const q = await makeRequest(kit);
     const cases: Array<[() => void, string]> = [
       [() => (chain.product = { ...chain.product, settlement: SESSIONPAY }), "wrong_settlement"],
-      [() => (chain.product = { ...chain.product, param: keccak256(toBytes("autre-modele")) }), "model_mismatch"],
+      [() => (chain.product = { ...chain.product, param: keccak256(toBytes("another-model")) }), "model_mismatch"],
       [() => (chain.operator = zeroAddress), "enclave_inactive"],
       [() => (chain.operator = "0x000000000000000000000000000000000000dEaD"), "wrong_operator"],
       [() => (chain.product = { ...chain.product, active: false }), "product_inactive"],

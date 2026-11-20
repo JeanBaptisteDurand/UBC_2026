@@ -118,7 +118,7 @@ for (const [ename, bin, engine] of engines) {
           await rpc(url, "eth_chainId");
           break;
         } catch {
-          if (i > 150) throw new Error("anvil de base injoignable");
+          if (i > 150) throw new Error("base anvil unreachable");
           await new Promise((r) => setTimeout(r, 100));
         }
       }

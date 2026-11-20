@@ -896,7 +896,7 @@ describe("x402: proofs A, B, C2, D and F of the evening of 9 Nov, turned around"
     const codes: Array<string | undefined> = [];
     for (let i = 0; i < 8; i++) codes.push((await tryCall(broke, `x${i}`)).code);
     expect(codes).toEqual([...Array(4).fill("insufficient_funds"), ...Array(4).fill("rate_limited")]); // 5 tokens, 1 of them taken by the known payer
-    expect((await tryCall(clientOf(w, e, payerWallet(), {}, fromIp(e, "::ffff:198.51.100.4")), "autre")).code).toBe("insufficient_funds");
+    expect((await tryCall(clientOf(w, e, payerWallet(), {}, fromIp(e, "::ffff:198.51.100.4")), "other")).code).toBe("insufficient_funds");
     expect((await tryCall(clientOf(w, e, known, {}, fromIp(e, "203.0.113.7")), "k2")).ok).toBe(true);
   }, 60_000);
 });

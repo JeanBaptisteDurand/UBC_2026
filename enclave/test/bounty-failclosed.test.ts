@@ -114,7 +114,7 @@ function forgedClaim(content: { predicate?: unknown; predicateJson?: string; txs
   const cP = deterministicSeal(toBytes(protocol.x25519PublicKey), utf8(text), toBytes(R));
   const txs = Array.isArray(content.txs) && content.txs.every((t) => typeof t === "string") ? (content.txs as Hex[]) : ["0x"] as Hex[];
   const claim: Claim = {
-    bountyId: 1n, payee: getAddress(HUNTER), blockN: 10n, blockHashN: keccak256(toBytes("bloc 10")), predicateHash: o.predicateHash ?? view.predicateHash,
+    bountyId: 1n, payee: getAddress(HUNTER), blockN: 10n, blockHashN: keccak256(toBytes("block 10")), predicateHash: o.predicateHash ?? view.predicateHash,
     loss: 5_000_000n, tier: 0, fingerprint: exploitFingerprint({ txs }), cPHash: keccak256(cP), deadline: 99n,
   };
   return { claim, cP };
@@ -200,7 +200,7 @@ describe.skipIf(!ANVIL)(`1 — the replay fails closed (real anvil: ${ANVIL ?? "
         await rpc(url, "eth_chainId");
         break;
       } catch {
-        if (i > 150) throw new Error("anvil de base injoignable");
+        if (i > 150) throw new Error("base anvil unreachable");
         await new Promise((r) => setTimeout(r, 100));
       }
     }

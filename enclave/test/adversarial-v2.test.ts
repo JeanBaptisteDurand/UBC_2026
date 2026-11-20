@@ -153,7 +153,7 @@ describe("adversarial v2: the inference gateway, whom does it serve and who pays
     const gw = gateway(kit, reader, llama);
     for (let i = 0; i < 20; i++) expect(await statusOf(gw.handle(1n, 1n, "long prompt", {}))).toBe(402);
     expect(llama.calls, "one single call to the model, never replayed at the operator's expense").toBe(1);
-    const r = await gw.handle(1n, 2n, "autre chose", {});
+    const r = await gw.handle(1n, 2n, "something else", {});
     expect(r.status).toBe(402); // every request of the session waits for the balance to cover the kept answer
     if (r.status === 402) expect(r.pending).toEqual({ seq: 1n, cost: 48n * 200n });
     expect(gw.lastReceipt(1n), "nothing is signed while the answer is not covered").toBeUndefined();

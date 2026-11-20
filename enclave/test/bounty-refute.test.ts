@@ -281,7 +281,7 @@ describe("refutation: the exploit must give back the claim, otherwise nothing is
 
   it("cP established but the SIGNED fingerprint is not its own → \"not proven\" without a replay (cP is not the announced exploit)", async () => {
     const honest = await claimFrom(5_000_000n);
-    const forged: Claim = { ...honest.claim, fingerprint: keccak256(toBytes("autre exploit")) };
+    const forged: Claim = { ...honest.claim, fingerprint: keccak256(toBytes("another exploit")) };
     const chain = new FakeChain();
     chain.accept(forged, [OP_A]);
     const B = refuter(chain, OP_B, 5_000_000n);

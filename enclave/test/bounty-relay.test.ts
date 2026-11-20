@@ -248,7 +248,7 @@ describe("1 — strict relay: each answer of the fork's RPC is checked before it
       expect(ok.violation?.kind).toBe("chain");
       await ok.close();
 
-      const wrongAnchor = await startStrictRelay({ upstream: up.url, blockN: N, anchorHash: h32("autre bloc N") });
+      const wrongAnchor = await startStrictRelay({ upstream: up.url, blockN: N, anchorHash: h32("another block N") });
       await expect(wrongAnchor.anchor()).rejects.toMatchObject({ kind: "chain" });
       expect((await get(wrongAnchor, N)).error).toBeDefined();
       await wrongAnchor.close();
@@ -465,7 +465,7 @@ for (const [ename, bin, engine] of engines) {
           await rpc(url, "eth_chainId");
           break;
         } catch {
-          if (i > 150) throw new Error("anvil de base injoignable");
+          if (i > 150) throw new Error("base anvil unreachable");
           await new Promise((r) => setTimeout(r, 100));
         }
       }
@@ -617,7 +617,7 @@ for (const [ename, bin, engine] of engines) {
 describe("3 — the block N loaded by the engine must be the anchor's", () => {
   let dir = "";
   beforeAll(() => {
-    dir = mkdtempSync(join(tmpdir(), "faux-moteur-"));
+    dir = mkdtempSync(join(tmpdir(), "fake-engine-"));
   });
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
@@ -652,7 +652,7 @@ createServer((rq, rs) => {
         bountyId: 1n, payee: HUNTER, capital: 0n, predicate: { combine: "OR", clauses: [{ type: "NATIVE_DROP", holder: HUNTER, min: "1" }] },
         txs: [encodeExploitTx({ to: HUNTER, data: "0x" })], r: R, cP: "0x",
       };
-      const liar = new AnvilForkRunner({ forkUrl: up.url, anvilBin: fakeEngine(h32("un autre bloc N")), engine: "anvil", log: () => {}, timeoutMs: 20_000 });
+      const liar = new AnvilForkRunner({ forkUrl: up.url, anvilBin: fakeEngine(h32("yet another block N")), engine: "anvil", log: () => {}, timeoutMs: 20_000 });
       const err = await liar.run({ blockN: N, bundle, expectedBlockHash: hashOf(N) }).catch((e) => e);
       expect(err).toBeInstanceOf(ReplayUnavailableError);
       expect(err.reason).toBe("anchor");
@@ -660,11 +660,11 @@ createServer((rq, rs) => {
       // and a fork RPC that does not serve the anchor is stopped BEFORE the engine is started
       const before = up.calls.length;
       const wrong = new AnvilForkRunner({ forkUrl: up.url, anvilBin: "/nonexistent/anvil", engine: "anvil", log: () => {} });
-      await expect(wrong.run({ blockN: N, bundle, expectedBlockHash: h32("autre ancre") })).rejects.toMatchObject({ reason: "anchor" });
+      await expect(wrong.run({ blockN: N, bundle, expectedBlockHash: h32("another anchor") })).rejects.toMatchObject({ reason: "anchor" });
       expect(up.calls.length).toBe(before + 1);
       // an UNEXPECTED exception during the replay (here: the engine returns an unreadable head, BigInt throws): 503 "internal",
       // never cached as a replay failure (point 5: nothing cached)
-      const odd = new AnvilForkRunner({ forkUrl: up.url, anvilBin: fakeEngine(hashOf(N), "pas-un-nombre"), engine: "anvil", log: () => {}, timeoutMs: 20_000 });
+      const odd = new AnvilForkRunner({ forkUrl: up.url, anvilBin: fakeEngine(hashOf(N), "not-a-number"), engine: "anvil", log: () => {}, timeoutMs: 20_000 });
       const e2 = await odd.run({ blockN: N, bundle, expectedBlockHash: hashOf(N) }).catch((e) => e);
       expect(e2).toMatchObject({ reason: "internal" });
       expect(isMemorizableFailure(e2)).toBe(false);

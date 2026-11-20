@@ -82,7 +82,7 @@ describe.skipIf(!ANVIL)(`refutation demo on a local chain (real contracts, repla
         const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_chainId", params: [] }) });
         if (r.ok) break;
       } catch {
-        if (i > 120) throw new Error("anvil local injoignable");
+        if (i > 120) throw new Error("local anvil unreachable");
       }
       await new Promise((r) => setTimeout(r, 100));
     }

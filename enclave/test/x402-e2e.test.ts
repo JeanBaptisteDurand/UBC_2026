@@ -130,7 +130,7 @@ function fakePub(w: World): any {
       }
     },
     async simulateContract(a: any) {
-      if (w.simulateDown) throw new Error("RPC injoignable");
+      if (w.simulateDown) throw new Error("RPC unreachable");
       if (a.functionName !== "settle" || L(a.address) !== L(D.x402Settler)) throw new Error(`simulation not emulated: ${a.functionName}`);
       const copy: World = { ...w, used: new Set(w.used), balances: new Map(w.balances), settlements: [...w.settlements] };
       await emulateSettle(copy, a.args); // throws if the transaction would fail

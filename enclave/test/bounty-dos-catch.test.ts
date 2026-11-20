@@ -563,7 +563,7 @@ describe("5 — sorted catches: environment → 503, nothing signed, nothing cac
     let u8: unknown;
     try { new TextDecoder("utf-8", { fatal: true }).decode(new Uint8Array([0xff])); } catch (e) { u8 = e; }
     expect(isInvalidUtf8Error(u8)).toBe(true);
-    expect(isInvalidUtf8Error(new TypeError("autre"))).toBe(false);
+    expect(isInvalidUtf8Error(new TypeError("other"))).toBe(false);
     // HPKE: every error of the library is an HpkeError
     const kit = newKit();
     for (const [enc, ct] of [[randomBytes(32), randomBytes(40)], [randomBytes(5), randomBytes(40)], [new Uint8Array(32), randomBytes(40)], [new Uint8Array(0), new Uint8Array(0)]] as const) {
