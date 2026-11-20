@@ -79,7 +79,12 @@ export function AppHeader({ page, section, sectionText, replay, wallet }: { page
       <div className="hd-row2 lbl" aria-live="off">
         <span className="band-i"><b>{t('band.net')}</b></span>
         <span className="band-i">{t('band.block')} <span className="mono tnum nowrap">{block ? num(block, lang) : t('band.reading')}</span></span>
-        <span className="band-i">{t('band.active')} <span className="mono tnum nowrap">{stats ? `${stats.enclavesActive} / ${stats.enclaves}` : t('band.reading')}</span></span>
+        {/* as on the landing: a live count of verified machines with no ceiling, never a share of the registered ones */}
+        <span className="band-i band-mach">
+          <span className="band-v">{stats ? <><span className="mono tnum">{num(stats.enclavesActive, lang)}</span> {t(stats.enclavesActive === 1 ? 'band.mach1' : 'band.mach')}</> : <>{t('band.mach.r')} <span className="mono">{t('band.reading')}</span></>}</span>
+          <span aria-hidden="true">·</span>
+          <span>{t('band.open')}</span>
+        </span>
         <span className="band-i band-pay">{t('band.paid')} <span className="mono tnum nowrap">{pay ? `${usdc(pay.args.amount ?? pay.args.paidDelta, lang)}, ${t('word.block')} ${num(pay.block, lang)}${payAt ? `, ${ago(payAt, lang)}` : ''}` : activity ? t('end.none') : t('band.reading')}</span></span>
         <span className="band-sec"><span className="sec-n">{sectionText ?? t(section)}</span></span>
       </div>
