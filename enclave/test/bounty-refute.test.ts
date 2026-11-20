@@ -288,7 +288,7 @@ describe("réfutation — l'exploit doit redonner la réclamation, sinon rien n'
     const r = refuted(await B.service.refute(await request(B.kit, forged, [OP_A], { from: "protocol", cP: honest.cP, sharedSecret: sharedSecretOf(honest.cP) })));
     expect(r.refutation).toMatchObject({ proven: false, loss: 0n, tier: 0 });
     expect(r.replay.replayed).toBe(false);
-    expect(r.replay.note).toContain("empreinte");
+    expect(r.replay.note).toContain("fingerprint");
     expect(B.fork.runs).toBe(0);
   });
 
@@ -304,7 +304,7 @@ describe("réfutation — l'exploit doit redonner la réclamation, sinon rien n'
     expect(refusedCode(viaSecret)).toBe("exploit_mismatch");
     const viaKey = refuted(await B.service.refute(await request(B.kit, forged, [OP_A], { from: "protocol", cP: garbage, protocolPrivateKey: toHex(protocol.x25519PrivateKey) })));
     expect(viaKey.refutation).toMatchObject({ proven: false, loss: 0n, tier: 0 });
-    expect(viaKey.replay.note).toContain("illisible");
+    expect(viaKey.replay.note).toContain("unreadable");
     // un « rapport » trop court pour être un scellé (3 octets) : même règle
     const tiny = "0x010203" as Hex;
     const forged2: Claim = { ...honest.claim, cPHash: keccak256(tiny) };
@@ -398,7 +398,7 @@ describe("POST /v1/refute et lecteur on-chain", () => {
     const broken = new RefutationService(B.kit, { sealedBounty: SEALED }, { read: async () => { throw new Error("quorum en désaccord"); } }, new DeterministicProtocolCipher(), fakeFork(0n));
     const r503 = await post(body, createSealedBountyApp({ kit: B.kit, service, refuter: broken, attest }));
     expect(r503.status).toBe(503);
-    expect(((await r503.json()) as any).error).toContain("rien n'est signé");
+    expect(((await r503.json()) as any).error).toContain("nothing is signed");
     expect((await post(body, createSealedBountyApp({ kit: B.kit, service, attest }))).status).toBe(501);
   });
 

@@ -269,7 +269,7 @@ describe.skipIf(!ANVIL)(`1 — le rejeu échoue fermé (anvil réel : ${ANVIL ??
     const p: Predicate = { combine: "OR", clauses: [{ type: "INVARIANT_BROKEN", target: U, call: "0x01" }] };
     const healthy = await claimWith(p, U, url);
     const ok = await healthy.svc.submit(healthy.cE);
-    expect(ok).toMatchObject({ status: "not_proven", reason: "prédicat non satisfait" });
+    expect(ok).toMatchObject({ status: "not_proven", reason: "predicate not satisfied" });
 
     const proxy = await flakyRpc(url, U, 1n, 1);
     try {
@@ -472,7 +472,7 @@ describe("2 — soumission et réfutation : hors règles = refus / faute prouvé
     const text = `{"bountyId":"1","payee":"${HUNTER}","capital":"0","predicate":${p},"txs":["0x${"00".repeat(96)}"],"r":"${R}","cP":"0x","blockN":"1990"}`;
     const res = await svc.submit(await seal(toBytes(kit.keys.x25519PublicKey), utf8(text)));
     expect(res).toMatchObject({ status: "not_proven" });
-    expect((res as any).reason).toMatch(/^prédicat hors règles : prédicat : imbrication de plus de 8 niveaux$/);
+    expect((res as any).reason).toMatch(/^predicate outside the rules: predicate: nesting deeper than 8 levels$/);
     expect(reads + runs).toBe(0);
   });
 
@@ -713,14 +713,14 @@ describe("4 — fuites : notes de rejeu et réponses HTTP à message fixe", () =
       const res = await app.request("/bounty/submit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ enc: toHex(cE.enc), ciphertext: toHex(cE.ciphertext) }) });
       const text = await res.text();
       expect(res.status).toBe(200);
-      expect(JSON.parse(text).reason).toMatch(/^bundle illisible : (JSON attendu|bountyId : entier attendu)$/);
+      expect(JSON.parse(text).reason).toMatch(/^unreadable bundle: (JSON expected|bountyId: integer expected)$/);
       expect(text).not.toMatch(/deadbeef|SECRET|position/);
     }
     // bénéficiaire qui n'est pas une adresse (ou objet imbriqué) : refus déterministe, sans le recopier
     for (const payee of ['"0xSECRET"', `{"a":${deepJson(50_000)}}`]) {
       const text = `{"bountyId":"1","payee":${payee},"capital":"0","predicate":${JSON.stringify(erc20Pred)},"txs":[],"r":"${R}","cP":"0x"}`;
       const cE = await seal(toBytes(kit.keys.x25519PublicKey), utf8(text));
-      expect(await svc.submit(cE)).toEqual({ status: "not_proven", reason: "bundle illisible : payee : adresse attendue (EIP-55 si casse mixte)" });
+      expect(await svc.submit(cE)).toEqual({ status: "not_proven", reason: "unreadable bundle: payee: address expected (EIP-55 if mixed case)" });
     }
   });
 

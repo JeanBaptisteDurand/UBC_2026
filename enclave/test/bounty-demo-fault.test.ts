@@ -357,16 +357,16 @@ describe("DEMO_FAULT — garde-fous", () => {
     expect(parseDemoFault({ DEMO_FAULT: "inflate-loss" }, 5n)).toBe("inflate-loss"); // liste vide : personne n'atteste (fermé)
     expect(() => parseDemoFault({ DEMO_FAULT: "inflate-loss", OPERATOR_ALLOWLIST: A_ADDR }, 2n)).toThrow(/produit 2/);
     expect(() => parseDemoFault({ DEMO_FAULT: "inflate-loss", OPERATOR_ALLOWLIST: A_ADDR }, 0n)).toThrow(/PRODUCT_ID/);
-    expect(() => parseDemoFault({ DEMO_FAULT: "zero-loss", OPERATOR_ALLOWLIST: A_ADDR }, 5n)).toThrow(/inconnue/);
+    expect(() => parseDemoFault({ DEMO_FAULT: "zero-loss", OPERATOR_ALLOWLIST: A_ADDR }, 5n)).toThrow(/unknown/);
     expect(() => parseDemoFault({ DEMO_FAULT: "inflate-loss", OPERATOR_ALLOWLIST: "*" }, 5n)).toThrow(/OPERATOR_ALLOWLIST=\*/);
     expect(() => parseDemoFault({ DEMO_FAULT: "inflate-loss", OPERATOR_ALLOWLIST: `${A_ADDR},${PROTECTED_OPERATORS[0]!.toLowerCase()}` }, 5n)).toThrow(/opérateur principal/);
-    expect(() => parseDemoFault({ DEMO_FAULT: "inflate-loss", OPERATOR_ALLOWLIST: "0x1234" }, 5n)).toThrow(/OPERATOR_ALLOWLIST invalide/);
+    expect(() => parseDemoFault({ DEMO_FAULT: "inflate-loss", OPERATOR_ALLOWLIST: "0x1234" }, 5n)).toThrow(/invalid OPERATOR_ALLOWLIST/);
   });
 
   it("BountyService refuse une faute sur le produit 2, ou inconnue", () => {
     expect(() => claimer({ demoFault: "inflate-loss", kit: newKit(2n) })).toThrow(/produit 2/);
     expect(() => new BountyService(newKit(), { sealedBounty: SEALED, demoFault: "nope" as any }, { getBounty: async () => view }, new DeterministicProtocolCipher(), fakeFork(0n), blocks, () => NOW))
-      .toThrow(/inconnue/);
+      .toThrow(/unknown/);
     expect(() => claimer({ kit: newKit(2n) })).not.toThrow(); // sans faute : le produit 2 tourne comme avant
   });
 
@@ -388,18 +388,18 @@ describe("DEMO_FAULT — garde-fous", () => {
   it.skipIf(!existsSync(TSX))("le VRAI serveur refuse de démarrer avec PRODUCT_ID=2 et DEMO_FAULT (avant toute autre chose)", () => {
     const r = runServer({ PRODUCT_ID: "2", DEMO_FAULT: "inflate-loss", OPERATOR_ALLOWLIST: A_ADDR });
     expect(r.status).toBe(1);
-    expect(r.stderr).toMatch(/DEMO_FAULT refusée pour le produit 2.*arrêt/);
-    expect(r.stderr).not.toMatch(/anvil introuvable/); // arrêté AVANT le contrôle du moteur
+    expect(r.stderr).toMatch(/DEMO_FAULT refused for product 2.*stopping/);
+    expect(r.stderr).not.toMatch(/anvil not found/); // arrêté AVANT le contrôle du moteur
     expect(r.stdout).not.toMatch(/sealed-bounty \(O3\) sur/);
 
     // contre-épreuve : produit 5 → la ligne de journal de la faute, puis l'arrêt vient du moteur absent (pas de la faute)
     const ok = runServer({ PRODUCT_ID: "5", DEMO_FAULT: "inflate-loss", OPERATOR_ALLOWLIST: A_ADDR });
     expect(ok.status).toBe(1);
-    expect(ok.stderr).toMatch(/DEMO_FAULT=inflate-loss : enclave de DÉMONSTRATION volontairement fautive \(produit 5\)/);
-    expect(ok.stderr).toMatch(/anvil introuvable/);
+    expect(ok.stderr).toMatch(/DEMO_FAULT=inflate-loss: deliberately faulty DEMO enclave \(product 5\)/);
+    expect(ok.stderr).toMatch(/anvil not found/);
     // sans la variable, le produit 2 démarre comme avant (ici arrêté par le moteur absent, sans un mot de la faute)
     const prod = runServer({ PRODUCT_ID: "2", OPERATOR_ALLOWLIST: A_ADDR });
-    expect(prod.stderr).toMatch(/anvil introuvable/);
+    expect(prod.stderr).toMatch(/anvil not found/);
     expect(prod.stderr).not.toMatch(/DEMO_FAULT/);
   }, 120_000);
 });

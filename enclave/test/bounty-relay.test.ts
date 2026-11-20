@@ -505,7 +505,7 @@ for (const [ename, bin, engine] of engines) {
     it("preuve e1-A : un RPC qui rend null UNE fois le bloc N − 1 → AUCUNE réclamation signée (503) ; témoin sain : « non prouvée »", async () => {
       const p: Predicate = { combine: "OR", clauses: [{ type: "NATIVE_DROP", holder: COIN_PLAY, min: "1" }] };
       const ok = await claimWith(p, COIN_PLAY, "0x", url);
-      expect(await ok.svc.submit(ok.cE)).toMatchObject({ status: "not_proven", reason: "prédicat non satisfait" });
+      expect(await ok.svc.submit(ok.cE)).toMatchObject({ status: "not_proven", reason: "predicate not satisfied" });
       const proxy = await forgingProxy(url, nullAt(() => Nb - 1n));
       try {
         const bad = await claimWith(p, COIN_PLAY, "0x", proxy.url);
@@ -588,7 +588,7 @@ for (const [ename, bin, engine] of engines) {
       expect(res.status).toBe(503);
       expect(await res.json()).toEqual({ error: UNAVAILABLE.submit });
       const wide = await claimWith(p, SPRAY, "0x01", url, { maxForkRequests: 20_000 });
-      expect(await wide.svc.submit(wide.cE)).toMatchObject({ status: "not_proven", reason: "prédicat non satisfait" });
+      expect(await wide.svc.submit(wide.cE)).toMatchObject({ status: "not_proven", reason: "predicate not satisfied" });
     }, 240_000);
 
     it("contrôle du démarrage : réponses invalides refusées par le relais (bloc null, stockage mal formé), contrôle positif ; relais transparent → refus de démarrer", async () => {

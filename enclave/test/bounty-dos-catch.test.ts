@@ -265,7 +265,7 @@ describe("3 — /bounty/submit : débit limité, même chiffré = même résulta
     const post = async (b: { enc: string; ciphertext: string }) => app.request("/bounty/submit", json({ enc: b.enc, ciphertext: b.ciphertext }));
     for (let i = 0; i < 5; i++) {
       const res = await post(await sealed(kit, { plain: `{"pas":"un bundle ${i}"` }));
-      expect(await res.json()).toMatchObject({ status: "not_proven", reason: "bundle illisible : JSON attendu" });
+      expect(await res.json()).toMatchObject({ status: "not_proven", reason: "unreadable bundle: JSON expected" });
     }
     expect((await post(await sealed(kit, { capital: 1n }))).status).toBe(200);
     expect((await post(await sealed(kit, { capital: 2n }))).status).toBe(200);
@@ -301,7 +301,7 @@ describe("3 — /bounty/submit : débit limité, même chiffré = même résulta
     let opens = 0;
     (kit as any).open = async (...a: Parameters<EnclaveKit["open"]>) => { opens++; return realOpen(...a); };
     const bad = await seal(toBytes(generateEnclaveKeys().x25519PublicKey), utf8("{}"));
-    for (let i = 0; i < 2; i++) expect(await svc.submit(bad)).toMatchObject({ status: "not_proven", reason: expect.stringMatching(/^cE indéchiffrable/) });
+    for (let i = 0; i < 2; i++) expect(await svc.submit(bad)).toMatchObject({ status: "not_proven", reason: expect.stringMatching(/^cE cannot be decrypted/) });
     expect(opens).toBe(2);
   });
 

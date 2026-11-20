@@ -161,10 +161,10 @@ describe("bounties with k enclaves: (N, deadline) supplied by the hunter", () =>
     const tx = (i: number) => [("0x" + i.toString(16).padStart(8, "0")) as Hex]; // distinct fingerprints
 
     expect(refused(await service.submit(await bundleFor(kit, { txs: tx(1), blockN: 1_999n })))).toContain("[1744, 1998]");
-    expect(refused(await service.submit(await bundleFor(kit, { txs: tx(2), blockN: 1_743n })))).toContain("bloc N 1743 refusé");
-    expect(refused(await service.submit(await bundleFor(kit, { txs: tx(3), deadline: NOW })))).toContain("échéance");
-    expect(refused(await service.submit(await bundleFor(kit, { txs: tx(4), deadline: NOW + 601n })))).toContain("échéance");
-    expect(refused(await service.submit(await bundleFor(kit, { txs: tx(5), blockN: "pas-un-bloc" })))).toContain("blockN invalide");
+    expect(refused(await service.submit(await bundleFor(kit, { txs: tx(2), blockN: 1_743n })))).toContain("block N 1743 refused");
+    expect(refused(await service.submit(await bundleFor(kit, { txs: tx(3), deadline: NOW })))).toContain("deadline");
+    expect(refused(await service.submit(await bundleFor(kit, { txs: tx(4), deadline: NOW + 601n })))).toContain("deadline");
+    expect(refused(await service.submit(await bundleFor(kit, { txs: tx(5), blockN: "not-a-block" })))).toContain("blockN invalid");
 
     expect(proven(await service.submit(await bundleFor(kit, { txs: tx(6), blockN: 1_744n }))).claim.blockN).toBe(1_744n);
     expect(proven(await service.submit(await bundleFor(kit, { txs: tx(7), blockN: 1_998n }))).claim.blockN).toBe(1_998n);
@@ -179,8 +179,8 @@ describe("anti-equivocation: never two different claims for the same (bounty, fi
     const first = proven(await service.submit(await bundleFor(kit, { blockN: 1_990n, deadline: NOW + 300n })));
 
     const other = refused(await service.submit(await bundleFor(kit, { blockN: 1_991n, deadline: NOW + 300n })));
-    expect(other).toContain("déjà signée");
-    expect(other).toContain("bloc N 1990"); // the hunter knows what to align its other enclaves on
+    expect(other).toContain("already signed");
+    expect(other).toContain("block N 1990"); // the hunter knows what to align its other enclaves on
     refused(await service.submit(await bundleFor(kit, { blockN: 1_990n, deadline: NOW + 301n })));
 
     const again = proven(await service.submit(await bundleFor(kit, { blockN: 1_990n, deadline: NOW + 300n })));
@@ -191,7 +191,7 @@ describe("anti-equivocation: never two different claims for the same (bounty, fi
     expect(retry.claim).toEqual(first.claim);
     expect(retry.signature).toBe(first.signature);
 
-    expect(refused(await service.submit(await bundleFor(kit, { payee: OTHER_HUNTER })))).toContain("une autre réclamation");
+    expect(refused(await service.submit(await bundleFor(kit, { payee: OTHER_HUNTER })))).toContain("another claim");
   });
 
   it("concurrent submissions of the same exploit at different (N, deadline) => only one signed", async () => {
@@ -248,7 +248,7 @@ describe("Sealed Bounty v2 server", () => {
 
     const sixteen = Array.from({ length: 16 }, (_, i) => BigInt(i + 1));
     expect((await chainBountyReader(new RpcQuorum([fakeChain(sixteen)]), SEALED).getBounty(1n)).tierMinLoss).toEqual(sixteen);
-    await expect(chainBountyReader(new RpcQuorum([fakeChain([...sixteen, 17n])]), SEALED).getBounty(1n)).rejects.toThrow(/plus de 16 paliers/);
+    await expect(chainBountyReader(new RpcQuorum([fakeChain([...sixteen, 17n])]), SEALED).getBounty(1n)).rejects.toThrow(/more than 16 tiers/);
   });
 
   it("POST /bounty/submit: one service for the enclave's whole life; the tiers sent by the hunter are ignored", async () => {
@@ -275,6 +275,6 @@ describe("Sealed Bounty v2 server", () => {
     expect(one.claim).toMatchObject({ blockN: "1990", deadline: String(NOW + 300n), tier: 0, loss: "5000000" });
     const two = await post({ blockN: 1_995n, deadline: NOW + 300n }); // same service: the memory holds between requests
     expect(two.status).toBe("not_proven");
-    expect(two.reason).toContain("déjà signée");
+    expect(two.reason).toContain("already signed");
   });
 });

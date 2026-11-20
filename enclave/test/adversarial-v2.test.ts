@@ -290,6 +290,6 @@ describe("adverse v2 — Prime scellée : un exploit, combien de paiements ? (co
     const { kit, service } = bountyEnclave();
     const res = await service.submit(await bundleFor(kit, ["0xabc" as Hex]));
     expect(res.status).toBe("not_proven");
-    if (res.status === "not_proven") expect(res.reason).toContain("hexadécimal pair");
+    if (res.status === "not_proven") expect(res.reason).toContain("even-length hexadecimal");
   });
 });
