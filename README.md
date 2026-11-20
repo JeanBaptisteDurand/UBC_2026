@@ -310,8 +310,8 @@ live network.
 - **Intel DCAP on Arc** (`dcap-integration/`): Automata's verifier deployed on 7 Nov with Intel's collateral,
   refreshed on 9 Nov.
 - **Enclave kit and products** (`enclave/`): private AI (prepaid sessions and pay per call), the sealed bounty with its
-  `arc-anvil` replay, the refutation demo and the verified bounty. The first enclaves were admitted on 7 Nov, and the
-  first runs on v2.1 date from 9 to 11 Nov.
+  `arc-anvil` replay, the refutation demo and the verified bounty. Enclaves were first admitted through Intel DCAP on
+  7 Nov, and the first runs on v2.1 date from 9 to 11 Nov.
 - **SDK, `arcvault` CLI and operator agent** (`packages/`).
 - **Read API and registrar** (`services/api`, `services/registrar`).
 - **Console** (`web/`), served at the server's address.
