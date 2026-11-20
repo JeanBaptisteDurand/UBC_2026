@@ -69,7 +69,8 @@ below opens on the explorer at `https://explorer.testnet.arc.io/tx/<hash>`.
 
 **Try it with a wallet:**
 
-1. **Get test USDC** from https://faucet.circle.com: 20 USDC every 2 hours on Arc testnet, where USDC also pays the gas.
+1. **Get test USDC** from https://faucet.circle.com: 20 USDC every 2 hours on Arc testnet, where USDC also pays the
+   gas.
 2. **Pay for one answer**: one 0.01 USDC call to product 3 from the console's pay-per-call chat
    (https://archive.62-171-153-35.sslip.io/console/), or a prepaid session on product 1 from *My space* on
    https://arc-hive.xyz. The operator then settles it on Arc: 95 % to the operator and 5 % to the network, in one
@@ -356,9 +357,9 @@ AskHive only read and prepare, and a person signs what they prepare, in their ow
    sent by the operator, 0.01 USDC leaves the payer: 0.0095 to the operator, 0.0005 to the network treasury.
 6. **On a lie.** Two different signed answers to the same request (`SessionPay.reportEquivocation`), or a bounty claim
    refuted by the enclaves of at least two other operators within 3 days (`SealedBounty.refute`), seize the operator's
-   whole bond and ban it, and `VerdictLog` writes 0 to the ERC-8004 validation registry on Arc. A session that was served and paid closes
-   with a verdict of 100. The refutation demo ran on Arc on 10 Nov, and sessions closed with 100 on 9 and 19 Nov
-   (see [Proofs on Arc testnet](#proofs-on-arc-testnet)).
+   whole bond and ban it, and `VerdictLog` writes 0 to the ERC-8004 validation registry on Arc. A session that was
+   served and paid closes with a verdict of 100. The refutation demo ran on Arc on 10 Nov, and sessions closed with 100
+   on 9 and 19 Nov (see [Proofs on Arc testnet](#proofs-on-arc-testnet)).
 
 Every payment in [our proofs](#proofs-on-arc-testnet) came from our own testnet wallets.
 [`packages/sdk/scripts/x402-call.ts`](packages/sdk/scripts/x402-call.ts) is a buyer that runs this loop with the SDK.
@@ -628,7 +629,7 @@ services/registrar/ operator service: renews admissions, settles sessions and pa
 services/copilot/   AskHive and the console copilot: read the chain, drive the site, prepare transactions to sign
 services/mcp/       MCP server for AI agents (Streamable HTTP and stdio)
 frontend/           the marketplace site (Vite, React, three.js)
-web/                the console (React, English and French) and the 3D server room (web/public/datacenter)
+web/                the console (React, in English) and the 3D server room (web/public/datacenter)
 deploy/             server deployment (built on the server from this source)
 docs/               operator levels, the AskHive and MCP contract, screenshots of the site
 deployments.*.json  every deployed address and transaction: v2, v2.1 (live), v3, Intel's DCAP verifier
