@@ -50,18 +50,30 @@ rack is a product with its live state; the others are open slots.
 The same site also answers at the server's own address, https://archive.62-171-153-35.sslip.io. The console and the
 operators' wallet sign-in run there, and https://arc-hive.xyz/console/ redirects to it.
 
-## Check it in two minutes, no wallet needed
+## Check it in two minutes
 
-1. **See what runs now**, with the key of each enclave Arc admitted:
-   `curl -s https://arc-hive.xyz/api/enclaves`
-2. **Replay Arc's admission check.** On the home page, in the *Arc check* section ("Arc admits the enclave or refuses
+**No wallet, about 60 s:**
+
+1. **Replay Arc's admission check.** On the home page, in the *Arc check* section ("Arc admits the enclave or refuses
    it"), press **Change one byte**. Arc recomputes the image fingerprint in a read-only call and refuses the machine.
-3. **Ask AskHive** (bottom right of the site): *"Does this chat run in an enclave?"* The panel shows its connection to
+2. **Ask AskHive** (bottom right of the site): *"Does this chat run in an enclave?"* The panel shows its connection to
    the enclave whose key Arc holds for product 4, and the answer comes back sealed by that enclave.
-4. **Open any transaction below** on the explorer: `https://explorer.testnet.arc.io/tx/<hash>`.
-5. **Check without a browser**, with Foundry's `cast`:
-   `cast receipt 0xde9628b23d0483bb666a0cd13c55c4f32a1204151323a80da9451b0aeb330176 --rpc-url https://rpc.testnet.arc.io`
-   shows AskHive's enclave admission: status 1 (success), 6,849,074 gas, sent to the `EnclaveRegistry`.
+3. **Plug the MCP server into your agent**, then ask it what runs on ArcHive:
+   `claude mcp add --transport http archive https://arc-hive.xyz/mcp`
+
+**Without a browser:** `curl -s https://arc-hive.xyz/api/enclaves` lists what runs now, with the key of each enclave
+Arc admitted. With Foundry's `cast`,
+`cast receipt 0xde9628b23d0483bb666a0cd13c55c4f32a1204151323a80da9451b0aeb330176 --rpc-url https://rpc.testnet.arc.io`
+shows AskHive's enclave admission: status 1 (success), 6,849,074 gas, sent to the `EnclaveRegistry`. Any transaction
+below opens on the explorer at `https://explorer.testnet.arc.io/tx/<hash>`.
+
+**Try it with a wallet:**
+
+1. **Get test USDC** from https://faucet.circle.com: 20 USDC every 2 hours on Arc testnet, where USDC also pays the gas.
+2. **Pay for one answer**: one 0.01 USDC call to product 3 from the console's pay-per-call chat
+   (https://archive.62-171-153-35.sslip.io/console/), or a prepaid session on product 1 from *My space* on
+   https://arc-hive.xyz. The operator then settles it on Arc: 95 % to the operator and 5 % to the network, in one
+   transaction.
 
 ## The first services on the marketplace
 
