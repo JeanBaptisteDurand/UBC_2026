@@ -8,6 +8,7 @@
  *    address resolved once, no redirect followed, error body never returned. MCP_ALLOW_PRIVATE_URLS=1 (local
  *    development: a VM on the local network) allows private networks, http and any port, with the other guards kept. */
 import { readFileSync } from "node:fs";
+import { basename } from "node:path";
 import { createPublicClient, http, formatUnits, parseUnits } from "viem";
 import { arcTestnet, createArcClient, normalizeReceipt, testnet, deploymentFromJson, type ArcClient, type Deployment } from "@arcvault/sdk";
 import {
@@ -19,34 +20,60 @@ import { archiveBase, freshness, ListUnavailableError } from "../../copilot/src/
 import { parsePrefixes } from "../../copilot/src/net-guard";
 import { englishValue, englishOutput } from "./english";
 
-/** The stack the tools read, WITH the levels (levels: SealedBountyVerified, product 7). DEPLOYMENTS (path to a
- *  deployments.*.json) when given, otherwise the SDK's v2.1 stack (`testnet`, levels included), like the copilot
- *  (services/copilot/src/copilot.ts). The levels let the tools recognise product 7's settlement contract and prepare its
- *  bounties on SealedBountyVerified (verified level), not on SealedBounty (open level). */
+/** The deployment file each stack came from (its name only), for the SDK calls the tools write (stackSdkCall). */
+const DEPLOYMENT_FILES = new WeakMap<Deployment, string>();
+
+/** The stack the tools read, WITH the levels (levels: SealedBountyVerified, the verified Sealed Bounty: product 5 on v3,
+ *  product 7 on v2.1). DEPLOYMENTS (path to a deployments.*.json, e.g. deployments.v3.testnet.json) when given,
+ *  otherwise the SDK's built-in stack (`testnet`, v2.1, levels included), like the copilot
+ *  (services/copilot/src/copilot.ts). The levels let the tools recognise the verified level's settlement contract and
+ *  prepare its bounties on SealedBountyVerified (verified level), not on SealedBounty (open level). */
 export function mcpDeployment(env: NodeJS.ProcessEnv = process.env): Deployment {
   const p = env.DEPLOYMENTS?.trim();
   const d = p ? deploymentFromJson(JSON.parse(readFileSync(p, "utf8"))) : testnet;
-  if (!d.levels?.sealedBountyVerified) console.warn("[mcp] stack without levels: product 7 (SealedBountyVerified) will not be recognised");
+  if (!d.levels?.sealedBountyVerified) console.warn("[mcp] stack without levels: the verified level (SealedBountyVerified) will not be recognised");
+  if (p) {
+    // said once at start, on stderr (stdout carries the stdio transport): which stack this process reads
+    console.error(`[mcp] stack ${p}: EnclaveRegistry ${d.enclaveRegistry}, SealedBounty ${d.sealedBounty}, SealedBountyVerified ${d.levels?.sealedBountyVerified ?? "none"}`);
+    DEPLOYMENT_FILES.set(d, basename(p));
+  }
   return d;
 }
 
 /** The former SealedBountyVerified (product 6), superseded by 0x36a8… (product 7): it no longer settles anything. */
 const SUPERSEDED_SBV = new Set(["0x242ca1c4d0a5a6fe5a806f215ca5f127422364d2"]);
+/** v2.1's SealedBounty, whose product 5 is the refutation demo (10 Nov 2026). On v3, product 5 is the verified level. */
+const REFUTATION_DEMO_SB = "0x182871d34438ab37a7fd4d8689f3e0812e447a9b";
 
-/** A product's settlement label, as the agent should read it (products 5, 6 and 7 spelled out). */
+/** A product's settlement label, as the agent should read it: the verified level apart from the open one (product 5 on
+ *  v3, product 7 on v2.1) and, on v2.1 only, product 5 (the refutation demo) and product 6 (neutralized) spelled out. */
 export function productRail(arc: ArcClient, id: string, settlement: string): string {
   const s = String(settlement).toLowerCase();
   if (arc.d.levels && s === arc.d.levels.sealedBountyVerified.toLowerCase()) return "SealedBountyVerified (Sealed Bounty, verified operator level)";
   if (SUPERSEDED_SBV.has(s)) return "neutralized, replaced by #7 (the former SealedBountyVerified, replaced on 11 Nov 2026: it settles nothing; the verified Sealed Bounty is product 7)";
-  if (id === "5" && s === arc.d.sealedBounty.toLowerCase()) return "SealedBounty (Sealed Bounty, open level): refutation demo (a lying enclave refuted, its bond slashed, 10 Nov 2026)";
+  if (id === "5" && s === REFUTATION_DEMO_SB) return "SealedBounty (Sealed Bounty, open level): refutation demo (a lying enclave refuted, its bond slashed, 10 Nov 2026)";
   if (s === arc.d.sealedBounty.toLowerCase()) return "SealedBounty (Sealed Bounty, open level)";
   // the copilot's French rail label (arc-actions.ts, railOf), in English (english.ts)
   return englishValue(railOf(arc, settlement));
 }
 
-/** The bounties of BOTH levels, read from the API's index (/bounties?level=all): open level (SealedBounty, products 2
- *  and 5) and verified level (SealedBountyVerified, product 7). A number alone does not identify a bounty (each contract
- *  has its own #1, #2…), so each row gives its level, its contract and its address. No API answer = list unavailable. */
+/** The products each Sealed Bounty level settles, read from the API's product list (the active products whose
+ *  settlement is that level's contract): " (product 2)", " (products 2 and 5)", or "" if the list is unavailable. On v3:
+ *  open = product 2, verified = product 5; on v2.1: open = products 2 and 5 (the refutation demo), verified = product 7. */
+async function levelProducts(arc: ArcClient, actx: ActionCtx): Promise<{ open: string; verified: string }> {
+  let ps: Array<{ id: string; state: string; settlement: string }> = [];
+  try { ps = (await productsList(arc, { all: true }, actx)).produits; } catch { /* list unavailable: the levels without their numbers */ }
+  const of = (contract: string | undefined) => {
+    const ids = contract ? ps.filter((p) => p.state === "Active" && String(p.settlement).toLowerCase() === contract.toLowerCase()).map((p) => p.id) : [];
+    return ids.length === 0 ? "" : ids.length === 1 ? ` (product ${ids[0]})` : ` (products ${ids.slice(0, -1).join(", ")} and ${ids[ids.length - 1]})`;
+  };
+  return { open: of(arc.d.sealedBounty), verified: of(arc.d.levels?.sealedBountyVerified) };
+}
+
+/** The bounties of BOTH levels, read from the API's index (/bounties?level=all): open level (SealedBounty) and verified
+ *  level (SealedBountyVerified), with the products each level settles (levelProducts). A number alone does not identify
+ *  a bounty (each contract has its own #1, #2…), so each row gives its level, its contract and its address. No API
+ *  answer = list unavailable. */
 async function bountiesAllLevels(arc: ArcClient, actx: ActionCtx, onlyOpen: boolean) {
   const base = archiveBase(actx.apiBase);
   let j: unknown;
@@ -77,6 +104,7 @@ async function bountiesAllLevels(arc: ArcClient, actx: ActionCtx, onlyOpen: bool
       deadline: new Date(Number(deadline) * 1000).toISOString(), paused, expired, open: !paused && !expired && balance > 0n,
     };
   });
+  const lv = await levelProducts(arc, actx);
   return {
     total: rows.length,
     ouvertes: rows.filter((r) => r.open).length,
@@ -85,7 +113,7 @@ async function bountiesAllLevels(arc: ArcClient, actx: ActionCtx, onlyOpen: bool
       verified: { contrat: "SealedBountyVerified", adresse: arc.d.levels?.sealedBountyVerified ?? null, total: rows.filter((r) => r.level === "verified").length, ouvertes: rows.filter((r) => r.level === "verified" && r.open).length },
     },
     luA: new Date(Number(now) * 1000).toISOString(),
-    lecture: "Two levels: open = SealedBounty (products 2 and 5), verified = SealedBountyVerified (product 7). A number alone does not name a bounty: read contract + id (ref).",
+    lecture: `Two levels: open = SealedBounty${lv.open}, verified = SealedBountyVerified${lv.verified}. A number alone does not name a bounty: read contract + id (ref).`,
     liste: await freshness({ base: actx.apiBase }),
     primes: onlyOpen ? rows.filter((r) => r.open) : rows,
     source: `ArcHive API ${base}/bounties?level=all (index of the BountyCreated events of both contracts + getBounty)`,
@@ -133,7 +161,7 @@ const LIST = "Read from the ArcHive API index; if the list is briefly unavailabl
 export const TOOLS = [
   { name: "arc_products", description: `Lists the products of Arc's enclave network (price with its unit, shares, settlement, minimum bond, state). ${LIST}`, inputSchema: { type: "object", properties: { onlyActive: { type: "boolean", description: "true = only the active products" } } } },
   { name: "arc_enclaves", description: `Lists the enclaves (the hive): operator, product, TCB, active or not at the head block, validity window in blocks, registered X25519 key. ${LIST}`, inputSchema: { type: "object", properties: { onlyActive: { type: "boolean", description: "true = only the active enclaves" } } } },
-  { name: "arc_bounties", description: `Lists the sealed bounties of BOTH levels (open: SealedBounty, products 2 and 5; verified: SealedBountyVerified, product 7): level, contract, protocol, product, balance, deadline, pause, open or not. ${LIST}`, inputSchema: { type: "object", properties: { onlyOpen: { type: "boolean", description: "true = only the open bounties" } } } },
+  { name: "arc_bounties", description: `Lists the sealed bounties of BOTH levels (open: SealedBounty; verified: SealedBountyVerified, where only enclaves on a chip declared by a Proof of Cloud auditor count) and the products each level settles: level, contract, protocol, product, balance, deadline, pause, open or not. ${LIST}`, inputSchema: { type: "object", properties: { onlyOpen: { type: "boolean", description: "true = only the open bounties" } } } },
   { name: "arc_sessions", description: `Lists the SessionPay sessions opened by an account: product, deposit, already settled, remainder, closed, expiry. ${LIST}`, inputSchema: { type: "object", properties: { owner: { type: "string", description: "0x… address of the account" } }, required: ["owner"] } },
   { name: "arc_activity", description: `Recent on-chain activity of the network's contracts (enclave registrations, sessions, settlements, bounties, verdicts), newest first. ${LIST}`, inputSchema: { type: "object", properties: { limit: { type: "number", description: "number of events (1 to 50, default 10)" } } } },
   { name: "arc_pricing", description: "Cost of a use: units × the product's price, with a readable line giving the unit (per token for a prepaid session, per call for x402, free, or paid by a bounty's pool).", inputSchema: { type: "object", properties: { productId: { type: "string" }, units: { type: "string" } }, required: ["productId", "units"] } },
@@ -150,7 +178,8 @@ export const TOOLS = [
     clauseType: { type: "string", enum: ["ERC20_DROP", "NATIVE_DROP", "ATTACKER_PROFIT"] },
     token: { type: "string" }, predicate: { type: "object", description: "full predicate { combine, clauses } (advanced)" },
     deadlineDays: { type: "number" }, k: { type: "number" }, singleCap: { type: "string" }, targetToPause: { type: "string" },
-    protocolX25519: { type: "string", description: "the protocol's PUBLIC X25519 key (never the private one)" }, productId: { type: "string" },
+    protocolX25519: { type: "string", description: "the protocol's PUBLIC X25519 key (never the private one)" },
+    productId: { type: "string", description: "the Sealed Bounty product (default: the open level's); arc_bounties names the products of each level" },
   } } },
   { name: "arc_operator_plan", description: "Step-by-step plan to become an operator: Intel TDX VM (Phala), app-compose, /attest, bond, registerEnclave, renewal; the bond rules with the figures read on-chain.", inputSchema: { type: "object", properties: { operator: { type: "string" }, productId: { type: "string" } } } },
   { name: "arc_operator_prepare_bond", description: `Operator bond deposit: EIP-3009 authorization for bond(), or encoded approve + bondFrom; checks balance, ban and minimum bond. ${PREP}`, inputSchema: { type: "object", properties: { operator: { type: "string" }, amount: { type: "string", description: "amount in USDC" }, productId: { type: "string" } } } },
@@ -167,7 +196,7 @@ export const TOOLS = [
 /** The Arc client and the action context of a local MCP process (stdio). */
 export function createMcpContext(env: NodeJS.ProcessEnv = process.env): { arc: ArcClient; actx: ActionCtx } {
   // Arc's public RPC answers 429 to bursts: viem retries with a growing delay
-  // the stack WITH the levels (product 7 = SealedBountyVerified), like the copilot
+  // the stack WITH the levels (SealedBountyVerified: product 5 on v3, product 7 on v2.1), like the copilot
   const arc = createArcClient({ publicClient: createPublicClient({ chain: arcTestnet, transport: http(env.RPC_URL, { retryCount: 5, retryDelay: 400 }) }) as any, deployment: mcpDeployment(env) });
   // Local process (stdio): it returns the full calldata (an agent can pass it as is to the user's wallet, which signs).
   // A malicious enclave URL must not make it read the user's network: same guards as the copilot, except with
@@ -279,6 +308,30 @@ async function pricing(arc: ArcClient, a: any) {
   };
 }
 
+/** The SDK call prepareBountyCreate writes (appelSdk) uses the SDK's built-in stack (`testnet`). On another stack (read
+ *  from DEPLOYMENTS, e.g. v3), the call loads that deployment file, so the bounty is created on the contracts this server
+ *  reads: the ones its EIP-3009 authorization is signed for. */
+export function stackSdkCall<T>(arc: ArcClient, v: T): T {
+  const call = (v as { appelSdk?: unknown } | null)?.appelSdk;
+  if (typeof call !== "string" || arc.d.enclaveRegistry.toLowerCase() === testnet.enclaveRegistry.toLowerCase()) return v;
+  const file = DEPLOYMENT_FILES.get(arc.d) ?? "deployments.<stack>.testnet.json";
+  const load = [
+    `import deploymentsJson from "./${file}" with { type: "json" }; // the repository's ${file}: the stack this server reads, not the SDK's built-in testnet`,
+    "const stack = deploymentFromJson(deploymentsJson); // @arcvault/sdk",
+  ];
+  let loaded = false;
+  const lines = call.split("\n").flatMap((l) => {
+    if (!l.includes("createArcClient(")) return [l];
+    const out = l
+      .replace("deployment: { ...testnet, sealedBounty: testnet.levels!.sealedBountyVerified }", "deployment: { ...stack, sealedBounty: stack.levels!.sealedBountyVerified }")
+      .replace("createArcClient({ publicClient, walletClient })", "createArcClient({ publicClient, walletClient, deployment: stack })");
+    const first = !loaded;
+    loaded = true;
+    return first ? [...load, out] : [out];
+  });
+  return { ...(v as object), appelSdk: lines.join("\n") } as T;
+}
+
 async function run(arc: ArcClient, actx: ActionCtx, name: string, a: any): Promise<unknown> {
   switch (name) {
     case "arc_products": {
@@ -300,7 +353,7 @@ async function run(arc: ArcClient, actx: ActionCtx, name: string, a: any): Promi
     }
     case "arc_enclave_status": return enclaveStatus(arc, a.signer);
     case "arc_session_status": return sessionStatus(arc, a.sessionId);
-    case "arc_bounty_prepare_create": return prepareBountyCreate(arc, a, actx);
+    case "arc_bounty_prepare_create": return stackSdkCall(arc, await prepareBountyCreate(arc, a, actx));
     case "arc_operator_plan": return operatorPlan(arc, a, actx);
     case "arc_operator_prepare_bond": return prepareBond(arc, a, actx);
     case "arc_operator_prepare_register": return prepareRegister(arc, a, actx);
