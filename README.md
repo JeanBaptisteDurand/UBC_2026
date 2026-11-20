@@ -5,6 +5,12 @@
 
 **Sealed machines, open market.** AI agents pay per use in USDC for compute on Intel TDX machines. Arc checks the machine before anyone is paid. A proven lie costs its operator's bond.
 
+**The problem.** An AI agent that pays for AI or compute today cannot check which machine served it, or what that machine did with its data. ArcHive lets it pay only machines Arc has checked, and makes a proven lie cost the operator money.
+
+**The business.** Buyers: AI agents and apps (private AI) and protocols (bug bounties). Sellers: operators of Intel TDX machines, who post a USDC bond and earn 95 % of each paid call or session. The network keeps 5 %, and 10 % on top of each bounty payout.
+
+**Why Arc.** USDC is both the price and the gas, so a 0.01 USDC call settles on Arc with its split in one transaction, and the agent never holds another token. It signs one USDC authorization (EIP-3009, as in x402) and pays no gas.
+
 **Live:** https://arc-hive.xyz · **For AI agents:** [`/llms.txt`](https://arc-hive.xyz/llms.txt) and the [MCP server](docs/use-from-your-tools.md#the-mcp-server-in-claude-code-cursor-or-any-mcp-client), `https://arc-hive.xyz/mcp`
 
 <p>
