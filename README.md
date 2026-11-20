@@ -23,6 +23,7 @@
 | | |
 |---|---|
 | [Try it in two minutes](#try-it-in-two-minutes) | three checks, no wallet needed |
+| [The track, point by point](#the-track-point-by-point) | what Agentic Payments and AI asks for, and where ArcHive does it |
 | [Services](#services) | the five products, who pays and how much |
 | [Architecture](#architecture) | the diagram, in four steps |
 | [How an AI agent pays](docs/agent-payments.md) | the agent's loop, x402 per call and prepaid sessions, the limits that cap its losses |
@@ -43,6 +44,17 @@
 *OpenCode runs on ArcHive's private AI (0.01 USDC per call) and reads the live network through our MCP server, added to its config.*
 
 With a wallet: get test USDC at https://faucet.circle.com, then pay one 0.01 USDC call or open a prepaid session on the site.
+
+## The track, point by point
+
+| Agentic Payments and AI asks for | ArcHive |
+|---|---|
+| A marketplace agents can discover and pay in USDC | ArcHive is that market. Services are listed in a registry contract on Arc, agents find them through the MCP server or `/llms.txt`, and they pay in USDC. Operators can rent out machines and authors can publish services. |
+| Agents that pay for compute per request (x402) | Service 3: an agent pays 0.01 USDC per private AI call, x402 style, with one EIP-3009 signature and no gas. OpenCode, a coding agent, pays each of its own AI calls this way, and so did a Circle developer-controlled wallet. |
+| Spending controls and guardrails | A per-call cap, a session budget with the rest refunded, admitted enclaves and allowed images only, and no signing tool in the MCP: [the limits](docs/agent-payments.md#agent-decision-loop-and-safety-limits). |
+| Tools that let LLMs read and act on the chain safely | The MCP server: 16 tools read Arc and prepare transactions, and the person signs them in their own wallet. |
+| Agents execute onchain transactions or read the chain | The agent's USDC authorizations settle on Arc (`X402Settler`, event `CallSettled`), and the MCP reads Arc live. |
+| Document the agent's decision loop and safety limits | [Agent decision loop and safety limits](docs/agent-payments.md#agent-decision-loop-and-safety-limits) |
 
 ## Services
 
