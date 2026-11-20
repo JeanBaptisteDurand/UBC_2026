@@ -18,8 +18,8 @@ export const arcTestnet = defineChain({
 
 export interface Deployment {
   /** "v2": the v2 family of stacks, v2.1 included (registry wired to the real DCAP module, sessions bound to one
-   *  enclave, two-step bounty payment); "v1": the first stack (test attestation module), kept for the record. */
-  version: "v1" | "v2";
+   *  enclave, two-step bounty payment). */
+  version: "v2";
   chainId: number;
   deployBlock: bigint; // lower bound for reading events (getLogs)
   blockscoutUrl?: string; // event indexer (the public RPC caps getLogs): the "hive" reads from it
@@ -28,7 +28,7 @@ export interface Deployment {
   /** ERC-8004 identity registry (agentId ownership; OperatorBond.setAgentId requires owning it). */
   erc8004Identity: Address;
   history: Address;
-  /** The registry's attestation module: v2 = TdxAttestationModule (Automata's DCAP); v1 = MockAttestationModule. */
+  /** The registry's attestation module: TdxAttestationModule (Automata's DCAP). */
   attestationModule: Address;
   /** Automata's DCAP verifier called by the module (AutomataDcapAttestationFee). */
   dcapAttestation?: Address;
@@ -127,31 +127,6 @@ export const testnetV2: Deployment = {
   attestation: "dcap",
 };
 
-/** The v1 stack on Arc testnet (deployments.testnet.json, 2026-11-03), kept for the record (past sessions and bounties):
- *  its registry uses a TEST attestation module (declared measurements, Intel's signature not checked). The SDK's ABIs
- *  are those of v2: for v1, only the reads common to both stacks are safe. */
-export const testnetV1: Deployment = {
-  version: "v1",
-  chainId: ARC_TESTNET_ID,
-  deployBlock: 70523000n,
-  blockscoutUrl: "https://explorer.testnet.arc.io",
-  usdc: "0x3600000000000000000000000000000000000000",
-  erc8004Validation: "0x8004Cb1BF31DAf7788923b405b754f57acEB4272",
-  erc8004Identity: "0x8004A818BFB912233c491871b3d84c89A494BD9e",
-  history: "0x0000F90827F1C53a10cb7A02335B175320002935",
-  attestationModule: "0x408035F0E84D1e84BA0582d07968d96128524158",
-  productRegistry: "0x0C1634bE7ba6b9615990BADD53De650A90EBb547",
-  operatorBond: "0xb1a198E58dC5706969f80Dd40Cf111e36871de95",
-  enclaveRegistry: "0x741788700D44dA802D579ECD2Aec27878711aeAA",
-  verdictLog: "0x5BfBd5A4c504732fC4EBA27792D8808E1b7A1A68",
-  sessionPay: "0xED501a02a14048118F2ecC21f25D6993707641c7",
-  sealedBounty: "0xAF5055e8559b96f9CE1a09A310a7c7C8dE143310",
-  x402Settler: "0x1FFf7a34d7a3F8562fD3400f05CCbf7BD575E7B9",
-  demoVault: "0xf217A8d61f90B47401216223dab69cfe3cCc1b27",
-  products: { inference: 6n, bounty: 7n },
-  attestation: "dev",
-};
-
 /**
  * A deployment file (deployments.*.testnet.json: { chainId, deployBlock, external: { USDC, … }, contracts:
  * { EnclaveRegistry, … }, treasury, products: { "1": { settlement: "SessionPay" }, … } }) → Deployment. Wires a
@@ -240,6 +215,6 @@ export const SETTLE_GRACE_SECONDS = 3600;
 export const ENCLAVE_EXPIRY_MARGIN_SECONDS = 60;
 /** SealedBounty.MAX_SIGS: at most 5 signatures (so k ≤ 5). */
 export const BOUNTY_MAX_SIGS = 5;
-/** Estimated gas of a registration through the real DCAP (quote verification + policy), measured on Arc testnet with
- *  the v2 registry: ≈ 5.7 M. */
-export const DCAP_REGISTER_GAS_ESTIMATE = 5_700_000n;
+/** Gas of a registration through the real DCAP (quote verification, replay of the RTMR3 event log, policy), measured on
+ *  Arc testnet with the v2.1 stack: 6,849,014 to 6,866,126. */
+export const DCAP_REGISTER_GAS_ESTIMATE = 6_860_000n;
