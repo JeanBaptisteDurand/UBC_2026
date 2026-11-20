@@ -58,15 +58,18 @@ function initial(): string | null {
 const fixHtml = (h: string) => h.replaceAll('href="@hive"', `href="${link.hive}" target="_blank" rel="noreferrer"`).replaceAll('href="@dev"', `href="${link.dev}" target="_blank" rel="noreferrer"`)
   .replaceAll('href="@dc"', `href="${link.datacenter}" target="_blank" rel="noreferrer"`).replace(/href="@api\//g, `href="${API_DIRECT}/`)
 
-/** the live state of a family: running if any of its products has an enclave running; the presentation's word and lamp otherwise
- *  (his "Paused" holds while nothing runs). The refutation and the retired product keep their own words. */
+/** the live state of a family: running if any of its products has an enclave running, the presentation's word and lamp
+ *  ("Not running") otherwise. Before the catalog is read, it says so, as the sled faces do. The refutation and the
+ *  retired product keep their own words. */
 function useFamState() {
   const rows = useCatalog()
+  const status = useLive((s) => s.status)
   return useCallback((id: string, lamp: string, word: string) => {
-    if (id === 'refutation' || id === 'retired' || !rows) return { lamp, word }
+    if (id === 'refutation' || id === 'retired') return { lamp, word }
+    if (!rows) return { lamp: 'off', word: ls(status === 'error' ? 'wDown' : 'wRead') }
     const n = rows.filter((r) => PIDS[id]?.includes(r.p.id)).reduce((a, r) => a + r.running, 0)
     return n > 0 ? { lamp: 'green', word: t('vit.w.on') } : { lamp, word }
-  }, [rows])
+  }, [rows, status])
 }
 
 function Title({ text, acc }: { text: string; acc: string }) {
