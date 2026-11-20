@@ -70,7 +70,7 @@ Gas is paid in USDC, so each check has a price in dollars. Measured on Arc testn
   `SealedBounty` (bounty pools) collect USDC only with `receiveWithAuthorization`: no approval is left behind, and the
   payer of a call pays no gas. `OperatorBond` takes a bond the same way, or by approve and `bondFrom`. Each settlement
   splits the payment in the same transaction (shares in
-  [The first services on the marketplace](../README.md#the-first-services-on-the-marketplace)).
+  [The first services on the marketplace](../README.md#services)).
 
 ### Standards we use
 
@@ -273,3 +273,10 @@ a session. An attestation proves which code ran, not that an AI answer is right,
   Per-read `eth_getProof` proofs are implemented and tested; they turn on with an Arc RPC that serves historical
   proofs.
 - **Scope.** Arc testnet only; 253 Foundry tests and three adversarial reviews by us (no third-party audit), and every payment so far came from our own wallets.
+
+## Feedback for Arc and Circle
+
+- Arc Foundry's `arc-anvil` made exact exploit replays possible: plain anvil cannot reproduce Arc's native USDC.
+- Arc's P-256 precompile is what makes on-chain DCAP affordable.
+- Two asks: an Arc RPC that serves historical `eth_getProof`, and Intel's DCAP verifier on Arc mainnet as a shared
+  public good.
