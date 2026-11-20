@@ -6,7 +6,7 @@
 <text x="32.0" y="48.0" class="s" font-size="30" font-weight="700" fill="#1f2328" text-anchor="start">ArcHive architecture</text>
 <text x="32.0" y="76.0" class="s" font-size="15" font-weight="400" fill="#59636e" text-anchor="start">Sealed machines, open market. AI agents, apps and people pay per use in USDC for work in Intel TDX enclaves that Arc admits and pays on; a lie costs the operator's bond.</text>
 <text x="1572.0" y="44.0" class="s" font-size="14" font-weight="400" fill="#59636e" text-anchor="end">Arc testnet · chainId 5042002</text>
-<text x="1572.0" y="64.0" class="s" font-size="14" font-weight="400" fill="#59636e" text-anchor="end">13 contracts in service and a demo vault, all shown</text>
+<text x="1572.0" y="64.0" class="s" font-size="14" font-weight="400" fill="#59636e" text-anchor="end">v3 · 14 contracts in service, all shown</text>
 <rect x="24" y="112" width="176" height="680" rx="12" fill="#f3f5f8" stroke="#5a6a81" stroke-width="1.5"/>
 <rect x="34" y="121" width="90.8" height="24" rx="6" fill="#ffffff" stroke="#5a6a81" stroke-width="1"/>
 <text x="44.0" y="137.5" class="s" font-size="12.5" font-weight="650" fill="#1f2328" text-anchor="start" letter-spacing="0.6">WHO PAYS</text>
