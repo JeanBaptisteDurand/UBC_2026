@@ -83,11 +83,13 @@ The DAOs refuse a duplicate or older collateral: those upserts are skipped in th
 
 **A new evaluation number.** `verifyAndAttestOnChain(quote)` uses Automata's "standard" number: the most recent one whose
 TCB recovery event is at least 12 months old (20 today). Number 21 (event of 10 Feb 2026) becomes standard around
-**10 Feb 2027**: before then, run `./run.sh add-eval 21` (2 versioned DAOs and their collateral, wired to the router).
-For policy P2 (the TCB must be UpToDate, or SWHardeningNeeded with only advisories the product allows; the policies are
-checked in `contracts/src/EnclaveRegistry.sol`): the Phala machine is UpToDate at 20, but **OutOfDate at 21** (TDX module `TDX_01` isvsvn 11 < 13) and
-**at 22** ("early", 11 Aug 2026: microcode, INTEL-SA-01404/01439/01442) until Phala updates the host.
-`verifyAndAttestOnChain(quote, n)` can also be called with any loaded number.
+**10 Feb 2027**. Before then, run `./run.sh add-eval 21`: it adds 2 versioned DAOs and their collateral, wired to the
+router. `verifyAndAttestOnChain(quote, n)` can also be called with any loaded number.
+
+What this means for policy P2 (the TCB must be UpToDate, or SWHardeningNeeded with only advisories the product allows;
+`contracts/src/EnclaveRegistry.sol` checks the policies): the Phala machine is UpToDate at 20. It is **OutOfDate at
+21** (TDX module `TDX_01`, isvsvn 11 < 13) and **at 22** ("early", 11 Aug 2026: microcode, INTEL-SA-01404/01439/01442)
+until Phala updates the host.
 
 Another FMSPC (the app moves to another Phala host): `ENCLAVE_URL=… ./run.sh refresh` loads the new FMSPC's TCB info
 (and the CRL of the right PCK CA) into the same DAOs.
