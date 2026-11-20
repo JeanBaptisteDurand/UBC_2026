@@ -623,7 +623,7 @@ describe("5 — the memory of a replay's answers: the same read returned with an
       });
       const relay = await startStrictRelay({ upstream: up.url, blockN: N, anchorHash: ARC_N.hash as Hex, failFast: true });
       try {
-        if (what.startsWith("bloc N − 1")) await relay.anchor();
+        if (what.startsWith("block N − 1")) await relay.anchor();
         const first = await ask(relay, reads[0]![0], reads[0]![1]);
         expect(first.json.result, what).toBeDefined();
         expect(relay.violation, what).toBeUndefined();
