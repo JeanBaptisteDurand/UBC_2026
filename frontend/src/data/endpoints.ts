@@ -33,8 +33,9 @@ export const COPILOT = pick('VITE_COPILOT_URL') ?? `${ROOT}/copilot`
 /** The ArcHive server copilot for the site (same program, "site" surface). AskHive answers through it when its enclave
  *  cannot be used. It drives the pages and prepares what the visitor signs. */
 export const COPILOT_SITE = pick('VITE_COPILOT_SITE_URL') ?? `${ROOT}/copilot-site`
-/** MCP server (Streamable HTTP): a full URL, to paste into an agent configuration */
-export const MCP = pick('VITE_MCP_URL') ?? `${API_ORIGIN}/mcp`
+/** MCP server (Streamable HTTP): a full URL, to paste into an agent configuration. Its public address, the one the
+ *  Services page, the Doc, llms.txt and the official MCP Registry give (the same server as on the API origin) */
+export const MCP = pick('VITE_MCP_URL') ?? 'https://arc-hive.xyz/mcp'
 /** Public Arc testnet RPC (allowed in the API origin's CSP connect-src) */
 export const RPC_DIRECT = pick('VITE_ARC_RPC') ?? 'https://rpc.testnet.arc.io'
 export const EXPLORER = 'https://explorer.testnet.arc.io'

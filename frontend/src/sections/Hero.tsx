@@ -119,6 +119,8 @@ export function Hero() {
       <div className="txt">
         <Catch />
         <p className="support">{t('hero.support')}</p>
+        {/* what the slogan promises, in one short paragraph: Arc checks the machine, a proven lie costs a bond */}
+        <p className="hero-proof">{t('hero.proof')}</p>
         {/* the replayed demo, reachable from the first screen (the same link as in the last section) */}
         <a className="tlink hero-demo hero-live" href={link.demo}><svg className="hero-ic" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8.6" className="hero-ic-ring" /><path d="M8.2 6.6 L13.8 10 L8.2 13.4 Z" className="hero-ic-play" /></svg><span>{t('end.demo')}</span></a>
         <p className="sr-only" id="wall-keys">{t('hero.hint.keys')}</p>

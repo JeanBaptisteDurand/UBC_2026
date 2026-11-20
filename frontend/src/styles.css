@@ -226,6 +226,8 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
 .hero { min-height: 100svh; padding-top: calc(var(--hd) + 58px); padding-bottom: 40px; }
 /* The lighter column breathes: more air under the headline and before the buttons */
 .hero .support { margin-top: 40px; }
+/* the proof line right under the support line: the support's size and ink, one weight up, no accent */
+.hero-proof { margin: 14px 0 0; max-width: 26em; font-size: 20px; line-height: 1.45; font-weight: var(--w-head); letter-spacing: -0.005em; text-wrap: pretty; color: var(--ink); }
 .hero .ctas { margin-top: 0; }
 /* the hero actions: the three buttons, then the copilot bar as wide as the three together */
 .hero-acts { display: inline-grid; gap: 8px; margin-top: 52px; max-width: 100%; }
@@ -477,6 +479,7 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
   .pin .checks { display: none; }
   .pin .proto-text .swap { margin-top: 8px; }
   .support { font-size: 17px; margin-top: 16px; }
+  .hero-proof { font-size: 17px; margin-top: 12px; }
   .ctas { margin-top: 20px; }
   .btn { height: 48px; padding: 0 18px; }
   /* Phone: the framed slot holds the top of the screen (cam.ts), the panel sits below and never covers it */
@@ -816,6 +819,7 @@ html.veil-none body::after { display: none; }
   .hero { padding-top: calc(var(--hd) + 16px); }
   .catch { font-size: min(8vw, 12svh); }
   .hero .support { font-size: 17px; margin-top: 20px; }
+  .hero-proof { font-size: 17px; }
   .st { padding-top: calc(var(--hd) + 32px); }
   .st .txt { position: relative; top: auto; }
   .pin-in { height: auto; min-height: 100svh; }

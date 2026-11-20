@@ -29,14 +29,14 @@ export const ledClass = (l: Led) => (l === 'off' ? 'led' : `led led-${l}`)
  *  language is the one i18n.ts writes on <html lang> */
 const LOCAL = {
   en: {
-    'd.state.refuteDemo': 'Not for sale, a demonstration: its enclave was caught lying on 15 November and its operator’s whole bond was seized.',
-    'd.use.refuteDemo': 'Nothing to buy here: this product is the demonstration of an operator caught lying on 15 November. Its whole bond was seized, and each step is a real transaction on Arc.',
+    'd.state.refuteDemo': 'Not for sale, a demonstration: its enclave was caught lying on 10 November and its operator’s whole bond was seized.',
+    'd.use.refuteDemo': 'Nothing to buy here: this product is the demonstration of an operator caught lying on 10 November. Its whole bond was seized, and each step is a real transaction on Arc.',
     'd.use.lede.free': 'Use it from the Network page: it checks the enclave key on Arc and encrypts your request for the enclave alone.',
     'd.use.proof': 'See the proof',
   },
   fr: {
-    'd.state.refuteDemo': 'Pas à vendre, une démonstration : son enclave a été prise à mentir le 15 novembre et toute la caution de son opérateur a été saisie.',
-    'd.use.refuteDemo': 'Rien à acheter ici : ce produit est la démonstration d’un opérateur pris à mentir le 15 novembre. Toute sa caution a été saisie, et chaque étape est une vraie transaction sur Arc.',
+    'd.state.refuteDemo': 'Pas à vendre, une démonstration : son enclave a été prise à mentir le 10 novembre et toute la caution de son opérateur a été saisie.',
+    'd.use.refuteDemo': 'Rien à acheter ici : ce produit est la démonstration d’un opérateur pris à mentir le 10 novembre. Toute sa caution a été saisie, et chaque étape est une vraie transaction sur Arc.',
     'd.use.lede.free': 'Utilisez-le depuis la page Network : elle vérifie la clé de l’enclave sur Arc et chiffre votre requête pour l’enclave seule.',
     'd.use.proof': 'Voir la preuve',
   },
