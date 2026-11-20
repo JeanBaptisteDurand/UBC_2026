@@ -147,14 +147,14 @@ describe("race on seq: atomic reservation per session", () => {
     const gate = new Promise<void>((r) => (release = r));
     const llama: LlamaClient = {
       async infer(prompt: string) {
-        if (prompt === "lent") await gate;
+        if (prompt === "slow") await gate;
         return { text: prompt, tokensIn: 1, tokensOut: 1 };
       },
     };
     const gw = new InferenceGateway(KIT, { sessionPay: SESSIONPAY, modelHash: MODEL }, new Reader(session()), llama, blocks);
 
     let slowDone = false;
-    const slow = gw.handle(1n, 1n, "lent", {}).then((r) => ((slowDone = true), r));
+    const slow = gw.handle(1n, 1n, "slow", {}).then((r) => ((slowDone = true), r));
     const fast = ok(await gw.handle(2n, 1n, "rapide", {}));
     expect(fast.receipt.sessionId).toBe(2n);
     expect(slowDone).toBe(false); // session 1 is still waiting for its model

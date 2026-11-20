@@ -407,7 +407,7 @@ class Relay implements StrictRelay {
   private async respond(body: string | undefined): Promise<{ json: string } | { http: number }> {
     let j: unknown;
     try {
-      if (body === undefined) throw new SyntaxError("trop gros");
+      if (body === undefined) throw new SyntaxError("too large");
       j = JSON.parse(body);
     } catch (e) {
       if (!(e instanceof SyntaxError)) throw e;

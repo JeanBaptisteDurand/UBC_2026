@@ -107,7 +107,7 @@ export interface X402Status {
 export interface X402PaymentState extends X402Status {
   /** USDC.authorizationState(payer, nonce): true if the authorization is already consumed (settled or cancelled). */
   authorizationUsed: boolean;
-  /** USDC.balanceOf(payeur). */
+  /** USDC.balanceOf(payer). */
   balance: bigint;
   /** The payer has code (a contract, or an EOA delegated by EIP-7702): USDC would verify the signature through ERC-1271. */
   payerHasCode: boolean;
@@ -425,7 +425,7 @@ export function parseEnvelope(x: unknown, maxRequestBytes: number): CallEnvelope
   if ((e.length - 2) / 2 !== 32) throw bad("enc: 32 bytes expected (HPKE X25519)");
   if ((p.length - 2) / 2 !== 32) throw bad("clientEphemeralPub: 32 bytes expected (X25519)");
   const ct = (c.length - 2) / 2;
-  if (ct <= AEAD_TAG) throw bad("ciphertext trop court");
+  if (ct <= AEAD_TAG) throw bad("ciphertext too short");
   if (ct > maxRequestBytes + AEAD_TAG) throw new X402Error(413, "request_too_large", `request too large: at most ${maxRequestBytes} bytes in clear`);
   return { enc: L(e) as Hex, ciphertext: L(c) as Hex, clientEphemeralPub: L(p) as Hex };
 }
@@ -677,11 +677,11 @@ export class X402Gateway {
   private assertPayable(st: X402Status): void {
     const p = st.product;
     const no = (code: string, m: string) => new X402Error(503, code, `${m}: nothing is served or billed`);
-    if (!p.active) throw no("product_inactive", `produit #${this.productId} inactif`);
+    if (!p.active) throw no("product_inactive", `product #${this.productId} inactive`);
     if (L(p.settlement) !== L(this.cfg.settler)) {
       throw no("wrong_settlement", `product #${this.productId} settles through ${p.settlement}, not through X402Settler ${this.cfg.settler} (WrongSettlement)`);
     }
-    if (p.price <= 0n) throw no("zero_price", `produit #${this.productId} au prix 0 (ZeroAmount)`);
+    if (p.price <= 0n) throw no("zero_price", `product #${this.productId} at price 0 (ZeroAmount)`);
     if (L(p.param) !== L(this.cfg.modelHash)) {
       throw no("model_mismatch", `the product pins model ${p.param}; this enclave calls ${this.cfg.modelHash}`);
     }
@@ -928,7 +928,7 @@ export class X402Gateway {
     }
   }
 
-  // ---------- admission (place, solde, borne globale, caution)
+  // ---------- admission (room, balance, global bound, bond)
 
   /**
    * Pre-check (before decrypting and reading the chain): a refusal for lack of room is first checked against the chain
@@ -1200,9 +1200,9 @@ export class X402Gateway {
     let freed = 0;
     let uncovered = 0;
     try {
-      // 1) soldes
+      // 1) balances
       this.reconcileReads.take(payers.length);
-      const first = await this.readPendingState(payers.map((k) => groups.get(k)![0]!), []); // soldes seulement
+      const first = await this.readPendingState(payers.map((k) => groups.get(k)![0]!), []); // balances only
       let reads = payers.length;
       const detail: string[] = [];
       for (const k of payers) {
@@ -1343,7 +1343,7 @@ export class X402Gateway {
     try {
       a = parseAckBody(body);
     } catch (e) {
-      throw new X402Error(400, "invalid_ack", `signalement illisible : ${(e as Error).message}`);
+      throw new X402Error(400, "invalid_ack", `unreadable report: ${(e as Error).message}`);
     }
     const now = this.now();
     const maxAge = BigInt(this.limits.ackMaxAgeSeconds);

@@ -160,7 +160,7 @@ function claimDigestByHand(c: Claim): Hex {
   );
   return keccak256(concat(["0x1901", DOMAIN_SEPARATOR, structHash]));
 }
-/** SealedBounty._countRefuters : _hashTypedDataV4(keccak256(abi.encode(REFUTATION_TYPEHASH, claimDigest, proven, loss, tier))) */
+/** SealedBounty._countRefuters: _hashTypedDataV4(keccak256(abi.encode(REFUTATION_TYPEHASH, claimDigest, proven, loss, tier))) */
 function refutationDigestByHand(f: { claimDigest: Hex; proven: boolean; loss: bigint; tier: number }): Hex {
   const structHash = keccak256(
     encodeAbiParameters(
@@ -461,7 +461,7 @@ function sdkBody(claim: Claim, operators: Address[], enc: Uint8Array, ciphertext
 // ---------------------------------------------------------------------------------------------------------------------
 // end to end: the SDK (keys verified on-chain, quorum, signatures gathered) ↔ the real /v1/refute applications
 
-describe("SDK ↔ enclaves : requestRefutations, quorum, prepareRefuteCall", () => {
+describe("SDK ↔ enclaves: requestRefutations, quorum, prepareRefuteCall", () => {
   async function network(lossSeen: bigint, ops: Array<Address | null>) {
     const { claim, cP } = await claimFrom(5_000_000n);
     const chain = new FakeChain();

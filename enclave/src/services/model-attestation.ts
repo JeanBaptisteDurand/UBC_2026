@@ -104,7 +104,7 @@ export interface ModelAttestationOptions {
   /** Periodic re-verification (default: 30 min). */
   refreshMs?: number;
   log?: (m: string) => void;
-  /** Tests : remplace connectAci. */
+  /** Tests: replaces connectAci. */
   connect?: typeof connectAci;
 }
 
@@ -293,7 +293,7 @@ export function composeHashesFromEnv(v: string | undefined): string[] | undefine
   return list;
 }
 
-/** Corps de GET /model-attestation. */
+/** The body of GET /model-attestation. */
 export function modelAttestationBody(a: AttestedModel | undefined): unknown {
   return a ? a.status() : { verified: false, reason: "MODEL_ATTESTATION absent: this enclave does not verify the model provider" };
 }

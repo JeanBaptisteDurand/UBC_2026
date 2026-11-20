@@ -509,7 +509,7 @@ describe("x402: unpayable calls and the bond's capacity (proof 5, turned around)
     // this test is about the bond: 20 pending calls per payer (3 by default since the evening of 9 Nov), an unbounded
     // rate of paid reads, balances read again at each of the operator's collections
     const e = enclaveOn(w, { maxPendingPerPayer: 20, paymentReadsPerMinute: 1_000_000, reconcileCacheMs: 0 });
-    w.capacity = 1_500_000n; // ½ caution de 3 USDC
+    w.capacity = 1_500_000n; // ½ of a 3 USDC bond
     const SEED = 200_000n;
     let served = 0;
     let holder: string | undefined;
@@ -863,7 +863,7 @@ describe("x402: proofs A, B, C2, D and F of the evening of 9 Nov, turned around"
     vi.useFakeTimers({ toFake: ["Date"] }); // a frozen clock: no token comes back during the flow
     vi.setSystemTime(t0);
     const w = world();
-    const e = enclaveOn(w); // seaux de 30 lectures (nouveaux payeurs, payeurs connus)
+    const e = enclaveOn(w); // buckets of 30 reads (new payers, known payers)
     const q = queueOf(w, e);
     const [rogue, honest] = [payerWallet(), payerWallet()];
     for (const x of [rogue, honest]) {

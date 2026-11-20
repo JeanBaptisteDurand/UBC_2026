@@ -606,7 +606,7 @@ describe("5 — the memory of a replay's answers: the same read returned with an
 
   it("cross-checks: balance, nonce and code of eth_getAccountInfo against eth_getBalance, eth_getTransactionCount and eth_getCode; chainId; a block read again with another list of transactions", async () => {
     const cases: Array<[string, Array<[string, unknown[]]>, (m: string, i: number) => unknown]> = [
-      ["solde", [["eth_getAccountInfo", [A, at(N)]], ["eth_getBalance", [A, at(N)]]], (m) => (m === "eth_getAccountInfo" ? { balance: "0x10", nonce: "0x1", code: "0x" } : "0x11")],
+      ["balance", [["eth_getAccountInfo", [A, at(N)]], ["eth_getBalance", [A, at(N)]]], (m) => (m === "eth_getAccountInfo" ? { balance: "0x10", nonce: "0x1", code: "0x" } : "0x11")],
       ["nonce", [["eth_getTransactionCount", [A, at(N)]], ["eth_getAccountInfo", [A, at(N)]]], (m) => (m === "eth_getAccountInfo" ? { balance: "0x10", nonce: "0x2", code: "0x" } : "0x1")],
       ["code", [["eth_getCode", [A, at(N)]], ["eth_getAccountInfo", [A, at(N)]]], (m) => (m === "eth_getAccountInfo" ? { balance: "0x10", nonce: "0x1", code: "0x6001" } : "0x")],
       ["chainId", [["eth_chainId", []], ["eth_chainId", []]], (_m, i) => (i === 0 ? "0x4cef52" : "0x1")],

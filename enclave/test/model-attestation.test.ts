@@ -52,10 +52,10 @@ describe("model provider attestation", () => {
 
   it("refused: unverified verdict, another OS image, a log with no image or an ambiguous one", () => {
     expect(() => checkGatewayIdentity(identity({ verified: false }), [DSTACK_PROD_OS_0_5_12])).toThrow(ModelAttestationError);
-    expect(() => checkGatewayIdentity(identity(), ["11".repeat(32)])).toThrow(/hors de la liste/);
+    expect(() => checkGatewayIdentity(identity(), ["11".repeat(32)])).toThrow(/outside the production list/);
     const noOs = clone(REPORT);
     noOs.attestation.evidence.event_log = JSON.stringify(JSON.parse(REPORT.attestation.evidence.event_log).filter((e: any) => e.event !== "os-image-hash"));
-    expect(() => checkGatewayIdentity(identity({ report: noOs }), [DSTACK_PROD_OS_0_5_12])).toThrow(/absente/);
+    expect(() => checkGatewayIdentity(identity({ report: noOs }), [DSTACK_PROD_OS_0_5_12])).toThrow(/missing from the RTMR3 log/);
     const twice = clone(REPORT);
     const log = JSON.parse(REPORT.attestation.evidence.event_log);
     log.push({ ...log.find((e: any) => e.event === "os-image-hash"), event_payload: "22".repeat(32) });
@@ -134,7 +134,7 @@ describe("model provider attestation", () => {
     f.attestation.evidence.event_log = JSON.stringify(log);
     expect(osImageHashOf(f)).toBe("cd".repeat(32)); // the (payload, digest) pair is consistent → boundEventPayload accepts
     // …but the fold no longer matches the quote's RTMR3 → checkGatewayIdentity still refuses
-    expect(() => checkGatewayIdentity(identity({ report: f }), ["cd".repeat(32)])).toThrow(/ne se replie pas/);
+    expect(() => checkGatewayIdentity(identity({ report: f }), ["cd".repeat(32)])).toThrow(/does not fold/);
   });
 
   it("hardening #3: re-verification lands on a rejected gateway → fails closed (nothing is sent)", async () => {

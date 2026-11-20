@@ -68,7 +68,7 @@ export interface SealedBountyDeps {
   refuteBadBodyLimit?: { burst: number; perMinute: number } | false;
   /** v2.1 ter: the rate of /bounty/submit (a global token bucket; default 8, 8 per minute); false: no limit. */
   submitRateLimit?: { burst: number; perMinute: number } | false;
-  /** Horloge (ms) des limiteurs ; tests. */
+  /** The limiters' clock (ms); for tests. */
   nowMs?: () => number;
 }
 

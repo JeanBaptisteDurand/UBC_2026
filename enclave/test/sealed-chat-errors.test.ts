@@ -112,7 +112,7 @@ describe("sealed-chat: upstream model errors and internal errors", () => {
       expect(out).not.toMatch(/Invalid API key/i);
       expect(out).not.toContain("private question");
     }
-    expect(logs).toEqual(["[sealed-chat] upstream_model : HTTP 401"]);
+    expect(logs).toEqual(["[sealed-chat] upstream_model: HTTP 401"]);
     expect(h.up.seen.pulled).toBe(0);
     expect(h.gw.lastReceipt(1n)).toBeUndefined(); // no receipt signed
     // the upstream is back: the same request (same seq) is served and billed normally
@@ -127,7 +127,7 @@ describe("sealed-chat: upstream model errors and internal errors", () => {
     vi.spyOn(console, "error").mockImplementation((...a: unknown[]) => { printed.push(a.map((x) => (x instanceof Error ? `${x.message} ${x.stack}` : String(x))).join(" ")); });
     const h = harness();
     expect((await h.chat(1n, "x")).status).toBe(502);
-    expect(printed).toEqual(["[sealed-chat] upstream_model : HTTP 401"]);
+    expect(printed).toEqual(["[sealed-chat] upstream_model: HTTP 401"]);
   });
 
   it("internal error (on-chain read down, a message with a keyed RPC URL): 500 internal_error, log without the message", async () => {
@@ -138,7 +138,7 @@ describe("sealed-chat: upstream model errors and internal errors", () => {
       expect(res.status).toBe(500);
       expect(await res.json()).toEqual({ error: "internal enclave error", code: "internal_error" });
     }
-    expect(logs).toEqual(["[sealed-chat] internal_error : Error", "[sealed-chat] internal_error : Error"]);
+    expect(logs).toEqual(["[sealed-chat] internal_error: Error", "[sealed-chat] internal_error: Error"]);
     expect(h.up.seen.calls).toBe(0); // the model was never called
   });
 });

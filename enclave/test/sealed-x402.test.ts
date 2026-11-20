@@ -116,7 +116,7 @@ class FakeModel implements ChatModel {
     this.calls++;
     this.last = r;
     if (this.delayMs) await sleep(this.delayMs);
-    if (this.fail) throw new Error("amont : HTTP 500");
+    if (this.fail) throw new Error("upstream: HTTP 500");
     return { text: `answer: ${r.messages[r.messages.length - 1]!.content}`, tokensIn: 7, tokensOut: 5 };
   }
 }
@@ -294,7 +294,7 @@ describe("x402: a 402 without payment", () => {
   });
 });
 
-describe("x402 — paiement valide", () => {
+describe("x402: a valid payment", () => {
   it("an answer encrypted to the client's key + a CallReceipt signed by the enclave, exactly what X402Settler.settle verifies", async () => {
     const { app, model, kit, chain, gw } = setup();
     const q = await makeRequest(kit, "What is 2 + 2?", { temperature: 0.1, max_tokens: 99_999 });

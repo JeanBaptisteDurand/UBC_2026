@@ -73,7 +73,7 @@ class Reader implements SessionReader {
 }
 
 const blocks: BlockSource = { current: async () => 1000n };
-const NOW_S = 1_800_000_000n; // horloge des tests (2027)
+const NOW_S = 1_800_000_000n; // the tests' clock (2027)
 
 /** A fake model: the sample request of F §2.2 (40,000 tokens read, 2,000 written); counts the calls paid upstream. */
 class TypicalLlama implements LlamaClient {

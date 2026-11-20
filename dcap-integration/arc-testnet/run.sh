@@ -95,7 +95,7 @@ cmd_record() {
 cmd_verify() {
   check_chain
   local att quote; att="$(attestation)"; quote="$(cat "$COLL/quote.hex")"
-  echo "AutomataDcapAttestationFee : $att"
+  echo "AutomataDcapAttestationFee: $att"
   # 1) eth_call: read the output
   cast call "$att" "verifyAndAttestOnChain(bytes)(bool,bytes)" "$quote" --rpc-url "$RPC_URL" > "$RES/verify-call.txt"
   local ok out; ok="$(sed -n 1p "$RES/verify-call.txt")"; out="$(sed -n 2p "$RES/verify-call.txt")"
@@ -142,7 +142,7 @@ cmd_module() {
                  --async --create "${bytecode}${args#0x}")"
   cast receipt "$h" --json --rpc-url "$RPC_URL" > "$RES/module-receipt.json"
   local module; module="$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["contractAddress"])' "$RES/module-receipt.json")"
-  echo "TdxAttestationModule : $module (dcap = $(cast call "$module" 'dcap()(address)' --rpc-url "$RPC_URL"))"
+  echo "TdxAttestationModule: $module (dcap = $(cast call "$module" 'dcap()(address)' --rpc-url "$RPC_URL"))"
   local sig='verify(bytes,bytes)((bool,uint16,uint16,uint8,bytes6,bytes,bytes,bytes,bytes,bytes,bytes,bytes,bytes8,bytes8,string[]))'
   local raw; raw="$(cast call "$module" 'verify(bytes,bytes)' "$quote" 0x --rpc-url "$RPC_URL")"
   cast decode-abi "$sig" "$raw" --json > "$RES/module-call.json"

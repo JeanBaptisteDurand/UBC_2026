@@ -356,7 +356,7 @@ describe("DEMO_FAULT — garde-fous", () => {
     expect(parseDemoFault({ DEMO_FAULT: "  " }, 5n)).toBeUndefined();
     expect(parseDemoFault({ DEMO_FAULT: "inflate-loss", OPERATOR_ALLOWLIST: A_ADDR }, 5n)).toBe("inflate-loss");
     expect(parseDemoFault({ DEMO_FAULT: "inflate-loss" }, 5n)).toBe("inflate-loss"); // empty list: nobody attests (closed)
-    expect(() => parseDemoFault({ DEMO_FAULT: "inflate-loss", OPERATOR_ALLOWLIST: A_ADDR }, 2n)).toThrow(/produit 2/);
+    expect(() => parseDemoFault({ DEMO_FAULT: "inflate-loss", OPERATOR_ALLOWLIST: A_ADDR }, 2n)).toThrow(/product 2/);
     expect(() => parseDemoFault({ DEMO_FAULT: "inflate-loss", OPERATOR_ALLOWLIST: A_ADDR }, 0n)).toThrow(/PRODUCT_ID/);
     expect(() => parseDemoFault({ DEMO_FAULT: "zero-loss", OPERATOR_ALLOWLIST: A_ADDR }, 5n)).toThrow(/unknown/);
     expect(() => parseDemoFault({ DEMO_FAULT: "inflate-loss", OPERATOR_ALLOWLIST: "*" }, 5n)).toThrow(/OPERATOR_ALLOWLIST=\*/);
@@ -365,7 +365,7 @@ describe("DEMO_FAULT — garde-fous", () => {
   });
 
   it("BountyService refuses a fault on product 2, or an unknown one", () => {
-    expect(() => claimer({ demoFault: "inflate-loss", kit: newKit(2n) })).toThrow(/produit 2/);
+    expect(() => claimer({ demoFault: "inflate-loss", kit: newKit(2n) })).toThrow(/product 2/);
     expect(() => new BountyService(newKit(), { sealedBounty: SEALED, demoFault: "nope" as any }, { getBounty: async () => view }, new DeterministicProtocolCipher(), fakeFork(0n), blocks, () => NOW))
       .toThrow(/unknown/);
     expect(() => claimer({ kit: newKit(2n) })).not.toThrow(); // without a fault: product 2 runs as before
@@ -391,7 +391,7 @@ describe("DEMO_FAULT — garde-fous", () => {
     expect(r.status).toBe(1);
     expect(r.stderr).toMatch(/DEMO_FAULT refused for product 2.*stopping/);
     expect(r.stderr).not.toMatch(/anvil not found/); // stopped BEFORE the engine check
-    expect(r.stdout).not.toMatch(/sealed-bounty \(O3\) sur/);
+    expect(r.stdout).not.toMatch(/sealed-bounty \(O3\) on/);
 
     // counter-check: product 5 → the fault's log line, then the stop comes from the missing engine (not from the fault)
     const ok = runServer({ PRODUCT_ID: "5", DEMO_FAULT: "inflate-loss", OPERATOR_ALLOWLIST: A_ADDR });

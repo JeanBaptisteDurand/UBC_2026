@@ -50,7 +50,7 @@ export interface SessionView {
   cap?: bigint;
   price: bigint; // USDC (6 decimals) per unit, LOCKED at opening (SessionPay v2: Session.price)
   paidUnits: bigint; // running total already settled on-chain
-  expiresAt: bigint; // secondes Unix
+  expiresAt: bigint; // Unix seconds
   closed: boolean;
   /** v2 bis: the ONLY enclave whose receipts pay this session (Session.enclave). */
   enclave: Address;
@@ -152,7 +152,7 @@ export interface GatewayConfig {
 interface SessionState {
   lastSeq: bigint; // the last signed seq
   tokensIn: bigint; // running total of input tokens served by this enclave
-  tokensOut: bigint; // cumul des jetons de sortie
+  tokensOut: bigint; // running total of output tokens
   offset: bigint; // units counted outside this enclave (already settled on-chain before it)
   units: bigint; // cumulativeUnits of the last signed receipt (or the on-chain floor)
   last?: SignedReceipt;

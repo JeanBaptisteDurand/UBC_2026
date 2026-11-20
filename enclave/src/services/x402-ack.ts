@@ -55,7 +55,7 @@ export interface X402AckItem {
   settled: boolean;
 }
 
-/** Corps de POST /x402/settled : { enclave, productId, issuedAt, ackNonce, items, signature }. */
+/** The body of POST /x402/settled: { enclave, productId, issuedAt, ackNonce, items, signature }. */
 export interface X402AckBody {
   enclave: Address;
   productId: bigint;
@@ -91,7 +91,7 @@ export function parseAckBody(x: unknown): X402AckBody {
   }
   if (typeof b.enclave !== "string" || !isAddress(b.enclave, { strict: false })) throw bad("enclave: address expected");
   if (typeof b.productId !== "string" || !/^[0-9]{1,78}$/.test(b.productId)) throw bad("productId: decimal integer (string) expected");
-  if (typeof b.issuedAt !== "number" || !Number.isSafeInteger(b.issuedAt) || b.issuedAt < 0) throw bad("issuedAt : secondes Unix attendues");
+  if (typeof b.issuedAt !== "number" || !Number.isSafeInteger(b.issuedAt) || b.issuedAt < 0) throw bad("issuedAt: Unix seconds expected");
   if (typeof b.ackNonce !== "string" || !HEX32.test(b.ackNonce)) throw bad("ackNonce: 32 hexadecimal bytes expected");
   if (typeof b.signature !== "string" || !SIG65.test(b.signature)) throw bad("signature: 65 hexadecimal bytes expected");
   const items: X402AckItem[] = [];
@@ -154,7 +154,7 @@ export class TokenBucket {
     }
   }
 
-  /** Jetons entiers disponibles maintenant. */
+  /** Whole tokens available now. */
   available(): number {
     this.refill();
     return Math.floor(this.tokens);

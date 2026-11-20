@@ -134,13 +134,13 @@ export function checkComposes(c: Record<keyof typeof COMPOSE_FILES, Compose>, k:
   const images = new Set<string>();
   for (const role of ROLES) {
     const { compose, service, allowlistVar } = SERVICE_OF[role];
-    const s = c[compose].services[service] ?? fail(`${c[compose].file} : service ${service} absent`);
+    const s = c[compose].services[service] ?? fail(`${c[compose].file}: service ${service} missing`);
     if (s.image.includes("__BOUNTY_IMAGE__")) fail(`${c[compose].file}: replace __BOUNTY_IMAGE__ with the digest of the built image`);
     if (!/^ghcr\.io\/[^@\s]+@sha256:[0-9a-f]{64}$/.test(s.image)) fail(`${c[compose].file}: the image of ${service} is not pinned by digest`);
     images.add(s.image);
     const m = s.measured;
     if (m.PRODUCT_ID !== DEMO_PRODUCT.toString()) fail(`${service}: PRODUCT_ID=${m.PRODUCT_ID} (expected ${DEMO_PRODUCT})`);
-    if (m.CHAIN_ID !== String(k.chainId)) fail(`${service} : CHAIN_ID=${m.CHAIN_ID}`);
+    if (m.CHAIN_ID !== String(k.chainId)) fail(`${service}: CHAIN_ID=${m.CHAIN_ID}`);
     if (m.SEALEDBOUNTY?.toLowerCase() !== k.sealedBounty.toLowerCase()) fail(`${service}: SEALEDBOUNTY is not the v2.1 one`);
     if (m.REGISTRY?.toLowerCase() !== k.registry.toLowerCase()) fail(`${service}: REGISTRY is not the v2.1 one`);
     if (role === "A" && m.DEMO_FAULT !== "inflate-loss") fail(`${service}: DEMO_FAULT=inflate-loss must be measured (in clear)`);
@@ -380,7 +380,7 @@ async function main(): Promise<void> {
   };
   const record = (step: string, label: string, r: TransactionReceipt) => {
     const cost = r.gasUsed * (r.effectiveGasPrice ?? 0n);
-    console.log(`  [${step}] ${label} : ${r.transactionHash} (statut ${r.status}, gas ${r.gasUsed}, ${native(cost)} de gas) ${EXPLORER}/tx/${r.transactionHash}`);
+    console.log(`  [${step}] ${label}: ${r.transactionHash} (status ${r.status}, gas ${r.gasUsed}, ${native(cost)} of gas) ${EXPLORER}/tx/${r.transactionHash}`);
     S.transactions.push({ step, label, hash: r.transactionHash, status: r.status, block: r.blockNumber.toString(), gasUsed: r.gasUsed.toString(), gasCostUsdc: formatUnits(cost, 18) });
     save();
   };
@@ -420,13 +420,13 @@ async function main(): Promise<void> {
   const probe = async (r: Role) => {
     const get = async (p: string) => {
       const res = await fetch(`${urls[r]}${p}`, { signal: AbortSignal.timeout(20_000) });
-      if (!res.ok) throw new Error(`${urls[r]}${p} : HTTP ${res.status}`);
+      if (!res.ok) throw new Error(`${urls[r]}${p}: HTTP ${res.status}`);
       return (await res.json()) as any;
     };
     const [health, pk] = [await get("/health"), await get("/pubkeys")];
     if (r === "A" && health.demoFault !== "inflate-loss") throw new Error(`LIAR_URL (${urls.A}) does not announce DEMO_FAULT=inflate-loss on /health: it is not the lying enclave, stopping`);
     if (r !== "A" && health.demoFault !== undefined) throw new Error(`${r === "B" ? "B_URL" : "C_URL"} announces a fault (${health.demoFault}): an honest enclave is expected, stopping`);
-    if (!isAddress(String(pk.signer))) throw new Error(`${urls[r]}/pubkeys : signataire illisible`);
+    if (!isAddress(String(pk.signer))) throw new Error(`${urls[r]}/pubkeys: unreadable signer`);
     const signer = getAddress(lower(pk.signer));
     const e = (await pub.readContract({ address: K.EnclaveRegistry!, abi: erAbi, functionName: "enclaveOf", args: [signer] })) as any;
     if (e.signer !== zeroAddress && mainOps.has(lower(e.operator))) throw new Error(`REFUSED: enclave ${r} (${signer}) is registered under the main operator`);
@@ -506,12 +506,12 @@ async function main(): Promise<void> {
   };
   save();
 
-  // ---- (a) dotations ----
+  // ---- (a) funding ----
   console.log("\n== (a) funding the demo operators (gas + a 1 USDC bond) ==");
   for (const r of ROLES) {
     const target = await fundingTarget(r);
     const bal = await pub.getBalance({ address: ops[r].address });
-    if (bal >= target) { console.log(`  ${r} : ${native(bal)}, suffisant`); continue; }
+    if (bal >= target) { console.log(`  ${r}: ${native(bal)}, enough`); continue; }
     await sendValue(asDeployer, ops[r].address, target - bal, "a", `operator ${r} funded with ${native(target - bal)}`);
   }
 
@@ -553,7 +553,7 @@ async function main(): Promise<void> {
         domain: { name: "USDC", version: "2", chainId: CHAIN_ID, verifyingContract: X.USDC! }, types: receiveAuthTypes, primaryType: "ReceiveWithAuthorization",
         message: { from: o.address, to: K.OperatorBond!, value, validAfter: 0n, validBefore, nonce },
       });
-      await send(w, K.OperatorBond!, obAbi, "bond", [value, { validAfter: 0n, validBefore, nonce, signature }], "b", `${r} : caution +${usd(value)}`);
+      await send(w, K.OperatorBond!, obAbi, "bond", [value, { validAfter: 0n, validBefore, nonce, signature }], "b", `${r}: bond +${usd(value)}`);
     }
     if (((await read(K.OperatorBond!, obAbi, "agentIdOf", [o.address])) as bigint) !== agentId) {
       await send(w, K.OperatorBond!, obAbi, "setAgentId", [agentId], "b", `${r}: agentId ${agentId} declared in OperatorBond`);
@@ -586,7 +586,7 @@ async function main(): Promise<void> {
     await send(asDeployer, K.ProductRegistry!, prAbi, "proposeUpdate", [DEMO_PRODUCT, manifestHash, 0n, param], "c", `product ${DEMO_PRODUCT}: manifest update proposed`);
     await send(asDeployer, K.ProductRegistry!, prAbi, "applyUpdate", [DEMO_PRODUCT], "c", `product ${DEMO_PRODUCT}: manifest updated`);
   }
-  if (!(await read(K.ProductRegistry!, prAbi, "isActive", [DEMO_PRODUCT]))) throw new Error(`produit ${DEMO_PRODUCT} inactif`);
+  if (!(await read(K.ProductRegistry!, prAbi, "isActive", [DEMO_PRODUCT]))) throw new Error(`product ${DEMO_PRODUCT} inactive`);
   S.product = { id: DEMO_PRODUCT.toString(), manifest: `web/public/manifests/${MANIFEST_FILE}`, manifestURI, manifestHash, image, minBondPerKey: usd(MIN_BOND_PER_KEY), settlement: K.SealedBounty };
   save();
 
@@ -613,11 +613,11 @@ async function main(): Promise<void> {
       } finally {
         try { unlinkSync(SEC(tmpName)); } catch { /* already erased */ }
       }
-      for (const m of output.matchAll(/^(.+?) : (0x[0-9a-fA-F]{64}) \(statut/gm)) {
+      for (const m of output.matchAll(/^(.+?): (0x[0-9a-fA-F]{64}) \(status/gm)) {
         const rec = await pub.getTransactionReceipt({ hash: m[2] as Hex });
-        record("d", `${r} : ${m[1]!.trim()}`, rec);
+        record("d", `${r}: ${m[1]!.trim()}`, rec);
       }
-      const img = output.match(/empreinte d'IMAGE[^:]*: (0x[0-9a-fA-F]{64})/)?.[1];
+      const img = output.match(/image fingerprint[^:]*: (0x[0-9a-fA-F]{64})/)?.[1];
       if (img) S.enclaves[r] = { ...(S.enclaves[r] ?? {}), imageId: img };
       if (!(await isActive())) throw new Error(`enclave ${r} is not active for product ${DEMO_PRODUCT} under ${ops[r].address} after the registration`);
     }
@@ -654,7 +654,7 @@ async function main(): Promise<void> {
       save();
     }
   }
-  console.log(`  coffre ${vault} : ${usd(await usdcOf(vault))}`);
+  console.log(`  vault ${vault}: ${usd(await usdcOf(vault))}`);
   if (!run.protocolX25519) {
     const priv = x25519.utils.randomPrivateKey();
     run.protocolX25519 = { privateKey: toHex(priv), publicKey: toHex(x25519.getPublicKey(priv)), note: "X25519 key of the demo bounty (protocol)" };
@@ -779,7 +779,7 @@ async function main(): Promise<void> {
   const requestHash = keccak256(encodeAbiParameters(
     [{ type: "uint256" }, { type: "address" }, { type: "string" }, { type: "uint256" }, { type: "bytes32" }],
     [BigInt(CHAIN_ID), K.SealedBounty!, "refuted", bountyId!, digest],
-  )); // SealedBounty.refute : keccak256(abi.encode(block.chainid, address(this), "refuted", bountyId, digest))
+  )); // SealedBounty.refute: keccak256(abi.encode(block.chainid, address(this), "refuted", bountyId, digest))
   /** What the refute transaction did, read from its receipt and from the state afterwards (without the values before). */
   const effectsOf = async (rec: TransactionReceipt) => {
     const sbEvents = parseEventLogs({ abi: sbAbi, logs: rec.logs }).filter((l) => lower(l.address) === lower(K.SealedBounty!)) as any[];
@@ -930,7 +930,7 @@ function printSummary(S: any, explorer: string): void {
   const tx = (h?: string) => (h ? `${h} (${explorer}/tx/${h})` : "—");
   const lines: string[] = [];
   lines.push(`state: ${S?.status ?? "nothing done"}`);
-  if (S?.product) lines.push(`produit ${S.product.id} : manifeste ${S.product.manifestURI} (${S.product.manifestHash}), image ${S.product.image}`);
+  if (S?.product) lines.push(`product ${S.product.id}: manifest ${S.product.manifestURI} (${S.product.manifestHash}), image ${S.product.image}`);
   for (const r of ROLES) {
     const o = S?.operators?.[r], e = S?.enclaves?.[r];
     if (o || e) lines.push(`operator ${r} ${o?.address ?? "?"} (agent ${o?.agentId ?? "?"}, bond ${o?.bond ?? "?"}); enclave ${e?.signer ?? "?"}${e?.demoFault ? ` [DEMO_FAULT=${e.demoFault}]` : ""}${e?.imageId ? `, image ${e.imageId}` : ""}`);
@@ -940,7 +940,7 @@ function printSummary(S: any, explorer: string): void {
   if (S?.claim) lines.push(`A's claim: loss ${S.claim.claimedLoss} (vault at block N: ${S.claim.vaultBalanceAtN ?? "?"}), accepted ${tx(S.claim.acceptTx)}`);
   if (S?.refutation) lines.push(`refutation (${S.refutation.source}): ${JSON.stringify(S.refutation.refutation)} signed by ${S.refutation.refuters?.join(", ")}`);
   if (S?.refute) {
-    lines.push(`refute : ${tx(S.refute.tx)}`);
+    lines.push(`refute: ${tx(S.refute.tx)}`);
     lines.push(`  A's bond: ${S.refute.slash.bondBefore ?? "?"} → ${S.refute.slash.bondAfter} (slashed ${S.refute.slash.seized ?? "?"}), struck off: ${S.refute.slash.banned}`);
     lines.push(`  pool: ${S.refute.pool.before ?? "?"} → ${S.refute.pool.after} (returned ${S.refute.pool.returned ?? "?"}); delivery now impossible: ${S.refute.pool.deliverBlocked}`);
     lines.push(`  ERC-8004 verdict: ${S.refute.verdict.response !== undefined ? `${S.refute.verdict.response} "${S.refute.verdict.tag}" for agent ${S.refute.verdict.agentId}` : `skipped (${S.refute.verdict.skipped ?? "?"})`}`);

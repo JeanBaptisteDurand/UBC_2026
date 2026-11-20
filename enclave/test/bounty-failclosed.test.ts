@@ -515,7 +515,7 @@ describe("2 — submission and refutation: outside the rules = refusal / proven 
     const key = { from: "protocol", protocolPrivateKey: toHex(protocol.x25519PrivateKey) };
     const forks: ForkRunner[] = [
       { run: async () => ({ ctx: okCtx() }), validate: () => { throw new RangeError("Maximum call stack size exceeded"); } },
-      { run: async () => ({ ctx: okCtx() }), validate: () => { throw new Error("environnement"); } },
+      { run: async () => ({ ctx: okCtx() }), validate: () => { throw new Error("environment"); } },
       { run: async () => ({ ctx: { ...okCtx(), erc20Drop: () => { throw new RangeError("Maximum call stack size exceeded"); } } }) },
       { run: async () => { throw new TypeError("fetch failed"); } },
     ];
@@ -527,7 +527,7 @@ describe("2 — submission and refutation: outside the rules = refusal / proven 
       const res = await app.request("/v1/refute", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(httpBody(claim, [OP_A], q)) });
       expect(res.status).toBe(503);
       const text = await res.text();
-      expect(text).not.toMatch(/stack|environnement|fetch failed|signature/);
+      expect(text).not.toMatch(/stack|environment|fetch failed|signature/);
     }
     // ReplayRuleError: a deterministic rule → proven fault (fixed note)
     const { claim, cP, chain } = chainFor();
@@ -589,7 +589,7 @@ describe("3 — /v1/refute: the cheap read first, cached failures, bounded concu
       const res = await app.request("/v1/refute", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(inventedBody) });
       const j = (await res.json()) as any;
       expect(j.code).toBe(state.refuted ? "already_refuted" : "unknown_claim");
-      expect(counter.n).toBe(6); // 3 fournisseurs × (eth_blockNumber + claimRecords)
+      expect(counter.n).toBe(6); // 3 providers × (eth_blockNumber + claimRecords)
     }
   });
 
@@ -678,7 +678,7 @@ describe("3 — /v1/refute: the cheap read first, cached failures, bounded concu
 });
 
 // =====================================================================================================================
-// 4. fuites : messages fixes
+// 4. leaks: fixed messages
 // =====================================================================================================================
 
 describe("4 — leaks: replay notes and HTTP answers with fixed messages", () => {

@@ -535,9 +535,9 @@ export class AnvilForkRunner implements ForkRunner {
     for (const r of reads) {
       if (r.kind === "erc20") {
         const v = await rpc("eth_call", [{ to: r.token, data: encodeFunctionData({ abi: erc20, functionName: "balanceOf", args: [r.holder] }) }, "latest"]);
-        out.set(r.key, quantity(v, "solde ERC-20"));
+        out.set(r.key, quantity(v, "ERC-20 balance"));
       } else if (r.kind === "native") {
-        out.set(r.key, quantity(await rpc("eth_getBalance", [r.holder, "latest"]), "solde natif"));
+        out.set(r.key, quantity(await rpc("eth_getBalance", [r.holder, "latest"]), "native balance"));
       } else {
         let v: unknown;
         try {
