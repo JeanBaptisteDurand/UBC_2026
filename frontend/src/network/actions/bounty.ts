@@ -7,7 +7,8 @@
 //   enclave), the enclave replays it and signs a claim (proveExploit), then acceptClaim reserves the payment and
 //   deliver releases it; a refused credit is withdrawn (withdrawCredit), an expired pool is recovered (withdrawRemaining);
 // - the VERIFIED level (product 7) is the same flow on the other contract (SealedBountyVerified) and the other enclave
-//   (/enclave/bounty-verified); it only accepts and writes verdicts from 18/11, 23:00 UTC.
+//   (/enclave/bounty-verified). Past its 8-day delay, it can slash bonds since 18 Nov, 23:59 UTC, and write verdicts
+//   since 19 Nov, 00:15 UTC.
 import { encodeFunctionData, parseAbi, parseEventLogs, toHex, zeroAddress, type Address, type Hex } from 'viem'
 import { createArcClient, encodeExploitTx, generateX25519, predicateHash, sealedBountyAbi, testnet, type ArcClient, type BountyRow, type Deployment, type Predicate, type ProvenClaim } from './sdk'
 import { arc, publicClient, needFunds, requireSecure, waitOk, UserFacing } from './wallet'
