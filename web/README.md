@@ -1,25 +1,27 @@
 # ArcHive console
 
-The console is where people use ArcHive on Arc testnet (chainId 5042002): browse the products and the enclaves
-that serve them, open an encrypted session with a private AI, pay per call with x402, post and hunt sealed bounties,
-run an operator machine, publish a product, and ask AskHive for help on any page.
+The console is where people use ArcHive on Arc testnet (chainId 5042002). Browse the products and the enclaves that
+serve them. Chat with a private AI over an encrypted session, or pay per call with x402. Post a sealed bounty or hunt
+one, run an operator machine, publish a product. On every page, AskHive explains what you see.
 
-Live: https://archive.62-171-153-35.sslip.io/console/ (the 3D server room is at `/datacenter/` on the same host).
+Live: https://archive.62-171-153-35.sslip.io/console/ (https://arc-hive.xyz/console/ leads there). The 3D server room
+is at `/datacenter/` on both hosts.
 
-React 18, Vite 5, TypeScript, Tailwind, wagmi and RainbowKit, viem, and the ArcHive SDK (`../packages/sdk`, linked
-from source by `vite.config.ts` and `tsconfig.json`).
+The console is built with React 18, Vite 5, TypeScript and Tailwind. Wallets connect through wagmi and RainbowKit, and
+viem talks to Arc. The ArcHive SDK (`../packages/sdk`) is compiled from source, through `vite.config.ts` and
+`tsconfig.json`.
 
 ## Screens
 
 | Menu | Screen | What it does |
 | --- | --- | --- |
 | Explore | Overview (`screens/Overview.tsx`) | The proof chain of a live enclave, link by link, and the latest activity on Arc |
-| Explore | Hive (`screens/Hive.tsx`) | The registered enclaves with their operator, product, level and price |
+| Explore | Hive (`screens/Hive.tsx`) | The registered enclaves, with their operator, product, level and price |
 | Explore | 3D server room (`/datacenter/`) | The same enclaves as racks in a server room, live |
 | Explore | Products (`screens/Products.tsx`) | The seven products, their settlement rail and their price |
-| Explore | Bounties (`screens/Bounties.tsx`, `screens/Bounty.tsx`) | Sealed bounties at the open and verified levels: a hunter proves an exploit in an enclave on a copy of Arc, the accepted claim reserves the payout, delivering the report pays it |
+| Explore | Bounties (`screens/Bounties.tsx`, `screens/Bounty.tsx`) | Sealed bounties at the open and verified levels. A hunter proves an exploit in an enclave, on a copy of Arc. The accepted claim reserves the payout, and the delivered report pays it |
 | Use | Private AI (`screens/Playground.tsx`, `Chat.tsx`, `X402Chat.tsx`) | An encrypted chat with the inference enclave, prepaid by session or paid per call with x402 |
-| Use | Keys & sessions (`screens/Keys.tsx`) | Your sessions (each locked to one enclave), access keys (`aek_`) backed by a prepaid session, operator keys (`arcop_`), and the local OpenAI-compatible proxy |
+| Use | Keys & sessions (`screens/Keys.tsx`) | Your sessions (each locked to one enclave), access keys (`aek_`) backed by a prepaid session, operator keys (`arcop_`) and the local OpenAI-compatible proxy |
 | Use | Post a bounty (`screens/PostBounty.tsx`) | Fund a sealed bounty in USDC |
 | Provide | Operator (`screens/Operator.tsx`) | From bare machine to paid enclave: install the agent, pair it with your wallet, follow its checks and its bond |
 | Provide | Publish a product (`screens/Publish.tsx`) | Register a product and its manifest on Arc |
@@ -29,26 +31,29 @@ from source by `vite.config.ts` and `tsconfig.json`).
 
 ## How it reads and checks the chain
 
-- **State comes from the ArcHive API** (`api.ts`, `/api`): the API reads Arc once on the server and caches it, so the
+- **State comes from the ArcHive API** (`api.ts`, `/api`). The API reads Arc on the server and caches it, so the
   browser does not send bursts of RPC reads. Transactions go from your wallet straight to Arc.
-- **Enclave keys are checked before anything is encrypted** (`arc.ts`, `useVerifiedEnclave`): the console reads the
-  enclave's `/pubkeys` and compares the X25519 key with the one registered in `EnclaveRegistry`, and requires the
-  enclave to be active at the head block. A key that does not match is refused.
-- **A product's image is shown as proven only when its manifest matches the chain**: `manifestVerified` means that the
+- **Enclave keys are checked before anything is encrypted** (`arc.ts`, `useVerifiedEnclave`). The console reads the
+  enclave's `/pubkeys` and compares its X25519 key with the one registered in `EnclaveRegistry`. The enclave must also
+  be active at the head block. A key that does not match is refused.
+- **A product's image is shown as proven only when its manifest matches the chain.** `manifestVerified` means that the
   keccak256 of the author's manifest equals the `manifestHash` stored on Arc.
-- **AskHive never holds a key**: it prepares an action, the console shows it, and your wallet signs it.
+- **AskHive never holds a key.** It prepares an action, the console shows it, and your wallet signs it.
 
 ## Run it
 
+The console compiles the SDK from source, so the SDK's dependencies come first:
+
 ```sh
+(cd ../packages/sdk && npm ci)
 npm ci
 npm run dev        # the dev server
 npm run typecheck  # tsc --noEmit
 npm run build      # typecheck, then the production build in dist/
 ```
 
-Copy `.env.example` to `.env` to set `VITE_WC_PROJECT_ID` (a WalletConnect project id; injected wallets work without
-it). The service URLs are set at build time and default to the local services (`config.ts`: the API on
+Copy `.env.example` to `.env` to set `VITE_WC_PROJECT_ID`, a WalletConnect project id. Injected wallets work without
+it. The service URLs are fixed at build time and default to the local services (`config.ts`: the API on
 http://localhost:8809). The production build uses the live paths, as `deploy/build.sh` does:
 
 ```sh
@@ -63,19 +68,48 @@ npx vite build --base /console/
 
 ## Languages
 
-English and French, without a library (`src/i18n`): `en.ts` is the reference dictionary and `fr.ts` must have exactly
-the same keys, which the type checker enforces. Refusals are explained in the current language: contract errors by
-their name (`i18n/contract-errors.en.ts`), API refusals by their stable code (`i18n/api-errors.ts`) and the SDK's
-messages by rule (`i18n/sdk-messages.en.ts`), all through `errors.ts`.
+The console speaks English and French, without a library (`src/i18n`). `en.ts` is the reference dictionary, and
+`fr.ts` must have exactly the same keys: the type checker enforces it. Refusals are explained in the current language,
+all through `errors.ts`:
+
+- contract errors, by their name (`i18n/contract-errors.en.ts`);
+- API refusals, by their stable code (`i18n/api-errors.ts`);
+- the French messages of the SDK and the enclaves, by rule (`i18n/sdk-messages.en.ts`). In French they show as they
+  came.
 
 ## public/
 
-- `datacenter/`: the 3D server room. `room.js` is a prebuilt bundle of the scene and three.js r160; the models and their
-  licences are listed in `datacenter/CREDITS.txt`.
-- `manifests/`: the products' manifests, one set per deployment (v1, v2, v2.1 live, v3 deployed). On the live v2.1
-  stack, the keccak256 of each `*-v21.json` file equals the `manifestHash` its product stores on Arc (products 1 to 5
-  and 7): that match is what lets the console show a product's image as proven. Older sets are kept unchanged so that
-  earlier registrations stay checkable.
-- `install.sh` and `archive-node.mjs`: the operator agent, built from `packages/node` and served by the site
-  (`curl -fsSL https://archive.62-171-153-35.sslip.io/install.sh | sh`). `install.sh` prints the agent's SHA-256 and
-  refuses a mismatch when `ARCHIVE_NODE_SHA256` is set.
+- `datacenter/`: the 3D server room, built from `datacenter-src/` (see below). `datacenter/CREDITS.txt` lists its
+  models and their licences.
+- `manifests/`: the products' manifests, one set per deployment: v1, v2, v2.1 (in service) and v3 (deployed, not yet
+  in use). On v2.1, the keccak256 of each `*-v21.json` file equals the `manifestHash` its product stores on Arc
+  (products 1 to 5 and 7). That match lets the console show a product's image as proven. Older sets stay unchanged, so
+  earlier registrations remain checkable.
+- `archive-node.mjs`: the operator agent, built from `packages/node` (`npm run build` there copies it here).
+- `install.sh`: installs that agent (`curl -fsSL https://archive.62-171-153-35.sslip.io/install.sh | sh`). It prints
+  the agent's SHA-256, and refuses a mismatch when `ARCHIVE_NODE_SHA256` is set.
+
+## The 3D server room
+
+`public/datacenter/room.js` is built from `datacenter-src/`. The build is reproducible: run again, it gives the same
+files, byte for byte (checked in a clean Linux container and on macOS).
+
+```sh
+sh datacenter-src/build.sh public/datacenter   # needs python3, Node.js and npm
+```
+
+The build has three steps:
+
+1. `make_room.py` turns the engine page (`base.template.html`) into the server room. It swaps in the blocks of `room/`
+   (the room and its zones, the characters, their choreography, the live feed, the archive) and applies the room's
+   patches. Each patch checks that its text is still there.
+2. `copy_room.py` writes the room's words, in English and French, over the engine's (`base-copy.json`). The words and
+   the recorded network (`hive-data.json`, the state of 12 Nov) go into the page as two JSON blocks.
+3. `make_site.py` reshapes the page for the site's strict CSP (`script-src 'self'`). esbuild then bundles its script
+   with three.js r160 into one local file, `room.js`.
+
+three@0.160.0 and esbuild@0.24.2 are installed once, at exact versions, in `~/.cache/archive-room-site`
+(`ARCHIVE_ROOM_CACHE` moves it). The model packs stay in `public/datacenter/m/`, and the build copies them as they are.
+In the browser, the room reads the ArcHive API on load and every 20 s. When the API cannot be reached, it shows the
+recorded state. `deploy/build.sh` copies the folder to the site's `/datacenter/` and points its console button at
+`/console/`.
