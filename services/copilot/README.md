@@ -60,6 +60,7 @@ The main groups:
 ## Run and test
 
 ```sh
+(cd enclave && npm ci --legacy-peer-deps)   # the enclave kit, which the copilot's enclave code imports
 cd packages/sdk && npm ci && cd ../../services/copilot && npm ci
 npm test               # 184 tests with a simulated model: no call to a model provider
 npm run typecheck
