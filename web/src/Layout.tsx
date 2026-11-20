@@ -3,7 +3,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { Menu, X, Sparkles, ArrowUpRight, ArrowLeft } from "lucide-react";
 import { ROUTES, GROUPS, LINKS, routeLabel, groupLabel, type RouteId } from "./routes";
 import { fetchStats } from "./api";
-import { LANGS, fmtNum, setLang, t, useLang } from "./i18n";
+import { fmtNum, t, useLang } from "./i18n";
 
 function Brand() {
   return (
@@ -108,9 +108,6 @@ function PauseBanner() {
   );
 }
 
-/** Each language's name in that language, so it is recognised whatever language is displayed. */
-const LANG_NAME = { en: "English", fr: "Français" } as const;
-
 /** Phone screen (under 640 px, Tailwind's "sm" breakpoint): the top bar tightens. */
 const NARROW = "(max-width: 639px)";
 function subscribeNarrow(f: () => void) {
@@ -121,30 +118,6 @@ function subscribeNarrow(f: () => void) {
 const isNarrow = () => !!window.matchMedia?.(NARROW).matches;
 function useNarrow(): boolean {
   return useSyncExternalStore(subscribeNarrow, isNarrow, () => false);
-}
-
-/** EN | FR: the site's language, kept in this browser (English by default). On a computer, both buttons; on a phone, a
- *  single one that carries the other language ("FR" on the English site) and switches to it. */
-function LangToggle() {
-  const lang = useLang();
-  const other = LANGS.find((l) => l !== lang) ?? "en";
-  return (
-    <>
-      <button type="button" lang={other} onClick={() => setLang(other)} title={LANG_NAME[other]} aria-label={LANG_NAME[other]}
-        className="grid min-h-[44px] min-w-[44px] shrink-0 place-items-center rounded-lg border border-edge px-2 py-1.5 text-[12px] font-medium text-muted transition hover:bg-raised hover:text-text sm:hidden">
-        {other.toUpperCase()}
-      </button>
-      <div role="group" aria-label={t("layout.language")} className="hidden shrink-0 overflow-hidden rounded-lg border border-edge text-[12px] sm:inline-flex">
-        {LANGS.map((l) => (
-          <button key={l} type="button" lang={l} aria-pressed={lang === l} title={LANG_NAME[l]}
-            onClick={() => setLang(l)}
-            className={`tap min-w-[36px] px-2 py-1.5 font-medium transition ${lang === l ? "bg-accent/15 text-text" : "text-muted hover:bg-raised hover:text-text"}`}>
-            {l.toUpperCase()}
-          </button>
-        ))}
-      </div>
-    </>
-  );
 }
 
 export default function Layout({ route, go, onOpenCopilot, children }: { route: RouteId; go: (r: string) => void; onOpenCopilot: () => void; children: ReactNode }) {
@@ -195,7 +168,6 @@ export default function Layout({ route, go, onOpenCopilot, children }: { route: 
             className="copilot-top h-11 w-11 shrink-0 place-items-center rounded-lg border border-accent/50 bg-accent text-lg text-ink transition hover:brightness-110">
             <span aria-hidden="true">⬡</span>
           </button>
-          <LangToggle />
           <NetworkPill />
           {/* on a phone: "Connect" and the account avatar, on one line; elsewhere, RainbowKit's label and the address */}
           <ConnectButton showBalance={false} label={narrow ? t("layout.connect") : undefined}

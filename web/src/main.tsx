@@ -9,7 +9,6 @@ import { RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit";
 import "@rainbow-me/rainbowkit/styles.css";
 import "./index.css";
 import { config } from "./wagmi";
-import { useLang } from "./i18n";
 import App from "./App";
 
 const qc = new QueryClient();
@@ -33,12 +32,11 @@ function useLastWallet() {
   }, []);
 }
 
-/** RainbowKit's connect window follows the site's language (en-US / fr-FR). */
+/** RainbowKit's connect window is in English, like the whole site (whatever the browser's language). */
 function Root() {
   useLastWallet();
-  const lang = useLang();
   return (
-    <RainbowKitProvider locale={lang === "fr" ? "fr-FR" : "en-US"} theme={theme}>
+    <RainbowKitProvider locale="en-US" theme={theme}>
       <App />
     </RainbowKitProvider>
   );

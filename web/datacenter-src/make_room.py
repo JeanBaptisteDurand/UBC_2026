@@ -267,5 +267,15 @@ s = rep(s, '@media (prefers-reduced-motion: reduce) {', """/* Touch screens: eac
   .status .opt { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {""")
+# --- English only: the whole site is in English. The room opens in English whatever the browser's language or a choice
+# stored in this browser earlier, and its language button and its Settings language line are gone (the French words
+# stay in the copy, unused).
+s = rep(s, "let LANG = store.get('lang') || ((navigator.language || 'en').toLowerCase().startsWith('fr') ? 'fr' : 'en');", "let LANG = 'en';")
+s = rep(s, '  <button class="ibtn" id="btn-lang" type="button" aria-label="Language">FR</button>\n', '')
+s = rep(s, "  $('#btn-lang').textContent = LANG === 'fr' ? 'EN' : 'FR';\n  $('#btn-lang').setAttribute('aria-label', LANG === 'fr' ? 'English' : 'Français');\n", '')
+s = rep(s, "    seg(tr('settings.language'), [['en', 'English'], ['fr', 'Français']], LANG, (v) => setLang(v));\n", '')
+s = rep(s, "function setLang(v) { LANG = COPY[v] ? v : 'en'; store.set('lang', LANG); applyWords(); }\n", '')
+s = rep(s, "$('#btn-lang').addEventListener('click', () => setLang(LANG === 'fr' ? 'en' : 'fr'));\n", '')
+assert 'btn-lang' not in s and 'setLang' not in s, 'the room still has a language switch'
 open(OUT, 'w', encoding='utf-8').write(s)
 print('room template', len(s))

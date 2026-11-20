@@ -5,9 +5,9 @@ The site sends a strict Content-Security-Policy (deploy/Caddyfile): script-src '
 connect-src without blob:. The page is reshaped, never rewritten:
 - the module script leaves the page for room.src.js, which build.sh bundles with three.js r160 (esbuild);
 - the import map goes (three is in the bundle); the two JSON blocks stay (data, never executed);
-- three changes in the script, each patch found exactly once: the API is this site's own origin; the language is
-  shared with the rest of the site; GLTFLoader reads embedded textures as <img> (blob: images are allowed by the CSP,
-  fetch() of blob: is not);
+- two changes in the script, each patch found exactly once: the API is this site's own origin; GLTFLoader reads
+  embedded textures as <img> (blob: images are allowed by the CSP, fetch() of blob: is not). The room is in English
+  only (make_room.py), so no language is shared with the rest of the site;
 - the console button stays on the site, in the same tab, with an arrow instead of the new-tab icon (deploy/build.sh
   points it at /console/);
 - a real document head (charset, viewport, the console's favicon) and a small base reset (margins, font, safe areas).
@@ -45,16 +45,6 @@ assert 'three@0.160.0' in importmap, 'three is no longer r160: update build-site
 # 2. the script, patched for the site
 code = once(code, "const API = 'https://archive.62-171-153-35.sslip.io/api';",
             "const API = location.origin + '/api'; /* site: the API of this very site */", 'API')
-code = once(code, "const store = {\n",
-            "/* site: one language for the whole site. The marketplace pages keep it under 'archive-lang', the console under\n"
-            "   'archive.lang'. The marketplace's key is read first (a visitor who chose French there gets the room in French),\n"
-            "   then the console's. A choice made here is written under both */\n"
-            "const skey = (k) => (k === 'lang' ? 'archive.lang' : 'archive-base.' + k);\n"
-            "const lget = (k) => { if (k === 'lang') { const v = localStorage.getItem('archive-lang'); if (v === 'en' || v === 'fr') return v; } return localStorage.getItem(skey(k)); };\n"
-            "const lset = (k, v) => { if (k === 'lang') localStorage.setItem('archive-lang', v); localStorage.setItem(skey(k), v); };\n"
-            "const store = {\n", 'store')
-code = once(code, "localStorage.getItem('archive-base.' + k)", "lget(k)", 'store.get')
-code = once(code, "localStorage.setItem('archive-base.' + k, v)", "lset(k, v)", 'store.set')
 code = once(code, "const loader = new GLTFLoader();\n",
             "const loader = new GLTFLoader();\n"
             "/* site: the CSP allows blob: images but not fetch() of blob: (ImageBitmapLoader): textures load as <img> */\n"

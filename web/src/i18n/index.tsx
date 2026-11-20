@@ -1,17 +1,17 @@
-/** i18n — the site's two languages, without a library: English by default, French on request.
- *  - `en.ts` is the reference dictionary (typed `as const`); `fr.ts` must have exactly the same keys (type `Dict`).
- *  - `t(key, vars)` returns the text in the current language: `{name}` placeholders are filled from `vars`, and an
- *    entry written as a function (plurals, grammar) is called with `vars`. Variables are type-checked per key.
+/** i18n — the site's words, without a library. The whole site is in English: the console always shows English,
+ *  whatever the browser's language or a French choice stored in this browser earlier, and it has no language switch.
+ *  `fr.ts` stays a complete dictionary (the `Dict` type checks its keys), but the console does not load it.
+ *  - `en.ts` is the dictionary (typed `as const`).
+ *  - `t(key, vars)` returns the text: `{name}` placeholders are filled from `vars`, and an entry written as a function
+ *    (plurals, grammar) is called with `vars`. Variables are type-checked per key.
  *  - `tx(key, vars)` does the same with React elements in the placeholders (links, addresses, code).
- *  - the language lives in a small store: kept in localStorage when it is available (private window, blocked
- *    storage: memory only), mirrored on <html lang> and in the page title. `useLang()` redraws a component on change.
- *  - numbers and dates follow the language (en-US / fr-FR): fmtNum, fmtDateTime, fmtUnix, fmtTime. */
+ *  - `getLang()` and `useLang()` always give "en"; <html lang>, the page title and its description are set once.
+ *  - numbers and dates are written in en-US: fmtNum, fmtDateTime, fmtUnix, fmtTime. */
 import { Fragment, createElement, useSyncExternalStore, type ReactNode } from "react";
-import { en, type Dict } from "./en";
-import { fr } from "./fr";
+import { en } from "./en";
 
+/** "fr" stays in the type: callers still test for it (the SDK's French messages are shown in English). */
 export type Lang = "en" | "fr";
-export const LANGS: readonly Lang[] = ["en", "fr"];
 
 export type En = typeof en;
 export type Key = keyof En;
@@ -27,50 +27,22 @@ export type StaticKey = { [K in Key]: HasVars<K> extends false ? K : never }[Key
 /** keys written as plain text (usable with `tx`) */
 export type TemplateKey = { [K in Key]: En[K] extends string ? K : never }[Key];
 
-const DICTS: Record<Lang, Dict> = { en, fr };
-const STORE_KEY = "archive.lang";
-/** The language key of the landing site ("archive-lang"): a visitor who chose French on the site arrives in a French
- *  console. It is read first (the site writes only its own key, the console writes both: the more recent of the two
- *  choices wins); the console's older key comes next. */
-const SITE_KEY = "archive-lang";
-
-function stored(): Lang | null {
-  try {
-    for (const k of [SITE_KEY, STORE_KEY]) {
-      const v = window.localStorage.getItem(k);
-      if (v === "en" || v === "fr") return v;
-    }
-    return null;
-  } catch { return null; }
-}
-
-let current: Lang = (typeof window !== "undefined" && stored()) || "en";
-const listeners = new Set<() => void>();
-
-export const getLang = (): Lang => current;
+/** Always English. No stored choice is read (neither the console's "archive.lang" nor the landing site's
+ *  "archive-lang"), nor the browser's language, and nothing switches it. */
+export const getLang = (): Lang => "en";
 /** BCP 47 locale for numbers and dates */
-export const locale = (): "en-US" | "fr-FR" => (current === "fr" ? "fr-FR" : "en-US");
+export const locale = (): "en-US" | "fr-FR" => "en-US";
 
-export function setLang(l: Lang) {
-  if (l === current || !LANGS.includes(l)) return;
-  current = l;
-  try { window.localStorage.setItem(STORE_KEY, l); window.localStorage.setItem(SITE_KEY, l); } catch { /* storage unavailable: the choice lasts for this page */ }
-  syncDocument();
-  for (const f of listeners) f();
-}
+/** The language never changes: there is nothing to subscribe to. */
+const subscribe = () => () => {};
 
-function subscribe(f: () => void) {
-  listeners.add(f);
-  return () => { listeners.delete(f); };
-}
-
-/** The current language; the component redraws when it changes. */
+/** The language ("en"), kept as a hook for the components that call it. */
 export function useLang(): Lang {
   return useSyncExternalStore(subscribe, getLang, getLang);
 }
 
 function raw(key: Key): unknown {
-  return (DICTS[current] as Record<string, unknown>)[key] ?? (en as Record<string, unknown>)[key];
+  return (en as Record<string, unknown>)[key];
 }
 
 export function t<K extends Key>(key: K, ...args: Args<K>): string {
@@ -88,7 +60,7 @@ export function tx<K extends TemplateKey>(key: K, vars: Record<Placeholders<En[K
   return createElement(Fragment, null, ...parts.map((p, i) => (i % 2 ? createElement(Fragment, { key: i }, v[p]) : p)));
 }
 
-// ---------- numbers and dates in the current language ----------
+// ---------- numbers and dates, in en-US ----------
 
 export function fmtNum(n: number | bigint, o?: Intl.NumberFormatOptions): string {
   return new Intl.NumberFormat(locale(), o).format(n);
@@ -106,11 +78,11 @@ export function fmtTime(ms: number): string {
   return new Date(ms).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
 }
 
-// ---------- <html lang>, title and description follow the language ----------
+// ---------- <html lang>, title and description ----------
 
 function syncDocument() {
   if (typeof document === "undefined") return;
-  document.documentElement.lang = current;
+  document.documentElement.lang = "en";
   document.title = t("meta.title");
   document.querySelector('meta[name="description"]')?.setAttribute("content", t("meta.description"));
 }
