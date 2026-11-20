@@ -216,18 +216,18 @@ export async function submitSealedExploit(
 export const REFUTE_QUORUM = 2;
 /** SealedBounty.REFUTE_WINDOW: 3 days after acceptance (the on-chain value is authoritative: readAcceptedClaim reads it). */
 export const REFUTE_WINDOW_SECONDS = 259_200n;
-/** SealedBounty._countRefuters : au plus 2 × MAX_SIGS signatures. */
+/** SealedBounty._countRefuters: at most 2 × MAX_SIGS signatures. */
 export const REFUTE_MAX_SIGNATURES = 2 * BOUNTY_MAX_SIGS;
 /** HPKE aad of a refutation request (identical to the enclave's, enclave/src/services/bounty.ts). */
 export const REFUTE_AAD_LABEL = "arc-sealed-bounty/refute/v1";
-/** Tranche d'eth_getLogs (le RPC public d'Arc plafonne la plage). */
+/** eth_getLogs chunk size (Arc's public RPC caps the range). */
 const LOG_CHUNK = 5_000n;
 
 export function refuteRequestAad(claimDigest: Hex): Uint8Array {
   return new TextEncoder().encode(`${REFUTE_AAD_LABEL}:${claimDigest.toLowerCase()}`);
 }
 
-/** keccak256(abi.encode(operators)) = ClaimRecord.opsHash (ordre de ClaimAccepted). */
+/** keccak256(abi.encode(operators)) = ClaimRecord.opsHash (in ClaimAccepted's order). */
 export function claimOperatorsHash(operators: readonly Address[]): Hex {
   return keccak256(encodeAbiParameters([{ type: "address[]" }], [operators as Address[]]));
 }
@@ -263,7 +263,7 @@ export interface AcceptedClaim {
   operators: Address[];
   /** Amount reserved for the hunter. */
   amount: bigint;
-  /** Horodatage de l'acceptation (claimRecords.acceptedAt). */
+  /** Timestamp of the acceptance (claimRecords.acceptedAt). */
   acceptedAt: bigint;
   refuted: boolean;
   /** acceptedAt + REFUTE_WINDOW (lu on-chain). */
@@ -272,7 +272,7 @@ export interface AcceptedClaim {
   checkedAtBlock: bigint;
   checkedAtTimestamp: bigint;
   windowOpen: boolean;
-  /** Bloc et transaction de l'acceptation. */
+  /** Block and transaction of the acceptance. */
   block: bigint;
   txHash: Hex;
 }
@@ -297,7 +297,7 @@ async function scanLogs(
   return out;
 }
 
-/** Premier bloc de [lo, hi] dont l'horodatage est ≥ ts (recherche dichotomique). */
+/** First block of [lo, hi] whose timestamp is ≥ ts (binary search). */
 async function firstBlockAtOrAfter(pub: PublicClient, ts: bigint, lo: bigint, hi: bigint): Promise<bigint> {
   while (lo < hi) {
     const mid = lo + (hi - lo) / 2n;
@@ -413,7 +413,7 @@ export async function findDeliveredReport(
   return undefined;
 }
 
-// ---------- 2. la source de l'exploit ----------
+// ---------- 2. the exploit's source ----------
 
 /** What is encrypted to each refuting enclave (the plaintext RefutationService reads). */
 export type RefuteSource =
@@ -453,7 +453,7 @@ export function protocolRefuteSource(a: { cP: Hex; protocolPrivateKey: Uint8Arra
 
 export interface RefuteSourceCheck {
   mode: "hunter" | "protocol-secret" | "protocol-key";
-  /** Le rapport s'ouvre et c'est un bundle canonique. */
+  /** The report opens and is a canonical bundle. */
   readable: boolean;
   /** Its content matches the claim (bounty, payee, predicate, fingerprint): the enclave will replay it; otherwise it
    *  signs "not proven" without a replay (the claim contradicts its own report). */
@@ -593,7 +593,7 @@ function refutePlaintext(s: RefuteSource): string {
   return JSON.stringify(s);
 }
 
-// ---------- 3. quorum, contre-rejeu, signatures ----------
+// ---------- 3. quorum, counter-replay, signatures ----------
 
 export interface RefuteQuorumPlan {
   /** Distinct operators needed (refutersNeeded). */
@@ -687,7 +687,7 @@ export async function requestRefutations(a: {
   accepted: AcceptedClaim;
   source: RefuteSource;
   enclaveUrls: string[];
-  /** Produit de la prime (Bounty.productId, lu on-chain). */
+  /** The bounty's product (Bounty.productId, read on-chain). */
   productId: bigint;
   /** The protocol's X25519 key (Bounty.protocolX25519, read on-chain). */
   protocolX25519: Hex;
@@ -833,7 +833,7 @@ async function askOne(
   return { ...who, status: "refuted", refutation: ref, signature: j.signature as Hex, replay };
 }
 
-// ---------- 4. l'appel refute ----------
+// ---------- 4. the refute call ----------
 
 /** refute(claim, ops, refutation, signatures) ready to simulate (simulateContract), then send, with a gas margin. */
 export function prepareRefuteCall(accepted: AcceptedClaim, round: RefuteRound, deployment?: Deployment) {

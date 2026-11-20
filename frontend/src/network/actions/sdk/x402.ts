@@ -468,7 +468,7 @@ export function parseX402PaidRequest(json: string): X402PaidRequest {
   };
 }
 
-// ---------------------------------------------------------------- le client
+// ---------------------------------------------------------------- the client
 
 export interface X402ClientOptions {
   /** The gateway of the x402 product, direct or behind a proxy: its keys are verified on-chain. */
@@ -543,7 +543,7 @@ export class X402Client {
     if (!this.d.x402Settler || lower(this.d.x402Settler) === zeroAddress) throw new Error("x402 : déploiement sans X402Settler");
   }
 
-  /** Le payeur. */
+  /** The payer. */
   get address(): Address { return this.account.address; }
 
   private base() { return this.o.enclaveUrl.replace(/\/+$/, ""); }
@@ -1092,7 +1092,7 @@ export interface X402SettlementQueueOptions {
    *  CallSettled event) or used otherwise (cancelled by the payer; only a settlement makes the payer "known" to the
    *  enclave). Receives each key once per pass; a failed report is sent again at the next pass. */
   acknowledge?: (items: X402AckItem[]) => Promise<void>;
-  /** Envoie X402Settler.settle et attend la transaction. */
+  /** Sends X402Settler.settle and waits for the transaction. */
   settle: (call: PendingCall) => Promise<X402SettleResult>;
   /** No more attempts closer than this delay (s) to the authorization's expiry (default 15). */
   minRemainingSeconds?: number;

@@ -181,7 +181,7 @@ export function predicateHash(p: Predicate): Hex {
 export interface EvalContext {
   erc20Drop(token: Address, holder: Address): bigint; // balance before − after (>= 0 on a drop)
   nativeDrop(holder: Address): bigint;
-  attackerProfit(token: Address): bigint; // final − capital, gas compris
+  attackerProfit(token: Address): bigint; // final − capital, gas included
   viewValue(target: Address, call: Hex, when: "before" | "after"): bigint;
   invariantHeld(target: Address, call: Hex, when: "before" | "after"): boolean;
 }
