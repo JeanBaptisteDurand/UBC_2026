@@ -968,10 +968,12 @@ test("test mode: x402 payment for one call, to the SDK deployment's X402Settler,
   ];
   for (const [what, r] of refused) assert.equal((await r.call).json.error?.code, 4001, `${what} : ${JSON.stringify((await r.call).json)}`);
 
-  // the addresses come from the SDK's deployment (testnet), never written in the test mode
+  // the addresses come from the deployment the API gives it (its live stack; the SDK's testnet by default), never
+  // written in the test mode (test/testsigner-stack.test.ts: on the v3 stack)
   const src = readFileSync(new URL("../src/testSigner.ts", import.meta.url), "utf8");
   assert.ok(!/0x[0-9a-fA-F]{40}/.test(src), "no hard-coded address in testSigner.ts");
-  assert.match(src, /testnet\.x402Settler/);
+  assert.match(src, /dep: Deployment = testnet/);
+  assert.match(src, /dep\.x402Settler/);
 });
 
 test("test mode: decoded transactions, allowlist, ownership read on-chain, gas set by the server", async () => {
