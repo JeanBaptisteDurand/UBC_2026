@@ -1,14 +1,14 @@
 # ArcHive
 
 **Sealed machines, open market.** ArcHive is a marketplace of services that run inside Intel TDX enclaves. Before any
-result counts, a contract on **Arc** checks Intel's signature on the machine and the exact image it runs; every use is
+result counts, a contract on **Arc** checks Intel's signature on the machine and the exact image it runs. Every use is
 **paid in USDC** against a receipt the enclave signed, and a machine caught lying loses its operator's USDC bond.
 
 **The problem.** An app or an AI agent that sends a private request to someone else's machine, or pays out on a
 security report, has to take the provider's word: that the advertised code is what runs, that the data stays private,
-that the result is honest. ArcHive replaces that word with checks Arc runs itself: a machine is admitted only once
-Intel's signature and its image fingerprint check out, USDC is paid out only against a signature from an admitted
-enclave, and a proven lie costs the operator's bond.
+that the result is honest. ArcHive replaces that word with checks Arc runs itself. A machine is admitted only once
+Intel's signature and its image fingerprint check out. USDC is paid out only against a signature from an admitted
+enclave. A proven lie costs the operator's bond.
 
 Built on Arc testnet for UBC 2026 (Track 01, Agentic Payments & AI, and the Arc chain award) by Jean-Baptiste Durand
 and Florent Belotti.
@@ -36,100 +36,21 @@ rack is a product with its live state; the others are open slots.
 | MCP server for AI agents (16 tools, no key) | https://arc-hive.xyz/mcp |
 | Arc testnet explorer | https://explorer.testnet.arc.io |
 
-The same site also answers at the server's own address, https://archive.62-171-153-35.sslip.io, where the console and
-the operators' wallet sign-in run (https://arc-hive.xyz/console/ redirects there).
+The same site also answers at the server's own address, https://archive.62-171-153-35.sslip.io. The console and the
+operators' wallet sign-in run there, and https://arc-hive.xyz/console/ redirects to it.
 
 ## Check it in two minutes, no wallet needed
 
-1. **What runs now**, and the key of each enclave Arc admitted:
+1. **See what runs now**, with the key of each enclave Arc admitted:
    `curl -s https://arc-hive.xyz/api/enclaves`
-2. **Arc's admission check, replayed for you**: on the home page, section *Arc check* ("Arc admits the enclave or
-   refuses it"), press **Change one byte**. Arc recomputes the image fingerprint (a read-only call) and refuses the machine.
-3. **Ask AskHive** (bottom right of the site) *"Does this chat run in an enclave?"*. The panel shows its connection to
+2. **Replay Arc's admission check.** On the home page, in the *Arc check* section ("Arc admits the enclave or refuses
+   it"), press **Change one byte**. Arc recomputes the image fingerprint in a read-only call and refuses the machine.
+3. **Ask AskHive** (bottom right of the site): *"Does this chat run in an enclave?"* The panel shows its connection to
    the enclave whose key Arc holds for product 4, and the answer comes back sealed by that enclave.
 4. **Open any transaction below** on the explorer: `https://explorer.testnet.arc.io/tx/<hash>`.
-5. **Without a browser** (Foundry's `cast`):
+5. **Check without a browser**, with Foundry's `cast`:
    `cast receipt 0xde9628b23d0483bb666a0cd13c55c4f32a1204151323a80da9451b0aeb330176 --rpc-url https://rpc.testnet.arc.io`
    shows AskHive's enclave admission: status 1 (success), 6,849,074 gas, sent to the `EnclaveRegistry`.
-
-## AskHive: the site's assistant, in its own enclave
-
-AskHive explains ArcHive while it shows it: it opens pages, highlights what it talks about, plays the 3D demo of the
-Network page and walks you through a task step by step. It prepares operations (a prepaid session, an operator bond, a
-bounty, a new product) that **you sign in your own wallet**: it holds no key and has no tool that spends.
-
-AskHive runs in its own Intel TDX enclave, registered on Arc as **product 4** (free):
-
-- **Before sending anything**, the panel reads the enclave's keys (`/enclave/copilot-site/pubkeys`) and checks on Arc
-  that this key is registered for product 4, with an image the product allows and an operator that is not banned.
-- **The conversation is sealed** to that key (HPKE). The web server in between relays ciphertext only.
-- **The answer comes back sealed** to the visitor's request: only the enclave holding the key checked on Arc can
-  produce it. The enclave also signs each answer (`ARC-COPILOT-SITE-REPLY-v1`; the verifier is `verifySiteReply` in
-  [`enclave-site.ts`](services/copilot/src/enclave-site.ts)).
-- **If a check fails**, the panel says so and uses the copilot on the site's server; a sealed conversation is never
-  resent in clear.
-- **The model** (`gpt-oss-120b`) runs at RedPill behind an attested gateway that the enclave verifies before any call
-  (Intel quote, production OS, pinned TLS, signed receipts). It does not run inside ArcHive's enclave.
-- **What the operator cannot change**: the compose ([`enclave/phala/copilot-site-v22.yml`](enclave/phala/copilot-site-v22.yml),
-  the file measured on Arc, byte for byte) pins the image by its digest (the code and the prompt) and writes the model,
-  its URL and the limits in clear, so all of it is part of the image fingerprint Arc allows for product 4.
-
-| Proof (Arc testnet, 19 Nov 2026, UTC) | Transaction |
-|---|---|
-| Image fingerprint `0x5771d334…ebe0` proposed, then allowed for product 4 (22:28) | [`0xc45eac78…ed28`](https://explorer.testnet.arc.io/tx/0xc45eac7898951503904d1a7b51acc415aac12ed5a40ee9eb4bcc2fe86122ed28), [`0x93f11a27…9228`](https://explorer.testnet.arc.io/tx/0x93f11a27c647d089e161acaaa60bf3ae3091e609773492b50326efbfc2a09228) |
-| AskHive's enclave admitted through Intel DCAP, key `0x09061F21A5b938cD941ea9eDfa481f89DEb716Ac` (22:37, 6,849,074 gas) | [`0xde9628b2…0176`](https://explorer.testnet.arc.io/tx/0xde9628b23d0483bb666a0cd13c55c4f32a1204151323a80da9451b0aeb330176) |
-| Its enclave bound to its chip, for the verified level (22:38) | [`0x469706cb…111c`](https://explorer.testnet.arc.io/tx/0x469706cb81f090b0205c52a20f7739af3d544a8f869f2d0fd09bb8816312111c) |
-
-Code: the panel in [`frontend/src/copilot/`](frontend/src/copilot/), the service in
-[`services/copilot/`](services/copilot/) (signed replies: [`enclave-site.ts`](services/copilot/src/enclave-site.ts)),
-the contract between them in [`docs/COPILOT-SITE-CONTRACT.md`](docs/COPILOT-SITE-CONTRACT.md).
-
-## Use ArcHive from your own tools
-
-### The MCP server, in Claude Code, Cursor or any MCP client
-
-```sh
-claude mcp add --transport http archive https://arc-hive.xyz/mcp
-```
-
-Any other MCP client: `{ "mcpServers": { "archive": { "url": "https://arc-hive.xyz/mcp" } } }`.
-The server holds no key and has no tool that sends a transaction: it reads the network and **prepares** operations that
-the user signs in their own wallet. Its 16 tools:
-
-| Reads | Prepares (you sign) |
-|---|---|
-| `arc_products`, `arc_enclaves`, `arc_bounties`, `arc_sessions`, `arc_activity`, `arc_pricing` | `arc_bounty_prepare_create`: a sealed bounty, with a loss-rule assistant |
-| `arc_enclave_status`, `arc_session_status`, `arc_verify_receipt` (checks a receipt like `SessionPay.settle`) | `arc_operator_prepare_bond`, `arc_operator_prepare_register`: bond, then register an enclave |
-| `arc_machines_list`, `arc_machine_diagnostics` (an operator's machines) | `arc_operator_plan`, `arc_product_scaffold`: become an operator, publish a service |
-
-The same server runs locally over stdio from this repository:
-`cd packages/sdk && npm ci && cd ../../services/mcp && npm ci && npm start` (`ARCHIVE_API` sets the read API).
-
-### The SDK and the `arcvault` CLI
-
-- [`packages/sdk`](packages/sdk/): TypeScript. Checks an enclave's keys on Arc before encrypting anything, opens
-  prepaid sessions, pays per call (x402, with `maxAmount`), verifies every signed receipt, builds bounties, reads the
-  operator levels.
-- [`packages/cli`](packages/cli/): `arcvault`, 33 commands: read the network, check a receipt, sessions, bounties and
-  refutation, operators, products, auditors, and a local OpenAI-compatible proxy paid from a prepaid session.
-
-```sh
-cd packages/sdk && npm ci
-cd ../cli && npm ci && npm run arcvault -- products
-```
-
-Both run from this repository with `npm ci` in each folder.
-
-### Claude Code on ArcHive's private inference
-
-Claude Code's chat can run on ArcHive's private inference: an Anthropic-compatible gateway (LiteLLM) and an x402 client
-pay the product 3 enclave 0.01 USDC per call and return each answer once its signed receipt checks against the
-enclave's key on Arc. Tested on 19 Nov 2026 with text requests (the model is `gpt-oss-120b`); the operator settled the
-three calls on Arc:
-[`0x3c98a1fa…1ae8`](https://explorer.testnet.arc.io/tx/0x3c98a1fafa893722b9bffd84a1287ef28a446c361c822e4e2071f714bba31ae8),
-[`0xec0bd6b0…68e3`](https://explorer.testnet.arc.io/tx/0xec0bd6b04fdaa3cc4966a604e8967f0e73b5ca91423d9921edb3d05c574168e3),
-[`0xe7a0e00f…f52b`](https://explorer.testnet.arc.io/tx/0xe7a0e00fe514f10d602b1495d2d84a5e9f5b4c67e1fb5ba33cf7e190d8a1f52b)
-(20:22 to 20:23 UTC).
 
 ## The seven products
 
@@ -153,18 +74,18 @@ for the enclaves that serve each product.
 
 **Admission** (`EnclaveRegistry`, `TdxAttestationModule`):
 
-- **Intel's signature**: the enclave registers with a fresh TDX quote. The registry verifies it through Automata's
+- **Intel's signature.** The enclave registers with a fresh TDX quote. The registry verifies it through Automata's
   DCAP verifier, which we deployed on Arc with Intel's collateral. Arc's P-256 precompile makes it affordable:
   5.21 M gas instead of 6.92 M with a Solidity P-256 verifier (−25 %, measured on Arc testnet).
-- **The image fingerprint**: the registry replays the VM's RTMR3 boot log in Solidity (SHA-384 written for the EVM,
-  about 55 k gas per 128-byte block), requires it to match the quote, and admits the enclave on
+- **The image fingerprint.** The registry replays the VM's RTMR3 boot log in Solidity (SHA-384 written for the EVM,
+  about 55 k gas per 128-byte block) and requires it to match the quote. It then admits the enclave on
   `keccak256(MRTD ‖ RTMR0 ‖ RTMR1 ‖ RTMR2 ‖ compose-hash ‖ os-image-hash ‖ XFAM ‖ TDATTRIBUTES)`: the compose that
   runs and the production OS image, nothing instance-specific. Only fingerprints the product's author allowed pass.
-- **The policy**: debug mode off, `SEPT_VE_DISABLE`, firmware (TCB) up to date, a quote bound to a recent Arc block
+- **The policy.** Debug mode off, `SEPT_VE_DISABLE`, firmware (TCB) up to date, a quote bound to a recent Arc block
   (EIP-2935, within 8,191 blocks), `REPORTDATA` binding chain, registry, product, operator and the enclave's keys,
   a quote never seen before, and enough free bond.
-- **The cost**: about 6.85 to 6.87 M gas per registration, 0.15 to 0.17 USDC at 21.5 to 25 gwei (measured on Arc testnet). The operator's
-  registrar renews each admission before its window ends.
+- **The cost.** About 6.85 to 6.87 M gas per registration, 0.15 to 0.17 USDC at 21.5 to 25 gwei (measured on Arc
+  testnet). The operator's registrar renews each admission before its window ends.
 
 **Operator levels** (`MachineRegistry`, `ProofOfCloudAuditor`, `PolicyEnclaves`; see [docs/OPERATORS.md](docs/OPERATORS.md)):
 
@@ -173,14 +94,140 @@ for the enclaves that serve each product.
   declared in an inspected datacenter by the Proof of Cloud alliance, whose Ed25519 signature is verified on Arc.
   Product 7 requires it.
 
-**Bonds and slashing** (`OperatorBond`): each enclave reserves the product's minimum bond (1 USDC for the live products on testnet). On the
-word of an operator's enclaves, settlement contracts never release more than half of its free bond in any 24 hours, nor more than the product's exposure cap (10 USDC on testnet). A
-fault proven on-chain (two signed answers to one request, or a bounty claim refuted by other operators' replays) seizes
-the whole bond: half to the reporter, half to the victim (or to the network treasury when there is no victim). A bond leaves 7 days after the request and after its last
-exposure.
+**Bonds and slashing** (`OperatorBond`):
+
+- Each enclave reserves the product's minimum bond (1 USDC for the live products on testnet).
+- On the word of an operator's enclaves, settlement contracts never release more than half of its free bond in any
+  24 hours, nor more than the product's exposure cap (10 USDC on testnet).
+- A fault proven on-chain seizes the whole bond: two signed answers to one request, or a bounty claim refuted by other
+  operators' replays. Half goes to the reporter, half to the victim (or to the network treasury when there is no
+  victim).
+- A bond leaves 7 days after the request and after its last exposure.
 
 **Verdicts** (`VerdictLog`): written to Circle's ERC-8004 validation registry under the operator's agent identity
-(agent 897812): 100 when a session or a bounty is verified and paid, 0 for a proven fault.
+(agent 897812). A session or a bounty that is verified and paid scores 100; a proven fault scores 0.
+
+## Architecture
+
+```
+ Buyer (person, app, AI agent)          Operator's Intel TDX machine            Author
+   1. reads the enclave's key on Arc      runs the product's allowed image        publishes a product:
+   2. seals the request (HPKE) ------->   in a sealed enclave                     price, shares, allowed images
+   <------ answer + signed receipt -----  3. answers, or replays the exploit
+                                             on a fork of Arc, and signs
+ ================================= Arc (contracts, USDC) =================================
+  EnclaveRegistry -> TdxAttestationModule -> Automata DCAP       admit: Intel signature, boot-log replay,
+  MachineRegistry + ProofOfCloudAuditor + PolicyEnclaves         allowed image, fresh quote, bond; chip level
+  SessionPay | X402Settler | SealedBounty | SealedBountyVerified   pay only on an admitted enclave's signature
+  ProductRegistry (prices, shares)   OperatorBond (bonds, slashing)   VerdictLog -> Circle's ERC-8004 registry
+```
+
+1. **Arc admits the machine** (above). The operator's registrar keeps the admission fresh.
+2. **The buyer seals the request** with the enclave's key, read on Arc. Our servers only relay ciphertext.
+3. **The enclave signs its work**: a receipt for an answer, or a claim for a replayed exploit, with a key born inside it.
+4. **Arc pays on the signature.** The settlement contract checks that an admitted enclave signed, reads the price and
+   the shares, and splits the USDC in the same transaction.
+5. **Arc writes the verdict** to Circle's ERC-8004 registry.
+6. **A proven lie costs the bond.**
+
+Off-chain pieces:
+
+- The read API (`services/api`) keeps its own index of contract events.
+- One registrar per enclave (`services/registrar`) renews admissions and settles served sessions and paid calls.
+- The copilot (`services/copilot`) runs on the server and, as AskHive, in its own enclave.
+- The MCP server (`services/mcp`) exposes the same read and prepare tools to any agent.
+- The bounty enclave reaches Arc only through a strict relay. The relay re-hashes every block header, and the enclave
+  signs nothing that depends on an RPC error.
+
+**What else Arc brings:**
+
+- USDC is the money and the gas, so every check has a dollar price.
+- EIP-3009 lets a buyer pay with one signature: no approve, and no gas for the buyer. The operator pays the
+  settlement, about 0.005 USDC.
+- Arc Foundry's `arc-anvil` forks Arc with its own precompiles, native USDC included, to replay an exploit exactly.
+- EIP-2935 block history lets a contract refuse stale quotes and claims.
+- Circle's CCTP V2 brings USDC to Arc from Ethereum Sepolia or Base Sepolia on the Bridge page. The user's wallet
+  signs the burn on the source chain and the mint on Arc, with Circle's attestation in between. A standard transfer
+  pays Circle no fee.
+
+## AskHive: the site's assistant, in its own enclave
+
+AskHive explains ArcHive while it shows it. It opens pages, highlights what it talks about, plays the 3D demo of the
+Network page and walks you through a task step by step. It prepares operations (a prepaid session, an operator bond,
+a bounty, a new product) that **you sign in your own wallet**: it holds no key and has no tool that spends.
+
+AskHive runs in its own Intel TDX enclave, registered on Arc as **product 4** (free):
+
+- **Before sending anything**, the panel reads the enclave's keys (`/enclave/copilot-site/pubkeys`). It checks on Arc
+  that this key is registered for product 4, with an image the product allows and an operator that is not banned.
+- **The conversation is sealed** to that key (HPKE). The web server in between relays ciphertext only.
+- **The answer comes back sealed** to the visitor's request, so only the enclave holding the key checked on Arc can
+  produce it. The enclave also signs each answer (`ARC-COPILOT-SITE-REPLY-v1`; the verifier is `verifySiteReply` in
+  [`enclave-site.ts`](services/copilot/src/enclave-site.ts)).
+- **If a check fails**, the panel says so and uses the copilot on the site's server. A sealed conversation is never
+  resent in clear.
+- **The model** (`gpt-oss-120b`) runs at RedPill, behind an attested gateway that the enclave verifies before any call
+  (Intel quote, production OS, pinned TLS, signed receipts). It does not run inside ArcHive's enclave.
+- **What the operator cannot change.** The compose ([`enclave/phala/copilot-site-v22.yml`](enclave/phala/copilot-site-v22.yml),
+  the file measured on Arc, byte for byte) pins the image by its digest, which covers the code and the prompt. It
+  writes the model, its URL and the limits in clear. All of it is part of the image fingerprint Arc allows for product 4.
+
+| Proof (Arc testnet, 19 Nov 2026, UTC) | Transaction |
+|---|---|
+| Image fingerprint `0x5771d334…ebe0` proposed, then allowed for product 4 (22:28) | [`0xc45eac78…ed28`](https://explorer.testnet.arc.io/tx/0xc45eac7898951503904d1a7b51acc415aac12ed5a40ee9eb4bcc2fe86122ed28), [`0x93f11a27…9228`](https://explorer.testnet.arc.io/tx/0x93f11a27c647d089e161acaaa60bf3ae3091e609773492b50326efbfc2a09228) |
+| AskHive's enclave admitted through Intel DCAP, key `0x09061F21A5b938cD941ea9eDfa481f89DEb716Ac` (22:37, 6,849,074 gas) | [`0xde9628b2…0176`](https://explorer.testnet.arc.io/tx/0xde9628b23d0483bb666a0cd13c55c4f32a1204151323a80da9451b0aeb330176) |
+| Its enclave bound to its chip, for the verified level (22:38) | [`0x469706cb…111c`](https://explorer.testnet.arc.io/tx/0x469706cb81f090b0205c52a20f7739af3d544a8f869f2d0fd09bb8816312111c) |
+
+Code: the panel in [`frontend/src/copilot/`](frontend/src/copilot/), the service in
+[`services/copilot/`](services/copilot/) (signed replies: [`enclave-site.ts`](services/copilot/src/enclave-site.ts)),
+and the contract between them in [`docs/COPILOT-SITE-CONTRACT.md`](docs/COPILOT-SITE-CONTRACT.md).
+
+## Use ArcHive from your own tools
+
+### The MCP server, in Claude Code, Cursor or any MCP client
+
+```sh
+claude mcp add --transport http archive https://arc-hive.xyz/mcp
+```
+
+Any other MCP client: `{ "mcpServers": { "archive": { "url": "https://arc-hive.xyz/mcp" } } }`.
+The server holds no key and has no tool that sends a transaction. It reads the network and **prepares** operations
+that the user signs in their own wallet. Its 16 tools:
+
+| Reads | Prepares (you sign) |
+|---|---|
+| `arc_products`, `arc_enclaves`, `arc_bounties`, `arc_sessions`, `arc_activity`, `arc_pricing` | `arc_bounty_prepare_create`: a sealed bounty, with a loss-rule assistant |
+| `arc_enclave_status`, `arc_session_status`, `arc_verify_receipt` (checks a receipt like `SessionPay.settle`) | `arc_operator_prepare_bond`, `arc_operator_prepare_register`: bond, then register an enclave |
+| `arc_machines_list`, `arc_machine_diagnostics` (an operator's machines) | `arc_operator_plan`, `arc_product_scaffold`: become an operator, publish a service |
+
+The same server runs locally over stdio from this repository:
+`cd packages/sdk && npm ci && cd ../../services/mcp && npm ci && npm start` (`ARCHIVE_API` sets the read API).
+
+### The SDK and the `arcvault` CLI
+
+- [`packages/sdk`](packages/sdk/), in TypeScript, checks an enclave's keys on Arc before encrypting anything. It opens
+  prepaid sessions, pays per call (x402, with `maxAmount`), verifies every signed receipt, builds bounties and reads
+  the operator levels.
+- [`packages/cli`](packages/cli/) is `arcvault`, with 33 commands: read the network, check a receipt, sessions,
+  bounties and refutation, operators, products, auditors, and a local OpenAI-compatible proxy paid from a prepaid
+  session.
+
+```sh
+cd packages/sdk && npm ci
+cd ../cli && npm ci && npm run arcvault -- products
+```
+
+Both run from this repository with `npm ci` in each folder.
+
+### Claude Code on ArcHive's private inference
+
+Claude Code's chat can run on ArcHive's private inference. An Anthropic-compatible gateway (LiteLLM) and an x402
+client pay the product 3 enclave 0.01 USDC per call. Each answer comes back once its signed receipt checks against the
+enclave's key on Arc. We tested it on 19 Nov 2026 with text requests (the model is `gpt-oss-120b`), and the operator
+settled the three calls on Arc between 20:22 and 20:23 UTC:
+[`0x3c98a1fa…1ae8`](https://explorer.testnet.arc.io/tx/0x3c98a1fafa893722b9bffd84a1287ef28a446c361c822e4e2071f714bba31ae8),
+[`0xec0bd6b0…68e3`](https://explorer.testnet.arc.io/tx/0xec0bd6b04fdaa3cc4966a604e8967f0e73b5ca91423d9921edb3d05c574168e3),
+[`0xe7a0e00f…f52b`](https://explorer.testnet.arc.io/tx/0xe7a0e00fe514f10d602b1495d2d84a5e9f5b4c67e1fb5ba33cf7e190d8a1f52b).
 
 ## Proofs on Arc testnet
 
@@ -215,8 +262,41 @@ exposure.
 | Proof of Cloud alliance token verified on Arc (Ed25519) | 10 Nov 23:01 | [`0x3e2aa322…cd35`](https://explorer.testnet.arc.io/tx/0x3e2aa32251a7a7cfa7ee69c3fa653cac6dd4272db2ae92d1b4ed760178fdcd35) |
 | An enclave bound to its chip (PPID read from Intel's certificate) | 11 Nov 17:34 | [`0xd6928088…5f4f`](https://explorer.testnet.arc.io/tx/0xd6928088d90f8bbc2585d04564c4a574312593f3f19792a1cdbf819437bb5f4f) |
 
-The site keeps the full proof chain of a live enclave (image, Intel measurement, Arc admission, signed answer, USDC
-payment, ERC-8004 verdict): `curl -s https://arc-hive.xyz/api/proof`.
+The site keeps the full proof chain of a live enclave: image, Intel measurement, Arc admission, signed answer, USDC
+payment and ERC-8004 verdict. Read it with `curl -s https://arc-hive.xyz/api/proof`.
+
+## Contracts on Arc testnet (chainId 5042002)
+
+**Live stack, v2.1 (13 contracts in service).** Every address and deployment transaction is in
+[`deployments.v21.testnet.json`](deployments.v21.testnet.json), and Intel's verifier is in
+[`deployments.dcap.testnet.json`](deployments.dcap.testnet.json).
+
+| Contract | Address | Role |
+|---|---|---|
+| EnclaveRegistry | [`0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d`](https://explorer.testnet.arc.io/address/0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d) | admits a machine after Intel DCAP, boot-log replay and policy |
+| TdxAttestationModule | [`0x26C1803dE523aC896Ba7F1787f1401ec792951ca`](https://explorer.testnet.arc.io/address/0x26C1803dE523aC896Ba7F1787f1401ec792951ca) | calls Automata's DCAP verifier on Arc |
+| ProductRegistry | [`0x582a3076cf6A1347907565B57Ce9f548D33805A4`](https://explorer.testnet.arc.io/address/0x582a3076cf6A1347907565B57Ce9f548D33805A4) | products, prices, shares, allowed images, timelocks |
+| OperatorBond | [`0xe584F7590e4677372eE6259b967672c747eB6850`](https://explorer.testnet.arc.io/address/0xe584F7590e4677372eE6259b967672c747eB6850) | USDC bonds, exposure cap, slashing |
+| SessionPay | [`0x8Bf8A8356f53006E9aB359AA6382f783923058a6`](https://explorer.testnet.arc.io/address/0x8Bf8A8356f53006E9aB359AA6382f783923058a6) | prepaid sessions (product 1) |
+| X402Settler | [`0xccDb1a5641F2F3f2Cf2112c8E14669DBb6E11634`](https://explorer.testnet.arc.io/address/0xccDb1a5641F2F3f2Cf2112c8E14669DBb6E11634) | pay per call, x402 (product 3) |
+| SealedBounty | [`0x182871d34438aB37a7FD4d8689f3e0812E447A9b`](https://explorer.testnet.arc.io/address/0x182871d34438aB37a7FD4d8689f3e0812E447A9b) | sealed bounties and refutation (products 2 and 5) |
+| VerdictLog | [`0x2B4AB39B461Ae2bA9ADfb6bC630D34553BAb9779`](https://explorer.testnet.arc.io/address/0x2B4AB39B461Ae2bA9ADfb6bC630D34553BAb9779) | verdicts to Circle's ERC-8004 registry |
+| MachineRegistry | [`0xD671013f556b1272b25E3cC17C889d402f4Dc26D`](https://explorer.testnet.arc.io/address/0xD671013f556b1272b25E3cC17C889d402f4Dc26D) | chip ID (PPID) read from Intel's certificate |
+| ProofOfCloudAuditor | [`0xcdC4C150344F06d506dEB5500332737E8DCC8FaB`](https://explorer.testnet.arc.io/address/0xcdC4C150344F06d506dEB5500332737E8DCC8FaB) | verifies the Proof of Cloud alliance's token |
+| Ed25519Verifier | [`0x031579DD04398249feB67852632da4A648D4b5cf`](https://explorer.testnet.arc.io/address/0x031579DD04398249feB67852632da4A648D4b5cf) | Ed25519 (RFC 8032) for that token |
+| PolicyEnclaves | [`0x665f4Bb3C31d23463f45e4092487F6b498490417`](https://explorer.testnet.arc.io/address/0x665f4Bb3C31d23463f45e4092487F6b498490417) | each product's required operator level |
+| SealedBountyVerified | [`0x36A8DdF9fcb1308B9e86425beC9B098e933c7348`](https://explorer.testnet.arc.io/address/0x36A8DdF9fcb1308B9e86425beC9B098e933c7348) | sealed bounty, verified operators (product 7) |
+
+Used, not ours: Circle's ERC-8004 validation registry `0x8004Cb1BF31DAf7788923b405b754f57acEB4272` and identity
+registry `0x8004A818BFB912233c491871b3d84c89A494BD9e`; Automata's DCAP entry point, deployed by us from its MIT code,
+`0x48640f7d94dE64b13c89686F3d1240A31Aeb4dc9`; USDC `0x3600000000000000000000000000000000000000`.
+
+**Next stack, v3.** Fourteen contracts were deployed on 19 Nov 2026, between 20:33 and 20:37 UTC: the 13 above, rebuilt
+from `contracts/src`, plus `DemoVault`, a target for the bounty demos (`migrate` deliberately has no access control).
+Every settlement contract is authorized at initialization, and five products are published. The stack is not switched
+on yet: the site, the API and the enclaves stay on v2.1. Addresses, transactions and the bytecode check against this
+source are in [`deployments.v3.testnet.json`](deployments.v3.testnet.json), and on the explorer, starting with the v3
+[`EnclaveRegistry`](https://explorer.testnet.arc.io/address/0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E).
 
 ## Timeline
 
@@ -257,75 +337,6 @@ live network.
 
 The commit dates in this repository are not the dates the code was written. The code from before 13 Nov came in
 through bulk commits, most of them dated 16 Nov, and Arc's explorer dates each deployment.
-
-## Contracts on Arc testnet (chainId 5042002)
-
-**Live stack, v2.1 (13 contracts in service).** Every address and deployment transaction:
-[`deployments.v21.testnet.json`](deployments.v21.testnet.json); Intel's verifier:
-[`deployments.dcap.testnet.json`](deployments.dcap.testnet.json).
-
-| Contract | Address | Role |
-|---|---|---|
-| EnclaveRegistry | [`0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d`](https://explorer.testnet.arc.io/address/0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d) | admits a machine after Intel DCAP, boot-log replay and policy |
-| TdxAttestationModule | [`0x26C1803dE523aC896Ba7F1787f1401ec792951ca`](https://explorer.testnet.arc.io/address/0x26C1803dE523aC896Ba7F1787f1401ec792951ca) | calls Automata's DCAP verifier on Arc |
-| ProductRegistry | [`0x582a3076cf6A1347907565B57Ce9f548D33805A4`](https://explorer.testnet.arc.io/address/0x582a3076cf6A1347907565B57Ce9f548D33805A4) | products, prices, shares, allowed images, timelocks |
-| OperatorBond | [`0xe584F7590e4677372eE6259b967672c747eB6850`](https://explorer.testnet.arc.io/address/0xe584F7590e4677372eE6259b967672c747eB6850) | USDC bonds, exposure cap, slashing |
-| SessionPay | [`0x8Bf8A8356f53006E9aB359AA6382f783923058a6`](https://explorer.testnet.arc.io/address/0x8Bf8A8356f53006E9aB359AA6382f783923058a6) | prepaid sessions (product 1) |
-| X402Settler | [`0xccDb1a5641F2F3f2Cf2112c8E14669DBb6E11634`](https://explorer.testnet.arc.io/address/0xccDb1a5641F2F3f2Cf2112c8E14669DBb6E11634) | pay per call, x402 (product 3) |
-| SealedBounty | [`0x182871d34438aB37a7FD4d8689f3e0812E447A9b`](https://explorer.testnet.arc.io/address/0x182871d34438aB37a7FD4d8689f3e0812E447A9b) | sealed bounties and refutation (products 2 and 5) |
-| VerdictLog | [`0x2B4AB39B461Ae2bA9ADfb6bC630D34553BAb9779`](https://explorer.testnet.arc.io/address/0x2B4AB39B461Ae2bA9ADfb6bC630D34553BAb9779) | verdicts to Circle's ERC-8004 registry |
-| MachineRegistry | [`0xD671013f556b1272b25E3cC17C889d402f4Dc26D`](https://explorer.testnet.arc.io/address/0xD671013f556b1272b25E3cC17C889d402f4Dc26D) | chip ID (PPID) read from Intel's certificate |
-| ProofOfCloudAuditor | [`0xcdC4C150344F06d506dEB5500332737E8DCC8FaB`](https://explorer.testnet.arc.io/address/0xcdC4C150344F06d506dEB5500332737E8DCC8FaB) | verifies the Proof of Cloud alliance's token |
-| Ed25519Verifier | [`0x031579DD04398249feB67852632da4A648D4b5cf`](https://explorer.testnet.arc.io/address/0x031579DD04398249feB67852632da4A648D4b5cf) | Ed25519 (RFC 8032) for that token |
-| PolicyEnclaves | [`0x665f4Bb3C31d23463f45e4092487F6b498490417`](https://explorer.testnet.arc.io/address/0x665f4Bb3C31d23463f45e4092487F6b498490417) | each product's required operator level |
-| SealedBountyVerified | [`0x36A8DdF9fcb1308B9e86425beC9B098e933c7348`](https://explorer.testnet.arc.io/address/0x36A8DdF9fcb1308B9e86425beC9B098e933c7348) | sealed bounty, verified operators (product 7) |
-
-Used, not ours: Circle's ERC-8004 validation registry `0x8004Cb1BF31DAf7788923b405b754f57acEB4272` and identity
-registry `0x8004A818BFB912233c491871b3d84c89A494BD9e`; Automata's DCAP entry point, deployed by us from its MIT code,
-`0x48640f7d94dE64b13c89686F3d1240A31Aeb4dc9`; USDC `0x3600000000000000000000000000000000000000`.
-
-**Next stack, v3.** Fourteen contracts were deployed on 19 Nov 2026, between 20:33 and 20:37 UTC: the 13 above, rebuilt
-from `contracts/src`, plus `DemoVault`, a target for the bounty demos (`migrate` deliberately has no access control).
-Every settlement contract is authorized at initialization, and five products are published. The stack is not switched
-on yet: the site, the API and the enclaves stay on v2.1. Addresses, transactions and the bytecode check against this
-source are in [`deployments.v3.testnet.json`](deployments.v3.testnet.json), and on the explorer, starting with the v3
-[`EnclaveRegistry`](https://explorer.testnet.arc.io/address/0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E).
-
-## Architecture
-
-```
- Buyer (person, app, AI agent)          Operator's Intel TDX machine            Author
-   1. reads the enclave's key on Arc      runs the product's allowed image        publishes a product:
-   2. seals the request (HPKE) ------->   in a sealed enclave                     price, shares, allowed images
-   <------ answer + signed receipt -----  3. answers, or replays the exploit
-                                             on a fork of Arc, and signs
- ================================= Arc (contracts, USDC) =================================
-  EnclaveRegistry -> TdxAttestationModule -> Automata DCAP       admit: Intel signature, boot-log replay,
-  MachineRegistry + ProofOfCloudAuditor + PolicyEnclaves         allowed image, fresh quote, bond; chip level
-  SessionPay | X402Settler | SealedBounty | SealedBountyVerified   pay only on an admitted enclave's signature
-  ProductRegistry (prices, shares)   OperatorBond (bonds, slashing)   VerdictLog -> Circle's ERC-8004 registry
-```
-
-1. **Arc admits the machine** (above). The operator's registrar keeps the admission fresh.
-2. **The buyer seals the request** with the enclave's key, read on Arc. Our servers only relay ciphertext.
-3. **The enclave signs its work**: a receipt for an answer, or a claim for a replayed exploit, with a key born inside it.
-4. **Arc pays on the signature**: the settlement contract checks that an admitted enclave signed, reads the price and
-   the shares, and splits the USDC in the same transaction.
-5. **Arc writes the verdict** to Circle's ERC-8004 registry.
-6. **A proven lie costs the bond.**
-
-Off-chain pieces: the read API keeps its own index of contract events (`services/api`); one registrar per enclave
-renews admissions and settles served sessions and paid calls (`services/registrar`); the copilot (`services/copilot`)
-runs on the server and, as AskHive, in its own enclave; the MCP server (`services/mcp`) exposes the same read and
-prepare tools to any agent. The bounty enclave reaches Arc only through a strict relay that re-hashes every block
-header and signs nothing that depends on an RPC error.
-
-**What else Arc brings**: USDC is the money and the gas, so every check has a dollar price; EIP-3009 lets a buyer pay
-with one signature (no approve, and no gas for the buyer: the operator pays the settlement, about 0.005 USDC); Arc Foundry's `arc-anvil` forks Arc with its own precompiles (native USDC
-included) to replay an exploit exactly; EIP-2935 block history lets a contract refuse stale quotes and claims; and
-Circle's CCTP V2 brings USDC to Arc from Ethereum Sepolia or Base Sepolia on the Bridge page (the user's wallet signs the
-burn on the source chain and the mint on Arc, Circle's attestation comes in between, and a standard transfer pays
-Circle no fee).
 
 ## Run it
 
@@ -377,7 +388,7 @@ services/mcp/       MCP server for AI agents (Streamable HTTP and stdio)
 frontend/           the marketplace site (Vite, React, three.js)
 web/                the console (React, English and French) and the 3D server room (web/public/datacenter)
 deploy/             server deployment (built on the server from this source)
-docs/               operator levels; AskHive and MCP contract
+docs/               operator levels, the AskHive and MCP contract, screenshots of the site
 deployments.*.json  every deployed address and transaction: v2, v2.1 (live), v3, Intel's DCAP verifier
 ```
 
@@ -391,14 +402,14 @@ Package guides: [`contracts`](contracts/README.md), [`dcap-integration`](dcap-in
 
 - **Roots of trust**: Intel's hardware and signing keys; Automata's DCAP contracts and Intel's collateral (refreshed
   monthly); at the verified level, the Proof of Cloud alliance.
-- **What an attestation proves**: which code ran, not that an AI answer is right. Only provable faults are slashed;
-  bounty replays are deterministic, so other operators can check them.
+- **What an attestation proves**: which code ran, not that an AI answer is right. Only provable faults are slashed.
+  Bounty replays are deterministic, so other operators can check them.
 - **Physical attacks** on a machine someone can touch are bounded, not prevented: capped exposure, bond seizure, and
   the verified level for high stakes.
-- **State reads of a bounty replay** go through the strict relay; per-read state proofs (`eth_getProof`) are
-  implemented and tested, and turn on once an Arc RPC serves historical proofs.
-- **Scope today**: Arc testnet; no third-party audit; one operator (our team) on Phala Cloud machines, while the
-  contracts accept any bonded operator; every payment so far came from our own wallets; on testnet the owner key can
+- **State reads of a bounty replay** go through the strict relay. Per-read state proofs (`eth_getProof`) are
+  implemented and tested, and they turn on once an Arc RPC serves historical proofs.
+- **Scope today**: Arc testnet, with no third-party audit. One operator (our team) runs Phala Cloud machines, while the
+  contracts accept any bonded operator. Every payment so far came from our own wallets. On testnet, the owner key can
   propose a settlement contract (8-day delay on v2.1) and set its own products' policies.
 
 ## What's next
