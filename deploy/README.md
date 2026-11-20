@@ -1,8 +1,10 @@
-# Deploying ArcHive (the server behind https://arc-hive.xyz, also served at archive.62-171-153-35.sslip.io, the console's origin)
+# Deploying ArcHive
 
-The whole site runs from one folder on one server, `/opt/archive`, and is **built on the server from the source in
-`/opt/archive/src`** (this repository, without secrets). The enclaves do not run here: this server has no Intel TDX.
-They run in Intel TDX VMs at Phala Cloud (see "Enclaves" below).
+One server runs https://arc-hive.xyz. It also answers at `archive.62-171-153-35.sslip.io`, the console's origin.
+
+The whole site runs from one folder, `/opt/archive`. The server builds it from the source in `/opt/archive/src`: this
+repository, without secrets. The enclaves do not run here, because this server has no Intel TDX. They run in Intel
+TDX VMs at Phala Cloud (see [Enclaves](#enclaves-intel-tdx-at-phala-cloud)).
 
 ## What is served
 
@@ -17,7 +19,7 @@ They run in Intel TDX VMs at Phala Cloud (see "Enclaves" below).
 | `/mcp` | The MCP server over Streamable HTTP (stateless; reads and prepared actions only) | `services/mcp` (`src/http.ts`) |
 | `/install.sh`, `/archive-node.mjs`, `/manifests/` | The operator agent and the products' manifests | `web/public/`, `packages/node` |
 | `/enclave/<name>/` | Same-origin proxy to the enclaves (TLS verified, exact host name) | `deploy/nginx.conf` |
-| `/arc-rpc` | Optional: read-only gateway to an Arc node of our own, for state proofs (`deploy/arc-node`); answers 502 when no node runs | `deploy/arc-node/` |
+| `/arc-rpc` | Optional: a read-only gateway to an Arc node of our own, for state proofs; it answers 502 when no node runs | `deploy/arc-node/` |
 
 ## On the server
 
@@ -28,7 +30,7 @@ They run in Intel TDX VMs at Phala Cloud (see "Enclaves" below).
 | Data (event index, paired machines) | `/opt/archive/data` |
 | Secrets, never in the code | `/opt/archive/*.env` (mode 600): `registrar-v2.env` (operator key only), `test-signer.env`, `copilot.env`, `nginx.env` |
 
-The contract owner's key never lives on the server: the registrars hold the operator's key only.
+The contract owner's key never lives on the server. The registrars hold the operator's key only.
 
 ## Scripts
 
@@ -39,25 +41,27 @@ The contract owner's key never lives on the server: the registrars hold the oper
 /opt/archive/src/deploy/front-update.sh  # on the server: merge frontend/ from a GitHub branch (BRANCH, default main), then build the site
 ```
 
-- **`build.sh`** runs in a Node 22 container: dependencies (`npm ci`), the `api`, `copilot`, `registrar` and
-  `mcp-http` bundles (esbuild), the `archive-node` agent, the console (Vite, `--base /console/`) and the front (Vite,
-  profile `frontend/.env.jb`: every URL on this origin), then assembles `/opt/archive/web`. It refuses to overwrite a
-  `web/` changed by hand (`FORCE_WEB=1` to do it on purpose).
-- **`deploy.sh`** runs `build.sh`, installs `docker-compose.yml`, `nginx.conf` and the `Caddyfile`, restarts the
-  services, recreates Caddy only when its file changed, then checks the site. Enclaves are checked separately: one
-  being down is not a site failure.
-- Every container runs without new privileges and with no Linux capability it does not use; images are pinned by digest.
+- **`build.sh`** runs in a Node 22 container. It installs the dependencies, then builds the `api`, `copilot`,
+  `registrar` and `mcp-http` bundles (esbuild) and the `archive-node` agent. It builds the console (Vite,
+  `--base /console/`) and the front (Vite, profile `frontend/.env.jb`: every URL on this origin), then assembles
+  `/opt/archive/web`. It refuses to overwrite a `web/` changed by hand; `FORCE_WEB=1` does it on purpose.
+- **`deploy.sh`** runs `build.sh` and installs `docker-compose.yml`, `nginx.conf` and the `Caddyfile`. It restarts the
+  services, recreates Caddy only when its file changed, then checks the site. It checks the enclaves separately: one
+  enclave being down is not a site failure.
+- Every container runs without new privileges and drops the Linux capabilities it does not use. Every image is pinned
+  by digest.
 
 ## Enclaves (Intel TDX at Phala Cloud)
 
-- One VM per enclave image, on Phala's `prod9` node, production OS image `dstack-0.5.12`, size `tdx.small`. The
-  compose files are `enclave/phala/*.yml`; what they write in clear is measured into the image fingerprint that Arc
-  checks, so they are kept byte for byte as deployed.
-- After creating or replacing a VM: set its host in `deploy/nginx.conf` (the `/enclave/…` blocks) and in
+- Each enclave image runs in its own VM on Phala's `prod9` node (production OS image `dstack-0.5.12`, size
+  `tdx.small`).
+- The compose files live in `enclave/phala/*.yml`. What they write in clear goes into the image fingerprint that Arc
+  checks, so they stay byte for byte as deployed.
+- After creating or replacing a VM, set its host in `deploy/nginx.conf` (the `/enclave/…` blocks) and in
   `deploy/docker-compose.vps.yml` (the registrar's `ENCLAVE_URL`), then run `deploy.sh`. The registrar registers the
   enclave on Arc through DCAP and renews it before its window ends.
 - Without enclaves, the pages, both server copilots, the MCP server, the operator bond and every on-chain read still
-  work; private AI, pay per call, AskHive's enclave mode and new bounties need a live enclave.
+  work. Private AI, pay per call, AskHive's enclave mode and new bounties need a live enclave.
 
 ## Never copied to the server
 

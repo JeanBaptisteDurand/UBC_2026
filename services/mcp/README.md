@@ -1,10 +1,10 @@
 # ArcHive MCP server
 
-The MCP server lets any AI agent (Claude Code, Claude Desktop, Cursor or any MCP client) use ArcHive on Arc testnet. It
-**reads** the network (products, enclaves, bounties, sessions, activity, on-chain state) and **prepares** operations
-that the user signs in their own wallet. It holds no key and has no tool that sends a transaction.
+The MCP server lets any AI agent use ArcHive on Arc testnet: Claude Code, Claude Desktop, Cursor or any MCP client.
+It **reads** the network: products, enclaves, bounties, sessions, activity and on-chain state. It **prepares**
+operations that the user signs in their own wallet. It holds no key, and no tool sends a transaction.
 
-Live at **https://arc-hive.xyz/mcp** (also served at `https://archive.62-171-153-35.sslip.io/mcp`):
+The server is live at **https://arc-hive.xyz/mcp** (also served at `https://archive.62-171-153-35.sslip.io/mcp`):
 
 ```sh
 claude mcp add --transport http archive https://arc-hive.xyz/mcp
@@ -21,7 +21,8 @@ Any other MCP client: `{ "mcpServers": { "archive": { "url": "https://arc-hive.x
 
 Both build the same server ([`src/mcp-server.ts`](src/mcp-server.ts)) with the same tools ([`src/tools.ts`](src/tools.ts)).
 The on-chain logic is shared with the copilot ([`services/copilot/src/arc-actions.ts`](../copilot/src/arc-actions.ts)),
-so AskHive and the MCP server give the same answers.
+so AskHive and the MCP server give the same answers. The shared code names its output fields in French; the MCP
+server returns them with English keys (`englishKeys`).
 
 ## The 16 tools
 
@@ -33,16 +34,18 @@ so AskHive and the MCP server give the same answers.
 | `arc_machines_list`, `arc_machine_diagnostics` (an operator's machines) | |
 
 Every output goes through the secrets filter before it reaches the agent. When the API does not answer, a list tool
-says "list temporarily unavailable": it never falls back to the explorer and never presents a partial list as complete.
+says "list temporarily unavailable". It never falls back to the explorer, and it never presents a partial list as
+complete.
 
 ## Guards (HTTP)
 
-- Per-IP rate limit (60 per minute, 3,000 per day by default; 429 with `Retry-After`). The IP is the last hop of
-  `X-Forwarded-For`, set by Caddy, only when the peer is a local or private proxy.
-- At most 16 requests at a time (503), JSON only (415), body up to 64 KiB (413), invalid JSON rejected (400).
-- A timeout on every tool call (45 s by default); the server stays up.
-- Enclave URLs (`/attest`, `/pubkeys`) get the copilot's network guards: https, port 443, fixed path, public address
-  resolved once, no redirect followed, error body never returned. The public HTTP server never reads a private network.
+- A per-IP rate limit: 60 requests per minute and 3,000 per day by default (429 with `Retry-After`). Behind a local
+  or private proxy, the IP is the last hop of `X-Forwarded-For`, which Caddy sets.
+- At most 16 requests at a time (503). JSON only (415), a body up to 64 KiB (413), invalid JSON rejected (400).
+- A timeout on every tool call, 45 s by default. The server stays up.
+- Enclave URLs (`/attest`, `/pubkeys`) get the copilot's network guards: https, port 443, a fixed path, a public
+  address resolved once, no redirect followed, an error body never returned. The public HTTP server never reads a
+  private network.
 - Open CORS (`*`, no credentials): the server reads only public data and prepares only actions the user signs.
 
 ## Environment
@@ -68,6 +71,6 @@ npm run typecheck
 npm run test:live      # optional: one real read per list tool against the live API (reads only, no transaction)
 ```
 
-On the server, `deploy/build.sh` bundles `src/http.ts` into `mcp-http.mjs`, which runs in its own hardened container
-(`deploy/docker-compose.vps.yml`) behind Caddy's `/mcp` route. The HTTP contract is in
+On the server, `deploy/build.sh` bundles `src/http.ts` into `mcp-http.mjs`. That bundle runs in its own hardened
+container (`deploy/docker-compose.vps.yml`) behind Caddy's `/mcp` route. The HTTP contract is in
 [`docs/COPILOT-SITE-CONTRACT.md`](../../docs/COPILOT-SITE-CONTRACT.md) §6.

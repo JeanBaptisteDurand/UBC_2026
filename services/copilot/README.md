@@ -1,24 +1,26 @@
 # ArcHive copilot: AskHive and the console copilot
 
-One agentic RAG copilot with two surfaces:
+One agentic RAG copilot serves two surfaces:
 
-- **AskHive** (`COPILOT_SURFACE=site`), the panel on every page of https://arc-hive.xyz. It explains while it shows: it
-  moves the page, highlights a section or plays a step-by-step guide, and it prepares operations.
-- **The console copilot** (`COPILOT_SURFACE=console`, the default), the chat bubble of the console.
+- **AskHive** (`COPILOT_SURFACE=site`) is the panel on every page of https://arc-hive.xyz. It explains while it shows.
+  It moves the page, highlights a section or plays a step-by-step guide, and it prepares operations.
+- **The console copilot** (`COPILOT_SURFACE=console`, the default) is the chat bubble of the console.
 
-It runs on the site's server and, as AskHive, in its own Intel TDX enclave: **product 4 on Arc testnet**. The enclave's
-key is registered on Arc, the conversation is sealed to it (HPKE, `ARC-COPILOT-CHAT-v1`) and every reply is sealed and
-signed by that key (`ARC-COPILOT-SITE-REPLY-v1`). The copilot holds no wallet key: it reads the network and prepares
-operations that the user signs with their own wallet. It never sends a transaction.
+The copilot runs on the site's server. AskHive also runs in its own Intel TDX enclave: **product 4 on Arc testnet**.
+Arc's EnclaveRegistry holds the enclave's public keys. The conversation is sealed to the enclave's key (HPKE,
+`ARC-COPILOT-CHAT-v1`), and the enclave seals and signs every reply (`ARC-COPILOT-SITE-REPLY-v1`).
+
+The copilot holds no wallet key. It reads the network and prepares operations that the user signs with their own
+wallet. It never sends a transaction.
 
 ## How it works
 
-- Every number comes from a tool: on-chain reads through the SDK, or the ArcHive API's event index for lists.
-- The interface tools (`ui_navigate`, `ui_highlight`, `ui_demo`, `ui_guide`) run in the browser; the server only
-  validates them (known pages and anchors, bounded strings, at most 3 actions per answer, never a button that signs).
-- Guards: bounded request bodies and history, per-IP and daily rate limits, input-token budget per request, origin
-  check, and a secrets filter on the conversation.
-- Answers follow the user's language (English or French).
+- Every number comes from a tool: an on-chain read through the SDK, or the ArcHive API's event index for lists.
+- The interface tools (`ui_navigate`, `ui_highlight`, `ui_demo`, `ui_guide`) run in the browser. The server only
+  validates them: known pages and anchors, bounded strings, at most 3 actions per answer, never a button that signs.
+- Guards bound the request body and the history. Each request also goes through per-IP and daily rate limits, an
+  input-token budget, an origin check and a secrets filter on the conversation.
+- Answers follow the user's language, English or French.
 
 ## Source map
 
@@ -36,15 +38,22 @@ operations that the user signs with their own wallet. It never sends a transacti
 | [`src/enclave-server.ts`](src/enclave-server.ts), [`src/enclave-app.ts`](src/enclave-app.ts), [`src/enclave-config.ts`](src/enclave-config.ts) | the copilot inside an enclave (image built by [`enclave/Dockerfile.copilot`](../../enclave/Dockerfile.copilot)) |
 | [`src/enclave-site.ts`](src/enclave-site.ts), [`src/enclave-site-measure.ts`](src/enclave-site-measure.ts) | AskHive in its enclave: signed sealed replies (`verifySiteReply`), and the VM's measurement before launch |
 
-The enclave compose that Arc measures for product 4 is
-[`enclave/phala/copilot-site-v22.yml`](../../enclave/phala/copilot-site-v22.yml); the HTTP contract with the site is
+Product 4's enclave compose is [`enclave/phala/copilot-site-v22.yml`](../../enclave/phala/copilot-site-v22.yml). Its
+compose-hash is part of the image fingerprint that Arc checks. The HTTP contract with the site is
 [`docs/COPILOT-SITE-CONTRACT.md`](../../docs/COPILOT-SITE-CONTRACT.md).
+
+AskHive's prompt and knowledge base are written mostly in French, and the copilot answers in the user's language. The
+shared on-chain actions name their output fields in French; the MCP server returns them with English keys.
 
 ## Environment
 
-The variables are documented in the header of [`src/copilot.ts`](src/copilot.ts) (an example file is `.env.example`): the
-model (`OPENAI_API_KEY`, `OPENAI_BASE_URL`, `COPILOT_MODEL`), the limits (`COPILOT_MAX_*`, `COPILOT_RATE_*`,
-`COPILOT_GLOBAL_PER_DAY`), `ALLOWED_ORIGINS`, `RPC_URL`, `ARCHIVE_API`, `DEPLOYMENTS` and `COPILOT_SURFACE`.
+The header of [`src/copilot.ts`](src/copilot.ts) documents every variable, and `.env.example` gives a starting file.
+The main groups:
+
+- the model: `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `COPILOT_MODEL`;
+- the limits: `COPILOT_MAX_*`, `COPILOT_RATE_*`, `COPILOT_GLOBAL_PER_DAY`;
+- the network: `ALLOWED_ORIGINS`, `RPC_URL`, `ARCHIVE_API`, `DEPLOYMENTS`;
+- the surface: `COPILOT_SURFACE`.
 
 ## Run and test
 
