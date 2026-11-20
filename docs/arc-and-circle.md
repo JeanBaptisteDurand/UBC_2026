@@ -76,10 +76,9 @@ We use four Circle and Arc tools:
 
 We left the others out on purpose. **Gateway, Nanopayments and Circle's x402 facilitator** settle a transfer to an
 address, in batches or through Circle, while `X402Settler` pays only against the receipt of a machine Arc admitted and
-splits the payment in that same transaction. **Circle Paymaster** is not deployed on Arc (its v0.7 and v0.8 addresses
-hold no code on Arc testnet on 20 Nov); on Arc, gas is already USDC, and our buyers pay none. **Circle Wallets and
-Agent Wallets** are not wired in: buyers sign with their own wallet, and the enclave accepts only plain accounts (EOAs)
-as x402 payers, since it does not check ERC-1271 signatures yet. Gateway and its Nanopayments come next, for sub-cent
+splits the payment in that same transaction. **Circle Paymaster** has no code on Arc (its v0.7 and v0.8 addresses are empty on
+Arc testnet on 20 Nov); on Arc, gas is already USDC, and our buyers pay none. **Circle Wallets and Agent Wallets** are
+on the roadmap: buyers sign with their own wallet today, and the enclave takes plain accounts (EOAs) as x402 payers. Gateway and its Nanopayments come next, for sub-cent
 calls (see [What's next](../README.md#whats-next)).
 
 The one place a Circle wallet is wired in is the OpenCode example: its bridge can pay each x402 call from a Circle
