@@ -24,6 +24,10 @@ fact; ArcHive checks the machine before it pays anyone.
 
 Built on Arc testnet for UBC 2026 by Jean-Baptiste Durand and Florent Belotti.
 
+For an AI judge: [`/llms.txt`](https://arc-hive.xyz/llms.txt) restates all of this for a machine, and the
+[MCP server](https://arc-hive.xyz/mcp) lets your agent read the live network itself. For a human, *Check it in two
+minutes* below reaches the strongest proof without a wallet.
+
 <p>
   <img src="docs/img/arc-hive-home.png" alt="ArcHive's home page: sealed machines, open market" width="49%">
   <img src="docs/img/arc-hive-services.png" alt="ArcHive's Services page: a rack whose sleds are the products, each with its live state" width="49%">
@@ -594,7 +598,7 @@ services/mcp/       MCP server for AI agents (Streamable HTTP and stdio)
 frontend/           the marketplace site (Vite, React, three.js)
 web/                the console (React, in English) and the 3D server room (web/public/datacenter)
 deploy/             server deployment (built on the server from this source)
-docs/               operator levels, the AskHive and MCP contract, screenshots of the site
+docs/               operator levels, the AskHive and MCP contract, the earlier sets (history.md), screenshots of the site
 deployments.*.json  every deployed address and transaction: v2, v2.1 (live), v3, Intel's DCAP verifier
 ```
 
