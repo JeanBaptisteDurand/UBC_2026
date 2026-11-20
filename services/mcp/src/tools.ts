@@ -17,6 +17,7 @@ import {
 } from "../../copilot/src/arc-actions";
 import { archiveBase, freshness, ListUnavailableError } from "../../copilot/src/archive-api";
 import { parsePrefixes } from "../../copilot/src/net-guard";
+import { englishValue, englishOutput } from "./english";
 
 /** The stack the tools read, WITH the levels (levels: SealedBountyVerified, product 7). DEPLOYMENTS (path to a
  *  deployments.*.json) when given, otherwise the SDK's v2.1 stack (`testnet`, levels included), like the copilot
@@ -39,19 +40,9 @@ export function productRail(arc: ArcClient, id: string, settlement: string): str
   if (SUPERSEDED_SBV.has(s)) return "neutralized, replaced by #7 (the former SealedBountyVerified, replaced on 11 Nov 2026: it settles nothing; the verified Sealed Bounty is product 7)";
   if (id === "5" && s === arc.d.sealedBounty.toLowerCase()) return "SealedBounty (Sealed Bounty, open level): refutation demo (a lying enclave refuted, its bond slashed, 10 Nov 2026)";
   if (s === arc.d.sealedBounty.toLowerCase()) return "SealedBounty (Sealed Bounty, open level)";
-  const r = railOf(arc, settlement);
-  return RAIL_EN[r] ?? r;
+  // the copilot's French rail label (arc-actions.ts, railOf), in English (english.ts)
+  return englishValue(railOf(arc, settlement));
 }
-
-/** The copilot's French rail labels (services/copilot/src/arc-actions.ts, railOf), as this MCP server says them. */
-const RAIL_EN: Record<string, string> = {
-  "SessionPay (session prépayée, reçus cumulatifs)": "SessionPay (prepaid session, cumulative receipts)",
-  "X402Settler (paiement à l'appel, x402)": "X402Settler (pay per call, x402)",
-  "SealedBounty (Prime scellée)": "SealedBounty (Sealed Bounty)",
-  "SealedBountyVerified (Prime scellée au niveau vérifié : puce déclarée par un auditeur, via PolicyEnclaves)": "SealedBountyVerified (Sealed Bounty, verified level: chip declared by an auditor, via PolicyEnclaves)",
-  "aucun (service gratuit, attesté : ex. le copilote en enclave)": "none (free attested service, e.g. the copilot in an enclave)",
-  "contrat de règlement inconnu": "unknown settlement contract",
-};
 
 /** The bounties of BOTH levels, read from the API's index (/bounties?level=all): open level (SealedBounty, products 2
  *  and 5) and verified level (SealedBountyVerified, product 7). A number alone does not identify a bounty (each contract
@@ -198,10 +189,11 @@ const PUBLIC_API = (process.env.PUBLIC_API_URL || "https://archive.62-171-153-35
 const TOOL_RENAMES: Record<string, string> = {
   operator_prepare_bond: "arc_operator_prepare_bond", operator_prepare_register: "arc_operator_prepare_register",
   operator_plan: "arc_operator_plan", session_status: "arc_session_status", enclaves_list: "arc_enclaves",
+  machine_diagnostics: "arc_machine_diagnostics", machines_list: "arc_machines_list",
 };
 export function publicText(s: string): string {
   return s
-    .replace(/(?<![\w-])(operator_prepare_bond|operator_prepare_register|operator_plan|session_status|enclaves_list)(?![\w-])/g, (m) => TOOL_RENAMES[m] ?? m)
+    .replace(/(?<![\w-])(operator_prepare_bond|operator_prepare_register|operator_plan|session_status|enclaves_list|machine_diagnostics|machines_list)(?![\w-])/g, (m) => TOOL_RENAMES[m] ?? m)
     .split("la page Primes du site (« Publier une prime »)").join("My space › Bounties (space.html?tab=bounties)")
     .split("« Louer sa puissance »").join("Network › Rent (network.html?focus=rent)")
     .split("On-ramp").join("Bridge (bridge.html)")
@@ -304,7 +296,7 @@ async function run(arc: ArcClient, actx: ActionCtx, name: string, a: any): Promi
       const errs = receiptErrors(receipt, a.signature);
       if (errs.length) throw new Error(`invalid receipt: ${errs.join("; ")}`);
       const v = await arc.verifyReceipt(normalizeReceipt(receipt), a.signature);
-      return { signer: v.signer, settleable: v.settleable, payableNow: formatUnits(v.payableNow, 6) + " USDC", activeOperatorAtAnchor: v.activeOperatorAtAnchor, checks: v.checks.map((c) => ({ ok: c.ok, quoi: c.fr })) };
+      return { signer: v.signer, settleable: v.settleable, payableNow: formatUnits(v.payableNow, 6) + " USDC", activeOperatorAtAnchor: v.activeOperatorAtAnchor, checks: v.checks.map((c) => ({ ok: c.ok, quoi: (c as { en?: string }).en ?? c.fr })) };
     }
     case "arc_enclave_status": return enclaveStatus(arc, a.signer);
     case "arc_session_status": return sessionStatus(arc, a.sessionId);
@@ -312,19 +304,19 @@ async function run(arc: ArcClient, actx: ActionCtx, name: string, a: any): Promi
     case "arc_operator_plan": return operatorPlan(arc, a, actx);
     case "arc_operator_prepare_bond": return prepareBond(arc, a, actx);
     case "arc_operator_prepare_register": return prepareRegister(arc, a, actx);
-    case "arc_product_scaffold": return productScaffold(arc, a);
+    case "arc_product_scaffold": return productScaffold(arc, { ...a, name: String(a.name ?? "").trim() || "my-service" });
     case "arc_machines_list": return machinesList(a, actx);
     case "arc_machine_diagnostics": return machineDiagnostics(arc, a, actx);
     default: throw new Error(`unknown tool: ${name}`);
   }
 }
 
-/** The output keys in English. The shared copilot code (arc-actions.ts) names them in French; values (and the
- *  keys of EIP-712 typed data, files and contract parameters, already English) are kept as they are. A key whose English
- *  name is already taken in the same object stays as it was. Known French rail labels and the list-unavailable message
- *  become English too. */
+/** The output in English: keys here, values in english.ts. The shared copilot code (arc-actions.ts) names its keys in
+ *  French; the keys of EIP-712 typed data, files and contract parameters (already English) are kept as they are, and so
+ *  is a key whose English name is already taken in the same object. Every string value goes through englishValue
+ *  (english.ts), which leaves the values read from the chain unchanged. */
 const KEYS_EN: Record<string, string> = {
-  aBloc: "atBlock", aCompleter: "toFill", aEnvoyerAvantLeBloc: "sendBeforeBlock", aRegarder: "toCheck", accepte: "accepted",
+  aBloc: "toBlock", aCompleter: "toFill", aEnvoyerAvantLeBloc: "sendBeforeBlock", aRegarder: "toCheck", accepte: "accepted",
   actifs: "activeCount", actives: "activeCount", activeMaintenant: "activeNow", adresse: "address", appelSdk: "sdkCall", apres: "after",
   autorisationEIP3009: "eip3009Authorization", avant: "before", avertissements: "warnings", banni: "banned", bloc: "block",
   blocDAncrage: "anchorBlock", caution: "bond", cautionDeLOperateur: "operatorBond", cautionMinimale: "minimumBond", chasseur: "hunter",
@@ -352,47 +344,25 @@ const KEYS_EN: Record<string, string> = {
   uniteJetons: "unitTokens", unitesReglees: "unitsSettled", unitesRestantes: "unitsRemaining", verdictEcrit: "verdictWritten",
   verifications: "checks", verrouilleALOuverture: "lockedAtOpening", voieA_uneTransaction: "pathA_oneTransaction",
   voieB_deuxTransactions: "pathB_twoTransactions",
+  soldeUSDC: "usdcBalance", cautionDisponible: "availableBond", cautionLibre: "freeBond", cautionsMinimales: "minimumBonds",
+  rienANSigner: "nothingToSign", enclavesDeCetOperateur: "operatorEnclaves", erreur: "error", echue: "expired",
+  vueDerniereFois: "lastSeenAgo", depuis: "ago", verification: "check", correction: "fix", quand: "when", inscrite: "registered",
+  fenetre: "window", diagnostic: "diagnostics", enEchec: "failing", attendusSelonLeMode: "expectedForMode", reussies: "passed",
+  resume: "summary", aCorriger: "toFix", attendus: "expected", inscriptionOnChain: "onChainRegistration", journal: "log",
+  lignes: "lines", erreurs: "errors", dernieres: "latest", simule: "simulated", quoteOctets: "quoteBytes",
+  eventLogOctets: "eventLogBytes", dataOctets: "dataBytes",
 };
 const KEEP_KEYS = new Set(["types", "message", "domain", "files", "fichiers", "createBountyParams", "proposeParams", "args"]);
 
-/** The list names and reasons of the copilot's "list temporarily unavailable" message, and its index freshness note
- *  (archive-api.ts), in English. The copilot says them in French because its prompt is French; this server says them
- *  in English. */
-const LIST_NAMES_EN: Record<string, string> = {
-  produits: "products", primes: "bounties", enclaves: "enclaves", sessions: "sessions", "activité": "activity",
-  "compteurs du réseau": "network counters", niveaux: "levels", index: "index",
-};
-const LIST_REASONS_EN: Array<[RegExp, string]> = [
-  [/l'API ArcHive n'a pas répondu en ([\d.]+) s/g, "the ArcHive API did not answer in $1 s"],
-  [/API ArcHive injoignable/g, "ArcHive API unreachable"],
-  [/l'API ArcHive a répondu HTTP (\d+)/g, "the ArcHive API answered HTTP $1"],
-  [/réponse non JSON de l'API ArcHive/g, "non-JSON response from the ArcHive API"],
-  [/réponse inattendue de l'API ArcHive \(tableau attendu\)/g, "unexpected ArcHive API response (array expected)"],
-  [/réponse illisible de l'API ArcHive/g, "unreadable ArcHive API response"],
-  [/réponse inattendue de l'API ArcHive/g, "unexpected ArcHive API response"],
-  [/index d'événements de l'API ArcHive/g, "ArcHive API event index"],
-  [/inconnu \(état de l'index illisible\)/g, "unknown (index state unreadable)"],
-  [/l'index de l'API a (\S+) blocs de retard/g, "the API's index is $1 blocks behind"],
-  [/ : un événement plus récent que le bloc (\d+) peut manquer/g, ": an event newer than block $1 may be missing"],
-];
-export function englishText(s: string): string {
-  if (!/indisponible|API ArcHive|index de l'API|état de l'index/.test(s)) return s;
-  let out = s
-    .replace(/liste momentanément indisponible \(([^)]*)\) : /g, (_m, l: string) => `list temporarily unavailable (${LIST_NAMES_EN[l] ?? l}): `)
-    .replace(/liste momentanément indisponible/g, "list temporarily unavailable")
-    .replace(/\. Réessayez dans un instant ; aucune liste partielle n'est donnée à la place\./g, ". Try again in a moment; no partial list is given instead.");
-  for (const [re, en] of LIST_REASONS_EN) out = out.replace(re, en);
-  return out;
-}
-
-export function englishKeys(v: any, depth = 0): any {
-  if (typeof v === "string") return englishText(RAIL_EN[v] ?? v);
-  if (Array.isArray(v)) return v.map((x) => englishKeys(x, depth + 1));
+export function englishKeys(v: any, depth = 0, keepKeys = false): any {
+  if (typeof v === "string") return englishValue(v);
+  if (Array.isArray(v)) return v.map((x) => englishKeys(x, depth + 1, keepKeys));
   if (!v || typeof v !== "object" || depth > 40) return v;
   const o: any = {};
   for (const [k, x] of Object.entries(v)) {
-    const nk = KEYS_EN[k] && !(KEYS_EN[k] in v) && !(KEYS_EN[k] in o) ? KEYS_EN[k] : k;
-    o[nk] = KEEP_KEYS.has(k) ? x : englishKeys(x, depth + 1);
+    const nk = !keepKeys && KEYS_EN[k] && !(KEYS_EN[k] in v) && !(KEYS_EN[k] in o) ? KEYS_EN[k] : k;
+    // typed data, files and contract parameters keep their keys; their texts (placeholders, comments) become English
+    o[nk] = englishKeys(x, depth + 1, keepKeys || KEEP_KEYS.has(k));
   }
   return o;
 }
@@ -406,9 +376,9 @@ export async function callTool(arc: ArcClient, actx: ActionCtx, name: string, ar
   try {
     const result = englishKeys(closedSessions(await run(arc, actx, name, a)));
     const text = JSON.stringify(result, (_k, v) => (typeof v === "bigint" ? v.toString() : v), 2) ?? "null";
-    return { content: [{ type: "text", text: publicText(scrubSecrets(text)) }] };
+    return { content: [{ type: "text", text: englishOutput(publicText(scrubSecrets(text))) }] };
   } catch (e: any) {
-    const msg = englishText(String(e?.shortMessage ?? e?.message ?? String(e)));
-    return { content: [{ type: "text", text: publicText(scrubSecrets(`Error: ${msg}`)) }], isError: true };
+    const msg = englishValue(String(e?.shortMessage ?? e?.message ?? String(e)));
+    return { content: [{ type: "text", text: englishOutput(publicText(scrubSecrets(`Error: ${msg}`))) }], isError: true };
   }
 }

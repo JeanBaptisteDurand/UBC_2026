@@ -9,6 +9,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import type { AddressInfo } from "node:net";
 import { testnet, type ArcClient } from "@arcvault/sdk";
 import { TOOLS, callTool, createMcpContext } from "../src/tools";
+import { englishValue } from "../src/english";
 import { clearListCache } from "../../copilot/src/archive-api";
 import { MASK_KEY } from "../../copilot/src/secrets";
 import { DEFAULT_ENCLAVE_PREFIXES } from "../../copilot/src/net-guard";
@@ -20,6 +21,9 @@ after(() => api.close());
 beforeEach(() => { clearListCache(); for (const [p, r] of Object.entries(defaultRoutes())) api.set(p, r); });
 
 const actx = () => ({ allowPrivateUrls: true, includeCalldata: true, apiBase: api.base });
+/** French left in a tool's output: the copilot's texts are French, this server says them in English (english.ts). */
+const FRENCH = /[àâçéèêëîïôûùœ«»]|\b(le|la|les|des|du|une|est|pour|avec|sans|dans|pas|aux|blocs|caution|produit|jamais|aucun|aucune|inconnu|inconnue|attendu|oui|requis|réseau|d'abord)\b/i;
+const assertEnglish = (text: string, what: string) => assert.doesNotMatch(text, FRENCH, what);
 async function run(name: string, args: Record<string, unknown> = {}) {
   const out = await callTool(fakeArc(), actx(), name, args);
   return { out, text: out.content[0]!.text, json: out.isError ? null : JSON.parse(out.content[0]!.text) };
@@ -49,6 +53,7 @@ test("every list comes from the API's index, never from the explorer", async () 
   assert.equal(s.json.total, 2);
   const a = await run("arc_activity", { limit: 4 });
   assert.equal(a.json.count, 4);
+  for (const [tool, r] of [["arc_products", p], ["arc_enclaves", e], ["arc_bounties", b], ["arc_sessions", s], ["arc_activity", a]] as const) assertEnglish(r.text, tool);
   for (const path of ["/products", "/enclaves", "/bounties", `/sessions/${OWNER.toLowerCase()}`, "/activity"]) assert.ok(api.hits(path) >= 1, path);
   assert.ok(api.urls.every((u) => !/explorer|blockscout/i.test(u)));
 });
@@ -61,6 +66,7 @@ test("API down: isError and \"list temporarily unavailable\", never an empty or 
     assert.equal(r.out.isError, true, tool);
     assert.match(r.text, /list temporarily unavailable/, tool);
     assert.doesNotMatch(r.text, /momentanément|Réessayez|API ArcHive/, tool);
+    assertEnglish(r.text, tool);
   }
   assert.equal((await run("arc_sessions", {})).json.available, false, "owner required");
 });
@@ -74,8 +80,18 @@ test("filtered outputs: a machine log that contains a private key reaches the ag
   } } });
   const r = await run("arc_machine_diagnostics", { machineId: "m1" });
   assert.ok(!r.text.includes(hex), "the key got through");
-  assert.ok(r.text.includes(MASK_KEY));
+  assert.ok(r.text.includes("[key masked]") && !r.text.includes(MASK_KEY), "the mask, in English");
   assert.ok(r.text.includes(`tx 0x${"aa".repeat(32)}`), "the transaction hash stays readable");
+  // what reaches the agent is English: the diagnostics, and the copilot's texts of the other tools (english.ts)
+  assertEnglish(r.text, "arc_machine_diagnostics");
+  assert.match(r.text, /Arc RPC unreachable: check outgoing network access/);
+  assert.equal(englishValue("après dépôt, caution disponible 10 USDC pour une caution minimale de 1 USDC (produit #1)"), "after the deposit, available bond 10 USDC for a minimum bond of 1 USDC (product #1)");
+  assert.equal(englishValue("operator : l'adresse de l'opérateur (celle qui signera et inscrira l'enclave)"), "operator: the operator's address (the one that will sign and register the enclave)");
+  assert.equal(englishValue("caution libre 0 USDC : une NOUVELLE clé réserve 1 USDC (revert OperatorUnderbonded : retire une ancienne clé ou augmente la caution)"), "free bond 0 USDC: a NEW key reserves 1 USDC (revert OperatorUnderbonded: retire an old key or increase the bond)");
+  assert.equal(englishValue("requestUnbond(montant), puis withdraw() après 7 j (UNBOND_DELAY)."), "requestUnbond(amount), then withdraw() after 7 days (UNBOND_DELAY).");
+  assert.equal(englishValue("Session #9 inconnue : SessionPay compte 2 session(s), numérotées de 1 à 2."), "Session #9 unknown: SessionPay has 2 session(s), numbered 1 to 2.");
+  assert.equal(englishValue("      - UNIT_TOKENS=1   # EN CLAIR (mesuré) : l'unité facturée du produit"), "      - UNIT_TOKENS=1   # IN PLAIN TEXT (measured): the product's billed unit");
+  assert.equal(englishValue("0x5724d89D610c3017b8DC161c025248341556f6Ab"), "0x5724d89D610c3017b8DC161c025248341556f6Ab", "a value from the chain is unchanged");
 });
 
 // ---------------------------------------------------------------- enclave URLs: the same guards as the copilot
@@ -131,6 +147,7 @@ test("malicious enclave URL: no redirect followed, fixed path, error body never 
       const r = await prep(def, url);
       assert.equal(r.isError, true, url);
       assert.match(r.content[0]!.text, why, url);
+      assertEnglish(r.content[0]!.text, url);
     }
     assert.deepEqual(hits, []);
     // 2) local development (MCP_ALLOW_PRIVATE_URLS=1): http allowed, the redirect is refused, its target never read
