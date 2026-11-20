@@ -160,6 +160,17 @@ html:not([data-cur='1']) .vt-fac:hover::after, html:not([data-cur='1']) .vt-fac:
 .vt-r .vt-agent { margin: 24px 0 0; }
 /* the build cards: a last card alone on its row takes the row */
 .vt-r .vit-build-g > .vit-build-c:last-child:nth-child(odd) { grid-column: 1 / -1; }
+/* the coding agent, step by step (Vitrine.tsx, tutHtml), after its card: a build card that takes the row, its steps
+   numbered in mono as the sections' index, each command copyable, the log of a paid call as quiet mono text */
+.vt-r .vit-build-g > .vt-tut { grid-column: 1 / -1; }
+.vt-r .vit-build-g > .vt-tut ~ .vit-build-c:last-child:nth-child(even) { grid-column: 1 / -1; }
+.vt-r .vt-tut-s { display: grid; gap: 28px; margin: 12px 0 0; padding: 0; list-style: none; }
+.vt-r .vt-tut-i { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; min-width: 0; }
+.vt-r .vt-tut-i > .lbl { margin: 0; }
+.vt-r .vt-tut-h { display: flex; align-items: baseline; gap: 12px; margin: 0; font-size: 15px; line-height: 1.4; font-weight: 600; color: var(--ink); }
+.vt-r .vt-tut-n { flex: none; font-size: 12px; line-height: 1.4; color: var(--ink3); }
+.vt-r .vt-tut-c { font-size: 0.88em; color: var(--ink); overflow-wrap: anywhere; }
+.vt-r .vt-tut-o { margin: 0; padding: 12px 16px; font-size: 12px; line-height: 1.6; color: var(--ink2); background: rgb(var(--ink-c) / 0.035); box-shadow: inset 2px 0 0 var(--rule2); white-space: pre-wrap; overflow-wrap: anywhere; }
 .vt-use .act-sec, .vt-use .work-sec { margin: 0; padding: 0; box-shadow: none; }
 .vt-use .act-sec > h2, .vt-use .act-sec-h { font-size: 17px; }
 .vt-tech { margin: 40px 0 0; }

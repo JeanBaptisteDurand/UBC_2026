@@ -103,6 +103,35 @@ function AgentBox() {
 }
 const agentHtml = () => `<div class="vit-build-c"><h3 class="vit-build-t">${ag('t')}</h3><p class="vit-build-d">${ag('d')}</p><a class="tlink" href="${AGENT_URL}" target="_blank" rel="noreferrer">${ag('a')}</a></div>`
 
+/** a copyable command in the presentation's markup (Vitrine's click handler copies the code's text) */
+const escH = (s: string) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;')
+const cmdHtml = (text: string, what = text) => `<div class="cmd"><code class="mono cmd-t">${escH(text)}</code><button class="cmd-b" aria-label="${escH(`Copy: ${what}`)}">Copy</button></div>`
+/** the MCP server for the clients other than Claude Code: the JSON the copilot's MCP card gives, with its label */
+const MCP_JSON = JSON.stringify({ mcpServers: { archive: { url: 'https://arc-hive.xyz/mcp' } } }, null, 2)
+const mcpJsonHtml = () => `<p class="lbl muted">JSON config, for Cursor and any client that takes a remote server URL</p>${cmdHtml(MCP_JSON, 'the JSON config')}`
+
+/** the coding agent, step by step, after its card in "Build on it". Every command is the one of
+ *  examples/opencode-archive/README.md (and the main README's light clone), word for word, checked on a fresh clone of
+ *  GitHub main in node:22-slim (clone, both npm ci, the bridge started on v3 and stopped, nothing paid). The output
+ *  lines are the bridge log of a paid call on v3 (the transaction linked under them). English only, as the site. */
+const EX = 'https://github.com/JeanBaptisteDurand/UBC_2026/blob/main/examples/opencode-archive/README.md'
+const ext = (href: string, text: string) => `<a class="tlink" href="${href}" target="_blank" rel="noreferrer">${text}</a>`
+const step = (n: string, title: string, body: string) => `<li class="vt-tut-i"><h4 class="vt-tut-h"><span class="mono vt-tut-n">${n}</span>${title}</h4>${body}</li>`
+const TUT_TX = '0xe10d32ecdafd173a67b7785ef546217af416651b4bbefe0656b5084774d28434'
+const tutHtml = () => `<div class="vit-build-c vt-tut"><h3 class="vit-build-t">Set it up, step by step.</h3>`
+  + `<p class="vit-build-d">OpenCode on ArcHive’s private AI, in a macOS or Linux terminal. Arc testnet only: you pay in test USDC.</p>`
+  + `<ol class="vt-tut-s">`
+  + step('01', 'What you need', `<p class="vit-build-d">Node.js 22 or later, ${ext('https://opencode.ai', 'OpenCode')}, and a test wallet in a JSON file, <code class="mono vt-tut-c">{"privateKey": "0x..."}</code>: never a wallet with real funds. Send it test USDC on Arc testnet from ${ext('https://faucet.circle.com', 'faucet.circle.com')}.</p>`)
+  + step('02', 'Get the code', `<p class="vit-build-d">A light clone, without the landing film’s frames:</p>${cmdHtml("git clone --filter=blob:none --no-checkout https://github.com/JeanBaptisteDurand/UBC_2026.git && cd UBC_2026\ngit sparse-checkout set --no-cone '/*' '!/frontend/public/film/' && git checkout main", 'the two clone lines')}`)
+  + step('03', 'Install', `<p class="vit-build-d">From the repository root:</p>${cmdHtml('cd packages/sdk && npm ci\ncd ../../examples/opencode-archive && npm ci', 'the two install lines')}`)
+  + step('04', 'Run it', `${cmdHtml('export ARCHIVE_PAYER_KEY_FILE=/path/to/test-wallet.json\n./opencode-arc', 'the two run lines')}<p class="vit-build-d">OpenCode opens on <code class="mono vt-tut-c">gpt-oss-120b</code>, ArcHive’s model. Your usual OpenCode setup is untouched.</p>`)
+  + step('05', 'What you see', `<p class="vit-build-d">Each request is sealed to the enclave whose key Arc checked and paid 0.01 USDC. The answer is used only if the enclave’s receipt verifies, and the operator settles the call on Arc seconds later. In a second terminal:</p>${cmdHtml('./opencode-arc log')}`
+    + `<pre class="mono vt-tut-o" aria-label="Log of a paid call">call #1  sealed to enclave 0xd8f8…0a7a (key checked on Arc)  paid 0.01 USDC  receipt verified  2.2 s  -&gt; answer\ncall #1  SETTLED on Arc: CallSettled tx 0xe10d32ec…8434  block 73186119  (4 s after the answer)</pre>`
+    + `<p class="lbl muted">A call on 20 November, 12:13 UTC (hash shortened): ${ext(`https://explorer.testnet.arc.io/tx/${TUT_TX}`, 'its settlement on Arc')}. At most 30 paid calls per run: <code class="mono vt-tut-c">./opencode-arc stop</code> resets the count.</p>`)
+  + step('06', 'Any other OpenAI-compatible tool', `${cmdHtml('./opencode-arc start')}<p class="vit-build-d">The bridge alone, in the background. Give your tool the base URL <code class="mono vt-tut-c">http://127.0.0.1:8789/v1</code>, the model <code class="mono vt-tut-c">gpt-oss-120b</code> and any API key: each request is one paid call. ${ext(`${EX}#any-openai-compatible-harness`, 'Aider, Continue, Cline, Goose')}.</p>`)
+  + step('07', 'Pay from a Circle wallet', `<p class="vit-build-d">No private key on your machine: a Circle developer-controlled wallet on Arc testnet pays, and Circle signs each authorization. Put your own Circle test API key, entity secret and wallet in <code class="mono vt-tut-c">~/.config/archive-circle/</code> once (${ext(`${EX}#pay-from-a-circle-wallet`, 'how')}), then:</p>${cmdHtml('export ARCHIVE_PAYER=circle\n./opencode-arc run "Say in one sentence what ArcHive is"', 'the two Circle lines')}`)
+  + `</ol></div>`
+
 /** the sections of the introduction, after the presentation's chapters (its "offer" board is left out: the sleds and their sheets
  *  say it). "Build on it" is the MCP server and its SDK: it is named so. */
 const SECS = ['notary', 'compare', 'market', 'build', 'faq'] as const
@@ -114,10 +143,13 @@ const secHtml = (c: VitChapter) => {
   if (c.id !== 'build') return h
   // the section is the MCP server: its title says so
   const m = h.replace(/<h2 aria-label="[^"]*" class="vt-h vit-h2" id="build-h">[\s\S]*?<span class="ttl-rule"/, '<h2 aria-label="MCP" class="vt-h vit-h2" id="build-h">MCP<span class="ttl-rule"')
-  // the coding agent card comes right after the MCP server's card (the grid's first), before the public API
+  // the coding agent card comes right after the MCP server's card (the grid's first), before the public API, and its
+  // step-by-step set-up right after it; the MCP card ends with the JSON config for the other clients
   const c1 = m.indexOf('<div class="vit-build-c">')
   const c2 = c1 < 0 ? -1 : m.indexOf('<div class="vit-build-c">', c1 + 1)
-  return c2 < 0 ? m : m.slice(0, c2) + agentHtml() + m.slice(c2)
+  if (c2 < 0) return m
+  const end1 = m.lastIndexOf('</div>', c2 - 1)
+  return m.slice(0, end1) + mcpJsonHtml() + m.slice(end1, c2) + agentHtml() + tutHtml() + m.slice(c2)
 }
 
 function Intro({ root, to }: { root: React.RefObject<HTMLDivElement | null>; to: string | null }) {

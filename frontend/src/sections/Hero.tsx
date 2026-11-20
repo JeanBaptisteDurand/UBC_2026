@@ -1,6 +1,6 @@
 // 1. The hero: the headline (a single key), the support line, the three buttons (which move down with the scroll).
 // The wall is on the right, face on, and overflows.
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { onTick } from '../clock'
 import { AskHiveMark } from '../copilot/AskHiveMark'
 import { t, useLang, type TKey } from '../i18n'
@@ -42,14 +42,64 @@ function Catch() {
   )
 }
 
-/** the invitation to scroll, at the foot of the first screen; gone once the page has moved */
+/** The MCP server, ready to install from the first screen, under the agents' line: Claude Code's one-line command and
+ *  the JSON config of the other clients (Cursor, any client that takes a remote server URL), as on the Services page's
+ *  "Build on it" and in the copilot's MCP card. One quiet mono line each, with its copy button. */
+const MCP_CMD = 'claude mcp add --transport http archive https://arc-hive.xyz/mcp'
+const MCP_JSON = '{"mcpServers": {"archive": {"url": "https://arc-hive.xyz/mcp"}}}'
+async function copyTo(text: string) {
+  try { if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); return true } } catch { /* refused: the old way */ }
+  try {
+    const ta = document.createElement('textarea')
+    ta.value = text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;font-size:16px'
+    document.body.appendChild(ta); ta.select()
+    const ok = document.execCommand('copy'); ta.remove(); return ok
+  } catch { return false }
+}
+function McpLine({ text, title, what }: { text: string; title: string; what: string }) {
+  useLang()
+  const [done, setDone] = useState(false)
+  const code = useRef<HTMLElement>(null)
+  const tm = useRef(0)
+  useEffect(() => () => clearTimeout(tm.current), [])
+  const copy = () => void copyTo(text).then((ok) => {
+    // refused (an in-app browser): the line is selected, to copy by hand
+    if (!ok) { try { const r = document.createRange(); r.selectNodeContents(code.current!); getSelection()?.removeAllRanges(); getSelection()?.addRange(r) } catch { /* nothing to select */ } return }
+    setDone(true); clearTimeout(tm.current); tm.current = window.setTimeout(() => setDone(false), 1600)
+  })
+  return (
+    <div className="hero-mcp-r">
+      <code className="mono hero-mcp-c" ref={code} title={title}>{text}</code>
+      <button type="button" className="hero-mcp-b" onClick={copy} aria-label={`${t('p.copy')}: ${what}`}>{done ? t('p.copied') : t('p.copy')}</button>
+    </div>
+  )
+}
+
+/** the invitation to scroll, at the foot of the first screen; gone once the page has moved, and on a screen too short
+ *  for it under the hero's text (the MCP lines come last): the cue never covers a line */
 function ScrollCue() {
   const ref = useRef<HTMLDivElement>(null)
+  // the room under the text is measured when the layout changes (ResizeObserver: no reading at each frame), and again
+  // when the page is back at its top
+  const fits = useCallback(() => {
+    const el = ref.current
+    const acts = el?.parentElement?.querySelector('.hero-acts')
+    if (!el || !acts) return
+    const v = acts.getBoundingClientRect().bottom + 8 <= el.getBoundingClientRect().top ? '1' : '0'
+    if (el.dataset.room !== v) el.dataset.room = v
+  }, [])
+  useEffect(() => {
+    const txt = ref.current?.parentElement?.querySelector('.txt')
+    if (!txt || typeof ResizeObserver !== 'function') return
+    const ro = new ResizeObserver(() => { if (scrollY <= 40) fits() })
+    ro.observe(txt); ro.observe(document.documentElement)
+    return () => ro.disconnect()
+  }, [fits])
   useEffect(() => onTick(() => {
     const el = ref.current; if (!el) return
     const v = scrollY > 40 ? '0' : '1'
-    if (el.dataset.on !== v) el.dataset.on = v
-  }), [])
+    if (el.dataset.on !== v) { el.dataset.on = v; if (v === '1') fits() }
+  }), [fits])
   return (
     <div className="scroll-cue" ref={ref} data-on="1" aria-hidden="true" data-front-free>
       <span className="scroll-cue-l"><i /></span><span className="lbl mono scroll-cue-t">{t('hero.scroll')}</span>
@@ -87,6 +137,10 @@ export function Hero() {
           {/* for AI agents: one quiet line under the copilot bar, no new button; it opens the Services chapter that holds
               the MCP address to copy */}
           <a className="hero-agent" href={`${link.catalog}?c=build`}>{t('hero.agent')}</a>
+          <div className="hero-mcp" role="group" aria-label="Install the MCP server">
+            <McpLine text={MCP_CMD} title="Claude Code" what="the Claude Code command" />
+            <McpLine text={MCP_JSON} title="JSON config, for Cursor and any client that takes a remote server URL" what="the JSON config for other MCP clients" />
+          </div>
         </div>
         <WallMirror />
       </div>

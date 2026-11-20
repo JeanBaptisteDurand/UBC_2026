@@ -242,6 +242,18 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
 /* the line for AI agents under the copilot bar: quiet text, as wide as the buttons and never wider (it wraps) */
 .hero-agent { width: 0; min-width: 100%; margin-top: 6px; font-size: 14px; line-height: 1.5; color: var(--ink2); text-wrap: pretty; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--ink) 30%, transparent); text-underline-offset: 4px; transition: color var(--t2) var(--productive), text-decoration-color var(--t2) var(--productive); }
 .hero-agent:hover, .hero-agent:focus-visible { color: var(--ink); text-decoration-color: currentColor; }
+/* the MCP server to install, under the agents' line (Hero.tsx, McpLine): Claude Code's command, then the JSON of the
+   other clients, one quiet mono line each with its copy button, as wide as the buttons (narrower, a line wraps) */
+.hero-mcp { width: 0; min-width: 100%; display: grid; gap: 2px; }
+.hero-mcp-r { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+.hero-mcp-c { flex: 1 1 auto; min-width: 0; font-size: 11px; line-height: 1.5; color: var(--ink2); overflow-wrap: anywhere; user-select: all; -webkit-user-select: all; }
+.hero-mcp-b { flex: none; font-size: 11px; line-height: 1.5; color: var(--ink3); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--ink) 30%, transparent); text-underline-offset: 3px; transition: color var(--t2) var(--productive), text-decoration-color var(--t2) var(--productive); }
+.hero-mcp-b:hover, .hero-mcp-b:focus-visible { color: var(--ink); text-decoration-color: currentColor; }
+@media (max-width: 1024px) {
+  .hero-mcp-c, .hero-mcp-b { font-size: 12px; }
+  .hero-mcp-r { align-items: center; min-height: 44px; }
+  .hero-mcp-b { align-self: stretch; padding-left: 8px; }
+}
 .hero-demo { margin-top: 20px; font-size: 14px; color: var(--ink2); }
 .hero-demo-r { width: 12px; height: 1px; background: currentColor; }
 /* Headline in opposite corners: "Sealed machines," top left, filling the space before the hero rack; "open market."
@@ -854,7 +866,7 @@ html.veil-none body::after { display: none; }
 /* Invitation to scroll (Hero.tsx): a 1 px rule where a short Arc segment runs down, and a mono label; it fades out
    once the page has moved */
 .scroll-cue { position: absolute; left: var(--gut); bottom: 32px; z-index: 3; display: flex; align-items: center; gap: 12px; color: var(--ink3); pointer-events: none; transition: opacity 420ms var(--productive); }
-.scroll-cue[data-on='0'] { opacity: 0; }
+.scroll-cue[data-on='0'], .scroll-cue[data-room='0'] { opacity: 0; }
 .scroll-cue-l { position: relative; width: 1px; height: 40px; overflow: hidden; background: rgb(var(--ink-c) / 0.16); }
 .scroll-cue-l i { position: absolute; left: 0; top: 0; width: 1px; height: 14px; background: var(--arc-light, #9cc0ff); box-shadow: 0 0 6px var(--arc-elec); animation: scroll-cue 2.4s cubic-bezier(.65, 0, .35, 1) infinite; }
 .scroll-cue-t { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; }
