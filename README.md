@@ -170,7 +170,7 @@ Everything below was read or measured on Arc testnet. Our contract addresses are
 ### Arc checks the machine
 
 - **Intel DCAP, verified on-chain.** We deployed Automata's DCAP verifier (MIT, commit `59b1f34`) on Arc testnet with
-  Intel's collateral on 7 Nov, and refreshed the collateral on 9 Nov: it is the one piece already on Arc before the week,
+  Intel's collateral on 13 Nov, and refreshed the collateral on 14 Nov: it is the first piece on Arc, before any product contract,
   and v3's `TdxAttestationModule` calls the same instance, nothing was redeployed. Every admission goes through `EnclaveRegistry`,
   then `TdxAttestationModule`, then Automata's entry point `0x4864…4dc9` (see [`dcap-integration/`](dcap-integration/)).
 - **The boot log, replayed on-chain.** Arc has no SHA-384 precompile, so `EnclaveRegistry` replays the VM's RTMR3 log
@@ -212,7 +212,7 @@ Gas is paid in USDC, so each check has a price in dollars. Measured on Arc testn
   [EIP-7951](https://eips.ethereum.org/EIPS/eip-7951)): the ECDSA signatures inside every Intel quote.
 - [x402](https://github.com/coinbase/x402), the `exact` scheme over EIP-3009, with our own settlement: `payTo` is the
   `X402Settler` contract, because USDC must move in the same call that checks the enclave's signed receipt for that
-  request. The request is also sealed to the enclave's key, so a standard x402 client cannot pay product 3 yet:
+  request. The request is also sealed to the enclave's key, so a standard x402 client alone cannot pay product 3: the request has to be sealed to the enclave's key first.
   callers use our SDK.
 
 ### Circle tools: what we use and why not the others
@@ -463,8 +463,7 @@ a session. An attestation proves which code ran, not that an AI answer is right,
   datacenter. Physical attacks on a machine someone can touch are bounded, not prevented: capped exposure, bond
   seizure, and the verified level for high stakes.
 - **One operator today.** Our team runs every enclave, on Phala Cloud. The contracts accept any bonded operator, but
-  our enclave images are not public yet, so a second operator cannot run the allowed fingerprints until we publish
-  them.
+  our enclave images are not public yet: we publish them, and a second operator can then run the allowed fingerprints.
 - **Admin keys.** On testnet, one key, the deployer's (kept off the server), owns `OperatorBond` and `VerdictLog` and
   is the author of all five products. It can propose a new settlement contract or verdict writer, which waits 8 days,
   and remove one at once. Product changes have no timelock on testnet (`ProductRegistry.timelock` is 0). The mainnet
@@ -474,7 +473,7 @@ a session. An attestation proves which code ran, not that an AI answer is right,
 - **No state proofs yet.** A bounty replay reads Arc's state through a strict relay that re-hashes every block header.
   Per-read state proofs (`eth_getProof`) are implemented and tested, and turn on once an Arc RPC serves historical
   proofs.
-- **Scope.** Arc testnet only, with no third-party audit, and every payment so far came from our own wallets.
+- **Scope.** Arc testnet only; 253 Foundry tests and three adversarial reviews by us (no third-party audit), and every payment so far came from our own wallets.
 
 ## Proofs on Arc testnet
 

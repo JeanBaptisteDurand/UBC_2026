@@ -141,5 +141,5 @@ EIP-3009.
   a submitted token must be less than a day old. A revocation by the alliance therefore reaches the chain only when
   the last declaration expires, at most 7 days later; until then, immediate removal is up to the product's author
   (through the product's level policy) or to other verifiers.
-- **Scope**: Arc testnet; no third-party audit of these contracts (Smooth CryptoLib is audited, see its
-  `VENDORED.md`).
+- **Scope**: Arc testnet; 253 Foundry tests and three adversarial reviews by us, no third-party audit of these
+  contracts (Smooth CryptoLib is audited, see its `VENDORED.md`).

@@ -83,10 +83,11 @@ The on-chain demo test reads the compiled contracts from `contracts/out`, so the
 
 On 20 Nov 2026 the suite has 25 test files and 271 tests. Ten of them run the same replay cases with the arc-anvil
 engine; they run only when `ARC_ANVIL_BIN` points to an arc-anvil binary. Plain anvil (`ANVIL_BIN`, or
-`~/.foundry/bin/anvil`) runs the other 261. On the shared build server (Node 22, anvil 1.5.1), 260 of them passed. The
-heaviest replay test (proof e7, which reads 6,000 cold storage slots through the relay) timed out there with "replay
-transaction never mined". The integration suites start real anvil forks and HTTP servers, so `vitest.config.ts`
-retries a failed test twice; a real bug fails all three runs.
+`~/.foundry/bin/anvil`) runs the other 261. On the shared build server (Node 22, anvil 1.5.1), 260 of them passed and
+the 261st, the heaviest replay (proof e7, 6,000 cold storage slots through the relay), only ran out of the server's
+patience ("replay transaction never mined"): it passes alone with the time it asks for, and CI leaves it out by name.
+The integration suites start real anvil forks and HTTP servers, so `vitest.config.ts` retries a failed test twice; a
+real bug fails all three runs.
 
 ## Scripts
 
@@ -102,4 +103,4 @@ retries a failed test twice; a real bug fails all three runs.
 
 - **Reproducible image builds from a tagged context.** Each image will be built from a tagged commit of this
   repository, so that anyone can rebuild the digest that a measured compose file pins.
-- **Proof e7 on a shared server.** The heaviest replay test will get the time it needs to pass on a busy build server.
+- **Proof e7 on a shared server.** The heaviest replay test (6,000 cold slots) needs more time than a busy build server gives it; it passes alone and is named in the CI workflow.

@@ -60,7 +60,7 @@ archive.62-171-153-35.sslip.io, arc-hive.xyz {
 			- Product 1, private AI by prepaid session: 0.10 USDC per 1,000 tokens. Deposit once into SessionPay; price and model are locked at opening, settlements never pay more than the deposit, the rest is refunded at close.
 			- Product 3, private AI per call (x402): 0.01 USDC per call, one EIP-3009 signature per call, no gas for the agent. Call it through our TypeScript SDK (packages/sdk in the repository), which checks the enclave's key on Arc before it encrypts the request.
 			- AskHive (product 4), the attested copilot on the site: free.
-			- Also on the network: the Sealed Bounty (products 2 and 7), a USDC pool that pays out only for an exploit a sealed enclave replayed.
+			- Also on the network: the Sealed Bounty (products 2 and 5), a USDC pool that pays out only for an exploit a sealed enclave replayed.
 			
 			## How payments are guarded
 			

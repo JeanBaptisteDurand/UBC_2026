@@ -12,15 +12,15 @@ are on-chain: every contract deployment and enclave admission listed below links
 
 - **Contracts** (`contracts/`): stack v2 deployed on Arc testnet on 13 Nov (its `EnclaveRegistry`:
   [`0x36ac21e4…d493`](https://explorer.testnet.arc.io/tx/0x36ac21e47bf96affcdfa496780f27ef8204eb770d7cab859fe367ed89873d493)),
-  v2.1 (the live stack) on 14 Nov (its `EnclaveRegistry`:
+  v2.1 (the next stack) on 14 Nov (its `EnclaveRegistry`:
   [`0x90a27bc3…c9be`](https://explorer.testnet.arc.io/tx/0x90a27bc3c78834c8a7c2400367dae863bdfea0d0974799b1262735a0ac10c9be);
   the others in [`deployments.v21.testnet.json`](deployments.v21.testnet.json) and
   [`deployments.dcap.testnet.json`](deployments.dcap.testnet.json)), and the operator-level contracts
   on 15 Nov (`MachineRegistry`:
   [`0xe043c341…98e4`](https://explorer.testnet.arc.io/tx/0xe043c341b4760b7f7fcd251f1fa7a858ae40b1bd75e0dd4c7dacc91f6f9798e4)).
-- **Intel DCAP on Arc** (`dcap-integration/`): Automata's verifier deployed on 7 Nov with Intel's collateral
+- **Intel DCAP on Arc** (`dcap-integration/`): Automata's verifier deployed on 13 Nov with Intel's collateral
   ([`0x83c00a69…9ec6`](https://explorer.testnet.arc.io/tx/0x83c00a69d5f7ec6cb233ba3e649893a333e4e3728dcc9705b79172af2d069ec6),
-  the first of its transactions in [`deployments.dcap.testnet.json`](../../deployments.dcap.testnet.json)), refreshed on 9 Nov, and before the week.
+  the first of its transactions in [`deployments.dcap.testnet.json`](../../deployments.dcap.testnet.json)), refreshed on 14 Nov, before the first product contract.
 - **Enclave kit and products** (`enclave/`): private AI (prepaid sessions and pay per call), the sealed bounty with its
   `arc-anvil` replay, the refutation demo and the verified bounty. Enclaves were first admitted through Intel DCAP on
   13 Nov
@@ -57,7 +57,7 @@ are on-chain: every contract deployment and enclave admission listed below links
   [`0xf18cb68f…6a2c`](https://explorer.testnet.arc.io/tx/0xf18cb68f068e5cfaa993a67da2fd98f4c5d73123460533d0901052b06d166a2c)),
   and AskHive at 22:37 UTC
   ([`0xde9628b2…0176`](https://explorer.testnet.arc.io/tx/0xde9628b23d0483bb666a0cd13c55c4f32a1204151323a80da9451b0aeb330176)).
-- **Stack v3 deployed on 19 Nov**: 14 contracts, not switched on yet (its `EnclaveRegistry`:
+- **Stack v3 deployed on 19 Nov**: 14 contracts, switched on the next day (its `EnclaveRegistry`:
   [`0xdf5d2ad6…9049`](https://explorer.testnet.arc.io/tx/0xdf5d2ad6529eb2bfdbc0f4dfda4368822cbe03eb7ee7b3087f145065f5679049);
   every other one in [`deployments.v3.testnet.json`](deployments.v3.testnet.json)).
 - **Claude Code's request format on ArcHive's private inference**, tested on 19 Nov (three paid calls).

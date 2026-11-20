@@ -1,6 +1,6 @@
 # Real Intel TDX verification on Arc testnet (Automata DCAP, PCCS on-chain)
 
-**Result (7 Nov 2026, chain 5042002):** the real TDX v4 quote of ArcHive's Phala (dstack) enclave is verified **on Arc**,
+**Result (13 Nov 2026, chain 5042002):** the real TDX v4 quote of ArcHive's Phala (dstack) enclave is verified **on Arc**,
 by Automata's DCAP stack (MIT, contracts unchanged), with Intel's collateral loaded on-chain and the quote checked in a
 real Arc testnet transaction.
 
@@ -73,7 +73,7 @@ cd dcap-integration/arc-testnet
 ## Reload the collateral when Intel updates it
 
 The router refuses expired collateral: the TCB info, the QE identity, the PCK CRL and the evaluation numbers loaded
-expire on **9 Dec 2026** (`nextUpdate`, +30 days). Before that date (then every month):
+expire on **14 Dec 2026** (`nextUpdate`, +30 days). Before that date (then every month):
 
 ```bash
 ./run.sh refresh   # downloads again, dry-runs, sends only what is newer, updates the JSON
@@ -97,12 +97,12 @@ Another FMSPC (the app moves to another Phala host): `ENCLAVE_URL=… ./run.sh r
 ## Arc mainnet (chainId 5042)
 
 `NETWORK=mainnet KEY_FILE=<mainnet key> ./run.sh deploy`, then `verify` and `module` (RPC `https://rpc.mainnet.arc.io`,
-writes `deployments.dcap.mainnet.json`). Checked on mainnet on 7 Nov: P-256 precompile `0x100` present, CREATE2 factory
+writes `deployments.dcap.mainnet.json`). Checked on mainnet on 13 Nov: P-256 precompile `0x100` present, CREATE2 factory
 and Daimo present, 30 M gas per block. What changes:
 - **never the testnet key**; the owner (`OWNER`) should then move to a multisig (`transferOwnership` of the Ownable
   contracts: storage, config, DAOs, router, entry point);
 - addresses: the same `SALT_TAG` and the same owner give the same addresses as on testnet; otherwise, new ones;
-- expected cost at the 7 Nov price (25 gwei): about 57 M gas, about 1.4 USDC for the stack and collateral, about
+- expected cost at the 13 Nov price (25 gwei): about 57 M gas, about 1.4 USDC for the stack and collateral, about
   0.13 USDC per verification;
 - the same monthly reload and evaluation-number schedule applies.
 
