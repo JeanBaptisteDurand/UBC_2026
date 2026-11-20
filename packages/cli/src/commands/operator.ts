@@ -256,7 +256,7 @@ const settle: Command = {
       const tag = `session #${r.sessionId}`;
       const v = await w.arc.verifyReceipt(r, signature);
       const bad = v.checks.filter((c) => !c.ok);
-      if (bad.length) { info(`${tag}: skipped (${bad.map((c) => c.fr).join("; ")})`); continue; }
+      if (bad.length) { info(`${tag}: skipped (${bad.map((c) => c.en).join("; ")})`); continue; }
       const s = v.session!;
       if (!sameAddr(w.account.address, s.operator)) info(`${tag}: you pay the gas, the payment goes to ${s.operator}`);
       try {

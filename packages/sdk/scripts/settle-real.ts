@@ -32,7 +32,7 @@ async function main() {
     console.log(`answer (${last.receipt.tokensIn}+${last.receipt.tokensOut} tokens, cumulative ${last.receipt.cumulativeUnits} units, signed by ${last.signer}, payable ${last.verified}): ${last.text.slice(0, 90)}…`);
   }
   const check = await arc.verifyReceipt(last!.receipt, last!.signature);
-  if (!check.settleable) throw new Error(`receipt not settleable: ${check.checks.filter((c) => !c.ok).map((c) => c.fr).join("; ")}`);
+  if (!check.settleable) throw new Error(`receipt not settleable: ${check.checks.filter((c) => !c.ok).map((c) => c.en).join("; ")}`);
   const stx = await arc.settle(last!.receipt, last!.signature);
   const sr = await pub.waitForTransactionReceipt({ hash: stx });
   const st = parseEventLogs({ abi: sessionPayAbi, logs: sr.logs, eventName: "Settled" })[0];

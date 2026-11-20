@@ -130,7 +130,7 @@ export const verifyCmd: Command = {
     const { arc } = reader(ctx.rpc);
     const v = await arc.verifyReceipt(receipt, signature);
     out(`signer ${v.signer}, active operator at the anchor block: ${v.activeOperatorAtAnchor === ZERO ? "none" : v.activeOperatorAtAnchor}`);
-    for (const c of v.checks) out(`  ${check(c.ok)} ${c.fr}`);
+    for (const c of v.checks) out(`  ${check(c.ok)} ${c.en}`);
     out(`  cumulative ${receipt.cumulativeUnits} units, seq ${receipt.seq}${v.settleable ? `, settle would pay ${usdc(v.payableNow)}` : ""}`);
     if (!v.settleable) {
       info("receipt NOT settleable");

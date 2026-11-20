@@ -995,7 +995,8 @@ export function settleArgs(call: PendingCall) {
 }
 
 export type CallCheckId = "product" | "settlement" | "amount" | "active" | "operator" | "nonce" | "authorization" | "unused" | "window" | "funds";
-export interface CallCheck { id: CallCheckId; ok: boolean; fr: string }
+/** A call check: `fr` is the French sentence (the console shows it as is), `en` the same check in English. */
+export interface CallCheck { id: CallCheckId; ok: boolean; fr: string; en: string }
 
 export interface CallVerification {
   /** Signer of the receipt (X402Settler domain). */
@@ -1052,22 +1053,24 @@ export async function verifyCallOnChain(
   const now = blk.timestamp;
   const opOk = lower(operator) !== zeroAddress;
   const checks: CallCheck[] = [
-    { id: "product", ok: active, fr: active ? `produit #${cr.productId} actif` : `produit #${cr.productId} inactif (BadProduct)` },
-    { id: "settlement", ok: lower(p.settlement) === lower(d.x402Settler), fr: lower(p.settlement) === lower(d.x402Settler) ? "produit réglé par X402Settler" : `produit réglé par ${p.settlement} (WrongSettlement)` },
-    { id: "amount", ok: amount > 0n, fr: amount > 0n ? `montant ${amount}` : "montant nul (ZeroAmount)" },
-    { id: "active", ok: opOk, fr: opOk ? `enclave ${signer} active au bloc d'ancrage ${cr.anchorBlock}` : `signataire ${signer} non actif pour ce produit au bloc ${cr.anchorBlock} (InactiveEnclave)` },
+    { id: "product", ok: active, fr: active ? `produit #${cr.productId} actif` : `produit #${cr.productId} inactif (BadProduct)`, en: active ? `product #${cr.productId} active` : `product #${cr.productId} inactive (BadProduct)` },
+    { id: "settlement", ok: lower(p.settlement) === lower(d.x402Settler), fr: lower(p.settlement) === lower(d.x402Settler) ? "produit réglé par X402Settler" : `produit réglé par ${p.settlement} (WrongSettlement)`, en: lower(p.settlement) === lower(d.x402Settler) ? "product settled by X402Settler" : `product settled by ${p.settlement} (WrongSettlement)` },
+    { id: "amount", ok: amount > 0n, fr: amount > 0n ? `montant ${amount}` : "montant nul (ZeroAmount)", en: amount > 0n ? `amount ${amount}` : "zero amount (ZeroAmount)" },
+    { id: "active", ok: opOk, fr: opOk ? `enclave ${signer} active au bloc d'ancrage ${cr.anchorBlock}` : `signataire ${signer} non actif pour ce produit au bloc ${cr.anchorBlock} (InactiveEnclave)`, en: opOk ? `enclave ${signer} active at anchor block ${cr.anchorBlock}` : `signer ${signer} not active for this product at block ${cr.anchorBlock} (InactiveEnclave)` },
     {
       id: "operator", ok: !o.expectedOperator || lower(operator) === lower(o.expectedOperator),
       fr: !o.expectedOperator || lower(operator) === lower(o.expectedOperator) ? "opérateur attendu" : `le règlement paierait l'opérateur ${operator}, pas ${o.expectedOperator}`,
+      en: !o.expectedOperator || lower(operator) === lower(o.expectedOperator) ? "expected operator" : `the settlement would pay operator ${operator}, not ${o.expectedOperator}`,
     },
-    { id: "nonce", ok: lower(call.auth.nonce) === lower(cr.nonce), fr: lower(call.auth.nonce) === lower(cr.nonce) ? "nonce du reçu = nonce de l'autorisation" : "nonce du reçu ≠ nonce de l'autorisation" },
-    { id: "authorization", ok: authOk, fr: authOk ? "autorisation EIP-3009 du payeur, montant exact, vers X402Settler" : (problem ?? "l'autorisation ne paie pas exactement ce montant à X402Settler (signature EIP-3009)") },
-    { id: "unused", ok: !used, fr: used ? "autorisation déjà consommée (réglée, ou annulée par le payeur)" : "autorisation jamais consommée" },
+    { id: "nonce", ok: lower(call.auth.nonce) === lower(cr.nonce), fr: lower(call.auth.nonce) === lower(cr.nonce) ? "nonce du reçu = nonce de l'autorisation" : "nonce du reçu ≠ nonce de l'autorisation", en: lower(call.auth.nonce) === lower(cr.nonce) ? "receipt nonce = authorization nonce" : "receipt nonce ≠ authorization nonce" },
+    { id: "authorization", ok: authOk, fr: authOk ? "autorisation EIP-3009 du payeur, montant exact, vers X402Settler" : (problem ?? "l'autorisation ne paie pas exactement ce montant à X402Settler (signature EIP-3009)"), en: authOk ? "the payer's EIP-3009 authorization, exact amount, to X402Settler" : (problem ?? "the authorization does not pay exactly this amount to X402Settler (EIP-3009 signature)") },
+    { id: "unused", ok: !used, fr: used ? "autorisation déjà consommée (réglée, ou annulée par le payeur)" : "autorisation jamais consommée", en: used ? "authorization already consumed (settled, or cancelled by the payer)" : "authorization never consumed" },
     {
       id: "window", ok: call.auth.validAfter < now && now < call.auth.validBefore,
       fr: call.auth.validAfter < now && now < call.auth.validBefore ? "autorisation dans sa fenêtre de validité" : "autorisation hors de sa fenêtre de validité",
+      en: call.auth.validAfter < now && now < call.auth.validBefore ? "authorization inside its validity window" : "authorization outside its validity window",
     },
-    { id: "funds", ok: balance >= amount, fr: balance >= amount ? "solde du payeur suffisant" : `solde du payeur ${balance} < ${amount}` },
+    { id: "funds", ok: balance >= amount, fr: balance >= amount ? "solde du payeur suffisant" : `solde du payeur ${balance} < ${amount}`, en: balance >= amount ? "payer's balance sufficient" : `payer's balance ${balance} < ${amount}` },
   ];
   return {
     signer, operator, amount, checks, settleable: checks.every((c) => c.ok), alreadyUsed: used, expired: call.auth.validBefore <= now,
@@ -1233,9 +1236,9 @@ export class X402SettlementQueue {
         if (failing.some((c) => PERMANENT.has(c.id))) {
           this.known.delete(key);
           r.dropped++;
-          log(`call ${key} dropped: ${failing.map((c) => c.fr).join("; ")}`);
+          log(`call ${key} dropped: ${failing.map((c) => c.en).join("; ")}`);
         } else {
-          r.waiting.push({ ...id, reasons: failing.map((c) => c.fr) });
+          r.waiting.push({ ...id, reasons: failing.map((c) => c.en) });
         }
         continue;
       }
