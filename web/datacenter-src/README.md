@@ -12,7 +12,7 @@ its three steps.
 
 | File | What it holds |
 | --- | --- |
-| `base.template.html` | The engine page: markup, styles and the script (scene, director, replay, panels, tour) |
+| `base.template.html` | The engine page: markup, styles and the script (scene, director, replay, panels, tour). It first drew a base in space, hence the pods and the island in its names; the room's blocks replace that scene |
 | `base-copy.json` | The engine's words, in English and French |
 | `room/` | The room's blocks: `world.js` (the room and its zones), `actors.js` (the characters), `choreo.js` (their choreography), `live.js` (the live feed), `archive.js` (Find and each rack's history), `xray.js` (an open cabinet), `hud.js` (keeps the top banner clear of the tools), `extra.js` (the camera's view of each zone) |
 | `make_room.py` | Turns the engine page into the server room: the blocks swapped in, then the room's patches |
