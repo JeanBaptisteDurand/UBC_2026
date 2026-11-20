@@ -62,12 +62,12 @@ const EVEN_HEX = /^0x([0-9a-fA-F]{2})*$/;
 export function validateExploit(x: ExploitInput): void {
   validatePredicate(x.predicate);
   if (!Array.isArray(x.txs) || x.txs.length < 1 || x.txs.length > 10 || !x.txs.every((t) => typeof t === "string" && EVEN_HEX.test(t))) {
-    throw new Error("exploit : « txs » doit être une liste de 1 à 10 transactions en hexadécimal pair (encodeExploitTx)");
+    throw new Error("exploit: \"txs\" must be a list of 1 to 10 transactions in even-length hex (encodeExploitTx)");
   }
   if (x.attackCode !== undefined && !(typeof x.attackCode === "string" && EVEN_HEX.test(x.attackCode))) {
-    throw new Error("exploit : « attackCode » doit être de l'hexadécimal pair");
+    throw new Error("exploit: \"attackCode\" must be even-length hex");
   }
-  if (x.capital !== undefined && !/^\d+$/.test(String(x.capital))) throw new Error("exploit : « capital » doit être un entier ≥ 0");
+  if (x.capital !== undefined && !/^\d+$/.test(String(x.capital))) throw new Error("exploit: \"capital\" must be an integer ≥ 0");
 }
 
 /** The canonical form from which the enclave recomputes cP (DeterministicProtocolCipher): same keys, same order. */
@@ -101,9 +101,9 @@ export async function sealExploitForEnclave(a: {
 }): Promise<SealedExploit> {
   assertVerifiedEnclaveKeys(a.enclave); // never encrypt to a key that was not checked against the chain
   validateExploit(a.exploit);
-  if (!/^0x[0-9a-fA-F]{64}$/.test(a.protocolX25519)) throw new Error("protocolX25519 : 32 octets attendus (lus on-chain)");
+  if (!/^0x[0-9a-fA-F]{64}$/.test(a.protocolX25519)) throw new Error("protocolX25519: 32 bytes expected (read on-chain)");
   const r = a.r ?? globalThis.crypto.getRandomValues(new Uint8Array(32));
-  if (r.length !== 32) throw new Error("r : 32 octets attendus");
+  if (r.length !== 32) throw new Error("r: 32 bytes expected");
   const utf8 = (s: string) => new TextEncoder().encode(s);
   const cP = deterministicSeal(toBytes(a.protocolX25519), utf8(protocolCanonical(a)), r);
   const bundle = {
@@ -144,7 +144,7 @@ export interface ProvenClaim {
 
 export class ExploitNotProvenError extends Error {
   constructor(readonly reason: string) {
-    super(`non prouvé par l'enclave : ${reason}`);
+    super(`not proven by the enclave: ${reason}`);
     this.name = "ExploitNotProvenError";
   }
 }
@@ -156,20 +156,20 @@ export async function checkProvenClaim(
   o: { sealedBounty: Address; chainId: number },
 ): Promise<ProvenClaim> {
   const claim = normalizeClaim(res.claim);
-  const fail = (m: string): never => { throw new Error(`réclamation refusée avant envoi : ${m}`); };
+  const fail = (m: string): never => { throw new Error(`claim refused before sending: ${m}`); };
   const signer = await recoverTypedDataAddress({
     domain: networkDomain(o.sealedBounty, o.chainId) as TypedDataDomain,
     types: claimTypes, primaryType: "Claim", message: claim, signature: res.signature,
   });
-  if (signer.toLowerCase() !== sealed.enclave.signer.toLowerCase()) fail(`signée par ${signer}, pas par l'enclave vérifiée ${sealed.enclave.signer}`);
-  if (claim.bountyId !== sealed.bountyId) fail(`prime #${claim.bountyId} au lieu de #${sealed.bountyId}`);
-  if (claim.payee.toLowerCase() !== sealed.payee.toLowerCase()) fail(`bénéficiaire ${claim.payee} au lieu de ${sealed.payee}`);
-  if (claim.predicateHash.toLowerCase() !== sealed.predicateHash.toLowerCase()) fail("predicateHash différent de celui de l'exploit");
-  if (claim.fingerprint.toLowerCase() !== sealed.fingerprint.toLowerCase()) fail("empreinte différente de celle de l'exploit");
-  if (res.cP.toLowerCase() !== sealed.cP.toLowerCase()) fail("le cP renvoyé n'est pas celui chiffré ici");
+  if (signer.toLowerCase() !== sealed.enclave.signer.toLowerCase()) fail(`signed by ${signer}, not by the verified enclave ${sealed.enclave.signer}`);
+  if (claim.bountyId !== sealed.bountyId) fail(`bounty #${claim.bountyId} instead of #${sealed.bountyId}`);
+  if (claim.payee.toLowerCase() !== sealed.payee.toLowerCase()) fail(`payee ${claim.payee} instead of ${sealed.payee}`);
+  if (claim.predicateHash.toLowerCase() !== sealed.predicateHash.toLowerCase()) fail("predicateHash differs from the exploit's");
+  if (claim.fingerprint.toLowerCase() !== sealed.fingerprint.toLowerCase()) fail("fingerprint differs from the exploit's");
+  if (res.cP.toLowerCase() !== sealed.cP.toLowerCase()) fail("the cP returned is not the one encrypted here");
   if (keccak256(res.cP).toLowerCase() !== claim.cPHash.toLowerCase()) fail("keccak256(cP) ≠ cPHash");
-  if (sealed.blockN !== undefined && claim.blockN !== sealed.blockN) fail(`bloc N ${claim.blockN} au lieu de ${sealed.blockN}`);
-  if (sealed.deadline !== undefined && claim.deadline !== sealed.deadline) fail(`échéance ${claim.deadline} au lieu de ${sealed.deadline}`);
+  if (sealed.blockN !== undefined && claim.blockN !== sealed.blockN) fail(`block N ${claim.blockN} instead of ${sealed.blockN}`);
+  if (sealed.deadline !== undefined && claim.deadline !== sealed.deadline) fail(`deadline ${claim.deadline} instead of ${sealed.deadline}`);
   return { claim, signature: res.signature, cP: res.cP, signer };
 }
 
@@ -190,7 +190,7 @@ export async function submitSealedExploit(
   });
   const text = await res.text();
   let j: any;
-  try { j = JSON.parse(text); } catch { throw new Error(`${sealed.enclave.enclaveUrl}/bounty/submit : réponse non JSON (HTTP ${res.status}) : ${text.slice(0, 160)}`); }
+  try { j = JSON.parse(text); } catch { throw new Error(`${sealed.enclave.enclaveUrl}/bounty/submit: non-JSON answer (HTTP ${res.status}): ${text.slice(0, 160)}`); }
   if (!res.ok) throw new Error(`${sealed.enclave.enclaveUrl}/bounty/submit : HTTP ${res.status} ${j?.error ?? text.slice(0, 160)}`);
   if (j?.status !== "proven") throw new ExploitNotProvenError(String(j?.reason ?? j?.error ?? JSON.stringify(j)));
   return checkProvenClaim(sealed, { claim: j.claim, signature: j.signature as Hex, cP: j.cP as Hex }, o);
@@ -341,10 +341,10 @@ function toAccepted(
   const ev = decodeAccepted(l);
   const digest = claimDigestOf(d.sealedBounty, ev.claim, d.chainId);
   if (digest.toLowerCase() !== ev.claimDigest.toLowerCase()) {
-    throw new RefuteError("inconsistent_event", `ClaimAccepted ${l.txHash} : la réclamation émise ne redonne pas son digest (autre domaine EIP-712 ?)`);
+    throw new RefuteError("inconsistent_event", `ClaimAccepted ${l.txHash}: the emitted claim does not give back its digest (another EIP-712 domain?)`);
   }
   if (claimOperatorsHash(ev.operators).toLowerCase() !== st.opsHash.toLowerCase()) {
-    throw new RefuteError("inconsistent_event", `ClaimAccepted ${l.txHash} : opérateurs émis ≠ claimRecords.opsHash`);
+    throw new RefuteError("inconsistent_event", `ClaimAccepted ${l.txHash}: emitted operators ≠ claimRecords.opsHash`);
   }
   const end = st.acceptedAt + ctx.window;
   return {
@@ -363,17 +363,17 @@ export async function readAcceptedClaim(
   a: { claimDigest: Hex; deployment?: Deployment; fromBlock?: bigint; toBlock?: bigint },
 ): Promise<AcceptedClaim> {
   const d = a.deployment ?? testnet;
-  if (!isBytes32(a.claimDigest)) throw new RefuteError("bad_input", "digest de réclamation : bytes32 attendu (0x + 64 caractères hexadécimaux)");
+  if (!isBytes32(a.claimDigest)) throw new RefuteError("bad_input", "claim digest: bytes32 expected (0x + 64 hex characters)");
   const head = a.toBlock ?? (await pub.getBlockNumber());
   const st = await claimState(pub, d, a.claimDigest, head);
   if (st.acceptedAt === 0n) {
-    throw new RefuteError("unknown_claim", `réclamation ${a.claimDigest} inconnue de SealedBounty ${d.sealedBounty} (jamais acceptée) : rien à réfuter`);
+    throw new RefuteError("unknown_claim", `claim ${a.claimDigest} unknown to SealedBounty ${d.sealedBounty} (never accepted): nothing to refute`);
   }
   const from = a.fromBlock ?? (await firstBlockAtOrAfter(pub, st.acceptedAt, d.deployBlock, head));
   const topics = encodeEventTopics({ abi: sealedBountyAbi, eventName: "ClaimAccepted", args: { claimDigest: a.claimDigest } }) as (Hex | null)[];
   const logs = await scanLogs(pub, { address: d.sealedBounty, topics, fromBlock: from, toBlock: head, firstOnly: true });
   const log = logs.find((l) => l.topics[2]?.toLowerCase() === a.claimDigest.toLowerCase());
-  if (!log) throw new RefuteError("event_not_found", `événement ClaimAccepted introuvable pour ${a.claimDigest} (blocs ${from} à ${head})`);
+  if (!log) throw new RefuteError("event_not_found", `no ClaimAccepted event found for ${a.claimDigest} (blocks ${from} to ${head})`);
   return toAccepted(d, log, st, head, await chainContext(pub, d, head));
 }
 
@@ -425,7 +425,7 @@ export type RefuteSource =
 export function hunterRefuteSource(a: { bountyId: bigint; payee: Address; exploit: ExploitInput; r: Uint8Array | Hex }): RefuteSource {
   validateExploit(a.exploit);
   const r = typeof a.r === "string" ? a.r : toHex(a.r);
-  if (!isBytes32(r)) throw new RefuteError("bad_input", "r : les 32 octets d'aléa utilisés pour sceller cP");
+  if (!isBytes32(r)) throw new RefuteError("bad_input", "r: the 32 random bytes used to seal cP");
   return { from: "hunter", bountyId: a.bountyId, payee: a.payee, exploit: a.exploit, r };
 }
 
@@ -437,16 +437,16 @@ export function hunterRefuteSource(a: { bountyId: bigint; payee: Address; exploi
  * created with the same key (the CLI creates one key per bounty; a shared key opens the reports of all of them).
  */
 export function protocolRefuteSource(a: { cP: Hex; protocolPrivateKey: Uint8Array | Hex; revealKey?: boolean }): RefuteSource {
-  if (!isEvenHex(a.cP)) throw new RefuteError("bad_input", "cP : le rapport livré (hexadécimal, clé éphémère ‖ chiffré)");
+  if (!isEvenHex(a.cP)) throw new RefuteError("bad_input", "cP: the delivered report (hex, ephemeral key ‖ ciphertext)");
   const priv = typeof a.protocolPrivateKey === "string" ? toBytes(a.protocolPrivateKey) : a.protocolPrivateKey;
-  if (priv.length !== 32) throw new RefuteError("bad_input", "clé privée X25519 du protocole : 32 octets");
+  if (priv.length !== 32) throw new RefuteError("bad_input", "the protocol's X25519 private key: 32 bytes");
   if (a.revealKey) return { from: "protocol", cP: a.cP, protocolPrivateKey: toHex(priv) };
   let shared: Uint8Array;
   try {
     if ((a.cP.length - 2) / 2 < 32 + 16) throw new Error("trop court");
     shared = x25519.getSharedSecret(priv, toBytes(a.cP).slice(0, 32));
   } catch {
-    throw new RefuteError("unreadable_report", "cP trop court ou clé éphémère invalide : ce n'est pas un scellé ; seul revealKey (la clé de la prime) permet de prouver que ce rapport n'en est pas un");
+    throw new RefuteError("unreadable_report", "cP too short or invalid ephemeral key: this is not a seal; only revealKey (the bounty key) can prove that this report is not one");
   }
   return { from: "protocol", cP: a.cP, sharedSecret: toHex(shared) };
 }
@@ -470,7 +470,7 @@ export function checkRefuteSource(source: RefuteSource, claim: Claim, protocolX2
   if (source.from === "hunter") {
     const cP = deterministicSeal(toBytes(protocolX25519), utf8(protocolCanonical(source)), toBytes(source.r));
     if (keccak256(cP).toLowerCase() !== claim.cPHash.toLowerCase()) {
-      throw new RefuteError("source_mismatch", "ce bundle et cet aléa r ne redonnent pas le cPHash de la réclamation : ce n'est pas l'exploit réclamé (rien n'est envoyé)");
+      throw new RefuteError("source_mismatch", "this bundle and this random r do not give back the claim's cPHash: this is not the claimed exploit (nothing is sent)");
     }
     return {
       mode: "hunter", readable: true,
@@ -478,7 +478,7 @@ export function checkRefuteSource(source: RefuteSource, claim: Claim, protocolX2
     };
   }
   if (keccak256(source.cP).toLowerCase() !== claim.cPHash.toLowerCase()) {
-    throw new RefuteError("source_mismatch", "keccak256(cP) ≠ cPHash de la réclamation : ce n'est pas son rapport (rien n'est envoyé)");
+    throw new RefuteError("source_mismatch", "keccak256(cP) ≠ the claim's cPHash: this is not its report (nothing is sent)");
   }
   const withKey = "protocolPrivateKey" in source;
   const mode = withKey ? "protocol-key" : "protocol-secret";
@@ -487,7 +487,7 @@ export function checkRefuteSource(source: RefuteSource, claim: Claim, protocolX2
     if (withKey) {
       const priv = toBytes(source.protocolPrivateKey);
       if (toHex(x25519.getPublicKey(priv)).toLowerCase() !== protocolX25519.toLowerCase()) {
-        throw new RefuteError("source_mismatch", "cette clé privée n'est pas celle de la prime (Bounty.protocolX25519)");
+        throw new RefuteError("source_mismatch", "this private key is not the bounty's (Bounty.protocolX25519)");
       }
       plain = deterministicOpen(priv, source.cP);
     } else {
@@ -495,17 +495,17 @@ export function checkRefuteSource(source: RefuteSource, claim: Claim, protocolX2
     }
   } catch (e) {
     if (e instanceof RefuteError) throw e;
-    if (withKey) return { mode, readable: false, consistent: false, note: "rapport illisible avec la clé de la prime : les enclaves signeront « non prouvée » (cP n'est pas un rapport)" };
-    throw new RefuteError("unreadable_report", "le rapport ne s'ouvre pas avec ce secret : s'il est illisible avec la clé de la prime, réfutez avec revealKey");
+    if (withKey) return { mode, readable: false, consistent: false, note: "report unreadable with the bounty key: the enclaves will sign \"not proven\" (cP is not a report)" };
+    throw new RefuteError("unreadable_report", "the report does not open with this secret: if it is unreadable with the bounty key, refute with revealKey");
   }
   const content = canonicalReport(plain);
   if (content === "too_deep") {
-    if (withKey) return { mode, readable: false, consistent: false, note: "rapport imbriqué au-delà des bornes : les enclaves signeront « non prouvée » (aucune enclave honnête ne l'aurait produit)" };
-    throw new RefuteError("unreadable_report", "le rapport déchiffré est imbriqué au-delà des bornes : réfutez avec revealKey (la clé de la prime) pour le prouver");
+    if (withKey) return { mode, readable: false, consistent: false, note: "report nested beyond the bounds: the enclaves will sign \"not proven\" (no honest enclave would have produced it)" };
+    throw new RefuteError("unreadable_report", "the decrypted report is nested beyond the bounds: refute with revealKey (the bounty key) to prove it");
   }
   if (!content) {
-    if (withKey) return { mode, readable: false, consistent: false, note: "rapport non canonique : les enclaves signeront « non prouvée » (aucune enclave honnête ne l'aurait produit)" };
-    throw new RefuteError("unreadable_report", "le rapport déchiffré n'est pas un bundle canonique : réfutez avec revealKey (la clé de la prime) pour le prouver");
+    if (withKey) return { mode, readable: false, consistent: false, note: "non-canonical report: the enclaves will sign \"not proven\" (no honest enclave would have produced it)" };
+    throw new RefuteError("unreadable_report", "the decrypted report is not a canonical bundle: refute with revealKey (the bounty key) to prove it");
   }
   return { mode, readable: true, ...consistency(content, claim) };
 }
@@ -543,23 +543,23 @@ function canonicalReport(plain: Uint8Array): ReportContent | "too_deep" | undefi
 }
 
 function consistency(c: ReportContent, claim: Claim): { consistent: boolean; note: string } {
-  const no = (note: string) => ({ consistent: false, note: `${note} : les enclaves signeront « non prouvée » sans rejouer` });
-  if (c.bountyId !== claim.bountyId) return no(`le rapport vise la prime #${c.bountyId}, la réclamation la #${claim.bountyId}`);
-  if (typeof c.payee !== "string" || c.payee.toLowerCase() !== claim.payee.toLowerCase()) return no(`le rapport paie ${String(c.payee)}, la réclamation ${claim.payee}`);
+  const no = (note: string) => ({ consistent: false, note: `${note}: the enclaves will sign "not proven" without replaying` });
+  if (c.bountyId !== claim.bountyId) return no(`the report targets bounty #${c.bountyId}, the claim #${claim.bountyId}`);
+  if (typeof c.payee !== "string" || c.payee.toLowerCase() !== claim.payee.toLowerCase()) return no(`the report pays ${String(c.payee)}, the claim ${claim.payee}`);
   const txs = c.txs;
-  if (!Array.isArray(txs) || !txs.every(isEvenHex) || (c.attackCode !== undefined && !isEvenHex(c.attackCode))) return no("transactions ou code d'attaque mal formés");
+  if (!Array.isArray(txs) || !txs.every(isEvenHex) || (c.attackCode !== undefined && !isEvenHex(c.attackCode))) return no("malformed transactions or attack code");
   if (exploitFingerprint({ txs, attackCode: c.attackCode as Hex | undefined }).toLowerCase() !== claim.fingerprint.toLowerCase()) {
-    return no("l'empreinte du rapport n'est pas celle de la réclamation (cP n'est pas l'exploit annoncé)");
+    return no("the report's fingerprint is not the claim's (cP is not the announced exploit)");
   }
   let ph: Hex;
   try {
     ph = predicateHash(c.predicate as Predicate); // rules P1–P4 (as in the enclave: a proven fault if they are broken)
   } catch (e) {
-    if (e instanceof PredicateError) return no(`prédicat du rapport hors règles (${e.message})`);
+    if (e instanceof PredicateError) return no(`the report's predicate breaks the rules (${e.message})`);
     throw e;
   }
-  if (ph.toLowerCase() !== claim.predicateHash.toLowerCase()) return no("le prédicat du rapport n'est pas celui de la réclamation");
-  return { consistent: true, note: `rapport cohérent avec la réclamation : les enclaves le rejoueront au bloc ${claim.blockN}` };
+  if (ph.toLowerCase() !== claim.predicateHash.toLowerCase()) return no("the report's predicate is not the claim's");
+  return { consistent: true, note: `report consistent with the claim: the enclaves will replay it at block ${claim.blockN}` };
 }
 
 const SEAL_INFO_KEY = new TextEncoder().encode("arc-sealed-key-v1");
@@ -569,7 +569,7 @@ const SEAL_INFO_NONCE = new TextEncoder().encode("arc-sealed-nonce-v1");
  *  does not authenticate (same construction as deterministicSeal). */
 export function openSealedWithSharedSecret(sealed: Hex, shared: Uint8Array): Uint8Array {
   const bytes = toBytes(sealed);
-  if (bytes.length < 32 + 16) throw new Error("scellé trop court");
+  if (bytes.length < 32 + 16) throw new Error("seal too short");
   const ephPub = bytes.slice(0, 32);
   const key = hkdf(sha256, shared, ephPub, SEAL_INFO_KEY, 32);
   const nonce = hkdf(sha256, ephPub, new Uint8Array(), SEAL_INFO_NONCE, 12);
@@ -627,14 +627,14 @@ export function refuteQuorumPlan(a: {
   }
   const needed = refutersNeeded(a.claimOperators.length);
   const reachable = eligible.length >= needed;
-  const where = a.scope === "network" ? "sur le réseau (opérateurs actifs du produit)" : "parmi les enclaves vérifiées";
-  const rule = `il faut ${needed} opérateurs distincts (au moins ${REFUTE_QUORUM}, et plus que les ${a.claimOperators.length} de la réclamation), aucun signataire de la réclamation`;
+  const where = a.scope === "network" ? "on the network (the product's active operators)" : "among the verified enclaves";
+  const rule = `it takes ${needed} distinct operators (at least ${REFUTE_QUORUM}, and more than the claim's ${a.claimOperators.length}), none of them a signer of the claim`;
   let message: string;
-  if (reachable) message = `${eligible.length} opérateurs distincts éligibles ${where} ; ${rule}`;
-  else if (eligible.length === 0 && claimers > 0) message = `quorum de réfutation non atteignable : ${where}, le${claimers > 1 ? "s" : ""} seul${claimers > 1 ? "s" : ""} opérateur${claimers > 1 ? "s" : ""} ${claimers > 1 ? "ont" : "a"} signé la réclamation ; ${rule}`;
-  else if (eligible.length === 0) message = `quorum de réfutation non atteignable : aucun opérateur éligible ${where} ; ${rule}`;
-  else if (eligible.length === 1) message = `quorum de réfutation non atteignable : un seul opérateur éligible ${where} (${eligible[0]}) ; ${rule}`;
-  else message = `quorum de réfutation non atteignable : ${eligible.length} opérateurs éligibles ${where} ; ${rule}`;
+  if (reachable) message = `${eligible.length} distinct eligible operators ${where}; ${rule}`;
+  else if (eligible.length === 0 && claimers > 0) message = `refutation quorum out of reach: ${where}, the only operator${claimers > 1 ? "s" : ""} ${claimers > 1 ? "have" : "has"} signed the claim; ${rule}`;
+  else if (eligible.length === 0) message = `refutation quorum out of reach: no eligible operator ${where}; ${rule}`;
+  else if (eligible.length === 1) message = `refutation quorum out of reach: only one eligible operator ${where} (${eligible[0]}); ${rule}`;
+  else message = `refutation quorum out of reach: ${eligible.length} eligible operators ${where}; ${rule}`;
   return { needed, eligibleOperators: eligible, reachable, message };
 }
 
@@ -676,7 +676,7 @@ const claimToJson = (c: Claim) => ({
   loss: c.loss.toString(), tier: c.tier, fingerprint: c.fingerprint, cPHash: c.cPHash, deadline: c.deadline.toString(),
 });
 
-const describeRefutation = (f: Refutation) => (f.proven ? `prouvée, perte ${f.loss}, palier ${f.tier}` : "non prouvée");
+const describeRefutation = (f: Refutation) => (f.proven ? `proven, loss ${f.loss}, tier ${f.tier}` : "not proven");
 
 /**
  * Asks several Sealed Bounty enclaves for a refutation. Nothing is encrypted to an enclave whose key is not the one
@@ -700,9 +700,9 @@ export async function requestRefutations(a: {
   const d = a.deployment ?? testnet;
   const { claim, operators } = a.accepted;
   const digest = claimDigestOf(d.sealedBounty, claim, d.chainId);
-  if (digest.toLowerCase() !== a.accepted.claimDigest.toLowerCase()) throw new RefuteError("inconsistent_event", "le digest de la réclamation ne correspond pas à ce déploiement");
-  if (a.accepted.refuted) throw new RefuteError("already_refuted", `réclamation ${digest} déjà réfutée`);
-  if (!a.accepted.windowOpen) throw new RefuteError("window_over", `fenêtre de réfutation close depuis ${a.accepted.refuteWindowEndsAt} (acceptée à ${a.accepted.acceptedAt})`);
+  if (digest.toLowerCase() !== a.accepted.claimDigest.toLowerCase()) throw new RefuteError("inconsistent_event", "the claim's digest does not match this deployment");
+  if (a.accepted.refuted) throw new RefuteError("already_refuted", `claim ${digest} already refuted`);
+  if (!a.accepted.windowOpen) throw new RefuteError("window_over", `refutation window closed since ${a.accepted.refuteWindowEndsAt} (accepted at ${a.accepted.acceptedAt})`);
   checkRefuteSource(a.source, claim, a.protocolX25519); // throws: nothing is sent
 
   // keys verified on-chain BEFORE anything is sent; the claim's operators are set aside
@@ -720,16 +720,16 @@ export async function requestRefutations(a: {
     if (claimSet.has(k.operator.toLowerCase())) {
       results.push({
         enclaveUrl: k.enclaveUrl, signer: k.signer, operator: k.operator, status: "excluded",
-        reason: "opérateur signataire de la réclamation : le contrat refuserait sa signature (RefuterIsClaimOperator)",
+        reason: "an operator that signed the claim: the contract would refuse its signature (RefuterIsClaimOperator)",
       });
       continue;
     }
     targets.push({ k, i: results.length });
-    results.push({ enclaveUrl: k.enclaveUrl, signer: k.signer, operator: k.operator, status: "skipped", reason: "non interrogée : quorum non atteignable" });
+    results.push({ enclaveUrl: k.enclaveUrl, signer: k.signer, operator: k.operator, status: "skipped", reason: "not queried: quorum out of reach" });
   }
   const plan = refuteQuorumPlan({ claimOperators: operators, candidateOperators: results.filter((r) => r.operator).map((r) => r.operator!) });
   const base = { claimDigest: digest, needed: plan.needed, results, confirmations: 0, disagreement: false };
-  if (!plan.reachable) return { ...base, status: "unreachable", message: `${plan.message} : rien n'a été envoyé aux enclaves` };
+  if (!plan.reachable) return { ...base, status: "unreachable", message: `${plan.message}: nothing was sent to the enclaves` };
 
   // counter-replay (in parallel: one enclave per machine)
   const plaintext = utf8(refutePlaintext(a.source));
@@ -754,21 +754,21 @@ export async function requestRefutations(a: {
   const refutedCount = results.filter((r) => r.status === "refuted").length;
   const disagreement = groups.size > 1 || (confirmations > 0 && refutedCount > 0);
   const warn = disagreement
-    ? ` — attention : désaccord entre enclaves vérifiées (${confirmations} confirment, ${refutedCount} réfutent, ${groups.size} résultat(s) différent(s))`
+    ? ` (warning: verified enclaves disagree: ${confirmations} confirm, ${refutedCount} refute, ${groups.size} different result(s))`
     : "";
   if (best && best.byOp.size >= plan.needed) {
     const picked = [...best.byOp.values()].slice(0, REFUTE_MAX_SIGNATURES);
     return {
       ...base, status: "ready", confirmations, disagreement, refutation: best.f, signatures: picked.map((x) => x.sig), refuters: picked.map((x) => x.op),
-      message: `réfutation prête : ${picked.length} opérateurs distincts signent « ${describeRefutation(best.f)} » (il en faut ${plan.needed})${warn}`,
+      message: `refutation ready: ${picked.length} distinct operators sign "${describeRefutation(best.f)}" (${plan.needed} needed)${warn}`,
     };
   }
   if (refutedCount === 0 && confirmations > 0) {
-    return { ...base, status: "confirmed", confirmations, disagreement, message: `la réclamation se reproduit : ${confirmations} enclave(s) la confirment, aucune réfutation signée` };
+    return { ...base, status: "confirmed", confirmations, disagreement, message: `the claim reproduces: ${confirmations} enclave(s) confirm it, no refutation signed` };
   }
   return {
     ...base, status: "insufficient", confirmations, disagreement,
-    message: `réfutation insuffisante : ${best ? best.byOp.size : 0} opérateur(s) distinct(s) signent le même résultat, il en faut ${plan.needed}${warn}`,
+    message: `refutation insufficient: ${best ? best.byOp.size : 0} distinct operator(s) sign the same result, ${plan.needed} needed${warn}`,
   };
 }
 
@@ -792,11 +792,11 @@ async function askOne(
     try {
       j = JSON.parse(text);
     } catch {
-      return err(`réponse non JSON (HTTP ${res.status}) : ${text.slice(0, 160)}`);
+      return err(`non-JSON answer (HTTP ${res.status}): ${text.slice(0, 160)}`);
     }
     if (!res.ok) return err(`HTTP ${res.status} ${j?.error ?? text.slice(0, 160)}`);
   } catch (e) {
-    return err(`injoignable : ${(e as Error).message}`);
+    return err(`unreachable: ${(e as Error).message}`);
   }
   let replay: RefuteEnclaveResult["replay"];
   try {
@@ -807,7 +807,7 @@ async function askOne(
       };
     }
   } catch {
-    return err("compte rendu de rejeu illisible");
+    return err("unreadable replay report");
   }
   if (j?.status === "confirmed") return { ...who, status: "confirmed", replay, reason: String(j.reason ?? "") };
   if (j?.status === "refused") return { ...who, status: "refused", code: String(j.code ?? ""), reason: String(j.reason ?? "") };
@@ -819,17 +819,17 @@ async function askOne(
     ref = { claimDigest: j.refutation.claimDigest as Hex, proven: j.refutation.proven, loss: BigInt(j.refutation.loss), tier: Number(j.refutation.tier) };
     if (!isBytes32(ref.claimDigest) || !Number.isInteger(ref.tier) || ref.tier < 0 || ref.tier > 255 || ref.loss < 0n) throw new Error();
   } catch {
-    return err("réfutation mal formée");
+    return err("malformed refutation");
   }
-  if (ref.claimDigest.toLowerCase() !== o.digest.toLowerCase()) return err("la réfutation porte sur une autre réclamation");
-  if (ref.proven && ref.loss === o.claim.loss && ref.tier === o.claim.tier) return err("cette « réfutation » ne contredit pas la réclamation (le contrat la refuserait : NotARefutation)");
+  if (ref.claimDigest.toLowerCase() !== o.digest.toLowerCase()) return err("the refutation concerns another claim");
+  if (ref.proven && ref.loss === o.claim.loss && ref.tier === o.claim.tier) return err("this \"refutation\" does not contradict the claim (the contract would refuse it: NotARefutation)");
   let signer: Address;
   try {
     signer = await recoverRefutationSigner(o.d.sealedBounty, ref, j.signature as Hex, o.d.chainId);
   } catch {
     return err("signature illisible");
   }
-  if (signer.toLowerCase() !== k.signer.toLowerCase()) return err(`réfutation signée par ${signer}, pas par l'enclave vérifiée ${k.signer}`);
+  if (signer.toLowerCase() !== k.signer.toLowerCase()) return err(`refutation signed by ${signer}, not by the verified enclave ${k.signer}`);
   return { ...who, status: "refuted", refutation: ref, signature: j.signature as Hex, replay };
 }
 
@@ -838,8 +838,8 @@ async function askOne(
 /** refute(claim, ops, refutation, signatures) ready to simulate (simulateContract), then send, with a gas margin. */
 export function prepareRefuteCall(accepted: AcceptedClaim, round: RefuteRound, deployment?: Deployment) {
   const d = deployment ?? testnet;
-  if (round.status !== "ready" || !round.refutation || !round.signatures?.length) throw new RefuteError("not_ready", `réfutation non prête : ${round.message}`);
-  if (round.claimDigest.toLowerCase() !== accepted.claimDigest.toLowerCase()) throw new RefuteError("not_ready", "réfutation d'une autre réclamation");
+  if (round.status !== "ready" || !round.refutation || !round.signatures?.length) throw new RefuteError("not_ready", `refutation not ready: ${round.message}`);
+  if (round.claimDigest.toLowerCase() !== accepted.claimDigest.toLowerCase()) throw new RefuteError("not_ready", "refutation of another claim");
   return {
     address: d.sealedBounty,
     abi: sealedBountyAbi,

@@ -67,7 +67,7 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
  * the canonical JSON (computed only once the nesting is bounded). Throws PredicateError.
  */
 export function checkPredicateBounds(p: unknown): void {
-  if (!isPlainObject(p)) throw new PredicateError("prédicat : objet JSON attendu", "json");
+  if (!isPlainObject(p)) throw new PredicateError("predicate: JSON object expected", "json");
   const stack: Array<[unknown, number]> = [[p, 1]];
   let fields = 0;
   let chars = 0; // UTF-16 length of keys and strings: a lower bound of the canonical JSON's UTF-8 size
@@ -76,34 +76,34 @@ export function checkPredicateBounds(p: unknown): void {
     if (typeof v === "string") {
       chars += v.length;
     } else if (typeof v === "number") {
-      if (!Number.isFinite(v)) throw new PredicateError("prédicat : nombre non fini (NaN ou infini)", "json");
+      if (!Number.isFinite(v)) throw new PredicateError("predicate: non-finite number (NaN or infinity)", "json");
     } else if (typeof v === "boolean" || v === null) {
       // rien
     } else if (Array.isArray(v)) {
-      if (depth > PREDICATE_MAX_DEPTH) throw new PredicateError(`prédicat : imbrication de plus de ${PREDICATE_MAX_DEPTH} niveaux`, "depth");
+      if (depth > PREDICATE_MAX_DEPTH) throw new PredicateError(`predicate: nesting deeper than ${PREDICATE_MAX_DEPTH} levels`, "depth");
       fields += v.length;
-      if (fields > PREDICATE_MAX_FIELDS) throw new PredicateError(`prédicat : plus de ${PREDICATE_MAX_FIELDS} champs`, "fields");
+      if (fields > PREDICATE_MAX_FIELDS) throw new PredicateError(`predicate: more than ${PREDICATE_MAX_FIELDS} fields`, "fields");
       for (let i = 0; i < v.length; i++) {
-        if (!(i in v)) throw new PredicateError("prédicat : tableau à trous (pas du JSON)", "json");
+        if (!(i in v)) throw new PredicateError("predicate: sparse array (not JSON)", "json");
         stack.push([v[i], depth + 1]);
       }
     } else if (isPlainObject(v)) {
-      if (depth > PREDICATE_MAX_DEPTH) throw new PredicateError(`prédicat : imbrication de plus de ${PREDICATE_MAX_DEPTH} niveaux`, "depth");
+      if (depth > PREDICATE_MAX_DEPTH) throw new PredicateError(`predicate: nesting deeper than ${PREDICATE_MAX_DEPTH} levels`, "depth");
       const keys = Object.keys(v);
       fields += keys.length;
-      if (fields > PREDICATE_MAX_FIELDS) throw new PredicateError(`prédicat : plus de ${PREDICATE_MAX_FIELDS} champs`, "fields");
+      if (fields > PREDICATE_MAX_FIELDS) throw new PredicateError(`predicate: more than ${PREDICATE_MAX_FIELDS} fields`, "fields");
       for (const k of keys) {
         chars += k.length;
         stack.push([v[k], depth + 1]);
       }
     } else {
-      throw new PredicateError("prédicat : valeur non JSON (seuls chaînes, nombres finis, booléens, null, tableaux et objets simples)", "json");
+      throw new PredicateError("predicate: non-JSON value (only strings, finite numbers, booleans, null, arrays and plain objects)", "json");
     }
-    if (chars > PREDICATE_MAX_BYTES) throw new PredicateError(`prédicat : JSON canonique de plus de ${PREDICATE_MAX_BYTES} octets`, "size");
+    if (chars > PREDICATE_MAX_BYTES) throw new PredicateError(`predicate: canonical JSON larger than ${PREDICATE_MAX_BYTES} bytes`, "size");
   }
   // nesting is bounded: the (recursive) serialization is safe; exact size in UTF-8 bytes
   if (new TextEncoder().encode(stableStringify(p as Json)).length > PREDICATE_MAX_BYTES) {
-    throw new PredicateError(`prédicat : JSON canonique de plus de ${PREDICATE_MAX_BYTES} octets`, "size");
+    throw new PredicateError(`predicate: canonical JSON larger than ${PREDICATE_MAX_BYTES} bytes`, "size");
   }
 }
 
@@ -112,20 +112,20 @@ function checkUint(c: Record<string, unknown>, field: string, i: number): void {
   const ok =
     (typeof v === "string" && UINT_DEC.test(v) && BigInt(v) <= UINT256_MAX) ||
     (typeof v === "number" && Number.isSafeInteger(v) && v >= 0);
-  if (!ok) throw new PredicateError(`clause ${i + 1} : ${field} doit être un entier décimal ≥ 0 (78 chiffres au plus)`);
+  if (!ok) throw new PredicateError(`clause ${i + 1}: ${field} must be a decimal integer ≥ 0 (78 digits at most)`);
 }
 
 function checkAddress(c: Record<string, unknown>, field: string, i: number): void {
   const v = c[field];
-  if (typeof v !== "string" || !ADDRESS.test(v)) throw new PredicateError(`clause ${i + 1} : ${field} doit être une adresse (0x + 40 hexadécimaux)`);
+  if (typeof v !== "string" || !ADDRESS.test(v)) throw new PredicateError(`clause ${i + 1}: ${field} must be an address (0x + 40 hexadecimal digits)`);
 }
 
 function checkCall(c: Record<string, unknown>, i: number): void {
-  if (typeof c.call !== "string" || !EVEN_HEX.test(c.call)) throw new PredicateError(`clause ${i + 1} : call doit être de l'hexadécimal pair (0x…)`);
+  if (typeof c.call !== "string" || !EVEN_HEX.test(c.call)) throw new PredicateError(`clause ${i + 1}: call must be even-length hexadecimal (0x…)`);
 }
 
 function checkClause(c: unknown, i: number): void {
-  if (!isPlainObject(c)) throw new PredicateError(`clause ${i + 1} : objet attendu`);
+  if (!isPlainObject(c)) throw new PredicateError(`clause ${i + 1}: object expected`);
   switch (c.type) {
     case "ERC20_DROP":
       checkAddress(c, "token", i);
@@ -143,7 +143,7 @@ function checkClause(c: unknown, i: number): void {
     case "VIEW_CHANGED":
       checkAddress(c, "target", i);
       checkCall(c, i);
-      if (c.op !== "eq" && c.op !== "neq" && c.op !== "gt" && c.op !== "lt") throw new PredicateError(`clause ${i + 1} : op doit valoir eq, neq, gt ou lt`);
+      if (c.op !== "eq" && c.op !== "neq" && c.op !== "gt" && c.op !== "lt") throw new PredicateError(`clause ${i + 1}: op must be eq, neq, gt or lt`);
       checkUint(c, "value", i);
       return;
     case "INVARIANT_BROKEN":
@@ -151,7 +151,7 @@ function checkClause(c: unknown, i: number): void {
       checkCall(c, i);
       return;
     default:
-      throw new PredicateError(`clause ${i + 1} : type inconnu (ERC20_DROP, NATIVE_DROP, ATTACKER_PROFIT, VIEW_CHANGED, INVARIANT_BROKEN)`);
+      throw new PredicateError(`clause ${i + 1}: unknown type (ERC20_DROP, NATIVE_DROP, ATTACKER_PROFIT, VIEW_CHANGED, INVARIANT_BROKEN)`);
   }
 }
 
@@ -159,10 +159,10 @@ function checkClause(c: unknown, i: number): void {
 export function validatePredicate(p: Predicate): void {
   checkPredicateBounds(p);
   const o = p as unknown as Record<string, unknown>;
-  if (o.combine !== "AND" && o.combine !== "OR") throw new PredicateError("combine invalide (AND ou OR)", "combine");
+  if (o.combine !== "AND" && o.combine !== "OR") throw new PredicateError("invalid combine (AND or OR)", "combine");
   const clauses = o.clauses;
   if (!Array.isArray(clauses) || clauses.length < 1 || clauses.length > PREDICATE_MAX_CLAUSES) {
-    throw new PredicateError(`1 à ${PREDICATE_MAX_CLAUSES} clauses`, "clauses");
+    throw new PredicateError(`1 to ${PREDICATE_MAX_CLAUSES} clauses`, "clauses");
   }
   clauses.forEach(checkClause);
 }

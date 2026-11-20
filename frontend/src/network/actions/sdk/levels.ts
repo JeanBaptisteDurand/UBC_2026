@@ -168,15 +168,15 @@ const b64url = (s: string): Uint8Array => {
 /** Splits an alliance JWT and VERIFIES its EdDSA signature with the published key (throws otherwise). */
 export function parseAllianceToken(jwt: string, allianceKey: Hex = PROOF_OF_CLOUD.allianceKey): AllianceToken {
   const parts = jwt.split(".");
-  if (parts.length !== 3) throw new Error("jeton de l'alliance : trois parties attendues");
+  if (parts.length !== 3) throw new Error("alliance token: three parts expected");
   const [header, payload, s] = parts as [string, string, string];
   const sig = b64url(s);
-  if (sig.length !== 64) throw new Error("jeton de l'alliance : signature de 64 octets attendue");
+  if (sig.length !== 64) throw new Error("alliance token: 64-byte signature expected");
   const key = Uint8Array.from((allianceKey.slice(2).match(/../g) ?? []).map((h) => parseInt(h, 16)));
-  if (!ed25519.verify(sig, new TextEncoder().encode(`${header}.${payload}`), key)) throw new Error("jeton de l'alliance : signature invalide");
+  if (!ed25519.verify(sig, new TextEncoder().encode(`${header}.${payload}`), key)) throw new Error("alliance token: invalid signature");
   const body = JSON.parse(new TextDecoder().decode(b64url(payload)));
   if (!/^[0-9a-f]{32}$/.test(body.machine_id) || !/^[0-9a-f]{64}$/.test(body.quote_hash) || !Number.isSafeInteger(body.timestamp)) {
-    throw new Error("jeton de l'alliance : contenu inattendu");
+    throw new Error("alliance token: unexpected content");
   }
   return {
     header, payload,

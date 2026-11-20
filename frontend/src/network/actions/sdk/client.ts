@@ -464,7 +464,7 @@ export class ArcClient {
    *  anything (block > settleableUntilBlock). */
   async sessionClosability(sessionId: bigint): Promise<{ closableNow: boolean; atTime: bigint; afterBlock: bigint; head: bigint; now: bigint }> {
     const s = await this.getSession(sessionId);
-    if (s.owner === zeroAddress) throw new Error(`session #${sessionId} inconnue`);
+    if (s.owner === zeroAddress) throw new Error(`unknown session #${sessionId}`);
     const grace = await this.pub.readContract({ address: this.d.sessionPay, abi: sessionPayAbi, functionName: "SETTLE_GRACE" }) as bigint;
     const blk = await this.pub.getBlock();
     const afterBlock = await this.settleableUntilBlock(s.enclave);
@@ -512,7 +512,7 @@ export class ArcClient {
     if (b.protocol === zeroAddress) throw new Error(`prime #${a.bountyId} inexistante`);
     const enclave = await this.verifyEnclaveKeys(a.enclaveUrl, b.productId);
     const payee = a.payee ?? this.account?.address;
-    if (!payee) throw new Error("payee requis (ou un compte)");
+    if (!payee) throw new Error("payee is required (or an account)");
     return sealExploitForEnclave({ bountyId: a.bountyId, payee, exploit: a.exploit, protocolX25519: b.protocolX25519, enclave, r: a.r, blockN: a.blockN, deadline: a.deadline });
   }
   /** Sends the encrypted exploit to the enclave and checks the signed claim it returns. */

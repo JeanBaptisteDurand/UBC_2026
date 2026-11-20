@@ -145,7 +145,7 @@ const plainRefusalText = (lang: CopilotLang, code: string | undefined, status: n
 
 /** The answer does not come from the verified enclave (or does not answer this request): it is not returned. */
 export class CopilotResponseError extends Error {
-  constructor(message: string) { super(`réponse du copilote refusée : ${message}`); this.name = "CopilotResponseError"; }
+  constructor(message: string) { super(`copilot answer refused: ${message}`); this.name = "CopilotResponseError"; }
 }
 
 const hexOf = (x: unknown, bytes?: number): Uint8Array | null => {
@@ -178,7 +178,7 @@ export class AttestedCopilotClient {
     // called as a function, never as a method: in a browser, fetch called with `this` = this client throws
     // "Illegal invocation" (Node accepts it, so only a browser check shows it)
     this.f = o.fetch ?? ((input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => globalThis.fetch(input, init));
-    if (!o.copilotUrl) throw new Error("copilote attesté : copilotUrl requis");
+    if (!o.copilotUrl) throw new Error("attested copilot: copilotUrl is required");
   }
 
   private base() { return this.o.copilotUrl.replace(/\/+$/, ""); }
@@ -216,7 +216,7 @@ export class AttestedCopilotClient {
   }
 
   private async send(req: CopilotChatRequest, retried: boolean): Promise<CopilotChatResult> {
-    if (!req || !Array.isArray(req.messages) || req.messages.length === 0) throw new Error("copilote : au moins un message");
+    if (!req || !Array.isArray(req.messages) || req.messages.length === 0) throw new Error("copilot: at least one message");
     const lang = req.lang ?? this.o.lang;
     const keys = await this.verifiedKeys();
     const plaintext = copilotRequestBytes(req.messages, req.user ?? null, lang);
@@ -236,22 +236,22 @@ export class AttestedCopilotClient {
     if (res.ok && j && j.sealed === COPILOT_SEALED_TAG) {
       const nonce = hexOf(j.nonce, EXCHANGE_RESPONSE_NONCE_BYTES);
       const ct = hexOf(j.ciphertext);
-      if (!nonce || !ct) throw new CopilotResponseError("réponse scellée illisible (nonce de 32 octets et chiffré hexadécimal attendus)");
+      if (!nonce || !ct) throw new CopilotResponseError("unreadable sealed answer (a 32-byte nonce and a hex ciphertext expected)");
       let inner: any;
       try {
         inner = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(sx.openResponse(nonce, ct)));
       } catch {
-        throw new CopilotResponseError("elle ne s'ouvre pas avec le secret de cette requête : elle ne vient pas de l'enclave vérifiée, ou elle a été modifiée");
+        throw new CopilotResponseError("it does not open with this request's secret: it does not come from the verified enclave, or it was modified");
       }
       if (!inner || typeof inner !== "object" || !Number.isSafeInteger(inner.status) || !inner.body || typeof inner.body !== "object" || Array.isArray(inner.body)) {
-        throw new CopilotResponseError("réponse scellée de forme inattendue");
+        throw new CopilotResponseError("sealed answer of an unexpected shape");
       }
       const reply = inner.body as CopilotReply;
       if (typeof reply.text !== "string") reply.text = "";
       return { status: inner.status, ok: inner.status === 200, reply, authenticated: true, enclave: keys } satisfies AuthenticatedCopilotChat;
     }
     if (res.ok) {
-      throw new CopilotResponseError("réponse en clair à une requête chiffrée (ce n'est pas le copilote attesté, ou un mandataire l'a remplacée)");
+      throw new CopilotResponseError("plaintext answer to an encrypted request (this is not the attested copilot, or a proxy replaced it)");
     }
     // key changed since the check (copilot restart): check on the chain again, resend ONCE
     if (res.status === 400 && j?.code === "sealed_undecryptable" && !retried) {

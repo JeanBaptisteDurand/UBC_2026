@@ -198,22 +198,22 @@ const MAX_U256 = 2n ** 256n - 1n;
 const lower = (x: string) => x.toLowerCase();
 
 function dec(x: unknown, name: string, max: bigint): bigint {
-  if (typeof x !== "string" || !/^[0-9]{1,78}$/.test(x) || BigInt(x) > max) throw new Error(`${name} : entier décimal attendu`);
+  if (typeof x !== "string" || !/^[0-9]{1,78}$/.test(x) || BigInt(x) > max) throw new Error(`${name}: decimal integer expected`);
   return BigInt(x);
 }
 function hex32(x: unknown, name: string): Hex {
-  if (typeof x !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(x)) throw new Error(`${name} : 32 octets hexadécimaux attendus`);
+  if (typeof x !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(x)) throw new Error(`${name}: 32 hex bytes expected`);
   return lower(x) as Hex;
 }
 function sig65(x: unknown, name: string): Hex {
-  if (typeof x !== "string" || !/^0x[0-9a-fA-F]{130}$/.test(x)) throw new Error(`${name} : signature de 65 octets attendue`);
+  if (typeof x !== "string" || !/^0x[0-9a-fA-F]{130}$/.test(x)) throw new Error(`${name}: 65-byte signature expected`);
   return lower(x) as Hex;
 }
 
 /** A call receipt received as JSON (decimal strings, as the enclave returns it) → SDK types; throws if unreadable. */
 export function normalizeCallReceipt(j: any): CallReceipt {
-  if (!j || typeof j !== "object") throw new Error("reçu d'appel absent");
-  if (typeof j.payer !== "string" || !isAddress(j.payer, { strict: false })) throw new Error("payer : adresse attendue");
+  if (!j || typeof j !== "object") throw new Error("call receipt missing");
+  if (typeof j.payer !== "string" || !isAddress(j.payer, { strict: false })) throw new Error("payer: address expected");
   return {
     productId: dec(j.productId, "productId", MAX_U256), payer: getAddress(lower(j.payer)), requestHash: hex32(j.requestHash, "requestHash"),
     responseHash: hex32(j.responseHash, "responseHash"), units: dec(j.units, "units", MAX_U128), anchorBlock: dec(j.anchorBlock, "anchorBlock", MAX_U64),
@@ -234,13 +234,13 @@ const SECP256K1_N = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0
  *  (otherwise the USDC refuses it). Same signer. Throws for a signature that is not a 65-byte ECDSA one. */
 export function normalizeEcdsaSignature(sig: Hex): Hex {
   if (typeof sig !== "string" || !/^0x[0-9a-fA-F]{130}$/.test(sig)) {
-    throw new Error("signature ECDSA de 65 octets attendue (les comptes contrats ne paient pas encore ce rail)");
+    throw new Error("expected a 65-byte ECDSA signature: this rail accepts EOA payers");
   }
   const r = sig.slice(2, 66);
   let s = BigInt(`0x${sig.slice(66, 130)}`);
   let v = parseInt(sig.slice(130, 132), 16);
   if (v < 27) v += 27;
-  if (v !== 27 && v !== 28) throw new Error(`octet v de la signature inattendu (${v})`);
+  if (v !== 27 && v !== 28) throw new Error(`unexpected signature v byte (${v})`);
   if (s > SECP256K1_N / 2n) {
     s = SECP256K1_N - s;
     v = v === 27 ? 28 : 27;
@@ -250,12 +250,12 @@ export function normalizeEcdsaSignature(sig: Hex): Hex {
 
 /** What would stop the USDC from accepting this signature (null if canonical). */
 export function eip3009SignatureProblem(sig: unknown): string | null {
-  if (typeof sig !== "string" || !/^0x[0-9a-fA-F]{130}$/.test(sig)) return "signature ECDSA de 65 octets attendue";
+  if (typeof sig !== "string" || !/^0x[0-9a-fA-F]{130}$/.test(sig)) return "65-byte ECDSA signature expected";
   const s = BigInt(`0x${sig.slice(66, 130)}`);
   const v = parseInt(sig.slice(130, 132), 16);
-  if (BigInt(`0x${sig.slice(2, 66)}`) === 0n || s === 0n) return "signature nulle";
-  if (s > SECP256K1_N / 2n) return "signature à s haut (refusée par l'USDC)";
-  if (v !== 27 && v !== 28) return "octet v ≠ 27/28 (refusé par l'USDC)";
+  if (BigInt(`0x${sig.slice(2, 66)}`) === 0n || s === 0n) return "zero signature";
+  if (s > SECP256K1_N / 2n) return "high-s signature (refused by USDC)";
+  if (v !== 27 && v !== 28) return "v byte ≠ 27/28 (refused by USDC)";
   return null;
 }
 
@@ -304,7 +304,7 @@ export class X402ChallengeError extends Error {
     /** New on-chain price of a call (reason "price"). */
     readonly newPrice?: bigint,
   ) {
-    super(`paiement x402 refusé par le client : ${message}`);
+    super(`x402 payment refused by the client: ${message}`);
     this.name = "X402ChallengeError";
   }
 }
@@ -312,14 +312,14 @@ export class X402ChallengeError extends Error {
  *  authenticated (a proxy can write it after the enclave served the call) → X402PaidCallError. Kept for the API. */
 export class X402PaymentRefusedError extends Error {
   constructor(readonly code: string, readonly detail: string) {
-    super(`paiement refusé par l'enclave (${code})${detail ? ` : ${detail}` : ""}`);
+    super(`payment refused by the enclave (${code})${detail ? ` : ${detail}` : ""}`);
     this.name = "X402PaymentRefusedError";
   }
 }
 /** The answer does not come from the verified enclave, or not for THIS request and THIS payment: the text is not
  *  returned. After the paid send it is not thrown on its own: it becomes the `cause` of an X402PaidCallError. */
 export class X402ReceiptMismatchError extends Error {
-  constructor(message: string) { super(`réponse refusée : ${message}`); this.name = "X402ReceiptMismatchError"; }
+  constructor(message: string) { super(`answer refused: ${message}`); this.name = "X402ReceiptMismatchError"; }
 }
 /** Failure BEFORE any paid send (probe without X-PAYMENT: 503, 429, 409, 413, 502, 504…): nothing was signed, nothing
  *  is owed. After a paid send, the client throws X402PaidCallError, never this one. */
@@ -389,29 +389,29 @@ export class X402PaidCallError extends Error {
     const a = pending.authorization;
     const max = pending.authorizations.reduce((m, x) => (x.value > m ? x.value : m), 0n);
     const until = new Date(Number(a.validBefore) * 1000).toISOString();
-    const head = `appel x402 payé, sans réponse vérifiée après ${attempts} envoi(s) de la même requête (dernier : ${code}${status ? `, HTTP ${status}` : ""}). `;
-    const due = `au plus ${formatUsdc(max)} USDC, une seule fois : même nonce ${pending.nonce.slice(0, 10)}…, autorisation valable jusqu'à ${until}`;
+    const head = `x402 call paid, with no verified answer after ${attempts} send(s) of the same request (last: ${code}${status ? `, HTTP ${status}` : ""}). `;
+    const due = `at most ${formatUsdc(max)} USDC, once: same nonce ${pending.nonce.slice(0, 10)}…, authorization valid until ${until}`;
     let message: string;
     if (code === "enclave_changed") {
       // the answer lived in the enclave's memory: a restart erased it
       message =
-        `appel x402 payé dont la réponse est PERDUE : l'enclave a redémarré (nouvelle clé), et la réponse qu'elle gardait en mémoire avec elle. ` +
-        `Le paiement a PU être réglé quand même (l'opérateur relève les appels avant un redémarrage) : ${due}. ` +
-        `Le savoir : USDC.authorizationState(payeur, nonce) on-chain. Tant que rien n'est réglé, client.cancelAuthorization(err.pending) l'annule ; ` +
-        `une reprise (resume) ne rendra pas cette réponse.`;
+        `x402 call paid whose answer is LOST: the enclave restarted (new key), and the answer it kept in memory went with it. ` +
+        `The payment MAY still have been settled (the operator collects calls before a restart): ${due}. ` +
+        `To find out: USDC.authorizationState(payer, nonce) on-chain. While nothing is settled, client.cancelAuthorization(err.pending) cancels it; ` +
+        `a resume will not bring this answer back.`;
     } else if (code === "price_increased" && newPrice !== undefined) {
       message =
         head +
-        `Le prix d'un appel lu on-chain est monté à ${formatUsdc(newPrice)} USDC, au-delà du plafond de cet appel (${formatUsdc(priceCeilingOf(pending))} USDC) : ` +
-        `rien n'a été signé à ce prix. L'enclave a PU servir cet appel sous l'autorisation déjà envoyée (${due}) : ` +
-        `client.resume(err.pending) la renvoie telle quelle (l'enclave rend la réponse si elle l'a servie). Accepter le nouveau prix : ` +
-        `client.resume(err.pending, { renew: true, maxPrice: err.newPrice }) ; sinon, annuler tant que rien n'est réglé : client.cancelAuthorization(err.pending).`;
+        `The on-chain price of a call rose to ${formatUsdc(newPrice)} USDC, above the ceiling of this call (${formatUsdc(priceCeilingOf(pending))} USDC): ` +
+        `nothing was signed at this price. The enclave MAY have served this call under the authorization already sent (${due}): ` +
+        `client.resume(err.pending) resends it as is (the enclave returns the answer if it served it). To accept the new price: ` +
+        `client.resume(err.pending, { renew: true, maxPrice: err.newPrice }); otherwise, cancel while nothing is settled: client.cancelAuthorization(err.pending).`;
     } else {
       message =
         head +
-        `L'enclave a PU servir cet appel et l'opérateur PEUT le régler (${due}). Reprendre : client.resume(err.pending) ` +
-        `(même requête, même autorisation : aucune 2e facturation ; l'enclave ne garde la réponse que jusqu'à ${until}, et seulement si elle ne ` +
-        `redémarre pas) ; annuler tant que rien n'est réglé : client.cancelAuthorization(err.pending).`;
+        `The enclave MAY have served this call and the operator MAY settle it (${due}). To resume: client.resume(err.pending) ` +
+        `(same request, same authorization: no second charge; the enclave keeps the answer only until ${until}, and only if it does not ` +
+        `restart); to cancel while nothing is settled: client.cancelAuthorization(err.pending).`;
     }
     super(message, cause === undefined ? undefined : { cause });
     this.name = "X402PaidCallError";
@@ -440,13 +440,13 @@ export function serializeX402PaidRequest(p: X402PaidRequest): string {
 /** The inverse of serializeX402PaidRequest (throws if unreadable). */
 export function parseX402PaidRequest(json: string): X402PaidRequest {
   const j = JSON.parse(json);
-  if (!j || j.v !== 1) throw new Error("appel payé illisible (version 1 attendue)");
+  if (!j || j.v !== 1) throw new Error("unreadable paid call (version 1 expected)");
   const addr = (x: unknown, n: string): Address => {
-    if (typeof x !== "string" || !isAddress(x, { strict: false })) throw new Error(`${n} : adresse attendue`);
+    if (typeof x !== "string" || !isAddress(x, { strict: false })) throw new Error(`${n}: address expected`);
     return getAddress(lower(x));
   };
   const hex = (x: unknown, n: string, bytes?: number): Hex => {
-    if (typeof x !== "string" || !/^0x(?:[0-9a-fA-F]{2})*$/.test(x) || (bytes !== undefined && x.length !== 2 + 2 * bytes)) throw new Error(`${n} : hexadécimal attendu`);
+    if (typeof x !== "string" || !/^0x(?:[0-9a-fA-F]{2})*$/.test(x) || (bytes !== undefined && x.length !== 2 + 2 * bytes)) throw new Error(`${n}: hex expected`);
     return lower(x) as Hex;
   };
   const auth = (x: any, n: string): X402Authorization => ({
@@ -454,7 +454,7 @@ export function parseX402PaidRequest(json: string): X402PaidRequest {
     validAfter: dec(x?.validAfter, `${n}.validAfter`, MAX_U256), validBefore: dec(x?.validBefore, `${n}.validBefore`, MAX_U256),
     nonce: hex32(x?.nonce, `${n}.nonce`), signature: sig65(x?.signature, `${n}.signature`),
   });
-  if (!Array.isArray(j.authorizations) || j.authorizations.length === 0) throw new Error("authorizations : au moins une");
+  if (!Array.isArray(j.authorizations) || j.authorizations.length === 0) throw new Error("authorizations: at least one");
   const r = j.requirement;
   if (!r || typeof r !== "object" || typeof r.network !== "string") throw new Error("requirement illisible");
   return {
@@ -540,7 +540,7 @@ export class X402Client {
     if (!account) throw new Error("x402 : walletClient sans compte (passer `account`)");
     this.account = account;
     this.pub = o.publicClient ?? (o.walletClient.extend(publicActions) as unknown as PublicClient);
-    if (!this.d.x402Settler || lower(this.d.x402Settler) === zeroAddress) throw new Error("x402 : déploiement sans X402Settler");
+    if (!this.d.x402Settler || lower(this.d.x402Settler) === zeroAddress) throw new Error("x402: deployment without X402Settler");
   }
 
   /** The payer. */
@@ -565,11 +565,11 @@ export class X402Client {
     ])) as [{ author: Address; price: bigint; settlement: Address; param: Hex }, boolean];
     if (!active) throw new X402ChallengeError(`produit #${id} inactif`, "product");
     if (lower(p.settlement) !== lower(this.d.x402Settler)) {
-      throw new X402ChallengeError(`le produit #${id} ne se paie pas à l'appel : il se règle par ${p.settlement}, pas par X402Settler ${this.d.x402Settler}`, "product");
+      throw new X402ChallengeError(`product #${id} is not paid per call: it settles through ${p.settlement}, not through X402Settler ${this.d.x402Settler}`, "product");
     }
     if (p.price <= 0n) throw new X402ChallengeError(`produit #${id} sans prix`, "product");
     if (this.o.expectedModel && lower(p.param) !== lower(keccak256(toBytes(this.o.expectedModel)))) {
-      throw new X402ChallengeError(`le produit #${id} épingle le modèle ${p.param}, pas « ${this.o.expectedModel} »`, "product");
+      throw new X402ChallengeError(`product #${id} pins the model ${p.param}, not "${this.o.expectedModel}"`, "product");
     }
     return { id, price: p.price, pricePerCall: p.price * X402_UNITS_PER_CALL, settlement: p.settlement, param: p.param, active, author: p.author };
   }
@@ -589,12 +589,12 @@ export class X402Client {
 
   private assertCap(amount: bigint, productId: bigint): void {
     if (this.o.maxAmount !== undefined && amount > this.o.maxAmount) {
-      throw new X402ChallengeError(`un appel coûte ${amount} (prix on-chain du produit #${productId}), au-dessus du plafond ${this.o.maxAmount} de ce client`, "cap");
+      throw new X402ChallengeError(`one call costs ${amount} (on-chain price of product #${productId}), above this client's cap of ${this.o.maxAmount}`, "cap");
     }
   }
 
   private async create(req: ChatRequest): Promise<X402Completion> {
-    if (!req || !Array.isArray(req.messages) || req.messages.length === 0) throw new Error("x402 : au moins un message");
+    if (!req || !Array.isArray(req.messages) || req.messages.length === 0) throw new Error("x402: at least one message");
     const keys = await this.verifiedKeys();
     let product = await this.product();
     this.assertCap(product.pricePerCall, product.id);
@@ -628,7 +628,7 @@ export class X402Client {
       if (fresh.pricePerCall === product.pricePerCall) throw e;
       if (fresh.pricePerCall > maxPrice) {
         throw new X402ChallengeError(
-          `le prix d'un appel est monté pendant l'appel (${product.pricePerCall} → ${fresh.pricePerCall}, lu on-chain) : rien n'est signé ; relancer l'appel pour accepter le nouveau prix`,
+          `the price of a call rose during the call (${product.pricePerCall} → ${fresh.pricePerCall}, read on-chain): nothing is signed; call again to accept the new price`,
           "price",
           fresh.pricePerCall,
         );
@@ -661,7 +661,7 @@ export class X402Client {
     if (res.status !== 402) {
       if (res.ok) {
         await res.body?.cancel().catch(() => {});
-        throw new X402CallError(res.status, "unexpected_free_response", "l'enclave a répondu sans exiger de paiement : réponse ignorée (ce n'est pas un produit x402)");
+        throw new X402CallError(res.status, "unexpected_free_response", "the enclave answered without asking for payment: answer ignored (this is not an x402 product)");
       }
       throw await callErrorOf(res);
     }
@@ -679,9 +679,9 @@ export class X402Client {
    */
   async resume(p: X402PaidRequest, o: { renew?: boolean; maxPrice?: bigint } = {}): Promise<X402Completion> {
     if (!p || !Array.isArray(p.authorizations) || p.authorizations.length === 0 || !p.authorization) throw new Error("x402 : reprise sans autorisation");
-    if (lower(p.payer) !== lower(this.account.address)) throw new Error(`x402 : appel payé par ${p.payer}, pas par ce client (${this.account.address})`);
-    if (p.productId !== this.o.productId) throw new Error(`x402 : appel du produit #${p.productId}, client du produit #${this.o.productId}`);
-    if (o.maxPrice !== undefined && (typeof o.maxPrice !== "bigint" || o.maxPrice <= 0n)) throw new Error("x402 : maxPrice : montant positif (bigint) attendu");
+    if (lower(p.payer) !== lower(this.account.address)) throw new Error(`x402: call paid by ${p.payer}, not by this client (${this.account.address})`);
+    if (p.productId !== this.o.productId) throw new Error(`x402: call for product #${p.productId}, client for product #${this.o.productId}`);
+    if (o.maxPrice !== undefined && (typeof o.maxPrice !== "bigint" || o.maxPrice <= 0n)) throw new Error("x402: maxPrice must be a positive amount (bigint)");
     const ceiling = o.maxPrice ?? priceCeilingOf(p);
     const q: X402PaidRequest = { ...p, authorizations: [...p.authorizations], maxPrice: ceiling };
     // keys read again (not the cache): the enclave may have restarted; if unreachable, resend anyway (paid-call error)
@@ -689,14 +689,14 @@ export class X402Client {
     if (keys && lower(keys.signer) !== lower(q.enclave)) {
       // the enclave changed its key (a restart): its in-memory queue, and the answer, are lost. The call can still be
       // settled if the operator collected it before the restart
-      throw new X402PaidCallError(0, "enclave_changed", q, 0, `l'URL sert maintenant l'enclave ${keys.signer}, la requête était chiffrée pour ${q.enclave}`);
+      throw new X402PaidCallError(0, "enclave_changed", q, 0, `the URL now serves enclave ${keys.signer}, the request was encrypted for ${q.enclave}`);
     }
     if (o.renew) {
       const product = await this.product();
       this.assertCap(product.pricePerCall, product.id);
       if (product.pricePerCall > ceiling) {
         // never dearer without explicit consent: nothing is signed. To accept it: resume(…, { renew: true, maxPrice })
-        throw new X402PaidCallError(0, "price_increased", q, 0, `prix on-chain ${product.pricePerCall} au-dessus du plafond ${ceiling} de cet appel`, undefined, product.pricePerCall);
+        throw new X402PaidCallError(0, "price_increased", q, 0, `on-chain price ${product.pricePerCall} above this call's ceiling of ${ceiling}`, undefined, product.pricePerCall);
       }
       const a = await this.authorize(q.requirement, q.nonce, product.pricePerCall);
       q.authorizations.push(a);
@@ -713,11 +713,11 @@ export class X402Client {
    */
   async cancelAuthorization(p: Pick<X402PaidRequest, "nonce"> & { payer?: Address }): Promise<Hex> {
     const authorizer = this.account.address;
-    if (p.payer && lower(p.payer) !== lower(authorizer)) throw new Error(`x402 : l'autorisation est celle de ${p.payer}, pas de ce client (${authorizer})`);
+    if (p.payer && lower(p.payer) !== lower(authorizer)) throw new Error(`x402: the authorization belongs to ${p.payer}, not to this client (${authorizer})`);
     const used = (await this.pub.readContract({
       address: this.d.usdc, abi: usdcAuthAbi, functionName: "authorizationState", args: [authorizer, p.nonce],
     })) as boolean;
-    if (used) throw new Error("x402 : cette autorisation est déjà consommée on-chain (réglée, ou déjà annulée) : rien à annuler");
+    if (used) throw new Error("x402: this authorization is already consumed on-chain (settled, or already cancelled): nothing to cancel");
     const raw = await this.o.walletClient.signTypedData({
       account: this.account, domain: usdcDomain(this.d.usdc, this.d.chainId), types: cancelAuthorizationTypes,
       primaryType: "CancelAuthorization", message: { authorizer, nonce: p.nonce },
@@ -743,7 +743,7 @@ export class X402Client {
   private retryDelays(): readonly number[] {
     const d = this.o.paidRetryDelaysMs ?? X402_PAID_RETRY_DELAYS_MS;
     if (!Array.isArray(d) || d.length > 10 || d.some((x) => typeof x !== "number" || !Number.isFinite(x) || x < 0 || x > 60_000)) {
-      throw new Error("x402 : paidRetryDelaysMs : au plus 10 délais, chacun entre 0 et 60 000 ms");
+      throw new Error("x402: paidRetryDelaysMs: at most 10 delays, each between 0 and 60,000 ms");
     }
     return d;
   }
@@ -785,12 +785,12 @@ export class X402Client {
         const fresh = await this.product().catch(() => null);
         if (fresh && fresh.pricePerCall !== auth.value) {
           if (this.o.maxAmount !== undefined && fresh.pricePerCall > this.o.maxAmount) {
-            last = { ...last, code: "price_above_cap", detail: `prix on-chain ${fresh.pricePerCall} au-dessus du plafond ${this.o.maxAmount} de ce client`, newPrice: fresh.pricePerCall };
+            last = { ...last, code: "price_above_cap", detail: `on-chain price ${fresh.pricePerCall} above this client's cap of ${this.o.maxAmount}`, newPrice: fresh.pricePerCall };
             break;
           }
           const ceiling = priceCeilingOf(p);
           if (fresh.pricePerCall > ceiling) {
-            last = { ...last, code: "price_increased", detail: `prix on-chain ${fresh.pricePerCall} au-dessus du plafond ${ceiling} de cet appel`, newPrice: fresh.pricePerCall };
+            last = { ...last, code: "price_increased", detail: `on-chain price ${fresh.pricePerCall} above this call's ceiling of ${ceiling}`, newPrice: fresh.pricePerCall };
             break;
           }
           const a = await this.authorize(p.requirement, p.nonce, fresh.pricePerCall); // SAME nonce
@@ -836,18 +836,18 @@ export class X402Client {
   }
 
   private checkChallenge(j: any, amount: bigint): X402PaymentRequirements {
-    if (!j || j.x402Version !== 1 || !Array.isArray(j.accepts)) throw new X402ChallengeError("réponse 402 illisible (x402 v1 attendu)");
+    if (!j || j.x402Version !== 1 || !Array.isArray(j.accepts)) throw new X402ChallengeError("unreadable 402 answer (x402 v1 expected)");
     const net = x402NetworkName(this.d.chainId);
     const r = j.accepts.find((a: any) => a?.scheme === "exact" && a?.network === net);
-    if (!r) throw new X402ChallengeError(`aucune exigence « exact » sur le réseau ${net}`, "network");
+    if (!r) throw new X402ChallengeError(`no "exact" requirement on network ${net}`, "network");
     if (typeof r.payTo !== "string" || lower(r.payTo) !== lower(this.d.x402Settler)) {
-      throw new X402ChallengeError(`payTo ${String(r.payTo)} n'est pas X402Settler (${this.d.x402Settler}) : rien n'est signé (mandataire qui détourne le paiement ?)`, "payTo");
+      throw new X402ChallengeError(`payTo ${String(r.payTo)} is not X402Settler (${this.d.x402Settler}): nothing is signed (a proxy diverting the payment?)`, "payTo");
     }
     if (typeof r.asset !== "string" || lower(r.asset) !== lower(this.d.usdc)) {
-      throw new X402ChallengeError(`asset ${String(r.asset)} n'est pas l'USDC du déploiement (${this.d.usdc})`, "asset");
+      throw new X402ChallengeError(`asset ${String(r.asset)} is not the deployment's USDC (${this.d.usdc})`, "asset");
     }
     if (String(r.maxAmountRequired) !== amount.toString()) {
-      throw new X402ChallengeError(`montant demandé ${String(r.maxAmountRequired)} ≠ prix on-chain d'un appel (${amount})`, "amount");
+      throw new X402ChallengeError(`amount requested ${String(r.maxAmountRequired)} ≠ on-chain price of a call (${amount})`, "amount");
     }
     return r as X402PaymentRequirements;
   }
@@ -870,13 +870,13 @@ export class X402Client {
     x: { signer: Address; amount: bigint; nonce: Hex; requestHash: Hex; ephPriv: Uint8Array; authorization: X402Authorization },
   ): Promise<X402Completion> {
     if (!out || typeof out !== "object" || typeof out.enc !== "string" || typeof out.ciphertext !== "string" || typeof out.signature !== "string") {
-      throw new X402ReceiptMismatchError("réponse incomplète (enc, ciphertext, receipt, signature attendus)");
+      throw new X402ReceiptMismatchError("incomplete answer (enc, ciphertext, receipt, signature expected)");
     }
     let text: string;
     try {
       text = new TextDecoder("utf-8", { fatal: true }).decode(await hpkeOpen(x.ephPriv, toBytes(out.enc as Hex), toBytes(out.ciphertext as Hex)));
     } catch {
-      throw new X402ReceiptMismatchError("réponse indéchiffrable avec la clé éphémère de cette requête");
+      throw new X402ReceiptMismatchError("answer cannot be decrypted with this request's ephemeral key");
     }
     let cr: CallReceipt;
     let signature: Hex;
@@ -887,13 +887,13 @@ export class X402Client {
       throw new X402ReceiptMismatchError((e as Error).message);
     }
     const signer = await recoverCallReceiptSigner(this.d.x402Settler, cr, signature, this.d.chainId).catch(() => zeroAddress as Address);
-    if (lower(signer) !== lower(x.signer)) throw new X402ReceiptMismatchError(`reçu signé par ${signer}, pas par l'enclave vérifiée ${x.signer}`);
-    if (cr.productId !== this.o.productId) throw new X402ReceiptMismatchError(`reçu du produit #${cr.productId}, appel du produit #${this.o.productId}`);
-    if (lower(cr.payer) !== lower(this.account.address)) throw new X402ReceiptMismatchError(`reçu au nom de ${cr.payer}, pas du payeur ${this.account.address}`);
-    if (cr.nonce !== lower(x.nonce)) throw new X402ReceiptMismatchError("le reçu ne porte pas le nonce de ce paiement");
-    if (cr.units !== X402_UNITS_PER_CALL) throw new X402ReceiptMismatchError(`le reçu compte ${cr.units} unités pour un appel (1 attendue)`);
-    if (cr.requestHash !== lower(x.requestHash)) throw new X402ReceiptMismatchError("le reçu ne porte pas le hash de la requête envoyée");
-    if (cr.responseHash !== lower(x402ResponseHash(x.requestHash, text))) throw new X402ReceiptMismatchError("le texte reçu n'est pas celui que l'enclave a signé");
+    if (lower(signer) !== lower(x.signer)) throw new X402ReceiptMismatchError(`receipt signed by ${signer}, not by the verified enclave ${x.signer}`);
+    if (cr.productId !== this.o.productId) throw new X402ReceiptMismatchError(`receipt for product #${cr.productId}, call for product #${this.o.productId}`);
+    if (lower(cr.payer) !== lower(this.account.address)) throw new X402ReceiptMismatchError(`receipt in the name of ${cr.payer}, not of the payer ${this.account.address}`);
+    if (cr.nonce !== lower(x.nonce)) throw new X402ReceiptMismatchError("the receipt does not carry this payment's nonce");
+    if (cr.units !== X402_UNITS_PER_CALL) throw new X402ReceiptMismatchError(`the receipt counts ${cr.units} units for one call (1 expected)`);
+    if (cr.requestHash !== lower(x.requestHash)) throw new X402ReceiptMismatchError("the receipt does not carry the hash of the request sent");
+    if (cr.responseHash !== lower(x402ResponseHash(x.requestHash, text))) throw new X402ReceiptMismatchError("the text received is not the one the enclave signed");
 
     // can X402Settler.settle take it? (enclave active for this product at the anchor block, grace included). This read
     // is for information: an RPC failure here does not lose a paid, verified answer
@@ -947,7 +947,7 @@ async function callErrorOf(res: Response): Promise<X402CallError> {
   return new X402CallError(
     res.status,
     String(b.code ?? `http_${res.status}`),
-    `enclave x402 : HTTP ${res.status} ${b.error ?? ""} (avant tout paiement : aucune autorisation signée, rien n'est dû)`.replace(/\s+/g, " ").trim(),
+    `x402 enclave: HTTP ${res.status} ${b.error ?? ""} (before any payment: no authorization signed, nothing is owed)`.replace(/\s+/g, " ").trim(),
   );
 }
 
@@ -1198,7 +1198,7 @@ export class X402SettlementQueue {
             this.sentTx.delete(key);
             r.expired++;
           } else {
-            r.waiting.push({ ...id, reasons: ["non couvert par le solde du payeur (dernier relevé de l'enclave) : revérifié à un prochain passage"] });
+            r.waiting.push({ ...id, reasons: ["not covered by the payer's balance (the enclave's latest reading): re-checked on a later pass"] });
           }
           continue;
         }
@@ -1228,7 +1228,7 @@ export class X402SettlementQueue {
         this.cooling.delete(key);
         this.sentTx.delete(key);
         r.expired++;
-        log(`appel ${key} : autorisation échue avant le règlement, ${v.amount} perdu pour l'opérateur`);
+        log(`call ${key}: authorization expired before settlement, ${v.amount} lost for the operator`);
         continue;
       }
       const failing = v.checks.filter((c) => !c.ok);
@@ -1236,7 +1236,7 @@ export class X402SettlementQueue {
         if (failing.some((c) => PERMANENT.has(c.id))) {
           this.known.delete(key);
           r.dropped++;
-          log(`appel ${key} écarté : ${failing.map((c) => c.fr).join(" ; ")}`);
+          log(`call ${key} dropped: ${failing.map((c) => c.fr).join(" ; ")}`);
         } else {
           r.waiting.push({ ...id, reasons: failing.map((c) => c.fr) });
         }
@@ -1244,7 +1244,7 @@ export class X402SettlementQueue {
       }
       const since = this.cooling.get(key);
       if (since !== undefined && Date.now() - since < coolDown) {
-        r.waiting.push({ ...id, reasons: ["transaction déjà envoyée, en attente de sa confirmation"] });
+        r.waiting.push({ ...id, reasons: ["transaction already sent, waiting for its confirmation"] });
         continue;
       }
       this.inFlight.add(key);
@@ -1260,9 +1260,9 @@ export class X402SettlementQueue {
         } else if (s.status === "timeout") {
           this.cooling.set(key, Date.now());
           this.sentTx.set(key, s.tx);
-          r.waiting.push({ ...id, reasons: [`transaction ${s.tx} envoyée, sans reçu pour l'instant`] });
+          r.waiting.push({ ...id, reasons: [`transaction ${s.tx} sent, no receipt yet`] });
         } else {
-          r.failed.push({ ...id, error: `transaction annulée on-chain (${s.tx})` });
+          r.failed.push({ ...id, error: `transaction reverted on-chain (${s.tx})` });
         }
       } catch (e) {
         r.failed.push({ ...id, error: explainArcError(e) });
@@ -1275,7 +1275,7 @@ export class X402SettlementQueue {
         await this.o.acknowledge([...ack.values()]);
         this.unacked.clear();
       } catch (e) {
-        log(`signalement à l'enclave impossible : ${(e as Error)?.message ?? e} (renvoyé au passage suivant)`);
+        log(`report to the enclave failed: ${(e as Error)?.message ?? e} (sent again on the next pass)`);
         this.unacked = new Map([...ack].slice(-MAX_UNACKED));
       }
     }
@@ -1414,7 +1414,7 @@ export function createX402SettlementQueue(o: {
       return out;
     },
     acknowledge: async (items) => {
-      if (!target) throw new Error("/x402/settled : enclave inconnue (aucun relevé de /x402/pending réussi)");
+      if (!target) throw new Error("/x402/settled: unknown enclave (no successful read of /x402/pending)");
       const seen = new Set<string>();
       const unique = items.filter((i) => {
         const k = `${lower(i.payer)}:${lower(i.nonce)}`;

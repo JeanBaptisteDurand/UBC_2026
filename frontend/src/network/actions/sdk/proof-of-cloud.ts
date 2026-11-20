@@ -71,7 +71,7 @@ export async function requestAllianceToken(quote: Hex, o: AllianceTokenOptions =
     if (r.status !== 200) throw new Error(`Proof of Cloud alliance: signature refused by ${m} (HTTP ${r.status})`);
     if (typeof r.body?.jwt === "string") {
       const t = parseAllianceToken(r.body.jwt, o.allianceKey ?? PROOF_OF_CLOUD.allianceKey);
-      if (t.quoteSha256 !== createHash("sha256").update(Buffer.from(q, "hex")).digest("hex")) throw new Error("alliance Proof of Cloud : jeton d'un autre quote");
+      if (t.quoteSha256 !== createHash("sha256").update(Buffer.from(q, "hex")).digest("hex")) throw new Error("Proof of Cloud alliance: token for another quote");
       return t;
     }
     partial = { ...partial, ...r.body };
