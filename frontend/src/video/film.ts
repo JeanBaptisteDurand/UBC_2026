@@ -1484,9 +1484,8 @@ function pkSend(P: Pk, list: number[]) {
   P.w0?.postMessage({ type: 'want', gen: ++P.gen, ks: list })
 }
 /** What each level decodes, in order. The active level: the frames around the position, then moving, the path over
- *  the next 0.8 s coarse to fine (one in 8, in 4, in 2, then every frame: a blend across the whole path first) and 16
- *  behind; at rest, the ring around the position, then the way to the next stop and to the previous one, coarse to
- *  fine. The motion level before it takes over: the frames at the rest position once its one-in-2 layer is in. The
+ *  the next 0.8 s coarse to fine (passes below) and 16 (light) or 12 (motion) behind; at rest, the ring around the
+ *  position, then the way to the next stop and to the previous one, coarse to fine. The motion level before it takes over: the frames at the rest position once its one-in-2 layer is in. The
  *  light level after: nothing. Bounded by each level's memory budget. */
 function wantsP() {
   const m = film.man!, n = m.n
@@ -1499,6 +1498,10 @@ function wantsP() {
     const prep = P === PV && act === PL && P.tGate > 0 && !travel
     if (P !== act && !prep) { if (P.wantList.length) pkSend(P, []); continue }
     const maxF = Math.max(8, Math.floor(P.budget / (P.w * P.h * 4)) - 2)
+    // coarse to fine: the light level one in 8, in 4, then in 2 (a blend across the whole path first, at most 8 apart);
+    // the motion level as ?gate=1 orders it, every 2nd frame then every frame (its blends are at most 4 apart: a frame
+    // in 8 decoded first would leave the next refreshes on the nearest frame when the decoder falls behind)
+    const passes = P === PL ? [8, 4, 2] : [2, 1]
     P.sv++
     const list: number[] = [], st = P.stamp, sv = P.sv, pr = P.present
     const add = (k: number) => { if (k >= 0 && k < n && pr[k] && st[k] !== sv && list.length < maxF) { st[k] = sv; list.push(k) } }
@@ -1517,8 +1520,8 @@ function wantsP() {
           last = f
         }
       }
-      for (const s of [8, 4, 2, 1]) for (const k of path) if (k % s === 0) add(k)
-      for (let i = 1; i <= 16; i++) add(k0 - i * dir)
+      for (const s of passes) for (const k of path) if (k % s === 0) add(k)
+      for (let i = 1; i <= (P === PL ? 16 : 12); i++) add(k0 - i * dir)
     } else {
       const R = P === PL ? 32 : 16
       for (let i = 1; i <= R; i++) { add(k0 + i * dir); add(k0 + 1 - i * dir) }
@@ -1527,7 +1530,7 @@ function wantsP() {
       for (const s of dir >= 0 ? [up, dn] : [dn, up]) {
         if (s === undefined) continue
         const sg = s > p ? 1 : -1, end = sg > 0 ? Math.min(n - 1, Math.ceil(s) + 1) : Math.max(0, Math.floor(s) - 1)
-        for (const c of [8, 4, 2, 1]) for (let k = k0; sg > 0 ? k <= end : k >= end; k += sg) if (k % c === 0) add(k)
+        for (const c of passes) for (let k = k0; sg > 0 ? k <= end : k >= end; k += sg) if (k % c === 0) add(k)
       }
     }
     pkSend(P, list)
