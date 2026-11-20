@@ -43,16 +43,16 @@
     "earlyTcbEvaluationDataNumber": 22,
     "tcbInfo": {
       "issueDate": "2026-11-14T19:38:54Z",
-      "nextUpdate": "2026-12-09T19:38:54Z",
+      "nextUpdate": "2026-12-14T19:38:54Z",
       "url": "https://api.trustedservices.intel.com/tdx/certification/v4/tcb?fmspc=20A06F000000&tcbEvaluationDataNumber=20"
     },
     "qeIdentity": {
       "issueDate": "2026-11-14T19:31:58Z",
-      "nextUpdate": "2026-12-09T19:31:58Z",
+      "nextUpdate": "2026-12-14T19:31:58Z",
       "url": "https://api.trustedservices.intel.com/tdx/certification/v4/qe/identity?tcbEvaluationDataNumber=20"
     },
     "tcbEval": {
-      "nextUpdate": "2026-12-09T19:20:00Z"
+      "nextUpdate": "2026-12-14T19:20:00Z"
     },
     "fetchedAtUtc": "2026-11-14T20:26:15Z",
     "sha256": {

@@ -1,5 +1,5 @@
 {
-  "fetchedAtUtc": "2026-11-09T20:26:15Z",
+  "fetchedAtUtc": "2026-11-14T20:26:15Z",
   "source": "https://659d8740a0a8364fc0f805cb48f38a6977749783-8802.dstack-pha1-prod9.phala.network/pubkeys",
   "quoteBytes": 5010,
   "fmspc": "20A06F000000",
@@ -9,17 +9,17 @@
   "standardTcbEvaluationDataNumber": 20,
   "earlyTcbEvaluationDataNumber": 22,
   "tcbInfo": {
-    "issueDate": "2026-11-09T19:38:54Z",
-    "nextUpdate": "2026-12-09T19:38:54Z",
+    "issueDate": "2026-11-14T19:38:54Z",
+    "nextUpdate": "2026-12-14T19:38:54Z",
     "url": "https://api.trustedservices.intel.com/tdx/certification/v4/tcb?fmspc=20A06F000000&tcbEvaluationDataNumber=20"
   },
   "qeIdentity": {
-    "issueDate": "2026-11-09T19:31:58Z",
-    "nextUpdate": "2026-12-09T19:31:58Z",
+    "issueDate": "2026-11-14T19:31:58Z",
+    "nextUpdate": "2026-12-14T19:31:58Z",
     "url": "https://api.trustedservices.intel.com/tdx/certification/v4/qe/identity?tcbEvaluationDataNumber=20"
   },
   "tcbEval": {
-    "nextUpdate": "2026-12-09T19:20:00Z"
+    "nextUpdate": "2026-12-14T19:20:00Z"
   },
   "urls": {
     "pckCrl": "https://api.trustedservices.intel.com/sgx/certification/v4/pckcrl?ca=platform&encoding=der",

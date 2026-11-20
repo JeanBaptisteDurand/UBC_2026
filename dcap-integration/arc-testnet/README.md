@@ -73,7 +73,7 @@ cd dcap-integration/arc-testnet
 ## Reload the collateral when Intel updates it
 
 The router refuses expired collateral: the TCB info, the QE identity, the PCK CRL and the evaluation numbers loaded
-expire on **9 Dec 2026** (`nextUpdate`, +30 days). Before that date (then every month):
+expire on **14 Dec 2026** (`nextUpdate`, +30 days). Before that date (then every month):
 
 ```bash
 ./run.sh refresh   # downloads again, dry-runs, sends only what is newer, updates the JSON

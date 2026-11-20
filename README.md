@@ -441,7 +441,7 @@ a session. An attestation proves which code ran, not that an AI answer is right,
 **Risk assumptions**
 
 - **Trust in Intel TDX**: Intel's hardware and signing keys, Automata's DCAP contracts and Intel's collateral
-  (refreshed monthly; the next update is due on 9 Dec 2026). An attestation proves which code ran, not that an AI
+  (refreshed monthly; the next update is due on 14 Dec 2026). An attestation proves which code ran, not that an AI
   answer is right, so only provable faults are slashed. Bounty replays are deterministic, so other operators can check
   them.
 - **Trust in Proof of Cloud**, at the verified level: the alliance declares that the chip sits in an inspected
