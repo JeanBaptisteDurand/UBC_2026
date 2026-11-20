@@ -31,7 +31,7 @@ const EN = {
   'doc.n.session1': 'prepaid session',
   'doc.n.verdicts': 'ERC-8004 verdicts',
   'doc.n.bounty': 'paid on a proven exploit',
-  'doc.n.seized': 'seized from a lying operator, 10 Nov',
+  'doc.n.seized': 'seized from a lying operator, 15 Nov',
   'doc.n.down': 'The live counters cannot be read right now.',
   // chapter 09, the code of each contract read on Arc
   'doc.code.b': 'Read every address on Arc now',
