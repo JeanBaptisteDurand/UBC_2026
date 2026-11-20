@@ -151,7 +151,7 @@ export async function quoteFromRegisterTx(pub: PublicClient, tx: Hex): Promise<H
 export interface AllianceToken {
   header: string;
   payload: string;
-  /** Signature EdDSA (64 octets). */
+  /** EdDSA signature (64 bytes). */
   signature: Hex;
   machineId: string;
   quoteSha256: string;

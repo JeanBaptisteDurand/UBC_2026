@@ -103,7 +103,7 @@ export async function sealExploitForEnclave(a: {
   validateExploit(a.exploit);
   if (!/^0x[0-9a-fA-F]{64}$/.test(a.protocolX25519)) throw new Error("protocolX25519: 32 bytes expected (read on-chain)");
   const r = a.r ?? globalThis.crypto.getRandomValues(new Uint8Array(32));
-  if (r.length !== 32) throw new Error("r : 32 octets attendus");
+  if (r.length !== 32) throw new Error("r: 32 bytes expected");
   const utf8 = (s: string) => new TextEncoder().encode(s);
   const cP = deterministicSeal(toBytes(a.protocolX25519), utf8(protocolCanonical(a)), r);
   const bundle = {
@@ -216,7 +216,7 @@ export async function submitSealedExploit(
 export const REFUTE_QUORUM = 2;
 /** SealedBounty.REFUTE_WINDOW: 3 days after acceptance (the on-chain value is authoritative: readAcceptedClaim reads it). */
 export const REFUTE_WINDOW_SECONDS = 259_200n;
-/** SealedBounty._countRefuters : au plus 2 × MAX_SIGS signatures. */
+/** SealedBounty._countRefuters: at most 2 × MAX_SIGS signatures. */
 export const REFUTE_MAX_SIGNATURES = 2 * BOUNTY_MAX_SIGS;
 /** HPKE aad of a refutation request (identical to the enclave's, enclave/src/services/bounty.ts). */
 export const REFUTE_AAD_LABEL = "arc-sealed-bounty/refute/v1";
@@ -443,7 +443,7 @@ export function protocolRefuteSource(a: { cP: Hex; protocolPrivateKey: Uint8Arra
   if (a.revealKey) return { from: "protocol", cP: a.cP, protocolPrivateKey: toHex(priv) };
   let shared: Uint8Array;
   try {
-    if ((a.cP.length - 2) / 2 < 32 + 16) throw new Error("trop court");
+    if ((a.cP.length - 2) / 2 < 32 + 16) throw new Error("too short");
     shared = x25519.getSharedSecret(priv, toBytes(a.cP).slice(0, 32));
   } catch {
     throw new RefuteError("unreadable_report", "cP too short or invalid ephemeral key: this is not a seal; only revealKey (the bounty key) can prove that this report is not one");
@@ -796,7 +796,7 @@ async function askOne(
     }
     if (!res.ok) return err(`HTTP ${res.status} ${j?.error ?? text.slice(0, 160)}`);
   } catch (e) {
-    return err(`injoignable : ${(e as Error).message}`);
+    return err(`unreachable: ${(e as Error).message}`);
   }
   let replay: RefuteEnclaveResult["replay"];
   try {
@@ -811,7 +811,7 @@ async function askOne(
   }
   if (j?.status === "confirmed") return { ...who, status: "confirmed", replay, reason: String(j.reason ?? "") };
   if (j?.status === "refused") return { ...who, status: "refused", code: String(j.code ?? ""), reason: String(j.reason ?? "") };
-  if (j?.status !== "refuted") return err(`statut inattendu : ${JSON.stringify(j).slice(0, 160)}`);
+  if (j?.status !== "refuted") return err(`unexpected status: ${JSON.stringify(j).slice(0, 160)}`);
   // the refutation: on THIS digest, contradictory, signed by the VERIFIED enclave
   let ref: Refutation;
   try {

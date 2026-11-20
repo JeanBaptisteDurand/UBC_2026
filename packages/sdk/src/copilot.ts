@@ -29,7 +29,7 @@ import { EXCHANGE_RESPONSE_NONCE_BYTES, exchangeInfo, sealExchange } from "./sea
 
 /** The protocol label (the `sealed` field of the POST /chat body; same value on the copilot side). */
 export const COPILOT_SEALED_TAG = "ARC-COPILOT-CHAT-v1";
-/** Langues du copilote. */
+/** The copilot's languages. */
 export type CopilotLang = "en" | "fr";
 /** The copilot keeps the last 20 messages; the client sends no more. */
 export const COPILOT_MAX_MESSAGES = 20;

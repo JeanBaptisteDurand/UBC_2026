@@ -5,17 +5,17 @@
 import { type Address, type Hex, concat, encodeAbiParameters, keccak256, size, slice, toBytes } from "viem";
 
 export interface TdxQuoteMeasurements {
-  version: number; // 4 ou 5
+  version: number; // 4 or 5
   bodyType: number; // 2 = TD1.0, 3 = TD1.5
-  tdAttributes: Hex; // 8 octets
-  xfam: Hex; // 8 octets
-  mrtd: Hex; // 48 octets
+  tdAttributes: Hex; // 8 bytes
+  xfam: Hex; // 8 bytes
+  mrtd: Hex; // 48 bytes
   mrConfigId: Hex;
   rtmr0: Hex;
   rtmr1: Hex;
   rtmr2: Hex;
   rtmr3: Hex;
-  reportData: Hex; // 64 octets
+  reportData: Hex; // 64 bytes
   /** keccak256(MRTD ‖ RTMR0..3 ‖ MRCONFIGID ‖ XFAM ‖ TDATTRIBUTES): the computation of EnclaveRegistry._workloadId. */
   workloadId: Hex;
   /** DEBUG bit of tdAttributes (bit 0 of byte 0): an enclave in DEBUG is refused (DebugEnclave). */
@@ -30,10 +30,10 @@ const BODY = { tdAttributes: 120, xfam: 128, mrtd: 136, mrConfigId: 184, rtmr0: 
 /** Cuts the TD body out of a raw quote (same offsets as TdxAttestationModule; v5: a 6-byte descriptor). */
 export function parseTdxQuote(quote: Hex): TdxQuoteMeasurements {
   const b = toBytes(quote);
-  if (b.length < HEADER + 584) throw new Error(`quote TDX trop court (${b.length} octets)`);
+  if (b.length < HEADER + 584) throw new Error(`TDX quote too short (${b.length} bytes)`);
   const version = b[0]! | (b[1]! << 8);
   const teeType = b[4]! | (b[5]! << 8) | (b[6]! << 16) | (b[7]! << 24);
-  if (teeType !== 0x81) throw new Error(`quote non TDX (type de TEE 0x${teeType.toString(16)})`);
+  if (teeType !== 0x81) throw new Error(`not a TDX quote (TEE type 0x${teeType.toString(16)})`);
   let start = HEADER;
   let bodyType = 2;
   if (version === 5) {
@@ -68,7 +68,7 @@ export function workloadIdFromQuote(quote: Hex): Hex {
 export function expectedReportData0(b: {
   chainId: number | bigint; registry: Address; productId: bigint; operator: Address; signer: Address; x25519: Hex;
 }): Hex {
-  if (size(b.x25519) !== 32) throw new Error("x25519 : 32 octets attendus");
+  if (size(b.x25519) !== 32) throw new Error("x25519: 32 bytes expected");
   return keccak256(
     encodeAbiParameters(
       [{ type: "string" }, { type: "uint256" }, { type: "address" }, { type: "uint256" }, { type: "address" }, { type: "address" }, { type: "bytes32" }],

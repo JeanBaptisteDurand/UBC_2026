@@ -25,7 +25,7 @@ export const DSTACK_EVENTLOG_FORMAT_V1: Hex = keccak256(toBytes("archive.dstack.
 
 export interface DstackRtmr3Event {
   version: 1 | 2;
-  /** `event` du journal (ex. "compose-hash") */
+  /** the log's `event` (e.g. "compose-hash") */
   name: string;
   /** `event_payload`, decoded from hex */
   payload: Hex;

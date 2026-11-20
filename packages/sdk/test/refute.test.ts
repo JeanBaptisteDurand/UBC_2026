@@ -70,7 +70,7 @@ function fakeChain(head: bigint) {
       calls.getLogs++;
       const q = params[0];
       const from = BigInt(q.fromBlock), to = BigInt(q.toBlock);
-      if (to - from + 1n > 5_000n) throw new Error("plage eth_getLogs trop grande");
+      if (to - from + 1n > 5_000n) throw new Error("eth_getLogs range too large");
       return logs
         .filter((l) => l.address.toLowerCase() === q.address.toLowerCase() && l.blockNumber >= from && l.blockNumber <= to)
         .filter((l) => (q.topics as (Hex | null)[]).every((t, i) => t === null || t === undefined || l.topics[i]?.toLowerCase() === t.toLowerCase()))

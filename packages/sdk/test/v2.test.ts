@@ -70,7 +70,7 @@ function pubkeysFetch(e: ReturnType<typeof makeEnclave>, tamper?: (j: any) => an
       const j = { signer: e.signer.address, x25519: e.x25519, lastQuote: "0x" };
       return new Response(JSON.stringify(tamper ? tamper(j) : j), { status: 200 });
     }
-    throw new Error(`appel inattendu : ${url}`);
+    throw new Error(`unexpected call: ${url}`);
   }) as typeof fetch;
 }
 
@@ -235,7 +235,7 @@ function emulatedEnclave(e: ReturnType<typeof makeEnclave>, st: ChainState, opts
       const ser = Object.fromEntries(Object.entries(receipt).map(([k, v]) => [k, typeof v === "bigint" ? v.toString() : v]));
       return new Response(JSON.stringify({ enc: toHex(sealed.enc), ciphertext: toHex(sealed.ciphertext), receipt: ser, signature }), { status: 200 });
     }
-    throw new Error(`appel inattendu : ${u}`);
+    throw new Error(`unexpected call: ${u}`);
   }) as typeof fetch;
   return { f, seen, seqs, setLastSeq: (n: bigint) => { lastSeq = n; } };
 }

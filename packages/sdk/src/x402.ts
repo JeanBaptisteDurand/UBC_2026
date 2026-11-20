@@ -238,7 +238,7 @@ export function normalizeEcdsaSignature(sig: Hex): Hex {
   let s = BigInt(`0x${sig.slice(66, 130)}`);
   let v = parseInt(sig.slice(130, 132), 16);
   if (v < 27) v += 27;
-  if (v !== 27 && v !== 28) throw new Error(`octet v de la signature inattendu (${v})`);
+  if (v !== 27 && v !== 28) throw new Error(`unexpected signature v byte (${v})`);
   if (s > SECP256K1_N / 2n) {
     s = SECP256K1_N - s;
     v = v === 27 ? 28 : 27;
@@ -251,7 +251,7 @@ export function eip3009SignatureProblem(sig: unknown): string | null {
   if (typeof sig !== "string" || !/^0x[0-9a-fA-F]{130}$/.test(sig)) return "65-byte ECDSA signature expected";
   const s = BigInt(`0x${sig.slice(66, 130)}`);
   const v = parseInt(sig.slice(130, 132), 16);
-  if (BigInt(`0x${sig.slice(2, 66)}`) === 0n || s === 0n) return "signature nulle";
+  if (BigInt(`0x${sig.slice(2, 66)}`) === 0n || s === 0n) return "zero signature";
   if (s > SECP256K1_N / 2n) return "high-s signature (refused by USDC)";
   if (v !== 27 && v !== 28) return "v byte ≠ 27/28 (refused by USDC)";
   return null;
@@ -791,7 +791,7 @@ export class X402Client {
             last = { ...last, code: "price_increased", detail: `on-chain price ${fresh.pricePerCall} above this call's ceiling of ${ceiling}`, newPrice: fresh.pricePerCall };
             break;
           }
-          const a = await this.authorize(p.requirement, p.nonce, fresh.pricePerCall); // MÊME nonce
+          const a = await this.authorize(p.requirement, p.nonce, fresh.pricePerCall); // SAME nonce
           p.authorizations.push(a);
           current = p.authorizations.length - 1;
           reauthorized++;

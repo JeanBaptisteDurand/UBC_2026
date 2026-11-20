@@ -228,7 +228,7 @@ describe("x402: the client refuses before signing", () => {
     const f = (async (u: any) => {
       seen.push(String(u));
       if (String(u).endsWith("/pubkeys")) return new Response(JSON.stringify({ signer: enclave.address, x25519: x }), { status: 200 });
-      throw new Error("inattendu");
+      throw new Error("unexpected");
     }) as typeof fetch;
     const p = pub(c);
     const base = p.readContract;
