@@ -294,7 +294,7 @@ contract EnclaveRegistry is IEnclaveRegistry {
     /// @inheritdoc IEnclaveRegistry
     function attestedOperator(address signer, uint256 productId) external view override returns (address operator) {
         // the current block is never covered by the "previous" window (cut before the re-registration): the image in
-        // force is the one of the current registration
+        // force is that of the current registration
         operator = activeOperatorAt(signer, productId, block.number);
         if (
             operator == address(0) || bond.banned(operator) || !products.isActive(productId)

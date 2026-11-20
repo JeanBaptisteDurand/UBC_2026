@@ -31,7 +31,7 @@ import {Sha384} from "./Sha384.sol";
 ///         there). So only the events located BEFORE the first "system-ready" are read; those after it are replayed,
 ///         never interpreted. The image is "known" only if this prefix contains "system-ready" and EXACTLY one
 ///         compose-hash and one os-image-hash of 32 bytes. The split of a real event cannot be forged: the replay
-///         must reproduce RTMR3, so each preimage is the one of the real log; a V1 preimage starts with 01 00 00 08,
+///         must reproduce RTMR3, so each preimage is the real log's; a V1 preimage starts with 01 00 00 08,
 ///         a V2 one with "{"; in V1, a name without ":" splits in only one way (a different split only produces an
 ///         unrecognizable name, hence an unknown image, never a false one); in V2, the name stops at the first '"'
 ///         (names that need escaping are refused).

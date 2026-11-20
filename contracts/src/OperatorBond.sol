@@ -312,7 +312,7 @@ contract OperatorBond is IOperatorBond, UsdcPayer {
         return _sum(_roll(_opExposure[operator], uint64(block.timestamp / BUCKET)));
     }
 
-    /// @notice Time from which the pending withdrawal request can be withdrawn.
+    /// @notice Time from which the amount of the pending withdrawal request can be withdrawn.
     function withdrawableAt(address operator) public view returns (uint64) {
         uint64 a = unbondableAt[operator];
         uint64 last = lastExposureAt[operator];
