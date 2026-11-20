@@ -43,7 +43,17 @@ The settings live in `.env`, which git ignores.
 
 ## Tests
 
-The registrar has no unit tests of its own yet. The SDK pieces it calls are tested in `packages/sdk/test`:
+```sh
+npm test           # tsx --test test/*.test.ts
+```
+
+`test/registrar.test.ts` starts the real `src/server.ts` against a stub Arc RPC and a stub enclave: one local HTTP server, no chain, no real key, no network. The operator's key and the enclave keys are generated for each test. Transactions are decoded from `eth_sendRawTransaction` and stay in the test. Eight tests:
+
+- **Renewal window**: an enclave whose window ends in more than `RENEW_BEFORE_HOURS` is left alone. One whose window ends sooner, or a signer that is not active for the product, gets a fresh quote requested for this operator. `RENEW_BEFORE_HOURS` moves the threshold.
+- **Settlement**: a session receipt is settled once, over several passes (the next pass sees it paid).
+- **Restart**: the key served before is retired once, and the new one is kept. A previous key of another operator, or `RETIRE_PREVIOUS=0`, is left alone.
+
+The stub does not cover the registration transaction itself (it needs a real TDX quote: the stub enclave answers `/attest` with an error, so the test checks the request), the verified level (`LEVELS=0`), or pay-per-call settlement. The SDK pieces the registrar calls are tested in `packages/sdk/test`:
 
 - `createX402SettlementQueue`: each call is settled once, even when passes overlap, and each report to the enclave is signed (`x402.test.ts`).
 - `verifyReceiptOnChain`: a receipt is checked the way `SessionPay.settle` checks it (`v2.test.ts`).
@@ -52,4 +62,4 @@ The registrar has no unit tests of its own yet. The SDK pieces it calls are test
 
 ## What's next
 
-Unit tests against a stub RPC: the renewal window, a single settlement per receipt, and the retirement of the previous key.
+A stub enclave that serves a recorded TDX quote, to test the registration transaction and the machine binding too.

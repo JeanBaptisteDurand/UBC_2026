@@ -1,6 +1,7 @@
-# Continuous integration for ArcHive: the contracts, the SDK, the copilot and the MCP server, tested on every push to
-# main and on every pull request.
-# The tests need no secret, no wallet and no network.
+# Continuous integration for ArcHive: the contracts, the SDK, the copilot, the MCP server, the read
+# API, the operator agent and the registrar, tested on every push to main and on every pull request; the site, the
+# console and the CLI are typechecked.
+# The tests need no secret and no wallet.
 name: CI
 
 on:
@@ -109,3 +110,102 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Test
         run: npm test
+
+  api:
+    name: Read API
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: services/api
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22.23.4
+      - name: Install the SDK
+        working-directory: packages/sdk
+        run: npm ci --no-audit --no-fund
+      # test/security.test.ts checks that the API and the console (web/src/signin.ts) write the same sign-in message.
+      - name: Install the console
+        working-directory: web
+        run: npm ci --no-audit --no-fund
+      - name: Install
+        run: npm ci --no-audit --no-fund
+      - name: Test
+        run: npm test
+
+  node:
+    name: Operator agent (archive-node)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: packages/node
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22.23.4
+      - name: Install
+        run: npm ci --no-audit --no-fund
+      # The terminal tests run the CLI in a pseudo-terminal through python3 (present on the runner).
+      - name: Test
+        run: npm test
+      - name: Typecheck
+        run: npm run typecheck
+
+  registrar:
+    name: Registrar
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: services/registrar
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22.23.4
+      - name: Install the SDK
+        working-directory: packages/sdk
+        run: npm ci --no-audit --no-fund
+      - name: Install
+        run: npm ci --no-audit --no-fund
+      - name: Typecheck
+        run: npx tsc -p tsconfig.json
+      # The real src/server.ts against a stub Arc RPC and a stub enclave (test/registrar.test.ts).
+      - name: Test
+        run: npm test
+
+  typecheck:
+    name: Typecheck (site, console, CLI)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22.23.4
+      # The console and the CLI compile the SDK's sources (tsconfig paths), which need its dependencies.
+      - name: Install the SDK
+        working-directory: packages/sdk
+        run: npm ci --no-audit --no-fund
+      - name: Install the CLI
+        working-directory: packages/cli
+        run: npm ci --no-audit --no-fund
+      - name: Typecheck the CLI
+        working-directory: packages/cli
+        run: npx tsc -p tsconfig.json
+      - name: Install the site
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Typecheck the site
+        working-directory: frontend
+        run: npm run typecheck
+      - name: Install the console
+        working-directory: web
+        run: npm ci --no-audit --no-fund
+      - name: Typecheck the console
+        working-directory: web
+        run: npm run typecheck
