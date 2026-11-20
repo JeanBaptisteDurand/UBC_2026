@@ -1,21 +1,22 @@
 # Enclave kit and products
 
-The code that runs inside ArcHive's Intel TDX enclaves on Phala Cloud (dstack): the enclave kit shared by every
-product, the product servers, and the image recipes whose digests the measured compose files in `phala/` pin.
+This folder holds the code that runs inside ArcHive's Intel TDX enclaves on Phala Cloud (dstack). It has three parts:
+the enclave kit that every product shares, the product servers, and the recipes of their images. The measured compose
+files in `phala/` pin those images by digest.
 
 ## The enclave kit (`src/kit`, `src/server`)
 
 - **Keys created in memory.** At start-up the enclave creates a secp256k1 signing key (its `signer` address) and an
-  X25519 encryption key (HPKE). They are never written to disk.
-- **`POST /attest`** (operator): `{ operator, anchorR }` → `{ quote, eventLog, signer, x25519, … }`. The dstack TDX quote's
-  REPORTDATA binds the chain, the registry, the product, the operator and the enclave keys (bytes 0 to 31) and the hash
-  of a recent Arc block (bytes 32 to 63), which `EnclaveRegistry` checks on Arc (policies P6 and P7, see
-  `../dcap-integration/README.md`).
-- **Bound to one operator.** `/attest` fails closed: an address outside `OPERATOR_ALLOWLIST` gets 403, and an unset or
+  X25519 encryption key (HPKE). Neither key is ever written to disk.
+- **`POST /attest`** (operator): `{ operator, anchorR }` → `{ quote, eventLog, signer, x25519, … }`. The REPORTDATA of
+  the dstack TDX quote carries two bindings. Bytes 0 to 31 bind the chain, the registry, the product, the operator and
+  the enclave keys. Bytes 32 to 63 hold the hash of a recent Arc block. `EnclaveRegistry` checks both on Arc (policies
+  P6 and P7, see `../dcap-integration/README.md`).
+- **Bound to one operator.** `/attest` fails closed. An address outside `OPERATOR_ALLOWLIST` gets 403, and an unset or
   empty allowlist authorizes nobody (development mode is the explicit `OPERATOR_ALLOWLIST=*`). If the enclave's key is
-  already registered on Arc for another operator, the answer is 409 (503 if Arc cannot be read through the kit's RPC
-  quorum).
-- **`GET /pubkeys`** and **`GET /health`** are public. Signing, sealing, opening and the RPC relay stay internal to the
+  already registered on Arc for another operator, the answer is 409. If Arc cannot be read through the kit's RPC
+  quorum, the answer is 503.
+- **`GET /pubkeys`** and **`GET /health`** are public. Signing, sealing, opening and the RPC relay stay inside the
   services and are never exposed over HTTP.
 
 ## Products and entry points
@@ -27,14 +28,27 @@ product, the product servers, and the image recipes whose digests the measured c
 | 2 and 7, Sealed Bounty, open and verified levels; 5, the refutation demo | `products/sealed-bounty/server.ts` → `dist/sealed-bounty.mjs` | 8803 | `Dockerfile.bounty` | `phala/sealed-bounty-v21.yml`, `phala/sealed-bounty-verified-v21.yml`, `phala/refute-demo-*.yml` |
 | 4, AskHive, the attested copilot (console and site surfaces) | `../services/copilot/src/enclave-server.ts` → `copilot-enclave.mjs` | 8808 | `Dockerfile.copilot` | `phala/copilot-v21.yml`, `phala/copilot-site-v22.yml` |
 
-The Sealed Bounty replays an exploit with arc-anvil (Circle's Arc Foundry), which forks Arc at block N with Arc's
-precompiles (native USDC, blocklist, EIP-7708 logs). The copilot holds no key: it prepares actions that the user signs
-with their own wallet.
+The Sealed Bounty replays an exploit with arc-anvil, the anvil of Circle's Arc Foundry. It forks Arc at block N with
+Arc's precompiles (native USDC, blocklist, EIP-7708 logs). The copilot holds no key: it prepares actions that the user
+signs with their own wallet.
+
+## Measured compose files
+
+`phala/` holds the app-compose file of each enclave. dstack measures each file byte for byte, comments included, so
+the files stay exactly as deployed. `phala/README.md` describes each one in English.
+
+`docker-compose.bounty.yml` is a template of the Sealed Bounty machine's app-compose (a real replay by anvil on a fork
+of Arc at block N). It leaves the image digest as a parameter; the deployed files in `phala/` pin it in clear.
 
 ## Build the images
 
 Each Dockerfile pins its base image by digest and installs dependencies with `npm ci` from the lockfile. The headers
-of `Dockerfile` and `Dockerfile.copilot` give the reproducible-build steps (fixed timestamps, no provenance manifest).
+of `Dockerfile` and `Dockerfile.copilot` give the steps for a reproducible build: fixed timestamps and no provenance
+manifest.
+
+The image digests pinned in the measured compose files were built on the server from earlier states of these
+sources. This repository does not rebuild them byte for byte today. What runs in each enclave is the image that its
+measured compose file pins by digest.
 
 ```bash
 # from enclave/: sealed-chat and sealed-x402 (one image, two entry points)
@@ -53,27 +67,30 @@ SOURCE_DATE_EPOCH=1794960000 docker buildx build --platform linux/amd64 -f encla
 ## Tests
 
 ```bash
-cd contracts && forge build && cd ..   # the on-chain demo test reads the compiled contracts from contracts/out
-cd enclave && npm ci && npm test   # vitest run
+# from the repository root
+(cd contracts && forge install foundry-rs/forge-std@v1.17.0 OpenZeppelin/openzeppelin-contracts@v5.1.0 --no-git && forge build)
+(cd packages/sdk && npm ci)                        # the tests import the SDK's sources
+(cd enclave && npm ci --legacy-peer-deps && npm test)   # vitest run
 ```
 
-On 20 Nov 2026: 25 test files, 261 tests passed and 10 skipped. The skipped ones run the same replay cases with the
-arc-anvil engine and are skipped when `ARC_ANVIL_BIN` does not point to an arc-anvil binary; plain anvil
-(`ANVIL_BIN`, or `~/.foundry/bin/anvil`) runs the rest. The integration suites start real anvil forks and HTTP servers,
-so `vitest.config.ts` retries a failed test twice; a real bug fails all three runs.
+The on-chain demo test reads the compiled contracts from `contracts/out`, so the contracts are built first.
+
+On 20 Nov 2026: 25 test files, 261 tests passed and 10 skipped. The skipped tests run the same replay cases with the
+arc-anvil engine. They run only when `ARC_ANVIL_BIN` points to an arc-anvil binary. Plain anvil (`ANVIL_BIN`, or
+`~/.foundry/bin/anvil`) runs the rest. The integration suites start real anvil forks and HTTP servers, so
+`vitest.config.ts` retries a failed test twice; a real bug fails all three runs.
 
 ## Scripts
 
-`scripts/` holds the scripts used on Arc testnet: operator and stack set-up (`operator-setup.ts`, `v21-setup.ts`,
-`levels-setup.ts`, `levels-machines.ts`), the registration of a real TDX enclave verified by DCAP on-chain
-(`register-dcap.ts`), the Sealed Bounty end to end (`e2e-bounty-v2.ts`), the refutation demo (`refute-demo.ts`),
-on-chain manifest updates, replay and state-proof checks, and the retirement of earlier stacks.
+`scripts/` holds the scripts used on Arc testnet:
 
-## Measured compose files
+- operator and stack set-up: `operator-setup.ts`, `v21-setup.ts`, `levels-setup.ts`, `levels-machines.ts`;
+- the registration of a real TDX enclave, verified on-chain by DCAP: `register-dcap.ts`;
+- the Sealed Bounty end to end: `e2e-bounty-v2.ts`;
+- the refutation demo: `refute-demo.ts`;
+- on-chain manifest updates, replay and state-proof checks, and the retirement of earlier stacks.
 
-`phala/` holds the app-compose files of the enclaves. dstack measures each file byte for byte, comments included, so
-they stay exactly as deployed; `phala/README.md` summarizes each one in English.
+## What's next
 
-`docker-compose.bounty.yml` is a template of the Sealed Bounty machine's app-compose (real replay by anvil on a fork of
-Arc at block N), with the image digest left as a parameter; the deployed compose files in `phala/` pin the image by
-digest in clear.
+- **Reproducible image builds from a tagged context.** Each image will be built from a tagged commit of this
+  repository, so that anyone can rebuild the digest that a measured compose file pins.
