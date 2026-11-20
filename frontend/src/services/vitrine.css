@@ -156,6 +156,10 @@ html:not([data-cur='1']) .vt-fac:hover::after, html:not([data-cur='1']) .vt-fac:
 .vt-use-d { margin: 0 0 20px; max-width: 36em; font-size: 16px; line-height: 1.55; color: var(--ink2); text-wrap: pretty; }
 .vt-use-w { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 0 0 20px; }
 .vt-use-alt { margin: 20px 0 0; }
+/* the coding agent card, after the Private AI sheet's action (the build cards' style, vit-chapters.css) */
+.vt-r .vt-agent { margin: 24px 0 0; }
+/* the build cards: a last card alone on its row takes the row */
+.vt-r .vit-build-g > .vit-build-c:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .vt-use .act-sec, .vt-use .work-sec { margin: 0; padding: 0; box-shadow: none; }
 .vt-use .act-sec > h2, .vt-use .act-sec-h { font-size: 17px; }
 .vt-tech { margin: 40px 0 0; }

@@ -18,7 +18,7 @@ export const EXPLORER = EXPLORER_URL
 export const CONSOLE = CONSOLE_URL
 /** Operator agent install script: a full URL, even when the console is served under a relative path
  *  (VITE_CONSOLE_URL=/console); install.sh then downloads archive-node.mjs from the site root */
-export const INSTALL_URL = (import.meta.env as Record<string, string | undefined>).VITE_INSTALL_URL ?? 'https://archive.62-171-153-35.sslip.io/install.sh'
+export const INSTALL_URL = (import.meta.env as Record<string, string | undefined>).VITE_INSTALL_URL ?? 'https://arc-hive.xyz/install.sh'
 
 export interface Stats {
   refundedUsdc?: string

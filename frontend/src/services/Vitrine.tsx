@@ -83,6 +83,26 @@ function Title({ text, acc }: { text: string; acc: string }) {
   )
 }
 
+/** the coding agent box: OpenCode, or any OpenAI API tool, through the local bridge, paid per call to #3. On the
+ *  Private AI sheet after its action, and in "Build on it" after the MCP server; same card as the other build cards */
+const AGENT_STR = {
+  en: { t: 'Run your coding agent on it.', d: 'OpenCode, or any tool that speaks the OpenAI API, through a local bridge: each request is sealed to this enclave, whose key Arc checked, and paid 0.01\u00a0USDC per call. Your tools run on your machine.', a: 'Set it up' },
+  fr: { t: 'Faites tourner votre agent de code dessus.', d: 'OpenCode, ou tout outil qui parle l’API d’OpenAI, via un pont local : chaque requête est scellée pour cette enclave, dont Arc a vérifié la clé, et payée 0,01 USDC par appel. Vos outils tournent sur votre machine.', a: 'Le mettre en place' },
+} as const
+const AGENT_URL = 'https://github.com/JeanBaptisteDurand/UBC_2026/tree/main/examples/opencode-archive'
+const ag = (k: keyof typeof AGENT_STR.en) => AGENT_STR[getLang() === 'fr' ? 'fr' : 'en'][k]
+function AgentBox() {
+  useLang()
+  return (
+    <div className="vit-build-c vt-agent">
+      <h3 className="vit-build-t">{ag('t')}</h3>
+      <p className="vit-build-d">{ag('d')}</p>
+      <a className="tlink" href={AGENT_URL} target="_blank" rel="noreferrer">{ag('a')}</a>
+    </div>
+  )
+}
+const agentHtml = () => `<div class="vit-build-c"><h3 class="vit-build-t">${ag('t')}</h3><p class="vit-build-d">${ag('d')}</p><a class="tlink" href="${AGENT_URL}" target="_blank" rel="noreferrer">${ag('a')}</a></div>`
+
 /** the sections of the introduction, after the presentation's chapters (its "offer" board is left out: the sleds and their sheets
  *  say it). "Build on it" is the MCP server and its SDK: it is named so. */
 const SECS = ['notary', 'compare', 'market', 'build', 'faq'] as const
@@ -93,7 +113,11 @@ const secHtml = (c: VitChapter) => {
   const h = fixHtml(c.body)
   if (c.id !== 'build') return h
   // the section is the MCP server: its title says so
-  return h.replace(/<h2 aria-label="[^"]*" class="vt-h vit-h2" id="build-h">[\s\S]*?<span class="ttl-rule"/, '<h2 aria-label="MCP" class="vt-h vit-h2" id="build-h">MCP<span class="ttl-rule"')
+  const m = h.replace(/<h2 aria-label="[^"]*" class="vt-h vit-h2" id="build-h">[\s\S]*?<span class="ttl-rule"/, '<h2 aria-label="MCP" class="vt-h vit-h2" id="build-h">MCP<span class="ttl-rule"')
+  // the coding agent card comes right after the MCP server's card (the grid's first), before the public API
+  const c1 = m.indexOf('<div class="vit-build-c">')
+  const c2 = c1 < 0 ? -1 : m.indexOf('<div class="vit-build-c">', c1 + 1)
+  return c2 < 0 ? m : m.slice(0, c2) + agentHtml() + m.slice(c2)
 }
 
 function Intro({ root, to }: { root: React.RefObject<HTMLDivElement | null>; to: string | null }) {
@@ -297,6 +321,7 @@ function FamSheet({ c, act, back }: { c: VitChapter; act: boolean; back: () => v
         {buy ? <Suspense fallback={<p className="lbl muted">{t('vit.reading')}</p>}><UseBlock fam={c.id} pid={null} back={back} /></Suspense>
           : <><p className="vt-use-d">{t(c.id === 'refutation' ? 'vit.proof.r' : 'vit.proof.o')}</p><div className={`vt-body ${c.cls}`} dangerouslySetInnerHTML={{ __html: parts.proof }} /></>}
       </section>
+      {c.id === 'private-ai' ? <AgentBox /> : null}
       <details className="vt-tech">
         <summary className="vt-tech-s"><span>{t('vit.tech')}</span><span className="lbl muted">{t('vit.tech.d')}</span></summary>
         <div className={`vt-body ${c.cls}`} dangerouslySetInnerHTML={{ __html: parts.rest }} />
