@@ -20,40 +20,37 @@ machine is untouched. Pinning the chip to an inspected datacenter closes that ga
 
 | Contract | Address | What it does |
 |---|---|---|
-| `MachineRegistry` | [`0xd671013f556b1272b25e3cc17c889d402f4dc26d`](https://explorer.testnet.arc.io/address/0xd671013f556b1272b25e3cc17c889d402f4dc26d) | Binds an enclave key to its chip, stores the auditors' declarations, and holds each product's level policy. |
-| `ProofOfCloudAuditor` | [`0xcdc4c150344f06d506deb5500332737e8dcc8fab`](https://explorer.testnet.arc.io/address/0xcdc4c150344f06d506deb5500332737e8dcc8fab) | A trustless auditor. It checks a Proof of Cloud token (EdDSA, co-signed by three trust servers) **on-chain**, then declares the machine for 7 days. |
-| `Ed25519Verifier` | [`0x031579dd04398249feb67852632da4a648d4b5cf`](https://explorer.testnet.arc.io/address/0x031579dd04398249feb67852632da4a648d4b5cf) | Verifies Ed25519 signatures (RFC 8032) with the Smooth CryptoLib (MIT, audited by CryptoExperts and Veridise in 2024). |
-| `PolicyEnclaves` | [`0x665f4bb3c31d23463f45e4092487f6b498490417`](https://explorer.testnet.arc.io/address/0x665f4bb3c31d23463f45e4092487f6b498490417) | The enclave registry as seen through each product's policy. A settlement contract wired to it ignores enclaves below the product's level, with no code change. |
-| `SealedBountyVerified` | [`0x36a8ddf9fcb1308b9e86425bec9b098e933c7348`](https://explorer.testnet.arc.io/address/0x36a8ddf9fcb1308b9e86425bec9b098e933c7348) | The live Sealed Bounty's code, wired to `PolicyEnclaves`. It can slash bonds since **18 Nov 2026, 23:59 UTC** and write ERC-8004 verdicts since **19 Nov, 00:15 UTC**. Any new settlement contract waits 8 days, so every operator can leave before it gains that power. |
+| `MachineRegistry` | [`0xC64e9556AA896b2E8c0bE0fdf3dC7b2c0be24b86`](https://explorer.testnet.arc.io/address/0xC64e9556AA896b2E8c0bE0fdf3dC7b2c0be24b86) | Binds an enclave key to its chip, stores the auditors' declarations, and holds each product's level policy. |
+| `ProofOfCloudAuditor` | [`0xEaf8163fa5Eb2f047d4876bb3Ef2E67250360b73`](https://explorer.testnet.arc.io/address/0xEaf8163fa5Eb2f047d4876bb3Ef2E67250360b73) | A trustless auditor. It checks a Proof of Cloud token (EdDSA, co-signed by three trust servers) **on-chain**, then declares the machine for 7 days. |
+| `Ed25519Verifier` | [`0xf2c47D6eCD25290C9daa826b3D11AC43baaEcEf6`](https://explorer.testnet.arc.io/address/0xf2c47D6eCD25290C9daa826b3D11AC43baaEcEf6) | Verifies Ed25519 signatures (RFC 8032) with the Smooth CryptoLib (MIT, audited by CryptoExperts and Veridise in 2024). |
+| `PolicyEnclaves` | [`0x12c0C33C62666AbE0ab03B286b428C554De71BF8`](https://explorer.testnet.arc.io/address/0x12c0C33C62666AbE0ab03B286b428C554De71BF8) | The enclave registry as seen through each product's policy. A settlement contract wired to it ignores enclaves below the product's level, with no code change. |
+| `SealedBountyVerified` | [`0x8958EA25c9cF7bbee39B32C43187d854B5d73ee6`](https://explorer.testnet.arc.io/address/0x8958EA25c9cF7bbee39B32C43187d854B5d73ee6) | The live Sealed Bounty's code, wired to `PolicyEnclaves`. It slashes bonds and writes ERC-8004 verdicts from the stack's initialization (19 Nov, 20:37 UTC). Any new settlement contract later waits 8 days, so every operator can leave before it gains that power. |
 
 **Proof, on-chain:**
 
-- **`MachineRegistry` was created** on 15 Nov 2026 at 23:00 UTC, in
-  [`0xe043c341…`](https://explorer.testnet.arc.io/tx/0xe043c341b4760b7f7fcd251f1fa7a858ae40b1bd75e0dd4c7dacc91f6f9798e4).
-- **The five live enclaves are bound to their machine**: products 1, 2, 3 and 7, and AskHive (product 4). For example:
-  - product 3's enclave in [`0xf3ed752c…`](https://explorer.testnet.arc.io/tx/0xf3ed752c6df5a9cb2b5325764ce8ef72fc9526664d989d3e2e3ebf04bc866794) (19 Nov, 00:55 UTC);
-  - product 7's in [`0xe6ceda4c…`](https://explorer.testnet.arc.io/tx/0xe6ceda4c5ed7240064b2ae223b7c601954e80407aa2b99c37036abe3cc6c51e8) (19 Nov, 01:02 UTC);
-  - AskHive's in [`0x469706cb…`](https://explorer.testnet.arc.io/tx/0x469706cb81f090b0205c52a20f7739af3d544a8f869f2d0fd09bb8816312111c) (19 Nov, 22:38 UTC);
-  - an earlier binding, on 16 Nov at 17:34 UTC: [`0xd6928088…`](https://explorer.testnet.arc.io/tx/0xd6928088d90f8bbc2585d04564c4a574312593f3f19792a1cdbf819437bb5f4f).
-
+- **`MachineRegistry` was created** on 19 Nov 2026 at 20:37 UTC, in
+  [`0x3e2b4613…ee6b`](https://explorer.testnet.arc.io/tx/0x3e2b4613984e0036b007e837291b7b676d3fe1e0cf6c954476c999699b3cee6b).
+- **The five live enclaves are bound to their machine**, one per product: DCAP admitted each of them on 20 Nov,
+  between 11:19 and 11:23 UTC, in
+  [`0xf7d24e86…989f`](https://explorer.testnet.arc.io/tx/0xf7d24e863126f9124a0536cf936ade912d996f34cf5bde9c61bd63cd8c83989f) (product 2),
+  [`0x6d7d0817…a360`](https://explorer.testnet.arc.io/tx/0x6d7d0817a76c02db8734fba57f0a78b87d33812bc021e1790f3878c2242fa360) (product 5),
+  [`0x1de729e2…0ca5`](https://explorer.testnet.arc.io/tx/0x1de729e24812fb146ca68e57b21664dd5f6e3404312c3f6cfbfa0e8d3fb90ca5) (product 4, AskHive),
+  [`0x2de231e7…6a6a`](https://explorer.testnet.arc.io/tx/0x2de231e77dcde776204eb2067a3985f532f0581d9f2abd4d0ae26cd8eab16a6a) (product 1) and
+  [`0x0e9bf7e1…2111`](https://explorer.testnet.arc.io/tx/0x0e9bf7e1752ca575ef1c6296b57f433f2900a7bef554334c55c47f53eac92111) (product 3).
   All five run on the same Phala machine: PPID `62d54040cb9dfc08bb13006fa75ece56`, FMSPC `20a06f000000`, issued by
   "Intel SGX PCK Platform CA".
 - **The Proof of Cloud alliance declared that machine.** `ProofOfCloudAuditor` verified on-chain a token co-signed by
   the trust servers of Secret, Nillion and iExec, in
-  [`0x3e2aa322…`](https://explorer.testnet.arc.io/tx/0x3e2aa32251a7a7cfa7ee69c3fa653cac6dd4272db2ae92d1b4ed760178fdcd35)
-  (15 Nov, 23:01 UTC, 5,163,166 gas), and again in
-  [`0x38c587ae…`](https://explorer.testnet.arc.io/tx/0x38c587aefb3d325383f471be5f6f359dd40123b4c57ce259b0c0bd96987b1e83)
-  (19 Nov, 00:56 UTC). The machine is declared until 26 Nov.
+  [`0xbc3c3934…6c66`](https://explorer.testnet.arc.io/tx/0xbc3c39347772a83a2259b3a4101959ce88ad1211b241fae38a965df819fa6c66)
+  (20 Nov, 11:19 UTC). The machine is declared until 26 Nov.
 - **The five enclaves are at the verified level.** Anyone can check with `arcvault operator level --signer <key>` or
   `GET /api/levels`.
-- **Product 7, "Sealed Bounty, verified operator level"**, is the first product that *requires* the verified level:
-  - its policy is level 1, with `ProofOfCloudAuditor` as the auditor: proposed in
-    [`0xac310659…`](https://explorer.testnet.arc.io/tx/0xac31065911dd45ba8e1298448e48337b454f193b33d9e23993c70d4d587c3070),
-    applied in [`0x12591911…`](https://explorer.testnet.arc.io/tx/0x125919112a377807014116791c46d256e1346531b0daa87f3b0e9a96d789d079) (16 Nov, 17:33 UTC);
-  - its enclave runs in its own Intel TDX VM on the declared machine (Phala `prod9`). DCAP admitted it in
-    [`0xf18cb68f…`](https://explorer.testnet.arc.io/tx/0xf18cb68f068e5cfaa993a67da2fd98f4c5d73123460533d0901052b06d166a2c) (19 Nov, 01:02 UTC),
-    and it was bound to its machine in [`0xe6ceda4c…`](https://explorer.testnet.arc.io/tx/0xe6ceda4c5ed7240064b2ae223b7c601954e80407aa2b99c37036abe3cc6c51e8);
-  - `PolicyEnclaves.activeOperatorAt(<its key>, 7, <block>)` returns the operator while the enclave is active and
+- **Product 5, "Sealed Bounty, verified operator level"**, is the first product that *requires* the verified level:
+  - its policy is level 1, with `ProofOfCloudAuditor` as the auditor, published with the product at 20:42 UTC on
+    19 Nov in [`0xd5ebcd8d…acf3`](https://explorer.testnet.arc.io/tx/0xd5ebcd8d7150c6e8672ad2831e2e706e3f0fc6850828f59dc0841a2a0a6bacf3);
+  - its enclave runs in its own Intel TDX VM on the declared machine (Phala `prod9`), admitted on 20 Nov at 11:20 UTC
+    in [`0x6d7d0817…a360`](https://explorer.testnet.arc.io/tx/0x6d7d0817a76c02db8734fba57f0a78b87d33812bc021e1790f3878c2242fa360);
+  - `PolicyEnclaves.activeOperatorAt(<its key>, 5, <block>)` returns the operator while the enclave is active and
     bound, so the enclave counts;
   - its exploit replay reads Arc through the strict relay. It can also prove every state read (`STATE_PROOF_RPC_URL`)
     once an Arc RPC serves historical `eth_getProof`;
