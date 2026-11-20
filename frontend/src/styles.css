@@ -119,6 +119,9 @@ html[data-pin='1'] .veil { opacity: 0; }
 .hd-row1, .hd-row2 { padding-left: max(var(--gut), env(safe-area-inset-left)); padding-right: max(var(--gut), env(safe-area-inset-right)); }
 .band-i { display: inline-flex; gap: 8px; }
 .band-i > span:last-child { color: var(--ink2); }
+/* landing band: the live count of verified machines, then "open to any operator" (the count has no ceiling) */
+.band-mach > span, .band-mach > span:last-child { color: var(--ink3); }
+.band-mach > .band-v { color: var(--ink2); }
 .band-sec { margin-left: auto; display: inline-flex; align-items: baseline; gap: 8px; color: var(--ink); }
 .prog-pct { color: var(--acc); min-width: 4ch; text-align: right; margin-left: 8px; }
 .prog { position: relative; height: 1px; }
@@ -515,6 +518,11 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
 /* Narrow phones: the second header row drops the section name (the page title already says it; on the landing the
    progress bar does), and row 1 tightens so the logo, the language, the wallet and the menu always fit */
 @media (max-width: 480px) { .hd-row2 .band-sec { display: none; } }
+/* Landing band: "5 verified machines live · open to any operator" is never cut. Under 860 px the block number goes;
+   on narrow phones the network name goes too, and the line is set one pixel smaller */
+@media (max-width: 860px) { .band-arc + .band-i { display: none; } }
+@media (max-width: 480px) { .hd-row2 .band-arc { display: none; } .band-mach, .band-mach .mono { font-size: 12px; } }
+@media (max-width: 370px) { .band-mach, .band-mach .mono { font-size: 11.5px; } }
 @media (max-width: 400px) {
   .hd-row1, .hd-side { gap: 8px; }
   .lang, .menu-btn { padding: 0 10px; }
