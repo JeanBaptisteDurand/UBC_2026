@@ -74,14 +74,14 @@ createServer((rq, rs) => {
       .catch(() => json(rs, 503, { ok: false, error: "node unavailable" }));
     return;
   }
-  if (rq.method !== "POST") return json(rs, 405, { error: "POST JSON-RPC seulement" });
+  if (rq.method !== "POST") return json(rs, 405, { error: "JSON-RPC over POST only" });
   const chunks = [];
   let size = 0, tooBig = false;
   rq.on("data", (d) => { size += d.length; if (size > MAX_BODY) tooBig = true; else chunks.push(d); });
   rq.on("end", async () => {
     if (tooBig) return json(rs, 413, rpcErr(null, -32600, "request too large"));
     let q;
-    try { q = JSON.parse(Buffer.concat(chunks).toString("utf8")); } catch { return json(rs, 400, rpcErr(null, -32700, "JSON illisible")); }
+    try { q = JSON.parse(Buffer.concat(chunks).toString("utf8")); } catch { return json(rs, 400, rpcErr(null, -32700, "unreadable JSON")); }
     const items = Array.isArray(q) ? q : [q];
     if (items.length === 0 || items.length > MAX_BATCH) return json(rs, 400, rpcErr(null, -32600, `batch of 1 to ${MAX_BATCH} requests`));
     for (const it of items) {
@@ -103,4 +103,4 @@ createServer((rq, rs) => {
       json(rs, 502, rpcErr(null, -32603, "node unavailable"));
     }
   });
-}).listen(PORT, HOST, () => console.log(`passerelle RPC d'Arc : ${HOST}:${PORT} → ${UPSTREAM} (lectures seulement)`));
+}).listen(PORT, HOST, () => console.log(`Arc RPC gateway: ${HOST}:${PORT} → ${UPSTREAM} (reads only)`));
