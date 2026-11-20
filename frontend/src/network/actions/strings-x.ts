@@ -33,7 +33,7 @@ const EN = {
   'b.level': 'Level', 'b.lvl.open': 'Open level', 'b.lvl.open.d': 'Product 2, SealedBounty. Any enclave attested by Intel and verified by Arc.',
   'b.lvl.verified': 'Verified level', 'b.lvl.verified.d': 'Product 7, SealedBountyVerified. The machine is also declared by Proof of Cloud.',
   'b.enc.open': 'Bounty enclave', 'b.enc.verified': 'Verified bounty enclave',
-  'b.slashFrom': 'The verified bounty can slash and write its verdicts from {when}.', 'b.slashDate': 'The verified bounty can slash and write its verdicts from 18/11, 23:00 UTC.',
+  'b.slashFrom': 'The verified bounty can slash and write its verdicts from {when}.', 'b.slashDate': 'The verified bounty can slash since 18/11, 23:59 UTC, and write its verdicts since 19/11, 00:15 UTC.',
   'b.list': 'Bounties', 'b.h.bounty': 'Bounty', 'b.h.protocol': 'Protocol', 'b.h.pool': 'Pool', 'b.h.deadline': 'Deadline', 'b.h.state': 'State', 'b.h.act': 'Action',
   'b.row': 'Bounty {id}, product {p}', 'b.none': 'No bounty on this level yet.', 'b.st.open': 'open', 'b.st.expired': 'expired', 'b.st.paused': 'paused', 'b.st.paid': '{a} already paid', 'b.st.refuted': 'claim refuted on Arc: nothing paid, the liar’s bond seized',
   'b.hunt': 'Hunt', 'list.unread': 'The list could not be read.', 'list.reread': 'Read again',

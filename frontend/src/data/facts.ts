@@ -23,7 +23,9 @@ export const C = {
 /** Product roles the chain does not state:
  *  - 5: the refutation demo (refuteDemo.product: an image that lies on purpose);
  *  - 6: superseded by 7 (products.6.superseded: neutralised, its settlement contract is immutable);
- *  - 7: the verified-operator sealed bounty (products.7, slashing possible from slashFromUtc). */
+ *  - 7: the verified-operator sealed bounty (products.7). Its bond slashing was authorized on Arc at
+ *    2026-11-18T23:59:59Z (OperatorBond.applySettlement, tx 0xa7ee984c…); slashFromUtc (23:00:37) is only
+ *    when the 8-day delay ended. Its verdicts were authorized at 2026-11-19T00:15:33Z (VerdictLog.applyCaller). */
 export type ProductRole =
   | { role: 'refuteDemo' }
   | { role: 'superseded'; by: string }
@@ -31,7 +33,7 @@ export type ProductRole =
 export const PRODUCT_ROLE: Record<string, ProductRole> = {
   '5': { role: 'refuteDemo' },
   '6': { role: 'superseded', by: '7' },
-  '7': { role: 'verified', slashFrom: 1795042837 }, // 2026-11-18T23:00:37Z
+  '7': { role: 'verified', slashFrom: 1795046399 }, // 2026-11-18T23:59:59Z
 }
 export const roleOf = (productId?: string | null) => (productId ? PRODUCT_ROLE[productId] : undefined)
 export const isSuperseded = (productId?: string | null) => roleOf(productId)?.role === 'superseded'
