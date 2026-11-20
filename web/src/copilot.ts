@@ -1,15 +1,15 @@
-/** copilot.ts — the ATTESTED copilot on the site side (product 4 of v2.1), when VITE_COPILOT_ENCLAVE_URL,
- *  VITE_COPILOT_PRODUCT_ID and VITE_COPILOT_OPERATOR are set (config.ts: ATTESTED_COPILOT):
- *  - makeAttestedCopilot: the SDK client (createAttestedCopilotClient). It reads Arc's RPC DIRECTLY (wagmi's public
- *    client, never the ArcHive API) to verify the copilot's key (registered for this product, active, image still
- *    allowed, operator not struck off, and active under the expected operator), encrypts the conversation to it and
- *    accepts only a reply sealed for THIS request;
- *  - registrationTx: the enclave's registration transaction (EnclaveRegistered at the block where its window began),
- *    for the badge's explorer link. A single-block read, kept in memory;
- *  - stripCitations: a copilot's text (attested or server) at display time, without the model's raw citation marks
- *    (the sources are in the "sources" line).
- *  The "attested copilot · verified on Arc" badge comes ONLY from an authenticated reply (authenticated === true):
- *  the bubble (screens/FloatingCopilot.tsx) never shows it for a clear-text refusal or for the server's copilot. */
+/** copilot.ts — the ATTESTED copilot on the site side (product 4 of v2.1). It is on when VITE_COPILOT_ENCLAVE_URL,
+ *  VITE_COPILOT_PRODUCT_ID and VITE_COPILOT_OPERATOR are set (config.ts: ATTESTED_COPILOT).
+ *  - makeAttestedCopilot builds the SDK client (createAttestedCopilotClient). It reads Arc's RPC DIRECTLY, through
+ *    wagmi's public client and never the ArcHive API, to verify the copilot's key: registered for this product,
+ *    active, image still allowed, operator not struck off, and active under the expected operator. It then encrypts
+ *    the conversation to that key, and accepts only a reply sealed for THIS request.
+ *  - registrationTx finds the enclave's registration transaction (EnclaveRegistered, at the block where its window
+ *    began) for the badge's explorer link. It reads a single block and keeps the answer in memory.
+ *  - stripCitations removes the model's raw citation marks from a copilot's text at display time, attested or not.
+ *    The sources have their own line.
+ *  The "attested copilot · verified on Arc" badge comes ONLY from an authenticated reply (authenticated === true). The
+ *  bubble (screens/FloatingCopilot.tsx) never shows it for a clear-text refusal or for the server's copilot. */
 import { parseAbiItem, type Address, type Hex, type PublicClient } from "viem";
 import { createAttestedCopilotClient, testnet, type AttestedCopilotClient } from "@arcvault/sdk";
 import { ATTESTED_COPILOT } from "./config";

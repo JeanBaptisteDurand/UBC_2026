@@ -1,20 +1,23 @@
 /** errors.ts — refusals explained in the site's language (English or French), for the whole site (v2.1 stack).
- *  - contract refusals: decoded by the SDK (arcErrorOf: every contract error of the stack, by name, even from a called
- *    contract). French: the SDK's own sentence (explainArcError, unchanged). English: the name, its arguments and the
- *    English table (i18n/contract-errors.en.ts), or a generic sentence with the name for an error it doesn't know;
- *  - ArcHive API refusals: by their stable code, in both languages (i18n/api-errors.ts); an API without codes (or a
- *    code this version doesn't know): its French text, translated in English by the rules below;
- *  - what isn't a contract refusal: the wallet (signature rejected, wrong network, gas), the enclaves (key that
- *    doesn't match the chain, session to top up or over, answer refused), the network, an RPC that limits the rate or
- *    fails (viem's "HTTP request failed.", now put into words in both languages);
- *  - pay per call (x402) and the attested copilot: from the error's fields (reason, status, code, amounts), never from
- *    a server's text (not authenticated);
- *  - French messages from the SDK or an enclave: shown as they came in French, translated in English by the
- *    rules of i18n/sdk-messages.en.ts (the message as it came if no rule knows it);
- *  - the site's own refusals (MsgError, msg.ts): their message, put into words again in the current language;
- *  - any other error: its message as it came, except in French when it isn't French (the browser, a library):
- *    « erreur inattendue (TypeError) », never an English message as it came.
- *  An error kept in a status line is explained when it is DISPLAYED (msg.ts, fail): the sentence follows the language. */
+ *  - Contract refusals are decoded by the SDK (arcErrorOf): every contract error of the stack, by name, even from a
+ *    called contract. French shows the SDK's own sentence (explainArcError, unchanged). English shows the name, its
+ *    arguments and the English table (i18n/contract-errors.en.ts), or a generic sentence with the name for an error
+ *    the table does not know.
+ *  - ArcHive API refusals go by their stable code, in both languages (i18n/api-errors.ts). An API without codes, or a
+ *    code this version does not know, gives its French text: English translates it by the rules of
+ *    i18n/sdk-messages.en.ts.
+ *  - What is not a contract refusal comes next: the wallet (signature rejected, wrong network, gas), the enclaves (a key
+ *    that does not match the chain, a session to top up or over, an answer refused), the network, and an RPC that
+ *    limits the rate or fails (viem's "HTTP request failed.", put into words in both languages).
+ *  - Pay per call (x402) and the attested copilot are explained from the error's fields (reason, status, code,
+ *    amounts), never from a server's text, which is not authenticated.
+ *  - French messages from the SDK or an enclave show as they came in French. English translates them by the rules of
+ *    i18n/sdk-messages.en.ts, and shows a message no rule knows as it came.
+ *  - The site's own refusals (MsgError, msg.ts) are put into words again, in the current language.
+ *  - Any other error shows its message as it came, except a message that is not French on the French site (the
+ *    browser, a library): « erreur inattendue (TypeError) », never an English message as it came.
+ *  An error kept in a status line is explained when it is DISPLAYED (msg.ts, fail), so the sentence follows the
+ *  language. */
 import { arcErrorOf, explainArcError } from "@arcvault/sdk";
 import { fmtUnix, getLang, t } from "./i18n";
 import { apiErrorText } from "./i18n/api-errors";

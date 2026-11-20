@@ -1,14 +1,15 @@
 /** operatorActions.ts — operator actions signed by the wallet, from the site (v2.1 stack).
- *  - signAction: an EIP-4361 message ("Sign-In with Ethereum", signin.ts) with a fresh nonce from the API; the wallet
- *    shows the site, the action, the network and the expiry, and flags an impostor site; no transaction, no fee.
- *  - registerMachineEnclave: registration through the REAL DCAP verifier. The SDK reads the machine's attestation
- *    (/attest), checks the quote off-chain (real Intel TDX, no DEBUG, SEPT_VE_DISABLE, an image allowed by the product,
- *    REPORTDATA bound to your address), then calls registerEnclave: the chain verifies Intel's signature (≈ 6.9 M gas)
- *    and the product's policy. No test module, no hand-declared measurement: a simulated quote is refused before
- *    anything is sent. Also returns `admittedBy`: the fingerprint that got the enclave admitted ("image": stable across
- *    restarts; "workload": the machine's full fingerprint), shown after registration (registeredMsg).
- *    Its steps (onStep) and its success message are messages (msg.ts): they follow the site's language.
- *  - sendTx: a transaction the SDK does not wrap (e.g. setAgentId), simulated and then awaited. */
+ *  - signAction signs an EIP-4361 message ("Sign-In with Ethereum", signin.ts) with a fresh nonce from the API. The
+ *    wallet shows the site, the action, the network and the expiry, and flags an impostor site. No transaction, no fee.
+ *  - registerMachineEnclave registers through the REAL DCAP verifier. The SDK reads the machine's attestation (/attest)
+ *    and checks the quote off-chain: real Intel TDX, no DEBUG, SEPT_VE_DISABLE, an image the product allows, and
+ *    REPORTDATA bound to your address. It then calls registerEnclave, and the chain verifies Intel's signature
+ *    (≈ 6.9 M gas) and the product's policy. There is no test module and no hand-declared measurement: a simulated
+ *    quote is refused before anything is sent. It also returns `admittedBy`, the fingerprint that got the enclave
+ *    admitted ("image": stable across restarts; "workload": the machine's full fingerprint), shown after registration
+ *    (registeredMsg). Its steps (onStep) and its success message are messages (msg.ts), so they follow the site's
+ *    language.
+ *  - sendTx sends a transaction the SDK does not wrap (e.g. setAgentId), simulated first, then awaited. */
 import { type Address, type Hex } from "viem";
 import { arcErrorsAbi, testnet, type ArcClient } from "@arcvault/sdk";
 import { fetchNonce, type Signed } from "./api";

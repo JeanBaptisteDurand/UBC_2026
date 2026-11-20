@@ -1,6 +1,7 @@
-/** api.ts — reads state through the ArcHive HTTP API instead of bursts of RPC reads in the browser.
- *  The API reads the chain once on the server (cached); this file revives the bigints of the SDK views (v2.1 stack:
- *  enclave validity windows in blocks, bounty tiers already paid, the enclave and price locked by each session). */
+/** api.ts — reads state through the ArcHive HTTP API, instead of bursts of RPC reads in the browser.
+ *  The API reads the chain once, on the server, and caches it. This file revives the bigints of the SDK views (v2.1
+ *  stack): enclave validity windows in blocks, bounty tiers already paid, and the enclave and price each session
+ *  locked. */
 import type { EnclaveView, ProductView, BountyRow } from "@arcvault/sdk";
 import { API_URL } from "./config";
 import { msg, show, type Msg } from "./msg";

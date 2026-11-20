@@ -1,16 +1,16 @@
-/** x402.ts — on the site side, private inference paid PER CALL (x402 rail; product 3 of the v2.1 stack, settled by
- *  X402Settler):
- *  - readX402Price: the price of a call READ ON ARC (ProductRegistry.getProduct and isActive, at the same block), and
- *    whether this product is really paid per call (settlement = the deployment's X402Settler). This is the price the
- *    page shows BEFORE any signature;
- *  - makeX402: the SDK client (createX402Client) capped at this price: maxAmount = the price shown (the SDK signs nothing
- *    above it), and a wallet that lets through ONLY the EIP-3009 authorization of one call (ReceiveWithAuthorization,
- *    to X402Settler, in the domain of Arc's USDC) of at most this price: a second guard, independent of the SDK. The
- *    wallet is the connected one (the browser's, or the site's test wallet in test mode);
- *  - settlementOf / useSettlement: where the settlement of a paid call stands, read on the chain
- *    (USDC.authorizationState, then X402Settler's CallSettled event) or, failing that, in the activity indexed by the
- *    API: waiting for the operator, settled (by which operator, in which transaction), consumed with no event found
- *    (cancelled?), or expired without settlement (nothing was charged). Reads only. */
+/** x402.ts — private inference paid per call, on the site side (the x402 rail: product 3 of the v2.1 stack, settled by
+ *  X402Settler).
+ *  - readX402Price reads a call's price on Arc (ProductRegistry.getProduct and isActive, at the same block). It also
+ *    checks that the product really is paid per call: its settlement is the deployment's X402Settler. The page shows
+ *    this price BEFORE any signature.
+ *  - makeX402 builds the SDK client (createX402Client), capped at that price: maxAmount is the price shown, and the SDK
+ *    signs nothing above it. A second guard, independent of the SDK, sits in the wallet. It lets through ONLY the
+ *    EIP-3009 authorization of one call (ReceiveWithAuthorization, to X402Settler, in the domain of Arc's USDC), at
+ *    most at that price. The wallet is the connected one: the browser's, or the site's test wallet in test mode.
+ *  - settlementOf and useSettlement tell where a paid call's settlement stands. They read the chain
+ *    (USDC.authorizationState, then X402Settler's CallSettled event) and fall back on the activity the API indexes.
+ *    The answer is one of: waiting for the operator; settled (by which operator, in which transaction); consumed with
+ *    no event found (cancelled?); expired without settlement (nothing was charged). Reads only. */
 import { useEffect, useState } from "react";
 import type { Address, Hex } from "viem";
 import {

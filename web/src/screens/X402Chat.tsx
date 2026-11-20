@@ -1,14 +1,16 @@
-/** X402Chat.tsx — private AI PAID PER CALL (x402 rail, product 3 of the v2.1 stack): no session, no deposit. Each
- *  message is a call, encrypted for the enclave alone (its key checked against Arc) and paid by ONE EIP-3009 signature
- *  for the exact price READ ON ARC, to X402Settler (a signature, not a transaction: no gas). The price is shown BEFORE
- *  any signature and nothing is signed above it (x402.ts: the SDK's maxAmount, and a wallet capped at this price).
- *  Each answer arrives with its receipt, verified by the SDK (signed by the verified enclave, for this payer, this
- *  amount, this request and this text), then the state of its settlement read on Arc: pending → settled by the operator.
+/** X402Chat.tsx — private AI PAID PER CALL (the x402 rail, product 3 of the v2.1 stack): no session, no deposit.
+ *  Each message is one call, encrypted for the enclave alone (its key checked against Arc). ONE EIP-3009 signature
+ *  pays it to X402Settler, at the exact price READ ON ARC. A signature is not a transaction, so it costs no gas.
+ *  The price shows BEFORE any signature, and nothing is signed above it (x402.ts: the SDK's maxAmount, and a wallet
+ *  capped at that price).
+ *  Each answer arrives with its receipt, which the SDK verifies: signed by the verified enclave, for this payer, this
+ *  amount, this request and this text. The state of its settlement follows, read on Arc: pending, then settled by
+ *  the operator.
  *  A paid call left without a verified answer (X402PaidCallError) is explained: the answer may be lost while the
- *  payment may still be settled; "resume" sends the SAME request with the SAME authorization (never charged twice),
- *  as long as the enclave can still return it; a price that rose in the meantime is accepted only by a click that
- *  shows it. Any failure before payment (key, price, enclave refusal, signature refused) puts the message back in the
- *  field: nothing was signed. */
+ *  payment may still settle. "Resume" sends the SAME request with the SAME authorization, so it is never charged
+ *  twice, as long as the enclave can still return the answer. A price that rose in the meantime is accepted only by a
+ *  click that shows it. Any failure before payment (key, price, enclave refusal, signature refused) puts the message
+ *  back in the field: nothing was signed. */
 import { useEffect, useRef, useState } from "react";
 import { useAccount } from "wagmi";
 import { Loader2 } from "lucide-react";

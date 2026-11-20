@@ -1,16 +1,16 @@
 /** FloatingCopilot.tsx — the copilot bubble (AskHive), on every page.
  *  Two copilots, never mixed silently:
- *  - the ATTESTED copilot (if configured: config.ts, ATTESTED_COPILOT): its key is verified on Arc by reading Arc's RPC
- *    directly, the conversation goes encrypted to its enclave and the reply comes back sealed (SDK,
+ *  - the ATTESTED copilot, when configured (config.ts, ATTESTED_COPILOT). Its key is verified on Arc, by reading Arc's
+ *    RPC directly. The conversation goes encrypted to its enclave, and the reply comes back sealed (the SDK's
  *    createAttestedCopilotClient). An authenticated reply (authenticated === true) carries the "attested copilot ·
- *    verified on Arc" badge, with a link to the enclave's registration on the explorer; a clear-text refusal (with no
- *    proof of origin) is described by a LOCAL message drawn from its code, never by the relay's text;
- *  - the SERVER copilot (VITE_COPILOT_URL), in clear text: each reply is labelled "server copilot (not attested)" as
- *    soon as the attested copilot exists.
- *  If the key does not verify, if the enclave does not answer or if its reply does not open: an explicit message, then
- *  the VISIBLE fallback to the server copilot (banner, label on each reply). The question that failed is never sent to
- *  the server without a click, and the server never receives the attested part of the conversation.
- *  Actions to sign proposed by either one go through the verification card (CopilotActions.tsx). */
+ *    verified on Arc" badge, with a link to the enclave's registration on the explorer. A clear-text refusal has no
+ *    proof of origin, so a LOCAL message drawn from its code describes it, never the relay's text.
+ *  - the SERVER copilot (VITE_COPILOT_URL), in clear text. Once the attested copilot exists, each server reply is
+ *    labelled "server copilot (not attested)".
+ *  If the key does not verify, the enclave does not answer or its reply does not open, an explicit message says so.
+ *  The VISIBLE fallback to the server copilot follows: a banner, and a label on each reply. The question that failed
+ *  goes to the server only after a click, and the server never receives the attested part of the conversation.
+ *  Actions to sign, from either copilot, go through the verification card (CopilotActions.tsx). */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useAccount, usePublicClient } from "wagmi";
 import { ExternalLink, Loader2, RotateCcw, ShieldCheck } from "lucide-react";

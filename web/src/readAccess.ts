@@ -1,7 +1,7 @@
-/** readAccess.ts — the operator's reserved read: ONE EIP-4361 signature ("read my operator data"), valid for 10
- *  minutes, kept in memory for the page's session (never written to disk, forgotten on reload). It opens the machines'
- *  details (diagnostics, logs), their real names and the real labels of the operator keys; the API consumes its nonce
- *  on first use and then accepts it until it expires. */
+/** readAccess.ts — the operator's reserved read. ONE EIP-4361 signature ("read my operator data") is valid for 10
+ *  minutes and kept in memory for the page's session: never written to disk, forgotten on reload. It opens the
+ *  machines' details (diagnostics, logs), their real names and the real labels of the operator keys. The API consumes
+ *  its nonce on first use, then accepts it until it expires. */
 import { useEffect, useState } from "react";
 import type { ArcClient } from "@arcvault/sdk";
 import type { Signed } from "./api";

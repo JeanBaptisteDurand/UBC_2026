@@ -1,12 +1,12 @@
 /** arc.ts — console helpers for the ArcHive v2.1 stack on Arc testnet.
- *  - the deployment's reference products (1 = Private inference, 2 = Sealed bounty);
- *  - the verification label, which follows the deployment's attestation module ("dcap": verified by Arc) and the
- *    site's language (verifiedLabel, dcapGasLabel: functions, read at display time);
- *  - useVerifiedEnclave: an enclave's keys CHECKED against the chain (verifyEnclaveKeys) before any encryption.
- *    /pubkeys goes through the site's same-origin proxy: only the key registered on-chain counts;
- *  - waitOk / trackTxs: wait for a transaction, follow the transactions of a multi-step action;
- *  - closeOutcome: what became of the ERC-8004 verdict when a session closed (v2.1 stack: written, not applicable
- *    without a payment, or skipped), read from the events of its transaction. */
+ *  - The deployment's reference products: 1 is Private inference, 2 is Sealed bounty.
+ *  - The verification label follows the deployment's attestation module ("dcap": verified by Arc) and the site's
+ *    language. verifiedLabel and dcapGasLabel are functions, read at display time.
+ *  - useVerifiedEnclave CHECKS an enclave's keys against the chain (verifyEnclaveKeys) before any encryption.
+ *    /pubkeys goes through the site's same-origin proxy, and only the key registered on-chain counts.
+ *  - waitOk waits for a transaction; trackTxs follows the transactions of a multi-step action.
+ *  - closeOutcome tells what became of the ERC-8004 verdict when a session closed: written, not applicable without a
+ *    payment, or skipped (v2.1 stack). It reads the events of the closing transaction. */
 import { useEffect, useState } from "react";
 import { decodeErrorResult, parseAbi, parseEventLogs, parseUnits, type Hex, type Log, type TransactionReceipt } from "viem";
 import {
