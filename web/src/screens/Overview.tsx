@@ -1,8 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { MessageSquareLock, Crosshair, Server, PackagePlus, ChevronRight } from "lucide-react";
-import { testnet } from "../deployment";
+import { STACK_NAME, testnet } from "../deployment";
 import { fetchStats, fetchActivity, fetchProof, type Stats, type ActivityEvent, type Proof } from "../api";
-import { PageHeader, Section, Hex, usdc, short } from "../ui";
+import { PageHeader, Section, Hex, Badge, usdc, short } from "../ui";
 import { skipReason } from "../arc";
 import { explainError } from "../errors";
 import { fmtNum, fmtUnix, t, tx } from "../i18n";
@@ -238,8 +238,10 @@ export default function Overview({ go }: { go: (r: string) => void }) {
             {(act ?? []).map((e, i) => {
               const known = Object.prototype.hasOwnProperty.call(LABEL, e.name);
               const [label, base]: [string, ReactNode] = known ? LABEL[e.name]!(e.args) : [e.name, ""];
-              // a verified-level bounty has its own numbers (product 5's contract): the detail says so
-              const lvl = e.contract === "SealedBountyVerified" ? t("ev.d.verifiedLevel") : "";
+              // an event of the previous stack (v2.1, kept readable by the API) says so; its numbers are v2.1's
+              const prev = !!e.stack && e.stack !== STACK_NAME;
+              // a verified-level bounty has its own numbers (product 5's contract; product 7's on v2.1): the detail says so
+              const lvl = e.contract === "SealedBountyVerified" ? (prev ? t("ev.d.verifiedLevelPrev", { stack: e.stack ?? "" }) : t("ev.d.verifiedLevel")) : "";
               const detail: ReactNode = lvl ? (base ? <>{base}, {lvl}</> : lvl) : base;
               const block = fmtNum(e.block);
               return (
@@ -247,7 +249,7 @@ export default function Overview({ go }: { go: (r: string) => void }) {
                   {/* the title wraps rather than being cut; the short hash stays on one line (under the title on a phone, so
                       its 44 px buttons do not squeeze the text) */}
                   <div className="min-w-0">
-                    <div className="break-words text-[13px] leading-snug">{label}</div>
+                    <div className="break-words text-[13px] leading-snug">{prev && <Badge tone="muted">{e.stack}</Badge>} {label}</div>
                     {/* a long detail (a manifest's address) wraps instead of running under the hash */}
                     <div className="text-[12px] text-muted [overflow-wrap:anywhere]">{detail ? tx("ov.activity.detailBlock", { detail, n: block }) : t("common.block", { n: block })}</div>
                   </div>

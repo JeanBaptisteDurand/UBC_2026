@@ -396,6 +396,7 @@ export const fr: Dict = {
   "ev.ManifestURIUpdateProposed": "Produit #{id} : nouvelle adresse de manifeste proposée",
   "ev.d.applyAt": "{uri}, applicable à partir du {when}",
   "ev.d.verifiedLevel": "niveau vérifié (contrat du produit #5)",
+  "ev.d.verifiedLevelPrev": "niveau vérifié ({stack} : contrat du produit #7)",
   "ev.Bonded": "Caution d'opérateur déposée",
   "ev.UnbondRequested": "Retrait de caution demandé par l'opérateur",
   "ev.Withdrawn": "Caution d'opérateur retirée",

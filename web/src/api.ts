@@ -81,8 +81,10 @@ export interface Stats {
   /** bounties at both levels, the ones that can be hunted now, refuted claims, seized bonds */
   bountiesOpen?: number; claimsRefuted?: number; bondSlashedUsdc?: string;
 }
-/** An event from /activity; `label`: its English label from the API, while the site writes its own in its language. */
-export interface ActivityEvent { contract: string; name: string; args: Record<string, string | number>; block: number; tx: string; ts?: string; logIndex?: number; label?: string }
+/** An event from /activity; `label`: its English label from the API, while the site writes its own in its language.
+ *  `stack`: the stack it happened on (the API covers the live stack and v2.1's history); its args are as written on
+ *  Arc, so a v2.1 event's product numbers are v2.1's. */
+export interface ActivityEvent { contract: string; name: string; args: Record<string, string | number>; block: number; tx: string; ts?: string; logIndex?: number; label?: string; stack?: string }
 /** The outcome of the ERC-8004 verdict of the session shown by the proof chain; "no_verdict_rail": a product whose rail
  *  writes no verdict (a paid x402 call, a free product). */
 export type VerdictStatus = "written" | "not_applicable" | "skipped" | "none" | "pending" | "no_verdict_rail";

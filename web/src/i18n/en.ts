@@ -405,6 +405,7 @@ export const en = {
   "ev.d.applyAt": "{uri}, applicable from {when}",
   "ev.ManifestURIUpdated": "Product #{id}: manifest URI changed",
   "ev.d.verifiedLevel": "verified level (product #5 contract)",
+  "ev.d.verifiedLevelPrev": "verified level ({stack}: product #7 contract)",
   "ev.Bonded": "Operator bond posted",
   "ev.UnbondRequested": "Operator asked to withdraw bond",
   "ev.Withdrawn": "Operator bond withdrawn",

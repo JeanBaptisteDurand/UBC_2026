@@ -3,13 +3,16 @@
    load and every 20 s. A new enclave key gets its rack, and each new event plays as it happens, stamped with the real
    time of its block. Opened as a file, or when the API cannot be reached, the room shows the recorded state.
    Two stacks: the recorded history is the first stack (v2.1, DATA.stack), kept as it happened; the live room follows
-   the stack the API indexes (DATA.live: v3). The API is on v3 when it indexes from v3's deployment block or reports v3's
-   verified-level contract. Then its product numbers are mapped to the room's keys (the first stack's numbers: v3's
-   product 5, the verified-level bounty, is the room's 7), and the recorded racks stay as the first stack's history. */
+   the stack the API serves (DATA.live: v3). The API names it (/index: stack), else it is told apart by its index's start
+   block or its verified-level contract. Its events carry their own stack (/activity covers both: v2.1 stays readable
+   after the switch); a live-stack event's product numbers are mapped to the room's keys (the first stack's numbers:
+   v3's product 5, the verified-level bounty, is the room's 7), and the recorded racks stay as the first stack's
+   history. The API's cumulative counters add both stacks; its enclaves and levels are the live stack's. */
 const RPC = (DATA.chain && DATA.chain.rpc) || 'https://rpc.testnet.arc.io';
 const LIVE = DATA.live || {};
 const FIRST = (DATA.stack && DATA.stack.name) || 'v2.1';
 function stackOf(idx, levels) {
+  if (idx && typeof idx.stack === 'string' && idx.stack) return idx.stack;
   const from = Number((idx || {}).fromBlock);
   const vb = lc(levels && levels.contracts && levels.contracts.sealedBountyVerified);
   const mine = lc((LIVE.contracts || {}).SealedBountyVerified);
@@ -17,8 +20,8 @@ function stackOf(idx, levels) {
 }
 /* true when the API follows the live stack (v3), not the first one */
 const onLive = () => !!director.liveStack && director.liveStack !== FIRST;
-/* an API product number as the room's key */
-const roomProduct = (id) => (id == null ? null : (onLive() && (LIVE.productKeys || {})[String(id)]) || String(id));
+/* an API product number as the room's key: a live-stack (v3) number is mapped, a first-stack one is the key already */
+const roomProduct = (id, stack) => (id == null ? null : (stack === LIVE.stack && stack !== FIRST && (LIVE.productKeys || {})[String(id)]) || String(id));
 /* the stack a rack belongs to, and its words for the rack card */
 const stackOfRack = (info) => info.stack || FIRST;
 const firstStackRack = (info) => onLive() && stackOfRack(info) !== director.liveStack;
@@ -35,13 +38,13 @@ function settleFirstStack(list) {
     if (info.active) { info.active = false; info.status = `first stack (${FIRST})`; }
   }
 }
-/* the first event of the live stack opens its own act in the replay: the first stack's racks go grey, counters restart */
+/* the first event of the live stack opens its own act in the replay, and the first stack's racks go grey there (their
+   keys had expired by then); the counters run on, as the API adds both stacks up */
 function openLiveAct(idx, t) {
   if (!onLive() || (DATA.acts || []).some((a) => a.live)) return;
   DATA.acts.push({ title: tr('stacks.liveAct.title', { name: director.liveStack }), story: tr('stacks.liveAct.story', { name: director.liveStack, first: FIRST }), from: isoOf(t), first: idx, live: true });
 }
 function liveActStarts() {
-  resetNet();
   for (const p of pods.values()) if (p.shown && firstStackRack(p.info) && p.state !== 'fault') setPodState(p, 'retired');
 }
 const KIND = {
@@ -121,16 +124,19 @@ async function freshEvents(activity) {
     const a = {};
     for (const [k, v] of Object.entries(ev.args || {})) if (v == null || typeof v !== 'object') a[k] = v;
     const b = Number(ev.block);
-    /* a bounty's product: from the event, else (live stack) from its contract, else from the first stack's bounties */
-    const p = a.productId != null ? roomProduct(a.productId)
-      : a.bountyId != null ? (onLive() ? (LIVE.bountyProductKeys || {})[ev.contract] || null : bountyProduct(a.bountyId)) : null;
+    /* the event's own stack (the API tags each one; an older API serves one stack), then its product: from the event,
+       else (a live-stack bounty) from its contract, else from the first stack's recorded bounties */
+    const es = ev.stack || director.liveStack || FIRST;
+    const live = es === LIVE.stack && es !== FIRST;
+    const p = a.productId != null ? roomProduct(a.productId, es)
+      : a.bountyId != null ? (live ? (LIVE.bountyProductKeys || {})[ev.contract] || null : bountyProduct(a.bountyId)) : null;
     let e = a.signer || null;
     if (!e && ev.name === 'CallSettled') {
-      const q = DATA.pods.find((x) => x.active && String(x.product) === p && lc(x.operator) === lc(a.operator));
+      const q = DATA.pods.find((x) => x.active && String(x.product) === p && lc(x.operator) === lc(a.operator) && (x.stack || FIRST) === es);
       e = q ? q.id : null;
     }
     const info = e ? podInfoOf(e) : null; if (info) e = info.id;
-    return { t: times.get(b) || Math.round(ref.t + (b - ref.b) * spb), b, tx: ev.tx, li: Number(ev.logIndex), c: ev.contract, n: ev.name, k: kindOf(ev.contract, ev.name), p, e, a, live: true, s: director.liveStack || FIRST };
+    return { t: times.get(b) || Math.round(ref.t + (b - ref.b) * spb), b, tx: ev.tx, li: Number(ev.logIndex), c: ev.contract, n: ev.name, k: kindOf(ev.contract, ev.name), p, e, a, live: true, s: es };
   });
 }
 
@@ -143,7 +149,7 @@ function mergeEnclaves(list, levels, built, quiet) {
     let info = podInfoOf(x.signer);
     if (!info) {
       info = {
-        id: x.signer, short: short(x.signer), product: roomProduct(x.productId), operator: x.operator, active: !!x.active, stack: director.liveStack || FIRST,
+        id: x.signer, short: short(x.signer), product: roomProduct(x.productId, director.liveStack), operator: x.operator, active: !!x.active, stack: director.liveStack || FIRST,
         status: x.active ? 'active' : 'expired (registration not renewed)', fault: [], level: L ? L.level : null, ppid: L ? L.ppid : null,
         last: reg, first: reg, expires: exp, regs: 1, workload: short(String(x.workloadId || '')), bond: null, end: null, health: null, live: true,
         /* while the page is open, a new key waits (up to a minute) for its registration to play as an arrival */
@@ -164,7 +170,7 @@ function mergeEnclaves(list, levels, built, quiet) {
 /* new events join the timeline (so a replay includes them) and update the cards they concern */
 function absorb(fresh) {
   for (const e of fresh) {
-    if (e.s && e.s !== FIRST) openLiveAct(DATA.timeline.length, e.t);
+    if (e.s && e.s !== FIRST && e.s === director.liveStack) openLiveAct(DATA.timeline.length, e.t);
     DATA.timeline.push(e); known.add(keyOf(e));
     const info = e.e ? podInfoOf(e.e) : null;
     if (!info) continue;

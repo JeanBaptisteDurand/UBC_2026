@@ -36,7 +36,7 @@ EN = {
  # every act of the recorded history is the first stack's (v2.1): its title says so
  'acts.titles': {0: 'v2.1 · Network opens', 1: 'v2.1 · First paid work', 2: 'v2.1 · A lying machine is caught', 3: 'v2.1 · The verified level', 4: 'v2.1 · Product 7', 5: 'v2.1 · Steady state'},
  'about.paras': {0: "The recorded history is ArcHive's first stack, v2.1 (deployments.v21.testnet.json), read from its public API and the Arc explorer on 12 Nov 2026 at 23:40 UTC. Live, the room follows the v3 stack (deployments.v3.testnet.json, deployed on 19 Nov 2026).",
-                 1: "The replay plays the first stack's 261 events, recorded on Arc between 9 and 12 Nov, in order and faster than real time, then the live stack's. Idle hours are skipped. The ticker links each event to its transaction.",
+                 1: "The replay plays the first stack's 261 events, recorded on Arc between 9 and 12 Nov, in order and faster than real time, then the events the live API reports since. Idle hours are skipped. The ticker links each event to its transaction.",
                  2: "The page reads the live API (the v3 stack) and shows the network as it is now: the v3 racks light up, the first stack's stay as history. When the API cannot be reached, it shows the first stack's state of 12 Nov."},
  'about.last': "The clients, the technicians and the tube are a staging; every event in the ticker is a real transaction on Arc. 3D models: Kenney's Factory Kit, Space Station Kit, Furniture Kit, Mini Shop and Mini Characters (CC0); server racks: \u201cData center rack\u201d by Animase (NodeStar) on Sketchfab, Free Standard licence.",
  'legend.title': 'Reading the server room',
@@ -49,8 +49,8 @@ EN = {
   'pod': {'history': 'History on Arc', 'historyCount': '{n} transactions', 'historyCount1': '1 transaction', 'stack': 'Stack', 'statuses': {'firstStack': 'First stack (v2.1)'}},
   # two stacks: the recorded history is the first stack (v2.1); the live room follows v3 (live.js)
   'stacks': {'first': '{name}, the first stack (from 9 Nov)', 'live': '{name}, the live stack (from 19 Nov)',
-             'liveAct': {'title': 'The {name} stack', 'story': '19 Nov. The same contracts, deployed again as {name}; the {first} history above stays as it happened. From here, the events of the live stack.'}},
-  'about': {'events': '{n} events', 'liveReplay': "The replay plays, in order, the first stack's events (v2.1, from 9 Nov), then the live stack's: {n} events so far, faster than real time. Quiet hours are skipped. The ticker links each event to its transaction.", 'live': "Here the page reads ArcHive's API every 20 seconds, on the live stack (v3): a new key gets its rack, and each new event plays as it happens, stamped with the time of its block on Arc. The first stack's racks stay as history."},
+             'liveAct': {'title': 'The {name} stack', 'story': '19 Nov. The same contracts, deployed again as {name}. The two stacks run side by side until the switch; then {name} serves alone, and the {first} history stays as it happened.'}},
+  'about': {'events': '{n} events', 'liveReplay': "The replay plays, in order, the events recorded on Arc since 9 Nov: the first stack's (v2.1), then from 19 Nov those of v3, which ran alongside it until the switch ({n} so far), faster than real time. Quiet hours are skipped. The ticker links each event to its transaction.", 'live': "Here the page reads ArcHive's API every 20 seconds, on the live stack (v3): a new key gets its rack, and each new event plays as it happens, stamped with the time of its block on Arc. The first stack's racks stay as history."},
   'toasts': {'liveNew': 'New on Arc: {n} events', 'liveNew1': 'New on Arc: 1 event',
              'skipNow': 'This is the network now, live. Replay its history with the replay button.'},
   # the total settled (sessions and paid calls), of which operators get 95 %: never "paid to operators"
@@ -59,12 +59,12 @@ EN = {
              'noWebglLink': "See the same enclaves in the console's hive"},
   # the zones' facts read live from the API (the recorded facts date from 12 Nov), merged into 'zones' by apply()
   'zonesLive': {
-   'pad': {'liveFact': '{bonded} USDC posted as bonds on the {stack} stack, {slashed} USDC seized (live, Arc testnet)'},
+   'pad': {'liveFact': '{bonded} USDC posted as bonds since 9 Nov, {slashed} USDC seized (live, Arc testnet)'},
    'hive': {'liveFact': '{enclaves} enclave keys registered on the {stack} stack, {active} live now'},
-   'layers': {'liveFact': "Verdicts go to Circle's ERC-8004 registry on Arc: {verdicts} written so far on the {stack} stack"},
+   'layers': {'liveFact': "Verdicts go to Circle's ERC-8004 registry on Arc: {verdicts} written so far"},
    'dock': {'fact': '5 paid calls and 1 session, 0.1494 USDC settled on the first stack (v2.1) by 12 Nov (team wallets, testnet prices)',
-            'liveFact': '{calls} paid calls and {sessions} sessions on the {stack} stack, {settled} USDC settled so far (team wallets, testnet prices)'},
-   'lab': {'liveFact': '{bountiesPaid} bounty paid ({bountyPaid} USDC) and {refuted} lying claim refuted on the {stack} stack; {open} bounty open now, of {bounties}'},
+            'liveFact': '{calls} paid calls and {sessions} sessions, {settled} USDC settled so far (team wallets, testnet prices)'},
+   'lab': {'liveFact': '{bountiesPaid} bounty paid ({bountyPaid} USDC), {refuted} lying claim refuted; {open} bounty open now, of {bounties}'},
    'noc': {'liveFact': '{enclaves} enclave keys registered on the {stack} stack, {active} live now (Arc testnet)'},
   },
  },
@@ -102,7 +102,7 @@ FR = {
  'acts.title.2': 'Une machine menteuse démasquée',
  'acts.titles': {0: 'v2.1 · Ouverture du réseau', 1: 'v2.1 · Premiers travaux payés', 2: 'v2.1 · Une machine menteuse démasquée', 3: 'v2.1 · Le niveau vérifié', 4: 'v2.1 · Produit 7', 5: 'v2.1 · Régime de croisière'},
  'about.paras': {0: "L'histoire enregistrée est la première pile d'ArcHive, v2.1 (deployments.v21.testnet.json), lue dans son API publique et l'explorateur d'Arc le 12 nov. 2026 à 23 h 40 UTC. En direct, la salle suit la pile v3 (deployments.v3.testnet.json, déployée le 19 nov. 2026).",
-                 1: "Le rejeu joue les 261 événements de la première pile, inscrits sur Arc entre le 9 et le 12 nov., dans l'ordre et plus vite que le temps réel, puis ceux de la pile en service. Les heures creuses sont sautées. Le fil relie chaque événement à sa transaction.",
+                 1: "Le rejeu joue les 261 événements de la première pile, inscrits sur Arc entre le 9 et le 12 nov., dans l'ordre et plus vite que le temps réel, puis ceux que l'API en direct donne depuis. Les heures creuses sont sautées. Le fil relie chaque événement à sa transaction.",
                  2: "La page lit l'API en direct (la pile v3) et montre le réseau tel qu'il est maintenant : les baies v3 s'allument, celles de la première pile restent comme histoire. Quand l'API est injoignable, elle montre l'état de la première pile au 12 nov."},
  'about.last': "Les clients, les techniciens et le tube sont une mise en scène ; chaque événement du fil est une vraie transaction sur Arc. Modèles 3D : Factory Kit, Space Station Kit, Furniture Kit, Mini Shop et Mini Characters de Kenney (CC0) ; baies : \u00ab Data center rack \u00bb d'Animase (NodeStar) sur Sketchfab, licence Free Standard.",
  'legend.title': 'Lire la salle des serveurs',
@@ -114,8 +114,8 @@ FR = {
   'find': {'title': 'Chercher une baie ou une transaction', 'placeholder': 'Clé, opérateur, service ou hash de transaction', 'hint': 'Les archives gardent chaque transaction vue par la salle depuis le 9 nov., sur les deux piles ({n} à ce jour ; une transaction peut porter plusieurs événements).', 'racks': 'Baies', 'live': 'Baies en service', 'txs': 'Transactions', 'recent': 'Dernières transactions', 'none': "Aucun résultat. Collez tout ou partie d'une clé, d'une adresse ou d'un hash de transaction."},
   'pod': {'history': 'Historique sur Arc', 'historyCount': '{n} transactions', 'historyCount1': '1 transaction', 'stack': 'Pile', 'statuses': {'firstStack': 'Première pile (v2.1)'}},
   'stacks': {'first': '{name}, la première pile (depuis le 9 nov.)', 'live': '{name}, la pile en service (depuis le 19 nov.)',
-             'liveAct': {'title': 'La pile {name}', 'story': "19 nov. Les mêmes contrats, redéployés en {name} ; l'histoire {first} ci-dessus reste telle qu'elle a eu lieu. À partir d'ici, les événements de la pile en service."}},
-  'about': {'events': '{n} événements', 'liveReplay': "Le rejeu joue dans l'ordre les événements de la première pile (v2.1, depuis le 9 nov.), puis ceux de la pile en service : {n} à ce jour, plus vite que le temps réel. Les heures creuses sont sautées. Le fil relie chaque événement à sa transaction.", 'live': "Ici, la page lit l'API d'ArcHive toutes les 20 secondes, sur la pile en service (v3) : une nouvelle clé reçoit sa baie, et chaque nouvel événement est joué dès qu'il arrive, à l'heure de son bloc sur Arc. Les baies de la première pile restent comme histoire."},
+             'liveAct': {'title': 'La pile {name}', 'story': "19 nov. Les mêmes contrats, redéployés en {name}. Les deux piles tournent côte à côte jusqu'à la bascule ; ensuite {name} sert seule, et l'histoire {first} reste telle qu'elle a eu lieu."}},
+  'about': {'events': '{n} événements', 'liveReplay': "Le rejeu joue dans l'ordre les événements inscrits sur Arc depuis le 9 nov. : ceux de la première pile (v2.1), puis à partir du 19 nov. ceux de v3, qui a tourné à côté jusqu'à la bascule ({n} à ce jour), plus vite que le temps réel. Les heures creuses sont sautées. Le fil relie chaque événement à sa transaction.", 'live': "Ici, la page lit l'API d'ArcHive toutes les 20 secondes, sur la pile en service (v3) : une nouvelle clé reçoit sa baie, et chaque nouvel événement est joué dès qu'il arrive, à l'heure de son bloc sur Arc. Les baies de la première pile restent comme histoire."},
   'toasts': {'liveNew': 'Nouveau sur Arc : {n} événements', 'liveNew1': 'Nouveau sur Arc : 1 événement',
              'skipNow': "Voici le réseau maintenant, en direct. Rejouez son histoire avec le bouton de rejeu."},
   # the total settled, as in English: never "paid to operators"
@@ -124,12 +124,12 @@ FR = {
              'noWebglLink': 'Voir les mêmes enclaves dans la ruche de la console'},
   # the zones' live facts, as in English
   'zonesLive': {
-   'pad': {'liveFact': '{bonded} USDC de cautions déposées sur la pile {stack}, {slashed} USDC saisis (en direct, Arc testnet)'},
+   'pad': {'liveFact': '{bonded} USDC de cautions déposées depuis le 9 nov., {slashed} USDC saisis (en direct, Arc testnet)'},
    'hive': {'liveFact': "{enclaves} clés d'enclave inscrites sur la pile {stack}, {active} en service maintenant"},
-   'layers': {'liveFact': 'Les verdicts vont au registre ERC-8004 de Circle sur Arc : {verdicts} écrits à ce jour sur la pile {stack}'},
+   'layers': {'liveFact': 'Les verdicts vont au registre ERC-8004 de Circle sur Arc : {verdicts} écrits à ce jour'},
    'dock': {'fact': "5 appels payés et 1 session, 0,1494 USDC réglés sur la première pile (v2.1) au 12 nov. (portefeuilles de l'équipe, prix de testnet)",
-            'liveFact': "{calls} appels payés et {sessions} sessions sur la pile {stack}, {settled} USDC réglés à ce jour (portefeuilles de l'équipe, prix de testnet)"},
-   'lab': {'liveFact': '{bountiesPaid} prime payée ({bountyPaid} USDC) et {refuted} réclamation mensongère réfutée sur la pile {stack} ; {open} prime ouverte maintenant, sur {bounties}'},
+            'liveFact': "{calls} appels payés et {sessions} sessions, {settled} USDC réglés à ce jour (portefeuilles de l'équipe, prix de testnet)"},
+   'lab': {'liveFact': '{bountiesPaid} prime payée ({bountyPaid} USDC), {refuted} réclamation mensongère réfutée ; {open} prime ouverte maintenant, sur {bounties}'},
    'noc': {'liveFact': "{enclaves} clés d'enclave inscrites sur la pile {stack}, {active} en service maintenant (Arc testnet)"},
   },
  },
