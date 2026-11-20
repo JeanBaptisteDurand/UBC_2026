@@ -438,6 +438,17 @@ a session. An attestation proves which code ran, not that an AI answer is right,
 
 ## Proofs on Arc testnet
 
+**20 Nov 2026 (UTC)**
+
+| What it proves | Time | Transaction |
+|---|---|---|
+| Prepaid session #3 opened (0.05 USDC), locked on the product 1 enclave | 09:00 | [`0x64495f16…b0a1`](https://explorer.testnet.arc.io/tx/0x64495f162f13f306b4d8d415b26efe6b9a4e5875a40ed606522e6b596e2fb0a1) |
+| The session topped up by 0.02 USDC, with one EIP-3009 signature | 09:02 | [`0x5102ae30…b0d4`](https://explorer.testnet.arc.io/tx/0x5102ae3068bbef7486ff172c21539410e6f3ee46b1bce031026a8071a735b0d4) |
+| A pay-per-call answer settled by the operator: 0.01 USDC (0.0095 operator, 0.0005 network) | 09:04 | [`0x3c15d9a3…71b7`](https://explorer.testnet.arc.io/tx/0x3c15d9a30a24dc435424d989fc3c51639ee891431ca938b0a788714c9ab271b7) |
+| A second pay-per-call answer settled: 0.01 USDC | 09:04 | [`0x3c0c167c…21cc`](https://explorer.testnet.arc.io/tx/0x3c0c167cafd1fe5acaf603fba393eeef1a0a70739b60832b43dc3d06044b21cc) |
+| A third pay-per-call answer settled: 0.01 USDC | 09:05 | [`0x05544243…8a8a`](https://explorer.testnet.arc.io/tx/0x05544243b954b1c4c26c69f902d20130941da9166ec4e41eeb0af8fc32578a8a) |
+| The session settled by the operator on the enclave's last cumulative receipt: 0.0592 USDC (0.05624 operator, 0.00296 network) | 09:05 | [`0x1ebe664a…a62b`](https://explorer.testnet.arc.io/tx/0x1ebe664a736bf41b3ed7eb3ccc1333766713c64e8eae5c6bbc3e699f0612a62b) |
+
 **19 Nov 2026 (UTC)**
 
 | What it proves | Time | Transaction |
