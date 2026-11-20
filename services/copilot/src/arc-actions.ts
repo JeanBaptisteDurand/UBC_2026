@@ -1301,7 +1301,7 @@ export async function productScaffold(arc: ArcClient, q: any) {
       { n: 7, titre: "Des opérateurs inscrivent des enclaves de ton image", detail: "Toi compris (operator_plan) : caution, VM, registerEnclave." },
       { n: 8, titre: "Encaisser", detail: `Chaque règlement te verse bpsAuthor (${bps.bpsAuthor / 100} %). Retrait immédiat d'une image fautive : retireWorkload ; nouveau prix : proposeUpdate puis applyUpdate après le timelock.` },
     ],
-    sources: ["ProductRegistry.sol (propose, BadShares, timelock, activate)", "enclave/products/sealed-chat/server.ts (modèle)", "enclave/Dockerfile", "enclave/docker-compose.yml"],
+    sources: ["ProductRegistry.sol (propose, BadShares, timelock, activate)", "enclave/products/sealed-chat/server.ts (modèle)", "enclave/Dockerfile", "enclave/phala/sealed-chat-v21.yml"],
   };
 }
 
@@ -1440,7 +1440,7 @@ const FIXES: Record<string, string> = {
   docker: "Docker absent ou arrêté : installez Docker Engine (docs.docker.com/engine/install), puis démarrez-le (sudo systemctl enable --now docker).",
   tdx_guest: "Pas de /dev/tdx_guest : la machine n'est pas une VM Intel TDX ; louez une VM TDX (Phala Cloud, GCP C3, Azure DCesv5) ou lancez `archive-node up --demo` sur testnet.",
   tsm_report: "Pas d'interface de quote TSM (/sys/kernel/config/tsm/report) : il faut une VM Intel TDX avec un noyau Linux récent (6.7 ou plus), ou passer par dstack (Phala Cloud), ou le mode démo sur testnet.",
-  dstack_socket: "Socket dstack introuvable : en mode dstack, montez /var/run/dstack.sock:/var/run/dstack.sock dans l'app-compose (modèle : enclave/docker-compose.yml) et redéployez.",
+  dstack_socket: "Socket dstack introuvable : en mode dstack, montez /var/run/dstack.sock:/var/run/dstack.sock dans l'app-compose (modèle : enclave/phala/sealed-chat-v21.yml) et redéployez.",
   clock: "Horloge désynchronisée : synchronisez-la par NTP (sudo timedatectl set-ntp true) ; sinon échéances et ancrage de bloc sont faux.",
   rpc: "RPC d'Arc injoignable : vérifiez l'accès réseau sortant à https://rpc.testnet.arc.io (pare-feu, DNS, proxy).",
   api: "API ArcHive injoignable depuis la machine : vérifiez l'accès réseau sortant vers {API} (pare-feu, DNS).",
