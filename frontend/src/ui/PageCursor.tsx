@@ -1,4 +1,4 @@
-// The landing's cursor on the app pages (the square cursor and its axes are part of the site's look):
+// The landing's cursor on the app pages:
 // an outlined square that follows the pointer with the two axes, that stretches to hug a button or a link (8 px
 // margin, ui/Sel.tsx), and that, on an element marked data-cur-arm (the Services sleds), loads like on the landing:
 // the square stretches to the element's on-screen quadrilateral (its CSS 3D transform included) with the loading bar

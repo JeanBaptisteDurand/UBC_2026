@@ -215,6 +215,6 @@ export const SETTLE_GRACE_SECONDS = 3600;
 export const ENCLAVE_EXPIRY_MARGIN_SECONDS = 60;
 /** SealedBounty.MAX_SIGS: at most 5 signatures (so k ≤ 5). */
 export const BOUNTY_MAX_SIGS = 5;
-/** Gas of a registration through the real DCAP (quote verification, replay of the RTMR3 event log, policy), measured on
- *  Arc testnet with the v2.1 stack: 6,849,014 to 6,866,126. */
+/** Gas of a registration through the real DCAP (quote verification, RTMR3 event-log replay, policy), measured on Arc
+ *  testnet (v2.1 stack): 6,849,014 to 6,866,126. */
 export const DCAP_REGISTER_GAS_ESTIMATE = 6_860_000n;

@@ -1,5 +1,5 @@
-// CCTP: the wallet's real USDC balances on the other chains, read with the SDK's readUsdcBalances and the config of
-// the console's On-ramp screen (web/src/screens/Onramp.tsx: public RPCs, testnet USDC addresses, TokenMessengerV2).
+// CCTP: the wallet's real USDC balances on the other chains, read with the SDK's readUsdcBalances.
+// OTHER_CHAINS holds each chain's public RPC, testnet USDC address and CCTP TokenMessengerV2.
 // Read-only, chain by chain, and only after the wallet is connected. The bridge (the SDK's bridgeToArc) is wired but
 // has never run end to end: the page does not call it.
 import type { Address } from 'viem'

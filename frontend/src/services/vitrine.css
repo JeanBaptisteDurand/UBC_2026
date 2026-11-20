@@ -175,7 +175,7 @@ html:not([data-cur='1']) .vt-fac:hover::after, html:not([data-cur='1']) .vt-fac:
 .vt-cta > span { animation: live-text 3.2s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .vt-cta::before, .vt-cta > span { animation: none; } .vt-cta::before { opacity: 0.7; } }
 .vt-sec { margin: 120px 0 0; scroll-margin-top: 16px; }
-/* the table of contents (owner, 19/11): one row per section, a click opens it in place */
+/* the table of contents: one row per section, a click opens it in place */
 .vt-toc { margin: 72px 0 0; }
 .vt-toc-k { margin: 0 0 8px; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink3); }
 .vt-toc .vt-sec { margin: 0; scroll-margin-top: 16px; }

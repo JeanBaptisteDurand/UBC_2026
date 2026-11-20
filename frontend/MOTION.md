@@ -1,7 +1,8 @@
 # Motion and transitions: the site's rules
 
-The site follows a small set of motion rules. They always hold, like the cursor. The aim is coherence, not effect: the
-header is always visible, and a page change happens inside the page, under the header.
+The site follows a small set of motion rules that always hold, the way the cursor does. The aim is coherence, not
+effect: the header and its loading bar are always visible, and moving from one page to another happens inside the
+page, under it.
 
 These rules apply to every page except the landing film, whose scroll is its own motion. The code lives in
 `src/ui/motion.ts` (`reveal`, `grow`) and `src/styles.css` (the view transition). A new page or a new content swap

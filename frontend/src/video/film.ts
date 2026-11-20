@@ -491,7 +491,7 @@ function schedule() {
 // ---- Loading: the first frame (already there), the shadow-track sheets, the trip to the first stop, then everything
 // else by distance to the position, 6 requests at a time ----
 // Requests in flight: a frame weighs 30 to 50 KB, so with 6 in flight a 150 ms round trip capped the film at 30 frames per
-// second whatever the bandwidth (measured 19/11: 200 ms per frame from Austin); 16 on a computer, 10 on a phone, 6 on a
+// second whatever the bandwidth (measured from a client on another continent: 200 ms per frame); 16 on a computer, 10 on a phone, 6 on a
 // slow link (where more in flight only delays the urgent frames)
 const MAXF = SLOW ? 6 : LIGHT ? 10 : 16
 /** Until the light pass covers the whole film (one frame in 4), a few sharp requests only (the frames at the position
@@ -1374,7 +1374,7 @@ export async function mountFilm(canvas: HTMLCanvasElement, onFirst: () => void) 
     setInterval(() => {
       let mv = 0, sh = 0
       for (let j = Math.max(from, log.n - LOGN); j < log.n; j++) { const q = j & (LOGN - 1); if (log.mv[q]) { mv++; if (log.d[q] === 2) sh++ } }
-      el.textContent = `set ${SET} · loaded ${film.loaded}/${film.total} · fallback frames in motion ${mv ? Math.round(100 * sh / mv) : 0}% (${sh}/${mv}) · level ${film.level}`
+      el.textContent = `set ${SET} · loaded ${film.loaded}/${film.total} · fallback while moving ${mv ? Math.round(100 * sh / mv) : 0} % (${sh}/${mv}) · level ${film.level}`
     }, 400)
     addEventListener('keydown', (e) => { if (e.key === 'r') from = log.n })
   }
