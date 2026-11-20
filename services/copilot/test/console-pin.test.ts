@@ -28,7 +28,7 @@ const PIN = {
   display: "7b3ea661af720733594ed05c52bde1c5ad1ed5f9ca3e650186455fe855f9cea4",
   // the knowledge base now carries the prices with their unit, the gas measured on Arc and its public sources; since
   // 20 Nov 2026, the v3 stack's levels addresses and its verified bounty, product 5 (product 7 on v2.1)
-  kb: "a63a330e236ce5ae2fa4508f362decef29be93de5a745881001767cfe4ccb430",
+  kb: "67dab2f51cb03e39e039ed90e7e44f5c49a698ea1c4dda7e2cdadb2c903d2efc",
   langEn: "d6820f380519f72ea6d5f4da83757c5d39211de778b730c08a7cc74713868421",
   langFr: "dc3e07217c78f1839162130a0d93cbf877a0a7f40984b6913cac3404a9e4006a",
 };
