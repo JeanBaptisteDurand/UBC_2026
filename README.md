@@ -242,6 +242,12 @@ Agent Wallets** are not wired in: buyers sign with their own wallet, and the enc
 as x402 payers, since it does not check ERC-1271 signatures yet. Gateway and its Nanopayments come next, for sub-cent
 calls (see [What's next](#whats-next)).
 
+The one place a Circle wallet is wired in is the OpenCode example: its bridge can pay each x402 call from a Circle
+developer-controlled wallet, an EOA on `ARC-TESTNET` whose key Circle holds, and Circle signs the EIP-3009
+authorization through its API; `X402Settler` checks it like any other
+([Pay from a Circle wallet](examples/opencode-archive/README.md#pay-from-a-circle-wallet); settled on v3 in
+[`0x1318d65c…7cd0`](https://explorer.testnet.arc.io/tx/0x1318d65c5829c9689ba7fc3c717a5bdca1b564cc8590bdc183ff1ee4f0ff7cd0)).
+
 ## AskHive: the site's assistant, in its own enclave
 
 AskHive explains ArcHive while it shows it. It opens pages, highlights what it talks about, plays the 3D demo of the
@@ -342,6 +348,14 @@ the paid Glob call on Arc: [`0xb381773a…fa31`](https://explorer.testnet.arc.io
 cd packages/sdk && npm ci && cd ../../examples/opencode-archive && npm ci
 ARCHIVE_PAYER_KEY_FILE=<test wallet JSON> ./opencode-archive
 ```
+
+`opencode-arc` is the same command under a shorter name, on the live v3 stack by default; `./opencode-arc start` runs
+the bridge alone for any OpenAI-compatible tool (base URL `http://127.0.0.1:8789/v1`, model `gpt-oss-120b`:
+[Aider, Continue, Cline, Goose and others](examples/opencode-archive/README.md#any-openai-compatible-harness)), and
+`ARCHIVE_PAYER=circle` pays from a Circle developer-controlled wallet, so no private key sits on your machine
+([Pay from a Circle wallet](examples/opencode-archive/README.md#pay-from-a-circle-wallet)). On v3, OpenCode's Glob
+ran through `opencode-arc` in a paid call settled in [`0x547006bc…e8f0`](https://explorer.testnet.arc.io/tx/0x547006bc63ee77542c7783df5c48dcf50cd0daa2ec2e3bdd2ad5368c5d76e8f0), and a call paid from
+the Circle wallet in [`0x1318d65c…7cd0`](https://explorer.testnet.arc.io/tx/0x1318d65c5829c9689ba7fc3c717a5bdca1b564cc8590bdc183ff1ee4f0ff7cd0).
 
 ## Agent decision loop and safety limits
 
@@ -469,6 +483,11 @@ a session. An attestation proves which code ran, not that an AI answer is right,
 | What it proves | Time | Transaction |
 |---|---|---|
 | The five products' workloads and policies set on-chain, and product 5's manifest updated: the v3 stack serves all five | 11:00 | [`0x97903745…58ae`](https://explorer.testnet.arc.io/tx/0x97903745a141230b581af9c0827441517476cb31656e821b6aa0357e7b4e58ae), [`0x8d4ae669…738c`](https://explorer.testnet.arc.io/tx/0x8d4ae6693fa4fc9443dacb2ff2ab78f81ae3a35e7ba75afa3b840a83ef53738c) then [`0x9d04f9ab…4a05`](https://explorer.testnet.arc.io/tx/0x9d04f9ab5d19d11d2d51043edccf4b5627752730e7bde3e8b5c3c8794a494a05) |
+| The five v3 enclaves admitted by `EnclaveRegistry` (Intel DCAP, boot-log replay, policy), one per product: 2, 5, 4, 1 and 3 | 11:19–11:23 | [`0xf7d24e86…989f`](https://explorer.testnet.arc.io/tx/0xf7d24e863126f9124a0536cf936ade912d996f34cf5bde9c61bd63cd8c83989f), [`0x6d7d0817…a360`](https://explorer.testnet.arc.io/tx/0x6d7d0817a76c02db8734fba57f0a78b87d33812bc021e1790f3878c2242fa360), [`0x1de729e2…0ca5`](https://explorer.testnet.arc.io/tx/0x1de729e24812fb146ca68e57b21664dd5f6e3404312c3f6cfbfa0e8d3fb90ca5), [`0x2de231e7…6a6a`](https://explorer.testnet.arc.io/tx/0x2de231e77dcde776204eb2067a3985f532f0581d9f2abd4d0ae26cd8eab16a6a), [`0x0e9bf7e1…2111`](https://explorer.testnet.arc.io/tx/0x0e9bf7e1752ca575ef1c6296b57f433f2900a7bef554334c55c47f53eac92111) |
+| Product 3 calls paid from a Circle developer-controlled wallet (EOA [`0xA7f3…39e5`](https://explorer.testnet.arc.io/address/0xA7f3c1681782334F04B7Fd6dE4Fce3c4328f39e5) on `ARC-TESTNET`; Circle signs each EIP-3009 authorization) and settled by `X402Settler` | 11:46–12:13 | [`0x1318d65c…7cd0`](https://explorer.testnet.arc.io/tx/0x1318d65c5829c9689ba7fc3c717a5bdca1b564cc8590bdc183ff1ee4f0ff7cd0), [`0x95e417e3…aa07`](https://explorer.testnet.arc.io/tx/0x95e417e384dc27ff320f54513ce8687496c65375e6afb4ba4a5d41c9f29faa07), [`0x4c80cffb…2ba0`](https://explorer.testnet.arc.io/tx/0x4c80cffb90d6010f4237c18ac86e7199084e4b5107458ffb09d2cba275912ba0), [`0xe10d32ec…8434`](https://explorer.testnet.arc.io/tx/0xe10d32ecdafd173a67b7785ef546217af416651b4bbefe0656b5084774d28434) |
+| Session #1 on product 1: opened with USDC prepaid into `SessionPay`, then settled on the enclave's signed receipt | 11:49, 11:52 | open [`0xdef2312c…7d72`](https://explorer.testnet.arc.io/tx/0xdef2312cb0187f5d59dc0ec4387ddc302c6d05e7b8adeb045179e0e511817d72), settle [`0x3f63d73f…4ad8`](https://explorer.testnet.arc.io/tx/0x3f63d73f244bc8c5fd1ab1433a901c744514fd1e3264bd3f710178111ab44ad8) |
+| A paid call to product 3 (x402, 0.01 USDC) settled by `X402Settler` | 11:55 | [`0x8925bc66…0236`](https://explorer.testnet.arc.io/tx/0x8925bc660e65428b1f85a71db4626d2108e44ca44858d2bd28e34d37c1c90236) |
+| OpenCode on product 3 through `opencode-arc`: the session title, OpenCode's Glob tool call and the answer, each paid and settled | 12:06 | [`0x68b6fd05…b637`](https://explorer.testnet.arc.io/tx/0x68b6fd05bceb90684cd1daefc7a14959469103de990ea315fff8f8691d74b637), [`0x547006bc…e8f0`](https://explorer.testnet.arc.io/tx/0x547006bc63ee77542c7783df5c48dcf50cd0daa2ec2e3bdd2ad5368c5d76e8f0), [`0xf23fe1ac…2c72`](https://explorer.testnet.arc.io/tx/0xf23fe1acc4337d5c7ecce5d99285d2acd0f8f82f3c21252e7a0bf587788a2c72) |
 
 **19 Nov 2026 (UTC), the v3 stack deployed and wired**
 
