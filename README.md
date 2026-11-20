@@ -3,9 +3,8 @@
 [![CI](https://github.com/JeanBaptisteDurand/UBC_2026/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/JeanBaptisteDurand/UBC_2026/actions/workflows/ci.yml)
 
 **Sealed machines, open market.** ArcHive is a marketplace where AI agents and apps pay per use in USDC for compute on
-Intel TDX machines that Arc verifies on-chain. Operators earn by renting out their machines, and authors by publishing
-services. A contract on **Arc** admits a machine only after checking Intel's signature on it and the exact image it
-runs. USDC moves only against a receipt the enclave signed, and a machine caught lying costs its operator's USDC bond.
+Intel TDX machines that **Arc** verifies on-chain. Operators earn by renting out their machines, and authors by
+publishing services.
 
 **Who pays, who earns** (testnet prices, live at [`/api/products`](https://arc-hive.xyz/api/products)):
 
@@ -16,9 +15,9 @@ runs. USDC moves only against a receipt the enclave signed, and a machine caught
 
 **The problem.** An app or an AI agent that sends a private request to someone else's machine, or pays out on a
 security report, has to take the provider's word: that the advertised code is what runs, that the data stays private,
-that the result is honest. ArcHive replaces that word with checks Arc runs itself. A machine is admitted only once
-Intel's signature and its image fingerprint check out. USDC is paid out only against a signature from an admitted
-enclave. A proven lie costs the operator's bond.
+that the result is honest. ArcHive replaces that word with checks Arc runs itself. A contract on Arc admits a machine
+only once Intel's signature on it and the fingerprint of the exact image it runs check out. USDC moves only against a
+receipt an admitted enclave signed, and a proven lie costs the operator's USDC bond.
 
 Built on Arc testnet for UBC 2026 by Jean-Baptiste Durand and Florent Belotti.
 
@@ -74,8 +73,8 @@ operators' wallet sign-in run there, and https://arc-hive.xyz/console/ redirects
 | 7 | Sealed Bounty, verified level | a protocol funds a USDC pool | as product 2; only enclaves on chips declared by the Proof of Cloud alliance count | `SealedBountyVerified` | running |
 
 *Running* means that an enclave admitted on Arc serves the product now. Prices, shares, bonds and delays are on-chain
-parameters in `ProductRegistry`. The network keeps at least 5 %, an author at most 30 %, and the operator the rest.
-Testnet prices are set so that every flow shows on the explorer; they are not market prices. Live values:
+parameters in `ProductRegistry` (who gets what: [Economic design](#economic-design-and-risk-assumptions)). Testnet
+prices are set so that every flow shows on the explorer; they are not market prices. Live values:
 [`/api/products`](https://arc-hive.xyz/api/products) for the parameters, [`/api/enclaves`](https://arc-hive.xyz/api/enclaves)
 for the enclaves that serve each product.
 
@@ -122,7 +121,7 @@ proven on-chain seizes all of it. The rules and their figures are in
   EnclaveRegistry -> TdxAttestationModule -> Automata DCAP       admit: Intel signature, boot-log replay,
   MachineRegistry + ProofOfCloudAuditor + PolicyEnclaves         allowed image, fresh quote, bond; chip level
   SessionPay | X402Settler | SealedBounty | SealedBountyVerified   pay only on an admitted enclave's signature
-  ProductRegistry (prices, shares)   OperatorBond (bonds, slashing)   VerdictLog -> ERC-8004 registry on Arc
+  ProductRegistry (prices, shares)   OperatorBond (bonds, slashing)   VerdictLog -> ERC-8004 validation registry
 ```
 
 1. **Arc admits the machine** (above). The operator's registrar keeps the admission fresh.
@@ -130,7 +129,7 @@ proven on-chain seizes all of it. The rules and their figures are in
 3. **The enclave signs its work**: a receipt for an answer, or a claim for a replayed exploit, with a key born inside it.
 4. **Arc pays on the signature.** The settlement contract checks that an admitted enclave signed, reads the price and
    the shares, and splits the USDC in the same transaction.
-5. **Arc writes the verdict** to the ERC-8004 registry on Arc.
+5. **Arc records the verdict** in the ERC-8004 validation registry.
 6. **A proven lie costs the bond.**
 
 Off-chain pieces:
@@ -196,7 +195,7 @@ Gas is paid in USDC, so each check has a price in dollars. Measured on Arc testn
 
 ### Circle tools: what we use and why not the others
 
-We use four:
+We use four Circle and Arc tools:
 
 - **USDC on Arc**, as money and gas, with EIP-3009 (above).
 - **CCTP V2.** The [Bridge page](https://arc-hive.xyz/bridge.html) is wired to Circle's `TokenMessengerV2`
@@ -216,10 +215,10 @@ We use four:
 We left the others out on purpose. **Gateway, Nanopayments and Circle's x402 facilitator** settle a transfer to an
 address, in batches or through Circle, while `X402Settler` pays only against the receipt of a machine Arc admitted and
 splits the payment in that same transaction. **Circle Paymaster** is not deployed on Arc (no code at its v0.7 and v0.8
-addresses on 20 Nov), and Arc does not need it: gas is already USDC, and our buyers pay none. **Circle Wallets and
-Agent Wallets** are not wired in: buyers sign with their own wallet, and the enclave accepts only plain accounts (EOAs)
-as payers, since it does not check ERC-1271 signatures yet. Gateway and its Nanopayments come next, for sub-cent calls
-(see [What's next](#whats-next)).
+addresses on 20 Nov); on Arc, gas is already USDC, and our buyers pay none. **Circle Wallets and Agent Wallets** are
+not wired in: buyers sign with their own wallet, and the enclave accepts only plain accounts (EOAs) as x402 payers,
+since it does not check ERC-1271 signatures yet. Gateway and its Nanopayments come next, for sub-cent calls (see
+[What's next](#whats-next)).
 
 ## AskHive: the site's assistant, in its own enclave
 
@@ -343,7 +342,7 @@ AskHive only read and prepare, and a person signs what they prepare, in their ow
    with a verdict of 100. The refutation demo ran on Arc on 10 Nov, and sessions closed with 100 on 9 and 19 Nov
    (see [Proofs on Arc testnet](#proofs-on-arc-testnet)).
 
-Every payment in those proofs came from our own testnet wallets.
+Every payment in [our proofs](#proofs-on-arc-testnet) came from our own testnet wallets.
 [`packages/sdk/scripts/x402-call.ts`](packages/sdk/scripts/x402-call.ts) is a buyer that runs this loop with the SDK.
 
 **Safety limits**
@@ -416,8 +415,7 @@ a session. An attestation proves which code ran, not that an AI answer is right,
 - **No state proofs yet.** A bounty replay reads Arc's state through a strict relay that re-hashes every block header.
   Per-read state proofs (`eth_getProof`) are implemented and tested, and turn on once an Arc RPC serves historical
   proofs.
-- **Scope.** Arc testnet only, with no third-party audit, and every payment so far came from our own wallets. Testnet
-  prices are set so that every flow shows on the explorer; they are not market prices.
+- **Scope.** Arc testnet only, with no third-party audit, and every payment so far came from our own wallets.
 
 ## Proofs on Arc testnet
 
