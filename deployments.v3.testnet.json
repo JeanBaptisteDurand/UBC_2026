@@ -10,7 +10,7 @@
   "deployer": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
   "owner": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
   "treasury": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
-  "status": "DEPLOYED, NOT LIVE: the live site, API, registrar and enclaves still run on v2.1 (deployments.v21.testnet.json). Switch planned after the UBC submission (20 Nov 2026).",
+  "status": "LIVE since 20 Nov 2026, 11:19 UTC: the site, the API, the MCP server, the 5 registrars and the 5 enclaves run on v3. v2.1 is kept as history (docs/history/deployments.v21.testnet.json).",
   "note": "Fresh copy of every ArcHive contract (19 Nov 2026, 20:33-20:37 UTC), same source as v2.1 + corrected PckChip (contracts/src, solc 0.8.28 via-IR, prague, 200 runs), same constructor parameters as v2.1 (read on-chain from the v2.1 getters). Core and levels deployed together, so OperatorBond.initialize and VerdictLog.initialize wire ALL settlements at once, including SealedBountyVerified: no 8-day proposeSettlement/proposeCaller delay on v3. Simulated first on an anvil fork (same addresses). Deployer nonce 328 -> 344, 16 txs, 26,358,455 gas, about 0.64 USDC of gas.",
   "external": {
     "USDC": "0x3600000000000000000000000000000000000000",
@@ -226,13 +226,29 @@
       "bpsNetwork": 500,
       "minBond": "1 USDC",
       "exposureCap": "10 USDC",
-      "manifest": "https://archive.62-171-153-35.sslip.io/manifests/sealed-chat-v3.json",
+      "manifest": "https://arc-hive.xyz/manifests/sealed-chat-v3.json",
       "manifestHash": "0x1965db8fb3b2ba2819d3a6d3fd397c1053cf8d92c0c7dea700e6fb623e395eac",
       "manifestFile": "web/public/manifests/sealed-chat-v3.json",
       "proposeTx": "0x79c386300d6183aff253001bcaff82adfec4479e675ff514e42bfb6793963f44",
       "activateTx": "0x8d620a555ca6f2b9ffaba3b336bf2fe28be37b075b25a5973c8273d926e7160c",
+      "version": 2,
+      "updates": [
+        {
+          "version": 2,
+          "manifest": "the same file and hash, served at arc-hive.xyz",
+          "proposeTx": "0x2be460972bd991ab1a41cab53162d3354ffaff6ac7d9e909d5fef78baa6db92f",
+          "applyTx": "0x8ec1330987d7db95f31f4d095284783f331764673128739da847f5c0b5bc1206"
+        }
+      ],
       "state": "Active",
-      "workloads": "none yet: image fingerprints are allowed at the switch, when the v3 enclaves are built with their v3 compose",
+      "workloads": [
+        {
+          "imageId": "0x161c46ba0edcf061a7e2b7f05c6f5d5a1a26d8a705193a1fe8324f7f8bd2203b",
+          "compose": "enclave/phala/sealed-chat-v3.yml",
+          "proposeTx": "0x2e1c7c3158079e007795e69294952cf516ae6f234fce0b7cc69f40538aa64fb7",
+          "addTx": "0x52adff3ca5065d30c244e502456f1b7c72b9b392120f2239e3657811c1bfbe88"
+        }
+      ],
       "v21Equivalent": "product 1 of v2.1"
     },
     "2": {
@@ -246,13 +262,29 @@
       "bpsNetwork": 500,
       "minBond": "1 USDC",
       "exposureCap": "10 USDC",
-      "manifest": "https://archive.62-171-153-35.sslip.io/manifests/sealed-bounty-v3.json",
+      "manifest": "https://arc-hive.xyz/manifests/sealed-bounty-v3.json",
       "manifestHash": "0x39345f03ba6e4be7b6df6268ea3ce8b838f8339b0d060ffecd243b0b9681a90b",
       "manifestFile": "web/public/manifests/sealed-bounty-v3.json",
       "proposeTx": "0xbf6c7e04c2945c17e9a4910cbabe52cbf981975eac64c4a86ba2c09c448f9eb7",
       "activateTx": "0x0329125cd063f7324ed1e38979e5ef04354436c32b2e0780bc9664574bb74578",
+      "version": 2,
+      "updates": [
+        {
+          "version": 2,
+          "manifest": "the same file and hash, served at arc-hive.xyz",
+          "proposeTx": "0xe4458e6a257255bb0aff1a9349ba9f2d99f1f42250cd2b67ee6e71d334bddace",
+          "applyTx": "0x39510d6604da328d3a5d4ca4f46a73147064ed90f4528967a3f9f2a6fb917efd"
+        }
+      ],
       "state": "Active",
-      "workloads": "none yet: image fingerprints are allowed at the switch, when the v3 enclaves are built with their v3 compose",
+      "workloads": [
+        {
+          "imageId": "0x8a0dd41d0ccc9692467fb6c8dc38268b6c83ca9201ec39462685b750fd2ef068",
+          "compose": "enclave/phala/sealed-bounty-v3.yml",
+          "proposeTx": "0x2112f2bca8d5b32994454ae4767a0f108885611ba89455fd69f7c98f815083e6",
+          "addTx": "0x5af5a59409c0002c5730f15fd58c36cb3635e3b41c7140f38c567f0239d02d9b"
+        }
+      ],
       "v21Equivalent": "product 2 of v2.1"
     },
     "3": {
@@ -267,13 +299,29 @@
       "bpsNetwork": 500,
       "minBond": "1 USDC",
       "exposureCap": "10 USDC",
-      "manifest": "https://archive.62-171-153-35.sslip.io/manifests/sealed-x402-v3.json",
+      "manifest": "https://arc-hive.xyz/manifests/sealed-x402-v3.json",
       "manifestHash": "0xd2c68c35715aaa36292b5d22022352de20ecf3a6ca14ec26c3e74abe82d261e6",
       "manifestFile": "web/public/manifests/sealed-x402-v3.json",
       "proposeTx": "0x3e0019983a4b4fbc55a8ac07ba8f42d025c0c6b3e86e4acf5aca542de7b109b4",
       "activateTx": "0xbc6d002cb33fa183804c50a5de1dbfa29eda50af1299c896e687090513ba0f63",
+      "version": 2,
+      "updates": [
+        {
+          "version": 2,
+          "manifest": "the same file and hash, served at arc-hive.xyz",
+          "proposeTx": "0xf0a101ddb90590ce297a88695e1b62392e93044893c1229cf1f43ec716c531b9",
+          "applyTx": "0x1e42eb1c33bcf2a1524808afc6a51e7b4b59c3e6e6b9bc0498c58b5ff65bbb3b"
+        }
+      ],
       "state": "Active",
-      "workloads": "none yet: image fingerprints are allowed at the switch, when the v3 enclaves are built with their v3 compose",
+      "workloads": [
+        {
+          "imageId": "0x161c46ba0edcf061a7e2b7f05c6f5d5a1a26d8a705193a1fe8324f7f8bd2203b",
+          "compose": "enclave/phala/sealed-chat-v3.yml",
+          "proposeTx": "0xa60a39e1e2730eb16f545e6ff027f8cea70dcd42bd2b4bf9607b8d8216ceff95",
+          "addTx": "0xc78bcd347f0651bf1d2f9506743c2e05b9f9ff7461221269a09ff2fb53be47f0"
+        }
+      ],
       "v21Equivalent": "product 3 of v2.1"
     },
     "4": {
@@ -287,13 +335,47 @@
       "bpsNetwork": 500,
       "minBond": "1 USDC",
       "exposureCap": "10 USDC",
-      "manifest": "https://archive.62-171-153-35.sslip.io/manifests/copilot-enclave-v3.json",
-      "manifestHash": "0xdb31d925f9a41e4cca26056f16ebf50709372c567d6b99f989fcfc3d458f3fb1",
-      "manifestFile": "web/public/manifests/copilot-enclave-v3.json",
+      "manifest": "https://arc-hive.xyz/manifests/copilot-site-v3-r5.json",
+      "manifestHash": "0x70ce20aec01def52711a926b39d726d735f67245f15b37ec763c6d66de7e4ce3",
+      "manifestFile": "not in the repository: served at the manifest URL above, whose bytes hash to manifestHash",
       "proposeTx": "0xa9ef5380be37b2384fd43fea5941c2958d594ece1f34dd645021d7d0b31dd54d",
       "activateTx": "0xf755e18d270d1f5227dae5f584655b14661b4e5e89681ce3b63be6e0a253e3a1",
+      "version": 4,
+      "updates": [
+        {
+          "version": 2,
+          "manifest": "copilot-site-v3.json (AskHive r4)",
+          "proposeTx": "0x8d4ae6693fa4fc9443dacb2ff2ab78f81ae3a35e7ba75afa3b840a83ef53738c",
+          "applyTx": "0x9d04f9ab5d19d11d2d51043edccf4b5627752730e7bde3e8b5c3c8794a494a05"
+        },
+        {
+          "version": 3,
+          "manifest": "copilot-site-v3-r5.json (AskHive r5)",
+          "proposeTx": "0xbc61f84dda48ca4d8b1625c2f3e360e9dfa66d99f05385552d736cdd252e631c",
+          "applyTx": "0x9820ee183a6948c7cd5f84d3197fe5b8969b95be6af982ca9db0be4f319e30c1"
+        },
+        {
+          "version": 4,
+          "manifest": "the same file, served at arc-hive.xyz",
+          "proposeTx": "0x61a7d29009756d096db23d94d9450da77082c03fc794a3da55fe12813705a52f",
+          "applyTx": "0x204dfd8b7f6a511057a0c36f8be523d256ae516db0fbd4419ed4ef8037c4dfb2"
+        }
+      ],
       "state": "Active",
-      "workloads": "none yet: image fingerprints are allowed at the switch, when the v3 enclaves are built with their v3 compose",
+      "workloads": [
+        {
+          "imageId": "0x64ddeef6eba8bba9e7b8391615fd6a07954deaf0ab3a89401acac5b5b08841fc",
+          "compose": "enclave/phala/copilot-site-v3.yml",
+          "proposeTx": "0xb26e7e5b081487b47d608ca97fad75a4c90e790658c16bbfa3b96991fc4bd829",
+          "addTx": "0xf6dfce0a63bda02f446893cf604fc642c72ff433f20cb667acb2d5e70b7c8d23"
+        },
+        {
+          "imageId": "0xeddbd3cf37f7ef1b59d3807f1a6273d9549ff65b1db85bb8b69b869b76ad5e7c",
+          "compose": "enclave/phala/copilot-site-v3-r5.yml",
+          "proposeTx": "0xb45eb04189478854733762cf6b2b630b29de62136b76eb37d18858f7857ccbe9",
+          "addTx": "0xb2850bdf0879d9850f258001216f8fa314b4b6c27d3d4daf00f3d4ac5e3da531"
+        }
+      ],
       "v21Equivalent": "product 4 of v2.1"
     },
     "5": {
@@ -307,13 +389,29 @@
       "bpsNetwork": 500,
       "minBond": "1 USDC",
       "exposureCap": "10 USDC",
-      "manifest": "https://archive.62-171-153-35.sslip.io/manifests/sealed-bounty-verified-v3.json",
+      "manifest": "https://arc-hive.xyz/manifests/sealed-bounty-verified-v3.json",
       "manifestHash": "0x54214c4b264ec83b31c14e14e867e0203affee9ee583288867c716445035010b",
       "manifestFile": "web/public/manifests/sealed-bounty-verified-v3.json",
       "proposeTx": "0xd5ebcd8d7150c6e8672ad2831e2e706e3f0fc6850828f59dc0841a2a0a6bacf3",
       "activateTx": "0xb3589c76e92930ac1f32173b3c63aae17867a719c87d7e43df31a05fbf39df83",
+      "version": 2,
+      "updates": [
+        {
+          "version": 2,
+          "manifest": "the same file and hash, served at arc-hive.xyz",
+          "proposeTx": "0x4ce9b1b3a3c58e9cea51108097314f417dba58580d9fd40f606a66b4074b8a72",
+          "applyTx": "0x2135d4be6c5f20045f751a484b3413bf69f4df20d213a703a2cba17578cea9d0"
+        }
+      ],
       "state": "Active",
-      "workloads": "none yet: image fingerprints are allowed at the switch, when the v3 enclaves are built with their v3 compose",
+      "workloads": [
+        {
+          "imageId": "0xadedf8e112e6ba1553c1e61dae28219a5fe90075cf04882722012dd4e29ef3a8",
+          "compose": "enclave/phala/sealed-bounty-verified-v3.yml",
+          "proposeTx": "0xbf82f71a64a8022b78202f1ab72bfb3b1015fd44b752053e79cb184fdde274d6",
+          "addTx": "0x97903745a141230b581af9c0827441517476cb31656e821b6aa0357e7b4e58ae"
+        }
+      ],
       "policy": {
         "minLevel": 1,
         "auditors": [
@@ -325,8 +423,8 @@
       "v21Equivalent": "product 7 of v2.1"
     }
   },
-  "previous": "docs/history/deployments.v21.testnet.json (v2.1, live until the switch)",
-  "productsNote": "Published on 19 Nov 2026, 20:42-20:43 UTC by the deployer (author), timelock 0, same economic parameters as the v2.1 products (read on-chain from the v2.1 ProductRegistry). The v3 manifests are served at https://archive.62-171-153-35.sslip.io/manifests/ (web/public/manifests/*-v3.json; the on-chain hashes are of these exact files).",
+  "previous": "docs/history/deployments.v21.testnet.json (v2.1, live until 20 Nov 2026)",
+  "productsNote": "Published on 19 Nov 2026, 20:42-20:43 UTC by the deployer (author), timelock 0, same economic parameters as the v2.1 products (read on-chain from the v2.1 ProductRegistry). The v3 manifests are served at https://arc-hive.xyz/manifests/ (web/public/manifests/*-v3.json; the on-chain hashes are of these exact files). Each product's manifestURI moved there with proposeUpdateWithURI + applyUpdate (products[*].updates); product 4 also moved to AskHive's r4, then r5 manifest.",
   "operatorSetup": {
     "operator": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a",
     "agentId": 897812,
@@ -336,8 +434,93 @@
     "bondTx": "0x7cf7bb7c5bd93f8d8f51390c7dd81ff07167c07aaee3883e99d6d38abb88c468",
     "agentIdTx": "0x06041fa262f56dee68c35ef14d00327d98c12373e0a549ace6a25dc317e49b3c"
   },
-  "enclaves": {},
-  "enclavesNote": "No enclave registered on v3 yet (the 5 live enclaves stay on v2.1 until the switch).",
+  "enclaves": {
+    "1": {
+      "product": 1,
+      "signer": "0xDBbcA6D7a8ae6eD4943650678C8751B6Eabdee7b",
+      "x25519": "0xa0cc5ed87012942b4d86f9495b7fd296a652b5e54e4fb50241d65709d027070d",
+      "operator": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a",
+      "imageId": "0x161c46ba0edcf061a7e2b7f05c6f5d5a1a26d8a705193a1fe8324f7f8bd2203b",
+      "composeHash": "0xbd01ba13d0ba918231739a2b8bf24415dbb82a8d9e759ad9ec11b579c7fa0ccd",
+      "osImageHash": "0x8db40cb23008d6213668b5816702d100b37b859a8a5bfd18d938ae3a1b3715bd",
+      "compose": "enclave/phala/sealed-chat-v3.yml",
+      "registerTx": "0x2de231e77dcde776204eb2067a3985f532f0581d9f2abd4d0ae26cd8eab16a6a",
+      "registerBlock": 73180089,
+      "registerGas": 6849062,
+      "ppid": "0x62d54040cb9dfc08bb13006fa75ece56",
+      "bindMachineTx": "0xabfd374dbeefcf886c25c81459ce137927735286553688448c09ea082050432e"
+    },
+    "2": {
+      "product": 2,
+      "signer": "0xe1C881CA3CFfE53b37c5A49E9679623977000BB1",
+      "x25519": "0x1c8fa993dc1c2c03e0ecb9da8f496c9aa228670ccc36f2da4754c710fd153f08",
+      "operator": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a",
+      "imageId": "0x8a0dd41d0ccc9692467fb6c8dc38268b6c83ca9201ec39462685b750fd2ef068",
+      "composeHash": "0x7abeaaeecfb384e49fe35b477135a4b5cc1c03b1ea6fd628814c7c4ccd6d858f",
+      "osImageHash": "0x8db40cb23008d6213668b5816702d100b37b859a8a5bfd18d938ae3a1b3715bd",
+      "compose": "enclave/phala/sealed-bounty-v3.yml",
+      "registerTx": "0xf7d24e863126f9124a0536cf936ade912d996f34cf5bde9c61bd63cd8c83989f",
+      "registerBlock": 73179707,
+      "registerGas": 6866162,
+      "ppid": "0x62d54040cb9dfc08bb13006fa75ece56",
+      "bindMachineTx": "0xeb4616e6f02eca0b0c539bbf6663b32cbef514afea838c10bb6dfb5b2c9f7fc7"
+    },
+    "3": {
+      "product": 3,
+      "signer": "0xd8f8b49548e0d9E268179A4E503321de61470a7a",
+      "x25519": "0x54e91f1a27f545e2f8c580641367b74cc5187feca5843c5c5a291a136a66cb60",
+      "operator": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a",
+      "imageId": "0x161c46ba0edcf061a7e2b7f05c6f5d5a1a26d8a705193a1fe8324f7f8bd2203b",
+      "composeHash": "0xbd01ba13d0ba918231739a2b8bf24415dbb82a8d9e759ad9ec11b579c7fa0ccd",
+      "osImageHash": "0x8db40cb23008d6213668b5816702d100b37b859a8a5bfd18d938ae3a1b3715bd",
+      "compose": "enclave/phala/sealed-chat-v3.yml",
+      "registerTx": "0x0e9bf7e1752ca575ef1c6296b57f433f2900a7bef554334c55c47f53eac92111",
+      "registerBlock": 73180203,
+      "registerGas": 6849074,
+      "ppid": "0x62d54040cb9dfc08bb13006fa75ece56",
+      "bindMachineTx": "0xf869d39ef143009f09583079b22890b6b51b7028d0cad547b21cdeaf64a7fc8d"
+    },
+    "4": {
+      "product": 4,
+      "signer": "0xD0De0BF6339113dD274c482524F0A878b1306675",
+      "x25519": "0x4d699452f5f5a17cb8d5ab8f1871665a4369ead6616a3573bcb5e284a99dc96b",
+      "operator": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a",
+      "imageId": "0xeddbd3cf37f7ef1b59d3807f1a6273d9549ff65b1db85bb8b69b869b76ad5e7c",
+      "composeHash": "0xd2141e4f8a85ee569083de4dffef5f5c2462a87aba5bd27fd137716721b40cf6",
+      "osImageHash": "0x8db40cb23008d6213668b5816702d100b37b859a8a5bfd18d938ae3a1b3715bd",
+      "compose": "enclave/phala/copilot-site-v3-r5.yml",
+      "registerTx": "0xb0714aeaf3d19bdaef8b80db6823e90b329e1d878c0a324902fae3521745df81",
+      "registerBlock": 73188285,
+      "registerGas": 6849062,
+      "ppid": "0x62d54040cb9dfc08bb13006fa75ece56",
+      "bindMachineTx": "0x30d9a663c3e1d440a4490ffc9934add45d1a920aa4b99f805f2280f09383372f",
+      "replaced": {
+        "signer": "0x5524f0219BF94a0377B48b08481846989e290771",
+        "imageId": "0x64ddeef6eba8bba9e7b8391615fd6a07954deaf0ab3a89401acac5b5b08841fc",
+        "compose": "enclave/phala/copilot-site-v3.yml",
+        "registerTx": "0x1de729e24812fb146ca68e57b21664dd5f6e3404312c3f6cfbfa0e8d3fb90ca5",
+        "bindMachineTx": "0xfcf65ea8d08612d4acb03eed4db547a34ba522daedebabf65d3700b0dc5863ee",
+        "retireTx": "0x5eb13d0b7c582e44fc34806a84ec626b737d7d6a597d894f405d3fe5e88acce3"
+      }
+    },
+    "5": {
+      "product": 5,
+      "signer": "0xC2B38D443f919cD594A297cB0655fbE861A159A6",
+      "x25519": "0x1ee726cf6a344730a6143d8afc972e988db9869d4951553cb6a441f0b60e5e5d",
+      "operator": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a",
+      "imageId": "0xadedf8e112e6ba1553c1e61dae28219a5fe90075cf04882722012dd4e29ef3a8",
+      "composeHash": "0x11f88ff91e34c44c653fc03e25d1e67990d4c8385d42f140ad573020912d5fd0",
+      "osImageHash": "0x8db40cb23008d6213668b5816702d100b37b859a8a5bfd18d938ae3a1b3715bd",
+      "compose": "enclave/phala/sealed-bounty-verified-v3.yml",
+      "registerTx": "0x6d7d0817a76c02db8734fba57f0a78b87d33812bc021e1790f3878c2242fa360",
+      "registerBlock": 73179857,
+      "registerGas": 6849062,
+      "ppid": "0x62d54040cb9dfc08bb13006fa75ece56",
+      "bindMachineTx": "0xad8831913161c8ef555944b7d3009202ee60303971acb8794e44cf1fdca005f1",
+      "level": "verified (MachineRegistry.levelOf(5, signer) = 1, meetsPolicy true)"
+    }
+  },
+  "enclavesNote": "Read on Arc: EnclaveRegistry.enclaveOf(signer) is active for each of the 5 signers, all run by the operator 0x344f2d2fA5AeAe78871F0B882245069F887c2e1a on one machine (the same chip PPID). compose is the file of enclave/phala/ whose compose-hash the EnclaveImage event carries (deploy/v3-vms.json; product 4's r5 manifest). Signers and X25519 keys are born at each VM boot. Product 4's first v3 enclave (AskHive r4) was retired right after the r5 enclave was admitted (enclaves.4.replaced).",
   "levels": {
     "txs": {
       "MachineRegistry": "0x3e2b4613984e0036b007e837291b7b676d3fe1e0cf6c954476c999699b3cee6b",
@@ -358,10 +541,42 @@
     "SealedBountyVerified": "0x8958EA25c9cF7bbee39B32C43187d854B5d73ee6",
     "settlementApplyAt": 0,
     "callerApplyAt": 0,
-    "machines": {}
+    "machines": {
+      "1": {
+        "signer": "0xDBbcA6D7a8ae6eD4943650678C8751B6Eabdee7b",
+        "ppid": "0x62d54040cb9dfc08bb13006fa75ece56",
+        "bindMachineTx": "0xabfd374dbeefcf886c25c81459ce137927735286553688448c09ea082050432e"
+      },
+      "2": {
+        "signer": "0xe1C881CA3CFfE53b37c5A49E9679623977000BB1",
+        "ppid": "0x62d54040cb9dfc08bb13006fa75ece56",
+        "bindMachineTx": "0xeb4616e6f02eca0b0c539bbf6663b32cbef514afea838c10bb6dfb5b2c9f7fc7"
+      },
+      "3": {
+        "signer": "0xd8f8b49548e0d9E268179A4E503321de61470a7a",
+        "ppid": "0x62d54040cb9dfc08bb13006fa75ece56",
+        "bindMachineTx": "0xf869d39ef143009f09583079b22890b6b51b7028d0cad547b21cdeaf64a7fc8d"
+      },
+      "4": {
+        "signer": "0xD0De0BF6339113dD274c482524F0A878b1306675",
+        "ppid": "0x62d54040cb9dfc08bb13006fa75ece56",
+        "bindMachineTx": "0x30d9a663c3e1d440a4490ffc9934add45d1a920aa4b99f805f2280f09383372f"
+      },
+      "5": {
+        "signer": "0xC2B38D443f919cD594A297cB0655fbE861A159A6",
+        "ppid": "0x62d54040cb9dfc08bb13006fa75ece56",
+        "bindMachineTx": "0xad8831913161c8ef555944b7d3009202ee60303971acb8794e44cf1fdca005f1"
+      }
+    },
+    "proofOfCloud": {
+      "auditor": "ProofOfCloudAuditor",
+      "ppid": "0x62d54040cb9dfc08bb13006fa75ece56",
+      "tx": "0xbc3c39347772a83a2259b3a4101959ce88ad1211b241fae38a965df819fa6c66",
+      "expiresAt": "2026-11-27T11:19:17Z"
+    }
   },
   "txCount": {
-    "deployer": "nonce 328 -> 356 (28 txs)",
+    "deployer": "nonce 328 -> 356 (28 txs) for the contracts, the products and the levels; nonce 386 read on Arc at block 73,212,751, after the switch",
     "operator": "5 txs (5 USDC gas top-up to the deployer, VerdictLog approval, approve, bondFrom, setAgentId)"
   },
   "verification": {

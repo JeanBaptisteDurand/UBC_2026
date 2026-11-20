@@ -1,5 +1,8 @@
 # ArcHive: the site (marketplace at the root, console under /console/, 3D room), the API, both copilots (console and
 # site), the MCP server over HTTP and the registrars. Installed by deploy/deploy.sh.
+# The API, both copilots and the MCP server read the v3 stack: each mounts its v3 bundle (*.v3.mjs) and the v3
+# deployment file, read-only (DEPLOYMENTS). build.sh writes api.mjs, copilot.mjs and mcp-http.mjs: install a new build
+# under the .v3.mjs name before restarting its service.
 name: archive
 # Images pinned by digest (read with docker image inspect): a pull cannot change anything silently. To upgrade:
 # docker pull <image:tag>, read the new digest, replace it here.
@@ -55,9 +58,9 @@ services:
     working_dir: /app
     # each service sees ONLY its own file (never the others' .env: deployer key, test-mode token)
     # /data: the only writable folder (paired machines, arcop_ key fingerprints, index, test-mode budget)
-    volumes: ["/opt/archive/api.mjs:/app/api.mjs:ro", "/opt/archive/data:/data"]
+    volumes: ["/opt/archive/api.v3.mjs:/app/api.mjs:ro", "/opt/archive/data:/data", "/opt/archive/src/deployments.v3.testnet.json:/app/deployments.v3.testnet.json:ro"]
     command: ["node", "api.mjs"]
-    environment: ["PORT=8809", "DATA_DIR=/data", "WEB_URL=https://archive.62-171-153-35.sslip.io"]
+    environment: ["PORT=8809", "DATA_DIR=/data", "WEB_URL=https://archive.62-171-153-35.sslip.io", "DEPLOYMENTS=/app/deployments.v3.testnet.json"]
     # test mode (testnet): a funded server wallet + token; without this file, test mode is simply off
     env_file:
       - path: /opt/archive/test-signer.env
@@ -75,11 +78,11 @@ services:
     image: node:22-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d
     user: "1000:1000"
     working_dir: /app
-    volumes: ["/opt/archive/copilot.mjs:/app/copilot.mjs:ro"]
+    volumes: ["/opt/archive/copilot.v3.mjs:/app/copilot.mjs:ro", "/opt/archive/src/deployments.v3.testnet.json:/app/deployments.v3.testnet.json:ro"]
     command: ["node", "copilot.mjs"]
     env_file: ["/opt/archive/copilot.env"]
     # two copilots, each with at most 1,000 model calls per day (2,000 in total)
-    environment: ["COPILOT_GLOBAL_PER_DAY=1000"]
+    environment: ["COPILOT_GLOBAL_PER_DAY=1000", "DEPLOYMENTS=/app/deployments.v3.testnet.json"]
     restart: unless-stopped
     logging: *logging
     read_only: true
@@ -91,12 +94,12 @@ services:
     image: node:22-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d
     user: "1000:1000"
     working_dir: /app
-    volumes: ["/opt/archive/copilot.mjs:/app/copilot.mjs:ro"]
+    volumes: ["/opt/archive/copilot.v3.mjs:/app/copilot.mjs:ro", "/opt/archive/src/deployments.v3.testnet.json:/app/deployments.v3.testnet.json:ro"]
     command: ["node", "copilot.mjs"]
     env_file: ["/opt/archive/copilot.env"]
     # the site copilot drives the pages AFTER reading the data, so a second tool round must stay allowed (the estimate
     # counts 3 tokens per accented character, and the site's prompt is partly French). Cost capped by COPILOT_GLOBAL_PER_DAY.
-    environment: ["COPILOT_SURFACE=site", "COPILOT_GLOBAL_PER_DAY=1000", "COPILOT_MAX_INPUT_TOKENS=120000", "COPILOT_MAX_INPUT_CHARS=320000"]
+    environment: ["COPILOT_SURFACE=site", "COPILOT_GLOBAL_PER_DAY=1000", "COPILOT_MAX_INPUT_TOKENS=120000", "COPILOT_MAX_INPUT_CHARS=320000", "DEPLOYMENTS=/app/deployments.v3.testnet.json"]
     restart: unless-stopped
     logging: *logging
     read_only: true
@@ -108,17 +111,19 @@ services:
     image: node:22-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d
     user: "1000:1000"
     working_dir: /app
-    volumes: ["/opt/archive/mcp-http.mjs:/app/mcp-http.mjs:ro"]
+    volumes: ["/opt/archive/mcp-http.v3.mjs:/app/mcp-http.mjs:ro", "/opt/archive/src/deployments.v3.testnet.json:/app/deployments.v3.testnet.json:ro"]
     command: ["node", "mcp-http.mjs"]
-    environment: ["MCP_PORT=8812", "ARCHIVE_API=http://api:8809", "RPC_URL=https://rpc.testnet.arc.io"]
+    environment: ["MCP_PORT=8812", "ARCHIVE_API=http://api:8809", "RPC_URL=https://rpc.testnet.arc.io", "DEPLOYMENTS=/app/deployments.v3.testnet.json"]
     restart: unless-stopped
     logging: *logging
     read_only: true
     tmpfs: ["/tmp:size=16m"]
     security_opt: ["no-new-privileges:true"]
     cap_drop: ["ALL"]
-  # v2.1 stack (SDK `testnet`): one registrar per enclave. Each renews the registration through DCAP before its window
-  # ends (checked every 10 min); those of the paid products also settle what the enclave served (sessions, x402 calls).
+  # v2.1 stack (SDK `testnet`), kept as history: these registrars are not running on the server. The live registrars
+  # are the five of the v3 stack, in docker-compose.v3-registrars.yml (a separate Compose project).
+  # One registrar per enclave. Each renews the registration through DCAP before its window ends (checked every
+  # 10 min); those of the paid products also settle what the enclave served (sessions, x402 calls).
   registrar-inference:
     image: node:22-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d
     user: "1000:1000"
