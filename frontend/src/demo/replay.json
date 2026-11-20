@@ -4,6 +4,8 @@
  "headTime": 1794666759,
  "chain": "Arc testnet",
  "chainId": 5042002,
+ "stack": "v2.1",
+ "stackNote": "Recorded on the v2.1 stack (deployments.v21.testnet.json) on 14 Nov 2026, before the switch to v3 (deployments.v3.testnet.json, deployed on 19 Nov 2026). Kept as history: every address, block and transaction below is a real v2.1 one.",
  "sources": {
   "api": "https://archive.62-171-153-35.sslip.io/api",
   "rpc": "https://rpc.testnet.arc.io",

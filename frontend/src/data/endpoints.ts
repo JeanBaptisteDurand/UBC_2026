@@ -52,7 +52,7 @@ export const ENCLAVE = {
   get inference() { return pick('VITE_ENCLAVE_INFERENCE') ?? `${encBase()}/inference` },
   /** Sealed bounty (product 2) */
   get bounty() { return pick('VITE_ENCLAVE_BOUNTY') ?? `${encBase()}/bounty` },
-  /** Verified-level sealed bounty (product 7, SealedBountyVerified) */
+  /** Verified-level sealed bounty (product 5 on v3, SealedBountyVerified) */
   get bountyVerified() { return pick('VITE_ENCLAVE_BOUNTY_VERIFIED') ?? `${encBase()}/bounty-verified` },
   /** Attested copilot (product 4): the proxy token is set by the API's nginx, so calls must go through it */
   get copilot() { return pick('VITE_ENCLAVE_COPILOT') ?? `${encBase()}/copilot` },
@@ -62,13 +62,14 @@ export const ENCLAVE = {
 }
 export type EnclaveKey = keyof typeof ENCLAVE
 
-/** Reference products of the v2.1 stack (read on Arc, SDK testnet.products, levels) */
+/** Reference products of the v3 stack (read on Arc, SDK testnet.products, levels). The verified bounty is product 5 on
+ *  v3 (it was product 7 on v2.1) */
 export const PRODUCT = {
   inference: BigInt(pick('VITE_PRODUCT_INFERENCE') ?? '1'),
   bounty: BigInt(pick('VITE_PRODUCT_BOUNTY') ?? '2'),
   x402: BigInt(pick('VITE_PRODUCT_X402') ?? '3'),
   copilot: BigInt(pick('VITE_COPILOT_PRODUCT_ID') ?? '4'),
-  bountyVerified: BigInt(pick('VITE_PRODUCT_BOUNTY_VERIFIED') ?? '7'),
+  bountyVerified: BigInt(pick('VITE_PRODUCT_BOUNTY_VERIFIED') ?? '5'),
 } as const
 
 /** The attested copilot requires the expected operator: without it, the bubble talks to the server copilot. */

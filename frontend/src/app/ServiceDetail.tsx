@@ -145,8 +145,8 @@ function ManifestBlock({ r }: { r: SvcRow }) {
                 <p className="lbl muted">{t('d.manifest.ok')} <a className="tlink" href={m.uri} target="_blank" rel="noreferrer">{t('d.manifest.open')}</a></p>
               </div>
             ) : m.state === 'none' ? <span className="muted">{t('d.manifest.none')}</span>
-            // product 6 shares product 7's manifest address; a missing or unreadable copy is not a "changed"
-            // manifest
+            // a replaced product shares its successor's manifest address (v2.1: product 6 and 7); a missing or
+            // unreadable copy is not a "changed" manifest
             : r.role?.role === 'superseded' ? <span className="muted">{t('d.manifest.superseded', { id: r.role.by })} <a className="tlink" href={m.uri} target="_blank" rel="noreferrer">{t('d.manifest.open')}</a></span>
             : m.state === 'unread' ? <span className="muted">{t('d.manifest.unread')} <a className="tlink" href={m.uri} target="_blank" rel="noreferrer">{t('d.manifest.open')}</a></span>
             : <span className="muted">{t('d.manifest.changed')} <a className="tlink" href={m.uri} target="_blank" rel="noreferrer">{t('d.manifest.open')}</a></span>}
@@ -211,8 +211,8 @@ function Events({ r }: { r: SvcRow }) {
 
 /** What was actually paid. Bounty.paidAmount is only "the highest tier granted since the last arming"
  *  (SealedBounty.sol): set as soon as a claim is accepted, it remains after a refutation. The paid amount is therefore
- *  read from the BountyPaid events of the read window, and the demo refutation (bounty 2), too old for that window,
- *  from data/facts.ts */
+ *  read from the BountyPaid events of the read window, and a recorded refutation, too old for that window, from
+ *  data/facts.ts (the demo refutation of 10/11 is bounty 2 of the v2.1 SealedBounty: no v3 bounty matches it) */
 function bountyTruth(b: Bounty, events: Activity[]) {
   // bounty numbers repeat across the two levels: an event that names its product must name this bounty's product
   const mine = events.filter((a) => String(a.args.bountyId) === b.id && (a.args.productId === undefined || String(a.args.productId) === String(b.productId)))

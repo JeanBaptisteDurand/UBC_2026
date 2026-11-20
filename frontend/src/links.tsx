@@ -2,7 +2,7 @@ import { CONSOLE, useLive } from './data/live'
 import { DATACENTER } from './data/endpoints'
 import { t, useLang } from './i18n'
 import { num } from './data/fmt'
-import { C } from './data/facts'
+import { C, C21 } from './data/facts'
 import type { Service } from './data/wall'
 
 // The site's places, one address each: Network and its three parts (Use, Rent, Publish: their
@@ -25,7 +25,7 @@ export const serviceHref = (productId: string) => `${B}service.html?p=${encodeUR
 export const useHref = (productId: string) => `${networkFor('use')}&p=${encodeURIComponent(productId)}`
 /** Console screen for a service, kept for secondary links. The console Bounties page only reads SealedBounty;
  *  verified-level bounties (SealedBountyVerified) are listed under its products, as the console files them */
-const VERIFIED_RAILS = [C.SealedBountyVerified, C.SealedBountyVerifiedOld].map((a) => a.toLowerCase())
+const VERIFIED_RAILS = [C.SealedBountyVerified, C21.SealedBountyVerified, C21.SealedBountyVerifiedOld].map((a) => a.toLowerCase())
 export const consoleFor = (s?: Service, settlement?: string) => `${CONSOLE}/#/${s === 'bounty' && settlement && VERIFIED_RAILS.includes(settlement.toLowerCase()) ? 'produits' : s === 'bounty' ? 'primes' : s === 'copilot' ? 'vue' : s === 'ai' || s === 'x402' ? 'playground' : 'produits'}`
 export const tx = (h?: string | null) => (h ? `https://explorer.testnet.arc.io/tx/${h}` : undefined)
 export const addr = (a?: string | null) => (a ? `https://explorer.testnet.arc.io/address/${a}` : undefined)

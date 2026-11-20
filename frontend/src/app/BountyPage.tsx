@@ -1,7 +1,7 @@
 // Sealed bounties page: the live list, creation by a protocol, the hunter flow (sealed submission for the verified
 // enclave, replay, reservation, delivery), credit and pool withdrawal, at the open level (product 2) as at the
-// verified level (product 7). Ported from web/src/screens/Bounties.tsx, Bounty.tsx and PostBounty.tsx; everything is
-// signed by the visitor's wallet, nothing is simulated.
+// verified level (product 5 on v3, 7 on v2.1). Ported from web/src/screens/Bounties.tsx, Bounty.tsx and
+// PostBounty.tsx; everything is signed by the visitor's wallet, nothing is simulated.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Address, Hex } from 'viem'
 import { useLang } from '../i18n'
@@ -124,8 +124,8 @@ export function BountyPage({ embed = false }: { embed?: boolean } = {}) {
                   : rows.length === 0 ? <tr><td colSpan={6} className="muted">{x('b.none')}</td></tr>
                     : rows.map((b) => {
                       const expired = b.deadline < now
-                      // the refutation of 10/11 is bounty 2 of the open level (product 5). The verified level numbers
-                      // its bounties from 1 too: its bounty 2 (product 7) is another bounty, never refuted
+                      // the refutation of 10/11 is bounty 2 of the v2.1 open level (product 5 of v2.1): refutationOfBounty
+                      // compares the contract, so no v3 bounty takes it. The verified level numbers its bounties from 1 too
                       const refuted = level === 'open' && refutationOfBounty(b.id)?.productId === String(b.productId)
                       return (
                         <tr key={b.id} data-on={pick === b.id ? '1' : '0'}>

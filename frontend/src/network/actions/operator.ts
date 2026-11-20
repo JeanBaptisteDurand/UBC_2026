@@ -5,7 +5,7 @@
 //   bond;
 // - enclave registration through real DCAP: the SDK reads the machine's attestation (/attest, often behind a
 //   trycloudflare tunnel) and checks the quote off chain. Then registerEnclave: the chain verifies Intel's signature,
-//   ≈ 6.85 M gas (measured on v2.1). Its removal is retire.
+//   ≈ 6.85 M gas (measured on v2.1; v3 runs the same registry source). Its removal is retire.
 import type { Address, Hex } from 'viem'
 import { arc, waitOk, UserFacing } from './wallet'
 import { apiGet, apiPost, type Machine, type OperatorKey } from './archive-api'
