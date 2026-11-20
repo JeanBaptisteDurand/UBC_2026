@@ -40,7 +40,7 @@ test("every list comes from the API's index, never from the explorer", async () 
   assert.equal(p.json.products.length, 2);
   const e = await run("arc_enclaves");
   assert.equal(e.json.total, 5);
-  assert.match(e.json.index.source, /index d'événements de l'API ArcHive/);
+  assert.match(e.json.index.source, /ArcHive API event index/);
   assert.ok((await run("arc_enclaves", { onlyActive: true })).json.enclaves.every((x: any) => x.active));
   const b = await run("arc_bounties");
   assert.equal(b.json.total, 2);

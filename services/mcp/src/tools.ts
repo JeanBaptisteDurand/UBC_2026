@@ -331,7 +331,7 @@ const KEYS_EN: Record<string, string> = {
   cleDuProtocole: "protocolKey", clePubliqueDeSession: "sessionPublicKey", clePubliqueX25519: "x25519PublicKey", commande: "command",
   compte: "account", conseil: "advice", contrat: "contract", couvreLaCautionMinimale: "coversMinimumBond", deBloc: "fromBlock",
   dejaRegle: "alreadySettled", depot: "deposit", deterministe: "deterministic", diagnosticOk: "diagnosticsOk", disponible: "available",
-  echeance: "deadlineAt", economie: "economics", enCoursDeRetrait: "withdrawing", enLigne: "online", etape: "step", etapes: "steps",
+  avertissement: "warning", echeance: "deadlineAt", economie: "economics", enCoursDeRetrait: "withdrawing", enLigne: "online", etape: "step", etapes: "steps",
   etat: "state", evenement: "event", evenements: "events", expireLe: "expiresAt", exposition: "exposure",
   expositionSur24hPourCeProduit: "exposure24hThisProduct", fenetreDeValidite: "validityWindow", fermee: "closed", fermeture: "closing",
   fichiers: "files", financement: "fundingPlan", fonction: "function", gazEstime: "estimatedGas", indexAJourAuBloc: "indexUpToBlock",
@@ -355,8 +355,9 @@ const KEYS_EN: Record<string, string> = {
 };
 const KEEP_KEYS = new Set(["types", "message", "domain", "files", "fichiers", "createBountyParams", "proposeParams", "args"]);
 
-/** The list names and reasons of the copilot's "list temporarily unavailable" message (archive-api.ts), in English.
- *  The copilot says them in French because its prompt is French; this server says them in English. */
+/** The list names and reasons of the copilot's "list temporarily unavailable" message, and its index freshness note
+ *  (archive-api.ts), in English. The copilot says them in French because its prompt is French; this server says them
+ *  in English. */
 const LIST_NAMES_EN: Record<string, string> = {
   produits: "products", primes: "bounties", enclaves: "enclaves", sessions: "sessions", "activité": "activity",
   "compteurs du réseau": "network counters", niveaux: "levels", index: "index",
@@ -369,9 +370,13 @@ const LIST_REASONS_EN: Array<[RegExp, string]> = [
   [/réponse inattendue de l'API ArcHive \(tableau attendu\)/g, "unexpected ArcHive API response (array expected)"],
   [/réponse illisible de l'API ArcHive/g, "unreadable ArcHive API response"],
   [/réponse inattendue de l'API ArcHive/g, "unexpected ArcHive API response"],
+  [/index d'événements de l'API ArcHive/g, "ArcHive API event index"],
+  [/inconnu \(état de l'index illisible\)/g, "unknown (index state unreadable)"],
+  [/l'index de l'API a (\S+) blocs de retard/g, "the API's index is $1 blocks behind"],
+  [/ : un événement plus récent que le bloc (\d+) peut manquer/g, ": an event newer than block $1 may be missing"],
 ];
 export function englishText(s: string): string {
-  if (!s.includes("indisponible") && !s.includes("API ArcHive")) return s;
+  if (!/indisponible|API ArcHive|index de l'API|état de l'index/.test(s)) return s;
   let out = s
     .replace(/liste momentanément indisponible \(([^)]*)\) : /g, (_m, l: string) => `list temporarily unavailable (${LIST_NAMES_EN[l] ?? l}): `)
     .replace(/liste momentanément indisponible/g, "list temporarily unavailable")

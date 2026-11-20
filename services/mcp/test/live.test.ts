@@ -23,10 +23,10 @@ test("the MCP server's list tools against the live API", { skip }, async () => {
     const t0 = Date.now();
     const out = await callTool(arc, actx, name, args);
     const text = out.content[0]!.text;
-    console.log(`  ${name} → ${Date.now() - t0} ms : ${text.replace(/\s+/g, " ").slice(0, 200)}…`);
-    assert.ok(!out.isError, `${name} : ${text}`);
+    console.log(`  ${name} → ${Date.now() - t0} ms: ${text.replace(/\s+/g, " ").slice(0, 200)}…`);
+    assert.ok(!out.isError, `${name}: ${text}`);
     const j = JSON.parse(text);
-    if (name !== "arc_products") assert.match(j.liste.source, /index d'événements de l'API ArcHive/);
+    if (name !== "arc_products") assert.match(j.index.source, /ArcHive API event index/);
   }
   console.log("  hosts contacted:", [...new Set(contacted.map((u) => new URL(u).host))].join(", "));
   assert.ok(contacted.every((u) => !/explorer|blockscout/i.test(u)), "the explorer is never contacted");
