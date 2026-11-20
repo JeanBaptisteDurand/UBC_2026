@@ -145,8 +145,8 @@ proven on-chain seizes all of it. The rules and their figures are in
    relay. Our servers only relay ciphertext.
 3. **The enclave answers with a signed receipt, and the operator settles.** The registrar settles on `X402Settler` (or
    `SessionPay`), which checks that an admitted enclave signed, reads the price and the shares, and splits the USDC
-   95/0/5 in the same transaction. Verdicts (100 or 0) go through `VerdictLog` into the ERC-8004 validation registry on
-   Arc.
+   95/0/5 in the same transaction. Sessions and bounties also write a verdict (100 or 0) through `VerdictLog` into the
+   ERC-8004 validation registry on Arc; a paid call does not.
 4. **A lie costs the bond.** Other bounty enclaves replay the claim on an `arc-anvil` fork of Arc and sign a
    refutation. `SealedBounty` then slashes the liar's bond in `OperatorBond`: half to the reporter, half to the victim.
 

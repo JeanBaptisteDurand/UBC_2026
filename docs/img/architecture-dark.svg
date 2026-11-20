@@ -4,7 +4,7 @@
 <defs><style>.s{font-family:ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif}.m{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}</style><symbol id="i-bot" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></symbol><symbol id="i-app-window" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 4v4"/><path d="M2 8h20"/><path d="M6 4v4"/></symbol><symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol><symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></symbol><symbol id="i-server" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></symbol><symbol id="i-cpu" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></symbol><symbol id="i-terminal" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></symbol><symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></symbol><symbol id="i-message-circle" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></symbol><symbol id="i-plug" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></symbol><symbol id="i-package" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7"/><path d="m7.5 4.27 9 5.15"/></symbol><symbol id="i-database" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></symbol><marker id="m-slate" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M1,1 L8.5,5 L1,9" fill="none" stroke="#8593a8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker><marker id="m-blue" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M1,1 L8.5,5 L1,9" fill="none" stroke="#4a86ff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker><marker id="m-teal" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M1,1 L8.5,5 L1,9" fill="none" stroke="#19c6c5" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker><marker id="m-purple" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M1,1 L8.5,5 L1,9" fill="none" stroke="#cf74e6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker><marker id="m-amber" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M1,1 L8.5,5 L1,9" fill="none" stroke="#e6a443" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker><marker id="m-green" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M1,1 L8.5,5 L1,9" fill="none" stroke="#62d185" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker><marker id="m-red" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M1,1 L8.5,5 L1,9" fill="none" stroke="#f06c62" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker><marker id="m-grey" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M1,1 L8.5,5 L1,9" fill="none" stroke="#9a9a9a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker><marker id="m-white" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M1,1 L8.5,5 L1,9" fill="none" stroke="#e8e8e8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
 <rect width="1600" height="900" fill="#171717"/>
 <text x="32.0" y="48.0" class="s" font-size="30" font-weight="700" fill="#f2f2f2" text-anchor="start">ArcHive architecture</text>
-<text x="32.0" y="76.0" class="s" font-size="15" font-weight="400" fill="#a3a3a3" text-anchor="start">Sealed machines, open market. AI agents, apps and people pay per use in USDC for work done in Intel TDX enclaves that Arc admits, pays on and can slash.</text>
+<text x="32.0" y="76.0" class="s" font-size="15" font-weight="400" fill="#a3a3a3" text-anchor="start">Sealed machines, open market. AI agents, apps and people pay per use in USDC for work in Intel TDX enclaves that Arc admits and pays on; a lie costs the operator's bond.</text>
 <text x="1572.0" y="44.0" class="s" font-size="14" font-weight="400" fill="#a3a3a3" text-anchor="end">Arc testnet · chainId 5042002</text>
 <text x="1572.0" y="64.0" class="s" font-size="14" font-weight="400" fill="#a3a3a3" text-anchor="end">13 contracts in service and a demo vault, all shown</text>
 <rect x="24" y="112" width="176" height="680" rx="12" fill="#23272d" stroke="#8593a8" stroke-width="1.5"/>
@@ -12,8 +12,8 @@
 <text x="44.0" y="137.5" class="s" font-size="12.5" font-weight="650" fill="#f2f2f2" text-anchor="start" letter-spacing="0.6">WHO PAYS</text>
 <use href="#i-bot" x="97.0" y="175.0" width="30" height="30" stroke="#f2f2f2"/>
 <text x="112.0" y="225.0" class="s" font-size="17" font-weight="600" fill="#f2f2f2" text-anchor="middle">AI agent</text>
-<text x="112.0" y="244.0" class="s" font-size="13.5" font-weight="400" fill="#a3a3a3" text-anchor="middle">Claude Code, Cursor,</text>
-<text x="112.0" y="260.5" class="s" font-size="13.5" font-weight="400" fill="#a3a3a3" text-anchor="middle">any MCP client</text>
+<text x="112.0" y="244.0" class="s" font-size="13.5" font-weight="400" fill="#a3a3a3" text-anchor="middle">Claude Code, Cursor:</text>
+<text x="112.0" y="260.5" class="s" font-size="13.5" font-weight="400" fill="#a3a3a3" text-anchor="middle">prepares, you sign</text>
 <use href="#i-user" x="97.0" y="323.0" width="30" height="30" stroke="#f2f2f2"/>
 <text x="112.0" y="373.0" class="s" font-size="17" font-weight="600" fill="#f2f2f2" text-anchor="middle">Person</text>
 <text x="112.0" y="392.0" class="s" font-size="13.5" font-weight="400" fill="#a3a3a3" text-anchor="middle">site and AskHive</text>
@@ -22,9 +22,9 @@
 <text x="112.0" y="494.0" class="s" font-size="13.5" font-weight="400" fill="#a3a3a3" text-anchor="middle">pays per call</text>
 <text x="112.0" y="510.5" class="s" font-size="13.5" font-weight="400" fill="#a3a3a3" text-anchor="middle">through the SDK</text>
 <use href="#i-shield" x="97.0" y="605.0" width="30" height="30" stroke="#f2f2f2"/>
-<text x="112.0" y="655.0" class="s" font-size="17" font-weight="600" fill="#f2f2f2" text-anchor="middle">Protocol · hunter</text>
-<text x="112.0" y="674.0" class="s" font-size="13.5" font-weight="400" fill="#a3a3a3" text-anchor="middle">funds a bounty pool</text>
-<text x="112.0" y="690.5" class="s" font-size="13.5" font-weight="400" fill="#a3a3a3" text-anchor="middle">sends an exploit</text>
+<text x="112.0" y="655.0" class="s" font-size="17" font-weight="600" fill="#f2f2f2" text-anchor="middle">Hunter · protocol</text>
+<text x="112.0" y="674.0" class="s" font-size="13.5" font-weight="400" fill="#a3a3a3" text-anchor="middle">sends an exploit</text>
+<text x="112.0" y="690.5" class="s" font-size="13.5" font-weight="400" fill="#a3a3a3" text-anchor="middle">funds a bounty pool</text>
 <text x="112.0" y="740.0" class="s" font-size="12.5" font-weight="400" fill="#a3a3a3" text-anchor="middle">Payers sign in</text>
 <text x="112.0" y="756.0" class="s" font-size="12.5" font-weight="400" fill="#a3a3a3" text-anchor="middle">their own wallet;</text>
 <text x="112.0" y="772.0" class="s" font-size="12.5" font-weight="400" fill="#a3a3a3" text-anchor="middle">USDC moves by EIP-3009</text>
@@ -135,16 +135,14 @@
 <text x="1336.0" y="423.0" class="m" font-size="14" font-weight="600" fill="#f2f2f2" text-anchor="start">Ed25519Verifier</text>
 <text x="1336.0" y="439.5" class="s" font-size="12" font-weight="400" fill="#a3a3a3" text-anchor="start">the alliance's signature</text>
 <rect x="1056" y="468" width="254" height="318" rx="12" fill="#2b261c" stroke="#e6a443" stroke-width="1.5"/>
-<rect x="1066" y="477" width="90.8" height="24" rx="6" fill="#1d1d1d" stroke="#e6a443" stroke-width="1"/>
-<text x="1076.0" y="493.5" class="s" font-size="12.5" font-weight="650" fill="#f2f2f2" text-anchor="start" letter-spacing="0.6">PAYMENTS</text>
-<rect x="1164.8" y="479" width="80.8" height="20" rx="10" fill="none" stroke="#e6a443" stroke-width="1" stroke-opacity="0.8"/>
-<text x="1205.2" y="493.0" class="s" font-size="12" font-weight="600" fill="#e6a443" text-anchor="middle">95 / 0 / 5</text>
+<rect x="1066" y="477" width="188.2" height="24" rx="6" fill="#1d1d1d" stroke="#e6a443" stroke-width="1"/>
+<text x="1076.0" y="493.5" class="s" font-size="12.5" font-weight="650" fill="#f2f2f2" text-anchor="start" letter-spacing="0.6">PAYMENTS · BOUNTIES</text>
 <rect x="1064" y="508" width="238" height="44" rx="7" fill="#1b1b1b" stroke="#e6a443" stroke-width="1.25"/>
 <text x="1076.0" y="527.0" class="m" font-size="14" font-weight="600" fill="#f2f2f2" text-anchor="start">X402Settler</text>
-<text x="1076.0" y="543.5" class="s" font-size="12" font-weight="400" fill="#a3a3a3" text-anchor="start">EIP-3009, settled per call</text>
+<text x="1076.0" y="543.5" class="s" font-size="12" font-weight="400" fill="#a3a3a3" text-anchor="start">EIP-3009 per call, split 95/0/5</text>
 <rect x="1064" y="561" width="238" height="44" rx="7" fill="#1b1b1b" stroke="#e6a443" stroke-width="1.25"/>
 <text x="1076.0" y="580.0" class="m" font-size="14" font-weight="600" fill="#f2f2f2" text-anchor="start">SessionPay</text>
-<text x="1076.0" y="596.5" class="s" font-size="12" font-weight="400" fill="#a3a3a3" text-anchor="start">EIP-3009 deposit, EIP-712 receipts</text>
+<text x="1076.0" y="596.5" class="s" font-size="12" font-weight="400" fill="#a3a3a3" text-anchor="start">EIP-712 receipts, split 95/0/5</text>
 <rect x="1064" y="614" width="238" height="44" rx="7" fill="#1b1b1b" stroke="#e6a443" stroke-width="1.25"/>
 <text x="1076.0" y="633.0" class="m" font-size="14" font-weight="600" fill="#f2f2f2" text-anchor="start">SealedBounty</text>
 <text x="1076.0" y="649.5" class="s" font-size="12" font-weight="400" fill="#a3a3a3" text-anchor="start">open-level pools, refute</text>
@@ -168,8 +166,8 @@
 <text x="1338.0" y="661.5" class="s" font-size="12.5" font-weight="650" fill="#f2f2f2" text-anchor="start" letter-spacing="0.6">BONDS</text>
 <rect x="1326" y="676" width="232" height="58" rx="7" fill="#1b1b1b" stroke="#f06c62" stroke-width="1.25"/>
 <text x="1338.0" y="695.0" class="m" font-size="14" font-weight="600" fill="#f2f2f2" text-anchor="start">OperatorBond</text>
-<text x="1338.0" y="711.5" class="s" font-size="12" font-weight="400" fill="#a3a3a3" text-anchor="start">exposure caps per product</text>
-<text x="1338.0" y="726.0" class="s" font-size="12" font-weight="400" fill="#a3a3a3" text-anchor="start">slash: ½ reporter, ½ victim</text>
+<text x="1338.0" y="711.5" class="s" font-size="12" font-weight="400" fill="#a3a3a3" text-anchor="start">½ bond a day, 10 USDC per product</text>
+<text x="1338.0" y="726.0" class="s" font-size="12" font-weight="400" fill="#a3a3a3" text-anchor="start">slash: ½ reporter, ½ victim or network</text>
 <rect x="1326" y="754" width="232" height="32" rx="7" fill="#1b1b1b" stroke="#8a8a8a" stroke-width="1.25" stroke-dasharray="5 4"/>
 <text x="1338.0" y="775.0" class="s" font-size="14" font-weight="600" fill="#f2f2f2" text-anchor="start">USDC (native): gas and money</text>
 <path d="M128,190 L306,190" stroke="#8593a8" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-slate)"/>
@@ -187,9 +185,10 @@
 <path d="M1000,192 L1018.0,192.0 Q1026,192 1026.0,200.0 L1026.0,366.0 Q1026,374 1034.0,374.0 L1064,374" stroke="#19c6c5" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 5" marker-end="url(#m-teal)"/>
 <path d="M1000,212 L1007.0,212.0 Q1014,212 1014.0,219.0 L1014.0,522.0 Q1014,530 1022.0,530.0 L1064,530" stroke="#e6a443" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 5" marker-end="url(#m-amber)"/>
 <path d="M882,620 L1028.0,620.0 Q1036,620 1036.0,628.0 L1036.0,628.0 Q1036,636 1044.0,636.0 L1064,636" stroke="#f06c62" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 5" marker-end="url(#m-red)"/>
-<path d="M840,338 L916,338" stroke="#9a9a9a" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-grey)"/>
-<path d="M886,440 L916,440" stroke="#9a9a9a" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-grey)"/>
-<path d="M878,530 L916,530" stroke="#9a9a9a" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-grey)"/>
+<path d="M840,338 L916,338" stroke="#e8e8e8" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-white)"/>
+<path d="M886,440 L916,440" stroke="#e8e8e8" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-white)"/>
+<path d="M878,530 L916,530" stroke="#e8e8e8" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-white)"/>
+<path d="M188,686 L214.0,686.0 Q222,686 222.0,694.0 L222.0,798.0 Q222,806 230.0,806.0 L1016.0,806.0 Q1024,806 1024.0,798.0 L1024.0,658.0 Q1024,650 1032.0,650.0 L1064,650" stroke="#e6a443" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 5" marker-end="url(#m-amber)"/>
 <path d="M1120,236 L1120,247" stroke="#19c6c5" stroke-width="1.25" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-teal)"/>
 <path d="M1302,270 L1322,270" stroke="#19c6c5" stroke-width="1.25" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-teal)"/>
 <path d="M1302,214 L1322,214" stroke="#19c6c5" stroke-width="1.25" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-teal)"/>
@@ -216,8 +215,10 @@
 <text x="420.0" y="624.7" class="s" font-size="13" font-weight="600" fill="#cf74e6" text-anchor="middle">sealed exploit</text>
 <rect x="910.8" y="245.0" width="70.3" height="18" rx="4" fill="#171717"/>
 <text x="946.0" y="258.3" class="s" font-size="12" font-weight="600" fill="#19c6c5" text-anchor="middle">TDX quote</text>
-<rect x="923.3" y="611.0" width="57.4" height="18" rx="4" fill="#171717"/>
-<text x="952.0" y="624.3" class="s" font-size="12" font-weight="600" fill="#f06c62" text-anchor="middle">refutes</text>
+<rect x="927.6" y="611.0" width="76.8" height="18" rx="4" fill="#171717"/>
+<text x="966.0" y="624.3" class="s" font-size="12" font-weight="600" fill="#f06c62" text-anchor="middle">refutation</text>
+<rect x="389.5" y="797.0" width="161.0" height="18" rx="4" fill="#171717"/>
+<text x="470.0" y="810.3" class="s" font-size="12" font-weight="600" fill="#e6a443" text-anchor="middle">funds a pool (EIP-3009)</text>
 <rect x="1295.2" y="793.5" width="141.6" height="18" rx="4" fill="#171717"/>
 <text x="1366.0" y="806.8" class="s" font-size="12" font-weight="600" fill="#e6a443" text-anchor="middle">CCTP V2: burn → mint</text>
 <circle cx="628" cy="430" r="12" fill="#cf74e6" stroke="#171717" stroke-width="2"/>
@@ -228,8 +229,8 @@
 <text x="1014.0" y="177.0" class="s" font-size="14" font-weight="800" fill="#141414" text-anchor="middle">1</text>
 <circle cx="1014" cy="470" r="12" fill="#e6a443" stroke="#171717" stroke-width="2"/>
 <text x="1014.0" y="475.0" class="s" font-size="14" font-weight="800" fill="#141414" text-anchor="middle">3</text>
-<circle cx="904" cy="620" r="12" fill="#f06c62" stroke="#171717" stroke-width="2"/>
-<text x="904.0" y="625.0" class="s" font-size="14" font-weight="800" fill="#141414" text-anchor="middle">4</text>
+<circle cx="902" cy="620" r="12" fill="#f06c62" stroke="#171717" stroke-width="2"/>
+<text x="902.0" y="625.0" class="s" font-size="14" font-weight="800" fill="#141414" text-anchor="middle">4</text>
 <path d="M28,830 L62,830" stroke="#e8e8e8" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-white)"/>
 <text x="70.0" y="834.0" class="s" font-size="13" font-weight="400" fill="#a3a3a3" text-anchor="start">off-chain call (HTTPS, HPKE)</text>
 <path d="M292.56,830 L326.56,830" stroke="#e8e8e8" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 5" marker-end="url(#m-white)"/>
