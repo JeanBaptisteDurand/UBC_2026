@@ -1,7 +1,7 @@
-# app-compose dstack pour Phala Cloud : la machine « Prime scellée » (O3), rejeu RÉEL par anvil (fork d'Arc au bloc N).
-# Déploiement : phala deploy -c docker-compose.bounty.yml -t tdx.small --name archive-sealed-bounty
-# Tout ce qui est écrit ici est mesuré (mrConfigId → workloadId) : adresses, produit, RPC. OPERATOR_ALLOWLIST est
-# une variable chiffrée (allowed_envs), non mesurée, pour que la même image serve n'importe quel opérateur cautionné.
+# dstack app-compose for Phala Cloud: the Sealed Bounty machine (O3), a REAL replay by anvil (a fork of Arc at block N).
+# Deployment: phala deploy -c docker-compose.bounty.yml -t tdx.small --name archive-sealed-bounty
+# Everything written here is measured: addresses, product, RPC. OPERATOR_ALLOWLIST is an encrypted variable
+# (allowed_envs), not measured, so that the same image can serve any bonded operator.
 services:
   sealed-bounty:
     image: ghcr.io/jeanbaptistedurand/archive-sealed-bounty@sha256:${IMAGE_DIGEST}
@@ -16,5 +16,5 @@ services:
       - SEALEDBOUNTY=${SEALEDBOUNTY}
       - OPERATOR_ALLOWLIST=${OPERATOR_ALLOWLIST}
     volumes:
-      - /var/run/dstack.sock:/var/run/dstack.sock   # agent invité dstack (vrai quote TDX)
+      - /var/run/dstack.sock:/var/run/dstack.sock   # the dstack guest agent (a real TDX quote)
     restart: unless-stopped

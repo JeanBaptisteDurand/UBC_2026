@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "description": "Kit d'enclave (O1) + services inférence (O2) et Prime scellée (O3) du réseau d'enclaves d'Arc",
+  "description": "ArcHive's enclave kit (O1), with the inference (O2) and Sealed Bounty (O3) services",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",

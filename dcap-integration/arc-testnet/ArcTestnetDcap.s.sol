@@ -394,7 +394,7 @@ contract ArcTestnetDcap is P256Configuration {
         console2.log("[local] gas (P-256 en Solidity, Daimo) =", used);
         if (ok) {
             console2.log("[local] tcbStatus =", uint8(out[4]));
-            console2.log("[local] sortie (octets) =", out.length);
+            console2.log("[local] output (bytes) =", out.length);
         } else {
             console2.log(string(out));
         }
