@@ -11,3 +11,9 @@ export const NETWORK_PART_URL = { use: "/network.html?focus=use", rent: "/networ
 /** The Bridge (bridge.html): testnet USDC from Ethereum Sepolia or Base Sepolia to Arc, through CCTP. */
 export const BRIDGE_PATH = "/bridge.html";
 export const BRIDGE_URL_TEXT = `${SITE_ORIGIN_URL}${BRIDGE_PATH}`;
+/** ArcHive's code on GitHub; its folder examples/opencode-archive runs OpenCode (or any OpenAI-compatible tool) on
+ *  product 3 through a local bridge. */
+export const REPO_URL_TEXT = "https://github.com/JeanBaptisteDurand/UBC_2026";
+/** That local bridge's OpenAI-compatible address, on the visitor's own machine (127.0.0.1 only; the example's default
+ *  port, ARCHIVE_BRIDGE_PORT=8789). */
+export const LOCAL_BRIDGE_URL_TEXT = "http://127.0.0.1:8789/v1";

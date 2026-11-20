@@ -619,8 +619,10 @@ test("site prompt: the FACTS sheet, the visitor signs with their wallet, no inve
   const siteTexts = [SITE_SYSTEM, ...SITE_UI_TOOL_DEFS.map((t) => JSON.stringify(t)), ...SITE_PAGES_KB.map((k) => k.text)];
   for (const t of siteTexts) assert.ok(!/ne fait que lire|only reads/i.test(t), t.slice(0, 120));
   // every absolute address the site gives the model is on the site (the panel itself links hashes to the explorer),
-  // except the arcvault CLI's local proxy, on the visitor's machine (the Claude Code entry)
-  for (const t of siteTexts) for (const u of urls(t)) assert.ok(u.startsWith(SITE_ORIGIN) || u === "http://localhost:8787/v1", `${u} dans ${t.slice(0, 80)}`);
+  // except the arcvault CLI's local proxy and the example's local bridge and LiteLLM gateway, on the visitor's machine
+  // (the Claude Code and coding-agent entries), and ArcHive's code on GitHub (examples/opencode-archive)
+  const OFF_SITE = ["http://localhost:8787/v1", "http://127.0.0.1:8789/v1", "http://127.0.0.1:8789", "http://127.0.0.1:4000", "https://github.com/JeanBaptisteDurand/UBC_2026"];
+  for (const t of siteTexts) for (const u of urls(t)) assert.ok(u.startsWith(SITE_ORIGIN) || OFF_SITE.includes(u), `${u} dans ${t.slice(0, 80)}`);
   // "5 contracts" appears only to be forbidden
   for (const t of [SITE_SYSTEM, ...SITE_PAGES_KB.map((k) => k.text)]) {
     for (const m of t.matchAll(/5 contra(?:cts|ts)/gi)) assert.match(t.slice(Math.max(0, m.index! - 12), m.index!), /never|jamais/i, t.slice(0, 80));
@@ -1391,4 +1393,33 @@ test("the Bridge (bridge.html): a bridge question leads there and shows the tran
   assert.ok(SITE_SYSTEM.includes("/bridge.html") && SITE_SYSTEM.includes("never the console"));
   assert.ok(SITE_PAGES_KB.some((k) => k.source === "site-v5#bridge" && k.text.includes("free standard transfer")));
   assert.equal(siteIntentNav("how do I bridge my USDC to Arc?", "en")?.page, "bridge");
+});
+
+test("coding agents on product 3 (examples/opencode-archive): docs_search finds them, the exact commands and limits, never the CCTP Bridge nor the MCP's fixed answer", async () => {
+  const top = async (q: string) => ((await executeSiteTool("docs_search", { query: q }, { arc: fakeArc() })).citations ?? [])[0];
+  for (const [q, src] of [
+    ["How do I use OpenCode with ArcHive?", "site-v5#opencode"],
+    ["Comment utiliser l'IA privée d'ArcHive dans OpenCode ?", "site-v5#opencode"],
+    ["Can I use Aider with your private AI?", "site-v5#any-harness"],
+    ["which settings for Continue or Cline, any OpenAI compatible harness?", "site-v5#any-harness"],
+  ] as const) assert.equal(await top(q), src, q);
+  // the published example's commands, the bridge's address and model, the limits, the proofs
+  const oc = SITE_PAGES_KB.find((k) => k.source === "site-v5#opencode")!.text;
+  for (const must of ["examples/opencode-archive", "https://github.com/JeanBaptisteDurand/UBC_2026", "http://127.0.0.1:8789/v1", "ARCHIVE_PAYER_KEY_FILE", "./opencode-archive run", "./opencode-archive log", "./opencode-archive stop", "cd packages/sdk && npm ci", "gpt-oss-120b", "0.01 USDC", "HPKE", "EIP-3009", "not an MCP server", "never a wallet with real funds", "30 paid calls", "1,024 output tokens", "32 KB", "0xb381773a089fb338a11081a9098174fdc4d0db14374d8a7f3ee1652f2727fa31", "v2.1"]) assert.ok(oc.includes(must), must);
+  const any = SITE_PAGES_KB.find((k) => k.source === "site-v5#any-harness")!.text;
+  for (const must of ["./opencode-archive start", "http://127.0.0.1:8789/v1", "model gpt-oss-120b", "aider --model openai/gpt-oss-120b", "OpenAI Compatible", "goose session", "Codex CLI", "were not run against the enclave", "0x877519ad25ea750bf45bcba314d77324aa6227ae690fa1c7110dece6e95eaede"]) assert.ok(any.includes(must), must);
+  // the Claude Code entry and fixed answer name the published bridge, text only
+  const cc = SITE_PAGES_KB.find((k) => k.source === "site-v5#claude-code")!.text;
+  assert.ok(cc.includes("ARCHIVE_TOOLS=off ./opencode-archive start") && cc.includes("use_chat_completions_url_for_anthropic_messages: true") && /text only/.test(cc));
+  const fixed = siteWhereAnswer("How do I set up Claude Code with ArcHive?", "en")!;
+  assert.ok(fixed.includes("ARCHIVE_TOOLS=off ./opencode-archive start") && fixed.includes("--port 4000") && !/team's test script/.test(fixed));
+  assert.ok(/opencode-archive start/.test(siteWhereAnswer("Comment brancher ArcHive à mon Claude Code ?", "fr")!));
+  // not the CCTP Bridge, not the MCP's fixed answer
+  for (const q of ["How do I start the local bridge for OpenCode?", "Can Aider use your bridge?", "le pont local pour mon agent de code ?", "Is opencode-archive an MCP server?"]) {
+    const f = siteFixedAnswer(q, "en");
+    assert.ok(f?.topic !== "bridge" && f?.topic !== "mcp", q);
+    assert.notEqual(siteIntentNav(q, "en")?.page, "bridge", q);
+  }
+  assert.equal(siteFixedAnswer("how do I bridge my USDC to Arc?", "en")?.topic, "bridge");
+  assert.ok(SITE_SYSTEM.includes("CODING AGENTS") && SITE_SYSTEM.includes("http://127.0.0.1:8789/v1") && SITE_SYSTEM.includes("https://github.com/JeanBaptisteDurand/UBC_2026"));
 });
