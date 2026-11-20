@@ -9,7 +9,7 @@ import {
 import { privateKeyToAccount, generatePrivateKey } from "viem/accounts";
 import {
   arcErrorsAbi, ARC_ERRORS_EN, ARC_ERRORS_FR, arcErrorOf, explainArcError,
-  verifyEnclaveKeys, EnclaveKeyMismatchError, ENCLAVE_KEY_MISMATCH_FR, type VerifiedEnclaveKeys,
+  verifyEnclaveKeys, EnclaveKeyMismatchError, ENCLAVE_KEY_MISMATCH_EN, ENCLAVE_KEY_MISMATCH_FR, type VerifiedEnclaveKeys,
   sealExploitForEnclave, checkProvenClaim, protocolCanonical,
   createInferenceClient, InsufficientSessionBalance, ReceiptMismatchError,
   verifyReceiptOnChain, payableFor,
@@ -119,6 +119,9 @@ describe("verifyEnclaveKeys — encrypt only to the key registered on-chain", ()
     const p = verifyEnclaveKeys(URL0, PRODUCT, { publicClient: pub, fetch: pubkeysFetch(e, (j) => ({ ...j, x25519: swapped })) });
     await expect(p).rejects.toThrow(ENCLAVE_KEY_MISMATCH_FR);
     await expect(p).rejects.toMatchObject({ reason: "x25519_mismatch" });
+    const err = await p.catch((x) => x as EnclaveKeyMismatchError);
+    expect(err.en.startsWith(`${ENCLAVE_KEY_MISMATCH_EN} (/pubkeys announces the X25519 key `)).toBe(true);
+    expect(err.detail).toMatch(/^\/pubkeys annonce la clé X25519 /);
   });
   it("refuses an unknown signer, another product, an inactive enclave", async () => {
     const other = makeEnclave();

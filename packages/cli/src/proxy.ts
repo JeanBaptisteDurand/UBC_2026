@@ -45,7 +45,7 @@ export async function startProxy(o: ProxyOpts) {
         return c.json({ error: { message: e.message, balance: e.balance.toString(), ...(e.pending ? { pendingSeq: e.pending.seq.toString(), pendingCost: e.pending.cost.toString() } : {}) } }, 402);
       }
       if (e instanceof SessionExpiredError) return c.json({ error: { message: e.message } }, 410);
-      if (e instanceof EnclaveKeyMismatchError || e instanceof ReceiptMismatchError) return c.json({ error: { message: e.message } }, 502);
+      if (e instanceof EnclaveKeyMismatchError || e instanceof ReceiptMismatchError) return c.json({ error: { message: e instanceof EnclaveKeyMismatchError ? e.en : e.message } }, 502);
       return c.json({ error: { message: String((e as any)?.message ?? e) } }, 500);
     }
   });

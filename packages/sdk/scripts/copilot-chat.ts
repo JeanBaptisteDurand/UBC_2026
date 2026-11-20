@@ -55,7 +55,7 @@ async function main() {
 }
 
 main().catch((e) => {
-  if (e instanceof EnclaveKeyMismatchError) console.error(`REFUSED, nothing was sent (${e.reason}): ${e.message}`);
+  if (e instanceof EnclaveKeyMismatchError) console.error(`REFUSED, nothing was sent (${e.reason}): ${e.en}`);
   else if (e instanceof CopilotResponseError) console.error(`ANSWER REFUSED: ${e.message}`);
   else console.error("FAILED:", (e as Error)?.message ?? e);
   process.exit(1);

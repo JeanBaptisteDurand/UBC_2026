@@ -122,7 +122,7 @@ export async function confirm(w: Writer, label: string, hash: Hex): Promise<Tran
  *  the SDK's table, including those raised inside a called contract), refused enclave keys, or the raw message. */
 export function explainError(e: unknown): string {
   if (e instanceof CliError || e instanceof UsageError) return e.message;
-  if (e instanceof EnclaveKeyMismatchError) return e.message;
+  if (e instanceof EnclaveKeyMismatchError) return e.en;
   return explainArcError(e, "en");
 }
 
@@ -161,14 +161,14 @@ export async function enclavePubkeys(url: string): Promise<{ signer: Address; x2
 
 /** An enclave's keys checked against the chain (SDK verifyEnclaveKeys): X25519 key = the registered one, enclave active
  *  for the product at the head block; for a session, the locked enclave. Otherwise a CliError carrying the SDK's
- *  message ("la clé de l'enclave ne correspond pas à celle inscrite sur Arc : envoi refusé (…)", kept in French). */
+ *  English message ("the enclave's key does not match the one registered on Arc: nothing was sent (…)"). */
 export async function verifiedEnclave(
   pub: Pub, url: string, productId: bigint, o: { sessionId?: bigint; expectedSigner?: Address } = {},
 ): Promise<VerifiedEnclaveKeys> {
   try {
     return await verifyEnclaveKeys(url, productId, { publicClient: pub as any, deployment: testnet, ...o });
   } catch (e) {
-    if (e instanceof EnclaveKeyMismatchError) throw new CliError(e.message);
+    if (e instanceof EnclaveKeyMismatchError) throw new CliError(e.en);
     throw e;
   }
 }

@@ -14,7 +14,7 @@ What it covers:
 
 The SDK targets Arc testnet (chainId 5042002). `testnet` in `src/network.ts` is the live v2.1 stack (`deployments.v21.testnet.json`). `deploymentFromJson()` loads any `deployments.*.json` file at the repository root.
 
-Messages, logs and errors are in English. A few values stay French on purpose, because the console shows them as they are in French. They are the `fr` field of receipt and call checks, `ARC_ERRORS_FR` and the default output of `explainArcError` (pass `"en"` for the English sentence from `ARC_ERRORS_EN`), `ENCLAVE_KEY_MISMATCH_FR` with the details of a refused enclave key, and the French entries of the copilot client's refusal table.
+Messages, logs and errors are in English. A few values stay French on purpose, because the console shows them as they are in French. They are the `fr` field of receipt and call checks (each check also carries `en`), `ARC_ERRORS_FR` and the default output of `explainArcError` (pass `"en"` for the English sentence from `ARC_ERRORS_EN`), `ENCLAVE_KEY_MISMATCH_FR` with the French details of a refused enclave key (the error's `en` holds the English message), and the French entries of the copilot client's refusal table.
 
 ## Run it
 
