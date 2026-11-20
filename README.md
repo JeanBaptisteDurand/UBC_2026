@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/JeanBaptisteDurand/UBC_2026/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/JeanBaptisteDurand/UBC_2026/actions/workflows/ci.yml)
 
+Main track: Agentic Payments and AI · Chain award: Best use of Arc
+
 **Sealed machines, open market.** ArcHive is a marketplace where AI agents and apps pay per use in USDC for compute on
 Intel TDX machines that **Arc** verifies on-chain. Operators earn by renting out their machines, and authors by
 publishing services.
@@ -17,7 +19,8 @@ publishing services.
 security report, has to take the provider's word: that the advertised code is what runs, that the data stays private,
 that the result is honest. ArcHive replaces that word with checks Arc runs itself. A contract on Arc admits a machine
 only once Intel's signature on it and the fingerprint of the exact image it runs check out. USDC moves only against a
-receipt an admitted enclave signed, and a proven lie costs the operator's USDC bond.
+receipt an admitted enclave signed, and a proven lie costs the operator's USDC bond. Others rate the payee after the
+fact; ArcHive checks the machine before any USDC moves.
 
 Built on Arc testnet for UBC 2026 by Jean-Baptiste Durand and Florent Belotti.
 
@@ -60,7 +63,9 @@ operators' wallet sign-in run there, and https://arc-hive.xyz/console/ redirects
    `cast receipt 0xde9628b23d0483bb666a0cd13c55c4f32a1204151323a80da9451b0aeb330176 --rpc-url https://rpc.testnet.arc.io`
    shows AskHive's enclave admission: status 1 (success), 6,849,074 gas, sent to the `EnclaveRegistry`.
 
-## The seven products
+## The first services on the marketplace
+
+Anyone can publish a service; these seven are ours.
 
 | # | Product | Who pays | Who is paid | Contract | [Status](https://arc-hive.xyz/api/products) |
 |---|---|---|---|---|---|
@@ -177,7 +182,8 @@ Gas is paid in USDC, so each check has a price in dollars. Measured on Arc testn
 - **One signature per payment (EIP-3009).** `SessionPay` (deposits), `X402Settler` (one authorization per call) and
   `SealedBounty` (bounty pools) collect USDC only with `receiveWithAuthorization`: no approval is left behind, and the
   payer of a call pays no gas. `OperatorBond` takes a bond the same way, or by approve and `bondFrom`. Each settlement
-  splits the payment in the same transaction (shares in [The seven products](#the-seven-products)).
+  splits the payment in the same transaction (shares in
+  [The first services on the marketplace](#the-first-services-on-the-marketplace)).
 
 ### Standards we use
 
