@@ -5,7 +5,7 @@ import { num } from './data/fmt'
 import { C } from './data/facts'
 import type { Service } from './data/wall'
 
-// The site's places, one address each (Florent's structure): Network and its three parts (Use, Rent, Publish: their
+// The site's places, one address each: Network and its three parts (Use, Rent, Publish: their
 // steps, signed in place), Services (the catalog), Doc, and My space, whose tabs hold Bounties, Sessions and Machines.
 // The old addresses (use.html, rent.html, publish.html, demo.html, bounty.html, sessions.html, operator.html) only
 // redirect there. The Hive, Developers and Console pages live in the console. Every page sits under the build base

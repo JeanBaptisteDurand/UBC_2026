@@ -1,4 +1,4 @@
-// ArcHive logo, paths kept as drawn (the owner's original frame, design/marque/archive-logo.svg: owner, 19/11).
+// ArcHive logo, paths kept as drawn, in the frame of the original drawing.
 // Colour: currentColor (white in the header). The arrow of the "A" leaves the frame at the top.
 // In the viewBox the rectangle runs from y 22.41 to 83.40 (centre 52.91 of 83.40), the arrow goes up
 // to 0; the header aligns the rectangle centre (styles.css, .logo-svg) with the axis of the menu links.

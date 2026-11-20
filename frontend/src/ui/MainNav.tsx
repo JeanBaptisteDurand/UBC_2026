@@ -54,7 +54,7 @@ export function MainNav({ page, drawer = false }: { page: 'home' | 'network' | '
         <a key={k} href={networkFor(k)} {...at(k)} onClick={inPlace(k)} title={t(`nav.${k}.t`)}>{t(`nav.${k}.n`)}</a>
       ))}
       {/* the documentation: how Arc checks every machine, chapter by chapter; the same menu on every page, the
-          landing included (owner, 19/11) */}
+          landing included */}
       <a href={link.doc} {...at('doc')}>Doc</a>
       {drawer ? <BridgeNav current={cur === 'bridge'} /> : null}
     </>

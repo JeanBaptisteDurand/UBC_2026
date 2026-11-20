@@ -230,7 +230,7 @@ button.cp-enc:disabled .cp-enc-x { display: none; }
 .cp-enc-w.is-clear .cp-enc-lock, .cp-enc-w.is-off .cp-enc-lock { color: var(--amber); }
 @media (prefers-reduced-motion: reduce) { .cp-proof { animation: none; } .cp-enc-x::before, .cp-enc-x::after { transition: none; } }
 
-/* the badge is the single line under the title (owner, 19/11): it never wraps, the proof holds the rest */
+/* the badge is the single line under the title: it never wraps, the proof holds the rest */
 .cp-enc-t { flex-wrap: nowrap; white-space: nowrap; }
 .cp-enc-a { overflow: hidden; text-overflow: ellipsis; }
 /* waiting for AskHive: a readable line with the real steps of the round trip, then the answer unfolds

@@ -341,7 +341,7 @@ export function Copilot() {
           <button type="button" className="cp-ib cp-close" onClick={() => { close(); setTimeout(() => launch.current?.focus({ preventScroll: true }), 30) }} aria-label={ct('close')}>×</button>
         </div>
         </div>
-        {/* one line under the title (owner, 19/11): what AskHive runs on; the rest is in the proof it opens */}
+        {/* one line under the title: what AskHive runs on; the rest is in the proof it opens */}
         {driving ? <p className="cp-sub">{ct('driving')}</p> : <EnclaveBadge svc={cpSvc} />}
         {/* the copilot's own service page (product read live: the active copilot product, not a replaced one) */}
       </header>
