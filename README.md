@@ -2,9 +2,17 @@
 
 [![CI](https://github.com/JeanBaptisteDurand/UBC_2026/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/JeanBaptisteDurand/UBC_2026/actions/workflows/ci.yml)
 
-**Sealed machines, open market.** ArcHive is a marketplace of services that run inside Intel TDX enclaves. Before any
-result counts, a contract on **Arc** checks Intel's signature on the machine and the exact image it runs. Every use is
-**paid in USDC** against a receipt the enclave signed, and a machine caught lying loses its operator's USDC bond.
+**Sealed machines, open market.** ArcHive is a marketplace where AI agents and apps pay per use in USDC for compute on
+Intel TDX machines that Arc verifies on-chain. Operators earn by renting out their machines, and authors by publishing
+services. A contract on **Arc** admits a machine only after checking Intel's signature on it and the exact image it
+runs. USDC moves only against a receipt the enclave signed, and a machine caught lying costs its operator's USDC bond.
+
+**Who pays, who earns** (testnet prices, live at [`/api/products`](https://arc-hive.xyz/api/products)):
+
+- An app that must keep its prompts private pays **0.10 USDC per 1,000 tokens** from a prepaid session (product 1).
+- An AI agent pays **0.01 USDC per call**, with one signature and no gas (product 3, x402).
+- A protocol funds a bug bounty that pays out only for an exploit a sealed machine replayed (products 2 and 7).
+- The operator whose enclave served the request earns **95 %** of each paid call or session, and the network keeps 5 %.
 
 **The problem.** An app or an AI agent that sends a private request to someone else's machine, or pays out on a
 security report, has to take the provider's word: that the advertised code is what runs, that the data stays private,
@@ -12,8 +20,7 @@ that the result is honest. ArcHive replaces that word with checks Arc runs itsel
 Intel's signature and its image fingerprint check out. USDC is paid out only against a signature from an admitted
 enclave. A proven lie costs the operator's bond.
 
-Built on Arc testnet for UBC 2026 (Track 01, Agentic Payments & AI, and the Arc chain award) by Jean-Baptiste Durand
-and Florent Belotti.
+Built on Arc testnet for UBC 2026 by Jean-Baptiste Durand and Florent Belotti.
 
 <p>
   <img src="docs/img/arc-hive-home.png" alt="ArcHive's home page: sealed machines, open market" width="49%">
