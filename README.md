@@ -20,7 +20,7 @@ security report, has to take the provider's word: that the advertised code is wh
 that the result is honest. ArcHive replaces that word with checks Arc runs itself. A contract on Arc admits a machine
 only once Intel's signature on it and the fingerprint of the exact image it runs check out. USDC moves only against a
 receipt an admitted enclave signed, and a proven lie costs the operator's USDC bond. Others rate the payee after the
-fact; ArcHive checks the machine before any USDC moves.
+fact; ArcHive checks the machine before it pays anyone.
 
 Built on Arc testnet for UBC 2026 by Jean-Baptiste Durand and Florent Belotti.
 
@@ -110,7 +110,7 @@ for the enclaves that serve each product.
 - **The policy.** Debug mode off, `SEPT_VE_DISABLE`, firmware (TCB) up to date, a quote bound to a recent Arc block
   (EIP-2935, within 8,191 blocks), `REPORTDATA` binding chain, registry, product, operator and the enclave's keys,
   a quote never seen before, and enough free bond.
-- **The cost.** 6.6 to 6.9M gas per registration, 0.14 to 0.17 USDC at 20 to 25 gwei, paid by the operator
+- **The cost.** 6.6 to 6.9M gas per registration, 0.13 to 0.17 USDC at 20 to 25 gwei, paid by the operator
   ([gas table](#usdc-is-the-money-and-the-gas)). The operator's registrar renews each admission before its window ends.
 
 **Operator levels** (`MachineRegistry`, `ProofOfCloudAuditor`, `PolicyEnclaves`; see [docs/OPERATORS.md](docs/OPERATORS.md)):
@@ -186,7 +186,7 @@ Gas is paid in USDC, so each check has a price in dollars. Measured on Arc testn
 
 | Operation | Paid by | Gas | USDC |
 |---|---|---|---|
-| Admit an enclave: DCAP, boot-log replay and policy ([`0x3ab1e3da…ae72`](https://explorer.testnet.arc.io/tx/0x3ab1e3dac834f9fb4d5a97f67f7ea5f299b9e92ea3a1a76791a86886e0a1ae72), [`0x54d7cf7e…37ef`](https://explorer.testnet.arc.io/tx/0x54d7cf7e891d489093b139d99db37620f9e422c69005eff4bf1549fb9eae37ef)) | operator | 6.6 to 6.9M | 0.14 to 0.17 |
+| Admit an enclave: DCAP, boot-log replay and policy ([`0x3ab1e3da…ae72`](https://explorer.testnet.arc.io/tx/0x3ab1e3dac834f9fb4d5a97f67f7ea5f299b9e92ea3a1a76791a86886e0a1ae72), [`0x54d7cf7e…37ef`](https://explorer.testnet.arc.io/tx/0x54d7cf7e891d489093b139d99db37620f9e422c69005eff4bf1549fb9eae37ef)) | operator | 6.6 to 6.9M | 0.13 to 0.17 |
 | Settle one pay-per-call answer ([`0x3c98a1fa…1ae8`](https://explorer.testnet.arc.io/tx/0x3c98a1fafa893722b9bffd84a1287ef28a446c361c822e4e2071f714bba31ae8)) | operator | about 210 k | about 0.005 |
 | Open a session with an EIP-3009 deposit ([`0xdb7fc9e3…666d`](https://explorer.testnet.arc.io/tx/0xdb7fc9e3b024415599eee67746ae162f3032add224afed25ab7c09862b83666d)) | session owner | 361,373 | 0.0090 |
 | Settle a session on its last receipt ([`0x97c17946…79ee`](https://explorer.testnet.arc.io/tx/0x97c17946a14c02cdbdd1d6aafd7a405500b6bd44a5f536c77af560aa0cbc79ee)) | operator | 217,512 | 0.0054 |
@@ -324,8 +324,9 @@ between 20:22 and 20:23 UTC:
 An AI agent reads ArcHive through the API or the MCP server and calls a service through the SDK
 ([`packages/sdk`](packages/sdk/)). The loop can stop at three points: before the request is encrypted, before a payment
 is signed, and before the answer is used. Payments are signed by the agent's own wallet (for x402, a plain account, an
-EOA, today) or by a person in theirs: one capped authorization per call, or one deposit per session. The MCP server and
-AskHive only read and prepare, and a person signs what they prepare, in their own wallet.
+EOA, today) or by a person in theirs: one capped authorization per call, or one deposit per session (plus any top-up
+its owner signs). The MCP server and AskHive only read and prepare, and a person signs what they prepare, in their
+own wallet.
 
 1. **Discover.** The agent reads the offer from [`/api/products`](https://arc-hive.xyz/api/products) and
    [`/api/enclaves`](https://arc-hive.xyz/api/enclaves), or from the MCP tools `arc_products`, `arc_pricing` and
@@ -343,9 +344,9 @@ AskHive only read and prepare, and a person signs what they prepare, in their ow
      payable only to `X402Settler` and valid for one hour at most. Its nonce commits to this sealed request and this
      enclave, so it can pay for this call only, and only once. The SDK checks the enclave's 402 (payee, asset, amount)
      against Arc, and signs nothing above the agent's `maxAmount` or above the price read when the call began.
-   - *Prepaid session (product 1).* One EIP-3009 deposit into `SessionPay`. The session is locked to one enclave, one
-     operator, one model and one price. Settlements never pay more than the deposit, and what is not spent is refunded
-     at close.
+   - *Prepaid session (product 1).* One EIP-3009 deposit into `SessionPay`, topped up only by a new signature of its
+     owner. The session is locked to one enclave, one operator, one model and one price. Settlements never pay more
+     than the deposit, and what is not spent is refunded at close.
 4. **Verify the answer.** The receipt must be signed by the enclave key Arc holds and must carry this request: the
    product, the payer and the payment's nonce for a call, or the session and the request's sequence number for a
    session, plus the hashes of the request sent and of the text received. Otherwise the SDK throws and returns no text.
@@ -393,7 +394,7 @@ a session. An attestation proves which code ran, not that an AI answer is right,
   exploit reaches. On top, and only when a claim is paid, the pool pays 10 % to the network and 5 % to the operators
   whose enclaves signed the claim. On 9 Nov, a 0.5 USDC tier paid 0.5 to the hunter, 0.05 to the network and 0.025 to
   the operator ([`0xecbd089a…807e`](https://explorer.testnet.arc.io/tx/0xecbd089a092edd939ff646fae8d22c0f2616b6a92f58a49928c231c770bb807e)).
-- **Operators pay the gas** of admissions (each 6.6 to 6.9M gas, 0.14 to 0.17 USDC at 20 to 25 gwei) and of
+- **Operators pay the gas** of admissions (each 6.6 to 6.9M gas, 0.13 to 0.17 USDC at 20 to 25 gwei) and of
   settlements ([gas table](#usdc-is-the-money-and-the-gas)). Admission charges no fee beyond gas. At testnet prices,
   settling one 0.01 USDC call costs about 0.005 USDC of the operator's 0.0095 USDC share, while a session settles many
   requests on one receipt.
@@ -489,6 +490,10 @@ payment and ERC-8004 verdict. Read it with `curl -s https://arc-hive.xyz/api/pro
 **Live stack, v2.1 (13 contracts in service).** Every address and deployment transaction is in
 [`deployments.v21.testnet.json`](deployments.v21.testnet.json), and Intel's verifier is in
 [`deployments.dcap.testnet.json`](deployments.dcap.testnet.json).
+Their source is verified on the explorer: Ed25519Verifier is a full match, and the 12 others are
+partial matches (the published source compiles to the exact bytecode on Arc; only the metadata hash differs, because
+the comments changed after deployment). The explorer shows the original comments, in French; the code is the one in
+[`contracts/src`](contracts/src/).
 
 | Contract | Address | Role |
 |---|---|---|
@@ -543,7 +548,7 @@ links to its transaction.
 - **Enclave kit and products** (`enclave/`): private AI (prepaid sessions and pay per call), the sealed bounty with its
   `arc-anvil` replay, the refutation demo and the verified bounty. Enclaves were first admitted through Intel DCAP on
   7 Nov
-  ([`0x6f3ed6e8…c545`](https://explorer.testnet.arc.io/tx/0x6f3ed6e8f43168d894edea23201e0293c9eacee4589b221babfff70592dcc545)),
+  ([`0x976e31b8…0c88`](https://explorer.testnet.arc.io/tx/0x976e31b8bf868b5de733ee118d6c538b591418ea425b6ad4b01fd7ec70ce0c88)),
   and the first runs on v2.1 date from 9 to 11 Nov (first admission:
   [`0x199c985d…3499`](https://explorer.testnet.arc.io/tx/0x199c985dee537cfe2948f6c721ad1bdd448d538ff08bc8e93a79036a25f33499)).
 - **SDK, `arcvault` CLI and operator agent** (`packages/`).
@@ -584,6 +589,14 @@ links to its transaction.
 ## Run it
 
 Nothing to install to try it: the site, the API and the MCP server above are live on Arc testnet.
+
+To clone it without the landing film's frames (`frontend/public/film`, 7,482 images, about 633 MB), which leaves
+about 37 MB:
+
+```sh
+git clone --filter=blob:none --no-checkout https://github.com/JeanBaptisteDurand/UBC_2026.git && cd UBC_2026
+git sparse-checkout set --no-cone '/*' '!/frontend/public/film/' && git checkout main
+```
 
 ```sh
 # Each line runs from the repository root.

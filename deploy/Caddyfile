@@ -28,6 +28,63 @@ archive.62-171-153-35.sslip.io, arc-hive.xyz {
 	}
 	redir @console_newname https://archive.62-171-153-35.sslip.io{uri} 302
 
+	# Discovery for AI agents, answered by Caddy itself so that build.sh (rsync --delete into web/) never
+	# removes it. /llms.txt (llmstxt.org): what ArcHive is, the MCP server, the public API, products and prices, how
+	# payments are guarded. /.well-known/mcp-registry-auth: the public key of the HTTP domain proof for the official MCP
+	# Registry (registry.modelcontextprotocol.io, name xyz.arc-hive/archive); its private key was deleted after the
+	# publication. To publish an update: a new Ed25519 key, its record in the respond line below, mcp-publisher login http.
+	handle /llms.txt {
+		header Content-Type "text/plain; charset=utf-8"
+		header Cache-Control "public, max-age=300"
+		respond <<LLMS
+			# ArcHive
+			
+			> Sealed machines, open market. ArcHive is a marketplace on Arc testnet where AI agents and apps pay per use in USDC for compute on Intel TDX enclaves that a contract on Arc verifies on-chain. Operators earn by renting out their machines, authors by publishing services. Built for UBC 2026. Testnet only: no real funds move.
+			
+			A contract on Arc admits an enclave only once Intel's signature on its quote (DCAP) and the fingerprint of the exact image it runs check out. USDC moves only against a receipt an admitted enclave signed, and a proven lie costs the operator its USDC bond.
+			
+			## Connect an AI agent (MCP)
+			
+			- Claude Code, one line: `claude mcp add --transport http archive https://arc-hive.xyz/mcp`
+			- [MCP server](https://arc-hive.xyz/mcp): Streamable HTTP, stateless, 16 tools, no key. The tools read products, enclaves, prices, sessions, bounties and on-chain activity, check a receipt, and prepare unsigned actions: nothing is signed or sent, the user signs in their own wallet.
+			- MCP Registry name: xyz.arc-hive/archive
+			
+			## Public read API (JSON, no key)
+			
+			- [/api/products](https://arc-hive.xyz/api/products): each product's on-chain parameters (price and unit, shares, settlement contract, minimum bond, exposure cap, state)
+			- [/api/enclaves](https://arc-hive.xyz/api/enclaves): the enclaves Arc admitted, with operator, product, key and validity window
+			- [/api/pricing?productId=1&units=1000](https://arc-hive.xyz/api/pricing?productId=1&units=1000): the cost of a use, units times the product's price
+			
+			## Products and prices (Arc testnet, USDC)
+			
+			- Product 1, private AI by prepaid session: 0.10 USDC per 1,000 tokens. Deposit once into SessionPay; price and model are locked at opening, settlements never pay more than the deposit, the rest is refunded at close.
+			- Product 3, private AI per call (x402): 0.01 USDC per call, one EIP-3009 signature per call, no gas for the agent. Call it through our TypeScript SDK (packages/sdk in the repository), which checks the enclave's key on Arc before it encrypts the request.
+			- AskHive (product 4), the attested copilot on the site: free.
+			- Also on the network: the Sealed Bounty (products 2 and 7), a USDC pool that pays out only for an exploit a sealed enclave replayed.
+			
+			## How payments are guarded
+			
+			- Admitted enclaves only: the SDK encrypts (HPKE) only to a key Arc registered for the product and active now; settlement pays only a signer that was active for the product at the receipt's anchor block.
+			- One payment, one call (x402): the authorization is for the exact price, to the X402Settler contract only, and its nonce commits to the sealed request; the SDK signs nothing above the agent's maxAmount.
+			- Session budget (product 1): settlements are capped by the deposit; what is not spent is refunded.
+			- Operator bond: an operator's enclaves can release at most half of its bond in any 24 hours, and at most 10 USDC per product on testnet; a proven lie forfeits the bond.
+			- Split: the operator whose enclave served the request earns 95 % of each paid call or session, the network keeps 5 %.
+			
+			## Links
+			
+			- [Site](https://arc-hive.xyz)
+			- [The Doc](https://arc-hive.xyz/doc.html): how Arc checks every machine, every proof linked
+			- [Services, prices and shares](https://arc-hive.xyz/service.html)
+			- [Source code, MIT license](https://github.com/JeanBaptisteDurand/UBC_2026)
+			- [Arc testnet explorer](https://explorer.testnet.arc.io)
+			LLMS 200
+	}
+	handle /.well-known/mcp-registry-auth {
+		header Content-Type "text/plain; charset=utf-8"
+		header Cache-Control "no-cache"
+		respond "v=MCPv1; k=ed25519; p=NogVE0ahCqFYdbJse2/8wBhg0LudcxSabtmKvl01Eig=" 200
+	}
+
 	# read API, machine pairing, test mode (the API also caps every route at 64 KiB)
 	handle_path /api/* {
 		request_body {
