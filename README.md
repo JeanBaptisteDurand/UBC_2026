@@ -13,6 +13,14 @@ enclave, and a proven lie costs the operator's bond.
 Built on Arc testnet for UBC 2026 (Track 01, Agentic Payments & AI, and the Arc chain award) by Jean-Baptiste Durand
 and Florent Belotti.
 
+<p>
+  <img src="docs/img/arc-hive-home.png" alt="ArcHive's home page: sealed machines, open market" width="49%">
+  <img src="docs/img/arc-hive-services.png" alt="ArcHive's Services page: a rack whose sleds are the products, each with its live state" width="49%">
+</p>
+
+The home page and the Services page of https://arc-hive.xyz on 20 Nov 2026. On the Services page, each named sled of the
+rack is a product with its live state; the others are open slots.
+
 ## Live
 
 | What | Link |
@@ -76,7 +84,7 @@ Code: the panel in [`frontend/src/copilot/`](frontend/src/copilot/), the service
 [`services/copilot/`](services/copilot/) (signed replies: [`enclave-site.ts`](services/copilot/src/enclave-site.ts)),
 the contract between them in [`docs/COPILOT-SITE-CONTRACT.md`](docs/COPILOT-SITE-CONTRACT.md).
 
-## Have ArcHive at home
+## Use ArcHive from your own tools
 
 ### The MCP server, in Claude Code, Cursor or any MCP client
 
@@ -125,19 +133,21 @@ three calls on Arc:
 
 ## The seven products
 
-| # | Product | Who pays | Who is paid | Contract | On 19 Nov |
+| # | Product | Who pays | Who is paid | Contract | [Status](https://arc-hive.xyz/api/products) |
 |---|---|---|---|---|---|
 | 1 | Private AI, prepaid session | a user or an app deposits USDC, billed per token (0.10 USDC per 1,000 tokens on testnet) | operator 95 %, network 5 %; the rest is refunded | `SessionPay` | running |
 | 2 | Sealed Bounty, open level | a protocol funds a USDC pool | the hunter gets 100 % of the tier; +10 % network and +5 % verifying operators, on top, only when paid | `SealedBounty` | running |
-| 3 | Private AI, pay per call (x402) | an agent signs one EIP-3009 authorization per call (0.01 USDC per call), no gas for the agent (the operator pays the settlement gas, about 0.005 USDC at 25 gwei) | operator 95 %, network 5 % | `X402Settler` | running |
+| 3 | Private AI, pay per call (x402) | an agent signs one EIP-3009 authorization per call (0.01 USDC per call) and pays no gas (the operator pays the settlement gas, about 0.005 USDC at 25 gwei) | operator 95 %, network 5 % | `X402Settler` | running |
 | 4 | AskHive, the attested copilot | free | — | — | running |
-| 5 | Caught lying (refutation demo) | — | the liar's whole bond: 50 % reporter, 50 % victim (or the network treasury if there is no victim) | `SealedBounty`, `OperatorBond` | done on 10 Nov, on Arc |
-| 6 | Verified bounty, first version | — | — | — | retired: its settlement address is immutable, so the verified level was republished as product 7 |
+| 5 | Caught lying (refutation demo) | — | the liar's whole bond: 50 % reporter, 50 % victim (or the network treasury if there is no victim) | `SealedBounty`, `OperatorBond` | demonstrated on Arc on 10 Nov |
+| 6 | Verified bounty, first version | — | — | — | superseded by product 7 (settlement contracts are immutable by design); no enclave serves it |
 | 7 | Sealed Bounty, verified level | a protocol funds a USDC pool | as product 2; only enclaves on chips declared by the Proof of Cloud alliance count | `SealedBountyVerified` | running |
 
-Prices, shares, bonds and delays are on-chain parameters (`ProductRegistry`): the network keeps at least 5 %, an
-author at most 30 %, the operator the rest. Testnet prices are set so that every flow shows on the explorer; they are
-not market prices. Live values: `curl -s https://arc-hive.xyz/api/products`.
+*Running* means that an enclave admitted on Arc serves the product now. Prices, shares, bonds and delays are on-chain
+parameters in `ProductRegistry`. The network keeps at least 5 %, an author at most 30 %, and the operator the rest.
+Testnet prices are set so that every flow shows on the explorer; they are not market prices. Live values:
+[`/api/products`](https://arc-hive.xyz/api/products) for the parameters, [`/api/enclaves`](https://arc-hive.xyz/api/enclaves)
+for the enclaves that serve each product.
 
 ## How Arc verifies an enclave
 
@@ -185,9 +195,9 @@ exposure.
 | Product 7 enclave (verified bounty) admitted | 01:02 | [`0xf18cb68f…6a2c`](https://explorer.testnet.arc.io/tx/0xf18cb68f068e5cfaa993a67da2fd98f4c5d73123460533d0901052b06d166a2c) |
 | A pay-per-call answer settled by the operator: 0.01 USDC (0.0095 operator, 0.0005 network) | 02:00 | [`0xeadad0b4…fbd0`](https://explorer.testnet.arc.io/tx/0xeadad0b46d51a733997777bccfedd3f05dc69a0a942620f7458c75e35c16fbd0) |
 | Prepaid session #2 opened (0.05 USDC), locked on the product 1 enclave | 02:11 | [`0xdb7fc9e3…666d`](https://explorer.testnet.arc.io/tx/0xdb7fc9e3b024415599eee67746ae162f3032add224afed25ab7c09862b83666d) |
-| The session settled by the operator on the enclave's last cumulative receipt: 0.034 USDC | 02:21 | [`0x97c17946…79ee`](https://explorer.testnet.arc.io/tx/0x97c17946a14c02cdbdd1d6aafd7a405500b6bd44a5f536c77af560aa0cbc79ee) |
-| The session closed: 0.016 USDC refunded and ERC-8004 verdict 100, in one transaction | 03:23 | [`0x95c9f59e…b1c2`](https://explorer.testnet.arc.io/tx/0x95c9f59eee7597a532ce72162b83944e9364b1b600ff35ea6b9fd4eb2290b1c2) |
 | A demo bounty posted on product 7 (1 USDC pool, open until 22 Nov) | 02:16 | [`0x28d12457…daea`](https://explorer.testnet.arc.io/tx/0x28d12457644404621d37c52b4c93fab0317c8b0883adb74f347bf5e65f6edaea) |
+| The session settled by the operator on the enclave's last cumulative receipt: 0.034 USDC | 02:20 | [`0x97c17946…79ee`](https://explorer.testnet.arc.io/tx/0x97c17946a14c02cdbdd1d6aafd7a405500b6bd44a5f536c77af560aa0cbc79ee) |
+| The session closed: 0.016 USDC refunded and ERC-8004 verdict 100, in one transaction | 03:23 | [`0x95c9f59e…b1c2`](https://explorer.testnet.arc.io/tx/0x95c9f59eee7597a532ce72162b83944e9364b1b600ff35ea6b9fd4eb2290b1c2) |
 | AskHive's enclave admitted (product 4) | 22:37 | [`0xde9628b2…0176`](https://explorer.testnet.arc.io/tx/0xde9628b23d0483bb666a0cd13c55c4f32a1204151323a80da9451b0aeb330176) |
 
 **First runs, 9 to 11 Nov 2026 (UTC)**
@@ -274,29 +284,12 @@ Used, not ours: Circle's ERC-8004 validation registry `0x8004Cb1BF31DAf7788923b4
 registry `0x8004A818BFB912233c491871b3d84c89A494BD9e`; Automata's DCAP entry point, deployed by us from its MIT code,
 `0x48640f7d94dE64b13c89686F3d1240A31Aeb4dc9`; USDC `0x3600000000000000000000000000000000000000`.
 
-**Next stack, v3 (14 contracts deployed on 19 Nov 2026, 20:33 to 20:37 UTC).** A fresh copy
-of every contract from `contracts/src`, with all settlement contracts authorized at initialization and five products
-published. The live site, API and enclaves stay on v2.1 until the switch. Addresses, transactions and the bytecode check
-against this source: [`deployments.v3.testnet.json`](deployments.v3.testnet.json).
-
-| Contract | Address |
-|---|---|
-| EnclaveRegistry | [`0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E`](https://explorer.testnet.arc.io/address/0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E) |
-| TdxAttestationModule | [`0x3275fA3b519FAD912eA4a5e75Bf5078Def29D491`](https://explorer.testnet.arc.io/address/0x3275fA3b519FAD912eA4a5e75Bf5078Def29D491) |
-| ProductRegistry | [`0xd2e6f3fD0561C8823774A8C7054B414777E0228d`](https://explorer.testnet.arc.io/address/0xd2e6f3fD0561C8823774A8C7054B414777E0228d) |
-| OperatorBond | [`0x19C3438E997c2C513aA5E7D2dDd2666532095dd4`](https://explorer.testnet.arc.io/address/0x19C3438E997c2C513aA5E7D2dDd2666532095dd4) |
-| SessionPay | [`0x606c379cd8758E3562e7ECC9972d0feF693F0763`](https://explorer.testnet.arc.io/address/0x606c379cd8758E3562e7ECC9972d0feF693F0763) |
-| X402Settler | [`0x89B0381B18536f680fD952a0E7D375d7a4EC3fe6`](https://explorer.testnet.arc.io/address/0x89B0381B18536f680fD952a0E7D375d7a4EC3fe6) |
-| SealedBounty | [`0xaA229Eda6b535DF6aEe0B4D892f39e0EC006d308`](https://explorer.testnet.arc.io/address/0xaA229Eda6b535DF6aEe0B4D892f39e0EC006d308) |
-| VerdictLog | [`0x3BEC55d2E50118ceACcD2E0045855123964D78cF`](https://explorer.testnet.arc.io/address/0x3BEC55d2E50118ceACcD2E0045855123964D78cF) |
-| DemoVault | [`0xf5D51c805BFa4c1Fb3d5D3B248bEB1841DDc03b8`](https://explorer.testnet.arc.io/address/0xf5D51c805BFa4c1Fb3d5D3B248bEB1841DDc03b8) |
-| MachineRegistry | [`0xC64e9556AA896b2E8c0bE0fdf3dC7b2c0be24b86`](https://explorer.testnet.arc.io/address/0xC64e9556AA896b2E8c0bE0fdf3dC7b2c0be24b86) |
-| ProofOfCloudAuditor | [`0xEaf8163fa5Eb2f047d4876bb3Ef2E67250360b73`](https://explorer.testnet.arc.io/address/0xEaf8163fa5Eb2f047d4876bb3Ef2E67250360b73) |
-| Ed25519Verifier | [`0xf2c47D6eCD25290C9daa826b3D11AC43baaEcEf6`](https://explorer.testnet.arc.io/address/0xf2c47D6eCD25290C9daa826b3D11AC43baaEcEf6) |
-| PolicyEnclaves | [`0x12c0C33C62666AbE0ab03B286b428C554De71BF8`](https://explorer.testnet.arc.io/address/0x12c0C33C62666AbE0ab03B286b428C554De71BF8) |
-| SealedBountyVerified | [`0x8958EA25c9cF7bbee39B32C43187d854B5d73ee6`](https://explorer.testnet.arc.io/address/0x8958EA25c9cF7bbee39B32C43187d854B5d73ee6) |
-
-`DemoVault` is a deliberately vulnerable target (`migrate` has no access control) used by the bounty demos.
+**Next stack, v3.** Fourteen contracts were deployed on 19 Nov 2026, between 20:33 and 20:37 UTC: the 13 above, rebuilt
+from `contracts/src`, plus `DemoVault`, a target for the bounty demos (`migrate` deliberately has no access control).
+Every settlement contract is authorized at initialization, and five products are published. The stack is not switched
+on yet: the site, the API and the enclaves stay on v2.1. Addresses, transactions and the bytecode check against this
+source are in [`deployments.v3.testnet.json`](deployments.v3.testnet.json), and on the explorer, starting with the v3
+[`EnclaveRegistry`](https://explorer.testnet.arc.io/address/0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E).
 
 ## Architecture
 
@@ -408,12 +401,13 @@ Package guides: [`contracts`](contracts/README.md), [`dcap-integration`](dcap-in
   contracts accept any bonded operator; every payment so far came from our own wallets; on testnet the owner key can
   propose a settlement contract (8-day delay on v2.1) and set its own products' policies.
 
-## Next
+## What's next
 
-- Switch the site, the API and the enclaves to the v3 stack.
-- Publish the enclave images, so any operator can run the allowed fingerprints; a second, independent operator.
-- Mainnet, with Intel's verifier first, then the contracts behind a 2-of-3 multisig and 48-hour timelocks.
-- Streaming in the `arcvault` proxy, so Claude Code can use a prepaid session behind the gateway.
+- Switch the site, the API and the enclaves to the v3 stack, after the hackathon.
+- Publish the enclave images, so any operator can run the allowed fingerprints, and bring in a second, independent
+  operator.
+- Go to mainnet: Intel's verifier first, then the contracts behind a 2-of-3 multisig and 48-hour timelocks.
+- Add streaming to the `arcvault` proxy, so Claude Code can use a prepaid session behind the gateway.
 - Publish the SDK and the `arcvault` CLI on npm.
 
 ## Feedback for Arc and Circle
