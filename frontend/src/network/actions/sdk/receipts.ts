@@ -62,7 +62,10 @@ export function payableFor(s: Pick<SessionInfo, "deposit" | "cap" | "paid" | "pr
 export interface ReceiptCheck {
   id: "session" | "open" | "product" | "active" | "operator" | "enclave" | "model" | "increasing";
   ok: boolean;
+  /** The check in French (the console shows it as is). */
   fr: string;
+  /** The same check in English. */
+  en: string;
 }
 
 export interface ReceiptVerification {
@@ -94,17 +97,17 @@ export async function verifyReceiptOnChain(
   })) as Address;
   const L = (x: string) => x.toLowerCase();
   const checks: ReceiptCheck[] = [
-    { id: "session", ok: exists, fr: exists ? `session #${receipt.sessionId} connue` : `session #${receipt.sessionId} inconnue (SessionMismatch)` },
+    { id: "session", ok: exists, fr: exists ? `session #${receipt.sessionId} connue` : `session #${receipt.sessionId} inconnue (SessionMismatch)`, en: exists ? `session #${receipt.sessionId} known` : `session #${receipt.sessionId} unknown (SessionMismatch)` },
   ];
   if (exists) {
     checks.push(
-      { id: "open", ok: !s.closed, fr: s.closed ? "session close (Closed)" : "session ouverte" },
-      { id: "product", ok: receipt.productId === s.productId, fr: receipt.productId === s.productId ? `produit #${s.productId}` : `produit du reçu #${receipt.productId} ≠ produit de la session #${s.productId} (SessionMismatch)` },
-      { id: "active", ok: op !== zeroAddress, fr: op !== zeroAddress ? `enclave ${signer} active au bloc d'ancrage ${receipt.anchorBlock}` : `enclave ${signer} non active pour ce produit au bloc ${receipt.anchorBlock} (InactiveEnclave)` },
-      { id: "operator", ok: op !== zeroAddress && L(op) === L(s.operator), fr: L(op) === L(s.operator) ? `opérateur ${s.operator}` : `opérateur de l'enclave ${op} ≠ opérateur de la session ${s.operator} (WrongOperator)` },
-      { id: "enclave", ok: L(signer) === L(s.enclave), fr: L(signer) === L(s.enclave) ? "signé par l'enclave verrouillée à l'ouverture" : `signé par ${signer}, la session est verrouillée sur ${s.enclave} (WrongEnclave)` },
-      { id: "model", ok: L(receipt.modelHash) === L(s.param), fr: L(receipt.modelHash) === L(s.param) ? "modèle verrouillé à l'ouverture" : `modelHash ${receipt.modelHash} ≠ modèle de la session ${s.param} (ModelMismatch)` },
-      { id: "increasing", ok: receipt.cumulativeUnits > s.paidUnits, fr: receipt.cumulativeUnits > s.paidUnits ? `cumul ${receipt.cumulativeUnits} > déjà réglé ${s.paidUnits}` : `cumul ${receipt.cumulativeUnits} ≤ déjà réglé ${s.paidUnits} (NotIncreasing)` },
+      { id: "open", ok: !s.closed, fr: s.closed ? "session close (Closed)" : "session ouverte", en: s.closed ? "session closed (Closed)" : "session open" },
+      { id: "product", ok: receipt.productId === s.productId, fr: receipt.productId === s.productId ? `produit #${s.productId}` : `produit du reçu #${receipt.productId} ≠ produit de la session #${s.productId} (SessionMismatch)`, en: receipt.productId === s.productId ? `product #${s.productId}` : `receipt's product #${receipt.productId} ≠ session's product #${s.productId} (SessionMismatch)` },
+      { id: "active", ok: op !== zeroAddress, fr: op !== zeroAddress ? `enclave ${signer} active au bloc d'ancrage ${receipt.anchorBlock}` : `enclave ${signer} non active pour ce produit au bloc ${receipt.anchorBlock} (InactiveEnclave)`, en: op !== zeroAddress ? `enclave ${signer} active at anchor block ${receipt.anchorBlock}` : `enclave ${signer} not active for this product at block ${receipt.anchorBlock} (InactiveEnclave)` },
+      { id: "operator", ok: op !== zeroAddress && L(op) === L(s.operator), fr: L(op) === L(s.operator) ? `opérateur ${s.operator}` : `opérateur de l'enclave ${op} ≠ opérateur de la session ${s.operator} (WrongOperator)`, en: L(op) === L(s.operator) ? `operator ${s.operator}` : `enclave's operator ${op} ≠ session's operator ${s.operator} (WrongOperator)` },
+      { id: "enclave", ok: L(signer) === L(s.enclave), fr: L(signer) === L(s.enclave) ? "signé par l'enclave verrouillée à l'ouverture" : `signé par ${signer}, la session est verrouillée sur ${s.enclave} (WrongEnclave)`, en: L(signer) === L(s.enclave) ? "signed by the enclave locked at opening" : `signed by ${signer}, the session is locked to ${s.enclave} (WrongEnclave)` },
+      { id: "model", ok: L(receipt.modelHash) === L(s.param), fr: L(receipt.modelHash) === L(s.param) ? "modèle verrouillé à l'ouverture" : `modelHash ${receipt.modelHash} ≠ modèle de la session ${s.param} (ModelMismatch)`, en: L(receipt.modelHash) === L(s.param) ? "model locked at opening" : `modelHash ${receipt.modelHash} ≠ session's model ${s.param} (ModelMismatch)` },
+      { id: "increasing", ok: receipt.cumulativeUnits > s.paidUnits, fr: receipt.cumulativeUnits > s.paidUnits ? `cumul ${receipt.cumulativeUnits} > déjà réglé ${s.paidUnits}` : `cumul ${receipt.cumulativeUnits} ≤ déjà réglé ${s.paidUnits} (NotIncreasing)`, en: receipt.cumulativeUnits > s.paidUnits ? `cumulative ${receipt.cumulativeUnits} > already settled ${s.paidUnits}` : `cumulative ${receipt.cumulativeUnits} ≤ already settled ${s.paidUnits} (NotIncreasing)` },
     );
   }
   const settleable = checks.every((c) => c.ok);

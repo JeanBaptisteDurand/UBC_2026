@@ -201,11 +201,11 @@ export class AttestedCopilotClient {
       pub.readContract({ address: this.d.productRegistry, abi: productRegistryAbi, functionName: "getProduct", args: [k.productId], blockNumber }),
     ])) as [boolean, boolean, boolean, { param: Hex }];
     const at = { enclaveUrl: k.enclaveUrl, productId: k.productId, signer: k.signer, announcedX25519: k.x25519, registeredX25519: k.x25519, block: blockNumber };
-    if (!active) throw new EnclaveKeyMismatchError("inactive", `le produit #${k.productId} n'est pas actif au bloc ${blockNumber}`, at);
+    if (!active) throw new EnclaveKeyMismatchError("inactive", { fr: `le produit #${k.productId} n'est pas actif au bloc ${blockNumber}`, en: `product #${k.productId} is not active at block ${blockNumber}` }, at);
     if (!allowed) {
-      throw new EnclaveKeyMismatchError("inactive", `l'image de l'enclave ${k.signer} (${k.workloadId}) n'est plus autorisée par le produit #${k.productId}`, at);
+      throw new EnclaveKeyMismatchError("inactive", { fr: `l'image de l'enclave ${k.signer} (${k.workloadId}) n'est plus autorisée par le produit #${k.productId}`, en: `the image of enclave ${k.signer} (${k.workloadId}) is no longer allowed by product #${k.productId}` }, at);
     }
-    if (banned) throw new EnclaveKeyMismatchError("inactive", `l'opérateur ${k.operator} de l'enclave ${k.signer} est radié`, at);
+    if (banned) throw new EnclaveKeyMismatchError("inactive", { fr: `l'opérateur ${k.operator} de l'enclave ${k.signer} est radié`, en: `operator ${k.operator} of enclave ${k.signer} is banned` }, at);
     this.keys = { ...k, productParam: product.param };
     return this.keys;
   }
@@ -275,7 +275,7 @@ export class AttestedCopilotClient {
   }
 }
 
-/** The attested copilot's client (see the file header). */
+/** The attested copilot's client (see the header). */
 export function createAttestedCopilotClient(o: AttestedCopilotClientOptions): AttestedCopilotClient {
   return new AttestedCopilotClient(o);
 }

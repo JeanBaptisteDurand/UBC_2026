@@ -191,7 +191,7 @@ export async function submitSealedExploit(
   const text = await res.text();
   let j: any;
   try { j = JSON.parse(text); } catch { throw new Error(`${sealed.enclave.enclaveUrl}/bounty/submit: non-JSON answer (HTTP ${res.status}): ${text.slice(0, 160)}`); }
-  if (!res.ok) throw new Error(`${sealed.enclave.enclaveUrl}/bounty/submit : HTTP ${res.status} ${j?.error ?? text.slice(0, 160)}`);
+  if (!res.ok) throw new Error(`${sealed.enclave.enclaveUrl}/bounty/submit: HTTP ${res.status} ${j?.error ?? text.slice(0, 160)}`);
   if (j?.status !== "proven") throw new ExploitNotProvenError(String(j?.reason ?? j?.error ?? JSON.stringify(j)));
   return checkProvenClaim(sealed, { claim: j.claim, signature: j.signature as Hex, cP: j.cP as Hex }, o);
 }
@@ -220,14 +220,14 @@ export const REFUTE_WINDOW_SECONDS = 259_200n;
 export const REFUTE_MAX_SIGNATURES = 2 * BOUNTY_MAX_SIGS;
 /** HPKE aad of a refutation request (identical to the enclave's, enclave/src/services/bounty.ts). */
 export const REFUTE_AAD_LABEL = "arc-sealed-bounty/refute/v1";
-/** eth_getLogs chunk size (Arc's public RPC caps the range). */
+/** eth_getLogs chunk (Arc's public RPC caps the range). */
 const LOG_CHUNK = 5_000n;
 
 export function refuteRequestAad(claimDigest: Hex): Uint8Array {
   return new TextEncoder().encode(`${REFUTE_AAD_LABEL}:${claimDigest.toLowerCase()}`);
 }
 
-/** keccak256(abi.encode(operators)) = ClaimRecord.opsHash (in ClaimAccepted's order). */
+/** keccak256(abi.encode(operators)) = ClaimRecord.opsHash (ordre de ClaimAccepted). */
 export function claimOperatorsHash(operators: readonly Address[]): Hex {
   return keccak256(encodeAbiParameters([{ type: "address[]" }], [operators as Address[]]));
 }
@@ -266,7 +266,7 @@ export interface AcceptedClaim {
   /** Timestamp of the acceptance (claimRecords.acceptedAt). */
   acceptedAt: bigint;
   refuted: boolean;
-  /** acceptedAt + REFUTE_WINDOW (lu on-chain). */
+  /** acceptedAt + REFUTE_WINDOW (read on-chain). */
   refuteWindowEndsAt: bigint;
   /** Block and timestamp of the read; the window is open if checkedAtTimestamp ≤ refuteWindowEndsAt (as in the contract). */
   checkedAtBlock: bigint;
@@ -443,7 +443,7 @@ export function protocolRefuteSource(a: { cP: Hex; protocolPrivateKey: Uint8Arra
   if (a.revealKey) return { from: "protocol", cP: a.cP, protocolPrivateKey: toHex(priv) };
   let shared: Uint8Array;
   try {
-    if ((a.cP.length - 2) / 2 < 32 + 16) throw new Error("trop court");
+    if ((a.cP.length - 2) / 2 < 32 + 16) throw new Error("too short");
     shared = x25519.getSharedSecret(priv, toBytes(a.cP).slice(0, 32));
   } catch {
     throw new RefuteError("unreadable_report", "cP too short or invalid ephemeral key: this is not a seal; only revealKey (the bounty key) can prove that this report is not one");
@@ -593,7 +593,7 @@ function refutePlaintext(s: RefuteSource): string {
   return JSON.stringify(s);
 }
 
-// ---------- 3. quorum, counter-replay, signatures ----------
+// ---------- 3. quorum, contre-rejeu, signatures ----------
 
 export interface RefuteQuorumPlan {
   /** Distinct operators needed (refutersNeeded). */
@@ -811,7 +811,7 @@ async function askOne(
   }
   if (j?.status === "confirmed") return { ...who, status: "confirmed", replay, reason: String(j.reason ?? "") };
   if (j?.status === "refused") return { ...who, status: "refused", code: String(j.code ?? ""), reason: String(j.reason ?? "") };
-  if (j?.status !== "refuted") return err(`statut inattendu : ${JSON.stringify(j).slice(0, 160)}`);
+  if (j?.status !== "refuted") return err(`unexpected status: ${JSON.stringify(j).slice(0, 160)}`);
   // the refutation: on THIS digest, contradictory, signed by the VERIFIED enclave
   let ref: Refutation;
   try {
@@ -827,7 +827,7 @@ async function askOne(
   try {
     signer = await recoverRefutationSigner(o.d.sealedBounty, ref, j.signature as Hex, o.d.chainId);
   } catch {
-    return err("signature illisible");
+    return err("unreadable signature");
   }
   if (signer.toLowerCase() !== k.signer.toLowerCase()) return err(`refutation signed by ${signer}, not by the verified enclave ${k.signer}`);
   return { ...who, status: "refuted", refutation: ref, signature: j.signature as Hex, replay };

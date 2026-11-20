@@ -375,7 +375,7 @@ export class ArcClient {
    *  before stay settleable during the grace period). */
   retireEnclave(signer: Address) { return this.write(this.d.enclaveRegistry, enclaveRegistryAbi, "retire", [signer]); }
 
-  // ---------- produit ----------
+  // ---------- product ----------
 
   async proposeProduct(q: {
     manifestHash: Hex; manifestURI: string; workloadIds: Hex[]; deterministic: boolean; price: bigint;
@@ -464,7 +464,7 @@ export class ArcClient {
    *  anything (block > settleableUntilBlock). */
   async sessionClosability(sessionId: bigint): Promise<{ closableNow: boolean; atTime: bigint; afterBlock: bigint; head: bigint; now: bigint }> {
     const s = await this.getSession(sessionId);
-    if (s.owner === zeroAddress) throw new Error(`unknown session #${sessionId}`);
+    if (s.owner === zeroAddress) throw new Error(`session #${sessionId} unknown`);
     const grace = await this.pub.readContract({ address: this.d.sessionPay, abi: sessionPayAbi, functionName: "SETTLE_GRACE" }) as bigint;
     const blk = await this.pub.getBlock();
     const afterBlock = await this.settleableUntilBlock(s.enclave);
@@ -472,7 +472,7 @@ export class ArcClient {
     return { closableNow: !s.closed && (blk.timestamp >= atTime || blk.number > afterBlock), atTime, afterBlock, head: blk.number, now: blk.timestamp };
   }
 
-  // ---------- prime (protocole) ----------
+  // ---------- bounty (protocol) ----------
 
   async createBounty(q: {
     productId: bigint; predicateHash: Hex; protocolX25519: Hex; tierMinLoss: bigint[]; tierAmount: bigint[];
@@ -499,7 +499,7 @@ export class ArcClient {
   reopenBounty(bountyId: bigint) { return this.write(this.d.sealedBounty, sealedBountyAbi, "reopen", [bountyId]); }
   setBountyPaused(bountyId: bigint, paused: boolean) { return this.write(this.d.sealedBounty, sealedBountyAbi, "setPaused", [bountyId, paused]); }
 
-  // ---------- prime (chasseur) ----------
+  // ---------- bounty (hunter) ----------
 
   /**
    * Prepares an exploit submission: reads the bounty ON-CHAIN (product, the protocol's X25519 key), verifies the
@@ -509,7 +509,7 @@ export class ArcClient {
     bountyId: bigint; enclaveUrl: string; exploit: ExploitInput; payee?: Address; r?: Uint8Array; blockN?: bigint; deadline?: bigint;
   }): Promise<SealedExploit> {
     const b = await this.getBounty(a.bountyId);
-    if (b.protocol === zeroAddress) throw new Error(`prime #${a.bountyId} inexistante`);
+    if (b.protocol === zeroAddress) throw new Error(`bounty #${a.bountyId} does not exist`);
     const enclave = await this.verifyEnclaveKeys(a.enclaveUrl, b.productId);
     const payee = a.payee ?? this.account?.address;
     if (!payee) throw new Error("payee is required (or an account)");
