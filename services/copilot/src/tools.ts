@@ -11,8 +11,8 @@ import {
 import { apiStats, apiIndexStatus } from "./archive-api";
 import { parsePrefixes } from "./net-guard";
 
-// Petite base de connaissances (RAG par mots-clés) : nos faits, cités en source.
-/** État RÉEL de la vérification sur le déploiement en ligne (même champ que le site) : jamais de sur-promesse. */
+// A small knowledge base (keyword RAG): our facts, cited as sources.
+/** The REAL verification state of the live deployment (the same field as the site): never an over-promise. */
 export const VERIFICATION_STATE =
   "Réponse courte : oui, la vérification est réelle. Sur le déploiement en ligne, le registre d'enclaves appelle le TdxAttestationModule, branché sur la pile DCAP d'Automata déployée sur Arc testnet ; la chaîne vérifie la signature d'Intel sur chaque quote (collatéral d'Intel chargé on-chain), puis applique la politique (TCB, DEBUG, image autorisée, liaison REPORTDATA). Une vérification coûte ≈ 5,1 M gas, 0,108 USDC.";
 
@@ -102,7 +102,7 @@ export const TOOL_DEFS = [
   { name: "ui_navigate", description: "Pilote l'interface du site : ouvre une page pour MONTRER à l'utilisateur. Appelle-le dès que l'utilisateur veut voir, montrer, aller sur, ou utiliser quelque chose. Pages : vue (vue d'ensemble : chaîne de preuves, chiffres du réseau, activité), ruche (les enclaves actives, cliquer pour commander), produits (catalogue), primes (primes ouvertes, chasser), playground (IA privée : conversation chiffrée), cles (clés d'accès aek_, clés opérateur arcop_, sessions), publier-prime (protocole : créer une prime), operateur (louer sa machine : caution, brancher une machine, l'inscrire), publier-produit (auteur : publier son service), portefeuille (soldes, caution, rapatrier de l'USDC par CCTP), developpeurs (API, SDK, CLI, MCP, contrats).", input_schema: { type: "object", properties: { page: { type: "string", enum: ["vue", "ruche", "produits", "primes", "playground", "cles", "publier-prime", "operateur", "publier-produit", "portefeuille", "developpeurs"] }, reason: { type: "string" } }, required: ["page"] } },
 ] as const;
 
-// libellés « à points » pour l'affichage
+// "dotted" labels for display
 export const DISPLAY: Record<string, string> = {
   docs_search: "docs.search", products_list: "products.list", products_get: "products.get",
   pricing_quote: "pricing.quote", session_prepare_open: "session.prepare_open",
@@ -115,21 +115,21 @@ export const DISPLAY: Record<string, string> = {
   inference_test: "inference.test", machines_list: "machines.list", machine_diagnostics: "machine.diagnostics",
 };
 
-// Sur le serveur public, /attest et /pubkeys ne sont lus qu'en https, port 443, chemin fixe, sur des hôtes publics
-// (net-guard.ts) ; COPILOT_ALLOW_PRIVATE_URLS=1 (développement local seulement) permet le réseau privé, http et tout port.
+// On the public server, /attest and /pubkeys are read only over https, port 443, a fixed path, on public hosts
+// (net-guard.ts); COPILOT_ALLOW_PRIVATE_URLS=1 (local development only) allows the private network, http and any port.
 const ALLOW_PRIVATE_URLS = process.env.COPILOT_ALLOW_PRIVATE_URLS === "1";
 const ENCLAVE_PREFIXES = parsePrefixes(process.env.ENCLAVE_PATH_PREFIXES);
 const actx = (ctx: ToolCtx): ActionCtx => ({
   user: ctx.user, allowPrivateUrls: ALLOW_PRIVATE_URLS, enclavePathPrefixes: ENCLAVE_PREFIXES, enclaveUrl: process.env.ENCLAVE_URL, includeCalldata: false,
-  apiBase: process.env.ARCHIVE_API, // API ArcHive (listes de son index, machines des opérateurs) ; défaut : l'API publique
+  apiBase: process.env.ARCHIVE_API, // the ArcHive API (its index's lists, operators' machines); default: the public API
 });
 
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 const STOP = new Set(["pour", "dans", "avec", "comment", "quoi", "quel", "quelle", "quels", "quelles", "pourquoi", "faire", "faut", "veux", "peux", "sont", "cette", "plus", "moins", "what", "does", "with", "the", "and"]);
 
-/** docs_search sur une base (celle de la console par défaut ; le site passe la sienne, site.ts) : score = nombre de mots
- *  de la question présents (sans accents, pluriel retiré), meilleurs passages d'abord ; sans aucun, les deux premiers.
- *  Les mots de 3 lettres ou moins sont ignorés, sauf ceux de `short` (le site : mcp, sdk…), gardés tels quels. */
+/** docs_search over a knowledge base (the console's by default; the site passes its own, site.ts): score = the number
+ *  of the question's words present (accents removed, plural dropped), best passages first; with none, the first two.
+ *  Words of 3 letters or fewer are ignored, except those in `short` (the site: mcp, sdk…), kept as they are. */
 export function searchDocs(
   query: unknown, corpus: ReadonlyArray<{ source: string; text: string; tags?: string }> = KB, short?: ReadonlySet<string>,
 ): { result: unknown; citations: string[] } {
@@ -146,7 +146,7 @@ export async function executeTool(name: string, input: any, ctx: ToolCtx): Promi
     case "docs_search":
       return searchDocs(input.query);
     case "products_list":
-      // seuls les produits ACTIFS : un produit retiré ne doit jamais être proposé
+      // ACTIVE products only: a retired product must never be offered
       return { result: await productsList(ctx.arc, {}, actx(ctx)), citations: ["API ArcHive /products"] };
     case "products_get": {
       const p = await ctx.arc.getProduct(BigInt(input.productId));
@@ -177,16 +177,16 @@ export async function executeTool(name: string, input: any, ctx: ToolCtx): Promi
       return { result: { language: "typescript", code:
 `import { createArcClient, createInferenceClient } from "@arcvault/sdk";
 const arc = createArcClient({ publicClient, walletClient });
-// v2 : la session est verrouillée sur l'enclave de enclaveUrl, dont les clés sont d'abord vérifiées on-chain
+// v2: the session is locked to enclaveUrl's enclave, whose keys are first verified on-chain
 const { sessionId, sessionKey } = await arc.openSession({ productId: ${input.productId}n, enclaveUrl, deposit: 5_000_000n });
-const ai = createInferenceClient({ enclaveUrl, sessionId, sessionKey, publicClient }); // revérifie les clés avant d'envoyer
+const ai = createInferenceClient({ enclaveUrl, sessionId, sessionKey, publicClient }); // re-verifies the keys before sending
 for (const q of questions) {
   const { text, receipt, verified } = await ai.chat.completions.create({ messages: [{ role: "user", content: q }] });
-  // reçu vérifié on-chain ; un seul règlement paiera toute la boucle
+  // receipt verified on-chain; one settlement will pay for the whole loop
 }` } };
     }
     case "receipt_verify": {
-      // v2 : mêmes contrôles que SessionPay.settle (enclave verrouillée, active au bloc d'ancrage, modèle, cumul)
+      // v2: the same checks as SessionPay.settle (locked enclave, active at the anchor block, model, cumulative total)
       const v = await ctx.arc.verifyReceipt(normalizeReceipt(input.receipt), input.signature as Hex);
       return { result: {
         signer: v.signer, operateurActifAuBlocDAncrage: v.activeOperatorAtAnchor, reglable: v.settleable,
@@ -222,9 +222,9 @@ for (const q of questions) {
     case "machine_diagnostics":
       return { result: await machineDiagnostics(ctx.arc, input ?? {}, actx(ctx)), citations: ["API ArcHive /machines/:id", "EnclaveRegistry.sol#politique"] };
     case "ui_navigate": {
-      // L'action réelle (changer de page) est faite par le navigateur, via le champ `navigate` de la réponse.
-      // On renvoie ce que la page MONTRE, avec les vraies données : le modèle décrit le réel, il n'invente rien.
-      // anciens noms acceptés (compatibilité) → pages de la console
+      // The real action (changing the page) is done by the browser, through the response's `navigate` field.
+      // What the page SHOWS is returned, with the real data: the model describes what is real and invents nothing.
+      // old names accepted (compatibility) → console pages
       const OLD: Record<string, string> = { home: "produits", hive: "ruche", use: "playground", rent: "operateur", onramp: "portefeuille", profile: "portefeuille" };
       const page = OLD[String(input.page ?? "vue")] ?? String(input.page ?? "vue");
       const PAGES: Record<string, string> = {
@@ -242,7 +242,7 @@ for (const q of questions) {
       };
       let donnees: unknown = null;
       try {
-        // listes lues dans l'index de l'API ArcHive (cache de 15 s, délai de 8 s), jamais chez l'explorateur
+        // lists read from the ArcHive API's index (15 s cache, 8 s timeout), never from the explorer
         if (page === "ruche") {
           const es = await enclavesCached(ctx.arc, actx(ctx));
           const act = es.filter((e) => e.active);
@@ -253,7 +253,7 @@ for (const q of questions) {
           donnees = await networkCounters(actx(ctx));
         }
       } catch (e) {
-        // la page s'ouvre quand même ; le modèle dit pourquoi il n'a pas les chiffres (jamais une liste inventée)
+        // the page opens anyway; the model says why it has no figures (never an invented list)
         donnees = { indisponible: isListUnavailable(e) ? e.message : `lecture impossible : ${String((e as Error)?.message ?? e).slice(0, 160)}` };
       }
       return { result: { navigated: page, cettePageMontre: PAGES[page] ?? "", donneesReelles: donnees } };
@@ -266,8 +266,8 @@ function serializeProduct(p: any) {
   return { id: p.id.toString(), state: p.state, deterministic: p.deterministic, pricePerUnit: formatUnits(p.price, 6) + " USDC", settlement: p.settlement, minBond: formatUnits(p.minBond, 6) + " USDC" };
 }
 
-/** Les chiffres de la vue d'ensemble (/stats de l'API), avec le bloc où ils ont été comptés ; un avertissement s'ils
- *  sont nettement plus anciens que l'index (l'API garde son dernier bon calcul quand un rafraîchissement échoue). */
+/** The overview's figures (the API's /stats), with the block where they were counted; a warning when they are clearly
+ *  older than the index (the API keeps its last good computation when a refresh fails). */
 async function networkCounters(cx: ActionCtx): Promise<Record<string, unknown>> {
   const s = await apiStats({ base: cx.apiBase });
   const idx = await apiIndexStatus({ base: cx.apiBase });
@@ -286,7 +286,7 @@ async function networkCounters(cx: ActionCtx): Promise<Record<string, unknown>> 
   };
 }
 
-/** Produit complet pour products.list / products.get : avec les parts et le nom du rail de paiement. */
+/** A full product for products.list / products.get: with the shares and the payment rail's name. */
 function serializeProductFull(arc: ArcClient, p: any) {
   return {
     ...serializeProduct(p),

@@ -25,10 +25,11 @@ import { createCopilotApp, type CopilotAppOptions, type SealedChannel } from "./
 import { signingSealedChannel } from "./enclave-site";
 import type { Lang } from "./i18n";
 
-/** Routes servies par le kit (CORS ouvert : tout y est public) ; tout le reste va au copilote (CORS du site). */
+/** Routes served by the kit (open CORS: everything there is public); everything else goes to the copilot (the site's
+ *  CORS). */
 export const KIT_ROUTES: ReadonlySet<string> = new Set(["/attest", "/pubkeys"]);
 
-/** La conversation chiffrée, ouverte par la clé X25519 de CETTE enclave. */
+/** The sealed conversation, opened by THIS enclave's X25519 key. */
 export function copilotSealedChannel(kit: EnclaveKit): SealedChannel {
   return {
     tag: COPILOT_SEALED_TAG,
@@ -46,13 +47,13 @@ export interface EnclaveFacts {
   registry: string;
   model: string;
   provider: string;
-  /** Quote simulé (hors TDX) : cette instance ne peut pas être inscrite. */
+  /** Simulated quote (outside TDX): this instance cannot be registered. */
   mock: boolean;
-  /** 11/11 : la passerelle du modèle, VÉRIFIÉE par l'enclave (model-attestation.ts), si MODEL_ATTESTATION=aci. */
+  /** The model gateway, VERIFIED by the enclave (model-attestation.ts), when MODEL_ATTESTATION=aci. */
   modelAttested?: { origin: string; composeHash: string };
 }
 
-/** Ce que le copilote sait de l'endroit où il tourne (ajouté à son invite, pour répondre juste si on le lui demande). */
+/** What the copilot knows about where it runs (added to its prompt, so it answers truly when asked). */
 export function enclaveSystemNote(f: EnclaveFacts): (x: { sealed: boolean; lang: Lang }) => string {
   return ({ sealed }) => [
     `OÙ TU TOURNES (à dire sobrement si on te le demande, sans promettre plus) : ${f.mock ? "le programme du copilote attesté, ici HORS de toute enclave Intel TDX (développement : quote simulé, voir plus bas)" : "dans une enclave Intel TDX (VM confidentielle Phala dstack)"}. Ta clé de signature ${f.signer} est faite pour être inscrite sur Arc pour le produit #${f.productId} (registre ${f.registry}, chaîne ${f.chainId}) par un quote TDX vérifié on-chain (DCAP), l'opérateur qui l'inscrit y engageant sa caution (la caution minimale du produit, lue on-chain : appelle un outil si on te demande son montant) ; c'est le client (site, SDK) qui vérifie sur la chaîne qu'elle l'est avant de chiffrer. Le modèle que tu appelles (${f.model}, chez ${f.provider}) est fixé par la configuration mesurée de l'image ; la question et ta réponse passent par ce fournisseur (connexion TLS depuis l'enclave). ${f.modelAttested
@@ -67,21 +68,21 @@ export function enclaveSystemNote(f: EnclaveFacts): (x: { sealed: boolean; lang:
 
 export interface CopilotEnclaveAppOptions {
   kit: EnclaveKit;
-  /** Le copilote (options de createCopilotApp, sans `sealed` ni `proxyToken` : le kit et l'enclave les apportent). */
+  /** The copilot (createCopilotApp options, without `sealed` or `proxyToken`: the kit and the enclave provide them). */
   copilot: Omit<CopilotAppOptions, "sealed" | "proxyToken">;
-  /** Jeton du mandataire du site (COPILOT_PROXY_TOKEN, variable chiffrée) : exigé sur POST /chat. */
+  /** The site proxy's token (COPILOT_PROXY_TOKEN, an encrypted variable): required on POST /chat. */
   proxyToken: string;
-  /** Options de /attest (défaut : OPERATOR_ALLOWLIST lue dans l'environnement). */
+  /** /attest options (default: OPERATOR_ALLOWLIST read from the environment). */
   attest?: AttestServerOptions;
-  /** 18/11 (surface site) : chaque réponse scellée est aussi signée par la clé de l'enclave (enclave-site.ts, champ sig). */
+  /** Site surface: every sealed reply is also signed by the enclave's key (enclave-site.ts, the sig field). */
   signReplies?: boolean;
 }
 
-/** L'application de l'enclave : /attest et /pubkeys par le kit, tout le reste par le copilote (conversation chiffrée
- *  comprise, jeton du mandataire exigé sur POST /chat). `fetch` se branche tel quel sur @hono/node-server (les infos de
- *  connexion suivent : débit par IP). */
+/** The enclave's app: /attest and /pubkeys by the kit, everything else by the copilot (sealed conversation included,
+ *  proxy token required on POST /chat). `fetch` plugs as is into @hono/node-server (the connection info follows, for
+ *  the per-IP rate limit). */
 export function createCopilotEnclaveApp(o: CopilotEnclaveAppOptions) {
-  if (!o.proxyToken) throw new Error("copilote en enclave : jeton du mandataire (COPILOT_PROXY_TOKEN) requis");
+  if (!o.proxyToken) throw new Error("copilot in an enclave: the proxy token (COPILOT_PROXY_TOKEN) is required");
   const attest = createAttestServer(o.kit, o.attest);
   const sealed = o.signReplies ? signingSealedChannel(o.kit, o.copilot.log) : copilotSealedChannel(o.kit);
   const chat = createCopilotApp({ ...o.copilot, sealed, proxyToken: o.proxyToken });

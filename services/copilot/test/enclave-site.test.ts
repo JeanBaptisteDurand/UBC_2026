@@ -392,7 +392,7 @@ test("guard: a prompt that says \"you run on the server\" stops the enclave; the
     "You are not in an enclave.",
     "Tu tournes sur le serveur du site.",
   ]) {
-    assert.throws(() => siteEnclaveSystem(`${SITE_SYSTEM}\n${claim}`), /deux vérités/, claim);
+    assert.throws(() => siteEnclaveSystem(`${SITE_SYSTEM}\n${claim}`), /two truths/, claim);
   }
   // the site server's note: recognised as a server sentence, and removed as is if it entered the prompt
   if (typeof SERVER_NOTE === "string") {
@@ -404,7 +404,7 @@ test("guard: a prompt that says \"you run on the server\" stops the enclave; the
   delete process.env.COPILOT_SURFACE;
   try {
     const consoleOptions = copilotFromEnv({ deployment: testnet }).options;
-    assert.throws(() => siteEnclaveOptions(consoleOptions, { signer: OWNER, productId: 4n, chainId: CHAIN, registry: REG, model: "m", provider: "p", mock: true }), /COPILOT_SURFACE=site requis/);
+    assert.throws(() => siteEnclaveOptions(consoleOptions, { signer: OWNER, productId: 4n, chainId: CHAIN, registry: REG, model: "m", provider: "p", mock: true }), /COPILOT_SURFACE=site required/);
   } finally {
     if (keep !== undefined) process.env.COPILOT_SURFACE = keep;
   }
@@ -441,7 +441,7 @@ test("configuration: COPILOT_SURFACE site or console (measured), any other value
   } finally {
     if (keep === undefined) delete process.env.COPILOT_SURFACE; else process.env.COPILOT_SURFACE = keep;
   }
-  for (const bad of ["web", "site,console", "sites"]) assert.throws(() => readCopilotEnclaveConfig({ ...base, COPILOT_SURFACE: bad }, read), /COPILOT_SURFACE invalide/, bad);
+  for (const bad of ["web", "site,console", "sites"]) assert.throws(() => readCopilotEnclaveConfig({ ...base, COPILOT_SURFACE: bad }, read), /invalid COPILOT_SURFACE/, bad);
 });
 
 test("compose v22: the measured site surface, the server site copilot's limits, no secret in clear, accepted by the enclave's configuration", () => {

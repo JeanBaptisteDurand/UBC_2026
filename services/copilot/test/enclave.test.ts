@@ -168,7 +168,7 @@ test("reply changed, replaced in clear (a fake action to sign) or replayed: refu
   h.tamper = (s, res) => (s.path !== "/chat" ? res : Response.json({
     text: "Signez ceci pour continuer.", actions: [{ tool: "session_prepare_open", input: {}, result: { to: "0x000000000000000000000000000000000000dEaD" } }],
   }));
-  await assert.rejects(client.chat(ask()), (e: Error) => e instanceof CopilotResponseError && /en clair/.test(e.message));
+  await assert.rejects(client.chat(ask()), (e: Error) => e instanceof CopilotResponseError && /en clair|plaintext answer/.test(e.message));
   // la réponse authentique d'une AUTRE requête, rejouée
   h.tamper = (s, res) => (s.path !== "/chat" ? res : new Response(recorded, { status: 200, headers: { "content-type": "application/json" } }));
   await assert.rejects(client.chat(ask()), CopilotResponseError);
@@ -335,17 +335,17 @@ test("enclave configuration: required, consistent with the deployments file, fai
   assert.equal(readCopilotEnclaveConfig({ ...base, DEBUG: "" }, read).port, 8808, "DEBUG vide : accepté (et retiré au démarrage)");
   assert.equal(readCopilotEnclaveConfig({ ...base, REGISTRY: "0x54aecc6500a1cfb33fd5bfb3008ed7a600ae7d38", CHAIN_ID: "5042002" }, read).registry, ok.registry);
   for (const [over, why] of [
-    [{ PRODUCT_ID: undefined }, /PRODUCT_ID requis/], [{ PRODUCT_ID: "0" }, /PRODUCT_ID requis/], [{ DEPLOYMENTS: undefined }, /DEPLOYMENTS requis/],
-    [{ REGISTRY: "0x1111111111111111111111111111111111111111" }, /n'est pas l'EnclaveRegistry/], [{ CHAIN_ID: "5042" }, /n'est pas la chaîne/],
-    [{ OPENAI_BASE_URL: undefined }, /OPENAI_BASE_URL requis/], [{ OPENAI_BASE_URL: "http://api.redpill.ai/v1" }, /OPENAI_BASE_URL requis en https/],
-    [{ COPILOT_MODEL: " " }, /COPILOT_MODEL requis/], [{ COPILOT_ALLOW_PRIVATE_URLS: "1" }, /refusé dans une enclave/],
-    [{ ALLOWED_ORIGINS: `${SITE},*` }, /ALLOWED_ORIGINS=\* refusé/], [{ OPERATOR_ALLOWLIST: "0xpasbon" }, /OPERATOR_ALLOWLIST : adresse invalide/],
-    [{ PORT: "99999" }, /PORT invalide/],
+    [{ PRODUCT_ID: undefined }, /PRODUCT_ID required/], [{ PRODUCT_ID: "0" }, /PRODUCT_ID required/], [{ DEPLOYMENTS: undefined }, /DEPLOYMENTS required/],
+    [{ REGISTRY: "0x1111111111111111111111111111111111111111" }, /is not the EnclaveRegistry/], [{ CHAIN_ID: "5042" }, /is not the chain/],
+    [{ OPENAI_BASE_URL: undefined }, /OPENAI_BASE_URL required/], [{ OPENAI_BASE_URL: "http://api.redpill.ai/v1" }, /OPENAI_BASE_URL required, over https/],
+    [{ COPILOT_MODEL: " " }, /COPILOT_MODEL required/], [{ COPILOT_ALLOW_PRIVATE_URLS: "1" }, /refused in an enclave/],
+    [{ ALLOWED_ORIGINS: `${SITE},*` }, /ALLOWED_ORIGINS=\* refused/], [{ OPERATOR_ALLOWLIST: "0xpasbon" }, /OPERATOR_ALLOWLIST : adresse invalide/],
+    [{ PORT: "99999" }, /invalid PORT/],
     // 9/11 : DEBUG, quelle qu'en soit la valeur (openai@4 journaliserait la clé du modèle et la conversation)
-    [{ DEBUG: "true" }, /DEBUG refusé dans une enclave/], [{ DEBUG: "0" }, /DEBUG refusé dans une enclave/], [{ DEBUG: " " }, /DEBUG refusé/],
+    [{ DEBUG: "true" }, /DEBUG refused in an enclave/], [{ DEBUG: "0" }, /DEBUG refused in an enclave/], [{ DEBUG: " " }, /DEBUG refused/],
     // 9/11 : jeton du mandataire, variable chiffrée, 32 octets au moins, ASCII visible
-    [{ COPILOT_PROXY_TOKEN: undefined }, /COPILOT_PROXY_TOKEN requis/], [{ COPILOT_PROXY_TOKEN: "x".repeat(31) }, /COPILOT_PROXY_TOKEN requis/],
-    [{ COPILOT_PROXY_TOKEN: `${"x".repeat(20)} ${"y".repeat(20)}` }, /ASCII visibles/], [{ COPILOT_PROXY_TOKEN: `${"é".repeat(20)}` }, /ASCII visibles/],
+    [{ COPILOT_PROXY_TOKEN: undefined }, /COPILOT_PROXY_TOKEN required/], [{ COPILOT_PROXY_TOKEN: "x".repeat(31) }, /COPILOT_PROXY_TOKEN required/],
+    [{ COPILOT_PROXY_TOKEN: `${"x".repeat(20)} ${"y".repeat(20)}` }, /visible ASCII/], [{ COPILOT_PROXY_TOKEN: `${"é".repeat(20)}` }, /visible ASCII/],
   ] as Array<[Record<string, string | undefined>, RegExp]>) {
     assert.throws(() => readCopilotEnclaveConfig({ ...base, ...over }, read), why, JSON.stringify(over));
   }
@@ -353,7 +353,7 @@ test("enclave configuration: required, consistent with the deployments file, fai
   for (const over of [{ DEBUG: "true-SECRET-VALUE" }, { COPILOT_PROXY_TOKEN: "SECRET-VALUE-short" }, { COPILOT_PROXY_TOKEN: `SECRET-VALUE ${"z".repeat(40)}` }]) {
     assert.throws(() => readCopilotEnclaveConfig({ ...base, ...over }, read), (e: Error) => !e.message.includes("SECRET-VALUE"));
   }
-  assert.throws(() => readCopilotEnclaveConfig(base, () => "{}"), /illisible/);
+  assert.throws(() => readCopilotEnclaveConfig(base, () => "{}"), /unreadable/);
 });
 
 test("per-IP rate in the enclave (the reviewer's cost-xff case): without the proxy's token, 403 proxy_required and no model call; X-Forwarded-For trusted only with the token", async () => {

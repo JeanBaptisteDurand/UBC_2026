@@ -32,27 +32,28 @@ import type { CopilotAppOptions, SealedChannel, SiteSurface } from "./app";
 import type { EnclaveFacts } from "./enclave-app";
 import * as site from "./site";
 
-// ---------------------------------------------------------------- 3. la signature de chaque réponse scellée
+// ---------------------------------------------------------------- 3. the signature of every sealed reply
 
-/** Étiquette de la signature d'une réponse du site (même valeur que REPLY_TAG du panneau). */
+/** The signature tag of a site reply (the same value as the panel's REPLY_TAG). */
 export const SITE_REPLY_TAG = "ARC-COPILOT-SITE-REPLY-v1";
 
-/** Ce que l'enclave ajoute dans le chiffré de chaque réponse : de quoi la vérifier sans rien croire d'autre. */
+/** What the enclave adds inside the ciphertext of every reply: what is needed to verify it without trusting anything
+ *  else. */
 export interface SiteReplySig {
   v: typeof SITE_REPLY_TAG;
-  /** La clé de l'enclave (celle qu'Arc tient pour le produit) : la signature doit la redonner. */
+  /** The enclave's key (the one Arc holds for the product): the signature must recover it. */
   signer: Address;
   requestHash: Hex;
   bodyHash: Hex;
   digest: Hex;
-  /** EIP-191 des 32 octets du digest, 65 octets (r ‖ s ‖ v). */
+  /** EIP-191 over the digest's 32 bytes, 65 bytes (r ‖ s ‖ v). */
   signature: Hex;
 }
 
-/** L'empreinte de la question scellée, telle que reçue : keccak256(enc ‖ ciphertext). */
+/** The fingerprint of the sealed question, as received: keccak256(enc ‖ ciphertext). */
 export const siteRequestHash = (enc: Uint8Array, ciphertext: Uint8Array): Hex => keccak256(concat([enc, ciphertext]));
 
-/** L'empreinte du corps de la réponse : keccak256(utf8(JSON.stringify(body))). */
+/** The fingerprint of the reply body: keccak256(utf8(JSON.stringify(body))). */
 export const siteBodyHash = (body: unknown): Hex => keccak256(stringToBytes(JSON.stringify(body)));
 
 export interface SiteReplyContext {
@@ -62,7 +63,7 @@ export interface SiteReplyContext {
   signer: Address;
 }
 
-/** Le digest signé : keccak256(abi.encode(tag, chainId, registre, produit, signataire, requestHash, bodyHash)). */
+/** The signed digest: keccak256(abi.encode(tag, chainId, registry, product, signer, requestHash, bodyHash)). */
 export function siteReplyDigest(c: SiteReplyContext & { requestHash: Hex; bodyHash: Hex }): Hex {
   return keccak256(encodeAbiParameters(
     [{ type: "string" }, { type: "uint256" }, { type: "address" }, { type: "uint256" }, { type: "address" }, { type: "bytes32" }, { type: "bytes32" }],
@@ -72,9 +73,9 @@ export function siteReplyDigest(c: SiteReplyContext & { requestHash: Hex; bodyHa
 
 const isObj = (x: unknown): x is Record<string, unknown> => !!x && typeof x === "object" && !Array.isArray(x);
 
-/** La conversation chiffrée (comme copilotSealedChannel d'enclave-app.ts), dont chaque réponse est en plus SIGNÉE par la
- *  clé de l'enclave. Une réponse qui ne serait pas { status, body } part scellée sans signature (le panneau dit alors
- *  « scellée », jamais « signée ») : app.ts n'en produit pas. */
+/** The sealed conversation (like enclave-app.ts's copilotSealedChannel), each reply of which is also SIGNED by the
+ *  enclave's key. A reply that is not { status, body } would go out sealed without a signature (the panel then says
+ *  "sealed", never "signed"); app.ts produces none. */
 export function signingSealedChannel(kit: EnclaveKit, log: (line: string) => void = (l) => console.error(l)): SealedChannel {
   const account = privateKeyToAccount(kit.keys.signerPrivateKey);
   const { chainId, registry, productId } = kit.binding;
@@ -89,7 +90,7 @@ export function signingSealedChannel(kit: EnclaveKit, log: (line: string) => voi
           let env: unknown;
           try { env = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(response)); } catch { env = undefined; }
           if (!isObj(env) || !Number.isSafeInteger(env.status) || !isObj(env.body) || "sig" in env) {
-            log("[copilote] réponse scellée hors de la forme { status, body } : envoyée sans signature");
+            log("[copilot] sealed reply outside the { status, body } shape: sent without a signature");
             return x.sealResponse(response);
           }
           const bodyHash = siteBodyHash(env.body);
@@ -103,38 +104,38 @@ export function signingSealedChannel(kit: EnclaveKit, log: (line: string) => voi
   };
 }
 
-/** Vérifie la signature d'une réponse ouverte, comme le panneau (référence pour les tests et tout client) :
- *  digest recalculé à partir de la question SCELLÉE par ce client (enc, ciphertext) et du corps ouvert, puis la
- *  signature doit redonner la clé qu'Arc tient. Ne lève jamais. */
+/** Verifies the signature of an opened reply, as the panel does (the reference for the tests and any client): the
+ *  digest is recomputed from the question this client SEALED (enc, ciphertext) and the opened body, then the signature
+ *  must recover the key Arc holds. Never throws. */
 export async function verifySiteReply(
   inner: unknown, o: SiteReplyContext & { enc: Uint8Array; ciphertext: Uint8Array },
 ): Promise<{ ok: true; digest: Hex; signer: Address } | { ok: false; why: string }> {
-  if (!isObj(inner) || !isObj(inner.body)) return { ok: false, why: "réponse hors de la forme { status, body }" };
+  if (!isObj(inner) || !isObj(inner.body)) return { ok: false, why: "reply outside the { status, body } shape" };
   const sig = isObj(inner.sig) ? inner.sig : null;
-  if (!sig || sig.v !== SITE_REPLY_TAG) return { ok: false, why: "réponse non signée" };
+  if (!sig || sig.v !== SITE_REPLY_TAG) return { ok: false, why: "unsigned reply" };
   if (typeof sig.signature !== "string" || !/^0x[0-9a-fA-F]{130}$/.test(sig.signature)) return { ok: false, why: "signature illisible" };
   const requestHash = siteRequestHash(o.enc, o.ciphertext);
   const bodyHash = siteBodyHash(inner.body);
   const digest = siteReplyDigest({ ...o, requestHash, bodyHash });
   let who: Address;
   try { who = await recoverMessageAddress({ message: { raw: digest }, signature: sig.signature as Hex }); } catch { return { ok: false, why: "signature illisible" }; }
-  if (who.toLowerCase() !== o.signer.toLowerCase()) return { ok: false, why: `signée par ${who}, pas par la clé inscrite ${o.signer}` };
+  if (who.toLowerCase() !== o.signer.toLowerCase()) return { ok: false, why: `signed by ${who}, not by the registered key ${o.signer}` };
   return { ok: true, digest, signer: getAddress(who) };
 }
 
-// ---------------------------------------------------------------- 1. où il tourne
+// ---------------------------------------------------------------- 1. where it runs
 
-/** La note « où tu tournes » de la surface site dans l'enclave, ajoutée à l'invite de CHAQUE requête (après la ligne de
- *  la page, avant la consigne de langue). En anglais, comme l'invite du site (chaque caractère accentué compte 3 jetons
- *  dans le budget d'entrée d'app.ts). `signs` : les réponses scellées sont signées (signingSealedChannel). */
+/** The "where you run" note of the site surface in the enclave, added to the prompt of EVERY request (after the page
+ *  line, before the language instruction). In English, like the site's prompt (each accented character counts 3 tokens
+ *  in app.ts's input budget). `signs`: the sealed replies are signed (signingSealedChannel). */
 export function siteEnclaveNote(f: EnclaveFacts & { signs: boolean }): (x: { sealed: boolean }) => string {
   const model = f.modelAttested
     ? `The model (${f.model}) runs at its provider (${f.provider}), never in this enclave: before calling it, this enclave verified that the provider's gateway (${f.modelAttested.origin}) itself runs in an attested Intel TDX enclave (Intel quote, production OS image, measured compose ${f.modelAttested.composeHash.slice(0, 12)}...), pins the connection to its attested key and requires the gateway's receipt on every answer: so the conversation is read only by attested enclaves (this one, the model's gateway and its upstream), not by their operators nor by ArcHive. Claim no more: the gateway's code is open but its version is not pinned.`
     : `The model (${f.model}) runs at its provider (${f.provider}), never in this enclave, and the provider receives the conversation in clear to run the inference: never say that only the enclave, or nobody else, can read it.`;
-  // 19/11 (contrôle indépendant, 1re passe) : à « ce chat tourne-t-il dans une enclave ? », 3 réponses sur 7 disaient « non »
-  // ou « sur le serveur » (le modèle croyait un passage périmé de docs_search plutôt que cette note) et aucune ne nommait
-  // la passerelle du modèle. La note dit donc qu'elle prime aussi sur la base du site, et comment répondre à cette
-  // question sans docs_search : où il tourne, pourquoi s'y fier, et qui d'autre lit la conversation.
+  // In an independent check, 3 answers out of 7 to "does this chat run in an enclave?" said "no" or "on the server" (the
+  // model trusted a stale docs_search passage over this note), and none named the model's gateway. So the note says that
+  // it also overrides the site's knowledge base, and how to answer that question without docs_search: where it runs, why
+  // to trust it, and who else reads the conversation.
   const others = f.modelAttested
     ? "the model itself runs at its provider, behind an attested gateway this enclave verified, and that gateway and the model read the conversation to answer (attested enclaves, not their operators, not ArcHive)"
     : "the model runs at its provider, which receives the conversation in clear";
@@ -155,40 +156,40 @@ export function siteEnclaveNote(f: EnclaveFacts & { signs: boolean }): (x: { sea
 
 // ---------------------------------------------------------------- 2. l'invite servie : aucune phrase du serveur
 
-/** Les phrases qui disent au copilote qu'il tourne sur le serveur du site : vraies sur le serveur, fausses ici. */
+/** The sentences that tell the copilot it runs on the site's server: true on the server, false here. */
 export const SERVER_CLAIMS: readonly RegExp[] = [
   /\byou(?:'re| are)? (?:run(?:ning)?|live|living) on (?:the |ArcHive's |the site's |our )?(?:site'?s? |web )?server/i,
   /\bnot you: you run\b/i,
   /\byou(?:'re| are) (?:not|never) (?:in|inside) (?:an|the|its|our) (?:Intel TDX )?enclave/i,
   /\btu tournes sur le serveur/i,
-  // la note du serveur du site (SITE_WHERE_NOTE, 18/11 au soir) : « WHERE YOU RUN: on the ArcHive site's server, NOT in an enclave »
+  // the site server's note (SITE_WHERE_NOTE): "WHERE YOU RUN: on the ArcHive site's server, NOT in an enclave"
   /\bWHERE YOU RUN:? on (?:the )?(?:ArcHive(?:'s)? )?(?:site'?s? )?(?:web )?server/i,
   /\bNOT in an enclave\b/,
 ];
 
-/** L'invite du site, telle que l'enclave la sert : la note du serveur (SITE_WHERE_NOTE de site.ts, si elle existe et
- *  qu'elle y a été écrite) en est retirée ; s'il y reste une phrase du serveur, l'enclave refuse de démarrer. */
+/** The site's prompt as the enclave serves it: the server's note (site.ts's SITE_WHERE_NOTE, when it exists and was
+ *  written into it) is removed; if a server sentence remains, the enclave refuses to start. */
 export function siteEnclaveSystem(system: string): string {
   const serverNote = (site as unknown as Record<string, unknown>).SITE_WHERE_NOTE;
   let s = system;
   if (typeof serverNote === "string" && serverNote.trim()) s = s.split(serverNote).join("");
   const hit = SERVER_CLAIMS.find((re) => re.test(s));
   if (hit) {
-    throw new Error(`invite du site : elle dit encore que le copilote tourne sur le serveur (${hit.source.slice(0, 60)}…) : l'enclave refuse de servir deux vérités`);
+    throw new Error(`site prompt: it still says the copilot runs on the server (${hit.source.slice(0, 60)}…); the enclave refuses to serve two truths`);
   }
   return s;
 }
 
-/** Les options du copilote du SITE dans l'enclave : celles du serveur (copilotFromEnv, COPILOT_SURFACE=site), invite
- *  contrôlée, note « où tu tournes » de l'enclave à la place de celle du serveur, /health qui dit où il tourne et que
- *  ses réponses sont signées. Lève si ce n'est pas la surface site, ou si l'invite dit encore « sur le serveur ». */
+/** The options of the SITE copilot in the enclave: the server's (copilotFromEnv, COPILOT_SURFACE=site), a checked
+ *  prompt, the enclave's "where you run" note in place of the server's, and a /health that says where it runs and that
+ *  its replies are signed. Throws when the surface is not site, or when the prompt still says "on the server". */
 export function siteEnclaveOptions(base: Omit<CopilotAppOptions, "sealed" | "proxyToken">, f: EnclaveFacts): Omit<CopilotAppOptions, "sealed" | "proxyToken"> {
-  if (!base.site) throw new Error("copilote du site en enclave : COPILOT_SURFACE=site requis (surface du site absente)");
+  if (!base.site) throw new Error("site copilot in an enclave: COPILOT_SURFACE=site required (site surface missing)");
   const note = siteEnclaveNote({ ...f, signs: true });
   for (const sealed of [true, false]) {
-    if (SERVER_CLAIMS.some((re) => re.test(note({ sealed })))) throw new Error("note de l'enclave : phrase du serveur");
+    if (SERVER_CLAIMS.some((re) => re.test(note({ sealed })))) throw new Error("enclave note: a server sentence");
   }
-  // la note du serveur (site.whereNote, que app.ts ne lit que sans systemNote) ne voyage même pas jusqu'ici
+  // the server's note (site.whereNote, which app.ts reads only without a systemNote) does not even travel here
   const surface = { ...base.site } as SiteSurface & { whereNote?: string };
   delete surface.whereNote;
   return {

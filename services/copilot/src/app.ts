@@ -54,37 +54,37 @@ export interface LlmRequest {
   messages: OpenAI.Chat.ChatCompletionMessageParam[];
   tools: OpenAI.Chat.ChatCompletionTool[];
   tool_choice: "auto" | "none";
-  /** Jetons de sortie au plus pour cet appel (paramètre max_tokens du fournisseur). */
+  /** Maximum output tokens for this call (the provider's max_tokens parameter). */
   max_tokens: number;
   signal: AbortSignal;
 }
-/** Un appel au modèle (OpenAI ou compatible) : rend le message de la première réponse. */
+/** One call to the model (OpenAI or compatible): returns the message of the first choice. */
 export type Llm = (req: LlmRequest) => Promise<LlmReply>;
 
 export interface ToolCaps {
-  /** Outils exécutés au plus par tour du modèle (les suivants reçoivent un refus). */
+  /** Maximum tools run per model turn (the rest receive a refusal). */
   perTurn: number;
-  /** Outils exécutés au plus par requête HTTP. */
+  /** Maximum tools run per HTTP request. */
   perRequest: number;
-  /** Appels au modèle au plus par requête HTTP (relance d'une réponse vide et réponse finale comprises). */
+  /** Maximum model calls per HTTP request (the retry of an empty answer and the final answer included). */
   maxModelCalls: number;
-  /** Caractères au plus d'un résultat d'outil renvoyé au modèle (le résultat complet reste dans `actions`). */
+  /** Maximum characters of a tool result sent back to the model (the full result stays in `actions`). */
   maxResultChars: number;
-  /** Délai global d'une requête, en ms (sous le read_timeout de 180 s de Caddy). */
+  /** Overall deadline of a request, in ms (below Caddy's 180 s read_timeout). */
   deadlineMs: number;
-  /** Jetons de sortie au plus par appel au modèle (max_tokens). */
+  /** Maximum output tokens per model call (max_tokens). */
   maxTokensPerCall: number;
-  /** Caractères au plus de TOUT ce qui s'ajoute à l'historique pendant une requête et repart au modèle à chaque appel :
-   *  résultats d'outils (refus compris) ET sorties du modèle (texte et arguments des appels d'outils). */
+  /** Maximum characters of EVERYTHING added to the history during a request, which goes back to the model on every
+   *  call: tool results (refusals included) AND model outputs (text and tool-call arguments). */
   maxToolCharsPerRequest: number;
-  /** Caractères d'entrée au plus envoyés au modèle pendant une requête, tous appels confondus (messages et définitions
-   *  d'outils, comptés en JSON) : borne DURE du coût d'entrée d'une requête (seul le premier appel peut la dépasser, si
-   *  elle est réglée plus bas que lui). */
+  /** Maximum input characters sent to the model during a request, all calls together (messages and tool definitions,
+   *  counted as JSON). This is the HARD bound on a request's input cost; only the first call can exceed it, when the
+   *  bound is set below that call's size. */
   maxInputCharsPerRequest: number;
-  /** JETONS d'entrée ESTIMÉS (estimateTokens) au plus envoyés au modèle pendant une requête, tous appels confondus
-   *  (messages et définitions d'outils, en JSON) : borne DURE, premier appel compris (l'historique le plus ancien est
-   *  retiré pour le faire tenir). Un caractère « dense » (yi, CJK rare…) coûte ≈ 3 jetons : le budget en caractères seul
-   *  ne bornait pas le coût (9/11 au soir). */
+  /** Maximum ESTIMATED input TOKENS (estimateTokens) sent to the model during a request, all calls together (messages
+   *  and tool definitions, as JSON). This is a HARD bound, first call included: the oldest history is dropped to make it
+   *  fit. A "dense" character (Yi, rare CJK…) costs about 3 tokens, so a budget in characters alone would not bound the
+   *  cost. */
   maxInputTokensPerRequest: number;
 }
 export const DEFAULT_CAPS: ToolCaps = {
@@ -92,10 +92,10 @@ export const DEFAULT_CAPS: ToolCaps = {
   maxTokensPerCall: 2_000, maxToolCharsPerRequest: 40_000, maxInputCharsPerRequest: 160_000, maxInputTokensPerRequest: 50_000,
 };
 
-/** Estimation PRUDENTE du nombre de jetons, par unité UTF-16 : 0,3 jeton par caractère ASCII, 3 par tout autre caractère.
- *  Mesure du vérificateur (9/11, BPE à octets) : anglais 0,25, français 0,27, CJK courant 0,9, yi et CJK rares 2,97
- *  jetons par caractère JS (un caractère hors du plan de base compte deux fois 3). Elle surestime le texte accentué :
- *  c'est une borne de coût, pas une facture. */
+/** A CAUTIOUS token estimate, per UTF-16 unit: 0.3 token per ASCII character, 3 per any other character.
+ *  Measured on a byte-level BPE tokenizer: English 0.25, French 0.27, common CJK 0.9, Yi and rare CJK 2.97 tokens per
+ *  JS character (a character outside the Basic Multilingual Plane counts twice 3). It overestimates accented text: it is
+ *  a cost bound, not an invoice. */
 export const TOKENS_PER_ASCII_CHAR = 0.3;
 export const TOKENS_PER_OTHER_CHAR = 3;
 export function estimateTokens(s: string): number {
@@ -103,109 +103,108 @@ export function estimateTokens(s: string): number {
   for (let i = 0; i < s.length; i++) if (s.charCodeAt(i) < 0x80) ascii++;
   return Math.ceil(ascii * TOKENS_PER_ASCII_CHAR + (s.length - ascii) * TOKENS_PER_OTHER_CHAR);
 }
-/** En dessous de ce reste de budget, un nouvel outil n'est plus exécuté (son résultat serait réduit à la marque de troncature). */
+/** Below this remaining budget, no new tool runs (its result would shrink to the truncation mark). */
 const MIN_TOOL_RESULT = 1_000;
-/** Pour prévoir la taille de l'appel suivant : caractères au plus par jeton de sortie (estimation), surcoût du JSON
- *  (guillemets échappés des résultats d'outils) et marge des refus et notes ajoutés à un tour. */
+/** To predict the size of the next call: maximum characters per output token (estimate), the JSON overhead (escaped
+ *  quotes in tool results) and a margin for the refusals and notes added to a turn. */
 const OUTPUT_CHARS_PER_TOKEN = 4;
 const JSON_OVERHEAD = 1.25;
 const TURN_MARGIN = 1_000;
 
-/** Résultat d'un outil d'interface du site : l'entrée normalisée (le navigateur l'exécute), ou le refus et sa raison. */
+/** The result of a site interface tool: the normalized input (the browser runs it), or the refusal and its reason. */
 export type UiResult = ({ ok: true } & Record<string, unknown>) | { ok: false; error: string };
-/** Les outils d'interface d'UNE requête (page courante, actions déjà acceptées) ; `current` : la page affichée après les
- *  actions acceptées (18/11 au soir : le filet des guides en a besoin). */
+/** The interface tools of ONE request (current page, actions already accepted); `current` is the page shown after the
+ *  accepted actions (the guide fallback needs it). */
 export interface UiSession { run(name: string, args: unknown): UiResult; current?(): string | undefined }
-/** Une entrée de `tools` dans la réponse du site, dans l'ordre d'exécution : l'outil, son libellé, son entrée ; `result`
- *  pour les outils d'interface (l'écho validé) et les outils prepare (les données complètes, comme dans `actions`). */
+/** One entry of `tools` in the site's response, in execution order: the tool, its label and its input; `result` for the
+ *  interface tools (the validated echo) and the prepare tools (the full data, as in `actions`). */
 export interface SiteToolEntry { tool: string; label: string; input?: unknown; result?: unknown; inline?: true; inferred?: true }
-/** 16/11 : la surface « site » (COPILOT_SURFACE=site, implémentée par site.ts). Absente : la console, inchangée. */
+/** The "site" surface (COPILOT_SURFACE=site, implemented by site.ts). When absent: the console, unchanged. */
 export interface SiteSurface {
-  /** Les outils d'interface : validés dans la boucle (jamais par executeTool), exécutés par le navigateur. */
+  /** The interface tools: validated in the loop (never by executeTool), run by the browser. */
   uiTools: ReadonlySet<string>;
-  /** Le contexte `page` du corps de la requête : la ligne ajoutée à l'invite et la page de départ ; undefined s'il manque
-   *  ou s'il est invalide. */
+  /** The `page` context of the request body: the line added to the prompt and the starting page; undefined when it is
+   *  missing or invalid. */
   pageContext(body: unknown): { line: string; page: string } | undefined;
-  /** Les outils d'interface d'une requête, à partir de la page affichée ; `lang` : la langue de la réponse. */
+  /** The interface tools of one request, from the page shown; `lang` is the language of the answer. */
   uiSession(page: string | undefined, lang?: Lang): UiSession;
-  /** La consigne de langue de la surface (à la fin de l'invite, à la place de celle de la console) : `lang`, la langue du
-   *  site (libellés des pages et des boutons) ; `replyLang`, celle de la réponse (16/11 : celle de la question). */
+  /** The surface's language instruction (at the end of the prompt, in place of the console's): `lang` is the site's
+   *  language (page and button labels); `replyLang` is the answer's language (the question's language). */
   languageDirective(lang: Lang, replyLang?: Lang): string;
-  /** Un appel d'interface écrit dans le texte au lieu d'être appelé : retiré du texte, rendu comme un appel (ui_navigate,
-   *  ou l'outil nommé par `tool`). */
+  /** An interface call written in the text instead of being called: removed from the text and turned into a call
+   *  (ui_navigate, or the tool named by `tool`). */
   extractInline(text: string): { text: string; input?: Record<string, unknown>; tool?: string };
-  /** 16/11 : la page que la demande montre clairement (mots-clés), quand le modèle n'a rien montré ni préparé. */
+  /** The page the request clearly points to (keywords), when the model showed and prepared nothing. */
   intentNav?(q: string, lang: Lang): Record<string, unknown> | undefined;
-  /** 18/11 au soir : le guide que la demande appelle clairement (installer, lancer une enclave…), quand le modèle n'en a
-   *  joué aucun : l'ouverture de sa page si elle n'est pas affichée (`navigate`), puis le guide. `prepared` : une carte à
-   *  signer est déjà préparée. */
+  /** The guide the request clearly calls for (install, launch an enclave…), when the model played none: first its page
+   *  when it is not shown (`navigate`), then the guide. `prepared`: a card to sign is already prepared. */
   intentGuide?(q: string, o: { lang: Lang; current?: string; start?: string; prepared?: boolean }): { navigate?: Record<string, unknown>; guide: Record<string, unknown> } | undefined;
-  /** 18/11 au soir : où tourne ce copilote, dit en une ligne de l'invite quand aucune `systemNote` ne le dit (enclave). */
+  /** Where this copilot runs, said in one prompt line when no `systemNote` says it (enclave). */
   whereNote?: string;
-  /** 18/11 au soir : la réponse quand le modèle n'a rien écrit et qu'un guide joue. */
+  /** The answer when the model wrote nothing and a guide plays. */
   guideText?(lang: Lang): string;
-  /** 19/11 : la phrase qui dit sur quelle page joue un guide ajouté par le filet (le modèle ne l'a pas vu), si la réponse
-   *  ne nomme pas déjà cette page ; undefined sinon. */
+  /** The sentence that names the page a fallback guide plays on (the model did not see it), when the answer does not
+   *  name that page already; undefined otherwise. */
   guidePageNote?(lang: Lang, page: string, text: string): string | undefined;
-  /** 19/11 au soir : ce qui ne s'affiche jamais dans une réponse (libellés internes de l'invite, marques de source de
-   *  docs_search, identifiants de page entre crochets), retiré du texte final. */
+  /** What never shows in an answer (internal prompt labels, docs_search source marks, page ids in brackets): removed
+   *  from the final text. */
   stripLabels?(text: string): string;
-  /** 19/11 au soir : la réponse fixe et vraie à « ce chat tourne-t-il dans une enclave ? » sur le serveur du site (seulement
-   *  avec whereNote : l'enclave du produit 4 la retire, elle garde sa propre réponse). */
+  /** The fixed, true answer to "does this chat run in an enclave?" on the site's server (only with whereNote: product
+   *  4's enclave removes it and keeps its own answer). */
   whereAnswer?(text: string, lang: Lang): string | undefined;
-  /** 19/11 (nuit) : une réponse fixe et vraie AVEC ses gestes d'interface (le MCP, la tokenomics, la place d'AskHive), sur le
-   *  serveur du site seulement (avec whereNote) : le texte remplace celui du modèle, les gestes ceux du modèle et des filets. */
+  /** A fixed, true answer WITH its interface gestures (the MCP, the tokenomics, AskHive's place), on the site's server
+   *  only (with whereNote): the text replaces the model's, and the gestures replace those of the model and fallbacks. */
   fixedAnswer?(text: string, lang: Lang): { text: string; ui: Array<{ tool: string; input: Record<string, unknown> }> } | undefined;
-  /** 19/11 : l'état du réseau lu AU MOMENT de répondre (site-live.ts : enclaves actives, niveaux, primes ouvertes), en une
-   *  ligne de l'invite après celle de la page ; ne lève jamais (ligne de repli), borné dans le temps. */
+  /** The network state read AT ANSWER TIME (site-live.ts: active enclaves, levels, open bounties), in one prompt line
+   *  after the page line. It never throws (fallback line) and is bounded in time. */
   liveNote?(): Promise<string | undefined>;
 }
 
-/** Une requête chiffrée ouverte : son texte, et de quoi sceller LA réponse pour ce seul client. */
+/** An opened sealed request: its text, and what is needed to seal THE answer for this client only. */
 export interface SealedRequest {
   plaintext: Uint8Array;
   seal(response: Uint8Array): Promise<{ nonce: Uint8Array; ciphertext: Uint8Array }>;
 }
-/** Conversation chiffrée (copilote en enclave) : l'enclave ouvre la requête avec sa clé X25519 (kit d'enclave). */
+/** Sealed conversation (copilot in an enclave): the enclave opens the request with its X25519 key (enclave kit). */
 export interface SealedChannel {
   /** Protocol tag: the expected value of the `sealed` field (ARC-COPILOT-CHAT-v1). */
   tag: string;
-  /** Ouvre une requête (lève si elle n'est pas pour cette enclave ou a été modifiée). */
+  /** Opens a request (throws when it is not for this enclave or was modified). */
   open(enc: Uint8Array, ciphertext: Uint8Array): Promise<SealedRequest>;
 }
 
 export interface CopilotAppOptions {
-  /** null : aucune clé de modèle configurée. */
+  /** null: no model key configured. */
   llm: Llm | null;
-  /** Invite système (la ligne du wallet connecté, les notes de troncature et la consigne de langue y sont ajoutées). */
+  /** System prompt (the connected wallet's line, the truncation notes and the language instruction are added to it). */
   system: string;
   tools: OpenAI.Chat.ChatCompletionTool[];
   executeTool: (name: string, args: any, user?: Address) => Promise<{ result: unknown; citations?: string[] }>;
-  /** Libellés « à points » des outils (affichage). */
+  /** The tools' "dotted" labels (display). */
   display?: Record<string, string>;
-  /** Outils qui PRÉPARENT une action à signer : leur résultat complet part au navigateur dans `actions`. */
+  /** Tools that PREPARE an action to sign: their full result goes to the browser in `actions`. */
   prepareTools?: Iterable<string>;
   allowedOrigins: string[];
   rate: RateOptions;
   bounds?: ChatBounds;
   caps?: Partial<ToolCaps>;
-  /** Champs ajoutés à GET /health. */
+  /** Fields added to GET /health. */
   health?: Record<string, unknown>;
-  /** Secrets du serveur (clé du modèle…) : retirés de tout ce qui part vers le visiteur, le modèle ou le journal. */
+  /** The server's secrets (the model key…): removed from everything sent to the visitor, the model or the log. */
   secrets?: string[];
-  /** Journal du serveur (défaut : console.error) ; les lignes y arrivent filtrées. */
+  /** The server log (default: console.error); lines arrive filtered. */
   log?: (line: string) => void;
-  /** Conversation chiffrée (copilote en enclave) ; absente : une enveloppe chiffrée est refusée (400 sealed_unavailable). */
+  /** Sealed conversation (copilot in an enclave); when absent, a sealed envelope is refused (400 sealed_unavailable). */
   sealed?: SealedChannel;
-  /** Ligne ajoutée à l'invite système pour chaque requête (ex. : où tourne le copilote, conversation chiffrée ou non). */
+  /** A line added to the system prompt for each request (e.g. where the copilot runs, sealed conversation or not). */
   systemNote?: (x: { sealed: boolean; lang: Lang }) => string;
-  /** Copilote en enclave : jeton du mandataire du site (COPILOT_PROXY_TOKEN). POST /chat exige alors l'en-tête
-   *  x-archive-proxy-token (sinon 403 proxy_required) et X-Forwarded-For n'est cru que s'il est bon. Absent (VPS) :
-   *  aucun jeton, X-Forwarded-For cru derrière un proxy local. */
+  /** Copilot in an enclave: the site proxy's token (COPILOT_PROXY_TOKEN). POST /chat then requires the
+   *  x-archive-proxy-token header (otherwise 403 proxy_required), and X-Forwarded-For is trusted only when the token is
+   *  right. When absent (VPS): no token, and X-Forwarded-For is trusted behind a local proxy. */
   proxyToken?: string;
-  /** 16/11 : la surface « site » (panneau du front, /copilot-site/) : outils d'interface validés ici, contexte `page`
-   *  dit en une ligne de l'invite, consigne de langue du site, `tools` détaillé dans la réponse (SiteToolEntry), sans
-   *  `navigate`. Absente : la console, exactement comme avant. */
+  /** The "site" surface (the front's panel, /copilot-site/): interface tools validated here, the `page` context said in
+   *  one prompt line, the site's language instruction, and a detailed `tools` list in the response (SiteToolEntry),
+   *  without `navigate`. When absent: the console, exactly as before. */
   site?: SiteSurface;
 }
 
@@ -214,7 +213,7 @@ const DEFAULT_PREPARE = ["session_prepare_open", "operator_prepare_bond", "opera
 type Status = 200 | 400 | 403 | 413 | 415 | 429;
 interface Answer { status: 200 | 400 | 413 | 429; body: Record<string, unknown>; retryAfterSec?: number }
 
-/** Corps d'une enveloppe chiffrée au plus : la conversation (64 Kio) en hexadécimal, plus les champs. */
+/** Maximum body of a sealed envelope: the conversation (64 KiB) in hexadecimal, plus the fields. */
 export const sealedBodyCap = (b: ChatBounds) => 2 * b.maxBodyBytes + 4_096;
 
 const isHexBytes = (x: unknown, bytes?: number): x is Hex =>
@@ -227,7 +226,7 @@ export function createCopilotApp(o: CopilotAppOptions): Hono {
   const proxyOk = o.proxyToken ? proxyTokenChecker(o.proxyToken) : null;
   const app = new Hono();
 
-  // CORS : seul le site (ALLOWED_ORIGINS) reçoit Access-Control-Allow-Origin ; jamais « * » par défaut
+  // CORS: only the site (ALLOWED_ORIGINS) receives Access-Control-Allow-Origin; never "*" by default
   app.use("*", cors({
     origin: (origin) => (origin && originAllowed(origin, o.allowedOrigins) ? origin : null),
     allowMethods: ["GET", "POST", "OPTIONS"],
@@ -238,21 +237,21 @@ export function createCopilotApp(o: CopilotAppOptions): Hono {
     ok: true, ...(o.health ?? {}), languages: LANGS, sealed: o.sealed?.tag ?? null, ...(proxyOk ? { proxyTokenRequired: true } : {}),
   }));
 
-  // 5) et 6) : la conversation validée, puis le modèle ; la même suite en clair et chiffré
+  // 5) and 6): the validated conversation, then the model; the same sequence in clear and sealed
   const answer = async (json: unknown, lang: Lang, sealed: boolean): Promise<Answer> => {
-    // 5) conversation : rôles user/assistant, texte seulement, historique borné, secrets masqués
+    // 5) conversation: user/assistant roles, text only, bounded history, secrets masked
     const chat = parseChatRequest(json, bounds, lang);
     if (!chat.ok) return { status: 400, body: refusal(chat.error, lang, "bad_conversation") };
     if (!o.llm) return { status: 200, body: { text: T(lang).noKey, tools: [], citations: [] } };
-    // 6) plafond global quotidien (dépense du modèle)
+    // 6) daily global cap (model spending)
     const g = limiter.hitGlobal();
     if (!g.ok) return { status: 429, body: { ...refusal(T(lang).globalCap, lang, "global_cap"), retryAfterSec: g.retryAfterSec }, retryAfterSec: g.retryAfterSec };
-    // site : la page affichée (champ `page`), validée ; rien pour la console
+    // site: the page shown (the `page` field), validated; nothing for the console
     const page = o.site ? o.site.pageContext(json) : undefined;
     return { status: 200, body: await runChat(o, caps, chat.messages, chat.user, { dropped: chat.dropped, truncated: chat.truncated }, lang, sealed, page) };
   };
 
-  // conversation chiffrée : ouverte par l'enclave ; tout ce qui suit repart scellé pour ce seul client
+  // sealed conversation: opened by the enclave; everything after it goes back sealed for this client only
   const sealedChat = async (c: Context, env: Record<string, unknown>, early: Lang, acceptLanguage: string | undefined) => {
     const ch = o.sealed;
     if (!ch) return refuse(c, 400, T(early).sealed.unavailable, early, "sealed_unavailable");
@@ -285,18 +284,18 @@ export function createCopilotApp(o: CopilotAppOptions): Hono {
 
   app.post("/chat", async (c) => {
     const acceptLanguage = c.req.header("accept-language");
-    // avant la lecture du corps, seule Accept-Language dit la langue (défaut : anglais)
+    // before the body is read, only Accept-Language gives the language (default: English)
     const early = langFromAcceptLanguage(acceptLanguage) ?? DEFAULT_LANG;
-    // 0) copilote en enclave : seul le mandataire du site (jeton partagé, variable chiffrée) fait dépenser le modèle, et
-    //    seul lui fait croire X-Forwarded-For : appeler l'URL Phala directement ne contourne plus le débit par IP
+    // 0) copilot in an enclave: only the site's proxy (shared token, encrypted variable) can spend the model, and only
+    //    its X-Forwarded-For is trusted: calling the Phala URL directly no longer bypasses the per-IP rate limit
     const proxied = proxyOk ? proxyOk(c.req.header(PROXY_TOKEN_HEADER)) : undefined;
     if (proxyOk && !proxied) return refuse(c, 403, T(early).proxyRequired, early, "proxy_required");
-    // 1) origine : une page d'un autre site ne fait pas dépenser le modèle (même sans lire la réponse)
+    // 1) origin: a page from another site cannot spend the model (even without reading the answer)
     const origin = c.req.header("origin");
     if (origin && !originAllowed(origin, o.allowedOrigins)) {
       return refuse(c, 403, T(early).originRefused(origin.slice(0, 100)), early, "origin_refused");
     }
-    // 2) débit par IP (X-Forwarded-For posé par Caddy) : toute requête compte, même refusée ensuite
+    // 2) per-IP rate limit (X-Forwarded-For set by Caddy): every request counts, even one refused later
     const v = limiter.hit(bucketOf(clientIp(c, proxied)));
     if (!v.ok) {
       c.header("Retry-After", String(v.retryAfterSec));
@@ -304,12 +303,12 @@ export function createCopilotApp(o: CopilotAppOptions): Hono {
         ? refuse(c, 429, T(early).rateMinute(v.retryAfterSec), early, "rate_minute")
         : refuse(c, 429, T(early).rateDay(Math.ceil(v.retryAfterSec / 3600)), early, "rate_day");
     }
-    // 3) JSON seulement : une requête d'une autre origine passe ainsi toujours par le contrôle préalable CORS
+    // 3) JSON only: a request from another origin then always goes through the CORS preflight
     if (!/^application\/json\s*(;|$)/i.test(c.req.header("content-type") ?? "")) {
       return refuse(c, 415, T(early).jsonOnly, early, "json_only");
     }
-    // 4) corps borné (Content-Length annoncé, puis compté au fil de la lecture) ; une enveloppe chiffrée, en
-    //    hexadécimal, a droit au double : la conversation qu'elle porte reste bornée à 64 Kio
+    // 4) bounded body (the announced Content-Length, then counted while reading); a sealed envelope, in hexadecimal,
+    //    gets twice as much: the conversation it carries stays bounded to 64 KiB
     const tooLarge = () => refuse(c, 413, T(early).tooLarge(Math.round(bounds.maxBodyBytes / 1024), bounds.maxMessages), early, "too_large");
     const raw = await readBodyCapped(c.req.raw, o.sealed ? sealedBodyCap(bounds) : bounds.maxBodyBytes);
     if (!raw.ok) return raw.status === 413 ? tooLarge() : refuse(c, 400, T(early).badLength, early, "bad_length");
@@ -328,7 +327,7 @@ export function createCopilotApp(o: CopilotAppOptions): Hono {
   return app;
 }
 
-/** Corps d'un refus : `text` est ce que la bulle du site peut afficher tel quel ; `code` est stable (machines). */
+/** The body of a refusal: `text` is what the site's bubble can show as is; `code` is stable (for machines). */
 function refusal(message: string, lang: Lang, code: string) {
   return { error: message, text: T(lang).refused(message), code, tools: [], citations: [] };
 }
@@ -352,9 +351,9 @@ async function runChat(
   const walletLine = user
     ? `\nWallet connecté de l'utilisateur : ${user} (adresse par défaut des outils prepare, de machines_list et de sessions_list).`
     : "\nAucun wallet connecté : les outils prepare renvoient des gabarits à compléter avec l'adresse de l'utilisateur.";
-  // site : la page affichée, en une ligne de valeurs validées (site.ts) ; jamais pour la console
+  // site: the page shown, as one line of validated values (site.ts); never for the console
   const pageLine = o.site && page ? `\n${page.line}` : "";
-  // site (19/11) : l'état du réseau lu maintenant (LIVE STATUS), jamais un état écrit d'avance ; rien pour la console
+  // site: the network state read now (LIVE STATUS), never a state written in advance; nothing for the console
   const live = o.site?.liveNote ? await o.site.liveNote().catch(() => undefined) : undefined;
   const liveLine = live ? `\n${live}` : "";
   const cutLineOf = (dropped: number) => dropped || cut.truncated
@@ -362,25 +361,25 @@ async function runChat(
     : "";
   // where the copilot runs: the enclave's note; otherwise (site) the site server's note; none for the console
   const note = o.systemNote ? `\n${o.systemNote({ sealed, lang })}` : o.site?.whereNote ? `\n${o.site.whereNote}` : "";
-  // site (16/11) : la réponse suit la langue du dernier message quand on la reconnaît (une question en français sur le
-  // site anglais reçoit une réponse en français) ; les libellés des pages restent ceux de l'écran. Le modèle suit mal une
-  // consigne souple (« réponds dans sa langue ») : la langue est décidée ici, et la consigne reste ferme.
-  // Un message de moins de 3 mots (« hello », « ok ») ne dit pas sa langue : la langue du site.
+  // site: the answer follows the language of the last message when it is recognized (a French question on the English
+  // site gets a French answer); page labels stay those of the screen. The model follows a soft instruction ("answer in
+  // their language") poorly, so the language is decided here and the instruction stays firm.
+  // A message under 3 words ("hello", "ok") does not reveal its language: the site's language applies.
   const lastUserText = history.filter((m) => m.role === "user").slice(-1)[0]?.content ?? "";
   const longEnough = lastUserText.trim().split(/\s+/).filter(Boolean).length >= 3;
   const replyLang: Lang = o.site && longEnough ? (detectLang(lastUserText) ?? lang) : lang;
   const directive = o.site ? o.site.languageDirective(lang, replyLang) : languageDirective(lang);
-  // la consigne de langue en DERNIER : elle prime sur l'invite (rédigée en français)
+  // the language instruction comes LAST: it overrides the prompt (written in French)
   const systemOf = (dropped: number): OpenAI.Chat.ChatCompletionMessageParam =>
     ({ role: "system", content: `${o.system}${walletLine}${pageLine}${liveLine}${cutLineOf(dropped)}${note}\n${directive}` });
-  // site : les outils d'interface de cette requête (page courante, 3 actions au plus, notes des guides dans la langue de
-  // la réponse) et la liste détaillée des outils
+  // site: the interface tools of this request (current page, at most 3 actions, guide notes in the answer's language)
+  // and the detailed list of tools
   const ui = o.site ? o.site.uiSession(page?.page, replyLang) : null;
   const siteTools: SiteToolEntry[] = [];
-  /** 19/11 : la page où s'applique chaque action d'interface acceptée (après elle) : un guide qui joue sur une autre page
-   *  rend inutiles les gestes faits avant lui ailleurs (le navigateur ouvrirait une page pour la quitter aussitôt). */
+  /** The page each accepted interface action applies to (after it): a guide that plays on another page makes the
+   *  gestures made elsewhere before it useless (the browser would open a page only to leave it at once). */
   const pageAt = new Map<SiteToolEntry, string | undefined>();
-  // budget en JETONS estimés, premier appel compris : les messages les plus anciens tombent jusqu'à ce qu'il tienne
+  // budget in estimated TOKENS, first call included: the oldest messages drop until it fits
   const toolsTokens = estimateTokens(JSON.stringify(o.tools ?? []));
   let kept: ChatMsg[] = history;
   let dropped = cut.dropped;
@@ -396,18 +395,18 @@ async function runChat(
   ];
   const toolsUsed: string[] = [];
   const citations = new Set<string>();
-  let navigate: string | undefined; // page à ouvrir dans le navigateur (le bot pilote le front)
-  // actions PRÉPARÉES (jamais exécutées ici) : le navigateur les affiche avec un bouton « Signer avec mon wallet »
+  let navigate: string | undefined; // page to open in the browser (the bot drives the front)
+  // PREPARED actions (never run here): the browser shows them with a "Sign with my wallet" button
   const actions: Array<{ tool: string; input: unknown; result: unknown }> = [];
   const lastUser = history.filter((m) => m.role === "user").slice(-1)[0]?.content ?? "";
   const deadline = Date.now() + caps.deadlineMs;
   let modelCalls = 0, toolsRun = 0, refused = 0;
-  // caractères ajoutés à l'historique pendant la requête (chaque appel au modèle les renvoie tous) : résultats d'outils
-  // ET sorties du modèle (texte et arguments des appels d'outils)
+  // characters added to the history during the request (every model call sends them all again): tool results AND
+  // model outputs (text and tool-call arguments)
   let historyChars = 0;
   const budgetLeft = () => caps.maxToolCharsPerRequest - historyChars;
   const budgetMark = caps.maxToolCharsPerRequest.toLocaleString("fr-FR");
-  // entrée déjà envoyée au modèle (messages et définitions d'outils de chaque appel, en JSON) : caractères et jetons estimés
+  // input already sent to the model (messages and tool definitions of each call, as JSON): characters and estimated tokens
   const toolsChars = JSON.stringify(o.tools ?? []).length;
   let inputChars = 0;
   let inputTokens = 0;
@@ -427,8 +426,8 @@ async function runChat(
   };
   const reply = (text: string, code?: string) => {
     if (o.site && ui) {
-      // site : un appel écrit dans le texte devient un vrai appel (ui_navigate, ou ui_guide pour une recette ; validé,
-      // dans la limite des 3 actions)
+      // site: a call written in the text becomes a real call (ui_navigate, or ui_guide for a recipe; validated, within
+      // the 3-action limit)
       const fs = o.site.extractInline(text);
       if (fs.input) {
         const tool = fs.tool ?? "ui_navigate";
@@ -437,8 +436,8 @@ async function runChat(
       }
       const played = (t: SiteToolEntry) => o.site!.uiTools.has(t.tool) && (t.result as { ok?: boolean } | undefined)?.ok === true;
       const guided = () => siteTools.some((t) => t.tool === "ui_guide" && played(t));
-      // 18/11 au soir : filet des guides — une demande claire de faire (installer l'outil, lancer une enclave…) sans guide
-      // joué : sa page (si elle n'est pas affichée), puis sa recette ; rien si l'ouverture de la page est refusée
+      // guide fallback: a clear request to do something (install the tool, launch an enclave…) with no guide played:
+      // its page (when it is not shown), then its recipe; nothing when opening the page is refused
       if (!code && !guided() && o.site.intentGuide) {
         const g = o.site.intentGuide(lastUser, { lang: replyLang, current: ui.current?.(), start: page?.page, prepared: actions.length > 0 });
         const nav = g?.navigate ? ui.run("ui_navigate", g.navigate) : undefined;
@@ -448,7 +447,7 @@ async function runChat(
           if (r.ok) siteTools.push({ tool: "ui_guide", label: display.ui_guide ?? "ui_guide", input: g.guide, result: r, inferred: true });
         }
       }
-      // 16/11 : filet — la demande montre clairement une page, et le modèle n'a rien montré ni préparé : on la montre
+      // fallback: the request clearly points to a page, and the model showed and prepared nothing: show that page
       const shown = siteTools.some(played);
       if (!code && !shown && !actions.length && o.site.intentNav) {
         const it = o.site.intentNav(lastUser, replyLang);
@@ -456,30 +455,30 @@ async function runChat(
         if (it && r?.ok) siteTools.push({ tool: "ui_navigate", label: display.ui_navigate ?? "ui_navigate", input: it, result: r, inferred: true });
       }
       const empty = actions.length ? M.actionReady : guided() && o.site.guideText ? o.site.guideText(replyLang) : M.pageShown;
-      // 19/11 : un guide joue sur sa page ; les gestes du modèle faits avant lui sur une AUTRE page ne partent pas au
-      // navigateur (il les jouerait pour quitter la page aussitôt) ; le modèle en a reçu l'écho, rien d'autre ne change
+      // a guide plays on its page; the model's gestures made before it on ANOTHER page do not go to the browser (it would
+      // play them only to leave the page at once); the model received their echo, nothing else changes
       const lastGuide = [...siteTools].reverse().find((t) => t.tool === "ui_guide" && played(t));
       const guidePage = (lastGuide?.result as { page?: unknown } | undefined)?.page;
       const shownTools = typeof guidePage === "string"
         ? siteTools.filter((t) => t === lastGuide || !played(t) || !pageAt.has(t) || pageAt.get(t) === guidePage || t.inferred)
         : siteTools;
-      // site (19/11) : les marques de citation du modèle, même longues ou non refermées, ne s'affichent jamais ; le libellé
-      // interne de la ligne d'état non plus, tel quel (« the LIVE STATUS line shows… » devient « the live status… »)
-      // 19/11 au soir : aussi WHERE YOU RUN, FACTS, LIVE STATUS quelle que soit l'espace (U+202F compris), [[site-v4#…]]
+      // site: the model's citation marks, even long or unclosed, never show; neither does the status line's internal
+      // label as is ("the LIVE STATUS line shows…" becomes "the live status…"); the same holds for WHERE YOU RUN, FACTS
+      // and LIVE STATUS whatever the space (U+202F included), and for [[site-v4#…]]
       const unmarked = stripCitationMarks(fs.text);
       let shownText = redactLiterals(cleanText(o.site.stripLabels ? o.site.stripLabels(unmarked) : unmarked, lang), secrets)
         .replace(/\bLIVE[\s_-]+STATUS\b/g, "live status").trim();
-      // un guide ajouté par le filet : le modèle n'a pas vu sa page, la réponse la nomme (libellé de l'écran)
+      // a fallback guide: the model did not see its page, so the answer names it (the screen's label)
       const inferredGuide = siteTools.find((t) => t.tool === "ui_guide" && t.inferred && played(t));
       const gPage = (inferredGuide?.result as { page?: unknown } | undefined)?.page;
       const pageNote = shownText && typeof gPage === "string" && o.site.guidePageNote ? o.site.guidePageNote(replyLang, gPage, shownText) : undefined;
       if (pageNote) shownText = `${shownText}\n\n${pageNote}`;
-      // 19/11 au soir : où tourne CE chat se dit par un texte fixe sur le serveur du site (le modèle y ajoutait des libellés
-      // internes ou taisait la passerelle du fournisseur du modèle)
+      // where THIS chat runs is said by a fixed text on the site's server (the model added internal labels to it, or
+      // left out the model provider's gateway)
       const whereFixed = o.site.whereNote && o.site.whereAnswer ? o.site.whereAnswer(lastUser, replyLang) : undefined;
       if (whereFixed) shownText = whereFixed;
-      // 19/11 (nuit) : le MCP, la tokenomics (partage, séquestre, cautions, trésorerie) et la place d'AskHive : un texte fixe
-      // et vrai, et SES gestes, validés dans une session d'interface neuve (ceux du modèle et des filets ne partent pas)
+      // the MCP, the tokenomics (split, escrow, bonds, treasury) and AskHive's place: a fixed, true text and ITS gestures,
+      // validated in a fresh interface session (those of the model and the fallbacks are not sent)
       const fixed = !whereFixed && o.site.whereNote && o.site.fixedAnswer ? o.site.fixedAnswer(lastUser, replyLang) : undefined;
       let toolsOut = shownTools;
       if (fixed) {
@@ -508,7 +507,7 @@ async function runChat(
     };
   };
 
-  // même seul, le dernier message ne tient pas dans le budget en jetons : rien n'est envoyé au modèle
+  // even alone, the last message does not fit the token budget: nothing is sent to the model
   if (firstTooBig) return reply(M.inputBudget, "input_budget");
 
   try {
@@ -517,28 +516,27 @@ async function runChat(
       const size = inputOf();
       const inputLeft = caps.maxInputCharsPerRequest - inputChars;
       const tokensLeft = caps.maxInputTokensPerRequest - inputTokens;
-      // budget d'entrée, borne DURE : après le premier appel, un appel qui ne tient plus n'est pas fait (le premier tient
-      // toujours en jetons : l'historique a été raccourci pour lui)
+      // input budget, HARD bound: after the first call, a call that no longer fits is not made (the first call always
+      // fits in tokens: the history was shortened for it)
       if (modelCalls > 0 && (size.chars > inputLeft || size.tokens > tokensLeft)) return reply(M.inputBudget, "input_budget");
-      // un tour d'outils n'est permis que si l'appel final qui le suivra tient encore dans le budget d'entrée : cet
-      // appel, puis un appel grossi de tout ce que ce tour peut ajouter à l'historique (reste du plafond de l'historique et
-      // une sortie du modèle, plus le JSON) ; en jetons, cette prévision compte du texte ASCII (un résultat dense qui la
-      // dépasse est arrêté par la borne dure ci-dessus)
+      // a tool turn is allowed only if the final call after it still fits the input budget: this call, then a call grown
+      // by everything this turn can add to the history (the rest of the history cap and one model output, plus the JSON);
+      // in tokens, this forecast counts ASCII text (a dense result that exceeds it is stopped by the hard bound above)
       const growth = Math.ceil(JSON_OVERHEAD * (Math.max(0, budgetLeft()) + caps.maxTokensPerCall * OUTPUT_CHARS_PER_TOKEN)) + TURN_MARGIN;
       const growthTokens = Math.ceil(TOKENS_PER_ASCII_CHAR * growth);
-      // dernier appel permis, plus d'outils permis, plafond de l'historique ou budget d'entrée atteint : texte seulement
+      // last call allowed, no more tools allowed, history cap or input budget reached: text only
       const last = modelCalls >= caps.maxModelCalls - 1 || toolsRun >= caps.perRequest || budgetLeft() < MIN_TOOL_RESULT ||
         2 * size.chars + growth > inputLeft || 2 * size.tokens + growthTokens > tokensLeft;
       const msg = await ask(last ? "none" : "auto", [], size);
       const requested = last ? [] : (msg.tool_calls ?? []).filter((tc) => tc && tc.function);
-      // au-delà de perTurn, les appels d'un tour ne sont ni exécutés ni renvoyés au modèle (taille de l'historique bornée)
+      // beyond perTurn, a turn's calls are neither run nor sent back to the model (bounded history size)
       const calls = requested.slice(0, caps.perTurn);
       if (calls.length) {
         const ignored = requested.length - calls.length;
         refused += ignored;
         const turn = calls.map((tc) => ({ id: tc.id, type: "function" as const, function: { name: String(tc.function.name ?? ""), arguments: String(tc.function.arguments ?? "") } }));
         messages.push({ role: "assistant", content: msg.content ?? null, tool_calls: turn });
-        // la sortie du modèle repart à chaque appel suivant : elle compte dans le plafond de l'historique
+        // the model's output goes back on every later call: it counts toward the history cap
         historyChars += (msg.content ?? "").length + turn.reduce((n, tc) => n + tc.function.name.length + tc.function.arguments.length, 0);
         for (const [i, tc] of calls.entries()) {
           let content: string;
@@ -550,10 +548,10 @@ async function runChat(
             content = JSON.stringify({ error: `outil non exécuté (${why}) : réponds avec ce que tu as déjà` });
           } else {
             toolsRun++;
-            // gpt-oss glisse parfois des jetons de canal dans le nom (« ui_navigate<|channel|>commentary ») : on les retire
+            // gpt-oss sometimes slips channel tokens into the name ("ui_navigate<|channel|>commentary"): they are removed
             const name = String(tc.function.name ?? "").replace(/<\|[^|]*\|>.*$/s, "").replace(/&lt;\|.*$/s, "").trim();
             toolsUsed.push(display[name] ?? name);
-            // site : chaque outil exécuté entre dans `tools`, dans l'ordre
+            // site: every tool run enters `tools`, in order
             const entry: SiteToolEntry | undefined = o.site ? { tool: name, label: display[name] ?? name } : undefined;
             if (entry) siteTools.push(entry);
             const isUi = !!(ui && o.site?.uiTools.has(name));
@@ -562,7 +560,7 @@ async function runChat(
               const args = JSON.parse(tc.function.arguments || "{}");
               if (entry) entry.input = args;
               if (isUi) {
-                // site : un outil d'interface n'est que validé ici (le navigateur l'exécute) ; le modèle reçoit l'écho
+                // site: an interface tool is only validated here (the browser runs it); the model receives the echo
                 const r = ui!.run(name, args);
                 entry!.result = r;
                 if (r.ok) pageAt.set(entry!, ui!.current?.());
@@ -594,7 +592,7 @@ async function runChat(
       }
       let text = msg.content ?? "";
       if (!text.trim() && modelCalls < caps.maxModelCalls && Date.now() < deadline - 5_000) {
-        // réponse vide (le modèle a « pensé » sans écrire) : une relance, texte seulement, si elle tient dans le budget
+        // empty answer (the model "thought" without writing): one retry, text only, if it fits the budget
         const extra: OpenAI.Chat.ChatCompletionMessageParam[] = [{ role: "system", content: M.answerNow }];
         const size = inputOf(extra);
         if (size.chars <= caps.maxInputCharsPerRequest - inputChars && size.tokens <= caps.maxInputTokensPerRequest - inputTokens) {
@@ -604,8 +602,8 @@ async function runChat(
       return reply(text);
     }
   } catch (e: any) {
-    // jamais le message du fournisseur tel quel (il peut recopier la clé du serveur) : un texte générique et un code ;
-    // le détail, filtré et sans les secrets du serveur, va au journal
+    // never the provider's message as is (it can copy the server's key): a generic text and a code; the detail,
+    // filtered and without the server's secrets, goes to the log
     const f = modelFailure(e, lang);
     log(`[copilote] ${f.code} : ${redactLiterals(scrubSecrets(String(e?.message ?? e)), secrets).replace(/\s+/g, " ").slice(0, 300)}`);
     if (o.site) return { text: `${f.text} (code ${f.code})`, code: f.code, tools: siteTools, citations: [...citations] };
@@ -613,7 +611,7 @@ async function runChat(
   }
 }
 
-/** Une erreur du modèle (ou de la boucle) en message générique + code : jamais le texte du fournisseur. */
+/** A model (or loop) error as a generic message plus a code: never the provider's text. */
 export function modelFailure(e: any, lang: Lang = "fr"): { code: string; text: string } {
   const M = T(lang).model;
   const name = String(e?.name ?? "");
@@ -629,13 +627,13 @@ export function modelFailure(e: any, lang: Lang = "fr"): { code: string; text: s
   return { code: "copilote_erreur", text: M.error };
 }
 
-/** Erreur d'un outil, pour le modèle : le message court de viem (sans URL ni corps de requête) s'il existe, sans les
- *  secrets du serveur, borné. */
+/** A tool error, for the model: viem's short message (without URL or request body) when there is one, without the
+ *  server's secrets, bounded. */
 function toolErrorText(e: any, secrets: readonly string[]): string {
   return redactLiterals(String(e?.shortMessage ?? e?.message ?? e), secrets).slice(0, 600);
 }
 
-/** Ce qui part vers le modèle : secrets masqués (journaux de machines compris), puis longueur bornée. */
+/** What goes to the model: secrets masked (machine logs included), then a bounded length. */
 export function forModel(json: string, max: number): string {
   const s = scrubSecrets(json);
   if (s.length <= max) return s;
@@ -647,21 +645,21 @@ function withDeadline<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
   let t: NodeJS.Timeout | undefined;
   return Promise.race([
     p,
-    new Promise<T>((_, rej) => { t = setTimeout(() => rej(new Error(`délai dépassé (${what})`)), Math.max(0, ms - 5_000)); }),
+    new Promise<T>((_, rej) => { t = setTimeout(() => rej(new Error(`timed out (${what})`)), Math.max(0, ms - 5_000)); }),
   ]).finally(() => clearTimeout(t));
 }
 
 function bigintSafe(_k: string, v: unknown) { return typeof v === "bigint" ? v.toString() : v; }
 
-/** Site (19/11) : une marque de citation du modèle (【…】), quelle que soit sa longueur, ou ouverte sans être refermée avant
- *  la fin de la ligne ; le texte qui l'entoure reste. */
+/** Site: a model citation mark (【…】) of any length, or one opened and not closed before the end of the line; the text
+ *  around it stays. */
 export function stripCitationMarks(s: string): string {
   return s.replace(/[ \t]?【[^】\n]*】/g, "").replace(/[ \t]?【[^】\n]*$/gm, "");
 }
 
-/** Texte final : secrets masqués, et marques de citation internes du modèle (【…†…】) retirées (les sources sont dans
- *  `citations`) ; espaces avant la ponctuation selon la typographie de la langue (une espace avant : ; ! ? en français,
- *  aucune en anglais). */
+/** The final text: secrets masked, and the model's internal citation marks (【…†…】) removed (the sources are in
+ *  `citations`); spaces before punctuation follow the language's typography (a space before : ; ! ? in French, none in
+ *  English). */
 function cleanText(s: string, lang: Lang = "fr"): string {
   const t = scrubSecrets(s).replace(/[ \t]?【[^】\n]{0,80}】/g, "");
   return lang === "en"
@@ -669,11 +667,11 @@ function cleanText(s: string, lang: Lang = "fr"): string {
     : t.replace(/[ \t]+([.,;:!?)])/g, (m, p) => (p === ":" || p === ";" || p === "!" || p === "?" ? " " + p : p));
 }
 
-/** Filet déterministe : si le modèle n'a pas navigué, on déduit la page de la demande (mots-clés, en français et en
- *  anglais). La navigation de la démo ne dépend donc pas des caprices d'appel d'outils du modèle. */
+/** A deterministic fallback: when the model did not navigate, the page is inferred from the request (keywords, in
+ *  French and English). The demo's navigation therefore does not depend on the model's tool-calling whims. */
 export function intentNav(q: string): string | undefined {
   const s = q.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-  // du plus précis au plus général
+  // from the most specific to the most general
   const rules: Array<[RegExp, string]> = [
     [/publier (une|ma) prime|creer une prime|proteger mon (contrat|protocole)|cote protocole|post (a|my|the) bounty|create (a|my) bounty|protect my (contract|protocol)|protocol side/, "publier-prime"],
     [/publier (un|mon) (produit|service)|mon propre service|faire tourner mon service|cote auteur|publish (a|my) (product|service)|my own service|run my (own )?service|author side/, "publier-produit"],
@@ -691,8 +689,8 @@ export function intentNav(q: string): string | undefined {
   return undefined;
 }
 
-/** Certains modèles écrivent l'appel d'outil dans le texte ({"page":"use",…}) au lieu de l'appeler :
- *  on le transforme en vraie navigation et on le retire du texte affiché. */
+/** Some models write the tool call in the text ({"page":"use",…}) instead of calling it: it is turned into a real
+ *  navigation and removed from the text shown. */
 export function extractInlineNav(text: string): { text: string; page?: string } {
   const P = "(vue|ruche|produits|primes|playground|cles|publier-prime|operateur|publier-produit|portefeuille|developpeurs|home|hive|use|rent|onramp|profile)";
   const fenced = text.match(new RegExp("```(?:json)?\\s*(\\{[^`]*?\"page\"\\s*:\\s*\"" + P + "\"[^`]*?\\})\\s*```"));

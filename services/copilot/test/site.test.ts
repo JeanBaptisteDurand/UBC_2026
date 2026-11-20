@@ -474,7 +474,7 @@ test("COPILOT_SURFACE=site: the site's prompt, tools, labels, surface and /healt
   }
   assert.equal(surfaceFromEnv(undefined), "console");
   assert.equal(surfaceFromEnv(" SITE "), "site");
-  for (const bad of ["sit", "site,console", "web", "1"]) assert.throws(() => surfaceFromEnv(bad), /COPILOT_SURFACE invalide/, bad);
+  for (const bad of ["sit", "site,console", "web", "1"]) assert.throws(() => surfaceFromEnv(bad), /invalid COPILOT_SURFACE/, bad);
 });
 
 test("site: worst case with the site's REAL prompt and REAL tools: input ≤ 160,000 characters and ≤ 50,000 estimated tokens", async () => {

@@ -18,14 +18,14 @@
  *  Usage (no network, no key):
  *    npx tsx src/enclave-site-measure.ts <saved v2.1 app-compose> <docker-compose.yml> [--out <app-compose.json>]
  *  → the compose-hash, the predicted image fingerprint, and (with --out) the exact app-compose.json to deploy
- *    (phala deploy --app-compose <fichier> : le même script de lancement, donc le même compose-hash). */
+ *    (phala deploy --app-compose <file>: the same launch script, hence the same compose-hash). */
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { type Hex } from "viem";
 import { dstackImageId } from "@arcvault/sdk";
 
-/** Les mesures de la VM du copilote v21, relues dans sa transaction d'inscription (VERIFIED, Arc testnet). */
+/** The measurements of the v21 copilot VM, read back from its registration transaction (VERIFIED, Arc testnet). */
 export const V21_COPILOT_VM = {
   source: "registerEnclave 0xad8b9780689513b1f68b8aba1a99f1b3156b4038a86aff46cad5ff96e294005e (bloc 71774983, produit 4, VM archive-v21-copilot : tdx.small, prod9, dstack-0.5.12)",
   mrtd: "0x7fe60787222bd394cb516abca2435f22f035ab2cc9c0a4b4b3b148e46297f3d931a237b72f359052c6e657d8c1409173",
@@ -39,7 +39,7 @@ export const V21_COPILOT_VM = {
   imageId: "0x919e9c97158daf5f6a214523bebddc54dd1a84fe0be3e2482ca2f22e9483f189",
 } as const satisfies Record<string, string>;
 
-/** JSON canonique de dstack : clés triées (à tous les niveaux), compact, caractères non ASCII tels quels. */
+/** dstack's canonical JSON: sorted keys (at every level), compact, non-ASCII characters as they are. */
 export function canonicalJson(x: unknown): string {
   if (Array.isArray(x)) return `[${x.map(canonicalJson).join(",")}]`;
   if (x && typeof x === "object") {
@@ -48,25 +48,25 @@ export function canonicalJson(x: unknown): string {
   return JSON.stringify(x);
 }
 
-/** compose-hash d'un app-compose.json de Phala : sha256 de son JSON canonique (0x + 64 hexadécimaux). */
+/** The compose-hash of a Phala app-compose.json: sha256 of its canonical JSON (0x + 64 hex characters). */
 export function composeHashOf(appCompose: Record<string, unknown>): Hex {
   return `0x${createHash("sha256").update(canonicalJson(appCompose), "utf8").digest("hex")}`;
 }
 
-/** L'app-compose d'une nouvelle VM : celui de la v21 (même script de lancement, mêmes options), avec SON docker-compose.
- *  Les noms des variables chiffrées doivent rester ceux du compose (allowed_envs) : vérifié ici. */
+/** The app-compose of a new VM: the v21 one (same launch script, same options), with ITS docker-compose. The names of
+ *  the encrypted variables must stay those of the compose (allowed_envs): checked here. */
 export function appComposeFor(template: Record<string, unknown>, dockerCompose: string): Record<string, unknown> {
   if (typeof template.docker_compose_file !== "string" || typeof template.pre_launch_script !== "string") {
-    throw new Error("gabarit : app-compose.json de Phala attendu (docker_compose_file et pre_launch_script)");
+    throw new Error("template: a Phala app-compose.json is expected (docker_compose_file and pre_launch_script)");
   }
   const secrets = [...dockerCompose.matchAll(/^\s*-\s*"?([A-Z0-9_]+)=\$\{[A-Z0-9_]+\}"?\s*$/gm)].map((m) => m[1]!);
   const allowed = Array.isArray(template.allowed_envs) ? template.allowed_envs.map(String) : [];
   const missing = secrets.filter((s) => !allowed.includes(s));
-  if (missing.length) throw new Error(`variables chiffrées absentes de allowed_envs du gabarit : ${missing.join(", ")}`);
+  if (missing.length) throw new Error(`encrypted variables missing from the template's allowed_envs: ${missing.join(", ")}`);
   return { ...template, docker_compose_file: dockerCompose };
 }
 
-/** L'empreinte d'image prédite pour un compose-hash, avec les mesures d'une VM de même taille et de même image système. */
+/** The predicted image fingerprint for a compose-hash, with the measurements of a VM of the same size and OS image. */
 export function predictedImageId(composeHash: Hex, vm: { mrtd: string; rtmr0: string; rtmr1: string; rtmr2: string; xfam: string; tdAttributes: string; osImageHash: string } = V21_COPILOT_VM): Hex {
   return dstackImageId(
     { mrtd: vm.mrtd as Hex, rtmr0: vm.rtmr0 as Hex, rtmr1: vm.rtmr1 as Hex, rtmr2: vm.rtmr2 as Hex, xfam: vm.xfam as Hex, tdAttributes: vm.tdAttributes as Hex },
@@ -74,19 +74,19 @@ export function predictedImageId(composeHash: Hex, vm: { mrtd: string; rtmr0: st
   );
 }
 
-/** Le docker-compose contient-il encore l'image à remplacer après le push (jamais déployable tel quel) ? */
+/** Does the docker-compose still hold the image to replace after the push (never deployable as is)? */
 export const IMAGE_PLACEHOLDER = "REPLACE_WITH_PUSHED_DIGEST";
 
 async function main(argv: string[]) {
   const [templatePath, composePath] = argv.filter((a, i) => !a.startsWith("--") && argv[i - 1] !== "--out");
   const out = argv.includes("--out") ? argv[argv.indexOf("--out") + 1] : undefined;
   if (!templatePath || !composePath) {
-    console.error("usage : npx tsx src/enclave-site-measure.ts <app-compose v21 sauvegardé> <docker-compose.yml> [--out <app-compose.json>]");
+    console.error("usage: npx tsx src/enclave-site-measure.ts <saved v21 app-compose> <docker-compose.yml> [--out <app-compose.json>]");
     process.exit(2);
   }
   const template = JSON.parse(readFileSync(templatePath, "utf8")) as Record<string, unknown>;
   const dockerCompose = readFileSync(composePath, "utf8");
-  // contrôle du gabarit : il redonne bien le compose-hash de la v21 avec SON compose
+  // template check: it gives back the v21 compose-hash with ITS compose
   const v21 = composeHashOf(template);
   const app = appComposeFor(template, dockerCompose);
   const composeHash = composeHashOf(app);
@@ -96,12 +96,12 @@ async function main(argv: string[]) {
     placeholderImage: dockerCompose.includes(IMAGE_PLACEHOLDER),
     composeHash,
     predictedImageId: predictedImageId(composeHash),
-    assumes: `même taille (tdx.small), même image système (os-image-hash ${V21_COPILOT_VM.osImageHash}) et même micrologiciel que la VM v21 (${V21_COPILOT_VM.source}), déployée avec CET app-compose (même script de lancement)`,
+    assumes: `same size (tdx.small), same OS image (os-image-hash ${V21_COPILOT_VM.osImageHash}) and same firmware as the v21 VM (${V21_COPILOT_VM.source}), deployed with THIS app-compose (same launch script)`,
     ...(out ? { appCompose: out } : {}),
   };
   if (out) writeFileSync(out, canonicalJson(app));
   console.log(JSON.stringify(report, null, 2));
-  if (report.placeholderImage) console.error("ATTENTION : l'image du compose est encore le gabarit (pousser l'image, puis écrire son condensat) : rien à autoriser avec ce calcul");
+  if (report.placeholderImage) console.error("WARNING: the compose image is still the placeholder (push the image, then write its digest): nothing to allow with this computation");
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

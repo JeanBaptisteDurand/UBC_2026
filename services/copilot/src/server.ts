@@ -12,10 +12,10 @@ import { copilotFromEnv } from "./copilot";
 import { stripProviderDebug } from "./llm";
 
 if (stripProviderDebug() !== undefined) {
-  console.warn("[copilote] DEBUG retiré de l'environnement : le client du modèle journaliserait sa clé et la conversation");
+  console.warn("[copilot] DEBUG removed from the environment: the model client would log its key and the conversation");
 }
 const c = copilotFromEnv();
 const app = createCopilotApp(c.options);
 
 serve({ fetch: app.fetch, port: c.port });
-console.log(`copilote (OpenAI) sur http://localhost:${c.port}  ${c.banner}`);
+console.log(`copilot (OpenAI) on http://localhost:${c.port}  ${c.banner}`);

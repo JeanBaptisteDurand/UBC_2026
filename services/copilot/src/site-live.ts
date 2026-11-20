@@ -15,7 +15,7 @@ import { sealedBountyAbi, type ArcClient } from "@arcvault/sdk";
 import { apiBounties, apiEnclaves, apiLevels, apiProducts } from "./archive-api";
 import { executeTool, type ToolCtx } from "./tools";
 
-/** Le nom court de chaque produit (fiche de FAITS du 17/11) ; un produit publié depuis : « product N ». */
+/** Each product's short name (from the facts sheet); a product published since then: "product N". */
 export const PRODUCT_LABELS: Readonly<Record<string, string>> = {
   "1": "Private AI, prepaid session",
   "2": "Sealed Bounty, open level",
@@ -27,7 +27,7 @@ export const PRODUCT_LABELS: Readonly<Record<string, string>> = {
 };
 const labelOf = (id: string) => (PRODUCT_LABELS[id] ? `product ${id} (${PRODUCT_LABELS[id]})` : `product ${id}`);
 
-/** Primes lues au plus, par contrat (une page d'un tableau qui ne grandit qu'à chaque prime publiée). */
+/** Maximum bounties read per contract (one page of an array that only grows with each bounty published). */
 const MAX_VERIFIED_BOUNTIES = 50;
 const LIVE_TTL_MS = 30_000;
 const VERIFIED_TTL_MS = 20_000;
@@ -46,8 +46,8 @@ export interface VerifiedBountyRow {
 
 let verifiedCache: { t: number; key: string; v: Promise<VerifiedBountyRow[]> } | null = null;
 
-/** Les primes de SealedBountyVerified (niveau vérifié, produit 7), lues on-chain : bountyCount puis getBounty ; [] si la
- *  pile n'a pas les niveaux. Gardées 20 s (succès seulement). */
+/** The SealedBountyVerified bounties (verified level, product 7), read on-chain: bountyCount, then getBounty; [] when the
+ *  stack has no levels. Kept 20 s (successes only). */
 export function verifiedBountyRows(arc: ArcClient): Promise<VerifiedBountyRow[]> {
   const sbv = arc.d.levels?.sealedBountyVerified;
   if (!sbv) return Promise.resolve([]);
@@ -60,7 +60,7 @@ export function verifiedBountyRows(arc: ArcClient): Promise<VerifiedBountyRow[]>
     const n = BigInt(await read<bigint | number>("bountyCount"));
     const last = n > BigInt(MAX_VERIFIED_BOUNTIES) ? BigInt(MAX_VERIFIED_BOUNTIES) : n;
     const rows: VerifiedBountyRow[] = [];
-    // les plus récentes d'abord (une prime de démo fraîche est la dernière publiée)
+    // newest first (a fresh demo bounty is the last one published)
     for (let i = n; i > n - last; i--) {
       const b = await read<any>("getBounty", [i]);
       if (!b || b.protocol === ZERO) continue;
@@ -80,8 +80,8 @@ export function clearLiveCaches() { verifiedCache = null; liveCache.clear(); }
 
 const isOpen = (b: { paused: boolean; deadline: bigint; balance: bigint }, nowSec: bigint) => !b.paused && b.deadline >= nowSec && b.balance > 0n;
 
-/** bounty_list du site : celui de la console (SealedBounty, niveau ouvert, par l'API), plus les primes du niveau vérifié
- *  (SealedBountyVerified, produit 7) lues on-chain. Une lecture du niveau vérifié qui échoue est dite, jamais tue. */
+/** The site's bounty_list: the console's (SealedBounty, open level, through the API), plus the verified-level bounties
+ *  (SealedBountyVerified, product 7) read on-chain. A failed verified-level read is reported, never hidden. */
 export async function siteBountyList(input: any, ctx: ToolCtx): Promise<{ result: unknown; citations?: string[] }> {
   const base = await executeTool("bounty_list", input, ctx);
   const r = base.result as Record<string, unknown> | undefined;
@@ -102,7 +102,7 @@ export async function siteBountyList(input: any, ctx: ToolCtx): Promise<{ result
   } catch (e) {
     verified = { indisponible: `lecture on-chain de SealedBountyVerified impossible pour l'instant (${String((e as Error)?.message ?? e).slice(0, 120)}) : ne dis pas qu'il n'y a aucune prime à ce niveau` };
   }
-  // la phrase à reprendre telle quelle : combien de primes sont ouvertes MAINTENANT, aux deux niveaux
+  // the sentence to repeat as is: how many bounties are open NOW, at both levels
   const o1 = typeof r.ouvertes === "number" ? r.ouvertes : null, t1 = typeof r.total === "number" ? r.total : null;
   const o2 = typeof verified.ouvertes === "number" ? verified.ouvertes : null, t2 = typeof verified.total === "number" ? verified.total : null;
   const resume = o1 === null || o2 === null
@@ -116,8 +116,8 @@ export async function siteBountyList(input: any, ctx: ToolCtx): Promise<{ result
   };
 }
 
-/** enclaves_list du site (19/11) : celui de la console, précédé d'un résumé PAR PRODUIT (dans l'ordre des numéros : le nom,
- *  les signataires actifs) ; le modèle ne recopie plus une adresse de la ligne d'un autre produit. */
+/** The site's enclaves_list: the console's, preceded by a summary PER PRODUCT (in number order: the name, the active
+ *  signers), so the model no longer copies an address from another product's line. */
 export async function siteEnclavesList(input: any, ctx: ToolCtx): Promise<{ result: unknown; citations?: string[] }> {
   const base = await executeTool("enclaves_list", input, ctx);
   const r = base.result as { enclaves?: Array<{ productId?: string; signer?: string; active?: boolean }> } | undefined;
@@ -147,7 +147,7 @@ async function levelsLite(base?: string, timeoutMs?: number): Promise<LevelsLite
   } catch { return null; }
 }
 
-/** La ligne ajoutée à l'invite du site : ce qui tourne MAINTENANT (lu à l'instant), ou la ligne de repli. */
+/** The line added to the site's prompt: what runs NOW (read this instant), or the fallback line. */
 export async function readLiveStatus(o: { arc?: ArcClient; base?: string; now?: () => number; timeoutMs?: number } = {}): Promise<string> {
   const now = o.now?.() ?? Date.now();
   const at = new Date(now).toISOString().slice(0, 16).replace("T", " ");
@@ -179,7 +179,7 @@ export async function readLiveStatus(o: { arc?: ArcClient; base?: string; now?: 
   else if (levels?.canSlash === false) parts.push("product 7's settlement is not authorized yet: it cannot pay a claim");
   const nowSec = BigInt(Math.floor(now / 1000));
   if (open && verified) {
-    // chaque prime ouverte par son numéro ET son contrat (les numéros repartent de 1 sur chaque contrat)
+    // each open bounty by its number AND its contract (numbers restart from 1 on each contract)
     const day = (ts: bigint) => new Date(Number(ts) * 1000).toISOString().slice(0, 16).replace("T", " ");
     const live = [
       ...verified.filter((b) => isOpen(b, nowSec)).map((b) => ({ id: b.id.toString(), c: "SealedBountyVerified", p: b.productId.toString(), bal: b.balance, dl: b.deadline })),
@@ -192,13 +192,13 @@ export async function readLiveStatus(o: { arc?: ArcClient; base?: string; now?: 
   return `LIVE STATUS (read at ${at} UTC from ArcHive's index of Arc testnet; it overrides the FACTS above and your memory; enclaves_list and bounty_list give the details): ${parts.join("; ")}.`;
 }
 
-/** Quand la lecture échoue : renvoyer aux outils, ne rien deviner. */
+/** When the read fails: point to the tools, guess nothing. */
 export const LIVE_FALLBACK = "LIVE STATUS: the live read failed just now. Before saying what runs, call enclaves_list (authoritative); never guess and never say from memory that everything is paused or that everything runs.";
 
 const liveCache = new Map<string, { t: number; v: string }>();
 
-/** La fonction que la surface du site appelle à chaque requête (app.ts : SiteSurface.liveNote) : la ligne, gardée 30 s
- *  (succès seulement), lue en 3,5 s au plus, sinon la ligne de repli (jamais d'exception). */
+/** The function the site surface calls on every request (app.ts: SiteSurface.liveNote): the line, kept 30 s (successes
+ *  only), read in 3.5 s at most, otherwise the fallback line (never an exception). */
 export function createLiveNote(o: { arc?: ArcClient; base?: string; timeoutMs?: number; ttlMs?: number } = {}): () => Promise<string> {
   const ttl = o.ttlMs ?? LIVE_TTL_MS;
   const ms = o.timeoutMs ?? LIVE_TIMEOUT_MS;

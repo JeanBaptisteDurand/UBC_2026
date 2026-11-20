@@ -27,15 +27,15 @@ import { AttestedModel, composeHashesFromEnv, modelAttestationBody, osImagesFrom
 
 async function main() {
   const cfg = readCopilotEnclaveConfig(process.env);
-  stripProviderDebug(); // la configuration a refusé toute valeur non vide ; une valeur vide est retirée aussi
+  stripProviderDebug(); // the configuration refused any non-empty value; an empty value is removed too
   const dstack = await createDstackClient();
   const kit = new EnclaveKit({
     productId: cfg.productId, chainId: cfg.chainId, registry: cfg.registry, rpc: new RpcQuorum(cfg.rpcUrls), dstack: dstack ?? undefined,
   });
-  console.log(dstack ? "quote: dstack TDX réel" : "quote: mock (hors VM TDX) : cette instance ne pourra pas être inscrite");
+  console.log(dstack ? "quote: real dstack TDX" : "quote: mock (outside a TDX VM): this instance cannot be registered");
 
-  // 11/11 : MODEL_ATTESTATION=aci (mesurée) : la passerelle du modèle est VÉRIFIÉE avant tout appel (quote Intel, image
-  // système de production, TLS épinglé, reçus exigés) ; sinon l'enclave refuse de démarrer
+  // MODEL_ATTESTATION=aci (measured): the model gateway is VERIFIED before any call (Intel quote, production system
+  // image, pinned TLS, receipts required); otherwise the enclave refuses to start
   const ma = process.env.MODEL_ATTESTATION?.trim() || "none";
   let attested: AttestedModel | undefined;
   if (ma === "aci") {
@@ -43,11 +43,11 @@ async function main() {
     if (!base) throw new Error("MODEL_ATTESTATION=aci exige OPENAI_BASE_URL");
     attested = await AttestedModel.open({ baseUrl: base, osImages: osImagesFromEnv(process.env.MODEL_GATEWAY_OS_IMAGES), composeHashes: composeHashesFromEnv(process.env.MODEL_GATEWAY_COMPOSE_HASHES), log: (m) => console.log(m) });
   } else if (ma !== "none") {
-    throw new Error("MODEL_ATTESTATION : « aci » ou « none »");
+    throw new Error('MODEL_ATTESTATION: "aci" or "none" expected');
   }
   const c = copilotFromEnv({ deployment: cfg.deployment, deploymentSource: cfg.deploymentsPath, ...(attested ? { fetch: attested.fetch } : {}) });
-  // la même variable lue deux fois (configuration validée, puis copilotFromEnv) : jamais deux surfaces différentes
-  if (c.surface !== cfg.surface) throw new Error(`COPILOT_SURFACE : ${cfg.surface} validée, ${c.surface} montée`);
+  // the same variable read twice (validated configuration, then copilotFromEnv): never two different surfaces
+  if (c.surface !== cfg.surface) throw new Error(`COPILOT_SURFACE: ${cfg.surface} validated, ${c.surface} mounted`);
   const site = cfg.surface === "site";
   const enclave = {
     signer: kit.keys.signer, x25519: kit.keys.x25519PublicKey, productId: cfg.productId.toString(), chainId: cfg.chainId,
@@ -68,20 +68,20 @@ async function main() {
     signReplies: site,
   });
 
-  // public : ce que l'enclave a vérifié du fournisseur du modèle (11/11)
+  // public: what the enclave verified about the model provider
   const modelAttestation = (req: Request): Response | undefined =>
     req.method === "GET" && new URL(req.url).pathname === "/model-attestation"
       ? new Response(JSON.stringify(modelAttestationBody(attested)), { headers: { "content-type": "application/json", "access-control-allow-origin": "*" } })
       : undefined;
   serve({ fetch: (req, env) => modelAttestation(req) ?? app.fetch(req, env), port: cfg.port, hostname: "0.0.0.0" });
   console.log(
-    `copilote en enclave sur http://0.0.0.0:${cfg.port}  signer=${kit.keys.signer}  x25519=${kit.keys.x25519PublicKey}  ` +
-      `produit=${cfg.productId}  registre=${cfg.registry}  quorum=${cfg.rpcUrls.length} RPC  /chat : jeton du mandataire exigé  ` +
-      `${site ? `surface=site, réponses scellées signées (${SITE_REPLY_TAG})  ` : ""}${c.banner}`,
+    `copilot in an enclave on http://0.0.0.0:${cfg.port}  signer=${kit.keys.signer}  x25519=${kit.keys.x25519PublicKey}  ` +
+      `product=${cfg.productId}  registry=${cfg.registry}  quorum=${cfg.rpcUrls.length} RPC  /chat: proxy token required  ` +
+      `${site ? `surface=site, signed sealed replies (${SITE_REPLY_TAG})  ` : ""}${c.banner}`,
   );
 }
 
 main().catch((e) => {
-  console.error(`copilot-enclave : démarrage refusé : ${(e as Error)?.message ?? e}`);
+  console.error(`copilot-enclave: start refused: ${(e as Error)?.message ?? e}`);
   process.exit(1);
 });

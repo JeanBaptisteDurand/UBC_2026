@@ -9,14 +9,14 @@ export const LANGS: readonly Lang[] = ["en", "fr"];
 /** Sans aucun indice : l'anglais. */
 export const DEFAULT_LANG: Lang = "en";
 
-/** "en", "fr", "en-US", "FR_fr"… → la langue ; tout le reste → undefined. */
+/** "en", "fr", "en-US", "FR_fr"… → the language; anything else → undefined. */
 export function parseLang(x: unknown): Lang | undefined {
   if (typeof x !== "string") return undefined;
   const m = /^\s*(en|fr)(?:[-_][a-z0-9]{1,8})*\s*$/i.exec(x);
   return m ? (m[1]!.toLowerCase() as Lang) : undefined;
 }
 
-/** Accept-Language (« fr-FR,fr;q=0.9,en;q=0.8 ») → la première de nos langues, par préférence ; sinon undefined. */
+/** Accept-Language ("fr-FR,fr;q=0.9,en;q=0.8") → the first of our languages, by preference; otherwise undefined. */
 export function langFromAcceptLanguage(h: string | null | undefined): Lang | undefined {
   if (!h || h.length > 512) return undefined;
   const items = h.split(",").map((part, i) => {
@@ -28,7 +28,7 @@ export function langFromAcceptLanguage(h: string | null | undefined): Lang | und
   return best?.lang;
 }
 
-// ---------------------------------------------------------------- détection (mots fréquents propres à chaque langue)
+// ---------------------------------------------------------------- detection (frequent words specific to each language)
 
 const FR_WORDS = new Set([
   "le", "la", "les", "un", "une", "des", "du", "de", "et", "est", "je", "tu", "il", "elle", "nous", "vous", "ils", "elles",
@@ -50,10 +50,10 @@ const EN_WORDS = new Set([
   "tell", "explain", "help", "list", "start", "create", "much", "many", "cost", "costs", "verify", "verified", "real",
   "let", "lets", "now", "go", "open", "take", "balance", "publish", "hunt", "tokens", "request",
 ]);
-// (ni « wallet », ni « session », ni « machine », ni « me », ni « page » : les deux langues les emploient)
+// (not "wallet", "session", "machine", "me" or "page": both languages use them)
 
-/** La langue d'un texte, si elle se voit (sinon undefined) : mots fréquents, accents et élisions françaises, contractions
- *  anglaises. */
+/** The language of a text, when it shows (otherwise undefined): frequent words, French accents and elisions, English
+ *  contractions. */
 export function detectLang(text: string): Lang | undefined {
   const s = text.slice(0, 4_000).toLowerCase();
   const accents = Math.min(3, (s.match(/[éèêàùçôîûëïœ]/g) ?? []).length);
@@ -70,7 +70,7 @@ export function detectLang(text: string): Lang | undefined {
   return fr > en ? "fr" : "en";
 }
 
-/** Les derniers messages de l'utilisateur d'un corps de requête BRUT (même invalide), du plus récent au plus ancien. */
+/** The user's last messages from a RAW request body (even an invalid one), newest first. */
 export function userTextsOf(body: unknown, max = 5): string[] {
   const raw = (body as { messages?: unknown } | null)?.messages;
   if (!Array.isArray(raw)) return [];
@@ -82,8 +82,8 @@ export function userTextsOf(body: unknown, max = 5): string[] {
   return out;
 }
 
-/** La langue de la réponse : `lang` demandé, sinon celle du dernier message de l'utilisateur qui en montre une (les plus
- *  récents d'abord), sinon Accept-Language, sinon l'anglais. */
+/** The answer's language: the requested `lang`, otherwise that of the user's last message that shows one (newest
+ *  first), otherwise Accept-Language, otherwise English. */
 export function resolveLang(o: { requested?: unknown; userTexts?: readonly string[]; acceptLanguage?: string | null }): Lang {
   const asked = parseLang(o.requested);
   if (asked) return asked;
@@ -94,13 +94,13 @@ export function resolveLang(o: { requested?: unknown; userTexts?: readonly strin
   return langFromAcceptLanguage(o.acceptLanguage) ?? DEFAULT_LANG;
 }
 
-// ---------------------------------------------------------------- les noms du site
+// ---------------------------------------------------------------- the site's names
 
 export type PageId =
   | "vue" | "ruche" | "produits" | "primes" | "playground" | "cles" | "publier-prime" | "operateur" | "publier-produit"
   | "portefeuille" | "developpeurs";
 
-/** Les pages du site dans chaque langue (web/src/i18n : nav.*). */
+/** The site's pages in each language (web/src/i18n: nav.*). */
 export const PAGES: Record<Lang, Record<PageId, string>> = {
   en: {
     vue: "Overview", ruche: "Hive", produits: "Products", primes: "Bounties", playground: "Private AI", cles: "Keys & sessions",
@@ -114,7 +114,7 @@ export const PAGES: Record<Lang, Record<PageId, string>> = {
   },
 };
 
-/** Les boutons que le copilote cite le plus (web/src/i18n : keys.*, op.*, action.sign, bounties.*, pub.go, wallet.cctp.title). */
+/** The buttons the copilot cites most (web/src/i18n: keys.*, op.*, action.sign, bounties.*, pub.go, wallet.cctp.title). */
 export const BUTTONS: Record<Lang, string[]> = {
   en: [
     "Create a key", "Top up", "Change key", "Close", "Create an operator key", "Post the bond", "Approve with my wallet",
@@ -130,10 +130,10 @@ export const BUTTONS: Record<Lang, string[]> = {
 
 const pageList = (l: Lang) => (Object.entries(PAGES[l]) as Array<[PageId, string]>).map(([id, name]) => `${name} [${id}]`).join(", ");
 
-/** La phrase anglaise qui explique les marques du filtre de secrets (consigne de langue de la console et du site). */
+/** The English sentence that explains the secrets filter's marks (the language instruction of the console and the site). */
 export const MASKED_NOTE_EN = "Masked values in messages — « [clé masquée] », « [phrase de récupération masquée] », « [valeur masquée par prudence] » — mean a masked key, a masked recovery phrase and a value (hexadecimal or base58) masked as a precaution because the conversation talks about private keys or recovery phrases: say so in English. Be brief and polite.";
 
-/** La consigne de langue, ajoutée à la FIN de l'invite système (elle prime sur ce qui précède). */
+/** The language instruction, added at the END of the system prompt (it overrides what comes before). */
 export function languageDirective(lang: Lang): string {
   if (lang === "en") {
     return [
@@ -149,7 +149,7 @@ export function languageDirective(lang: Lang): string {
   ].join("\n");
 }
 
-// ---------------------------------------------------------------- les messages du serveur
+// ---------------------------------------------------------------- the server's messages
 
 export interface Messages {
   refused: (m: string) => string;
@@ -165,11 +165,11 @@ export interface Messages {
   actionReady: string;
   pageShown: string;
   deadline: string;
-  /** Budget d'entrée de la requête atteint avant la réponse finale (COPILOT_MAX_INPUT_CHARS, COPILOT_MAX_INPUT_TOKENS). */
+  /** The request's input budget was reached before the final answer (COPILOT_MAX_INPUT_CHARS, COPILOT_MAX_INPUT_TOKENS). */
   inputBudget: string;
-  /** Copilote en enclave appelé sans le jeton du mandataire du site (403 proxy_required). */
+  /** Copilot in an enclave called without the site proxy's token (403 proxy_required). */
   proxyRequired: string;
-  /** Relance d'une réponse vide (consigne au modèle). */
+  /** Retry of an empty answer (an instruction to the model). */
   answerNow: string;
   model: { timeout: string; busy: string; outage: string; unavailable: string; refused: string; unreachable: string; error: string };
   chat: {

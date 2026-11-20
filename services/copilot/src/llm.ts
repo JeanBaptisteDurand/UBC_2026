@@ -10,8 +10,8 @@
 import OpenAI from "openai";
 import type { Llm } from "./app";
 
-/** Retire DEBUG de l'environnement (le journal de débogage d'openai@4 recopie la clé et la conversation) ; rend la valeur
- *  retirée (undefined s'il n'y en avait pas). */
+/** Removes DEBUG from the environment (openai@4's debug log copies the key and the conversation); returns the removed
+ *  value (undefined when there was none). */
 export function stripProviderDebug(env: NodeJS.ProcessEnv = process.env): string | undefined {
   if (!Object.prototype.hasOwnProperty.call(env, "DEBUG")) return undefined;
   const v = env.DEBUG;
@@ -21,12 +21,12 @@ export function stripProviderDebug(env: NodeJS.ProcessEnv = process.env): string
 
 export interface OpenAiLlmOptions {
   apiKey: string;
-  /** URL de base compatible OpenAI (ex. https://api.redpill.ai/v1) ; défaut : OpenAI. */
+  /** OpenAI-compatible base URL (e.g. https://api.redpill.ai/v1); default: OpenAI. */
   baseURL?: string;
   model: string;
-  /** Délai d'un appel, en ms (défaut 90 000). */
+  /** Timeout of a call, in ms (default 90,000). */
   timeoutMs?: number;
-  /** 11/11 : `fetch` du client (dans une enclave : celui, épinglé et vérifié, de model-attestation.ts). */
+  /** The client's `fetch` (in an enclave: the pinned, verified one from model-attestation.ts). */
   fetch?: typeof fetch;
 }
 
@@ -34,7 +34,7 @@ export function openAiLlm(o: OpenAiLlmOptions): Llm {
   stripProviderDebug();
   const client = new OpenAI({ apiKey: o.apiKey, baseURL: o.baseURL, maxRetries: 1, timeout: o.timeoutMs ?? 90_000, ...(o.fetch ? { fetch: o.fetch as any } : {}) });
   return async ({ messages, tools, tool_choice, max_tokens, signal }) => {
-    stripProviderDebug(); // jamais de journal de débogage, même si DEBUG revenait dans l'environnement
+    stripProviderDebug(); // never a debug log, even if DEBUG came back into the environment
     return (await client.chat.completions.create({ model: o.model, messages, tools, tool_choice, max_tokens }, { signal })).choices[0]?.message ?? { content: "" };
   };
 }
