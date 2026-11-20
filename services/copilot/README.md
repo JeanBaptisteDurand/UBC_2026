@@ -7,8 +7,8 @@ One agentic RAG copilot serves two surfaces:
 - **The console copilot** (`COPILOT_SURFACE=console`, the default) is the chat bubble of the console.
 
 The copilot runs on the site's server. AskHive also runs in its own Intel TDX enclave: **product 4 on Arc testnet**.
-Arc's EnclaveRegistry holds the enclave's public keys. The conversation is sealed to the enclave's key (HPKE,
-`ARC-COPILOT-CHAT-v1`), and the enclave seals and signs every reply (`ARC-COPILOT-SITE-REPLY-v1`).
+Arc's EnclaveRegistry holds the enclave's public keys. In enclave mode, the panel seals the conversation to the
+enclave's key (HPKE, `ARC-COPILOT-CHAT-v1`), and the enclave seals and signs every reply (`ARC-COPILOT-SITE-REPLY-v1`).
 
 The copilot holds no wallet key. It reads the network and prepares operations that the user signs with their own
 wallet. It never sends a transaction.
@@ -42,8 +42,10 @@ Product 4's enclave compose is [`enclave/phala/copilot-site-v22.yml`](../../encl
 compose-hash is part of the image fingerprint that Arc checks. The HTTP contract with the site is
 [`docs/COPILOT-SITE-CONTRACT.md`](../../docs/COPILOT-SITE-CONTRACT.md).
 
-AskHive's prompt and knowledge base are written mostly in French, and the copilot answers in the user's language. The
-shared on-chain actions name their output fields in French; the MCP server returns them with English keys.
+The console copilot's prompt and knowledge base are written in French. AskHive uses the same prompt with an English
+paragraph for the site's interface, and puts the site's own entries, in English, ahead of the console's. Both surfaces
+answer in the user's language. The shared on-chain actions name their output fields in French; the MCP server returns
+them with English keys.
 
 ## Environment
 
