@@ -1136,7 +1136,7 @@ test("site prompt and base: the guides, the truth about \"launch an enclave\", t
   // Use, Rent and Publish are Network's roles; no more use.html, rent.html or publish.html address to follow
   for (const k of SITE_PAGES_KB) for (const old of ["(/use.html)", "(/rent.html)", "(/publish.html)", "/use.html?"]) assert.ok(!k.text.includes(old), `${k.source} : ${old}`);
   assert.ok(!/\/use\.html, \/rent\.html, \/publish\.html, \/datacenter/.test(SITE_SYSTEM), "the allowed addresses no longer quote the old pages");
-  // the panel's copilot: attested only when the enclave registered on Arc answers, its signature verified
+  // the panel's copilot: attested only when the enclave registered on Arc answers, sealed and signed by its key
   assert.match(SITE_PAGES_KB.find((k) => k.source === "site-v4#copilote-atteste")!.text, /when it runs on the site's server it is NOT the attested copilot/);
 });
 
