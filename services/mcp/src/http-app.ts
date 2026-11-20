@@ -191,7 +191,7 @@ export function createMcpHttpServer(o: McpHttpOptions): HttpServer {
       return rpcError(res, 405, -32000, "Method not allowed: this MCP server is stateless (POST /mcp only, no SSE stream, no session)", { allow: "POST, OPTIONS" });
     }
     post(req, res).catch((e: any) => {
-      log(`[mcp-http] erreur : ${String(e?.message ?? e).replace(/\s+/g, " ").slice(0, 300)}`);
+      log(`[mcp-http] error: ${String(e?.message ?? e).replace(/\s+/g, " ").slice(0, 300)}`);
       rpcError(res, 500, -32603, "Internal error");
     });
   });

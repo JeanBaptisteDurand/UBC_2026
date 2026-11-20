@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { testnet, type ArcClient } from "@arcvault/sdk";
-import { TOOLS, callTool, createMcpContext } from "../src/tools";
+import { TOOLS, callTool, createMcpContext, englishKeys, outputText } from "../src/tools";
 import { englishValue } from "../src/english";
 import { clearListCache } from "../../copilot/src/archive-api";
 import { MASK_KEY } from "../../copilot/src/secrets";
@@ -171,4 +171,24 @@ test("malicious enclave URL: no redirect followed, fixed path, error body never 
   } finally {
     await new Promise<void>((ok) => { srv.closeAllConnections(); srv.close(() => ok()); });
   }
+});
+
+
+test("output: public keys stay readable, a private key is still masked; the last English fixes", () => {
+  const pub = "0x" + "3f9a".repeat(16), priv = "0x" + "c0de".repeat(16), seed = "0x" + "7be1".repeat(16);
+  const text = outputText(englishKeys({
+    enclaves: [{ signataire: "0x" + "11".repeat(20), clePubliqueX25519: pub }],
+    attestation: { signataire: "0x" + "22".repeat(20), clePubliqueX25519: pub },
+    clePrivee: priv, operator: { privateKey: seed },
+  }));
+  assert.equal(text.split(`"x25519PublicKey": "${pub}"`).length - 1, 2, "the enclave's public X25519 key, in clear");
+  assert.ok(!text.includes(priv) && !text.includes(seed), "a 32-byte hex under a private-key name got through");
+  assert.ok(text.includes("[key masked]") && !text.includes("@@public-key"), "masked in English, nothing left aside");
+  assert.deepEqual(Object.keys(englishKeys({ soldeActuelDeLaCible: "1", miseEnPause: "x" })), ["targetCurrentBalance", "pause"]);
+  assert.equal(englishValue("95 %"), "95%");
+  assert.equal(englishValue("1 USDC natif (gas, 18 décimales)"), "1 native USDC (gas, 18 decimals)");
+  assert.equal(englishValue("fournies"), "given");
+  assert.equal(englishValue("170000 blocs ≈ 1 j"), "170,000 blocks ≈ 1 day");
+  assert.match(englishValue("les parts font 10100 points de base au lieu de 10 000 : propose() reverterait (BadShares)"), /^the shares add up to 10,100 basis points instead of 10,000/);
+  assert.equal(englishValue("Toi compris (arc_operator_plan) : caution, VM, registerEnclave."), "Including you (arc_operator_plan): bond, VM, registerEnclave.");
 });

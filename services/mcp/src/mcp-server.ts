@@ -9,10 +9,9 @@ import { TOOLS, callTool, type ToolOutput } from "./tools";
 
 export const SERVER_INFO = { name: "archive", version: "0.0.5" };
 
-/** What the agent reads at initialization (English, then French: the site and AskHive speak both). */
+/** What the agent reads at initialization, in English (AskHive, on the site, answers in the visitor's language). */
 export const SERVER_INSTRUCTIONS =
-  "ArcHive on Arc testnet: services run in Intel TDX enclaves verified by Arc contracts and paid in USDC. These tools read the network and PREPARE actions only: nothing is signed or sent, the user signs in their own wallet. "
-  + "ArcHive sur Arc testnet : des services dans des enclaves Intel TDX vérifiées par des contrats d'Arc, payés en USDC. Ces outils lisent le réseau et PRÉPARENT des actions seulement : rien n'est signé ni envoyé, l'utilisateur signe dans son propre wallet.";
+  "ArcHive on Arc testnet: services run in Intel TDX enclaves verified by Arc contracts and paid in USDC. These tools read the network and PREPARE actions only: nothing is signed or sent, the user signs in their own wallet.";
 
 /** A tool call lasts at most `ms` milliseconds: beyond that, an error is returned to the agent (the server stays up). */
 function withTimeout(p: Promise<ToolOutput>, ms: number, name: string): Promise<ToolOutput> {

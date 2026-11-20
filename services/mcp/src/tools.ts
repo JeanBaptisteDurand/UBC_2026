@@ -404,6 +404,13 @@ const KEYS_EN: Record<string, string> = {
   resume: "summary", aCorriger: "toFix", attendus: "expected", inscriptionOnChain: "onChainRegistration", journal: "log",
   lignes: "lines", erreurs: "errors", dernieres: "latest", simule: "simulated", quoteOctets: "quoteBytes",
   eventLogOctets: "eventLogBytes", dataOctets: "dataBytes",
+  soldeActuelDeLaCible: "targetCurrentBalance", miseEnPause: "pause", cibleMiseEnPause: "targetToPause",
+  clePubliqueX25519DuProtocole: "protocolX25519PublicKey", dejaPaye: "alreadyPaid", dejaPayeDepuisLArmement: "paidSinceArming",
+  echeanceRelative: "deadlineIn", enPause: "paused", ouverte: "open", pauseDepuisLeBloc: "pausedFromBlock", protocole: "protocol",
+  regleV2: "v2Rule", solde: "balance", produitDemande: "requestedProduct", securite: "security",
+  unitesCouvertesParLeDepot: "unitsCoveredByDeposit", fenetreJusquAuBloc: "windowUntilBlock", enclavesActives: "activeEnclaves",
+  executeCoteServeur: "executedServerSide", codeSdk: "sdkCode", codeMandataireLocal: "localProxyCode",
+  cleX25519ConformeALaChaine: "x25519MatchesChain", refusee: "refused", raison: "reason", vue: "view", indisponible: "unavailable",
 };
 const KEEP_KEYS = new Set(["types", "message", "domain", "files", "fichiers", "createBountyParams", "proposeParams", "args"]);
 
@@ -420,6 +427,49 @@ export function englishKeys(v: any, depth = 0, keepKeys = false): any {
   return o;
 }
 
+/** Product 6 (the former SealedBountyVerified) is an unknown contract to the shared copilot code (railOf): where a tool
+ *  gives that label to a product, it gets the label arc_products and arc_pricing give it (productRail). */
+const UNKNOWN_RAIL = "contrat de règlement inconnu";
+async function knownRails(arc: ArcClient, actx: ActionCtx, v: any): Promise<any> {
+  if (!JSON.stringify(v, (_k, x) => (typeof x === "bigint" ? x.toString() : x))?.includes(UNKNOWN_RAIL)) return v;
+  let ps: Array<{ id: unknown; settlement: unknown }> = [];
+  try { ps = (await productsList(arc, { all: true }, actx)).produits as any; } catch { return v; }
+  const settlementOf = new Map(ps.map((p) => [String(p.id), String(p.settlement)]));
+  const walk = (x: any, depth: number): any => {
+    if (Array.isArray(x)) return x.map((y) => walk(y, depth + 1));
+    if (!x || typeof x !== "object" || depth > 40) return x;
+    const o: any = {};
+    for (const [k, y] of Object.entries(x)) o[k] = walk(y, depth + 1);
+    const id = typeof o.produit === "string" ? o.produit : typeof o.id === "string" ? o.id : undefined;
+    const s = id === undefined ? undefined : settlementOf.get(id);
+    if (o.rail === UNKNOWN_RAIL && s && SUPERSEDED_SBV.has(s.toLowerCase())) o.rail = productRail(arc, id!, s);
+    return o;
+  };
+  return walk(v, 0);
+}
+
+/** Public keys read from the chain or from an enclave: the secrets filter reads "x25519PublicKey" as "x25519Public Key"
+ *  and would mask it like a private key, so these values are set aside while it runs and put back after it. */
+const PUBLIC_KEY_FIELDS = new Set(["x25519PublicKey", "protocolX25519PublicKey"]);
+const PUBLIC_KEY_HEX = /^0x[0-9a-fA-F]{64}$/;
+function setPublicKeysAside(v: any, kept: string[], depth = 0): any {
+  if (Array.isArray(v)) return v.map((x) => setPublicKeysAside(x, kept, depth + 1));
+  if (!v || typeof v !== "object" || depth > 40) return v;
+  const o: any = {};
+  for (const [k, x] of Object.entries(v)) {
+    if (PUBLIC_KEY_FIELDS.has(k) && typeof x === "string" && PUBLIC_KEY_HEX.test(x)) { o[k] = `@@public-key-${kept.length}@@`; kept.push(x); }
+    else o[k] = setPublicKeysAside(x, kept, depth + 1);
+  }
+  return o;
+}
+
+/** A tool's result as the agent reads it: indented JSON, secrets masked (public keys in clear), in English. */
+export function outputText(result: unknown): string {
+  const kept: string[] = [];
+  const text = JSON.stringify(setPublicKeysAside(result, kept), (_k, v) => (typeof v === "bigint" ? v.toString() : v), 2) ?? "null";
+  return englishOutput(publicText(scrubSecrets(text))).replace(/@@public-key-(\d+)@@/g, (m, i: string) => kept[Number(i)] ?? m);
+}
+
 export type ToolOutput = { content: Array<{ type: "text"; text: string }>; isError?: boolean };
 
 /** Runs a tool and returns its MCP output: readable JSON, secrets masked; an error is returned to the agent (isError)
@@ -427,9 +477,8 @@ export type ToolOutput = { content: Array<{ type: "text"; text: string }>; isErr
 export async function callTool(arc: ArcClient, actx: ActionCtx, name: string, args: unknown): Promise<ToolOutput> {
   const a = (args && typeof args === "object" ? args : {}) as any;
   try {
-    const result = englishKeys(closedSessions(await run(arc, actx, name, a)));
-    const text = JSON.stringify(result, (_k, v) => (typeof v === "bigint" ? v.toString() : v), 2) ?? "null";
-    return { content: [{ type: "text", text: englishOutput(publicText(scrubSecrets(text))) }] };
+    const result = englishKeys(closedSessions(await knownRails(arc, actx, await run(arc, actx, name, a))));
+    return { content: [{ type: "text", text: outputText(result) }] };
   } catch (e: any) {
     const msg = englishValue(String(e?.shortMessage ?? e?.message ?? String(e)));
     return { content: [{ type: "text", text: englishOutput(publicText(scrubSecrets(`Error: ${msg}`))) }], isError: true };

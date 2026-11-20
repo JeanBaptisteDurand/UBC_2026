@@ -35,7 +35,7 @@ const TEXTS: Pair[] = [
   ["écoulée", "elapsed"], ["déjà fermée", "already closed"], ["hors ligne", "offline"],
   ["erreur réseau", "network error"], ["délai de 10 s dépassé", "10 s timeout exceeded"],
   ["dans {}", "in {0}"], ["il y a {}", "{0} ago"],
-  ["{} blocs ≈ {}", "{0} blocks ≈ {1}"], ["blocs {} → {}", "blocks {0} → {1}"],
+  ["{} blocs ≈ {}", "{#0} blocks ≈ {1}"], ["blocs {} → {}", "blocks {0} → {1}"],
   ["<ton adresse>", "<your address>"], ["0x<ton adresse>", "0x<your address>"], ["<id du produit>", "<product id>"],
   ["<adresse de l'opérateur>", "<operator address>"],
   ["<signature EIP-712 de autorisationEIP3009, faite dans ton wallet>", "<EIP-712 signature of eip3009Authorization, made in your wallet>"],
@@ -196,6 +196,7 @@ const TEXTS: Pair[] = [
   ["Tant que {} n'est pas autorisé dans OperatorBond{}, la prime peut être créée et financée, mais aucune réclamation ne peut être acceptée : choisis une échéance au-delà.", "As long as {0} is not authorized in OperatorBond{1}, the bounty can be created and funded, but no claim can be accepted: choose a deadline after that."],
   [" (possible à partir du {}, puis applySettlement)", " (possible from {0}, then applySettlement)"],
   ["USDC natif (gas, 18 décimales)", "native USDC (gas, 18 decimals)"],
+  ["{} USDC natif (gas, 18 décimales)", "{0} native USDC (gas, 18 decimals)"],
   ["clauseType « {} » : l'assistant guide ERC20_DROP, NATIVE_DROP et ATTACKER_PROFIT ; pour VIEW_CHANGED ou INVARIANT_BROKEN, passe le prédicat complet (predicate).", "clauseType \"{0}\": the helper guides ERC20_DROP, NATIVE_DROP and ATTACKER_PROFIT; for VIEW_CHANGED or INVARIANT_BROKEN, pass the full predicate (predicate)."],
   ["target : l'adresse du contrat dont le solde est surveillé (ex. le coffre du protocole)", "target: the address of the contract whose balance is watched (e.g. the protocol's vault)"],
   ["minDrop : la baisse minimale qui prouve l'exploit (en {})", "minDrop: the minimum drop that proves the exploit (in {0})"],
@@ -308,11 +309,12 @@ const TEXTS: Pair[] = [
   ["Mon espace › Mes machines (/space.html?tab=machines, section register : l'URL de l'enclave), ou SDK : await arc.registerEnclave(productId, enclaveUrl) avec TON wallet d'opérateur.", "My space › Machines (/space.html?tab=machines, register section: the enclave's URL), or SDK: await arc.registerEnclave(productId, enclaveUrl) with YOUR operator wallet."],
 
   // ---- arc_product_scaffold
-  ["repris du produit #{} (lu on-chain), à ajuster", "taken from product #{0} (read on-chain), to adjust"],
-  ["{} (repris du produit #{} (lu on-chain), à ajuster)", "{0} (taken from product #{1} (read on-chain), to adjust)"],
+  ["fournies", "given"],
+  ["repris du produit #{} (lu on-chain), à ajuster", "taken from product #{0}, read on-chain; adjust as needed"],
+  ["{} (repris du produit #{} (lu on-chain), à ajuster)", "{0} (taken from product #{1}, read on-chain; adjust as needed)"],
   ["Donne les trois parts bpsOperator, bpsAuthor et bpsNetwork (points de base, somme = 10 000)", "Give the three shares bpsOperator, bpsAuthor and bpsNetwork (basis points, sum = 10,000)"],
   ["chaque part est un entier de 0 à 10 000 points de base", "each share is an integer from 0 to 10,000 basis points"],
-  ["les parts font {} points de base au lieu de 10 000 : propose() reverterait (BadShares)", "the shares add up to {0} basis points instead of 10,000: propose() would revert (BadShares)"],
+  ["les parts font {} points de base au lieu de 10 000 : propose() reverterait (BadShares)", "the shares add up to {#0} basis points instead of 10,000: propose() would revert (BadShares)"],
   ["bpsAuthor : 3 000 au plus (30 %) : propose() reverterait (AuthorShareTooHigh)", "bpsAuthor: 3,000 at most (30%): propose() would revert (AuthorShareTooHigh)"],
   ["bpsNetwork : 500 au moins (5 %) : propose() reverterait (NetworkShareTooLow)", "bpsNetwork: 500 at least (5%): propose() would revert (NetworkShareTooLow)"],
   ["Aucun produit de référence : donne bpsOperator, bpsAuthor et bpsNetwork (somme = 10 000)", "No reference product: give bpsOperator, bpsAuthor and bpsNetwork (sum = 10,000)"],
@@ -335,7 +337,7 @@ const TEXTS: Pair[] = [
   ["Ton wallet d'auteur signe ; ProductRegistry rend le productId et ouvre le timelock ({} sur ce réseau, lu on-chain). Aucune transaction n'est envoyée par le copilote.", "Your author wallet signs; ProductRegistry returns the productId and opens the timelock ({0} on this network, read on-chain). No transaction is sent for you."],
   ["Après le timelock, n'importe qui peut l'activer.", "After the timelock, anyone can activate it."],
   ["Des opérateurs inscrivent des enclaves de ton image", "Operators register enclaves of your image"],
-  ["Toi compris ({}) : caution, VM, registerEnclave.", "You included ({0}): bond, VM, registerEnclave."],
+  ["Toi compris ({}) : caution, VM, registerEnclave.", "Including you ({0}): bond, VM, registerEnclave."],
   ["Chaque règlement te verse bpsAuthor ({} %). Retrait immédiat d'une image fautive : retireWorkload ; nouveau prix : proposeUpdate puis applyUpdate après le timelock.", "Each settlement pays you bpsAuthor ({0}%). Immediate removal of a faulty image: retireWorkload; new price: proposeUpdate, then applyUpdate after the timelock."],
   ["enclave/products/sealed-chat/server.ts (modèle)", "enclave/products/sealed-chat/server.ts (template)"],
   // two source references of the server's copy that the public repository names otherwise
@@ -343,7 +345,7 @@ const TEXTS: Pair[] = [
   ["const PARAM = \"{}\"; // = param du produit (keccak256 de « {} »)", "const PARAM = \"{0}\"; // = the product's param (keccak256 of \"{1}\")"],
 
   // ---- arc_machines_list, arc_machine_diagnostics (ArcHive API)
-  ["L'API ArcHive répond 404 sur {} : {}", "The ArcHive API answers 404 on {0}: {1}"],
+  ["L'API ArcHive répond 404 sur {} : {}", "The ArcHive API returned 404 for {0}: {1}"],
   ["machine inconnue", "unknown machine"], ["machine inconnue pour cette adresse", "unknown machine for this address"],
   ["paramètre operator attendu (0x + 40 caractères hexadécimaux)", "operator parameter expected (0x + 40 hexadecimal characters)"],
   ["adresse invalide (0x + 40 caractères hexadécimaux)", "invalid address (0x + 40 hexadecimal characters)"],
@@ -374,7 +376,7 @@ const TEXTS: Pair[] = [
   ["Aucune machine déclarée pour cet opérateur : lance le nœud (archive-node) avec cette adresse d'opérateur.", "No machine declared for this operator: start the node (archive-node) with this operator address."],
   ["Pour le détail et les corrections : machine_diagnostics(machineId).", "For the details and the fixes: arc_machine_diagnostics(machineId)."],
   ["Toutes les machines sont en ligne, diagnostic OK et inscrites.", "All the machines are online, diagnostics OK and registered."],
-  ["machineId invalide : « {} » (lettres, chiffres, . _ : - ; 128 caractères au plus).", "invalid machineId: \"{0}\" (letters, digits, . _ : - ; 128 characters at most)."],
+  ["machineId invalide : « {} » (lettres, chiffres, . _ : - ; 128 caractères au plus).", "invalid machineId: \"{0}\" (letters, digits, . _ : -; 128 characters at most)."],
   ["attendu en mode démo (quote simulé, accepté seulement sur testnet)", "expected in demo mode (simulated quote, accepted on testnet only)"],
   ["sans effet en mode {} : le quote passe par l'autre voie et l'attestation fonctionne", "no effect in {0} mode: the quote goes the other way and the attestation works"],
   ["Vérification inconnue : lire le détail (« {} ») et le journal ci-dessous.", "Unknown check: read the detail (\"{0}\") and the log below."],
@@ -455,8 +457,15 @@ PATTERNS.sort((a, b) => b.weight - a.weight);
 const DURATION = /^(\d+) j( \d+ h)?$/;
 
 function fill(en: string, caps: string[], depth: number): string {
-  return en.replace(/\{(\d+)\}/g, (_m, i: string) => englishValue(caps[Number(i)] ?? "", depth + 1));
+  return en.replace(/\{(#?)(\d+)\}/g, (_m, num: string, i: string) => {
+    const v = caps[Number(i)] ?? "";
+    // {#0}: a whole number with thousands separators (10100 -> 10,100; 170000 -> 170,000)
+    return num && /^\d{4,}$/.test(v) ? v.replace(/\B(?=(\d{3})+(?!\d))/g, ",") : englishValue(v, depth + 1);
+  });
 }
+
+/** "95 %" -> "95%": no space before the percent sign in English. */
+const percent = (s: string) => s.replace(/(\d) %/g, "$1%");
 
 function fragments(line: string): string {
   let out = line;
@@ -486,8 +495,8 @@ function one(s: string, depth: number): string {
 /** One value in English: the whole value when it is one of the copilot's texts, otherwise line by line. */
 export function englishValue(s: string, depth = 0): string {
   if (typeof s !== "string" || s === "") return s;
-  if (!s.includes("\n")) return one(s, depth);
-  return s.split("\n").map((line) => one(line, depth)).join("\n");
+  if (!s.includes("\n")) return percent(one(s, depth));
+  return s.split("\n").map((line) => percent(one(line, depth))).join("\n");
 }
 
 /** The final text sent to the agent: the secrets filter's masks in English. */
