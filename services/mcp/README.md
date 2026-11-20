@@ -63,9 +63,13 @@ complete.
 
 ## Run and test
 
+From the repository root. The server links the SDK (`file:../../packages/sdk`) and imports shared code from
+`services/copilot/src` (the on-chain logic, the API client, the network guards), so the three folders install their
+own dependencies, in this order, as the CI does:
+
 ```sh
-cd packages/sdk && npm ci && cd ../../services/mcp && npm ci
-npm start              # stdio server
+cd packages/sdk && npm ci && cd ../../services/copilot && npm ci && cd ../mcp && npm ci
+npm start              # stdio server (for an MCP client, `npm start --silent` keeps npm's banner off stdout)
 npm run start:http     # Streamable HTTP server on :8812
 npm test               # 15 tests: a fake local ArcHive API and a fake Arc client, no outgoing network call
 npm run typecheck

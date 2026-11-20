@@ -97,8 +97,10 @@ claude mcp add --transport http archive https://arc-hive.xyz/mcp
 
 Or, in any MCP client's configuration: `{ "mcpServers": { "archive": { "url": "https://arc-hive.xyz/mcp" } } }`.
 
-The same server runs locally over stdio. It uses `packages/sdk` by path, so install the SDK first:
-`cd packages/sdk && npm ci && cd ../../services/mcp && npm ci && npm start` (`ARCHIVE_API` sets the read API).
+The same server runs locally over stdio. It uses `packages/sdk` by path and imports shared code from
+`services/copilot/src`, so install the SDK and the copilot first:
+`cd packages/sdk && npm ci && cd ../../services/copilot && npm ci && cd ../mcp && npm ci && npm start` (`ARCHIVE_API`
+sets the read API).
 
 ## 7. Guided tours (`ui_guide`)
 
