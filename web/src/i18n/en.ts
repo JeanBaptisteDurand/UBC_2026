@@ -291,7 +291,7 @@ export const en = {
   // ---------- overview
   "ov.title.dcap": "An Intel TDX enclave verified by Arc, from image to verdict",
   "ov.title.dev": "An Intel TDX enclave registered on Arc, from image to verdict",
-  "ov.lead": "As of 1 November 2026, no other Arc contract verified someone else's enclave. Here is the proof chain of the inference enclave (the one in service, otherwise the one that served the latest paid session), read live on Arc testnet: every step links to its transaction.",
+  "ov.lead": "As of 13 November 2026, no other Arc contract verified someone else's enclave. Here is the proof chain of the inference enclave (the one in service, otherwise the one that served the latest paid session), read live on Arc testnet: every step links to its transaction.",
   "ov.readError": "Couldn't read the chain ({err}). Try again in a moment.",
   "ov.l1.title": "Pinned image",
   "ov.l1.what": "the enclave's code, frozen by its fingerprint",

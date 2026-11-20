@@ -284,7 +284,7 @@ export const fr: Dict = {
   // ---------- overview
   "ov.title.dcap": "Une enclave Intel TDX vérifiée par Arc, de l'image au verdict",
   "ov.title.dev": "Une enclave Intel TDX inscrite sur Arc, de l'image au verdict",
-  "ov.lead": "Au 1er novembre 2026, aucun autre contrat d'Arc ne vérifiait l'enclave de quelqu'un d'autre. Voici la chaîne de preuves de l'enclave d'inférence (celle en service, sinon celle qui a servi la dernière session payée), lue en direct sur Arc testnet : chaque maillon renvoie à sa transaction.",
+  "ov.lead": "Au 13 novembre 2026, aucun autre contrat d'Arc ne vérifiait l'enclave de quelqu'un d'autre. Voici la chaîne de preuves de l'enclave d'inférence (celle en service, sinon celle qui a servi la dernière session payée), lue en direct sur Arc testnet : chaque maillon renvoie à sa transaction.",
   "ov.readError": "Lecture de la chaîne impossible ({err}). Réessayez dans un instant.",
   "ov.l1.title": "Image épinglée",
   "ov.l1.what": "le code de l'enclave, figé par son empreinte",
