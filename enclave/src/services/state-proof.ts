@@ -1,29 +1,29 @@
 /**
- * state-proof.ts — vérification des PREUVES D'ÉTAT (eth_getProof, EIP-1186) contre le stateRoot d'un en-tête de bloc.
+ * state-proof.ts — verification of STATE PROOFS (eth_getProof, EIP-1186) against the stateRoot of a block header.
  *
- * Pourquoi (10/11/2026) : le relais strict de la Prime liait déjà chaque EN-TÊTE servi au moteur de rejeu à l'ancre
- * (keccak256(RLP(en-tête)) = hash, chaîne des parentHash jusqu'au bloc N ancré on-chain), mais pas l'ÉTAT lu au bloc N
- * (soldes, nonces, code, cases de stockage) : un RPC menteur, constant et bien formé, pouvait changer l'état du fork sans
- * être pris. Avec une preuve Merkle-Patricia par lecture, vérifiée ici contre le stateRoot de l'en-tête N (lui-même lié à
- * l'ancre), AUCUN RPC n'est plus de confiance : même le nôtre ne peut servir qu'un état prouvé.
+ * Why (10 Nov 2026): the Sealed Bounty's strict relay already bound each HEADER served to the replay engine to the
+ * anchor (keccak256(RLP(header)) = hash, the chain of parentHash values up to block N anchored on-chain), but not the
+ * STATE read at block N (balances, nonces, code, storage slots): a lying RPC, constant and well-formed, could change the
+ * fork's state without being caught. With one Merkle-Patricia proof per read, checked here against the stateRoot of
+ * header N (itself bound to the anchor), NO RPC is trusted any more: even ours can serve only a proven state.
  *
- * Arbre d'état d'Ethereum (« secure trie ») : la clé d'un compte est keccak256(adresse), celle d'une case de stockage
- * keccak256(case sur 32 octets) ; la feuille d'un compte est RLP([nonce, balance, storageRoot, codeHash]), celle d'une case
- * RLP(valeur sans zéros de tête). Une preuve est la liste des nœuds RLP du chemin, de la racine à la feuille (ou au point où
- * le chemin s'arrête : preuve d'ABSENCE). Un nœud dont l'encodage fait moins de 32 octets est INCLUS dans son parent (pas de
- * hash) ; sinon le parent porte keccak256(nœud). VÉRIFIÉ le 10/11 sur de vraies preuves d'Arc testnet
- * (test/fixtures/arc-testnet-state-proofs.json : soldes des preuves = eth_getBalance au même bloc).
+ * Ethereum's state trie (a "secure trie"): an account's key is keccak256(address), a storage slot's key is
+ * keccak256(slot on 32 bytes); an account's leaf is RLP([nonce, balance, storageRoot, codeHash]), a slot's leaf is
+ * RLP(value without leading zeros). A proof is the list of the path's RLP nodes, from the root to the leaf (or to the
+ * point where the path stops: a proof of ABSENCE). A node whose encoding is under 32 bytes is INLINED in its parent (no
+ * hash); otherwise the parent carries keccak256(node). CHECKED on 10 Nov on real Arc testnet proofs
+ * (test/fixtures/arc-testnet-state-proofs.json: the proofs' balances = eth_getBalance at the same block).
  */
 import { fromRlp, keccak256, type Hex } from "viem";
 
-/** Racine d'un arbre vide : keccak256(RLP("")). */
+/** Root of an empty trie: keccak256(RLP("")). */
 export const EMPTY_TRIE_ROOT: Hex = "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421";
-/** Hash du code vide : keccak256(""). */
+/** Hash of the empty code: keccak256(""). */
 export const EMPTY_CODE_HASH: Hex = "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470";
-/** 32 octets nuls : ce que geth annonce comme codeHash/storageHash d'un compte absent (reth annonce les hash du vide). */
+/** 32 zero bytes: what geth announces as the codeHash/storageHash of an absent account (reth announces the empty hashes). */
 export const ZERO32: Hex = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
-/** Preuve invalide (le message est fixe : jamais de valeur recopiée). */
+/** An invalid proof (the message is fixed: never a copied value). */
 export class StateProofError extends Error {
   constructor(message: string) {
     super(message);
@@ -39,7 +39,7 @@ const QTY = /^0x(?:0|[1-9a-fA-F][0-9a-fA-F]*)$/;
 const ADDR = /^0x[0-9a-fA-F]{40}$/;
 const SLOT = /^0x[0-9a-fA-F]{1,64}$/;
 
-/** Taille maximale d'une preuve (nœuds) et d'un nœud (octets) : un arbre de 64 quartets a au plus 65 niveaux. */
+/** Maximum size of a proof (nodes) and of a node (bytes): a trie of 64 nibbles has at most 65 levels. */
 const MAX_PROOF_NODES = 80;
 const MAX_NODE_BYTES = 1 << 13;
 
@@ -49,14 +49,14 @@ function nibblesOf(key: Hex): number[] {
   return out;
 }
 
-/** Chemin « hex-prefix » d'un nœud feuille ou extension : drapeau (2 = feuille, 1 = longueur impaire) puis quartets. */
+/** The "hex-prefix" path of a leaf or extension node: a flag (2 = leaf, 1 = odd length), then the nibbles. */
 function decodePath(encoded: Hex): { leaf: boolean; path: number[] } {
   const n = nibblesOf(encoded);
-  if (n.length === 0) throw new StateProofError("preuve d'état : chemin de nœud vide");
+  if (n.length === 0) throw new StateProofError("state proof: empty node path");
   const flag = n[0]!;
-  if (flag > 3) throw new StateProofError("preuve d'état : drapeau de chemin invalide");
+  if (flag > 3) throw new StateProofError("state proof: invalid path flag");
   const odd = (flag & 1) === 1;
-  if (!odd && n[1] !== 0) throw new StateProofError("preuve d'état : chemin pair mal rembourré");
+  if (!odd && n[1] !== 0) throw new StateProofError("state proof: even path badly padded");
   return { leaf: (flag & 2) === 2, path: n.slice(odd ? 1 : 2) };
 }
 
@@ -65,86 +65,86 @@ function decodeNode(enc: Hex): RlpItem[] {
   try {
     d = fromRlp(enc, "hex") as RlpItem;
   } catch {
-    throw new StateProofError("preuve d'état : nœud RLP illisible");
+    throw new StateProofError("state proof: unreadable RLP node");
   }
-  if (!Array.isArray(d)) throw new StateProofError("preuve d'état : nœud qui n'est pas une liste");
+  if (!Array.isArray(d)) throw new StateProofError("state proof: a node that is not a list");
   return d;
 }
 
 type Ref = { hash: string } | { inline: RlpItem[] };
 
 function childRef(c: RlpItem): Ref {
-  if (Array.isArray(c)) return { inline: c }; // nœud de moins de 32 octets, inclus dans son parent
+  if (Array.isArray(c)) return { inline: c }; // a node under 32 bytes, inlined in its parent
   if (B32.test(c)) return { hash: c.toLowerCase() };
-  throw new StateProofError("preuve d'état : référence d'enfant mal formée");
+  throw new StateProofError("state proof: malformed child reference");
 }
 
 /**
- * Vérifie une preuve Merkle-Patricia : `key` est la clé DÉJÀ hachée (32 octets). Rend les octets de la valeur (feuille),
- * ou null si la preuve établit que la clé est ABSENTE. Lève StateProofError si la preuve ne prouve rien (nœud qui ne redonne
- * pas le hash attendu, preuve incomplète ou avec des nœuds en trop, nœud mal formé).
+ * Verifies a Merkle-Patricia proof: `key` is the ALREADY hashed key (32 bytes). Returns the value's bytes (leaf), or
+ * null if the proof establishes that the key is ABSENT. Throws StateProofError if the proof proves nothing (a node that
+ * does not give back the expected hash, an incomplete proof or one with extra nodes, a malformed node).
  */
 export function verifyMptProof(root: Hex, key: Hex, proof: readonly unknown[]): Hex | null {
-  if (!B32.test(root) || !B32.test(key)) throw new StateProofError("preuve d'état : racine et clé de 32 octets attendues");
-  if (!Array.isArray(proof) || proof.length > MAX_PROOF_NODES) throw new StateProofError("preuve d'état : liste de nœuds attendue");
+  if (!B32.test(root) || !B32.test(key)) throw new StateProofError("state proof: 32-byte root and key expected");
+  if (!Array.isArray(proof) || proof.length > MAX_PROOF_NODES) throw new StateProofError("state proof: list of nodes expected");
   for (const n of proof) {
     if (typeof n !== "string" || !HEX.test(n) || n.length < 4 || (n.length - 2) / 2 > MAX_NODE_BYTES) {
-      throw new StateProofError("preuve d'état : nœud hexadécimal attendu");
+      throw new StateProofError("state proof: hexadecimal node expected");
     }
   }
   const nodes = proof as readonly Hex[];
   const path = nibblesOf(key);
-  let i = 0; // quartets déjà consommés
-  let p = 0; // nœuds de la preuve déjà lus
+  let i = 0; // nibbles already consumed
+  let p = 0; // proof nodes already read
   const end = (v: Hex | null): Hex | null => {
-    if (p !== nodes.length) throw new StateProofError("preuve d'état : nœuds en trop après la fin du chemin");
+    if (p !== nodes.length) throw new StateProofError("state proof: extra nodes after the end of the path");
     return v;
   };
-  if (root.toLowerCase() === EMPTY_TRIE_ROOT && nodes.length === 0) return null; // arbre vide : tout est absent
+  if (root.toLowerCase() === EMPTY_TRIE_ROOT && nodes.length === 0) return null; // empty trie: everything is absent
   let ref: Ref = { hash: root.toLowerCase() };
   for (;;) {
     let node: RlpItem[];
     if ("hash" in ref) {
-      if (p >= nodes.length) throw new StateProofError("preuve d'état : preuve incomplète");
+      if (p >= nodes.length) throw new StateProofError("state proof: incomplete proof");
       const enc = nodes[p++]!;
-      if (keccak256(enc) !== ref.hash) throw new StateProofError("preuve d'état : nœud qui ne redonne pas le hash attendu");
-      if (enc === "0x80") return end(null); // nœud vide (racine d'un arbre vide servie comme nœud) : clé absente
+      if (keccak256(enc) !== ref.hash) throw new StateProofError("state proof: a node that does not give back the expected hash");
+      if (enc === "0x80") return end(null); // an empty node (the root of an empty trie served as a node): key absent
       node = decodeNode(enc);
     } else node = ref.inline;
 
     if (node.length === 17) {
-      // branche : 16 enfants + une valeur (jamais employée : toutes les clés font 32 octets)
-      if (i >= path.length) throw new StateProofError("preuve d'état : chemin plus long que la clé");
+      // branch: 16 children + a value (never used: all the keys are 32 bytes)
+      if (i >= path.length) throw new StateProofError("state proof: path longer than the key");
       const child = node[path[i]!]!;
       i++;
-      if (child === "0x") return end(null); // enfant vide : clé absente
+      if (child === "0x") return end(null); // empty child: key absent
       ref = childRef(child);
       continue;
     }
     if (node.length === 2) {
       const [encPath, val] = node;
-      if (typeof encPath !== "string") throw new StateProofError("preuve d'état : chemin de nœud mal formé");
+      if (typeof encPath !== "string") throw new StateProofError("state proof: malformed node path");
       const { leaf, path: seg } = decodePath(encPath);
       const rest = path.slice(i);
       const prefix = seg.length <= rest.length && seg.every((x, k) => x === rest[k]);
       if (leaf) {
         if (prefix && seg.length === rest.length) {
-          if (typeof val !== "string" || val === "0x") throw new StateProofError("preuve d'état : valeur de feuille mal formée");
+          if (typeof val !== "string" || val === "0x") throw new StateProofError("state proof: malformed leaf value");
           return end(val);
         }
-        return end(null); // le chemin s'écarte de la clé : clé absente
+        return end(null); // the path leaves the key: key absent
       }
-      if (seg.length === 0) throw new StateProofError("preuve d'état : extension vide");
-      if (!prefix) return end(null); // l'extension s'écarte de la clé : clé absente
+      if (seg.length === 0) throw new StateProofError("state proof: empty extension");
+      if (!prefix) return end(null); // the extension leaves the key: key absent
       i += seg.length;
       ref = childRef(val!);
       continue;
     }
-    throw new StateProofError("preuve d'état : nœud de longueur inattendue");
+    throw new StateProofError("state proof: node of unexpected length");
   }
 }
 
-/** Un compte PROUVÉ au bloc (exists = false : preuve d'absence ; valeurs d'un compte vide). */
+/** An account PROVEN at the block (exists = false: a proof of absence; the values of an empty account). */
 export interface ProvedAccount {
   exists: boolean;
   nonce: bigint;
@@ -154,39 +154,39 @@ export interface ProvedAccount {
 }
 
 function rlpUint(v: RlpItem, what: string, maxBytes = 32): bigint {
-  if (typeof v !== "string" || (v.length - 2) / 2 > maxBytes) throw new StateProofError(`preuve d'état : ${what} mal formé`);
+  if (typeof v !== "string" || (v.length - 2) / 2 > maxBytes) throw new StateProofError(`state proof: ${what} malformed`);
   if (v === "0x") return 0n;
-  if (v.startsWith("0x00")) throw new StateProofError(`preuve d'état : ${what} non canonique`);
+  if (v.startsWith("0x00")) throw new StateProofError(`state proof: ${what} not canonical`);
   return BigInt(v);
 }
 
-/** Vérifie la preuve d'un compte contre le stateRoot du bloc. */
+/** Verifies an account's proof against the block's stateRoot. */
 export function verifyAccountProof(stateRoot: Hex, address: Hex, accountProof: readonly unknown[]): ProvedAccount {
-  if (!ADDR.test(address)) throw new StateProofError("preuve d'état : adresse attendue");
+  if (!ADDR.test(address)) throw new StateProofError("state proof: address expected");
   const leaf = verifyMptProof(stateRoot, keccak256(address.toLowerCase() as Hex), accountProof);
   if (leaf === null) return { exists: false, nonce: 0n, balance: 0n, storageRoot: EMPTY_TRIE_ROOT, codeHash: EMPTY_CODE_HASH };
   const f = decodeNode(leaf);
-  if (f.length !== 4) throw new StateProofError("preuve d'état : feuille de compte de 4 champs attendue");
+  if (f.length !== 4) throw new StateProofError("state proof: account leaf of 4 fields expected");
   const [nonce, balance, storageRoot, codeHash] = f;
   if (typeof storageRoot !== "string" || !B32.test(storageRoot) || typeof codeHash !== "string" || !B32.test(codeHash)) {
-    throw new StateProofError("preuve d'état : racine de stockage ou hash de code mal formés");
+    throw new StateProofError("state proof: malformed storage root or code hash");
   }
   return {
     exists: true,
     nonce: rlpUint(nonce!, "nonce", 8),
-    balance: rlpUint(balance!, "solde"),
+    balance: rlpUint(balance!, "balance"),
     storageRoot: storageRoot.toLowerCase() as Hex,
     codeHash: codeHash.toLowerCase() as Hex,
   };
 }
 
-/** Une case de stockage sur 32 octets (clé de la preuve et de eth_getStorageAt). */
+/** A storage slot on 32 bytes (the key of the proof and of eth_getStorageAt). */
 export function slotKey(slot: string): Hex {
-  if (!SLOT.test(slot)) throw new StateProofError("preuve d'état : case de stockage (≤ 32 octets) attendue");
+  if (!SLOT.test(slot)) throw new StateProofError("state proof: storage slot (≤ 32 bytes) expected");
   return `0x${BigInt(slot).toString(16).padStart(64, "0")}` as Hex;
 }
 
-/** Vérifie la preuve d'une case de stockage contre la racine de stockage du compte (prouvée). Rend sa valeur. */
+/** Verifies a storage slot's proof against the account's (proven) storage root. Returns its value. */
 export function verifyStorageProof(storageRoot: Hex, slot: string, proof: readonly unknown[]): bigint {
   const leaf = verifyMptProof(storageRoot, keccak256(slotKey(slot)), proof);
   if (leaf === null) return 0n;
@@ -194,65 +194,65 @@ export function verifyStorageProof(storageRoot: Hex, slot: string, proof: readon
   try {
     v = fromRlp(leaf, "hex") as RlpItem;
   } catch {
-    throw new StateProofError("preuve d'état : valeur de case illisible");
+    throw new StateProofError("state proof: unreadable slot value");
   }
-  const x = rlpUint(v, "valeur de case");
-  if (x === 0n) throw new StateProofError("preuve d'état : case nulle stockée (impossible dans un vrai arbre)");
+  const x = rlpUint(v, "slot value");
+  if (x === 0n) throw new StateProofError("state proof: zero slot stored (impossible in a real trie)");
   return x;
 }
 
-/** Résultat d'eth_getProof contrôlé et PROUVÉ : le compte et les cases demandées. */
+/** The result of eth_getProof, checked and PROVEN: the account and the requested slots. */
 export interface ProvedRead {
   account: ProvedAccount;
-  /** case (32 octets, minuscules) → valeur prouvée */
+  /** slot (32 bytes, lower case) → proven value */
   storage: Map<string, bigint>;
 }
 
 const isObj = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === "object" && !Array.isArray(v);
 
 /**
- * Contrôle la réponse d'eth_getProof(address, slots, N) et la PROUVE contre `stateRoot` (celui de l'en-tête N, lié à
- * l'ancre) : forme, adresse, cases dans l'ordre demandé, preuve du compte, champs annoncés = champs prouvés, preuve de
- * chaque case. Rend les valeurs prouvées (ce sont elles, et non les champs annoncés, que le relais rend au moteur).
+ * Checks the answer of eth_getProof(address, slots, N) and PROVES it against `stateRoot` (that of header N, bound to
+ * the anchor): shape, address, slots in the requested order, the account's proof, announced fields = proven fields, the
+ * proof of each slot. Returns the proven values (they, and not the announced fields, are what the relay gives the engine).
  */
 export function checkProofResult(stateRoot: Hex, address: Hex, slots: readonly string[], r: unknown): ProvedRead {
-  if (!isObj(r)) throw new StateProofError("preuve d'état : objet attendu");
+  if (!isObj(r)) throw new StateProofError("state proof: object expected");
   if (typeof r.address !== "string" || r.address.toLowerCase() !== address.toLowerCase()) {
-    throw new StateProofError("preuve d'état : preuve d'une autre adresse");
+    throw new StateProofError("state proof: proof of another address");
   }
-  if (!Array.isArray(r.accountProof) || !Array.isArray(r.storageProof)) throw new StateProofError("preuve d'état : listes de preuves attendues");
+  if (!Array.isArray(r.accountProof) || !Array.isArray(r.storageProof)) throw new StateProofError("state proof: lists of proofs expected");
   const account = verifyAccountProof(stateRoot, address, r.accountProof);
   const qty = (v: unknown) => typeof v === "string" && QTY.test(v);
   if (!qty(r.balance) || !qty(r.nonce) || typeof r.codeHash !== "string" || !B32.test(r.codeHash)
     || typeof r.storageHash !== "string" || !B32.test(r.storageHash)) {
-    throw new StateProofError("preuve d'état : champs du compte mal formés");
+    throw new StateProofError("state proof: malformed account fields");
   }
-  // Un compte ABSENT : reth annonce les hash du compte VIDE, geth des hash NULS. La preuve, elle, a déjà établi
-  // l'absence ; on accepte donc les deux conventions pour les champs annoncés (disponibilité, pas de confiance en plus).
+  // An ABSENT account: reth announces the hashes of the EMPTY account, geth announces ZERO hashes. The proof has already
+  // established the absence, so both conventions are accepted for the announced fields (availability, no extra trust).
   const rCode = !account.exists && r.codeHash.toLowerCase() === ZERO32 ? EMPTY_CODE_HASH : (r.codeHash.toLowerCase() as Hex);
   const rStorage = !account.exists && r.storageHash.toLowerCase() === ZERO32 ? EMPTY_TRIE_ROOT : (r.storageHash.toLowerCase() as Hex);
   if (BigInt(r.balance as string) !== account.balance || BigInt(r.nonce as string) !== account.nonce
     || rCode !== account.codeHash || rStorage !== account.storageRoot) {
-    throw new StateProofError("preuve d'état : les champs annoncés ne sont pas ceux que prouve l'arbre");
+    throw new StateProofError("state proof: the announced fields are not those the trie proves");
   }
-  if (r.storageProof.length !== slots.length) throw new StateProofError("preuve d'état : nombre de cases différent de la demande");
+  if (r.storageProof.length !== slots.length) throw new StateProofError("state proof: number of slots differs from the request");
   const storage = new Map<string, bigint>();
   r.storageProof.forEach((s, k) => {
     if (!isObj(s) || typeof s.key !== "string" || !SLOT.test(s.key) || !qty(s.value) || !Array.isArray(s.proof)) {
-      throw new StateProofError("preuve d'état : preuve de case mal formée");
+      throw new StateProofError("state proof: malformed slot proof");
     }
     const want = slotKey(slots[k]!);
-    if (slotKey(s.key) !== want) throw new StateProofError("preuve d'état : preuve d'une autre case");
+    if (slotKey(s.key) !== want) throw new StateProofError("state proof: proof of another slot");
     const v = verifyStorageProof(account.storageRoot, want, s.proof);
-    if (BigInt(s.value as string) !== v) throw new StateProofError("preuve d'état : valeur de case annoncée différente de la valeur prouvée");
+    if (BigInt(s.value as string) !== v) throw new StateProofError("state proof: announced slot value differs from the proven value");
     storage.set(want, v);
   });
   return { account, storage };
 }
 
-/** Le code rendu par le RPC est-il celui du compte prouvé ? (code vide ⇔ hash du code vide) */
+/** Is the code the RPC returns the proven account's code? (empty code ⇔ the hash of the empty code) */
 export function checkCode(account: ProvedAccount, code: unknown): Hex {
-  if (typeof code !== "string" || !HEX.test(code)) throw new StateProofError("preuve d'état : code hexadécimal attendu");
-  if (keccak256(code as Hex) !== account.codeHash) throw new StateProofError("preuve d'état : code qui ne redonne pas le hash prouvé");
+  if (typeof code !== "string" || !HEX.test(code)) throw new StateProofError("state proof: hexadecimal code expected");
+  if (keccak256(code as Hex) !== account.codeHash) throw new StateProofError("state proof: code that does not give back the proven hash");
   return code.toLowerCase() as Hex;
 }

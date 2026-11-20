@@ -165,7 +165,7 @@ describe("strict relay with state proofs (real Arc testnet block)", () => {
 
   it("proofs require the \"arc\" header policy and an anchor (otherwise the header and the proofs could be forged together)", async () => {
     await expect(startStrictRelay({ upstream: "http://127.0.0.1:9", blockN: N, anchorHash: fx.block.hash, stateProofs: {}, headerPolicy: "shape" })).rejects.toThrow(/arc/);
-    await expect(startStrictRelay({ upstream: "http://127.0.0.1:9", blockN: N, stateProofs: {} })).rejects.toThrow(/ancre/);
+    await expect(startStrictRelay({ upstream: "http://127.0.0.1:9", blockN: N, stateProofs: {} })).rejects.toThrow(/anchor/);
   });
 });
 

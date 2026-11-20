@@ -1,55 +1,58 @@
 /**
- * rpc-relay.ts — RELAIS JSON-RPC STRICT entre le moteur de rejeu (anvil / arc-anvil) et le RPC du fork (FORK_RPC_URL).
+ * rpc-relay.ts — a STRICT JSON-RPC RELAY between the replay engine (anvil / arc-anvil) and the fork's RPC (FORK_RPC_URL).
  *
- * Pourquoi (revue adverse du 9/11, preuve verif-failclosed/e1-blockhash-null) : le moteur prend certaines réponses
- * INVALIDES du RPC du fork pour des valeurs, sans erreur — `null` pour un bloc récent (réponse normale d'un nœud qui n'a pas
- * encore ce bloc) devient BLOCKHASH = keccak256(""), « 0x » ou un nombre JSON pour une case de stockage deviennent 0 ou 5.
- * Le rejeu rendait alors des mesures fausses, et l'enclave les signait (réclamation fausse, réfutation d'une réclamation
- * vraie). Le moteur ne parle donc plus au RPC du fork : il parle à ce relais (127.0.0.1, port éphémère, un relais par rejeu
- * et par contrôle de démarrage), qui transmet chaque requête et VÉRIFIE la forme de chaque résultat avant de le rendre :
- *  - méthodes permises : celles qu'emploient anvil 1.5.1 et arc-anvil v0.8.0-4 pour forker (relevé du 9/11) ; toute autre
- *    méthode est refusée ;
- *  - état lu AU BLOC N SEULEMENT (étiquette de bloc = N en hexadécimal) : jamais « latest », jamais un autre bloc ;
- *  - eth_getStorageAt : exactement 32 octets ; quantités (solde, nonce, numéro de bloc, chainId, prix du gas) en
- *    hexadécimal canonique ; eth_getCode : hexadécimal pair (« 0x » permis : compte sans code) ; eth_getAccountInfo :
- *    { balance, nonce, code } de ces formes ;
- *  - blocs ≤ N : jamais null ; numéro = celui demandé ; hash et champs d'en-tête au bon format ; hash du bloc N = l'ancre
- *    (hash vérifié en quorum ou on-chain) ; hash d'un bloc n < N rattaché à l'ancre par la chaîne des parentHash
- *    (n+1 … N) ;
- *  - reçus et transactions demandés par hash (transactions du fork seulement) : null exigé.
- * Toute réponse INVALIDE (forme, bloc null, chaîne, enveloppe JSON-RPC fausse : version, id, result ET error), toute
- * méthode ou tout paramètre non prévus et tout dépassement du BUDGET de requêtes du rejeu est une VIOLATION : le moteur
- * reçoit une erreur JSON-RPC, et la violation est MÉMORISÉE (verrou) : le rejeu qui l'a subie échoue fermé
- * (ReplayUnavailableError, HTTP 503, rien n'est signé), même si le moteur a réessayé et obtenu ensuite une bonne réponse.
- * Un rejeu n'est signé que si aucune réponse invalide n'a été vue.
- * Un échec PASSAGER du RPC du fork (erreur JSON-RPC, statut HTTP ≠ 200, réseau, délai, corps illisible) n'est pas une
- * valeur : il est rendu au moteur TEL QUEL (l'erreur JSON-RPC telle quelle, le même statut HTTP ; 502 pour le réseau ou un
- * corps illisible), comme si le moteur parlait au RPC du fork : soit le moteur échoue (le rejeu échoue fermé), soit il
- * réessaie (limite de débit, 429, 503 : vérifié, il retrouve la bonne valeur), et la réponse réessayée est contrôlée comme
- * les autres. Chaque essai compte dans le budget.
+ * Why (adversarial review of 9 Nov, proof verif-failclosed/e1-blockhash-null): the engine takes some INVALID answers of
+ * the fork's RPC for values, without an error. `null` for a recent block (the normal answer of a node that does not have
+ * that block yet) becomes BLOCKHASH = keccak256(""); "0x" or a JSON number for a storage slot becomes 0 or 5. The
+ * replay then returned false measurements, and the enclave signed them (a false claim, or a refutation of a true
+ * claim). So the engine no longer talks to the fork's RPC: it talks to this relay (127.0.0.1, an ephemeral port, one
+ * relay per replay and per start-up check), which forwards each request and CHECKS the shape of each result before
+ * returning it:
+ *  - allowed methods: those that anvil 1.5.1 and arc-anvil v0.8.0-4 use to fork (recorded on 9 Nov); any other method
+ *    is refused;
+ *  - state read AT BLOCK N ONLY (block tag = N in hexadecimal): never "latest", never another block;
+ *  - eth_getStorageAt: exactly 32 bytes; quantities (balance, nonce, block number, chainId, gas price) in canonical
+ *    hexadecimal; eth_getCode: even-length hexadecimal ("0x" allowed: an account without code); eth_getAccountInfo:
+ *    { balance, nonce, code } of these shapes;
+ *  - blocks ≤ N: never null; number = the one requested; hash and header fields in the right format; the hash of block
+ *    N = the anchor (a hash verified through the quorum or on-chain); the hash of a block n < N tied to the anchor by
+ *    the chain of parentHash values (n+1 … N);
+ *  - receipts and transactions requested by hash (fork transactions only): null required.
+ * Any INVALID answer (shape, null block, chain, a false JSON-RPC envelope: version, id, result AND error), any method or
+ * parameter not provided for, and any overrun of the replay's request BUDGET is a VIOLATION: the engine receives a
+ * JSON-RPC error, and the violation is REMEMBERED (a lock): the replay that suffered it fails closed
+ * (ReplayUnavailableError, HTTP 503, nothing is signed), even if the engine retried and then got a good answer.
+ * A replay is signed only if no invalid answer was seen.
+ * A PASSING failure of the fork's RPC (a JSON-RPC error, an HTTP status ≠ 200, network, timeout, an unreadable body) is
+ * not a value: it goes back to the engine AS IT IS (the JSON-RPC error as it is, the same HTTP status; 502 for the
+ * network or an unreadable body), as if the engine were talking to the fork's RPC. Either the engine fails (the replay
+ * fails closed), or it retries (rate limit, 429, 503: checked, it finds the right value again), and the retried answer
+ * is checked like the others. Each attempt counts in the budget.
  *
- * v2.1 quater (vérification adverse du 9/11 au soir, preuves verif-relay r1-B, r1-E, r1-G, r2, r3-1a) — RPC MENTEUR :
- *  - EN-TÊTE LIÉ À SON HASH (politique « arc », DÉFAUT) : les 21 champs d'en-tête d'Arc (Londres → Prague) sont EXIGÉS et
- *    keccak256(RLP(en-tête)) doit redonner `hash` (VÉRIFIÉ le 9/11 sur des blocs réels d'Arc testnet et sur anvil 1.5.1).
- *    Avec l'ancre (hash du bloc N vérifié en quorum ou on-chain) et la chaîne des parentHash, chaque en-tête servi au moteur
- *    est celui de la vraie chaîne : horodatage, base fee, PREVRANDAO (mixHash), mineur, gasLimit, excessBlobGas du bloc N,
- *    et BLOCKHASH(N − k). Un en-tête au bon hash mais au contenu changé : violation « header » ;
- *  - redirections JAMAIS suivies (le corps JSON-RPC ne part jamais vers un autre hôte) : échec passager (502) ;
- *  - réponses lues EN FLUX, coupées au-delà de MAX_RESPONSE_BYTES (aucune réponse géante gardée en mémoire) : échec
- *    passager (502) ;
- *  - MÉMOIRE DES RÉPONSES du rejeu : l'état au bloc N et les blocs ≤ N sont immuables ; une même lecture (même clé canonique :
- *    adresse en minuscules, case en entier ; solde, nonce et code recoupés entre eth_getAccountInfo et les lectures
- *    séparées ; un bloc par numéro ou par hash) qui revient avec une autre valeur : violation « inconsistent ».
- *    eth_blockNumber et eth_gasPrice (qui changent avec le temps) n'y sont pas soumis.
- * Limite (à dire) : SANS l'option stateProofs, le relais lie les en-têtes à l'ancre, pas l'ÉTAT servi au bloc N ; un RPC
- * qui ment sur l'état avec des réponses bien formées et constantes n'est alors pas détecté. La liste des transactions d'un
- * bloc n'est pas recalculée contre transactionsRoot (le moteur ne les exécute pas).
+ * v2.1 quater (adversarial verification, evening of 9 Nov, proofs verif-relay r1-B, r1-E, r1-G, r2, r3-1a), a LYING RPC:
+ *  - HEADER BOUND TO ITS HASH ("arc" policy, the DEFAULT): the 21 Arc header fields (London → Prague) are REQUIRED and
+ *    keccak256(RLP(header)) must give back `hash` (CHECKED on 9 Nov on real Arc testnet blocks and on anvil 1.5.1).
+ *    With the anchor (the hash of block N verified through the quorum or on-chain) and the chain of parentHash values,
+ *    each header served to the engine is the real chain's: the timestamp, base fee, PREVRANDAO (mixHash), miner,
+ *    gasLimit and excessBlobGas of block N, and BLOCKHASH(N − k). A header with the right hash but changed content: a
+ *    "header" violation;
+ *  - redirects are NEVER followed (the JSON-RPC body never goes to another host): a passing failure (502);
+ *  - answers are read AS A STREAM, cut beyond MAX_RESPONSE_BYTES (no giant answer kept in memory): a passing failure
+ *    (502);
+ *  - MEMORY OF THE REPLAY'S ANSWERS: the state at block N and the blocks ≤ N are immutable. The same read (the same
+ *    canonical key: lower-case address, slot as an integer; balance, nonce and code cross-checked between
+ *    eth_getAccountInfo and the separate reads; a block by number or by hash) that comes back with another value: an
+ *    "inconsistent" violation. eth_blockNumber and eth_gasPrice (which change over time) are exempt.
+ * A limit: WITHOUT the stateProofs option, the relay binds the headers to the anchor, not the STATE served at block N;
+ * an RPC that lies about the state with well-formed, constant answers is then not detected. A block's transaction list
+ * is not recomputed against transactionsRoot (the engine does not execute them).
  *
- * 10/11/2026 — PREUVES D'ÉTAT (option stateProofs) : chaque lecture d'état au bloc N (solde, nonce, code, case de
- * stockage, eth_getAccountInfo) est demandée en eth_getProof (EIP-1186) au RPC des preuves et VÉRIFIÉE contre le stateRoot
- * de l'en-tête N (lui-même lié à l'ancre) : le relais rend au moteur les valeurs PROUVÉES, le code seulement s'il redonne le
- * hash de code prouvé. Une preuve fausse : violation « state_proof » (rien n'est signé) ; une preuve indisponible (nœud
- * hors fenêtre, panne) : échec passager, donc rejeu en échec fermé. Aucun RPC n'est plus de confiance pour l'état.
+ * 10 Nov 2026, STATE PROOFS (stateProofs option): each state read at block N (balance, nonce, code, storage slot,
+ * eth_getAccountInfo) is requested as eth_getProof (EIP-1186) from the proof RPC and CHECKED against the stateRoot of
+ * header N (itself bound to the anchor): the relay returns the PROVEN values to the engine, and the code only if it
+ * gives back the proven code hash. A false proof: a "state_proof" violation (nothing is signed); an unavailable proof
+ * (a node outside its window, an outage): a passing failure, so the replay fails closed. No RPC is trusted for the
+ * state any more.
  */
 import { createHash } from "node:crypto";
 import { createServer, type Server } from "node:http";
@@ -57,31 +60,31 @@ import type { AddressInfo } from "node:net";
 import { keccak256, toRlp, type Hex } from "viem";
 import { StateProofError, checkCode, checkProofResult, slotKey, type ProvedAccount } from "./state-proof.js";
 
-/** Budget par défaut : requêtes au RPC du fork pour UN rejeu (relais compris). Au-delà : violation, échec fermé (503). */
+/** Default budget: requests to the fork's RPC for ONE replay (relay included). Beyond it: a violation, fail closed (503). */
 export const DEFAULT_MAX_FORK_REQUESTS = 2_000;
-/** Délai d'une requête au RPC du fork. */
+/** Timeout of a request to the fork's RPC. */
 export const RELAY_TIMEOUT_MS = 30_000;
-const MAX_REQUEST_BYTES = 1 << 20; // les requêtes du moteur sont petites
-/** v2.1 quater : taille maximale d'une réponse du RPC du fork, en octets, LUE EN FLUX (au-delà : lecture coupée, connexion
- *  fermée, échec passager 502). Un bloc d'Arc avec ses transactions complètes tient très en deçà. */
+const MAX_REQUEST_BYTES = 1 << 20; // the engine's requests are small
+/** v2.1 quater: the maximum size of an answer of the fork's RPC, in bytes, READ AS A STREAM (beyond it: the read is cut,
+ *  the connection closed, a passing failure 502). An Arc block with its full transactions fits far below it. */
 export const MAX_RESPONSE_BYTES = 64 << 20;
-/** Code JSON-RPC rendu au moteur pour une réponse refusée (erreur interne : le moteur ne la réessaie pas comme une limite). */
+/** The JSON-RPC code returned to the engine for a refused answer (internal error: the engine does not retry it like a limit). */
 export const RELAY_ERROR_CODE = -32603;
 
 export type RelayViolationKind =
-  | "budget" // plus de requêtes que le budget du rejeu
-  | "method" // méthode non prévue
-  | "params" // paramètres inattendus (autre bloc que N, étiquette non numérique, bloc au-delà de N…)
-  | "shape" // résultat de forme inattendue
-  | "null_block" // null pour un bloc ≤ N
-  | "chain" // hash de bloc qui n'est pas celui de l'ancre, ou qui ne s'y rattache pas par les parentHash
-  | "envelope" // enveloppe JSON-RPC du RPC du fork invalide : version, id d'une autre requête, result ET error
-  | "header" // v2.1 quater : en-tête dont le contenu ne redonne pas le hash (keccak256(RLP(en-tête)) ≠ hash)
-  | "inconsistent" // v2.1 quater : la même lecture (état au bloc N, bloc ≤ N, chainId) rendue avec deux valeurs différentes
-  | "state_proof" // 10/11 : preuve d'état (eth_getProof) qui ne se vérifie pas contre le stateRoot de l'en-tête N ancré
-  | "internal"; // exception inattendue dans le relais (échec fermé)
+  | "budget" // more requests than the replay's budget
+  | "method" // a method not provided for
+  | "params" // unexpected parameters (a block other than N, a non-numeric tag, a block beyond N…)
+  | "shape" // a result of unexpected shape
+  | "null_block" // null for a block ≤ N
+  | "chain" // a block hash that is not the anchor's, or that is not tied to it by the parentHash values
+  | "envelope" // an invalid JSON-RPC envelope from the fork's RPC: version, id of another request, result AND error
+  | "header" // v2.1 quater: a header whose content does not give back the hash (keccak256(RLP(header)) ≠ hash)
+  | "inconsistent" // v2.1 quater: the same read (state at block N, block ≤ N, chainId) returned with two different values
+  | "state_proof" // 10 Nov: a state proof (eth_getProof) that does not verify against the stateRoot of the anchored header N
+  | "internal"; // an unexpected exception in the relay (fail closed)
 
-/** Une réponse du RPC du fork refusée par le relais (mémorisée). Message FIXE (jamais de valeur ni de paramètre recopiés). */
+/** An answer of the fork's RPC refused by the relay (remembered). FIXED message (never a copied value or parameter). */
 export class RelayViolation extends Error {
   constructor(readonly kind: RelayViolationKind, readonly method: string, message: string) {
     super(message);
@@ -90,12 +93,12 @@ export class RelayViolation extends Error {
 }
 
 /**
- * Un échec PASSAGER du RPC du fork (pas une valeur, pas mémorisé) : erreur JSON-RPC (`rpcError`, rendue telle quelle au
- * moteur) ou échec HTTP / réseau / délai / corps illisible (`http` : statut rendu au moteur, 502 pour le réseau).
+ * A PASSING failure of the fork's RPC (not a value, not remembered): a JSON-RPC error (`rpcError`, returned as it is to
+ * the engine) or an HTTP / network / timeout / unreadable-body failure (`http`: the status returned to the engine, 502 for the network).
  */
 export class UpstreamFailure extends Error {
   constructor(readonly method: string, readonly failure: { http: number } | { rpcError: { code: number; message: string } }) {
-    super("http" in failure ? `RPC du fork : échec HTTP ou réseau (${failure.http})` : "RPC du fork : erreur JSON-RPC");
+    super("http" in failure ? `fork RPC: HTTP or network failure (${failure.http})` : "fork RPC: JSON-RPC error");
     this.name = "UpstreamFailure";
   }
 }
@@ -122,18 +125,18 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
 }
 
 /**
- * v2.1 quater : contrat d'en-tête des blocs rendus par le RPC du fork.
- *  - "arc" (DÉFAUT, l'image) : les 21 champs d'en-tête d'Arc (HEADER_FIELDS) sont EXIGÉS et LIÉS au hash :
- *    keccak256(RLP(en-tête)) = hash, sinon violation « header » ;
- *  - "shape" (TESTS SEULEMENT, ou chaîne d'un autre format) : la forme seule (v2.1 ter) : 12 champs exigés, les autres
- *    contrôlés s'ils sont là, contenu NON lié au hash (un RPC menteur peut alors changer l'horodatage du bloc N sans
- *    changer son hash : preuve r3-1a).
+ * v2.1 quater: the header contract of the blocks the fork's RPC returns.
+ *  - "arc" (the DEFAULT, the image's): the 21 Arc header fields (HEADER_FIELDS) are REQUIRED and BOUND to the hash:
+ *    keccak256(RLP(header)) = hash, otherwise a "header" violation;
+ *  - "shape" (TESTS ONLY, or a chain with another format): the shape alone (v2.1 ter): 12 fields required, the others
+ *    checked if present, content NOT bound to the hash (a lying RPC can then change the timestamp of block N without
+ *    changing its hash: proof r3-1a).
  */
 export type HeaderPolicy = "arc" | "shape";
 
 type FieldKind = "b32" | "addr" | "bloom" | "qty" | "bytes" | "nonce8";
-/** Les 21 champs d'en-tête d'Arc, dans l'ordre du protocole (Londres → Prague) : celui de l'RLP du hash du bloc (relevé du
- *  9/11 : le RPC d'Arc testnet les rend toujours ; anvil 1.5.1 aussi). */
+/** The 21 Arc header fields, in protocol order (London → Prague): the order of the RLP behind the block hash (recorded
+ *  on 9 Nov: Arc testnet's RPC always returns them; so does anvil 1.5.1). */
 const HEADER_FIELDS: ReadonlyArray<readonly [string, FieldKind]> = [
   ["parentHash", "b32"], ["sha3Uncles", "b32"], ["miner", "addr"], ["stateRoot", "b32"], ["transactionsRoot", "b32"],
   ["receiptsRoot", "b32"], ["logsBloom", "bloom"], ["difficulty", "qty"], ["number", "qty"], ["gasLimit", "qty"],
@@ -149,8 +152,8 @@ const KIND_OK: Record<FieldKind, (v: unknown) => boolean> = {
   bytes: isEvenHex,
   nonce8: (v) => typeof v === "string" && NONCE8.test(v),
 };
-/** Forme de chaque champ connu d'un bloc : les 21 champs d'en-tête, le hash, et les champs hors en-tête (non liés au hash ;
- *  le moteur ne s'en sert pas pour exécuter). Tout champ connu PRÉSENT est contrôlé, quelle que soit la politique. */
+/** The shape of each known field of a block: the 21 header fields, the hash, and the fields outside the header (not bound
+ *  to the hash; the engine does not use them to execute). Every known field that is PRESENT is checked, whatever the policy. */
 const BLOCK_FIELDS: Record<string, (v: unknown) => boolean> = {
   ...Object.fromEntries(HEADER_FIELDS.map(([k, kind]) => [k, KIND_OK[kind]])),
   hash: isB32,
@@ -159,55 +162,55 @@ const BLOCK_FIELDS: Record<string, (v: unknown) => boolean> = {
   uncles: (v) => Array.isArray(v) && v.every(isB32),
   withdrawals: (v) => Array.isArray(v) && v.every(isPlainObject),
 };
-/** Champs EXIGÉS selon la politique (« shape » : ceux de la v2.1 ter ; « arc » : les 21 champs d'en-tête et le hash). */
+/** REQUIRED fields per policy ("shape": those of v2.1 ter; "arc": the 21 header fields and the hash). */
 const REQUIRED: Record<HeaderPolicy, readonly string[]> = {
   arc: [...HEADER_FIELDS.map(([k]) => k), "hash"],
   shape: ["number", "hash", "parentHash", "timestamp", "gasLimit", "gasUsed", "miner", "stateRoot", "transactionsRoot", "receiptsRoot", "logsBloom", "extraData"],
 };
 
-/** Une quantité JSON-RPC en entier RLP : octets big-endian minimaux, zéro = chaîne vide. */
+/** A JSON-RPC quantity as an RLP integer: minimal big-endian bytes, zero = the empty string. */
 function rlpQuantity(q: string): Hex {
   const h = BigInt(q).toString(16);
   return h === "0" ? "0x" : (`0x${h.length % 2 ? "0" : ""}${h}` as Hex);
 }
 
 /**
- * v2.1 quater : keccak256(RLP(en-tête)) : les 21 champs d'en-tête d'Arc dans l'ordre du protocole (HEADER_FIELDS), les
- * quantités en entiers minimaux, les autres champs en octets bruts. C'est le hash du bloc (VÉRIFIÉ le 9/11 sur des blocs
- * réels d'Arc testnet et sur anvil 1.5.1). Le bloc doit avoir la forme de la politique « arc » (checkBlockShape).
+ * v2.1 quater: keccak256(RLP(header)): the 21 Arc header fields in protocol order (HEADER_FIELDS), quantities as minimal
+ * integers, the other fields as raw bytes. This is the block hash (CHECKED on 9 Nov on real Arc testnet blocks and on
+ * anvil 1.5.1). The block must have the shape of the "arc" policy (checkBlockShape).
  */
 export function blockHeaderHash(b: Record<string, unknown>): Hex {
   return keccak256(toRlp(HEADER_FIELDS.map(([k, kind]) => (kind === "qty" ? rlpQuantity(b[k] as string) : (b[k] as Hex)))));
 }
 
 /**
- * Contrôle un bloc rendu par le RPC du fork (`full` : transactions complètes ou hashes) selon la politique d'en-tête
- * (défaut « arc » : 21 champs exigés, en-tête lié au hash). Lève RelayViolation (« null_block », « shape », « header »).
+ * Checks a block returned by the fork's RPC (`full`: full transactions or hashes) under the header policy (default
+ * "arc": 21 fields required, the header bound to the hash). Throws RelayViolation ("null_block", "shape", "header").
  */
 export function checkBlockShape(method: string, b: unknown, full: boolean, policy: HeaderPolicy = "arc"): { number: bigint; hash: string; parentHash: string; stateRoot: string } {
-  if (b === null) throw new RelayViolation("null_block", method, "bloc absent (null) au lieu d'un bloc ≤ N : rien n'est signé");
-  if (!isPlainObject(b)) throw new RelayViolation("shape", method, "bloc : objet attendu");
+  if (b === null) throw new RelayViolation("null_block", method, "block missing (null) instead of a block ≤ N: nothing is signed");
+  if (!isPlainObject(b)) throw new RelayViolation("shape", method, "block: object expected");
   for (const k of REQUIRED[policy]) {
-    if (b[k] === undefined) throw new RelayViolation("shape", method, `bloc : champ ${k} absent`);
+    if (b[k] === undefined) throw new RelayViolation("shape", method, `block: field ${k} missing`);
   }
   for (const [k, ok] of Object.entries(BLOCK_FIELDS)) {
-    if (b[k] !== undefined && !ok(b[k])) throw new RelayViolation("shape", method, `bloc : champ ${k} mal formé`);
+    if (b[k] !== undefined && !ok(b[k])) throw new RelayViolation("shape", method, `block: field ${k} malformed`);
   }
   const txs = b.transactions;
-  if (!Array.isArray(txs)) throw new RelayViolation("shape", method, "bloc : transactions (tableau) attendu");
+  if (!Array.isArray(txs)) throw new RelayViolation("shape", method, "block: transactions (array) expected");
   for (const t of txs) {
     const ok = full ? isPlainObject(t) && isB32(t.hash) : isB32(t);
-    if (!ok) throw new RelayViolation("shape", method, `bloc : transactions ${full ? "complètes (objets avec hash)" : "(hashes de 32 octets)"} attendues`);
+    if (!ok) throw new RelayViolation("shape", method, `block: ${full ? "full transactions (objects with a hash)" : "transactions (32-byte hashes)"} expected`);
   }
   const hash = (b.hash as string).toLowerCase();
-  // v2.1 quater : le CONTENU de l'en-tête est lié à son hash (et, par l'ancre et les parentHash, à la vraie chaîne)
+  // v2.1 quater: the CONTENT of the header is bound to its hash (and, through the anchor and the parentHash values, to the real chain)
   if (policy === "arc" && blockHeaderHash(b) !== hash) {
-    throw new RelayViolation("header", method, "bloc : l'en-tête ne redonne pas son hash (keccak256(RLP(en-tête)) ≠ hash) : rien n'est signé");
+    throw new RelayViolation("header", method, "block: the header does not give back its hash (keccak256(RLP(header)) ≠ hash): nothing is signed");
   }
   return { number: BigInt(b.number as string), hash, parentHash: (b.parentHash as string).toLowerCase(), stateRoot: (b.stateRoot as string).toLowerCase() };
 }
 
-/** v2.1 quater : forme canonique d'une valeur JSON (hexadécimal en minuscules, clés triées) et son empreinte. */
+/** v2.1 quater: the canonical form of a JSON value (lower-case hexadecimal, sorted keys) and its fingerprint. */
 function canonical(v: unknown): unknown {
   if (typeof v === "string") return v.toLowerCase();
   if (Array.isArray(v)) return v.map(canonical);
@@ -217,9 +220,9 @@ function canonical(v: unknown): unknown {
 const fingerprint = (v: unknown): string => createHash("sha256").update(JSON.stringify(canonical(v))).digest("hex");
 
 /**
- * v2.1 quater : lit le corps d'une réponse HTTP EN FLUX, au plus `maxBytes` octets ; au-delà (ou si Content-Length l'annonce),
- * la lecture est coupée (le corps est annulé, la connexion fermée) et rend undefined. Décodage UTF-8 comme Response.text().
- * Les erreurs de lecture (délai du signal, connexion coupée) remontent telles quelles.
+ * v2.1 quater: reads the body of an HTTP answer AS A STREAM, at most `maxBytes` bytes; beyond it (or if Content-Length
+ * announces it), the read is cut (the body is cancelled, the connection closed) and it returns undefined. UTF-8
+ * decoding as in Response.text(). Read errors (the signal's timeout, a cut connection) propagate as they are.
  */
 export async function readBodyBounded(res: Response, maxBytes: number): Promise<string | undefined> {
   const declared = Number(res.headers.get("content-length") ?? Number.NaN);
@@ -244,59 +247,59 @@ export async function readBodyBounded(res: Response, maxBytes: number): Promise<
   return new TextDecoder().decode(Buffer.concat(chunks, size));
 }
 
-// ---------- le relais ----------
+// ---------- the relay ----------
 
 export interface StrictRelayOptions {
-  /** RPC du fork (FORK_RPC_URL). */
+  /** The fork's RPC (FORK_RPC_URL). */
   upstream: string;
-  /** Bloc N du rejeu : tout l'état est lu à ce bloc ; aucun bloc au-delà. */
+  /** Block N of the replay: all the state is read at this block; no block beyond it. */
   blockN: bigint;
-  /** Hash attendu du bloc N (ancre). Absent : épinglé à la première lecture du bloc N. */
+  /** The expected hash of block N (the anchor). When absent: pinned at the first read of block N. */
   anchorHash?: Hex;
-  /** Budget de requêtes au RPC du fork (défaut DEFAULT_MAX_FORK_REQUESTS). */
+  /** Request budget for the fork's RPC (default DEFAULT_MAX_FORK_REQUESTS). */
   maxRequests?: number;
-  /** Délai d'une requête au RPC du fork (défaut RELAY_TIMEOUT_MS). */
+  /** Timeout of a request to the fork's RPC (default RELAY_TIMEOUT_MS). */
   timeoutMs?: number;
-  /** Après la première violation, refuser toute requête sans la transmettre (rejeu : vrai ; contrôle de démarrage : faux,
-   *  ses points sont indépendants). */
+  /** After the first violation, refuse every request without forwarding it (replay: true; start-up check: false, its
+   *  points are independent). */
   failFast?: boolean;
-  /** TESTS SEULEMENT : false = relais transparent (aucun contrôle de forme ni de chaîne, budget compris), pour montrer ce
-   *  que le relais empêche (le contrôle de démarrage doit alors refuser le moteur). */
+  /** TESTS ONLY: false = a transparent relay (no check of shape or chain, budget included), to show what the relay
+   *  prevents (the start-up check must then refuse the engine). */
   checks?: boolean;
-  /** v2.1 quater : contrat d'en-tête des blocs (défaut « arc » : 21 champs exigés, en-tête lié au hash ; « shape » : tests à
-   *  blocs synthétiques seulement). */
+  /** v2.1 quater: the header contract of the blocks (default "arc": 21 fields required, the header bound to the hash;
+   *  "shape": tests with synthetic blocks only). */
   headerPolicy?: HeaderPolicy;
-  /** v2.1 quater : taille maximale d'une réponse du RPC du fork, en octets (défaut MAX_RESPONSE_BYTES). */
+  /** v2.1 quater: the maximum size of an answer of the fork's RPC, in bytes (default MAX_RESPONSE_BYTES). */
   maxResponseBytes?: number;
-  /** 10/11 : PREUVES D'ÉTAT. Présent : chaque lecture d'état au bloc N est prouvée (eth_getProof vérifié contre le stateRoot
-   *  de l'en-tête N ancré) ; `upstream` = RPC des preuves (défaut : le RPC du fork). Exige la politique d'en-tête « arc ». */
+  /** 10 Nov: STATE PROOFS. When present, each state read at block N is proven (eth_getProof checked against the stateRoot
+   *  of the anchored header N); `upstream` = the proof RPC (default: the fork's RPC). Requires the "arc" header policy. */
   stateProofs?: { upstream?: string };
-  /** 11/11 : chainId attendu du rejeu. Présent : le relais EXIGE que `eth_chainId` du RPC du fork vaille exactement
-   *  cette valeur (sinon violation « chain », rien n'est signé) ; sans ça, un RPC menteur fixerait CHAINID du rejeu. */
+  /** 11 Nov: the replay's expected chainId. When present, the relay REQUIRES `eth_chainId` of the fork's RPC to be exactly
+   *  this value (otherwise a "chain" violation, nothing is signed); without it, a lying RPC would set the replay's CHAINID. */
   expectedChainId?: number;
 }
 
 export interface StrictRelay {
-  /** URL à donner au moteur (--fork-url). */
+  /** The URL to give the engine (--fork-url). */
   readonly url: string;
-  /** Requêtes faites au RPC du fork (budget). */
+  /** Requests made to the fork's RPC (budget). */
   readonly requests: number;
-  /** Première violation (verrou), ou undefined. */
+  /** The first violation (the lock), or undefined. */
   readonly violation: RelayViolation | undefined;
-  /** Toutes les violations (bornées). */
+  /** All the violations (bounded). */
   readonly violations: readonly RelayViolation[];
-  /** Échecs passagers du RPC du fork rendus au moteur (non mémorisés comme violation). */
+  /** Passing failures of the fork's RPC returned to the engine (not remembered as violations). */
   readonly upstreamFailures: number;
-  /** Le hash du bloc N rendu par le RPC du fork, contrôlé (forme, ancre) ; lève RelayViolation ou UpstreamFailure. */
+  /** The hash of block N returned by the fork's RPC, checked (shape, anchor); throws RelayViolation or UpstreamFailure. */
   anchor(): Promise<string>;
-  /** Un appel du relais lui-même (mêmes contrôles que pour le moteur) ; lève RelayViolation ou UpstreamFailure. */
+  /** A call by the relay itself (the same checks as for the engine); throws RelayViolation or UpstreamFailure. */
   call(method: string, params: unknown[]): Promise<unknown>;
   close(): Promise<void>;
 }
 
 const MAX_KEPT_VIOLATIONS = 32;
 
-/** Réponse d'un élément au moteur : une enveloppe JSON-RPC, ou un statut HTTP à rendre tel quel (échec passager). */
+/** The answer of one item to the engine: a JSON-RPC envelope, or an HTTP status to return as it is (a passing failure). */
 type Answer = { rpc: unknown } | { http: number };
 
 class Relay implements StrictRelay {
@@ -310,17 +313,17 @@ class Relay implements StrictRelay {
   private readonly checks: boolean;
   private readonly policy: HeaderPolicy;
   private readonly maxResponseBytes: number;
-  /** Hashes de blocs rattachés à l'ancre (minuscules), de `lowest` à N sans trou. */
+  /** Block hashes tied to the anchor (lower case), from `lowest` to N without a gap. */
   private hashes = new Map<bigint, string>();
   private lowest: bigint;
-  /** En-têtes déjà lus et contrôlés (par le moteur ou par le relais). */
+  /** Headers already read and checked (by the engine or by the relay). */
   private headers = new Map<bigint, Promise<{ hash: string; parentHash: string; stateRoot: string }>>();
-  /** 10/11 : comptes, cases et codes PROUVÉS au bloc N (clé : adresse en minuscules ; adresse:case sur 32 octets). */
+  /** 10 Nov: accounts, slots and codes PROVEN at block N (key: lower-case address; address:slot on 32 bytes). */
   private provedAccounts = new Map<string, Promise<ProvedAccount>>();
   private provedSlots = new Map<string, Promise<bigint>>();
   private provedCodes = new Map<string, Promise<Hex>>();
   private rootN: Promise<Hex> | undefined;
-  /** v2.1 quater : empreinte de la première réponse valide de chaque lecture (clé canonique) ; bornée par le budget. */
+  /** v2.1 quater: the fingerprint of the first valid answer of each read (canonical key); bounded by the budget. */
   private memo = new Map<string, string>();
 
   constructor(private o: StrictRelayOptions) {
@@ -330,10 +333,10 @@ class Relay implements StrictRelay {
     this.maxResponseBytes = o.maxResponseBytes ?? MAX_RESPONSE_BYTES;
     this.lowest = o.blockN;
     if (o.anchorHash !== undefined) this.hashes.set(o.blockN, o.anchorHash.toLowerCase());
-    // une preuve d'état ne vaut que contre un stateRoot LIÉ au hash du bloc : politique « arc » exigée
-    if (o.stateProofs && this.policy !== "arc") throw new Error("relais strict : les preuves d'état exigent la politique d'en-tête « arc »");
-    // sans ancre, un RPC menteur fabriquerait l'en-tête N ET des preuves cohérentes avec lui : l'ancre est exigée
-    if (o.stateProofs && o.anchorHash === undefined) throw new Error("relais strict : les preuves d'état exigent l'ancre (hash du bloc N vérifié)");
+    // a state proof is worth something only against a stateRoot BOUND to the block hash: the "arc" policy is required
+    if (o.stateProofs && this.policy !== "arc") throw new Error("strict relay: state proofs require the \"arc\" header policy");
+    // without an anchor, a lying RPC would forge header N AND proofs consistent with it: the anchor is required
+    if (o.stateProofs && o.anchorHash === undefined) throw new Error("strict relay: state proofs require the anchor (the verified hash of block N)");
   }
 
   get violation(): RelayViolation | undefined {
@@ -360,22 +363,22 @@ class Relay implements StrictRelay {
         if (size > MAX_REQUEST_BYTES) tooBig = true;
         else chunks.push(d);
       });
-      rs.on("error", () => undefined); // moteur arrêté pendant une requête : rien à lui répondre
+      rs.on("error", () => undefined); // the engine stopped during a request: nothing to answer it
       rq.on("end", () => {
         void this.respond(tooBig ? undefined : Buffer.concat(chunks).toString("utf8")).then(
           (out) => {
             if (rs.destroyed || rs.writableEnded) return;
             if ("http" in out) {
-              // échec passager du RPC du fork : le même statut, comme si le moteur lui parlait (il réessaie ou échoue)
+              // a passing failure of the fork's RPC: the same status, as if the engine were talking to it (it retries or fails)
               rs.writeHead(out.http, { "content-type": "text/plain" });
-              rs.end("relais strict : échec passager du RPC du fork");
+              rs.end("strict relay: passing failure of the fork's RPC");
             } else {
               rs.writeHead(200, { "content-type": "application/json" });
               rs.end(out.json);
             }
           },
           () => {
-            this.violate(new RelayViolation("internal", "?", "exception inattendue dans le relais"));
+            this.violate(new RelayViolation("internal", "?", "unexpected exception in the relay"));
             if (rs.destroyed || rs.writableEnded) return;
             rs.writeHead(500);
             rs.end();
@@ -400,7 +403,7 @@ class Relay implements StrictRelay {
     });
   }
 
-  /** Une requête (ou un lot) du moteur → la réponse (JSON, ou statut HTTP d'un échec passager à rendre tel quel). */
+  /** A request (or a batch) from the engine → the answer (JSON, or the HTTP status of a passing failure to return as it is). */
   private async respond(body: string | undefined): Promise<{ json: string } | { http: number }> {
     let j: unknown;
     try {
@@ -408,12 +411,12 @@ class Relay implements StrictRelay {
       j = JSON.parse(body);
     } catch (e) {
       if (!(e instanceof SyntaxError)) throw e;
-      this.violate(new RelayViolation("params", "?", "requête du moteur illisible"));
-      return { json: JSON.stringify({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "relais strict : requête illisible" } }) };
+      this.violate(new RelayViolation("params", "?", "unreadable request from the engine"));
+      return { json: JSON.stringify({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "strict relay: unreadable request" } }) };
     }
     const answers = Array.isArray(j) ? await Promise.all(j.map((q) => this.one(q))) : [await this.one(j)];
     const failed = answers.find((a): a is { http: number } => "http" in a);
-    if (failed) return failed; // un lot : comme le RPC du fork, un seul statut pour toute la réponse
+    if (failed) return failed; // a batch: like the fork's RPC, one status for the whole answer
     const rpc = answers.map((a) => (a as { rpc: unknown }).rpc);
     return { json: JSON.stringify(Array.isArray(j) ? rpc : rpc[0]) };
   }
@@ -424,28 +427,28 @@ class Relay implements StrictRelay {
     const refused = (kind: string) => ({ rpc: { jsonrpc: "2.0", id, error: { code: RELAY_ERROR_CODE, message: `relais strict : ${kind}` } } });
     try {
       if (!isPlainObject(q) || method === "?" || (q.params !== undefined && !Array.isArray(q.params))) {
-        throw this.violate(new RelayViolation("params", method, "requête JSON-RPC du moteur mal formée"));
+        throw this.violate(new RelayViolation("params", method, "malformed JSON-RPC request from the engine"));
       }
-      if (this.o.failFast && this.violation) return refused(`rejeu déjà en échec (${this.violation.kind})`); // plus rien n'est transmis
+      if (this.o.failFast && this.violation) return refused(`replay already failed (${this.violation.kind})`); // nothing is forwarded any more
       return { rpc: { jsonrpc: "2.0", id, result: await this.call(method, (q.params as unknown[] | undefined) ?? []) } };
     } catch (e) {
       if (e instanceof UpstreamFailure) {
         this.upstreamFailures++;
         return "http" in e.failure ? { http: e.failure.http } : { rpc: { jsonrpc: "2.0", id, error: e.failure.rpcError } };
       }
-      const v = e instanceof RelayViolation ? e : this.violate(new RelayViolation("internal", method, "exception inattendue dans le relais"));
-      return refused(`réponse refusée (${v.kind})`);
+      const v = e instanceof RelayViolation ? e : this.violate(new RelayViolation("internal", method, "unexpected exception in the relay"));
+      return refused(`answer refused (${v.kind})`);
     }
   }
 
   /**
-   * Une requête au RPC du fork. Échec passager (HTTP ≠ 200, redirection, réseau, délai, corps illisible ou trop gros, erreur
-   * JSON-RPC) : UpstreamFailure (rendu tel quel au moteur, non mémorisé). Enveloppe invalide (version, id, result ET error) :
-   * violation mémorisée.
+   * A request to the fork's RPC. A passing failure (HTTP ≠ 200, a redirect, network, timeout, an unreadable or too large
+   * body, a JSON-RPC error): UpstreamFailure (returned as it is to the engine, not remembered). An invalid envelope
+   * (version, id, result AND error): a remembered violation.
    */
   private async upstream(method: string, params: unknown[], url: string = this.o.upstream): Promise<unknown> {
     if (this.checks && this.requests >= this.max) {
-      throw this.violate(new RelayViolation("budget", method, `plus de ${this.max} requêtes au RPC du fork pour ce rejeu : rien n'est signé`));
+      throw this.violate(new RelayViolation("budget", method, `more than ${this.max} requests to the fork's RPC for this replay: nothing is signed`));
     }
     this.requests++;
     const id = ++this.seq;
@@ -453,7 +456,7 @@ class Relay implements StrictRelay {
     try {
       const res = await fetch(url, {
         method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id, method, params }),
-        // v2.1 quater : une redirection n'est JAMAIS suivie (fetch lève) : le corps ne part jamais vers un autre hôte
+        // v2.1 quater: a redirect is NEVER followed (fetch throws): the body never goes to another host
         redirect: "error",
         signal: AbortSignal.timeout(this.o.timeoutMs ?? RELAY_TIMEOUT_MS),
       });
@@ -461,59 +464,59 @@ class Relay implements StrictRelay {
         await res.body?.cancel().catch(() => undefined);
         throw new UpstreamFailure(method, { http: res.status >= 400 && res.status <= 599 ? res.status : 502 });
       }
-      // v2.1 quater : lue en flux, coupée au-delà de la borne (jamais une réponse géante en mémoire)
+      // v2.1 quater: read as a stream, cut beyond the bound (never a giant answer in memory)
       text = await readBodyBounded(res, this.maxResponseBytes);
     } catch (e) {
       if (e instanceof UpstreamFailure) throw e;
-      throw new UpstreamFailure(method, { http: 502 }); // réseau, redirection, connexion coupée, délai
+      throw new UpstreamFailure(method, { http: 502 }); // network, redirect, cut connection, timeout
     }
-    if (text === undefined) throw new UpstreamFailure(method, { http: 502 }); // au-delà de la borne : lecture coupée
+    if (text === undefined) throw new UpstreamFailure(method, { http: 502 }); // beyond the bound: the read is cut
     let j: unknown;
     try {
       j = JSON.parse(text);
     } catch (e) {
       if (!(e instanceof SyntaxError)) throw e;
-      throw new UpstreamFailure(method, { http: 502 }); // corps tronqué ou illisible : ce n'est pas une valeur
+      throw new UpstreamFailure(method, { http: 502 }); // a truncated or unreadable body: it is not a value
     }
     const rpcError = (x: Record<string, unknown>) => {
       const err = x.error;
       return isPlainObject(err) && typeof err.code === "number" && typeof err.message === "string"
-        ? { code: err.code, message: err.message.slice(0, 200) } : { code: RELAY_ERROR_CODE, message: "erreur du RPC du fork" };
+        ? { code: err.code, message: err.message.slice(0, 200) } : { code: RELAY_ERROR_CODE, message: "fork RPC error" };
     };
     if (!this.checks) {
       if (isPlainObject(j) && j.error !== undefined) throw new UpstreamFailure(method, { rpcError: rpcError(j) });
       return isPlainObject(j) ? j.result : undefined;
     }
     if (!isPlainObject(j) || j.jsonrpc !== "2.0" || j.id !== id || ("result" in j) === ("error" in j)) {
-      throw this.violate(new RelayViolation("envelope", method, "réponse du RPC du fork : enveloppe JSON-RPC invalide (version, id, result/error)"));
+      throw this.violate(new RelayViolation("envelope", method, "fork RPC answer: invalid JSON-RPC envelope (version, id, result/error)"));
     }
     if ("error" in j) throw new UpstreamFailure(method, { rpcError: rpcError(j) });
     return j.result;
   }
 
-  /** Étiquette de bloc d'une lecture d'état : N en hexadécimal, rien d'autre. */
+  /** The block tag of a state read: N in hexadecimal, nothing else. */
   private atN(method: string, tag: unknown): void {
     if (!isQty(tag) || BigInt(tag) !== this.o.blockN) {
-      throw this.violate(new RelayViolation("params", method, "lecture d'état à un autre bloc que N (ou étiquette non numérique)"));
+      throw this.violate(new RelayViolation("params", method, "state read at a block other than N (or a non-numeric tag)"));
     }
   }
 
   private arity(method: string, params: unknown[], n: number): void {
-    if (params.length !== n) throw this.violate(new RelayViolation("params", method, `${n} paramètre(s) attendu(s)`));
+    if (params.length !== n) throw this.violate(new RelayViolation("params", method, `${n} parameter(s) expected`));
   }
 
   private shape(method: string, ok: boolean, what: string): void {
-    if (!ok) throw this.violate(new RelayViolation("shape", method, `résultat mal formé : ${what} attendu`));
+    if (!ok) throw this.violate(new RelayViolation("shape", method, `malformed result: ${what} expected`));
   }
 
-  /** v2.1 quater : la même lecture (clé canonique) rend la même valeur dans tout le rejeu (état au bloc N, blocs ≤ N et
-   *  chainId sont immuables) ; sinon violation « inconsistent ». Seule l'empreinte de la valeur est gardée. */
+  /** v2.1 quater: the same read (canonical key) returns the same value throughout the replay (the state at block N, the
+   *  blocks ≤ N and the chainId are immutable); otherwise an "inconsistent" violation. Only the value's fingerprint is kept. */
   private same(method: string, key: string, value: unknown): void {
     const f = fingerprint(value);
     const prev = this.memo.get(key);
     if (prev === undefined) this.memo.set(key, f);
     else if (prev !== f) {
-      throw this.violate(new RelayViolation("inconsistent", method, "le RPC du fork a rendu deux valeurs différentes pour la même lecture : rien n'est signé"));
+      throw this.violate(new RelayViolation("inconsistent", method, "the fork's RPC returned two different values for the same read: nothing is signed"));
     }
   }
 
@@ -524,11 +527,11 @@ class Relay implements StrictRelay {
       case "eth_gasPrice": {
         this.arity(method, params, 0);
         const r = await this.upstream(method, params);
-        this.shape(method, isQty(r), "une quantité hexadécimale canonique");
+        this.shape(method, isQty(r), "a canonical hexadecimal quantity");
         if (method === "eth_chainId") {
-          this.same(method, "chainId", r); // eth_gasPrice change avec le temps : pas de mémoire
+          this.same(method, "chainId", r); // eth_gasPrice changes over time: no memory
           if (this.o.expectedChainId !== undefined && BigInt(r as string) !== BigInt(this.o.expectedChainId)) {
-            throw this.violate(new RelayViolation("chain", method, "le RPC du fork annonce un autre chainId que celui attendu : rien n'est signé"));
+            throw this.violate(new RelayViolation("chain", method, "the fork's RPC announces another chainId than the expected one: nothing is signed"));
           }
         }
         return r;
@@ -536,19 +539,19 @@ class Relay implements StrictRelay {
       case "eth_blockNumber": {
         this.arity(method, params, 0);
         const r = await this.upstream(method, params);
-        this.shape(method, isQty(r), "une quantité hexadécimale canonique");
-        if (BigInt(r as string) < this.o.blockN) throw this.violate(new RelayViolation("shape", method, "tête du RPC du fork avant le bloc N"));
+        this.shape(method, isQty(r), "a canonical hexadecimal quantity");
+        if (BigInt(r as string) < this.o.blockN) throw this.violate(new RelayViolation("shape", method, "the fork RPC's head is before block N"));
         return r;
       }
       case "eth_getBlockByNumber": {
         this.arity(method, params, 2);
         const [tag, full] = params;
-        if (!isQty(tag) || typeof full !== "boolean") throw this.violate(new RelayViolation("params", method, "numéro de bloc (hexadécimal) et booléen attendus"));
+        if (!isQty(tag) || typeof full !== "boolean") throw this.violate(new RelayViolation("params", method, "block number (hexadecimal) and boolean expected"));
         const n = BigInt(tag);
-        if (n > this.o.blockN) throw this.violate(new RelayViolation("params", method, "bloc au-delà de N demandé"));
+        if (n > this.o.blockN) throw this.violate(new RelayViolation("params", method, "a block beyond N requested"));
         const r = await this.upstream(method, params);
         const b = this.block(method, r, full);
-        if (b.number !== n) throw this.violate(new RelayViolation("shape", method, "bloc rendu : numéro différent de celui demandé"));
+        if (b.number !== n) throw this.violate(new RelayViolation("shape", method, "returned block: number differs from the one requested"));
         await this.onChain(method, b);
         this.same(method, `block:${b.number}:${full}`, r);
         return r;
@@ -556,37 +559,37 @@ class Relay implements StrictRelay {
       case "eth_getBlockByHash": {
         this.arity(method, params, 2);
         const [hash, full] = params;
-        if (!isB32(hash) || typeof full !== "boolean") throw this.violate(new RelayViolation("params", method, "hash de bloc et booléen attendus"));
+        if (!isB32(hash) || typeof full !== "boolean") throw this.violate(new RelayViolation("params", method, "block hash and boolean expected"));
         const r = await this.upstream(method, params);
         const b = this.block(method, r, full);
-        if (b.hash !== hash.toLowerCase()) throw this.violate(new RelayViolation("shape", method, "bloc rendu : hash différent de celui demandé"));
-        if (b.number > this.o.blockN) throw this.violate(new RelayViolation("params", method, "bloc au-delà de N"));
+        if (b.hash !== hash.toLowerCase()) throw this.violate(new RelayViolation("shape", method, "returned block: hash differs from the one requested"));
+        if (b.number > this.o.blockN) throw this.violate(new RelayViolation("params", method, "a block beyond N"));
         await this.onChain(method, b);
-        this.same(method, `block:${b.number}:${full}`, r); // même clé que par numéro : les deux lectures sont recoupées
+        this.same(method, `block:${b.number}:${full}`, r); // the same key as by number: the two reads are cross-checked
         return r;
       }
       case "eth_getStorageAt": {
         this.arity(method, params, 3);
         if (!isAddr(params[0]) || typeof params[1] !== "string" || !SLOT.test(params[1])) {
-          throw this.violate(new RelayViolation("params", method, "adresse et case (≤ 32 octets) attendues"));
+          throw this.violate(new RelayViolation("params", method, "address and slot (≤ 32 bytes) expected"));
         }
         this.atN(method, params[2]);
         if (this.o.stateProofs) {
-          // 10/11 : la valeur rendue au moteur est celle que PROUVE l'arbre au bloc N (pas celle qu'annonce un RPC)
+          // 10 Nov: the value returned to the engine is the one the trie PROVES at block N (not the one an RPC announces)
           const v = await this.provedSlot(method, params[0], params[1]);
           const r = `0x${v.toString(16).padStart(64, "0")}`;
           this.same(method, `storage:${params[0].toLowerCase()}:${BigInt(params[1]).toString(16)}`, r);
           return r;
         }
         const r = await this.upstream(method, params);
-        this.shape(method, isB32(r), "32 octets hexadécimaux");
+        this.shape(method, isB32(r), "32 hexadecimal bytes");
         this.same(method, `storage:${params[0].toLowerCase()}:${BigInt(params[1]).toString(16)}`, r);
         return r;
       }
       case "eth_getBalance":
       case "eth_getTransactionCount": {
         this.arity(method, params, 2);
-        if (!isAddr(params[0])) throw this.violate(new RelayViolation("params", method, "adresse attendue"));
+        if (!isAddr(params[0])) throw this.violate(new RelayViolation("params", method, "address expected"));
         this.atN(method, params[1]);
         if (this.o.stateProofs) {
           const a = await this.provedAccount(method, params[0]);
@@ -595,13 +598,13 @@ class Relay implements StrictRelay {
           return r;
         }
         const r = await this.upstream(method, params);
-        this.shape(method, isQty(r), "une quantité hexadécimale canonique");
+        this.shape(method, isQty(r), "a canonical hexadecimal quantity");
         this.same(method, `${method === "eth_getBalance" ? "balance" : "nonce"}:${params[0].toLowerCase()}`, r);
         return r;
       }
       case "eth_getCode": {
         this.arity(method, params, 2);
-        if (!isAddr(params[0])) throw this.violate(new RelayViolation("params", method, "adresse attendue"));
+        if (!isAddr(params[0])) throw this.violate(new RelayViolation("params", method, "address expected"));
         this.atN(method, params[1]);
         if (this.o.stateProofs) {
           const r = await this.provedCode(method, params[0]);
@@ -609,13 +612,13 @@ class Relay implements StrictRelay {
           return r;
         }
         const r = await this.upstream(method, params);
-        this.shape(method, isEvenHex(r), "de l'hexadécimal pair");
+        this.shape(method, isEvenHex(r), "even-length hexadecimal");
         this.same(method, `code:${params[0].toLowerCase()}`, r);
         return r;
       }
       case "eth_getAccountInfo": {
         this.arity(method, params, 2);
-        if (!isAddr(params[0])) throw this.violate(new RelayViolation("params", method, "adresse attendue"));
+        if (!isAddr(params[0])) throw this.violate(new RelayViolation("params", method, "address expected"));
         this.atN(method, params[1]);
         if (this.o.stateProofs) {
           const a0 = params[0].toLowerCase();
@@ -628,7 +631,7 @@ class Relay implements StrictRelay {
         }
         const r = await this.upstream(method, params);
         this.shape(method, isPlainObject(r) && isQty(r.balance) && isQty(r.nonce) && isEvenHex(r.code), "{ balance, nonce, code }");
-        // recoupé avec eth_getBalance, eth_getTransactionCount et eth_getCode du même compte
+        // cross-checked with eth_getBalance, eth_getTransactionCount and eth_getCode of the same account
         const a = params[0].toLowerCase();
         const info = r as { balance: string; nonce: string; code: string };
         this.same(method, `balance:${a}`, info.balance);
@@ -638,15 +641,15 @@ class Relay implements StrictRelay {
       }
       case "eth_getTransactionReceipt":
       case "eth_getTransactionByHash": {
-        // le moteur ne demande que les transactions du fork, inconnues du RPC du fork : null exigé
+        // the engine asks only for the fork's transactions, unknown to the fork's RPC: null required
         this.arity(method, params, 1);
-        if (!isB32(params[0])) throw this.violate(new RelayViolation("params", method, "hash de transaction attendu"));
+        if (!isB32(params[0])) throw this.violate(new RelayViolation("params", method, "transaction hash expected"));
         const r = await this.upstream(method, params);
-        this.shape(method, r === null, "null (transaction du fork inconnue du RPC du fork)");
+        this.shape(method, r === null, "null (a fork transaction unknown to the fork's RPC)");
         return r;
       }
       default:
-        throw this.violate(new RelayViolation("method", method, "méthode non prévue par le relais strict"));
+        throw this.violate(new RelayViolation("method", method, "method not provided for by the strict relay"));
     }
   }
 
@@ -659,7 +662,7 @@ class Relay implements StrictRelay {
     }
   }
 
-  /** En-tête du bloc h lu par le relais lui-même (forme, en-tête lié au hash, numéro), mémorisé. */
+  /** The header of block h read by the relay itself (shape, header bound to the hash, number), remembered. */
   private header(h: bigint): Promise<{ hash: string; parentHash: string; stateRoot: string }> {
     let p = this.headers.get(h);
     if (!p) {
@@ -667,8 +670,8 @@ class Relay implements StrictRelay {
         const method = "eth_getBlockByNumber";
         const r = await this.upstream(method, [`0x${h.toString(16)}`, false]);
         const b = this.block(method, r, false);
-        if (b.number !== h) throw this.violate(new RelayViolation("shape", method, "bloc rendu : numéro différent de celui demandé"));
-        this.same(method, `block:${h}:false`, r); // recoupé avec les lectures du même bloc par le moteur
+        if (b.number !== h) throw this.violate(new RelayViolation("shape", method, "returned block: number differs from the one requested"));
+        this.same(method, `block:${h}:false`, r); // cross-checked with the engine's reads of the same block
         return { hash: b.hash, parentHash: b.parentHash, stateRoot: b.stateRoot };
       })();
       this.headers.set(h, p);
@@ -677,35 +680,35 @@ class Relay implements StrictRelay {
     return p;
   }
 
-  /** Hash du bloc n rattaché à l'ancre (n ≤ N) : descend de proche en proche par les parentHash. */
+  /** The hash of block n tied to the anchor (n ≤ N): walks down step by step through the parentHash values. */
   private async anchored(method: string, n: bigint): Promise<string> {
     const N = this.o.blockN;
     if (!this.hashes.has(N)) {
-      const h = await this.header(N); // pas d'ancre : la première lecture du bloc N l'épingle
+      const h = await this.header(N); // no anchor: the first read of block N pins it
       if (!this.hashes.has(N)) this.hashes.set(N, h.hash);
     }
     while (this.lowest > n) {
       const h = this.lowest;
       const hdr = await this.header(h);
       const want = this.hashes.get(h)!;
-      if (hdr.hash !== want) throw this.violate(new RelayViolation("chain", method, "bloc qui ne se rattache pas au bloc N de la réclamation"));
+      if (hdr.hash !== want) throw this.violate(new RelayViolation("chain", method, "a block that is not tied to the claim's block N"));
       this.hashes.set(h - 1n, hdr.parentHash);
       if (this.lowest > h - 1n) this.lowest = h - 1n;
     }
     return this.hashes.get(n)!;
   }
 
-  /** Le bloc rendu est-il sur la chaîne de l'ancre ? (bloc N : l'ancre ; bloc n < N : chaîne des parentHash). */
+  /** Is the returned block on the anchor's chain? (block N: the anchor; block n < N: the chain of parentHash values). */
   private async onChain(method: string, b: { number: bigint; hash: string; parentHash: string; stateRoot: string }): Promise<void> {
-    if (b.number === this.o.blockN && !this.hashes.has(b.number)) this.hashes.set(b.number, b.hash); // épinglé (sans ancre)
+    if (b.number === this.o.blockN && !this.hashes.has(b.number)) this.hashes.set(b.number, b.hash); // pinned (without an anchor)
     const want = await this.anchored(method, b.number);
-    if (b.hash !== want) throw this.violate(new RelayViolation("chain", method, "hash de bloc différent de celui de la chaîne ancrée au bloc N"));
+    if (b.hash !== want) throw this.violate(new RelayViolation("chain", method, "a block hash that differs from the chain anchored at block N"));
     if (!this.headers.has(b.number)) this.headers.set(b.number, Promise.resolve({ hash: b.hash, parentHash: b.parentHash, stateRoot: b.stateRoot }));
   }
 
-  // ---------- 10/11 : preuves d'état ----------
+  // ---------- 10 Nov: state proofs ----------
 
-  /** stateRoot de l'en-tête N, après contrôle que l'en-tête N est celui de l'ancre (en-tête lié à son hash : politique « arc »). */
+  /** The stateRoot of header N, after checking that header N is the anchor's (header bound to its hash: "arc" policy). */
   private stateRootN(): Promise<Hex> {
     if (!this.rootN) {
       this.rootN = (async () => {
@@ -717,14 +720,14 @@ class Relay implements StrictRelay {
     return this.rootN;
   }
 
-  /** eth_getProof(adresse, cases, N) au RPC des preuves, VÉRIFIÉ contre le stateRoot de N ; une preuve fausse est une violation. */
+  /** eth_getProof(address, slots, N) from the proof RPC, CHECKED against the stateRoot of N; a false proof is a violation. */
   private async prove(method: string, address: string, slots: string[]) {
     const root = await this.stateRootN();
     const r = await this.upstream("eth_getProof", [address, slots.map(slotKey), `0x${this.o.blockN.toString(16)}`], this.o.stateProofs?.upstream ?? this.o.upstream);
     try {
       return checkProofResult(root, address as Hex, slots, r);
     } catch (e) {
-      if (e instanceof StateProofError) throw this.violate(new RelayViolation("state_proof", method, `${e.message} : rien n'est signé`));
+      if (e instanceof StateProofError) throw this.violate(new RelayViolation("state_proof", method, `${e.message}: nothing is signed`));
       throw e;
     }
   }
@@ -734,7 +737,7 @@ class Relay implements StrictRelay {
     if (!p) {
       p = f();
       m.set(k, p);
-      p.catch(() => m.delete(k)); // un échec passager peut être réessayé par le moteur
+      p.catch(() => m.delete(k)); // a passing failure can be retried by the engine
     }
     return p;
   }
@@ -749,13 +752,13 @@ class Relay implements StrictRelay {
     const k = slotKey(slot);
     return this.cached(this.provedSlots, `${a}:${k}`, async () => {
       const r = await this.prove(method, a, [k]);
-      // même racine, même clé : c'est forcément le même compte (une clé n'a qu'une feuille sous une racine) ; on le garde
+      // the same root, the same key: necessarily the same account (a key has only one leaf under a root); keep it
       this.provedAccounts.set(a, this.provedAccounts.get(a) ?? Promise.resolve(r.account));
       return r.storage.get(k)!;
     });
   }
 
-  /** Code du compte : rendu par le RPC des preuves, accepté seulement s'il redonne le hash de code PROUVÉ. */
+  /** The account's code: returned by the proof RPC, accepted only if it gives back the PROVEN code hash. */
   private provedCode(method: string, address: string): Promise<Hex> {
     const a = address.toLowerCase();
     return this.cached(this.provedCodes, a, async () => {
@@ -764,7 +767,7 @@ class Relay implements StrictRelay {
       try {
         return checkCode(acct, code);
       } catch (e) {
-        if (e instanceof StateProofError) throw this.violate(new RelayViolation("state_proof", method, `${e.message} : rien n'est signé`));
+        if (e instanceof StateProofError) throw this.violate(new RelayViolation("state_proof", method, `${e.message}: nothing is signed`));
         throw e;
       }
     });
@@ -774,13 +777,13 @@ class Relay implements StrictRelay {
     const h = await this.header(this.o.blockN);
     if (!this.hashes.has(this.o.blockN)) this.hashes.set(this.o.blockN, h.hash);
     if (h.hash !== this.hashes.get(this.o.blockN)) {
-      throw this.violate(new RelayViolation("chain", "eth_getBlockByNumber", "le RPC du fork ne sert pas le bloc N de la réclamation (hash différent)"));
+      throw this.violate(new RelayViolation("chain", "eth_getBlockByNumber", "the fork's RPC does not serve the claim's block N (different hash)"));
     }
     return h.hash;
   }
 }
 
-/** Lance un relais strict (127.0.0.1, port éphémère) devant `o.upstream`. */
+/** Starts a strict relay (127.0.0.1, ephemeral port) in front of `o.upstream`. */
 export async function startStrictRelay(o: StrictRelayOptions): Promise<StrictRelay> {
   const r = new Relay(o);
   await r.listen();
