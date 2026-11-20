@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { callTool, createMcpContext } from "../src/tools";
 
 const LIVE = process.env.LIVE === "1";
-const skip = LIVE ? false : "LIVE=1 pour appeler l'API en ligne";
+const skip = LIVE ? false : "LIVE=1 to call the live API";
 const OWNER = "0x5724d89D610c3017b8DC161c025248341556f6Ab";
 
 const contacted: string[] = [];

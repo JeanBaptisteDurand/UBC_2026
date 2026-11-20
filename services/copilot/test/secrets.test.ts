@@ -1,7 +1,6 @@
-/** secrets.test.ts — le filtre de secrets (audit du 7/11, n° 10, et restes relevés par le vérificateur le 8/11) : cas
- *  positifs (masqués) et négatifs (laissés tels quels : hashes de transaction, bytes32 publics, prose, code, vrais
- *  résultats d'outils).
- *  Lancer : cd services/copilot && npx tsx --test test/secrets.test.ts */
+/** secrets.test.ts — the secrets filter: positive cases (masked) and negative ones (left as they are: transaction
+ *  hashes, public bytes32 values, prose, code, real tool results).
+ *  Run: cd services/copilot && npx tsx --test test/secrets.test.ts */
 import test from "node:test";
 import assert from "node:assert/strict";
 import { english, french, spanish, italian, portuguese, czech, japanese, korean, simplifiedChinese, traditionalChinese } from "viem/accounts";
@@ -9,7 +8,7 @@ import { scrubSecrets, scrubUserMessage, scrubConversation, conversationAlert, m
 import { KB, VERIFICATION_STATE } from "../src/tools";
 import { fixture } from "./helpers";
 
-const HEX = "ab".repeat(32); // 64 caractères hexadécimaux
+const HEX = "ab".repeat(32); // 64 hexadecimal characters
 const KEY = `0x${HEX}`;
 const ADDR = "0x1234567890123456789012345678901234567890";
 const fold = (w: string) => w.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
@@ -40,11 +39,11 @@ test("0x + 64 hex NEAR a word that names a secret: masked", () => {
     `secret: ${KEY}`,
     `seed ${HEX}`, // sans 0x
     `my private key is ${KEY}, thanks`,
-    `Ma clé :\n${KEY}`, // libellé sur la ligne d'avant
-    `{"keys":["${KEY}"]}`, // premier élément d'un tableau libellé
-    `${KEY} (clé privée du déployeur)`, // libellé après la valeur
-    `{"journal":"PRIVATE_KEY=\\n${KEY}"}`, // saut de ligne échappé dans un JSON
-    `{\n  "wallet": "${KEY}"\n}`, // JSON indenté
+    `Ma clé :\n${KEY}`, // label on the line before
+    `{"keys":["${KEY}"]}`, // first item of a labelled array
+    `${KEY} (clé privée du déployeur)`, // label after the value
+    `{"journal":"PRIVATE_KEY=\\n${KEY}"}`, // escaped line break in a JSON
+    `{\n  "wallet": "${KEY}"\n}`, // indented JSON
   ]) {
     const out = scrubSecrets(s);
     assert.ok(!out.includes(HEX), `non masqué : ${s}`);
@@ -54,20 +53,20 @@ test("0x + 64 hex NEAR a word that names a secret: masked", () => {
 
 test("transaction hashes, public bytes32 and unlabelled values: never masked", () => {
   for (const s of [
-    KEY, // sans libellé
+    KEY, // no label
     `tx ${KEY}`,
     `hash de transaction : ${KEY}`,
     `"quoteHash":"${KEY}"`,
     `workloadId ${KEY}`,
     `la clé publique X25519 ${KEY}`,
     `public key ${KEY}`,
-    `mon wallet a envoyé la transaction ${KEY}`, // le mot le plus proche décide
-    `{"nonce":"${KEY}","wallet":"${ADDR}"}`, // le champ SUIVANT d'un JSON ne compte pas
+    `mon wallet a envoyé la transaction ${KEY}`, // the nearest word decides
+    `{"nonce":"${KEY}","wallet":"${ADDR}"}`, // a JSON's NEXT field does not count
     `"cPHash":"${KEY}","secret":"x"`,
-    `{"wallet":"${ADDR}","param":"${KEY}"}`, // champ neutre après un champ « wallet »
-    `{\n  "wallet": "${ADDR}",\n  "param": "${KEY}"\n}`, // idem, JSON indenté
+    `{"wallet":"${ADDR}","param":"${KEY}"}`, // a neutral field after a "wallet" field
+    `{\n  "wallet": "${ADDR}",\n  "param": "${KEY}"\n}`, // the same, indented JSON
     `image ghcr.io/x/y@sha256:${HEX}`,
-    `{"secretHash":"${KEY}"}`, // le hash d'un secret est public
+    `{"secretHash":"${KEY}"}`, // a secret's hash is public
   ]) assert.equal(scrubSecrets(s), s, s);
 });
 
@@ -77,13 +76,13 @@ test("BIP-39 recovery phrase (12 to 24 words from one list): masked", () => {
     english.slice(100, 115).join(" "), // 15 mots
     english.slice(300, 324).join(" "), // 24 mots
     `seed: ${english.slice(500, 512).join(" ")}`,
-    english.slice(700, 712).map((w, i) => `${i + 1}. ${w}`).join(" "), // numérotée
+    english.slice(700, 712).map((w, i) => `${i + 1}. ${w}`).join(" "), // numbered
     english.slice(800, 812).join("\n"), // une par ligne
     JSON.stringify(english.slice(900, 912)), // tableau JSON
-    JSON.stringify({ mnemonic: english.slice(1000, 1012).join("\n") }), // sauts de ligne échappés
+    JSON.stringify({ mnemonic: english.slice(1000, 1012).join("\n") }), // escaped line breaks
     english.slice(1100, 1112).join(" ").toUpperCase(),
-    french.slice(200, 212).join(" "), // liste française
-    french.slice(300, 312).map(fold).join(" "), // française sans accents
+    french.slice(200, 212).join(" "), // French list
+    french.slice(300, 312).map(fold).join(" "), // French without accents
   ];
   for (const s of cases) {
     const out = scrubSecrets(`Ma phrase : ${s} — merci`);
@@ -99,7 +98,7 @@ test("fewer than 12 words, words from two mixed lists, prose: left alone", () =>
   const fr = new Set(french.map(fold)), en = new Set(english.map(fold));
   const enOnly = english.filter((w) => !fr.has(fold(w))).slice(0, 6);
   const frOnly = french.filter((w) => !en.has(fold(w))).slice(0, 6);
-  const mixed = enOnly.flatMap((w, i) => [w, frOnly[i]!]).join(" "); // 12 mots, 6 de chaque liste : pas une phrase BIP-39
+  const mixed = enOnly.flatMap((w, i) => [w, frOnly[i]!]).join(" "); // 12 words, 6 from each list: not a BIP-39 phrase
   assert.equal(scrubSecrets(mixed), mixed);
   for (const s of [
     "the cable car will arrive at the airport around noon and we can all take a taxi to the hotel after lunch",
@@ -115,7 +114,7 @@ test("real texts: knowledge base, on-chain events, API lists", () => {
     const j = fixture(f);
     for (const s of [JSON.stringify(j), JSON.stringify(j, null, 2)]) assert.equal(scrubSecrets(s), s, f);
   }
-  // données EIP-3009 préparées par un outil : le nonce (bytes32) reste lisible
+  // EIP-3009 data prepared by a tool: the nonce (bytes32) stays readable
   const typed = { domain: { name: "USDC", chainId: 5042002 }, message: { from: ADDR, to: ADDR, value: "1000000", validAfter: "0", validBefore: "1794240000", nonce: KEY } };
   for (const s of [JSON.stringify(typed), JSON.stringify(typed, null, 2)]) assert.equal(scrubSecrets(s), s);
 });
@@ -130,7 +129,7 @@ test("idempotent, and a secret in a JSON tool result stays valid JSON", () => {
   assert.equal(j.mnemonic, MASK_PHRASE);
 });
 
-// ---------------------------------------------------------------- restes relevés par le vérificateur le 8/11
+// ---------------------------------------------------------------- cases found in review
 
 const W12 = english.slice(100, 112); // arrive arrow art artefact artist artwork ask aspect assault asset assist assume
 const assertPhraseMasked = (s: string, label: string, scrub: (x: string) => string = scrubSecrets) => {
@@ -155,7 +154,7 @@ test("phrase numbered with colons, \"Mot n°1 :\", \"Word #1:\", aligned columns
   ];
   for (const [label, s] of cases) {
     assertPhraseMasked(`Voici : ${s}`, label);
-    assertPhraseMasked(JSON.stringify({ note: s }), `${label}, dans un JSON`); // résultat d'outil (journal de machine)
+    assertPhraseMasked(JSON.stringify({ note: s }), `${label}, dans un JSON`); // tool result (machine log)
   }
 });
 
@@ -167,13 +166,13 @@ test("phrase with ONE typo (extra, missing, changed, swapped, beyond the first 4
     ["lettres inversées", (w) => `${w[1]}${w[0]}${w.slice(2)}`],
     ["fin du mot fausse (4 premières lettres justes)", (w) => `${w.slice(0, 4)}qq`],
   ];
-  // le cas exact du vérificateur : « askx » en 7e position (deux suites de 6 et 5 mots auparavant)
+  // the reviewer's exact case: "askx" in 7th position (two runs of 6 and 5 words before it)
   const askx = W12.map((w, i) => (i === 6 ? `${w}x` : w)).join(" ");
   assert.equal(scrubSecrets(askx), MASK_PHRASE);
-  // (un mot de 3 lettres privé d'une lettre n'en a plus que 2 : jamais pris pour une faute, sinon « to », « of », « at »
-  // relieraient de la prose)
+  // (a 3-letter word missing a letter has only 2 left: never taken for a typo, otherwise "to", "of", "at" would link
+  // prose)
   for (const [label, edit] of edits) {
-    for (const at of [0, 5, 11]) { // en tête, au milieu, en fin
+    for (const at of [0, 5, 11]) { // at the start, in the middle, at the end
       const words = W12.map((w, i) => (i === at ? edit(w) : w));
       const out = scrubSecrets(`ma phrase : ${words.join(" ")} merci`);
       assert.ok(out.includes(MASK_PHRASE), `non masquée (${label}, mot ${at + 1}) : ${out}`);
@@ -181,7 +180,7 @@ test("phrase with ONE typo (extra, missing, changed, swapped, beyond the first 4
       assert.match(out, /merci$/, "le mot qui suit la phrase reste lisible");
     }
   }
-  // 24 mots, une faute par tranche de 12
+  // 24 words, one typo per slice of 12
   const w24 = english.slice(300, 324).map((w, i) => (i === 5 || i === 17 ? `${w}x` : w));
   const out = scrubSecrets(w24.join(" "));
   assert.equal(out, MASK_PHRASE);
@@ -214,8 +213,8 @@ test("no false positive: prose in other languages, code, key-value logs, too man
     "const win = probe.slice(Math.max(0, start - 64), start).split(\"\\n\").slice(-2).join(\"\\n\"); return win.split(FIELD_SEP).pop();",
     JSON.stringify({ able: "about", above: "absent", absorb: "abstract", absurd: "abuse", access: "accident", account: "accuse" }),
     "level=info able=about above=absent absorb=abstract absurd=abuse access=accident account=accuse",
-    W12.map((w, i) => (i % 2 ? `${w}x` : w)).join(" "), // une faute sur deux : pas une phrase
-    W12.map((w, i) => (i % 3 === 2 ? `${w}x` : w)).join(" "), // une faute sur trois
+    W12.map((w, i) => (i % 2 ? `${w}x` : w)).join(" "), // one typo in two: not a phrase
+    W12.map((w, i) => (i % 3 === 2 ? `${w}x` : w)).join(" "), // one typo in three
   ]) assert.equal(scrubSecrets(s), s, s.slice(0, 80));
 });
 
@@ -234,7 +233,7 @@ test("provider keys (sk-…, sk-proj-…, rpk_…, Bearer, environment variables
     assert.ok(!out.includes(leak) && out.includes(MASK_KEY), `${s} → ${out}`);
   }
   for (const s of [
-    "pip install sk-learn-extras-for-the-pipeline", // pas de chiffre : un mot composé
+    "pip install sk-learn-extras-for-the-pipeline", // no digit: a compound word
     "Bearer bonds are not the same as bearer tokens.",
     "UNIT_TOKENS=1",
     "REDPILL_API_KEY=${REDPILL_API_KEY}   # variable chiffrée",
@@ -245,8 +244,8 @@ test("provider keys (sk-…, sk-proj-…, rpk_…, Bearer, environment variables
 
 test("a USER message about a private key: every 64-hex value masked, even when a public word is closer", () => {
   const H = "9c4f1e2d" + "ab".repeat(28);
-  // les cas du vérificateur : le mot public (« publique », « hash », « tx ») est plus proche que « clé privée », ou le
-  // libellé est loin, ou absent ; le filtre général (résultats d'outils) garde la règle du mot le plus proche
+  // the reviewer's cases: the public word ("publique", "hash", "tx") is nearer than "clé privée", or the label is far, or
+  // absent; the general filter (tool results) keeps the nearest-word rule
   const nearestPublic = [
     `Voici ma clé privée (pas l'adresse publique) : 0x${H}`,
     `J'ai collé ma clé privée au lieu du hash de transaction : 0x${H}`,
@@ -265,12 +264,12 @@ test("a USER message about a private key: every 64-hex value masked, even when a
     assert.ok(out.includes(MASK_CAUTION) || out.includes(MASK_KEY), out);
     assert.equal(scrubUserMessage(out), out, "idempotent");
   }
-  // clé coupée en deux lignes, ou en groupes
+  // a key split over two lines, or in groups
   for (const s of [`clé privée :\n0x${H.slice(0, 32)}\n${H.slice(32)}`, `private key: ${H.match(/.{16}/g)!.join(" ")}`]) {
     const out = scrubUserMessage(s);
     assert.ok(!out.includes(H.slice(32, 48)) && !out.includes(H.slice(0, 16)), `fuite : ${out}`);
   }
-  // sans mention d'un secret : un hash de transaction reste lisible ; avec mention : une adresse (40 hex) aussi
+  // without a secret mention: a transaction hash stays readable; with a mention: an address (40 hex) does too
   for (const s of [`vérifie la transaction 0x${H}`, `0x${H}`, `statut du reçu ${H} ?`]) assert.equal(scrubUserMessage(s), s);
   const addr = "0x5724d89D610c3017b8DC161c025248341556f6Ab";
   const s = `Je ne donnerai pas ma clé privée : quel est le solde de ${addr} ?`;
@@ -298,19 +297,19 @@ test("the server's secrets removed whatever their format (redactLiterals)", () =
   assert.equal(redactLiterals("rien", [k, "", "court"]), "rien");
 });
 
-// ---------------------------------------------------------------- restes relevés par le vérificateur le 9/11 (mode alerte)
+// ---------------------------------------------------------------- alert mode cases found in review
 
 const K64 = "4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318";
 const grouped = (x: string, n: number, sep = " ") => x.match(new RegExp(`.{1,${n}}`, "g"))!.join(sep);
-/** Aucune suite de 12 chiffres de la clé ne reste (les marques contiennent des lettres a-f, jamais 12 de suite). */
+/** No run of 12 digits of the key remains (the marks contain letters a-f, never 12 in a row). */
 const keyGone = (out: string) => {
   const d = out.replace(/[^0-9a-f]/gi, "").toLowerCase();
   for (let i = 0; i + 12 <= K64.length; i += 6) if (d.includes(K64.slice(i, i + 12))) return false;
   return true;
 };
 const SOL = "4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw8rhQZ7Agpvy7oUbtc9vwyfWtwT8n5WnA3XW8pXFGp6uqF"; // 88 car., base58
-const WIF_C = "L1aW4aubDFB7yfras2S1mN3bqg9nwySY8nkoLmJebSLD5BWv3ENZ"; // 52 car., compressée
-const WIF_U = "5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ"; // 51 car., non compressée
+const WIF_C = "L1aW4aubDFB7yfras2S1mN3bqg9nwySY8nkoLmJebSLD5BWv3ENZ"; // 52 chars, compressed
+const WIF_U = "5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ"; // 51 chars, uncompressed
 const BYTES = `[${Array.from({ length: 64 }, (_, i) => (i * 37 + 11) % 256).join(",")}]`;
 
 test("alert mode: a hex key in pairs, in groups of 2 to 8 (0x or not), over several lines: masked", () => {
@@ -323,18 +322,18 @@ test("alert mode: a hex key in pairs, in groups of 2 to 8 (0x or not), over seve
     assert.ok(keyGone(out) && out.includes(MASK_CAUTION), `fuite : ${out}`);
     assert.equal(scrubUserMessage(out), out, "idempotent");
   }
-  // 9/11 au soir : « seed » seul ne met plus en alerte ; la clé en groupes désignée par « seed » est masquée hors alerte
+  // "seed" alone no longer triggers the alert; the grouped key named by "seed" is masked outside alert mode
   const seedOnly = scrubUserMessage(`seed : ${grouped(K64, 2, ":")}`);
   assert.ok(keyGone(seedOnly) && seedOnly.includes(MASK_KEY), `fuite : ${seedOnly}`);
-  // le libellé n'est jamais avalé (« privée » finit par une lettre hexadécimale), ni un mot qui suit
+  // the label is never swallowed ("privée" ends with a hexadecimal letter), nor is a word that follows
   assert.equal(scrubUserMessage(`ma clé privée : ${grouped(K64, 4)}`), `ma clé privée : ${MASK_CAUTION}`);
   assert.equal(scrubUserMessage(`private key ${grouped(K64, 2)} please`), `private key ${MASK_CAUTION} please`);
-  // une table de nombres, des mots hexadécimaux (« de ce »), deux adresses : laissés, même en alerte
+  // a table of numbers, hexadecimal words ("de ce"), two addresses: left, even in alert mode
   for (const s of [
     `seed stats: ${Array.from({ length: 40 }, (_, i) => 10 + i).join(" ")}`, "ma clé privée : de ce que je sais, elle a été changée",
     "private key? no: 0x5724d89D610c3017b8DC161c025248341556f6Ab and 0x344f2d2fA5AeAe78871F0B882245069F887c2e1a",
   ]) assert.equal(scrubUserMessage(s), s, s);
-  // hors alerte (aucune mention) : des groupes courts restent lisibles, comme avant
+  // outside alert mode (no mention): short groups stay readable, as before
   assert.equal(scrubSecrets(`checksum ${grouped(K64, 4)}`), `checksum ${grouped(K64, 4)}`);
 });
 
@@ -346,21 +345,21 @@ test("alert mode: base58 keys (Solana 87-88 chars, WIF 51-52 chars starting with
     const out = scrubUserMessage(s);
     assert.ok(!out.includes(v) && out.includes(MASK_CAUTION), out);
   }
-  // 9/11 au soir : « export » ne met plus en alerte ; la clé base58 désignée par « phantom wallet » est masquée hors alerte
+  // "export" no longer triggers the alert; the base58 key named by "phantom wallet" is masked outside alert mode
   const exported = scrubUserMessage(`my phantom wallet export: ${SOL.slice(0, 87)}`);
   assert.ok(!exported.includes(SOL.slice(0, 87)) && exported.includes(MASK_KEY), exported);
-  // hors alerte, rien ne change (une signature de transaction Solana a aussi 87–88 caractères)
+  // outside alert mode, nothing changes (a Solana transaction signature also has 87–88 characters)
   for (const s of [`signature ${SOL}`, `wif ${WIF_C}`, `bytes ${BYTES}`]) assert.equal(scrubSecrets(s), s);
 });
 
 test("a phrase joined by \"+\" or \".\" (even with no mention); invisible characters inside words: masked", () => {
   const W = english.slice(100, 112);
-  // (9/11 au soir : « seed » seul ne met plus en alerte ; « seed phrase » si)
+  // ("seed" alone no longer triggers the alert; "seed phrase" does)
   for (const s of [W.join("+"), W.join("."), `ma seed phrase : ${W.slice(0, 8).join(".")}`, W.map((w) => `${w.slice(0, 2)}​${w.slice(2)}`).join(" "), W.map((w) => `${w.slice(0, 1)}­${w.slice(1)}`).join(" ")]) {
     const out = scrubUserMessage(s);
     assert.ok(out.includes(MASK_PHRASE) && !out.includes(W[5]!.slice(1)), out);
   }
-  // clés de traduction, chaînes de propriétés, adresses web : laissées, avec ou sans alerte
+  // translation keys, property chains, web addresses: left, with or without alert
   for (const s of [
     `const STEP_KEYS = ["hunt.step.key", "hunt.step.replay", "hunt.step.accepted", "hunt.step.paid"] as const;`,
     "this.state.value.length", "ma clé privée : voir https://docs.example.com/wallet/export.html", "a+b+c",
@@ -372,16 +371,16 @@ test("CONVERSATION in alert mode (scrubConversation): a user message about a sec
   const W = english.slice(100, 124);
   const u = (content: string) => ({ role: "user", content });
   const a = (content: string) => ({ role: "assistant", content });
-  // phrase de 12 mots coupée 4 + 4 + 4 entre trois messages, chacun seul sur sa ligne
+  // a 12-word phrase split 4 + 4 + 4 across three messages, each alone on its line
   const parts = parseParts([u("je vais vous donner ma phrase de récupération en trois fois"), u(W.slice(0, 4).join(" ")), a("ok"), u(`- ${W.slice(4, 8).join(" ")}`), u(`suite :\n${W.slice(8, 12).join(" ")}.`)]);
   assert.ok(parts.alert);
   assert.deepEqual(parts.messages.map((m) => m.content), [
     "je vais vous donner ma phrase de récupération en trois fois", MASK_PHRASE, "ok", `- ${MASK_PHRASE}`, `suite :\n${MASK_PHRASE}.`,
   ]);
-  // 24 mots coupés 12 + 12
+  // 24 words split 12 + 12
   const two = parseParts([u(`my seed words, first half:\n${W.slice(0, 12).join(" ")}`), u(`second half:\n${W.slice(12, 24).join(" ")}`)]);
   assert.ok(two.messages.every((m) => m.content.includes(MASK_PHRASE) && !m.content.includes(W[3]!) && !m.content.includes(W[15]!)));
-  // la réponse du modèle passe aussi par le filtre sévère, mais ne déclenche jamais l'alerte
+  // the model's answer also goes through the strict filter, but never triggers the alert
   assert.equal(conversationAlert([a("Never paste your private key or seed phrase here."), u(`hash 0x${K64}`)]), false);
   const al = scrubConversation([u("is my private key safe?"), a(`your tx 0x${K64}`), u("and this one?")]);
   assert.ok(al.alert && al.messages[1]!.content === `your tx ${MASK_CAUTION}`);
@@ -414,7 +413,7 @@ function parseParts(messages: Array<{ role: string; content: string }>) {
   return scrubConversation(messages);
 }
 
-// ---------------------------------------------------------------- preuve secrets-new du vérificateur (9/11 au soir)
+// ---------------------------------------------------------------- the reviewer's secrets-new cases
 
 const TXH = "0x9f2c4e1b7a3d58c6e0f1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f7";
 const XPRV = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
@@ -425,7 +424,7 @@ test("NORMAL mode: a transaction hash stays readable, model answers included (\"
   for (const s of [
     `the transaction for your key registration: ${TXH}`,
     `Transaction of wallet 0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B: ${TXH}`,
-    `Latest transaction of the wallet 0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B: ${TXH}`, // mot coupé par la fenêtre
+    `Latest transaction of the wallet 0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B: ${TXH}`, // a word cut by the window
     `enclave key: ${TXH}`,
     `Your enclave's key: ${TXH}`,
     `La clé de l'enclave : ${TXH}`,
@@ -436,7 +435,7 @@ test("NORMAL mode: a transaction hash stays readable, model answers included (\"
     `{"enclaveKey":"${TXH}"}`,
   ]) {
     assert.equal(scrubSecrets(s), s, s);
-    assert.equal(scrubUserMessage(s), s, s); // sans mention précise : pas d'alerte
+    assert.equal(scrubUserMessage(s), s, s); // without a precise mention: no alert
   }
 });
 
@@ -446,12 +445,12 @@ test("NORMAL mode: an ambiguous word (clé, key, wallet, MetaMask…) still name
     `voici ma clé : 0x${H}`, `mon wallet 0x${H}`, `my key: 0x${H}`, `Here is my key.\n0x${H}`, `{"keys":["0x${H}"]}`,
     `mon export MetaMask : 0x${H}`, `exported from my metamask: ${H}`, `wallet key: 0x${H}`,
     `Voici ma clé que j'ai exportée hier soir depuis MetaMask sur mon ordinateur portable : 0x${H}`,
-    `the tx hash is below. My key: 0x${H}`, // le mot public est dans une autre phrase
+    `the tx hash is below. My key: 0x${H}`, // the public word is in another sentence
   ]) {
     const out = scrubSecrets(s);
     assert.ok(!out.includes(H.slice(8, 40)) && out.includes(MASK_KEY), `fuite : ${out}`);
   }
-  // clé hexadécimale en groupes et clé base58 désignées par un mot secret, hors alerte ; laissées sans libellé secret
+  // a grouped hexadecimal key and a base58 key named by a secret word, outside alert mode; left without a secret label
   for (const s of [`my metamask key: ${grouped(K64, 4)}`, `seed : ${grouped(K64, 2, ":")}`, `secret: ${grouped(K64, 8, "\n")}`]) {
     const out = scrubSecrets(s);
     assert.ok(keyGone(out) && out.includes(MASK_KEY), `fuite : ${out}`);
@@ -500,16 +499,16 @@ test("the ALERT is triggered only by precise wordings (not by \"export\", \"seed
 test("ALERT: a key split 32 + 32 across two messages (the first half from the first message); addresses and small numbers readable", () => {
   const u = (content: string) => ({ role: "user", content });
   const a = (content: string) => ({ role: "assistant", content });
-  // les deux moitiés, dans une même conversation
+  // both halves, in one conversation
   const two = scrubConversation([u(`my private key starts with ${K64.slice(0, 32)}`), a("ok"), u(`and ends with ${K64.slice(32)}`)]);
   assert.ok(two.alert);
   assert.deepEqual(two.messages.map((m) => m.content), [`my private key starts with ${MASK_CAUTION}`, "ok", `and ends with ${MASK_CAUTION}`]);
-  // la 1re requête ne porte que la 1re moitié : déjà masquée
+  // the 1st request carries only the 1st half: already masked
   assert.equal(scrubConversation([u(`my private key starts with 0x${K64.slice(0, 32)}`)]).messages[0]!.content, `my private key starts with ${MASK_CAUTION}`);
-  // en 4 morceaux de 16, en groupes, dans un seul message
+  // in 4 chunks of 16, in groups, in a single message
   const four = scrubUserMessage(`private key, part 1: ${K64.slice(0, 16)} part 2: ${grouped(K64.slice(16, 32), 4)} then ${K64.slice(32, 48)} and ${K64.slice(48)}`);
   assert.ok(keyGone(four) && !four.includes(K64.slice(48)), four);
-  // restent lisibles en alerte : une adresse, un sélecteur, un petit nombre, une table de chiffres
+  // readable in alert mode: an address, a selector, a small number, a table of digits
   for (const s of [
     "private key? not shared. Balance of 0x5724d89D610c3017b8DC161c025248341556f6Ab ?", "my private key: no. selector 0xa9059cbb",
     "private key lost at block 71389302, nonce 12", "clé privée : 1234 5678 9012 3456 7890",

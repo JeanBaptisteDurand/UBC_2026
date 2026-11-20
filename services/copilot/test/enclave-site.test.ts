@@ -51,14 +51,14 @@ const COMPOSE_V22 = here("../../../enclave/phala/copilot-site-v22.yml");
 const COMPOSE_V21 = here("../../../enclave/phala/copilot-v21.yml");
 const VPS_COMPOSE = here("../../../deploy/docker-compose.vps.yml");
 const DEPLOYMENTS_V21 = here("../../../deployments.v21.testnet.json");
-/** Le gabarit app-compose.json de la VM v21, sauvegardé hors du dépôt (V21_APP_COMPOSE=<chemin>) : sans lui, la partie
- *  du test qui le lit est sautée. */
+/** The v21 VM's app-compose.json template, saved outside the repository (V21_APP_COMPOSE=<path>): without it, the part
+ *  of the test that reads it is skipped. */
 const V21_APP_COMPOSE = process.env.V21_APP_COMPOSE ?? "";
 
-// ---------------------------------------------------------------- le compose, lu comme Phala le mesure
+// ---------------------------------------------------------------- the compose, read as Phala measures it
 
 interface ComposeService { image: string; measured: Record<string, string>; secret: string[]; keys: string[] }
-/** Les services d'un compose Phala : image, variables en clair (mesurées) et chiffrées (${…}), clés de premier niveau. */
+/** The services of a Phala compose: image, variables in clear (measured) and encrypted (${…}), top-level keys. */
 function readCompose(file: string): Record<string, ComposeService> {
   const out: Record<string, ComposeService> = {};
   let cur: ComposeService | null = null;
@@ -86,7 +86,7 @@ function readCompose(file: string): Record<string, ComposeService> {
 }
 const v22 = () => readCompose(COMPOSE_V22)["copilot-enclave"]!;
 
-/** Les options du copilote du SITE telles que copilotFromEnv les monte avec les variables MESURÉES du compose v22. */
+/** The SITE copilot's options as copilotFromEnv mounts them with the MEASURED variables of the v22 compose. */
 function siteBaseOptions(): CopilotAppOptions {
   const env = v22().measured;
   const keep: Record<string, string | undefined> = {};
@@ -102,7 +102,7 @@ function siteBaseOptions(): CopilotAppOptions {
   }
 }
 
-// ---------------------------------------------------------------- le modèle scripté et l'enclave
+// ---------------------------------------------------------------- the scripted model and the enclave
 
 const call = (id: string, name: string, args: unknown) => ({ id, type: "function" as const, function: { name, arguments: JSON.stringify(args) } });
 type Turn = (req: LlmRequest, n: number) => LlmReply;
@@ -112,8 +112,8 @@ function scripted(turn: Turn) {
   return { llm, calls };
 }
 
-/** « Aide-moi à installer l'outil », vu de la page Louer : docs_search et ui_navigate, puis la caution préparée et
- *  ui_highlight, puis la réponse. */
+/** "Help me install the tool", seen from the Rent page: docs_search and ui_navigate, then the prepared bond and
+ *  ui_highlight, then the answer. */
 const installScript: Turn = (_req, n) => {
   if (n === 1) {
     return { content: "", tool_calls: [
@@ -141,7 +141,7 @@ function harness(o: { mock?: boolean; turn?: Turn; facts?: Partial<EnclaveFacts>
   const base = siteBaseOptions();
   const m = scripted(o.turn ?? installScript);
   const executed: string[] = [];
-  // docs_search : le VRAI outil du site (base SITE_KB, sans réseau) ; les outils qui lisent Arc : réponses fixes
+  // docs_search: the site's REAL tool (SITE_KB base, no network); the tools that read Arc: fixed answers
   const executeTool: CopilotAppOptions["executeTool"] = async (name, args, user) => {
     executed.push(name);
     if (name === "docs_search") return base.executeTool(name, args, user);
@@ -160,7 +160,7 @@ function harness(o: { mock?: boolean; turn?: Turn; facts?: Partial<EnclaveFacts>
 }
 type H = ReturnType<typeof harness>;
 
-/** Le client du panneau : la requête du site scellée vers la clé de l'enclave, la réponse ouverte avec CE secret. */
+/** The panel's client: the site's request sealed to the enclave's key, the reply opened with THIS secret. */
 async function sealedAsk(h: Pick<H, "kit" | "app">, body: Record<string, unknown>) {
   const info = exchangeInfo(COPILOT_SEALED_TAG, CHAIN, REG, PRODUCT, h.kit.keys.signer);
   const sx = await sealExchange(toBytes(h.kit.keys.x25519PublicKey), COPILOT_SEALED_TAG, info, stringToBytes(JSON.stringify(body)));
@@ -175,8 +175,8 @@ async function sealedAsk(h: Pick<H, "kit" | "app">, body: Record<string, unknown
   return { res, wire, wireOut, j, inner, enc: sx.enc, ciphertext: sx.ciphertext };
 }
 
-/** La preuve d'une réponse, calculée comme le panneau (frontend/src/copilot/enclave/client.ts, proofOf), recopiée ici sans
- *  rien prendre au code de l'enclave : si l'un change, ce test croisé casse. */
+/** A reply's proof, computed as the panel does (frontend/src/copilot/enclave/client.ts, proofOf), copied here without
+ *  taking anything from the enclave's code: if either one changes, this cross test breaks. */
 async function panelProof(signer: Address, enc: Uint8Array, reqCt: Uint8Array, inner: any): Promise<{ kind: "signed" | "sealed"; bad?: true; digest?: Hex }> {
   const REPLY_TAG = "ARC-COPILOT-SITE-REPLY-v1";
   const request = keccak256(concat([enc, reqCt]));
@@ -198,7 +198,7 @@ const ask = (content: string, extra: Record<string, unknown> = {}) => ({
 });
 const sysOf = (h: H, i = 0) => String(h.m.calls[i]!.messages[0]!.content);
 
-// ---------------------------------------------------------------- la boucle du site, dans l'enclave
+// ---------------------------------------------------------------- the site's loop, inside the enclave
 
 test("site in the enclave: the same loop as the server (interface tools returned, prepare card, docs_search cited), sealed and SIGNED", async () => {
   const h = harness();
@@ -208,7 +208,7 @@ test("site in the enclave: the same loop as the server (interface tools returned
   assert.equal(r.inner.status, 200);
   const body = r.inner.body;
   assert.equal(body.text, FINAL);
-  // la forme du contrat du site : outils dans l'ordre, interface validée (ok) pour le navigateur, carte prepare
+  // the shape of the site's contract: tools in order, interface validated (ok) for the browser, a prepare card
   assert.deepEqual(body.tools.map((t: any) => t.tool), ["docs_search", "ui_navigate", "operator_prepare_bond", "ui_highlight"]);
   const nav = body.tools[1];
   assert.equal(nav.result.ok, true);
@@ -221,9 +221,9 @@ test("site in the enclave: the same loop as the server (interface tools returned
   assert.deepEqual(body.tools[2].result, body.actions[0].result);
   const kbSources = new Set(SITE_KB.map((k) => k.source));
   assert.ok(body.citations.length > 0 && body.citations.every((c: string) => kbSources.has(c)), JSON.stringify(body.citations));
-  // les outils d'interface ne s'exécutent jamais côté enclave : seuls docs_search et la carte prepare sont passés par executeTool
+  // the interface tools never run on the enclave side: only docs_search and the prepare card went through executeTool
   assert.deepEqual(h.executed, ["docs_search", "operator_prepare_bond"]);
-  // la signature : celle que le panneau vérifie, par la clé de l'enclave
+  // the signature: the one the panel verifies, by the enclave's key
   assert.equal(r.inner.sig.v, SITE_REPLY_TAG);
   assert.equal(r.inner.sig.signer, h.kit.keys.signer);
   const proof = await panelProof(h.kit.keys.signer, r.enc, r.ciphertext, r.inner);
@@ -231,7 +231,7 @@ test("site in the enclave: the same loop as the server (interface tools returned
   assert.equal(proof.digest, r.inner.sig.digest);
   const v = await verifySiteReply(r.inner, { enc: r.enc, ciphertext: r.ciphertext, signer: h.kit.keys.signer, chainId: CHAIN, registry: REG, productId: PRODUCT });
   assert.equal(v.ok, true, JSON.stringify(v));
-  // le mandataire n'a rien lu, dans aucun sens
+  // the proxy read nothing, in either direction
   for (const secret of ["install", "rent", OWNER.slice(2).toLowerCase(), "Help me"]) assert.ok(!r.wire.toLowerCase().includes(secret.toLowerCase()), `question lisible : ${secret}`);
   for (const secret of ["Install the agent", "operator_prepare_bond", "ui_navigate", SITE_REPLY_TAG]) assert.ok(!r.wireOut.includes(secret), `réponse lisible : ${secret}`);
 });
@@ -253,9 +253,9 @@ test("site in the enclave: the prompt is the site's, with the page on screen, th
   // the site server's note ("on the ArcHive site's server, NOT in an enclave") never enters the enclave
   if (typeof SERVER_NOTE === "string") assert.ok(!sys.includes(SERVER_NOTE));
   assert.equal((h.copilot.site as unknown as Record<string, unknown>).whereNote, undefined);
-  // une seule section « WHERE YOU RUN » (la liste des libellés internes de l'invite la nomme aussi, entre parenthèses)
+  // a single "WHERE YOU RUN" section (the list of the prompt's internal labels names it too, in parentheses)
   assert.equal((sys.match(/WHERE YOU RUN(?: \(|:)/g) ?? []).length, 1, "une seule vérité sur où il tourne");
-  // le modèle reçoit les passages du site (docs_search), et les outils du site
+  // the model receives the site's passages (docs_search) and the site's tools
   const toolMsg = h.m.calls[1]!.messages.find((x: any) => x.role === "tool" && x.tool_call_id === "c1") as any;
   assert.ok(toolMsg && /site-v\d#/.test(String(toolMsg.content)), "passages de la base du site");
   const names = h.m.calls[0]!.tools.map((t: any) => t.function.name);
@@ -269,15 +269,15 @@ test("signature bound to the question AND the body: changed body, other question
   const b = await sealedAsk(h, ask("Something else entirely, please?"));
   const ctx = { signer: h.kit.keys.signer, chainId: CHAIN, registry: REG, productId: PRODUCT };
   assert.equal((await verifySiteReply(a.inner, { ...ctx, enc: a.enc, ciphertext: a.ciphertext })).ok, true);
-  // un relais ne peut pas changer le corps (il ne le voit pas) ; mais même un client qui le changerait casse la signature
+  // a relay cannot change the body (it does not see it); but even a client that changed it would break the signature
   const edited = structuredClone(a.inner);
   edited.body.text = "The bond is 0 USDC.";
   assert.deepEqual(await panelProof(h.kit.keys.signer, a.enc, a.ciphertext, edited), { kind: "sealed", bad: true, digest: (await panelProof(h.kit.keys.signer, a.enc, a.ciphertext, edited)).digest });
   assert.equal((await verifySiteReply(edited, { ...ctx, enc: a.enc, ciphertext: a.ciphertext })).ok, false);
-  // la réponse signée de A présentée pour la question B : le digest change, la signature ne vaut plus
+  // A's signed reply presented for question B: the digest changes, the signature no longer holds
   assert.equal((await panelProof(h.kit.keys.signer, b.enc, b.ciphertext, a.inner)).bad, true);
   assert.equal((await verifySiteReply(a.inner, { ...ctx, enc: b.enc, ciphertext: b.ciphertext })).ok, false);
-  // une signature d'une AUTRE clé sur le bon digest : refusée (seule la clé qu'Arc tient compte)
+  // a signature by ANOTHER key over the right digest: refused (only the key Arc holds counts)
   const other = privateKeyToAccount(generatePrivateKey());
   const forged = structuredClone(a.inner);
   forged.sig.signature = await other.signMessage({ message: { raw: a.inner.sig.digest } });
@@ -285,7 +285,7 @@ test("signature bound to the question AND the body: changed body, other question
   const vf = await verifySiteReply(forged, { ...ctx, enc: a.enc, ciphertext: a.ciphertext });
   assert.equal(vf.ok, false);
   assert.match((vf as { why: string }).why, new RegExp(other.address, "i"));
-  // sans sig : « scellée » seulement
+  // without sig: "sealed" only
   const bare = structuredClone(a.inner);
   delete bare.sig;
   assert.deepEqual(await panelProof(h.kit.keys.signer, a.enc, a.ciphertext, bare), { kind: "sealed" });
@@ -317,7 +317,7 @@ test("clear mode (compatibility) in the site's enclave: the site's shape, the pa
   assert.ok(Array.isArray(body.tools) && body.tools.every((t: any) => typeof t === "object"), "forme du site");
   assert.match(sysOf(h), /arrived IN CLEAR/);
   assert.match(sysOf(h), /The user is looking at: page=operator/);
-  // sans le jeton du mandataire : refusé avant le modèle
+  // without the proxy token: refused before the model
   const direct = await h.app.fetch(new Request(`${URL_}/chat`, { method: "POST", headers: { "content-type": "application/json", origin: SITE }, body: JSON.stringify(ask("hi there friend")) }));
   assert.equal(direct.status, 403);
   assert.equal((await direct.json() as any).code, "proxy_required");
@@ -339,7 +339,7 @@ test("/health of the site copilot in its enclave: site surface, where it runs, s
   assert.equal(pk.x25519, h.kit.keys.x25519PublicKey);
 });
 
-// ---------------------------------------------------------------- où il tourne : vrai dans les deux cas
+// ---------------------------------------------------------------- where it runs: true in both cases
 
 test("enclave note: in TDX it states the enclave, the key, Arc and the signature; outside TDX it says the opposite; never \"on the server\"", () => {
   const base: EnclaveFacts = { signer: "0xB3c51bDd7C19acFF81261BD09539EE2912F1a2dB", productId: 4n, chainId: CHAIN, registry: "0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d", model: "openai/gpt-oss-120b", provider: "https://tee.redpill.ai/v1", mock: false };
@@ -358,8 +358,8 @@ test("enclave note: in TDX it states the enclave, the key, Arc and the signature
   const aci = siteEnclaveNote({ ...base, signs: true, modelAttested: { origin: "https://tee.redpill.ai", composeHash: "ab".repeat(32) } })({ sealed: true });
   assert.match(aci, /verified that the provider's gateway \(https:\/\/tee\.redpill\.ai\) itself runs in an attested Intel TDX enclave/);
   assert.match(aci, /Claim no more/);
-  // 19/11 (contrôle indépendant) : la note prime sur la base du site, dit comment répondre à « ce chat tourne-t-il dans une
-  // enclave ? » sans docs_search, pourquoi s'y fier, et qui d'autre lit la conversation (la passerelle du modèle)
+  // the note overrides the site's knowledge base and says how to answer "does this chat run in an enclave?" without
+  // docs_search, why to trust it, and who else reads the conversation (the model's gateway)
   for (const t of [aci, tdx({ sealed: true }), tdx({ sealed: false })]) {
     assert.match(t, /it overrides the FACTS, docs_search passages and history texts on where you run or on whether the copilot's enclave runs or is registered/);
     assert.match(t, /Asked whether this chat runs in an enclave, or where you run: answer from these lines, never from docs_search/);
@@ -399,7 +399,7 @@ test("guard: a prompt that says \"you run on the server\" stops the enclave; the
     assert.ok(SERVER_CLAIMS.some((re) => re.test(SERVER_NOTE)), SERVER_NOTE);
     assert.ok(!siteEnclaveSystem(`${SITE_SYSTEM}\n${SERVER_NOTE}`).includes(SERVER_NOTE));
   }
-  // la surface console n'est pas la surface site : refusée
+  // the console surface is not the site surface: refused
   const keep = process.env.COPILOT_SURFACE;
   delete process.env.COPILOT_SURFACE;
   try {
@@ -408,7 +408,7 @@ test("guard: a prompt that says \"you run on the server\" stops the enclave; the
   } finally {
     if (keep !== undefined) process.env.COPILOT_SURFACE = keep;
   }
-  // aucune fiche du site ne dit au copilote qu'il tourne sur le serveur (une fiche peut décrire le serveur à la 3e personne)
+  // no site entry tells the copilot it runs on the server (an entry can describe the server in the third person)
   for (const k of SITE_PAGES_KB) for (const re of SERVER_CLAIMS) assert.ok(!re.test(k.text), `${k.source} : ${re}`);
 });
 
@@ -424,7 +424,7 @@ test("console in an enclave: unchanged (sealed reply, no signature); only the si
   assert.equal(r.inner.sig, undefined);
 });
 
-// ---------------------------------------------------------------- configuration et compose mesuré
+// ---------------------------------------------------------------- configuration and measured compose
 
 test("configuration: COPILOT_SURFACE site or console (measured), any other value stops the enclave; only the given environment counts", () => {
   const read = () => readFileSync(DEPLOYMENTS_V21, "utf8");
@@ -447,7 +447,7 @@ test("configuration: COPILOT_SURFACE site or console (measured), any other value
 test("compose v22: the measured site surface, the server site copilot's limits, no secret in clear, accepted by the enclave's configuration", () => {
   const s = v22();
   const env = s.measured;
-  // l'image : épinglée par condensat, ou le gabarit explicite d'avant le push (jamais déployable)
+  // the image: pinned by digest, or the explicit pre-push placeholder (never deployable)
   assert.ok(new RegExp(`^ghcr\\.io/jeanbaptistedurand/archive-copilot-enclave@sha256:(?:[0-9a-f]{64}|${IMAGE_PLACEHOLDER})$`).test(s.image), s.image);
   assert.deepEqual(s.secret.sort(), ["COPILOT_PROXY_TOKEN", "OPENAI_API_KEY", "OPERATOR_ALLOWLIST"]);
   assert.deepEqual(s.keys, ["image", "ports", "environment", "volumes", "restart"], "ni env_file, ni command, ni entrypoint");
@@ -455,16 +455,16 @@ test("compose v22: the measured site surface, the server site copilot's limits, 
   assert.equal(env.COPILOT_SURFACE, "site");
   assert.equal(env.MODEL_ATTESTATION, "aci");
   assert.equal(env.ALLOWED_ORIGINS, SITE);
-  // les bornes du copilote du site sur le serveur (deploy/docker-compose.vps.yml, service copilot-site)
+  // the bounds of the site copilot on the server (deploy/docker-compose.vps.yml, the copilot-site service)
   const vps = readFileSync(VPS_COMPOSE, "utf8").match(/\n {2}copilot-site:[\s\S]*?\n {4}environment: \[([^\]]*)\]/);
   assert.ok(vps, "service copilot-site du VPS");
   const vpsEnv = Object.fromEntries(vps![1]!.split(",").map((x) => x.trim().replace(/^"|"$/g, "").split("=") as [string, string]));
   for (const k of ["COPILOT_SURFACE", "COPILOT_GLOBAL_PER_DAY", "COPILOT_MAX_INPUT_TOKENS", "COPILOT_MAX_INPUT_CHARS"]) assert.equal(env[k], vpsEnv[k], k);
-  // tout le reste = la v21 (même modèle, même passerelle vérifiée, même pile, mêmes origines) : seules ces différences
+  // everything else = v21 (same model, same verified gateway, same stack, same origins): only these differences
   const v21 = readCompose(COMPOSE_V21)["copilot-enclave"]!.measured;
   const changed = Object.keys({ ...v21, ...env }).filter((k) => v21[k] !== env[k]).sort();
   assert.deepEqual(changed, ["COPILOT_GLOBAL_PER_DAY", "COPILOT_MAX_INPUT_CHARS", "COPILOT_MAX_INPUT_TOKENS", "COPILOT_SURFACE"]);
-  // la configuration de l'enclave accepte ce compose (secrets de la bonne forme, fichier de la pile du dépôt)
+  // the enclave's configuration accepts this compose (secrets of the right shape, the repository's stack file)
   const cfg = readCopilotEnclaveConfig(
     { ...env, OPENAI_API_KEY: "sk-test", OPERATOR_ALLOWLIST: OP, COPILOT_PROXY_TOKEN: PROXY_TOKEN },
     (p) => { assert.equal(p, "/app/deployments/deployments.v21.testnet.json"); return readFileSync(DEPLOYMENTS_V21, "utf8"); },
@@ -478,14 +478,14 @@ test("compose v22: the measured site surface, the server site copilot's limits, 
 
 test("VM fingerprint: dstack's canonical JSON, the v2.1 compose-hash found again, the v2.1 image fingerprint replayed, the prediction for v22", () => {
   assert.equal(canonicalJson({ b: 1, a: ["x", { d: true, c: "é" }] }), '{"a":["x",{"c":"é","d":true}],"b":1}');
-  // les mesures de la v21 (calldata de son inscription) redonnent son empreinte enregistrée
+  // the v21 measurements (its registration calldata) give back its recorded fingerprint
   assert.equal(predictedImageId(V21_COPILOT_VM.composeHash), V21_COPILOT_VM.imageId);
   const v21Deployed = JSON.parse(readFileSync(DEPLOYMENTS_V21, "utf8")).enclaves["4"];
   assert.equal(v21Deployed.imageId, V21_COPILOT_VM.imageId);
   assert.equal(v21Deployed.composeHash, V21_COPILOT_VM.composeHash);
   const tmpl = { docker_compose_file: "a", pre_launch_script: "b", allowed_envs: ["OPENAI_API_KEY"] };
   assert.throws(() => appComposeFor(tmpl, "services:\n  x:\n    environment:\n      - COPILOT_PROXY_TOKEN=${COPILOT_PROXY_TOKEN}\n"), /allowed_envs/);
-  if (!V21_APP_COMPOSE || !existsSync(V21_APP_COMPOSE)) return; // gabarit hors du dépôt (V21_APP_COMPOSE)
+  if (!V21_APP_COMPOSE || !existsSync(V21_APP_COMPOSE)) return; // template outside the repository (V21_APP_COMPOSE)
   const saved = JSON.parse(readFileSync(V21_APP_COMPOSE, "utf8")) as Record<string, unknown>;
   assert.equal(composeHashOf(saved), V21_COPILOT_VM.composeHash, "le compose_hash que Phala affichait pour la v21");
   assert.equal(composeHashOf(appComposeFor(saved, readFileSync(COMPOSE_V21, "utf8"))), V21_COPILOT_VM.composeHash, "le compose v21 du dépôt est celui qui tournait");

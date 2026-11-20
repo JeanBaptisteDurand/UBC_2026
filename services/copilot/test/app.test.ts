@@ -1,8 +1,8 @@
-/** app.test.ts — l'application HTTP du copilote avec un modèle SIMULÉ ou un faux fournisseur LOCAL (aucun appel au vrai
- *  fournisseur, aucun coût) : rôles, bornes, corps, CORS et origine, débit par IP, plafond d'outils, filtre de secrets
- *  sur les messages et sur les résultats d'outils (audit du 7/11, n° 4 et n° 10) ; restes du 8/11 : max_tokens à chaque
- *  appel, plafond cumulé des résultats d'outils, erreurs du fournisseur jamais renvoyées telles quelles.
- *  Lancer : cd services/copilot && npx tsx --test test/app.test.ts */
+/** app.test.ts — the copilot's HTTP app with a SIMULATED model or a fake LOCAL provider (no call to the real provider,
+ *  no cost): roles, bounds, body, CORS and origin, per-IP rate limit, tool cap, the secrets filter on the messages and
+ *  on the tool results; also max_tokens on every call, the summed cap on tool results, and provider errors never
+ *  returned as they are.
+ *  Run: cd services/copilot && npx tsx --test test/app.test.ts */
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
@@ -18,7 +18,7 @@ import { english } from "viem/accounts";
 const SITE = "https://archive.62-171-153-35.sslip.io";
 const HEX = "ef".repeat(32);
 
-/** Un modèle simulé : rejoue un script de réponses et garde chaque requête reçue. */
+/** A simulated model: replays a script of answers and keeps every request received. */
 function scriptedLlm(script: (n: number, req: LlmRequest) => Awaited<ReturnType<Llm>>) {
   const calls: LlmRequest[] = [];
   const llm: Llm = async (req) => { calls.push({ ...req, messages: structuredClone(req.messages) }); return script(calls.length, req); };
@@ -41,8 +41,8 @@ function makeApp(over: Partial<CopilotAppOptions> = {}, llm?: Llm) {
 
 let ipSeq = 0;
 const freshIp = () => `198.51.${(ipSeq >> 8) & 255}.${ipSeq++ & 255}`;
-// Ces tests datent du copilote tout en français : ils tournent dans un navigateur français (Accept-Language: fr). Sans
-// aucun indice de langue, le copilote répond désormais en anglais (test/i18n.test.ts).
+// These tests date from the all-French copilot: they run in a French browser (Accept-Language: fr). With no language
+// hint at all, the copilot now answers in English (test/i18n.test.ts).
 function post(app: ReturnType<typeof makeApp>["app"], body: unknown, headers: Record<string, string> = {}) {
   return app.request("/chat", {
     method: "POST",
@@ -113,7 +113,7 @@ test("CORS: only the site's origin is allowed; another origin is refused server-
   const ok = await post(app, ask("bonjour"));
   assert.equal(ok.status, 200);
   assert.equal(ok.headers.get("access-control-allow-origin"), SITE);
-  const noOrigin = await post(app, ask("bonjour"), { origin: "" }); // curl, serveur à serveur : le débit les borne
+  const noOrigin = await post(app, ask("bonjour"), { origin: "" }); // curl, server to server: the rate limit bounds them
   assert.equal(noOrigin.status, 200);
 });
 
@@ -126,7 +126,7 @@ test("rate: 20 requests per minute per IP (Caddy's X-Forwarded-For), then 429 wi
   assert.ok(Number(r.headers.get("retry-after")) >= 1);
   assert.match((await r.json() as any).error, /trop de questions/);
   assert.equal((await post(app, ask("autre"), { "x-forwarded-for": "203.0.113.78" })).status, 200);
-  // les requêtes refusées comptent aussi (pas de sondage gratuit)
+  // refused requests count too (no free probing)
   const { app: app2 } = makeApp({ rate: { perMinute: 3, perDay: 300, globalPerDay: 0 } });
   for (let i = 0; i < 3; i++) await post(app2, { messages: [{ role: "system", content: "x" }] }, { "x-forwarded-for": ip });
   assert.equal((await post(app2, ask("ok ?"), { "x-forwarded-for": ip })).status, 429);
@@ -145,7 +145,7 @@ test("global daily cap: beyond it, 429 with no model call", async () => {
 
 test("tool caps: 4 per round, 10 per request, at most 6 model calls; every kept call gets an answer", async () => {
   let id = 0;
-  // un modèle « piloté » qui demande 7 outils à chaque tour, sans jamais s'arrêter
+  // a "driven" model that asks for 7 tools every turn, never stopping
   const m = scriptedLlm((_n, req) => (req.tool_choice === "none"
     ? { content: "Voici ce que j'ai trouvé." }
     : { content: null, tool_calls: Array.from({ length: 7 }, () => ({ id: `c${++id}`, type: "function" as const, function: { name: "docs_search", arguments: '{"query":"x"}' } })) }));
@@ -158,7 +158,7 @@ test("tool caps: 4 per round, 10 per request, at most 6 model calls; every kept 
   assert.equal(m.calls.at(-1)!.tool_choice, "none", "le dernier appel n'offre plus d'outils");
   assert.equal(j.text, "Voici ce que j'ai trouvé.");
   assert.ok(j.outilsNonExecutes > 0);
-  // par tour : 4 outils au plus exécutés ; chaque tool_call a sa réponse (sinon l'API du modèle refuse la suite)
+  // per turn: at most 4 tools run; every tool_call gets its answer (otherwise the model's API refuses what follows)
   const final = m.calls.at(-1)!.messages;
   let turnsWithTools = 0;
   for (const [i, msg] of final.entries()) {
@@ -176,13 +176,13 @@ test("tool caps: 4 per round, 10 per request, at most 6 model calls; every kept 
 test("at most 6 model calls, a retry after an empty answer included", async () => {
   let id = 0;
   const m = scriptedLlm((_n, req) => (req.tool_choice === "none"
-    ? { content: "" } // le modèle « pense » sans écrire
+    ? { content: "" } // the model "thinks" without writing
     : { content: null, tool_calls: [{ id: `c${++id}`, type: "function" as const, function: { name: "docs_search", arguments: "{}" } }] }));
   const { app } = makeApp({}, m.llm);
   const j = await (await post(app, ask("question"))).json() as any;
   assert.equal(m.calls.length, 6);
   assert.ok(j.text.length > 0, "une réponse de repli est donnée");
-  // réponse vide sans outil : une relance « texte seulement », comptée parmi les 6
+  // an empty answer without a tool: one "text only" retry, counted among the 6
   const e = scriptedLlm((_n, req) => (req.tool_choice === "none" ? { content: "Réponse." } : { content: "" }));
   const { app: app2 } = makeApp({}, e.llm);
   const j2 = await (await post(app2, ask("question"))).json() as any;
@@ -230,9 +230,9 @@ test("no model key: an explicit answer, no call", async () => {
   assert.match(j.text, /Pas de clé OPENAI_API_KEY/);
 });
 
-// ---------------------------------------------------------------- restes relevés par le vérificateur le 8/11
+// ---------------------------------------------------------------- cases found in review
 
-/** Un faux fournisseur compatible OpenAI, LOCAL (127.0.0.1) : garde chaque corps reçu et répond ce que dit `handler`. */
+/** A fake OpenAI-compatible provider, LOCAL (127.0.0.1): keeps every body received and answers what `handler` says. */
 async function fakeProvider(handler: (body: any, auth: string) => { status: number; json: unknown }) {
   const bodies: any[] = [];
   const srv = createServer((req, res) => {
@@ -269,7 +269,7 @@ test("max_tokens on EVERY model call (2,000 by default, configurable), down to t
   const { app: app2 } = makeApp({ caps: { maxTokensPerCall: 300 } }, m2.llm);
   await post(app2, ask("x"));
   assert.equal(m2.calls[0]!.max_tokens, 300);
-  // le vrai client (llm.ts) le transmet au fournisseur
+  // the real client (llm.ts) passes it to the provider
   const p = await fakeProvider(() => ({ status: 200, json: completion("Bonjour.") }));
   try {
     const { app: app3 } = makeApp({}, openAiLlm({ apiKey: "sk-test-0123456789abcdefghij", baseURL: p.baseURL, model: "m" }));
@@ -296,7 +296,7 @@ test("SUMMED cap on tool results (40,000 characters per request): beyond it, no 
   assert.ok(total <= DEFAULT_CAPS.maxToolCharsPerRequest + 300, `${total} caractères de résultats d'outils renvoyés`);
   assert.match(toolMsgs.at(-1)!, /outil non exécuté \(l'historique de cette requête \(résultats d'outils et sorties du modèle\) a atteint 40.000 caractères\)/);
   assert.equal(j.outilsNonExecutes, 1);
-  // réglable
+  // configurable
   const m2 = scriptedLlm((_n, req) => (req.tool_choice === "none" ? { content: "ok" } : { content: null, tool_calls: [callDocs(`d${++id}`)] }));
   const { app: app2 } = makeApp({ caps: { maxToolCharsPerRequest: 5_000 }, executeTool: async () => ({ result: { rows: "y".repeat(9_000) } }) }, m2.llm);
   await post(app2, ask("x"));
@@ -320,7 +320,7 @@ test("150 tool calls in one round: 4 run and returned to the model, the others n
 });
 
 test("provider error: a generic message and a code for the visitor, never the provider's text or the key (filtered log)", async () => {
-  // le fournisseur recopie la clé reçue dans son erreur 401 (cas mesuré par le vérificateur)
+  // the provider copies the key it received into its 401 error (a case the reviewer measured)
   for (const KEY of ["sk-proj-THIS-IS-THE-SERVER-PROVIDER-KEY-1234567890abcdef", "zz.unusual-provider-key-format.0123456789"]) {
     const p = await fakeProvider((_b, auth) => ({ status: 401, json: { error: { message: `Invalid API key provided: ${auth.replace(/^Bearer\s+/, "")}`, type: "invalid_request_error", code: "invalid_api_key" } } }));
     const logs: string[] = [];
@@ -382,14 +382,14 @@ test("a user message about a private key: the 0x… value never reaches the mode
   }
 });
 
-// ---------------------------------------------------------------- restes relevés par le vérificateur le 9/11
+// ---------------------------------------------------------------- input budget cases found in review
 
-/** Taille d'entrée d'un appel, mesurée comme le vérificateur : messages et définitions d'outils, en JSON. */
+/** The input size of a call, measured as the reviewer did: messages and tool definitions, as JSON. */
 const inputSize = (req: LlmRequest) => JSON.stringify(req.messages).length + JSON.stringify(req.tools).length;
 
 test("the model's OUTPUTS sent back at the next round (text and call arguments) count in the history cap", async () => {
   let id = 0;
-  // un tour : 39 500 caractères de texte « intermédiaire » et un appel d'outil aux arguments de 600 caractères
+  // one turn: 39,500 characters of "intermediate" text and a tool call with 600 characters of arguments
   const m = scriptedLlm((_n, req) => (req.tool_choice === "none"
     ? { content: "Fin." }
     : { content: "c".repeat(39_500), tool_calls: [{ id: `c${++id}`, type: "function" as const, function: { name: "docs_search", arguments: JSON.stringify({ q: "y".repeat(600) }) } }] }));
@@ -406,7 +406,7 @@ test("the model's OUTPUTS sent back at the next round (text and call arguments) 
 test("summed INPUT budget per request (COPILOT_MAX_INPUT_CHARS): it stops tool rounds, and no call exceeds it", async () => {
   assert.equal(DEFAULT_CAPS.maxInputCharsPerRequest, 160_000);
   let id = 0;
-  // plusieurs tours d'outils permis, jusqu'à ce que l'appel final ne tienne plus : le budget d'entrée décide, pas les autres plafonds
+  // several tool turns allowed, until the final call no longer fits: the input budget decides, not the other caps
   const m = scriptedLlm((_n, req) => (req.tool_choice === "none" ? { content: "Résumé." } : { content: null, tool_calls: [callDocs(`c${++id}`)] }));
   const caps = { maxInputCharsPerRequest: 30_000, maxTokensPerCall: 100, maxToolCharsPerRequest: 4_000, maxModelCalls: 50, perRequest: 50 };
   let ran = 0;
@@ -420,8 +420,8 @@ test("summed INPUT budget per request (COPILOT_MAX_INPUT_CHARS): it stops tool r
   assert.ok(total + 2 * sizes.at(-1)! > caps.maxInputCharsPerRequest - 8_000, "arrêté près du budget, pas avant");
   assert.equal(m.calls.at(-1)!.tool_choice, "none", "budget atteint : le dernier appel est en texte seulement");
   assert.ok(m.calls.slice(0, -1).every((c) => c.tool_choice === "auto"));
-  // borne DURE : un tour qui grossit l'historique bien au-delà de la prévision (sortie démesurée) ; l'appel suivant ne
-  // tiendrait plus : il n'est pas fait, réponse locale et code input_budget
+  // HARD bound: a turn that grows the history far beyond the forecast (an oversized output); the next call would no
+  // longer fit: it is not made, a local answer with the input_budget code
   const big = scriptedLlm((_n, req) => (req.tool_choice === "none" ? { content: "jamais" } : { content: "c".repeat(40_000), tool_calls: [callDocs(`d${++id}`)] }));
   const { app: app2 } = makeApp({ caps: { maxInputCharsPerRequest: 30_000, maxTokensPerCall: 1, maxToolCharsPerRequest: 2_000 } }, big.llm);
   const j2 = await (await post(app2, ask("x"))).json() as any;
@@ -434,8 +434,8 @@ test("summed INPUT budget per request (COPILOT_MAX_INPUT_CHARS): it stops tool r
 test("worst case with the REAL prompt and the REAL tools (the reviewer's cost-worst and cost-xff cases): request input ≤ 160,000 characters", async () => {
   const OAI_TOOLS = TOOL_DEFS.map((t) => ({ type: "function" as const, function: { name: t.name, description: t.description, parameters: t.input_schema as any } }));
   const history = { messages: Array.from({ length: 5 }, (_, i) => ({ role: i % 2 ? "assistant" : "user", content: (i % 2 ? "a" : "u").repeat(3_990) })) };
-  // cost-worst : 1 outil par tour (résultat ≈ 7,9 k car.), 6 000 car. de texte et 2 000 d'arguments par tour, 8 000 de réponse
-  // cost-xff : 150 outils par tour (arguments de 2 000 car.), résultats de 50 000 car., 8 000 car. de texte par appel
+  // cost-worst: 1 tool per turn (result ≈ 7.9 k chars), 6,000 chars of text and 2,000 of arguments per turn, 8,000 of answer
+  // cost-xff: 150 tools per turn (2,000-char arguments), 50,000-char results, 8,000 chars of text per call
   for (const [label, perTurn, result, text] of [["cost-worst", 1, 7_850, 6_000], ["cost-xff", 150, 50_000, 8_000]] as const) {
     let n = 0;
     const m = scriptedLlm((_k, req) => {
@@ -468,7 +468,7 @@ test("DEBUG removed from the environment; the openai client never logs headers o
   try {
     const llm = openAiLlm({ apiKey: KEY, baseURL: p.baseURL, model: "m" });
     assert.equal(process.env.DEBUG, undefined, "retiré à la construction du client");
-    process.env.DEBUG = "true"; // même revenu dans l'environnement : retiré avant chaque appel
+    process.env.DEBUG = "true"; // even if it comes back into the environment: removed before each call
     const r = await llm({ messages: [{ role: "user", content: "CONVERSATION-PRIVEE" }], tools: [], tool_choice: "auto", max_tokens: 50, signal: AbortSignal.timeout(5_000) });
     assert.equal(r.content, "réponse du modèle");
     assert.equal(process.env.DEBUG, undefined);
@@ -489,20 +489,20 @@ test("the prompt and the English directive name the filter's marks exactly (the 
     assert.ok(COPILOT_SYSTEM.includes(`« ${mark} »`), mark);
     assert.ok(languageDirective("en").includes(`« ${mark} »`), mark);
   }
-  // une valeur masquée par prudence se renvoie dans une NOUVELLE conversation (l'alerte vaut pour toute la conversation)
+  // a value masked out of caution can be sent again in a NEW conversation (the alert holds for the whole conversation)
   assert.match(COPILOT_SYSTEM, /NOUVELLE conversation qui ne parle pas de clé/);
 });
 
 test("input budget in estimated TOKENS (the reviewer's cost-unicode case): dense characters bounded at 50,000 tokens per request, first call included", async () => {
   assert.equal(DEFAULT_CAPS.maxInputTokensPerRequest, 50_000);
-  // estimation prudente, par unité UTF-16 : 0,3 jeton par caractère ASCII, 3 par autre caractère
+  // a cautious estimate, per UTF-16 unit: 0.3 token per ASCII character, 3 per other character
   assert.equal(estimateTokens("a".repeat(1_000)), 300);
   assert.equal(estimateTokens("\ua000".repeat(1_000)), 3_000); // syllabe yi
-  assert.equal(estimateTokens("\u{1f600}"), 6); // hors du plan de base : deux unités
+  assert.equal(estimateTokens("\u{1f600}"), 6); // outside the Basic Multilingual Plane: two units
   const tokensOf = (req: LlmRequest) => estimateTokens(JSON.stringify(req.messages)) + estimateTokens(JSON.stringify(req.tools));
   const yi = (k: number, seed: number) => Array.from({ length: k }, (_, j) => String.fromCharCode(0xa000 + ((seed * 131 + j * 7) % 1100))).join("");
-  // la preuve : 15 970 caractères yi d'historique (≈ 48 000 jetons, sous la borne de 16 000 caractères), VRAIE invite, VRAIS
-  // outils, le modèle demande un outil à chaque tour
+  // the proof: 15,970 Yi characters of history (≈ 48,000 tokens, under the 16,000-character bound), the REAL prompt, the
+  // REAL tools, and the model asks for a tool every turn
   const OAI_TOOLS = TOOL_DEFS.map((t) => ({ type: "function" as const, function: { name: t.name, description: t.description, parameters: t.input_schema as any } }));
   const history = { messages: Array.from({ length: 5 }, (_, i) => ({ role: i % 2 ? "assistant" : "user", content: yi(i === 4 ? 10 : 3_990, i) })) };
   let n = 0;
@@ -517,17 +517,17 @@ test("input budget in estimated TOKENS (the reviewer's cost-unicode case): dense
   assert.equal(res.status, 200);
   const total = m.calls.map(tokensOf).reduce((a, b) => a + b, 0);
   assert.ok(m.calls.length >= 1 && total <= DEFAULT_CAPS.maxInputTokensPerRequest, `${m.calls.length} appel(s), ${total} jetons estimés (avant : ≈ 139 000)`);
-  // l'historique le plus ancien est tombé pour que le PREMIER appel tienne, et l'invite le dit au modèle
+  // the oldest history dropped so the FIRST call fits, and the prompt tells the model so
   assert.ok(m.calls[0]!.messages.length < 1 + history.messages.length);
   assert.match(String(m.calls[0]!.messages[0]!.content), /message\(s\) ancien\(s\) retiré\(s\)/);
-  // le dernier message seul ne tient pas : rien n'est envoyé au modèle, réponse locale (code input_budget)
+  // the last message alone does not fit: nothing is sent to the model, a local answer (code input_budget)
   const m2 = scriptedLlm(() => ({ content: "jamais" }));
   const { app: app2 } = makeApp({ caps: { maxInputTokensPerRequest: 2_000 } }, m2.llm);
   const j2 = await (await post(app2, ask(yi(1_000, 3)))).json() as any;
   assert.equal(m2.calls.length, 0);
   assert.equal(j2.code, "input_budget");
   assert.equal(j2.text, T("fr").inputBudget);
-  // le même message en ASCII (300 jetons) passe
+  // the same message in ASCII (300 tokens) passes
   const m3 = scriptedLlm(() => ({ content: "Bonjour." }));
   const { app: app3 } = makeApp({ caps: { maxInputTokensPerRequest: 2_000 } }, m3.llm);
   assert.equal(((await (await post(app3, ask("a".repeat(1_000)))).json()) as any).text, "Bonjour.");

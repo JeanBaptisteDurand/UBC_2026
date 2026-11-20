@@ -1,6 +1,6 @@
-/** archive-api.test.ts — les listes lues dans l'index de l'API ArcHive (audit du 7/11, n° 7) : délai, repli explicite
- *  (« liste momentanément indisponible »), jamais de liste partielle, jamais l'explorateur. Contre une fausse API LOCALE.
- *  Lancer : cd services/copilot && npx tsx --test test/archive-api.test.ts */
+/** archive-api.test.ts — the lists read from the ArcHive API's index: timeout, explicit fallback ("liste momentanément
+ *  indisponible", list temporarily unavailable), never a partial list, never the explorer. Against a fake LOCAL API.
+ *  Run: cd services/copilot && npx tsx --test test/archive-api.test.ts */
 import test, { before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -10,7 +10,7 @@ import { enclavesList, productsList, sessionsList, activityList, enclaveStatus, 
 import { startFakeApi, defaultRoutes, fixture, fakeArc, OWNER, type FakeApi } from "./helpers";
 
 let api: FakeApi;
-// bountyList et enclaveStatus lisent la base par défaut (ARCHIVE_API) : elle pointe vers la fausse API
+// bountyList and enclaveStatus read the default base (ARCHIVE_API): it points to the fake API
 before(async () => { api = await startFakeApi(); process.env.ARCHIVE_API = api.base; });
 after(() => api.close());
 beforeEach(() => { clearListCache(); for (const [p, r] of Object.entries(defaultRoutes())) api.set(p, r); });
@@ -107,7 +107,7 @@ test("list tools (copilot and MCP): the API only, never the explorer, and the so
   assert.deepEqual(await sessionsList(arc, {}, cx), { disponible: false, erreur: "owner requis : l'adresse 0x… du compte (ou connectez votre wallet)." });
   const a = await activityList(arc, { limit: 3 }, cx);
   assert.equal(a.nombre, 3);
-  const b = await bountyList(arc, {}); // base par défaut : ARCHIVE_API (posée ci-dessous)
+  const b = await bountyList(arc, {}); // default base: ARCHIVE_API (set below)
   assert.equal(b.total, 2);
   assert.ok(api.urls.every((u) => !/explorer|blockscout/i.test(u)));
 });

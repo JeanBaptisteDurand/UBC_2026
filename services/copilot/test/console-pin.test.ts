@@ -1,8 +1,8 @@
-/** console-pin.test.ts — la surface « console » (COPILOT_SURFACE absent, vide ou "console") reste EXACTEMENT celle
- *  déployée le 15/11 : invite système, noms et définitions des outils, libellés, base de connaissances et consignes de
- *  langue épinglés par empreinte SHA-256 (calculées sur le code déployé, AVANT la surface « site »), et forme de la
- *  réponse inchangée (tools = libellés, navigate, actions ; le champ `page` du site est ignoré).
- *  Lancer : cd services/copilot && npx tsx --test test/console-pin.test.ts */
+/** console-pin.test.ts — the "console" surface (COPILOT_SURFACE absent, empty or "console") stays EXACTLY the one
+ *  deployed on 15 Nov 2026: system prompt, tool names and definitions, labels, knowledge base and language instructions
+ *  pinned by SHA-256 fingerprints (computed on the deployed code, BEFORE the "site" surface), and the response's shape
+ *  unchanged (tools = labels, navigate, actions; the site's `page` field is ignored).
+ *  Run: cd services/copilot && npx tsx --test test/console-pin.test.ts */
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -13,7 +13,7 @@ import { createCopilotApp, type Llm, type LlmRequest } from "../src/app";
 
 const sha = (s: string) => createHash("sha256").update(s, "utf8").digest("hex");
 
-/** Empreintes du copilote déployé le 15/11 (/opt/archive/src), relevées le 16/11 avant toute modification. */
+/** The fingerprints of the copilot deployed on 15 Nov 2026 (/opt/archive/src), recorded before any change. */
 const PIN = {
   system: "a22fb9664ffd8fb0713adc741907bde278b172ef27e9ce4037300795ab0855c1",
   systemLength: 5_465,
@@ -26,13 +26,13 @@ const PIN = {
   toolDefs: "089f53031d5e526fa6906747e9facd4a7e63c846eecd2809a137b3b24b76d512",
   oaiTools: "83df4798fb997bfcc77b44d1f307d155b58ecab6c2d498c447ad8e18b7325044",
   display: "7b3ea661af720733594ed05c52bde1c5ad1ed5f9ca3e650186455fe855f9cea4",
-  // la base de connaissances porte depuis le 20/11 les prix avec leur unité, le gaz mesuré sur Arc et ses sources publiques
+  // the knowledge base now carries the prices with their unit, the gas measured on Arc and its public sources
   kb: "2adf3e3db0d8a41fcccb4c9668211e9873396b55103ecbdfff4baf4445eedee2",
   langEn: "d6820f380519f72ea6d5f4da83757c5d39211de778b730c08a7cc74713868421",
   langFr: "dc3e07217c78f1839162130a0d93cbf877a0a7f40984b6913cac3404a9e4006a",
 };
 
-/** copilotFromEnv avec COPILOT_SURFACE = v (undefined : variable absente), sans clé de modèle ni pile externe. */
+/** copilotFromEnv with COPILOT_SURFACE = v (undefined: variable absent), without a model key or an external stack. */
 function fromEnv(v: string | undefined) {
   const keep = { s: process.env.COPILOT_SURFACE, k: process.env.OPENAI_API_KEY, d: process.env.DEPLOYMENTS };
   delete process.env.OPENAI_API_KEY;
@@ -48,7 +48,7 @@ function fromEnv(v: string | undefined) {
 test("console: the system prompt is the deployed one, byte for byte", () => {
   assert.equal(COPILOT_SYSTEM.length, PIN.systemLength);
   assert.equal(sha(COPILOT_SYSTEM), PIN.system);
-  // le paragraphe qui pilote les pages de la console y est toujours
+  // the paragraph that drives the console's pages is still there
   assert.match(COPILOT_SYSTEM, /Tu PILOTES l'interface : tu vis dans une bulle en bas à droite du site/);
 });
 
@@ -73,7 +73,7 @@ test("COPILOT_SURFACE absent, empty or \"console\": the same prompt, the same to
   }
 });
 
-// ---------------------------------------------------------------- forme de la réponse de la console
+// ---------------------------------------------------------------- the console's response shape
 
 const SITE = "https://archive.62-171-153-35.sslip.io";
 function scriptedLlm(script: (n: number, req: LlmRequest) => Awaited<ReturnType<Llm>>) {
@@ -107,7 +107,7 @@ test("console: tools = labels, navigate = a console page, actions; the site's `p
   assert.equal(plain.j.navigate, "primes");
   assert.deepEqual(plain.j.actions, []);
   assert.equal(plain.j.text, "Voici les primes.");
-  // le contexte de page du site n'entre jamais dans l'invite de la console
+  // the site's page context never enters the console's prompt
   const withPage = await run({ ...base, page: { name: "use", query: "bounty", state: "green", kind: "bounty", section: "catalog" } });
   assert.equal(withPage.system, plain.system);
   assert.ok(!withPage.system.includes("The user is looking at"));

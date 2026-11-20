@@ -1,6 +1,6 @@
-/** i18n.test.ts — la langue du copilote (9/11) : champ `lang` du corps, sinon langue du dernier message de l'utilisateur,
- *  sinon Accept-Language, sinon l'anglais ; réponses, refus, messages d'action et noms de pages dans cette langue.
- *  Modèle SIMULÉ, aucun appel réseau. Lancer : cd services/copilot && npx tsx --test test/i18n.test.ts */
+/** i18n.test.ts — the copilot's language: the body's `lang` field, otherwise the language of the user's last message,
+ *  otherwise Accept-Language, otherwise English; answers, refusals, action messages and page names in that language.
+ *  SIMULATED model, no network call. Run: cd services/copilot && npx tsx --test test/i18n.test.ts */
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createCopilotApp, intentNav, modelFailure, type Llm, type LlmRequest, type CopilotAppOptions } from "../src/app";
@@ -87,7 +87,7 @@ test("lang \"en\": the English directive comes LAST in the prompt, even for a qu
   assert.match(s, /^SYSTÈME/);
   assert.ok(s.trimEnd().endsWith(languageDirective("en").trimEnd()), "consigne anglaise à la fin");
   assert.equal(j.navigate, "ruche");
-  // sans lang : la langue du dernier message
+  // without lang: the last message's language
   await post(app, { messages: [{ role: "user", content: "Show me the hive" }] });
   assert.ok(sys(m.calls.at(-1)!).endsWith(languageDirective("en")));
   await post(app, { messages: [{ role: "user", content: "Montre-moi la ruche" }] });
@@ -96,7 +96,7 @@ test("lang \"en\": the English directive comes LAST in the prompt, even for a qu
 
 test("refusals in the language: body read (lang, then message); before the body: Accept-Language, else English; every refusal has a code", async () => {
   const app = makeApp();
-  // conversation invalide, lang demandé
+  // invalid conversation, lang requested
   let j = await (await post(app, { messages: [{ role: "system", content: "x" }, { role: "user", content: "salut" }], lang: "en" })).json() as any;
   assert.equal(j.code, "bad_conversation");
   assert.match(j.text, /^Request refused: message 0: role “system” refused/);
@@ -117,7 +117,7 @@ test("refusals in the language: body read (lang, then message); before the body:
   assert.equal((await evil.json() as any).code, "origin_refused");
   assert.equal((await (await post(app, "x", { "content-type": "text/plain" })).json() as any).code, "json_only");
   assert.equal((await (await post(app, "{pas du json")).json() as any).code, "bad_json");
-  // débit, puis plafond global, en anglais sans indice
+  // rate limit, then global cap, in English with no hint
   const tight = makeApp({ rate: { perMinute: 1, perDay: 300, globalPerDay: 0 } });
   await post(tight, { messages: [{ role: "user", content: "1" }] }, { "x-forwarded-for": "198.18.0.1" });
   const r = await post(tight, { messages: [{ role: "user", content: "2" }] }, { "x-forwarded-for": "198.18.0.1" });
@@ -136,7 +136,7 @@ test("refusals in the language: body read (lang, then message); before the body:
 });
 
 test("action, fallback and error messages in the language; English punctuation with no space before \"! ? :\"", async () => {
-  // action préparée et texte vide : message d'action
+  // prepared action and empty text: the action message
   let n = 0;
   const m = scriptedLlm(() => (n++ === 0
     ? { content: null, tool_calls: [{ id: "a", type: "function" as const, function: { name: "session_prepare_open", arguments: '{"productId":"1","deposit":"1"}' } }] }
@@ -145,17 +145,17 @@ test("action, fallback and error messages in the language; English punctuation w
   let j = await (await post(app, { messages: [{ role: "user", content: "Open a session" }], lang: "en" })).json() as any;
   assert.equal(j.text, "I prepared the action below: check it, then sign with your wallet. Nothing is spent without your signature.");
   assert.equal(j.actions.length, 1);
-  // relance d'une réponse vide : consigne au modèle dans la langue
+  // retry of an empty answer: the instruction to the model in that language
   assert.match(String(m.calls[2]!.messages.at(-1)!.content), /in English/);
   // page seule
   const p = makeApp({}, async () => ({ content: "" }));
   j = await (await post(p, { messages: [{ role: "user", content: "Show me the hive" }] })).json() as any;
   assert.equal(j.text, "Here is the relevant page.");
   assert.equal(j.navigate, "ruche");
-  // pas de clé de modèle
+  // no model key
   j = await (await post(makeApp({}, null), { messages: [{ role: "user", content: "x" }], lang: "en" })).json() as any;
   assert.equal(j.text, "No OPENAI_API_KEY configured.");
-  // erreur du fournisseur : message générique en anglais, même code
+  // provider error: a generic message in English, same code
   const failing = makeApp({ log: () => {} }, async () => { throw Object.assign(new Error("sk-proj-SECRET"), { status: 503 }); });
   j = await (await post(failing, { messages: [{ role: "user", content: "hello" }] })).json() as any;
   assert.equal(j.code, "modele_503");

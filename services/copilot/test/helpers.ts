@@ -1,5 +1,5 @@
-/** helpers.ts — outils des tests : une fausse API ArcHive LOCALE (127.0.0.1, port libre) qui sert les fixtures
- *  (réponses réelles de l'API publique du 8/11, données on-chain publiques), avec délai, statut ou corps brut au choix. */
+/** helpers.ts — test tools: a fake LOCAL ArcHive API (127.0.0.1, free port) that serves the fixtures (real answers
+ *  of the public API, public on-chain data), with a delay, a status or a raw body to choose. */
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { readFileSync } from "node:fs";
@@ -15,7 +15,7 @@ export const OWNER = "0x5724d89D610c3017b8DC161c025248341556f6Ab";
 export interface Route { status?: number; body?: unknown; raw?: string; delayMs?: number }
 export interface FakeApi {
   base: string;
-  /** Requêtes reçues (chemin + requête), dans l'ordre. */
+  /** Requests received (path + query), in order. */
   urls: string[];
   hits: (path: string) => number;
   set: (path: string, r: Route) => void;
@@ -64,8 +64,8 @@ export async function startFakeApi(routes: Record<string, Route> = defaultRoutes
   };
 }
 
-/** Un faux client Arc : toute liste du SDK (donc l'explorateur Blockscout) fait échouer le test ; les lectures on-chain
- *  ponctuelles rendent des valeurs fixes. */
+/** A fake Arc client: any SDK list (hence the Blockscout explorer) fails the test; the one-off on-chain reads return
+ *  fixed values. */
 export function fakeArc(): ArcClient {
   const forbidden = () => { throw new Error("liste du SDK appelée : l'explorateur ne doit plus jamais servir de source"); };
   return {

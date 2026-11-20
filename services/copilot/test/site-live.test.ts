@@ -1,8 +1,8 @@
-/** site-live.test.ts — l'état en direct du copilote du site (19/11, site-live.ts), avec une fausse API ArcHive locale et
- *  un faux client Arc (aucun réseau) : la ligne LIVE STATUS (enclaves actives par produit, niveau vérifié, produits sans
- *  enclave, règlement du produit 7, primes ouvertes des deux niveaux), la ligne de repli quand l'API se tait, le cache,
- *  la ligne dans l'invite du site (jamais dans celle de la console) et bounty_list du site avec le niveau vérifié.
- *  Lancer : cd services/copilot && npx tsx --test test/site-live.test.ts */
+/** site-live.test.ts — the site copilot's live state (site-live.ts), with a fake local ArcHive API and a fake Arc client
+ *  (no network): the LIVE STATUS line (active enclaves per product, verified level, products without an enclave, product
+ *  7's settlement, open bounties of both levels), the fallback line when the API is silent, the cache, the line in the
+ *  site's prompt (never in the console's) and the site's bounty_list with the verified level.
+ *  Run: cd services/copilot && npx tsx --test test/site-live.test.ts */
 import test from "node:test";
 import assert from "node:assert/strict";
 import { testnet, type ArcClient } from "@arcvault/sdk";
@@ -41,8 +41,8 @@ function bounty(id: number, productId: number, deadline: number, balance = "1000
     targetToPause: "0x250C64fcbb61Ca4B9278330ae3711DCcADD1AB09", paidAmount: "500000", lastPaidBlock: "71584411", pausedFromBlock: "0",
   };
 }
-/** L'état relevé le 19/11 à 01:55 UTC : 19 enclaves inscrites, 4 actives (produits 7, 1, 2, 3), toutes au niveau
- *  vérifié ; 7 produits ; deux primes du niveau ouvert, échues. */
+/** The state recorded on 19 Nov 2026 at 01:55 UTC: 19 registered enclaves, 4 active (products 7, 1, 2, 3), all at the
+ *  verified level; 7 products; two open-level bounties, expired. */
 function routes(over: Record<string, Route> = {}): Record<string, Route> {
   const active = [enclave(1, 7, true), enclave(2, 1, true), enclave(3, 2, true), enclave(4, 3, true)];
   const old = Array.from({ length: 15 }, (_, i) => enclave(10 + i, [4, 3, 1, 7, 2, 6, 4, 1, 3, 4, 5, 5, 5, 4, 2][i]!, false));
@@ -56,7 +56,7 @@ function routes(over: Record<string, Route> = {}): Record<string, Route> {
   };
 }
 
-/** Un faux client Arc : la Prime du niveau vérifié (bountyCount, getBounty) et les constantes de SealedBounty. */
+/** A fake Arc client: the verified-level bounty contract (bountyCount, getBounty) and SealedBounty's constants. */
 function arcWith(verified: Array<{ productId: number; balance: bigint; deadline: number; paused?: boolean }>, fail = false): ArcClient & { reads: string[] } {
   const reads: string[] = [];
   return {
@@ -82,7 +82,7 @@ function arcWith(verified: Array<{ productId: number; balance: bigint; deadline:
 }
 
 const fresh = () => { clearListCache(); clearLiveCaches(); };
-/** L'adresse telle que l'outil la rend (somme de contrôle EIP-55). */
+/** The address as the tool returns it (EIP-55 checksum). */
 const addrOf = (n: number) => getAddress(addr(n));
 
 test("LIVE STATUS: active enclaves per product, verified level, products with no enclave, product 7's settlement, bounties of both levels", async () => {
@@ -162,14 +162,14 @@ test("the LIVE STATUS line enters the site's prompt, after the page and before t
   assert.ok(sys.includes(`\n${live}\n`), sys.slice(-800));
   assert.ok(sys.indexOf("The user is looking at: page=home") < sys.indexOf(live));
   assert.ok(sys.indexOf(live) < sys.indexOf("LANGUAGE (overrides everything above)"));
-  // une note qui lève ne casse jamais la réponse
+  // a note that throws never breaks the answer
   const app2 = createCopilotApp({
     llm, system: SITE_SYSTEM, tools: [], allowedOrigins: [SITE], rate: { perMinute: 20, perDay: 300, globalPerDay: 0 },
     executeTool: async () => ({ result: {} }), site: { ...SITE_SURFACE, liveNote: async () => { throw new Error("boom"); } },
   });
   const r2 = await app2.request("/chat", { method: "POST", headers: { "content-type": "application/json", origin: SITE }, body: JSON.stringify({ messages: [{ role: "user", content: "hi there you" }], lang: "en" }) });
   assert.equal(r2.status, 200);
-  // l'invite du site parle de la ligne (FACTS) ; la ligne elle-même manque
+  // the site's prompt mentions the line (FACTS); the line itself is missing
   assert.ok(!String(calls.at(-1)!.messages[0]!.content).includes("\nLIVE STATUS"));
   // la console : aucune ligne LIVE STATUS
   const app3 = createCopilotApp({

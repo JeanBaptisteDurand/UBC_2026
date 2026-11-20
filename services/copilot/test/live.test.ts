@@ -1,7 +1,7 @@
-/** live.test.ts — un appel RÉEL de lecture de chaque outil de liste du copilote contre l'API en ligne (ARCHIVE_API, défaut
- *  https://archive.62-171-153-35.sslip.io/api) et le RPC public d'Arc (lectures seulement : aucune transaction, aucun
- *  modèle appelé). Toutes les URL contactées sont relevées : l'explorateur ne doit jamais en faire partie.
- *  Lancer : cd services/copilot && LIVE=1 npx tsx --test test/live.test.ts   (sans LIVE=1 : ignoré) */
+/** live.test.ts — one REAL read of each copilot list tool against the live API (ARCHIVE_API, default
+ *  https://archive.62-171-153-35.sslip.io/api) and Arc's public RPC (reads only: no transaction, no model called). Every
+ *  URL contacted is recorded: the explorer must never be among them.
+ *  Run: cd services/copilot && LIVE=1 npx tsx --test test/live.test.ts   (without LIVE=1: skipped) */
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createPublicClient, http } from "viem";
@@ -11,7 +11,7 @@ import { archiveBase } from "../src/archive-api";
 import { OWNER } from "./helpers";
 
 const LIVE = process.env.LIVE === "1";
-const skip = LIVE ? false : "LIVE=1 pour appeler l'API en ligne";
+const skip = LIVE ? false : "LIVE=1 to call the live API";
 
 const contacted: string[] = [];
 const realFetch = globalThis.fetch;

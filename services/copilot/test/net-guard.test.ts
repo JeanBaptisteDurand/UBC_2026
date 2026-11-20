@@ -1,7 +1,7 @@
-/** net-guard.test.ts — appels vers une URL donnée par l'utilisateur (audit du 7/11, n° 4) : adresses refusées, URL
- *  refusées, et garde anti-rebinding (l'hôte est résolu UNE fois et la connexion part vers CETTE adresse). Aucun appel
- *  réseau sortant : un serveur local, un résolveur et un requêteur simulés.
- *  Lancer : cd services/copilot && npx tsx --test test/net-guard.test.ts */
+/** net-guard.test.ts — calls to a URL given by the user: refused addresses, refused URLs, and the anti-rebinding guard
+ *  (the host is resolved ONCE and the connection goes to THAT address). No outgoing network call: a local server, a
+ *  simulated resolver and requester.
+ *  Run: cd services/copilot && npx tsx --test test/net-guard.test.ts */
 import test, { before, after } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -55,12 +55,12 @@ test("enclave URL: https only, port 443 only, fixed path (root or a known gatewa
     ["https://abc.example", "/v1/chat/completions", /\/attest or \/pubkeys only/],
   ];
   for (const [base, route, why] of refused) assert.throws(() => enclaveEndpoint(base, route), (e: any) => e instanceof BlockedUrlError && why.test(e.message), `${base} ${route}`);
-  // préfixes réglables (ENCLAVE_PATH_PREFIXES) ; « none » = la racine seulement
+  // configurable prefixes (ENCLAVE_PATH_PREFIXES); "none" = the root only
   assert.equal(enclaveEndpoint("https://x.example/gw/sealed-x402", "/attest", { prefixes: parsePrefixes("/gw/sealed-x402") }).href, "https://x.example/gw/sealed-x402/attest");
   assert.throws(() => enclaveEndpoint("https://x.example/enclave/inference", "/attest", { prefixes: parsePrefixes("none") }), BlockedUrlError);
   assert.deepEqual(parsePrefixes(undefined), DEFAULT_ENCLAVE_PREFIXES);
   assert.deepEqual(parsePrefixes(" /a/b/ , c ,, /a/b , ../x , /y?z "), ["/a/b", "/c"]);
-  // développement local : http et tout port permis, chemin toujours fixe
+  // local development: http and any port allowed, the path always fixed
   const dev = { allowPrivate: true };
   assert.equal(enclaveEndpoint("http://localhost:8802", "/attest", dev).href, "http://localhost:8802/attest");
   assert.equal(enclaveEndpoint("http://192.168.1.20:8802/enclave/inference", "/pubkeys", dev).href, "http://192.168.1.20:8802/enclave/inference/pubkeys");
@@ -115,7 +115,7 @@ after(() => new Promise<void>((ok) => { srv.closeAllConnections(); srv.close(() 
 test("anti-rebinding: the host is resolved ONCE and the connection goes to the checked address", async () => {
   handler = (_req, res) => { res.writeHead(200, { "content-type": "application/json" }); res.end('{"signer":"0x01","x25519":"0x02"}'); };
   let calls = 0;
-  // 1re réponse : l'adresse contrôlée ; toute nouvelle résolution viserait ailleurs (le rebinding classique)
+  // 1st answer: the checked address; any new resolution would point elsewhere (classic rebinding)
   const resolve = async () => (++calls === 1 ? [{ address: "127.0.0.1", family: 4 }] : [{ address: "10.255.255.1", family: 4 }]);
   seen.length = 0;
   const res = await safeFetch(`${base}/pubkeys`, {}, { resolve, isAllowed: () => true, timeoutMs: 5_000 });
@@ -139,7 +139,7 @@ test("anti-rebinding: a public then a private answer → only the public one is 
   let lookedUp: unknown = null;
   const request: Requester = (opts, cb) => {
     captured = opts;
-    // ce que net.connect obtiendrait de la résolution (forme « all », comme avec autoSelectFamily)
+    // what net.connect would get from the resolution (the "all" form, as with autoSelectFamily)
     (opts.lookup as any)("evil.example", { all: true }, (_e: unknown, addrs: unknown) => { lookedUp = addrs; });
     const req = new EventEmitter() as any;
     req.write = () => true;
@@ -157,7 +157,7 @@ test("anti-rebinding: a public then a private answer → only the public one is 
   assert.deepEqual(lookedUp, [{ address: "93.184.216.34", family: 4 }]);
   assert.equal(captured.servername, "evil.example", "le certificat TLS reste vérifié pour le nom d'hôte");
   assert.equal(captured.agent, false, "pas d'agent partagé : pas de connexion réutilisée vers une autre adresse");
-  // et si la seule résolution est privée : refus, aucune connexion
+  // and when the only resolution is private: refused, no connection
   captured = null;
   await assert.rejects(safeFetch("https://evil.example/pubkeys", {}, { resolve: async () => [{ address: "127.0.0.1", family: 4 }], request }), BlockedUrlError);
   assert.equal(captured, null);

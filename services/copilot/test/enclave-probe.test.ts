@@ -1,8 +1,8 @@
-/** enclave-probe.test.ts — les sondes /attest et /pubkeys du copilote et du MCP (arc-actions.ts, restes du 8/11) :
- *  https seulement, port 443 seulement, chemin fixe, aucune redirection suivie, corps d'une réponse d'erreur jamais lu ni
- *  renvoyé, réponse non JSON refusée sans rien recopier. Aucun appel réseau sortant : un serveur local (127.0.0.1, en mode
- *  « développement local ») ou un résolveur et un requêteur simulés (mode public).
- *  Lancer : cd services/copilot && npx tsx --test test/enclave-probe.test.ts */
+/** enclave-probe.test.ts — the copilot's and the MCP server's /attest and /pubkeys probes (arc-actions.ts): https only,
+ *  port 443 only, a fixed path, no redirect followed, an error response's body never read or returned, a non-JSON
+ *  response refused with nothing copied. No outgoing network call: a local server (127.0.0.1, in "local development"
+ *  mode) or a simulated resolver and requester (public mode).
+ *  Run: cd services/copilot && npx tsx --test test/enclave-probe.test.ts */
 import test, { before, after } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -56,7 +56,7 @@ test("redirect: refused, and the target is never contacted (the reviewer's relay
   seen.length = 0;
   await assert.rejects(fetchEnclaveJson(base, "/attest", { operator: "0xabc" }, dev), /redirect refused/);
   assert.deepEqual(seen, ["POST /attest"]);
-  // même chose pour le /pubkeys lu par le SDK
+  // the same for the /pubkeys the SDK reads
   handler = (req, res) => { res.writeHead(301, { location: `${base}/secret-after-redirect` }); res.end(); };
   seen.length = 0;
   await assert.rejects(fetchEnclavePubkeys(base, 1n, { fetch: guardedFetch(dev) }), (e: any) => e instanceof EnclaveKeyMismatchError && /redirect refused/.test(e.message));
@@ -106,7 +106,7 @@ test("public mode (copilot, MCP by default): http, non-standard port and private
   assert.deepEqual(seen, []);
 });
 
-/** Un requêteur simulé : note les options de connexion et répond `status` avec `body`. */
+/** A simulated requester: records the connection options and answers `status` with `body`. */
 function fakeRequester(status: number, body: string, headers: Record<string, string>) {
   const calls: any[] = [];
   const request: Requester = (opts, cb) => {
