@@ -165,3 +165,8 @@
 .doc-r .tc-tk-g .tc-nb-kv .kv-row { grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 8px 0; }
 .doc-r .tc-tk-g .tc-nb-kv .kv-row dd { text-align: right; white-space: nowrap; }
 .doc-r .tc-tk-g + .tc-note { margin-top: 32px; }
+/* chapter 01: the agent's loop, and its limits, in the trust box's look, on one column (doc/content.ts, .tc-loop) */
+.doc-r .tc-trust.tc-loop { grid-template-columns: minmax(0, 1fr); }
+.doc-r .tc-loop .tc-tr-l p { max-width: 46em; overflow-wrap: anywhere; }
+/* the paid door's address stays on one line where the column is wide (it would break after "arc-") */
+@container doc (min-width: 520px) { .doc-r .tc-loop .tc-url { white-space: nowrap; } }
