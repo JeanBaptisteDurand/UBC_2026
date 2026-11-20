@@ -1,0 +1,111 @@
+# Continuous integration for ArcHive: the contracts, the SDK, the copilot and the MCP server, tested on every push to
+# main and on every pull request.
+# The tests need no secret, no wallet and no network.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    name: Contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: foundry-rs/foundry-toolchain@dba66c27052e63476d886f22216e119ba7e615bf # v1.9.2
+        with:
+          version: v1.5.1
+          # The tests fork no chain, so there is no RPC cache to keep.
+          cache: false
+      # forge-std and OpenZeppelin are git-ignored and installed as contracts/README.md says.
+      # solady and Smooth CryptoLib are vendored in contracts/lib.
+      - name: Install forge-std and OpenZeppelin
+        run: forge install foundry-rs/forge-std@v1.17.0 OpenZeppelin/openzeppelin-contracts@v5.1.0 --no-git
+      - name: Build
+        run: forge build
+      - name: Test
+        run: forge test
+
+  sdk:
+    name: SDK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: packages/sdk
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          # The Node of the node:22-slim image that the services run on (deploy/docker-compose.vps.yml).
+          node-version: 22.23.4
+      # test/bounty-rules.test.ts also checks the CLI, which links the SDK (file:../sdk).
+      - name: Install the CLI
+        working-directory: packages/cli
+        run: npm ci --no-audit --no-fund
+      - name: Install
+        run: npm ci --no-audit --no-fund
+      - name: Test
+        run: npm test
+
+  copilot:
+    name: AskHive and console copilot
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: services/copilot
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22.23.4
+      # The copilot links the SDK (file:../../packages/sdk) and imports the enclave kit (enclave/src).
+      # Each of these folders installs its own dependencies first.
+      - name: Install the SDK
+        working-directory: packages/sdk
+        run: npm ci --no-audit --no-fund
+      # enclave/package-lock.json does not list utf-8-validate@5, an optional peer of the ws@7 nested under jayson.
+      # npm 10 then refuses a plain npm ci, and --legacy-peer-deps installs the lockfile exactly as it is.
+      - name: Install the enclave kit
+        working-directory: enclave
+        run: npm ci --no-audit --no-fund --legacy-peer-deps
+      - name: Install
+        run: npm ci --no-audit --no-fund
+      - name: Test
+        run: npm test
+
+  mcp:
+    name: MCP server
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: services/mcp
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22.23.4
+      # The MCP server links the SDK and shares the copilot's on-chain logic and test helpers (services/copilot).
+      # Each of these folders installs its own dependencies first.
+      - name: Install the SDK
+        working-directory: packages/sdk
+        run: npm ci --no-audit --no-fund
+      - name: Install the copilot
+        working-directory: services/copilot
+        run: npm ci --no-audit --no-fund
+      - name: Install
+        run: npm ci --no-audit --no-fund
+      - name: Test
+        run: npm test
