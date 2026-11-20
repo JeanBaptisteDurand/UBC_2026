@@ -1,5 +1,5 @@
 /** net.ts — HTTP calls (native fetch) with a timeout, network errors put into English words, and the API's refusals
- *  translated by their stable code (the "code" field of each API error; its "error" text is in French). */
+ *  translated by their stable code (the "code" field of each API error; its "error" text is only a fallback). */
 import { VERSION } from "./version";
 
 export interface HttpResult {
@@ -128,7 +128,7 @@ const API_EN: Record<string, (p: Params) => string> = {
   server_error: () => "the API failed to answer (server error)",
 };
 
-/** The API's refusal in English: by its stable code; otherwise its text as it came (French), or the start of the answer. */
+/** The API's refusal in English: by its stable code; otherwise its text as it came, or the start of the answer. */
 export function apiMessage(r: HttpResult): string {
   const code = typeof r.json?.code === "string" ? r.json.code : null;
   const params = r.json?.params && typeof r.json.params === "object" ? (r.json.params as Params) : {};

@@ -12,7 +12,7 @@ The read API of ArcHive, served under `https://arc-hive.xyz/api/` (for example
 | Console | `GET /index`, `/stats`, `/activity`, `/proof`; `POST /verify-receipt` |
 | Operators | `GET /auth/nonce`; `POST /pair/start`, `GET /pair/:code`, `POST /pair/approve`, `/pair/poll`, `/pair/reject`; `/operator/keys` (create, list, revoke); `POST /machines/heartbeat`, `GET /machines`, `/machines/:id` and their signed variants |
 
-Every error carries a stable `code` and its values in `params`, next to a sentence in `error`. The site and the operator agent display errors from the code. The `error` sentence is French by design: it serves people and older clients, and the clients translate from the code.
+Every error carries a stable `code` and its values in `params`, next to an English sentence in `error`. The site and the operator agent display errors from the code, in their own language.
 
 Operators sign their actions with EIP-4361 messages. This API issues each nonce, and a nonce serves once. The message must name this site, this chain (Arc testnet) and the action's exact statement. Pairing by code (`HIVE-XXXX-XXXX`) gives a machine an operator key (`arcop_…`) that cannot spend funds.
 

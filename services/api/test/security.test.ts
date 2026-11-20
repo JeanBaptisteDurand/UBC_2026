@@ -61,7 +61,7 @@ function rpc(method: string, params: any[]): unknown {
     }
     case "eth_sendRawTransaction": sentRaw.push(params[0]); return keccak256(params[0]);
   }
-  throw new Error(`méthode RPC non simulée : ${method}`);
+  throw new Error(`RPC method not simulated: ${method}`);
 }
 const rpcServer: Server = createServer((req, res) => {
   let s = "";
@@ -178,9 +178,9 @@ test("purge at startup: expired pairings erased, a key never handed over revoked
   assert.equal((await call("/pair/poll", { body: { deviceCode: DC_APPROVED } })).status, 404);
   const hb = await call("/machines/heartbeat", { body: { hostname: "vieille", status: "running" }, auth: `Bearer arcop_aaaaaaaa_${OLD_SECRET}` });
   assert.equal(hb.status, 401);
-  assert.match(hb.json.error, /révoquée/);
+  assert.match(hb.json.error, /revoked/);
   assert.equal(hb.json.code, "key_unknown_or_revoked");
-  assert.equal((await call(`/machines/${OLD_MACHINE}`)).status, 404, "machine jamais vue retirée");
+  assert.equal((await call(`/machines/${OLD_MACHINE}`)).status, 404, "a machine never seen is removed");
   const fresh = await call("/pair/hive-7k2pqx9m"); // case and dash do not matter
   assert.equal(fresh.status, 200);
   assert.equal(fresh.json.hostnameHidden, true);
@@ -188,8 +188,8 @@ test("purge at startup: expired pairings erased, a key never handed over revoked
   assert.equal(fresh.json.version, "");
   await new Promise((r) => setTimeout(r, 400)); // deferred write (200 ms)
   const disk = readFileSync(join(dataDir, "operators.json"), "utf8");
-  assert.ok(!disk.includes(OLD_SECRET), "keyPlain ne doit plus être sur disque");
-  assert.ok(!disk.includes("vieux journal"), "les journaux ne sont plus écrits sur disque");
+  assert.ok(!disk.includes(OLD_SECRET), "keyPlain must no longer be on disk");
+  assert.ok(!disk.includes("vieux journal"), "logs are no longer written to disk");
   assert.ok(!disk.includes(DC_EXPIRED) && disk.includes(DC_FRESH));
 });
 
@@ -212,7 +212,7 @@ test("rate: 20 pending pairings per IP and 50 per network (/24, /48), 30 code lo
   for (let i = 0; i < 20; i++) assert.equal((await call("/pair/start", { body: { hostname: `m${i}` }, ip })).status, 200);
   const over = await call("/pair/start", { body: { hostname: "m20" }, ip });
   assert.equal(over.status, 429);
-  assert.match(over.json.error, /déjà 20 appairages en cours depuis cette adresse/);
+  assert.match(over.json.error, /already 20 pairings in progress from this address/);
   assert.deepEqual([over.json.code, over.json.params], ["pairings_per_ip", { max: 20, minutes: 15 }]);
   // only the LAST entry of X-Forwarded-For counts (the one Caddy sets): varying the first ones bypasses nothing
   for (let i = 0; i < 20; i++) assert.equal((await call("/pair/start", { body: { hostname: `n${i}` }, ip: `9.9.9.${i}, 198.51.100.77` })).status, 200);
@@ -221,25 +221,25 @@ test("rate: 20 pending pairings per IP and 50 per network (/24, /48), 30 code lo
   for (let i = 0; i < 10; i++) assert.equal((await call("/pair/start", { body: { hostname: `p${i}` }, ip: `198.51.100.${100 + i}` })).status, 200);
   const net = await call("/pair/start", { body: { hostname: "p10" }, ip: "198.51.100.120" });
   assert.equal(net.status, 429);
-  assert.match(net.json.error, /déjà 50 appairages en cours depuis ce réseau/);
+  assert.match(net.json.error, /already 50 pairings in progress from this network/);
   assert.deepEqual([net.json.code, net.json.params?.max], ["pairings_per_network", 50]);
   // IPv6: the whole /64 shares one address's limit, the whole /48 a network's
   for (let i = 0; i < 20; i++) assert.equal((await call("/pair/start", { body: { hostname: `v${i}` }, ip: `2001:db8:1:2::${(i + 1).toString(16)}` })).status, 200);
   assert.equal((await call("/pair/start", { body: { hostname: "v20" }, ip: "2001:db8:1:2:ffff::9" })).status, 429);
   for (let i = 0; i < 30; i++) assert.equal((await call("/pair/start", { body: { hostname: `w${i}` }, ip: `2001:db8:1:${(i + 3).toString(16)}::1` })).status, 200);
   assert.equal((await call("/pair/start", { body: { hostname: "w30" }, ip: "2001:db8:1:ff::1" })).status, 429, "le /48 a ses 50 appairages en cours");
-  assert.equal((await call("/pair/start", { body: { hostname: "x" }, ip: "2001:db8:2::1" })).status, 200, "un autre /48 n'est pas touché");
+  assert.equal((await call("/pair/start", { body: { hostname: "x" }, ip: "2001:db8:2::1" })).status, 200, "another /48 is not affected");
   // recherches de code : 30 par minute et par IP
   const ip2 = "198.51.100.8";
   for (let i = 0; i < 30; i++) assert.equal((await call("/pair/HIVE-AAAA-AAAA", { ip: ip2 })).status, 404);
   const r = await call("/pair/HIVE-AAAA-AAAA", { ip: ip2 });
   assert.equal(r.status, 429);
-  assert.match(r.json.error, /recherches de code/);
+  assert.match(r.json.error, /code lookups/);
   assert.equal(r.json.code, "rate_limited");
   assert.equal(r.json.params.scope, "code_lookups");
   assert.equal(r.json.params.retryAfter, Number(r.headers.get("retry-after")));
   assert.ok(Number(r.headers.get("retry-after")) >= 1);
-  assert.equal((await call("/pair/HIVE-AAAA-AAAA", { ip: "198.51.100.9" })).status, 404, "une autre IP n'est pas bloquée");
+  assert.equal((await call("/pair/HIVE-AAAA-AAAA", { ip: "198.51.100.9" })).status, 404, "another IP is not blocked");
 });
 
 test("wrong codes: capped per network (/24 in IPv4, /48 in IPv6), no global cap", async () => {
@@ -250,7 +250,7 @@ test("wrong codes: capped per network (/24 in IPv4, /48 in IPv6), no global cap"
   for (let i = 1; i <= 60; i++) assert.equal((await call("/pair/HIVE-AAAA-AAAA", { ip: `192.0.2.${i}` })).status, 404);
   const blocked = await call(`/pair/${code}`, { ip: "192.0.2.200" });
   assert.equal(blocked.status, 429);
-  assert.match(blocked.json.error, /trop de codes faux essayés : réessayez dans \d+ s/);
+  assert.match(blocked.json.error, /too many wrong codes tried: try again in \d+ s/);
   assert.equal(blocked.json.code, "too_many_wrong_codes");
   // this network cannot approve either (refused before the signature)
   assert.equal((await call("/pair/approve", { body: { userCode: code, ...(await signIn(op, { kind: "pair", code })) }, ip: "192.0.2.201" })).status, 429);
@@ -260,7 +260,7 @@ test("wrong codes: capped per network (/24 in IPv4, /48 in IPv6), no global cap"
   // IPv6: the whole /48 counts together, even from 60 different /64s
   for (let i = 1; i <= 60; i++) assert.equal((await call("/pair/HIVE-AAAA-AAAA", { ip: `2001:db8:aa:${i.toString(16)}::1` })).status, 404);
   assert.equal((await call(`/pair/${code}`, { ip: "2001:db8:aa:ffff::1" })).status, 429);
-  assert.equal((await call(`/pair/${code}`, { ip: "2001:db8:ab::1" })).status, 200, "un autre /48 n'est pas touché");
+  assert.equal((await call(`/pair/${code}`, { ip: "2001:db8:ab::1" })).status, 200, "another /48 is not affected");
   // approval from a healthy network passes
   const ok = await call("/pair/approve", { body: { userCode: code, ...(await signIn(op, { kind: "pair", code })) }, ip: "192.0.3.3" });
   assert.equal(ok.status, 200, JSON.stringify(ok.json));
@@ -294,7 +294,7 @@ test("sign-in: nonce issued by the API, single use; replay of a signed message r
   const op = privateKeyToAccount(generatePrivateKey());
   const n = await call("/auth/nonce");
   assert.equal(n.status, 200);
-  assert.match(n.json.nonce, /^[0-9a-f]{60}$/, "heure d'émission, aléa et HMAC de l'API (alphanumérique : grammaire d'EIP-4361)");
+  assert.match(n.json.nonce, /^[0-9a-f]{60}$/, "issue time, randomness and the API's HMAC (alphanumeric: EIP-4361 grammar)");
   assert.deepEqual([n.json.domain, n.json.uri, n.json.chainId], [SITE.domain, SITE.uri, 5042002]);
   assert.equal(n.headers.get("cache-control"), "no-store");
   const body = { label: "cli", ...(await signIn(op, { kind: "createKey" }, { nonce: n.json })) };
@@ -302,8 +302,8 @@ test("sign-in: nonce issued by the API, single use; replay of a signed message r
   assert.ok(/^[\x20-\x7e\n]+$/.test(body.message), "message entier en ASCII imprimable");
   assert.equal((await call("/operator/keys", { body })).status, 200);
   const replay = await call("/operator/keys", { body });
-  assert.equal(replay.status, 409, "rejeu refusé");
-  assert.match(replay.json.error, /déjà utilisée/);
+  assert.equal(replay.status, 409, "replay refused");
+  assert.match(replay.json.error, /already used/);
   assert.equal(replay.json.code, "signature_used");
   // two simultaneous sends of the same message: only one passes
   const twin = { label: "jumelle", ...(await signIn(op, { kind: "createKey" })) };
@@ -329,12 +329,12 @@ test("sign-in: nonce expired, unknown or dated before its issue; expiry too long
     r = await call("/operator/keys/list", { body: late });
   } finally { Date.now = realNow; }
   assert.equal(r.status, 401);
-  assert.match(r.json.error, /nonce (expiré|inconnu ou échu)/);
+  assert.match(r.json.error, /nonce expired|unknown or expired nonce/);
   assert.match(r.json.code, /^nonce_(expired|unknown)$/);
   // a nonce the API never issued
   r = await call("/operator/keys", { body: { label: "x", ...(await signIn(op, { kind: "createKey" }, { nonce: { nonce: "f".repeat(32), issuedAt: new Date().toISOString() } })) } });
   assert.equal(r.status, 401);
-  assert.match(r.json.error, /nonce inconnu/);
+  assert.match(r.json.error, /unknown or expired nonce/);
   assert.equal(r.json.code, "nonce_unknown");
   // "Issued At" backdated by 3 minutes relative to the nonce's issue time
   const n = await nonce();
@@ -352,7 +352,7 @@ test("sign-in: nonce expired, unknown or dated before its issue; expiry too long
   // already expired
   r = await call("/operator/keys", { body: { label: "x", ...(await signIn(op, { kind: "createKey" }, { nonce: n, edit: setExpiry(new Date(Date.now() - 1000).toISOString()) })) } });
   assert.equal(r.status, 401);
-  assert.match(r.json.error, /expirée/);
+  assert.match(r.json.error, /expired/);
   assert.equal(r.json.code, "signature_expired");
   // the refusals did not consume the nonce: used properly, it passes once
   r = await call("/operator/keys", { body: { label: "x", ...(await signIn(op, { kind: "createKey" }, { nonce: n })) } });
@@ -365,17 +365,17 @@ test("sign-in: message for another site, another URI, another network; old forma
   // a foreign domain (a phisher's site): the wallet flags it, the API refuses it
   let r = await post(await signIn(op, { kind: "createKey" }, { domain: "archive-airdrop.example", uri: "https://archive-airdrop.example" }));
   assert.equal(r.status, 400);
-  assert.match(r.json.error, /autre site.*archive-airdrop\.example/);
+  assert.match(r.json.error, /another site.*archive-airdrop\.example/);
   assert.deepEqual([r.json.code, r.json.params], ["wrong_site", { site: "archive-airdrop.example", expected: "archive.test" }]);
   r = await post(await signIn(op, { kind: "createKey" }, { uri: "https://archive-airdrop.example" }));
   assert.equal(r.status, 400);
   assert.match(r.json.error, /URI: https:\/\/archive\.test/);
   assert.deepEqual([r.json.code, r.json.params], ["malformed_message", { part: "uri", uri: "https://archive.test" }]);
   r = await post(await signIn(op, { kind: "createKey" }, { uri: "http://archive.test" }));
-  assert.equal(r.status, 400, "le même domaine en http : refusé");
+  assert.equal(r.status, 400, "the same domain over http: refused");
   r = await post(await signIn(op, { kind: "createKey" }, { chainId: 1 }));
   assert.equal(r.status, 400);
-  assert.match(r.json.error, /autre réseau/);
+  assert.match(r.json.error, /another network/);
   assert.deepEqual([r.json.code, r.json.params], ["wrong_chain", { chainId: 5042002 }]);
   // the old "ArcHive — …" format (no domain, no nonce)
   const old = ["ArcHive — Créer une clé opérateur", `Adresse : ${op.address}`, `Horodatage : ${Date.now()}`].join("\n");
@@ -388,12 +388,12 @@ test("sign-in: message for another site, another URI, another network; old forma
   assert.equal(r.status, 400);
   r = await post(await signIn(op, { kind: "createKey" }, { edit: (m) => m.replace(op.address, op.address.toLowerCase()) }));
   assert.equal(r.status, 400);
-  assert.match(r.json.error, /adresse/);
+  assert.match(r.json.error, /address/);
   assert.equal(r.json.code, "address_mismatch");
   r = await post(await signIn(op, { kind: "read" }));
-  assert.equal(r.status, 400, "une signature de lecture ne crée pas de clé");
-  assert.match(r.json.error, /phrase/);
-  assert.equal((await call(`/operator/keys?address=${op.address}`)).json.length, 0, "aucune clé créée");
+  assert.equal(r.status, 400, "a read signature creates no key");
+  assert.match(r.json.error, /statement/);
+  assert.equal((await call(`/operator/keys?address=${op.address}`)).json.length, 0, "no key created");
   assert.equal(r.json.code, "wrong_statement");
   assert.equal(r.json.params.statement, ops.STATEMENT.createKey());
 });
@@ -410,7 +410,7 @@ test("smart wallet (ERC-1271): signature accepted through the RPC; EOA: verified
   const forged = await signIn(owner, { kind: "createKey" }, { address: eoa.address });
   const f = await call("/operator/keys", { body: { label: "x", ...forged } });
   assert.equal(f.status, 401);
-  assert.match(f.json.error, /signature invalide/);
+  assert.match(f.json.error, /invalid signature/);
   assert.equal(f.json.code, "bad_signature");
 });
 
@@ -433,10 +433,10 @@ test("table-free nonces: 21,000 requests fill nothing; forged, edited or upper-c
   const n = await nonce();
   // the same nonce, retouched: last character of the HMAC, issue time, upper case; or 60 random characters
   const flip = (s: string, i: number) => s.slice(0, i) + (s[i] === "0" ? "1" : "0") + s.slice(i + 1);
-  for (const [what, bad] of [["HMAC", flip(n.nonce, 59)], ["heure", flip(n.nonce, 11)], ["aléa", flip(n.nonce, 20)], ["majuscules", n.nonce.toUpperCase()], ["hasard", randomBytes(30).toString("hex")]] as const) {
+  for (const [what, bad] of [["HMAC", flip(n.nonce, 59)], ["time", flip(n.nonce, 11)], ["randomness", flip(n.nonce, 20)], ["upper case", n.nonce.toUpperCase()], ["random", randomBytes(30).toString("hex")]] as const) {
     const r = await call("/operator/keys", { body: { label: "x", ...(await signIn(op, { kind: "createKey" }, { nonce: { nonce: bad, issuedAt: n.issuedAt } })) } });
     assert.equal(r.status, 401, what);
-    assert.match(r.json.error, /nonce inconnu ou échu/, what);
+    assert.match(r.json.error, /unknown or expired nonce/, what);
   }
   // the real one, intact: it passes once (the refusals did not consume it), then never again
   const body = { label: "x", ...(await signIn(op, { kind: "createKey" }, { nonce: n })) };
@@ -481,7 +481,7 @@ test("demo behind one Wi-Fi: 10 operators on ONE address, at the site's pace, wi
   assert.equal(flood.filter((s) => s === 200).length, 240);
   const last = await call("/auth/nonce", { ip: "198.51.100.250" });
   assert.equal(last.status, 429);
-  assert.match(last.json.error, /trop de requêtes \(demandes de nonce\)/);
+  assert.match(last.json.error, /too many requests \(nonce requests\)/);
   assert.deepEqual([last.json.code, last.json.params.scope], ["rate_limited", "nonce_requests"]);
 });
 
@@ -495,8 +495,8 @@ test("cost of a signature: invalid, counted per IP (30 per minute); valid, per a
     assert.equal(r.status, 401);
   }
   const cut = await call("/operator/keys", { body: { label: "x", ...(await signIn(victim, { kind: "createKey" })) }, ip: IP });
-  assert.equal(cut.status, 429, "même une signature valide, depuis cette IP, attend la minute suivante");
-  assert.match(cut.json.error, /signatures invalides/);
+  assert.equal(cut.status, 429, "even a valid signature, from this IP, waits for the next minute");
+  assert.match(cut.json.error, /invalid signatures/);
   assert.deepEqual([cut.json.code, cut.json.params.scope], ["rate_limited", "invalid_signatures"]);
   // the targeted account lost nothing: its 30 actions of the minute (valid signatures, from other addresses) pass
   for (let i = 0; i < 30; i++) {
@@ -508,7 +508,7 @@ test("cost of a signature: invalid, counted per IP (30 per minute); valid, per a
   const body = await signIn(victim, { kind: "revokeKey", keyId });
   const capped = await call(`/operator/keys/${keyId}/revoke`, { body });
   assert.equal(capped.status, 429);
-  assert.match(capped.json.error, /signatures de ce compte/);
+  assert.match(capped.json.error, /signatures for this account/);
   assert.deepEqual([capped.json.code, capped.json.params.scope], ["rate_limited", "account_signatures"]);
   // another account, at the same moment, from the same address: nothing blocks it
   const other = privateKeyToAccount(generatePrivateKey());
@@ -530,7 +530,7 @@ test("cost of a signature: invalid, counted per IP (30 per minute); valid, per a
   }
   const eleventh = await call("/machines/list", { body: await signIn(reader, { kind: "read" }) });
   assert.equal(eleventh.status, 429);
-  assert.match(eleventh.json.error, /nouvelles lectures signées de ce compte/);
+  assert.match(eleventh.json.error, /new signed reads for this account/);
   assert.deepEqual([eleventh.json.code, eleventh.json.params.scope], ["rate_limited", "account_new_reads"]);
   assert.equal((await call("/machines/list", { body: reads[0] })).status, 200);
 });
@@ -541,9 +541,9 @@ test("a reused read does not redo the verification (smart wallet: no RPC call); 
   const c0 = smartChecks;
   assert.equal((await call("/machines/list", { body: read })).status, 200);
   const c1 = smartChecks;
-  assert.ok(c1 > c0, "première ouverture : vérifiée par le RPC (ERC-1271)");
+  assert.ok(c1 > c0, "first opening: verified through the RPC (ERC-1271)");
   for (let i = 0; i < 5; i++) assert.equal((await call("/operator/keys/list", { body: read })).status, 200);
-  assert.equal(smartChecks, c1, "la même signature, resservie : pas de nouvelle vérification");
+  assert.equal(smartChecks, c1, "the same signature, reused: no new verification");
   // the same message with ANOTHER signature (which the simulated RPC accepts for this wallet): verified again
   const other = { ...read, signature: await privateKeyToAccount(generatePrivateKey()).signMessage({ message: read.message }) };
   assert.equal((await call("/machines/list", { body: other })).status, 200);
@@ -566,7 +566,7 @@ test("rate table: when full, it moves to a fixed shared table, without refusing 
   assert.ok(l.retryAfter("inondation", t0 + 1) <= 60);
   // the keys of the exact table keep their exact count: 50 passes in the minute, not one more
   for (let i = 0; i < 49; i++) assert.equal(l.take("ip-0", t0 + 2), true);
-  assert.equal(l.take("ip-0", t0 + 3), false, "51e passage de la minute : refusé");
+  assert.equal(l.take("ip-0", t0 + 3), false, "51st pass of the minute: refused");
   // the next minute, everything starts again, and the exact table has room again
   assert.equal(l.take("inondation", t0 + 60_001), true);
   assert.equal(l.take("ip-0", t0 + 60_002), true);
@@ -584,7 +584,7 @@ test("approval: EIP-4361 message checked line by line, single-use nonce; the key
   // the signature of ANOTHER code does not approve this one
   const other = await call("/pair/approve", { body: { userCode: code, ...(await signIn(opA, { kind: "pair", code: "HIVE-ZZZZ-ZZZZ" })) } });
   assert.equal(other.status, 400);
-  assert.match(other.json.error, /phrase/);
+  assert.match(other.json.error, /statement/);
   // signed by another wallet than the announced address
   const forged = await call("/pair/approve", { body: { userCode: code, ...(await signIn(opB, { kind: "pair", code }, { address: opA.address })) } });
   assert.equal(forged.status, 401);
@@ -592,12 +592,12 @@ test("approval: EIP-4361 message checked line by line, single-use nonce; the key
   const body = { userCode: code.toLowerCase(), ...(await signIn(opA, { kind: "pair", code })) };
   const ok = await call("/pair/approve", { body });
   assert.equal(ok.status, 200, JSON.stringify(ok.json));
-  assert.equal(ok.json.hostname, "tdx-paris-1", "le nom est remis à celui qui a signé");
+  assert.equal(ok.json.hostname, "tdx-paris-1", "the name is given to the one who signed");
   machineA = ok.json.machineId;
-  assert.equal((await call("/pair/approve", { body })).status, 409, "rejeu de la même signature refusé");
+  assert.equal((await call("/pair/approve", { body })).status, 409, "replay of the same signature refused");
   const p1 = await call("/pair/poll", { body: { deviceCode: s.json.deviceCode } });
   assert.equal(p1.json.status, "approved");
-  assert.equal(p1.json.operator, opA.address.toLowerCase(), "la machine apprend l'adresse complète qui l'a approuvée");
+  assert.equal(p1.json.operator, opA.address.toLowerCase(), "the machine learns the full address that approved it");
   assert.match(p1.json.key, /^arcop_[0-9a-f]{8}_/);
   machineKeyA = p1.json.key;
   assert.equal((await call("/pair/poll", { body: { deviceCode: s.json.deviceCode } })).json.status, "consumed");
@@ -614,7 +614,7 @@ test("refusal on the machine (\"n\"): /pair/reject revokes its key and removes i
   assert.equal((await call("/pair/reject", { method: "POST", auth: `Bearer ${p.json.key}` })).status, 200);
   assert.equal((await call(`/machines?operator=${intruder.address}`)).json.length, 0, "la machine quitte le compte de l'intrus");
   const hb = await call("/machines/heartbeat", { body: { hostname: "victime-1", status: "running" }, auth: `Bearer ${p.json.key}` });
-  assert.equal(hb.status, 401, "la clé refusée ne sert plus");
+  assert.equal(hb.status, 401, "the refused key no longer works");
   // a free key (no machine) cannot "refuse a pairing"; without a key: 401
   const free = await call("/operator/keys", { body: { label: "cli", ...(await signIn(intruder, { kind: "createKey" })) } });
   assert.equal((await call("/pair/reject", { method: "POST", auth: `Bearer ${free.json.key}` })).status, 400);
@@ -631,7 +631,7 @@ test("approval: code already approved by ANOTHER account → 409 pair_already_ap
   // another account, with a valid signature for THIS code: 409 (before: 404, like an unknown code)
   const other = await call("/pair/approve", { body: { userCode: code, ...(await signIn(second, { kind: "pair", code })) } });
   assert.deepEqual([other.status, other.json.code], [409, "pair_already_approved"]);
-  assert.ok(!JSON.stringify(other.json).includes("salle-austin-2"), "le nom de la machine reste réservé à celui qui a approuvé");
+  assert.ok(!JSON.stringify(other.json).includes("salle-austin-2"), "the machine's name stays reserved to the one who approved");
   // the same account (another tab, a double send): 409, without mentioning another account
   const mine = await call("/pair/approve", { body: { userCode: code.toLowerCase(), ...(await signIn(first, { kind: "pair", code })) } });
   assert.deepEqual([mine.status, mine.json.code], [409, "pair_already_yours"]);
@@ -658,8 +658,8 @@ test("heartbeat: fields strictly validated, bounded body", async () => {
   const good = {
     hostname: "tdx-paris-1", mode: "dstack", version: "0.1.0", productId: 6, status: "running",
     enclaveUrl: "http://203.0.113.50:8802", signer: "0x" + "ab".repeat(20), x25519: "0x" + "cd".repeat(32),
-    doctor: { ok: false, checks: [{ id: "port", label: "Port", ok: false, detail: "fermé sur 203.0.113.50" }, { id: "docker", label: "Docker", ok: true, detail: "" }] },
-    logs: ["\x1b[31mERREUR\x1b[0m connexion refusée", "ligne 2"],
+    doctor: { ok: false, checks: [{ id: "port", label: "Port", ok: false, detail: "closed on 203.0.113.50" }, { id: "docker", label: "Docker", ok: true, detail: "" }] },
+    logs: ["\x1b[31mERROR\x1b[0m connection refused", "line 2"],
   };
   const r = await call("/machines/heartbeat", { body: good, auth });
   assert.equal(r.status, 200, JSON.stringify(r.json));
@@ -670,7 +670,7 @@ test("heartbeat: fields strictly validated, bounded body", async () => {
     ["logs", "pas un tableau", "invalid_logs"], ["doctor", { checks: "non" }, "invalid_doctor"],
   ] as const) {
     const x = await call("/machines/heartbeat", { body: { ...good, [field]: bad }, auth });
-    assert.equal(x.status, 400, `${field} invalide doit être refusé`);
+    assert.equal(x.status, 400, `an invalid ${field} must be refused`);
     assert.equal(x.json.code, code, `${field} : ${JSON.stringify(x.json)}`);
   }
   const badMode = await call("/machines/heartbeat", { body: { ...good, mode: "evil" }, auth });
@@ -686,7 +686,7 @@ test("heartbeat: fields strictly validated, bounded body", async () => {
   const chunked = await fetch(base + "/machines/heartbeat", { method: "POST", headers: { "content-type": "application/json", authorization: auth, "x-forwarded-for": freshIp() }, body: stream, duplex: "half" } as any);
   assert.ok([400, 413].includes(chunked.status), `corps par morceaux trop gros : ${chunked.status}`);
   const after = await call(`/machines/${machineA}`, { auth });
-  assert.equal(after.json.hostname, "tdx-paris-1", "le corps tronqué n'a rien modifié");
+  assert.equal(after.json.hostname, "tdx-paris-1", "the truncated body changed nothing");
 });
 
 test("reads: the list requires ?operator, a reduced public view; logs and diagnostics reserved to the operator", async () => {
@@ -710,7 +710,7 @@ test("reads: the list requires ?operator, a reduced public view; logs and diagno
   const own = await call(`/machines/${machineA}`, { auth: `Bearer ${machineKeyA}` });
   assert.equal(own.status, 200);
   assert.equal(own.json.hostname, "tdx-paris-1");
-  assert.deepEqual(own.json.logs, ["ERREUR connexion refusée", "ligne 2"], "séquences ANSI retirées");
+  assert.deepEqual(own.json.logs, ["ERROR connection refused", "line 2"], "ANSI sequences removed");
   assert.equal(own.json.doctor.checks.length, 2);
 
   // a free key of ANOTHER operator: 403
@@ -778,7 +778,7 @@ test("keys: 10 free active keys per operator, labels hidden without authenticati
   }
   const over = await call("/operator/keys", { body: { label: "one too many", ...(await signIn(opC, { kind: "createKey" })) } });
   assert.equal(over.status, 409);
-  assert.match(over.json.error, /limite de 10 clés/);
+  assert.match(over.json.error, /limit of 10 active keys/);
   assert.deepEqual([over.json.code, over.json.params], ["key_limit", { max: 10 }]);
   const anon = await call(`/operator/keys?address=${opC.address}`);
   assert.equal(anon.json.length, 10);
@@ -792,7 +792,7 @@ test("keys: 10 free active keys per operator, labels hidden without authenticati
   const [kid, kid2] = [anon.json[0].keyId, anon.json[1].keyId];
   assert.equal((await call(`/operator/keys/${kid2}/revoke`, { body: await signIn(opC, { kind: "revokeKey", keyId: kid }) })).status, 400);
   assert.equal((await call(`/operator/keys/${kid}/revoke`, { body: await signIn(opC, { kind: "revokeKey", keyId: kid }) })).status, 200);
-  assert.equal((await call("/operator/keys", { body: { label: "remplaçante", ...(await signIn(opC, { kind: "createKey" })) } })).status, 200);
+  assert.equal((await call("/operator/keys", { body: { label: "replacement", ...(await signIn(opC, { kind: "createKey" })) } })).status, 200);
 });
 
 test("machines: 20 per operator; heartbeats rate-limited per key; a signed removal for THIS machine", async () => {
@@ -805,7 +805,7 @@ test("machines: 20 per operator; heartbeats rate-limited per key; a signed remov
   assert.equal((await call("/machines/heartbeat", { body: { hostname: "hote-20", status: "running" }, auth: `Bearer ${k}` })).status, 409);
   const codes: number[] = [];
   for (let i = 0; i < 12; i++) codes.push((await call("/machines/heartbeat", { body: { hostname: "hote-0", status: "running" }, auth: `Bearer ${k}` })).status);
-  assert.ok(codes.includes(429), "au-delà de 30 battements par minute et par clé : 429");
+  assert.ok(codes.includes(429), "above 30 heartbeats per minute and per key: 429");
   const [m1, m2] = (await call(`/machines?operator=${opD.address}`)).json.map((x: any) => x.machineId);
   assert.equal((await call(`/machines/${m2}/remove`, { body: await signIn(opD, { kind: "removeMachine", machineId: m1 }) })).status, 400, "la signature nomme UNE machine");
   assert.equal((await call(`/machines/${m1}/remove`, { body: await signIn(opD, { kind: "removeMachine", machineId: m1 }) })).status, 200);
@@ -889,14 +889,14 @@ test("test mode: token required; personal_sign limited to ArcHive sign-ins (EIP-
   const k = await call("/operator/keys", { body: { label: "mode test", address: testWallet.address, message: okMsg, signature: sig.json.result } });
   assert.equal(k.status, 200, JSON.stringify(k.json));
   const refused: Array<[string, string]> = [
-    ["nonce déjà servi", okMsg],
-    ["ancien format", ["ArcHive — Créer une clé opérateur", `Adresse : ${testWallet.address}`, `Horodatage : ${Date.now()}`].join("\n")],
+    ["nonce already used", okMsg],
+    ["old format", ["ArcHive — Créer une clé opérateur", `Adresse : ${testWallet.address}`, `Horodatage : ${Date.now()}`].join("\n")],
     ["n'importe quoi", "ArcHive — n'importe quoi"],
     ["autre adresse", await siwe({ kind: "createKey" }, DEAD)],
     ["autre site", await siwe({ kind: "createKey" }, testWallet.address, { domain: "archive-airdrop.example", uri: "https://archive-airdrop.example" })],
-    ["nonce inventé", await siwe({ kind: "createKey" }, testWallet.address, { nonce: { nonce: "f".repeat(32), issuedAt: new Date().toISOString() } })],
-    ["phrase étrangère", await siwe({ kind: "createKey" }, testWallet.address, { edit: (m) => m.replace(/^ArcHive: .*$/m, "Transfer all my funds") })],
-    ["ancienne phrase française", await siwe({ kind: "createKey" }, testWallet.address, { edit: (m) => m.replace(/^ArcHive: .*$/m, "ArcHive : creer une cle operateur (arcop_), qui ne peut rien depenser") })],
+    ["made-up nonce", await siwe({ kind: "createKey" }, testWallet.address, { nonce: { nonce: "f".repeat(32), issuedAt: new Date().toISOString() } })],
+    ["foreign statement", await siwe({ kind: "createKey" }, testWallet.address, { edit: (m) => m.replace(/^ArcHive: .*$/m, "Transfer all my funds") })],
+    ["old French statement", await siwe({ kind: "createKey" }, testWallet.address, { edit: (m) => m.replace(/^ArcHive: .*$/m, "ArcHive : creer une cle operateur (arcop_), qui ne peut rien depenser") })],
   ];
   for (const [what, text] of refused) {
     const r = await rpcCall("personal_sign", [text, testWallet.address]);
@@ -910,7 +910,7 @@ test("test mode: bounded EIP-3009 authorizations (recipient, amount, type, chain
   const td = rwa();
   const again = await rpcCall("eth_signTypedData_v4", [testWallet.address, JSON.stringify(td)]);
   const who = await recoverTypedDataAddress({ ...(td as any), types: { ReceiveWithAuthorization: td.types.ReceiveWithAuthorization }, message: { ...td.message, value: 1_000_000n, validAfter: 0n, validBefore: BigInt(td.message.validBefore) }, signature: again.json.result });
-  assert.equal(who, testWallet.address, "ce qui est signé est bien ce qui a été vérifié");
+  assert.equal(who, testWallet.address, "what is signed is indeed what was verified");
   const refused = [
     signRwa({ value: "2500000" }), // > 2 USDC
     signRwa({ to: testnet.operatorBond }), // a bond locks for 7 days
@@ -952,9 +952,9 @@ test("test mode: x402 payment for one call, to the SDK deployment's X402Settler,
   const who = await recoverTypedDataAddress({
     domain: one.td.domain, types: receiveWithAuthorizationTypes, primaryType: "ReceiveWithAuthorization", message: one.td.message, signature: ok.json.result,
   });
-  assert.equal(who, testWallet.address, "signée pour X402Settler, telle que l'USDC la vérifiera (receiveWithAuthorization)");
+  assert.equal(who, testWallet.address, "signed for X402Settler, as USDC will verify it (receiveWithAuthorization)");
   assert.equal(eip3009SignatureProblem(ok.json.result), null, "signature canonique pour l'USDC (v = 27/28, s bas)");
-  const line = logs.filter((l) => l.startsWith("mode test {")).map((l) => JSON.parse(l.slice("mode test ".length))).reverse()
+  const line = logs.filter((l) => l.startsWith("test mode {")).map((l) => JSON.parse(l.slice("test mode ".length))).reverse()
     .find((e) => e.method === "eth_signTypedData_v4" && e.ok);
   assert.equal(line?.to, testnet.x402Settler.toLowerCase());
   assert.equal(line?.fn, "ReceiveWithAuthorization (x402)");
@@ -962,15 +962,15 @@ test("test mode: x402 payment for one call, to the SDK deployment's X402Settler,
 
   // cap per signature (2 USDC by default): just at the cap, yes (the day's budget: 10); above it, refused
   const refused: Array<[string, { call: Promise<{ json: any }> }]> = [
-    ["au-delà du plafond par signature", x402(2_000_001n, 600n)],
-    ["validité au-delà d'1 h (client x402 du SDK)", x402(1_000_000n, BigInt(X402_MAX_VALIDITY_SECONDS) + 120n)],
+    ["above the per-signature cap", x402(2_000_001n, 600n)],
+    ["validity beyond 1 h (the SDK's x402 client)", x402(1_000_000n, BigInt(X402_MAX_VALIDITY_SECONDS) + 120n)],
     ["montant nul", x402(0n, 600n)],
   ];
   for (const [what, r] of refused) assert.equal((await r.call).json.error?.code, 4001, `${what} : ${JSON.stringify((await r.call).json)}`);
 
   // the addresses come from the SDK's deployment (testnet), never written in the test mode
   const src = readFileSync(new URL("../src/testSigner.ts", import.meta.url), "utf8");
-  assert.ok(!/0x[0-9a-fA-F]{40}/.test(src), "aucune adresse codée en dur dans testSigner.ts");
+  assert.ok(!/0x[0-9a-fA-F]{40}/.test(src), "no hard-coded address in testSigner.ts");
   assert.match(src, /testnet\.x402Settler/);
 });
 
@@ -987,10 +987,10 @@ test("test mode: decoded transactions, allowlist, ownership read on-chain, gas s
     ["topUp session d'un tiers", send(testnet.sessionPay, encodeFunctionData({ abi: tx, functionName: "topUp", args: [2n, 1n, anAuth] }))],
     ["fund prime d'un tiers", send(testnet.sealedBounty, encodeFunctionData({ abi: tx, functionName: "fund", args: [2n, 1n, anAuth] }))],
     ["withdrawRemaining prime d'un tiers", send(testnet.sealedBounty, encodeFunctionData({ abi: tx, functionName: "withdrawRemaining", args: [2n] }))],
-    ["gaz au-delà du plafond", send(testnet.sealedBounty, REOPEN_7)],
+    ["gas above the cap", send(testnet.sealedBounty, REOPEN_7)],
   ];
   for (const [what, p] of refusals) assert.equal((await p).json.error?.code, 4001, `${what} : ${JSON.stringify((await p).json)}`);
-  assert.equal(sentRaw.length, 0, "aucune transaction refusée n'a atteint le RPC");
+  assert.equal(sentRaw.length, 0, "no refused transaction reached the RPC");
 
   const accepted: Array<[string, Hex, string]> = [
     ["openSession 1 USDC", openData(1_000_000n), testnet.sessionPay],
@@ -1005,18 +1005,18 @@ test("test mode: decoded transactions, allowlist, ownership read on-chain, gas s
     const t = parseTransaction(sentRaw.at(-1)!);
     assert.equal(t.to?.toLowerCase(), to.toLowerCase());
     assert.equal(t.data, data);
-    assert.equal(t.gas, 260_000n, `${what} : gaz = estimation × 1,2 + 20 000 (le gaz du client, 10 M, est ignoré)`);
+    assert.equal(t.gas, 260_000n, `${what}: gas = estimate × 1.2 + 20,000 (the client's gas, 10 M, is ignored)`);
   }
 });
 
 test("test mode: daily budget of 10 USDC (authorizations + gas), then refusal", async () => {
   const before = await call("/test-signer/info", { auth: `Bearer ${TOKEN}` });
   const spent0 = Number(before.json.budget.spentUsdc);
-  assert.ok(spent0 >= 2, "les autorisations et le gaz déjà engagés sont comptés");
+  assert.ok(spent0 >= 2, "the authorizations and gas already committed are counted");
   let refusedAt = -1;
   for (let i = 0; i < 6; i++) {
     const r = await signRwa({ value: "2000000" });
-    if (r.json.error) { assert.equal(r.json.error.code, 4001); assert.match(r.json.error.message, /budget du jour/); refusedAt = i; break; }
+    if (r.json.error) { assert.equal(r.json.error.code, 4001); assert.match(r.json.error.message, /the day's budget/); refusedAt = i; break; }
   }
   assert.ok(refusedAt >= 0, "le budget finit par refuser");
   const after = await call("/test-signer/info", { auth: `Bearer ${TOKEN}` });
@@ -1027,12 +1027,12 @@ test("test mode: daily budget of 10 USDC (authorizations + gas), then refusal", 
 
 test("log: one line per test-mode request, never the token; token refusals capped", async () => {
   for (let i = 0; i < 10; i++) await rpcCall("eth_accounts", [], "Bearer faux-jeton-" + i);
-  const refusals = logs.filter((l) => l.startsWith("mode test {") && l.includes("jeton absent ou invalide"));
+  const refusals = logs.filter((l) => l.startsWith("test mode {") && l.includes("token missing or invalid"));
   assert.ok(refusals.length <= 5, `au plus 5 lignes de refus de jeton par minute (vu : ${refusals.length})`);
-  const lines = logs.filter((l) => l.startsWith("mode test {"));
+  const lines = logs.filter((l) => l.startsWith("test mode {"));
   assert.ok(lines.length > 20);
-  assert.ok(lines.every((l) => !l.includes(TOKEN)), "le jeton ne doit jamais être journalisé");
-  const sendLine = lines.map((l) => JSON.parse(l.slice("mode test ".length))).find((e) => e.fn === "SessionPay.openSession" && e.ok);
+  assert.ok(lines.every((l) => !l.includes(TOKEN)), "the token must never be logged");
+  const sendLine = lines.map((l) => JSON.parse(l.slice("test mode ".length))).find((e) => e.fn === "SessionPay.openSession" && e.ok);
   assert.ok(sendLine && sendLine.selector === "0x18cfa0a6" && sendLine.amount === "1" && sendLine.to === testnet.sessionPay.toLowerCase());
 });
 

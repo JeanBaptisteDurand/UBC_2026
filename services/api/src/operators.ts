@@ -108,7 +108,7 @@ const CLOCK_SKEW_MS = 60_000;
 const BODY_MAX = 64 * 1024;
 const LOG_LINES = 100;
 const LOG_LINE_MAX = 400;
-const HIDDEN_NAME = "nom affiché après la signature";
+const HIDDEN_NAME = "name shown after the signature";
 
 // ---------------------------------------------------------------- stockage
 
@@ -162,8 +162,8 @@ function flush() {
 
 // ---------------------------------------------------------------- outils
 
-/** Stable error codes: every error answer carries { error, code, params? }. `error` stays the French sentence
- *  (people, older clients); the site (EN and FR) and the agent (EN) translate from `code`, with the `params` values.
+/** Stable error codes: every error answer carries { error, code, params? }. `error` is an English sentence for
+ *  people and simple clients; the site (EN and FR) and the agent (EN) translate from `code`, with the `params` values.
  *  A code never changes meaning; a new case gets a new code. */
 export type ErrorCode =
   // field validation
@@ -245,36 +245,36 @@ const STATUSES = new Set(["starting", "running", "error", "stopped"]);
 function enumOf(v: unknown, allowed: Set<string>, field: string): string {
   const s = String(v ?? "");
   const list = [...allowed].join(", ");
-  if (!allowed.has(s)) throw new HttpError(400, "invalid_enum", `${field} invalide : attendu ${list}`, { params: { field, allowed: list } });
+  if (!allowed.has(s)) throw new HttpError(400, "invalid_enum", `invalid ${field}: expected ${list}`, { params: { field, allowed: list } });
   return s;
 }
 function optHex(v: unknown, nHex: number, field: string): string | null {
   if (v === null || v === undefined || v === "") return null;
   if (typeof v !== "string" || !new RegExp(`^0x[0-9a-fA-F]{${nHex}}$`).test(v)) {
-    throw new HttpError(400, "invalid_hex", `${field} invalide : attendu 0x suivi de ${nHex} caractères hexadécimaux`, { params: { field, length: nHex } });
+    throw new HttpError(400, "invalid_hex", `invalid ${field}: expected 0x followed by ${nHex} hex characters`, { params: { field, length: nHex } });
   }
   return v.toLowerCase();
 }
 function optProductId(v: unknown): string | null {
   if (v === null || v === undefined || v === "") return null;
   const s = typeof v === "number" ? (Number.isSafeInteger(v) && v >= 0 ? String(v) : "") : typeof v === "string" ? v : "";
-  if (!/^\d{1,10}$/.test(s)) throw new HttpError(400, "invalid_product_id", "productId invalide : un entier de 10 chiffres au plus");
+  if (!/^\d{1,10}$/.test(s)) throw new HttpError(400, "invalid_product_id", "invalid productId: an integer of 10 digits at most");
   return BigInt(s).toString();
 }
 function optUrl(v: unknown): string | null {
   if (v === null || v === undefined || v === "") return null;
   if (typeof v !== "string" || v.length > 200) {
-    throw new HttpError(400, "invalid_enclave_url", "enclaveUrl invalide : une adresse http(s) de 200 caractères au plus", { params: { max: 200 } });
+    throw new HttpError(400, "invalid_enclave_url", "invalid enclaveUrl: an http(s) address of 200 characters at most", { params: { max: 200 } });
   }
   let u: URL;
-  try { u = new URL(v); } catch { throw new HttpError(400, "unreadable_enclave_url", "enclaveUrl invalide : adresse illisible"); }
+  try { u = new URL(v); } catch { throw new HttpError(400, "unreadable_enclave_url", "invalid enclaveUrl: unreadable address"); }
   if ((u.protocol !== "https:" && u.protocol !== "http:") || u.username || u.password) {
-    throw new HttpError(400, "enclave_url_scheme", "enclaveUrl invalide : http:// ou https://, sans identifiants");
+    throw new HttpError(400, "enclave_url_scheme", "invalid enclaveUrl: http:// or https://, without credentials");
   }
   return v;
 }
 
-const bodyTooLarge = () => errorBody("body_too_large", `corps de requête trop volumineux (${BODY_MAX / 1024} Kio au plus)`, { maxKiB: BODY_MAX / 1024 });
+const bodyTooLarge = () => errorBody("body_too_large", `request body too large (${BODY_MAX / 1024} KiB at most)`, { maxKiB: BODY_MAX / 1024 });
 async function readJson(c: Context): Promise<any> {
   try {
     const b = await c.req.json();
@@ -303,7 +303,7 @@ function ipKey(raw: string): string {
   const ip = raw.replace(/%.*$/, "");
   const v4 = ip.toLowerCase().startsWith("::ffff:") ? ip.slice(7) : ip;
   if (isIP(v4) === 4) return v4;
-  if (isIP(ip) !== 6) return "inconnue";
+  if (isIP(ip) !== 6) return "unknown";
   const [head, tail] = ip.toLowerCase().split("::") as [string, string | undefined];
   const h = head ? head.split(":") : [];
   const t = tail !== undefined && tail !== "" ? tail.split(":") : [];
@@ -402,18 +402,18 @@ const lim = {
   accountSigned: new Limiter(ACCOUNT_RATE.signed), accountReadOpen: new Limiter(ACCOUNT_RATE.readOpen), accountRead: new Limiter(ACCOUNT_RATE.read),
   fails: new Limiter(FAILS_PER_NET),
 };
-/** What a refused rate counts: a stable identifier (params.scope of the "rate_limited" error) and its French
- *  label (in "error"). */
-const SCOPE_FR = {
-  signatures: "signatures", signed_reads: "lectures signées", nonce_requests: "demandes de nonce", code_requests: "demandes de code",
-  code_lookups: "recherches de code", pairing_polls: "attente d'appairage", pairing_refusals: "refus d'appairage",
-  key_reads: "lectures de clés", heartbeats: "battements", key_heartbeats: "battements de cette clé",
-  account_signatures: "signatures de ce compte", account_reads: "lectures signées de ce compte",
-  account_new_reads: "nouvelles lectures signées de ce compte", invalid_signatures: "signatures invalides",
+/** What a refused rate counts: a stable identifier (params.scope of the "rate_limited" error) and its label
+ *  (in "error"). */
+const SCOPE_LABEL = {
+  signatures: "signatures", signed_reads: "signed reads", nonce_requests: "nonce requests", code_requests: "code requests",
+  code_lookups: "code lookups", pairing_polls: "pairing polls", pairing_refusals: "pairing refusals",
+  key_reads: "key reads", heartbeats: "heartbeats", key_heartbeats: "heartbeats for this key",
+  account_signatures: "signatures for this account", account_reads: "signed reads for this account",
+  account_new_reads: "new signed reads for this account", invalid_signatures: "invalid signatures",
 } as const;
-export type RateScope = keyof typeof SCOPE_FR;
+export type RateScope = keyof typeof SCOPE_LABEL;
 const rateLimited = (scope: RateScope, s: number) =>
-  new HttpError(429, "rate_limited", `trop de requêtes (${SCOPE_FR[scope]}) : réessayez dans ${s} s`, { retryAfter: s, params: { scope, retryAfter: s } });
+  new HttpError(429, "rate_limited", `too many requests (${SCOPE_LABEL[scope]}): try again in ${s} s`, { retryAfter: s, params: { scope, retryAfter: s } });
 function limit(l: Limiter, key: string, scope: RateScope) {
   if (!l.take(key)) throw rateLimited(scope, l.retryAfter(key));
 }
@@ -421,7 +421,7 @@ function limit(l: Limiter, key: string, scope: RateScope) {
 function guardFails(net: string) {
   if (lim.fails.count(net) >= FAILS_PER_NET) {
     const s = lim.fails.retryAfter(net);
-    throw new HttpError(429, "too_many_wrong_codes", `trop de codes faux essayés : réessayez dans ${s} s`, { retryAfter: s, params: { retryAfter: s } });
+    throw new HttpError(429, "too_many_wrong_codes", `too many wrong codes tried: try again in ${s} s`, { retryAfter: s, params: { retryAfter: s } });
   }
 }
 const ipTag = (ip: string) => sha("archive-ip:" + ip).slice(0, 16);
@@ -440,11 +440,11 @@ function newKey(operator: string, label: string, machineId: string | null): { ke
 
 function bearer(auth?: string | null): Key {
   const m = (auth ?? "").match(/^Bearer\s+arcop_([0-9a-f]{8})_([A-Za-z0-9_-]{16,64})$/);
-  if (!m) throw new HttpError(401, "key_missing", "clé opérateur manquante ou mal formée (attendu : Authorization: Bearer arcop_…)");
+  if (!m) throw new HttpError(401, "key_missing", "operator key missing or malformed (expected: Authorization: Bearer arcop_…)");
   const rec = db.keys[m[1]!];
-  if (!rec || rec.revoked) throw new HttpError(401, "key_unknown_or_revoked", "clé opérateur inconnue ou révoquée");
+  if (!rec || rec.revoked) throw new HttpError(401, "key_unknown_or_revoked", "unknown or revoked operator key");
   const a = Buffer.from(sha(m[2]!)), b = Buffer.from(rec.hash);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) throw new HttpError(401, "key_invalid", "clé opérateur invalide");
+  if (a.length !== b.length || !timingSafeEqual(a, b)) throw new HttpError(401, "key_invalid", "invalid operator key");
   rec.lastUsedAt = Date.now();
   save(false);
   return rec;
@@ -532,15 +532,15 @@ function sweepSignIns(now = Date.now(), force = true) {
   for (const [k, v] of consumed) if (v.until < now) consumed.delete(k);
 }
 
-/** "message signé mal formé : …": code "malformed_message", the faulty part in params.part (format, header,
+/** "malformed signed message: …": code "malformed_message", the faulty part in params.part (format, header,
  *  blank_lines, uri, version, nonce, time, expiry_window) and its values */
-const malformed = (part: string, detailFr: string, params: Params = {}) =>
-  new HttpError(400, "malformed_message", `message signé mal formé : ${detailFr}`, { params: { part, ...params } });
+const malformed = (part: string, detail: string, params: Params = {}) =>
+  new HttpError(400, "malformed_message", `malformed signed message: ${detail}`, { params: { part, ...params } });
 
 function timeLine(line: string, label: string): number {
   const v = line.startsWith(`${label}: `) ? line.slice(label.length + 2) : "";
   const t = RFC3339.test(v) ? Date.parse(v) : NaN;
-  if (!Number.isFinite(t)) throw malformed("time", `ligne « ${label}: <date RFC 3339> » attendue (par exemple 2026-11-07T18:00:00.000Z)`, { line: label });
+  if (!Number.isFinite(t)) throw malformed("time", `line "${label}: <RFC 3339 date>" expected (for example 2026-11-07T18:00:00.000Z)`, { line: label });
   return t;
 }
 
@@ -550,24 +550,24 @@ function timeLine(line: string, label: string): number {
 function readSignIn(message: string, address: string) {
   const l = message.split("\n");
   if (l.length !== 11) {
-    throw malformed("format", "le format EIP-4361 (« Sign-In with Ethereum ») du site est attendu, en 11 lignes ; rechargez la page et signez à nouveau", { lines: 11 });
+    throw malformed("format", "the site's EIP-4361 (\"Sign-In with Ethereum\") format is expected, in 11 lines; reload the page and sign again", { lines: 11 });
   }
   const dm = /^(\S{1,253}) wants you to sign in with your Ethereum account:$/.exec(l[0]!);
-  if (!dm) throw malformed("header", "1re ligne « <site> wants you to sign in with your Ethereum account: » attendue");
+  if (!dm) throw malformed("header", "first line \"<site> wants you to sign in with your Ethereum account:\" expected");
   const origin = ORIGINS.find((o) => o.domain === dm[1]);
   if (!origin) {
     const site = dm[1]!.slice(0, 80), expected = ORIGINS[0]!.domain;
-    throw new HttpError(400, "wrong_site", `message signé pour un autre site (« ${site} ») : ArcHive n'accepte que ${expected}. Ne signez de message ArcHive que sur ce site.`, { params: { site, expected } });
+    throw new HttpError(400, "wrong_site", `message signed for another site ("${site}"): ArcHive accepts only ${expected}. Sign ArcHive messages on this site only.`, { params: { site, expected } });
   }
-  if (l[1] !== getAddress(address)) throw new HttpError(400, "address_mismatch", "l'adresse du message ne correspond pas à celle du wallet (attendue en entier, avec sa casse EIP-55)");
-  if (l[2] !== "" || l[4] !== "") throw malformed("blank_lines", "une ligne vide est attendue avant et après la phrase de l'action");
-  if (l[5] !== `URI: ${origin.uri}`) throw malformed("uri", `ligne « URI: ${origin.uri} » attendue`, { uri: origin.uri });
-  if (l[6] !== "Version: 1") throw malformed("version", "ligne « Version: 1 » attendue");
+  if (l[1] !== getAddress(address)) throw new HttpError(400, "address_mismatch", "the message's address does not match the wallet's (expected in full, with its EIP-55 case)");
+  if (l[2] !== "" || l[4] !== "") throw malformed("blank_lines", "a blank line is expected before and after the action's statement");
+  if (l[5] !== `URI: ${origin.uri}`) throw malformed("uri", `line "URI: ${origin.uri}" expected`, { uri: origin.uri });
+  if (l[6] !== "Version: 1") throw malformed("version", "line \"Version: 1\" expected");
   if (l[7] !== `Chain ID: ${CHAIN_ID}`) {
-    throw new HttpError(400, "wrong_chain", `message signé pour un autre réseau : ligne « Chain ID: ${CHAIN_ID} » (Arc testnet) attendue`, { params: { chainId: CHAIN_ID } });
+    throw new HttpError(400, "wrong_chain", `message signed for another network: line "Chain ID: ${CHAIN_ID}" (Arc testnet) expected`, { params: { chainId: CHAIN_ID } });
   }
   const nm = /^Nonce: ([A-Za-z0-9]{8,64})$/.exec(l[8]!);
-  if (!nm) throw malformed("nonce", "ligne « Nonce: <nonce de GET /auth/nonce> » attendue");
+  if (!nm) throw malformed("nonce", "line \"Nonce: <nonce from GET /auth/nonce>\" expected");
   return { statement: l[3]!, nonce: nm[1]!, issuedAt: timeLine(l[9]!, "Issued At"), expiresAt: timeLine(l[10]!, "Expiration Time") };
 }
 
@@ -618,7 +618,7 @@ async function verifySignature(pub: PublicClient, address: Address, message: str
  *  the same signature opens for its 10 minutes (its nonce serves only once: at first use). */
 type Expect = { statement: string; read?: boolean };
 
-const spentError = () => new HttpError(409, "signature_used", "signature déjà utilisée (son nonce a servi) : signez à nouveau");
+const spentError = () => new HttpError(409, "signature_used", "signature already used (its nonce has served): sign again");
 
 /** The wallet's signature on an EIP-4361 message built by the site, checked LINE BY LINE (readSignIn), then: the
  *  action's statement, the expiry (5 min for an action, 10 for the read), the nonce (issued here, used once, within
@@ -629,25 +629,25 @@ const spentError = () => new HttpError(409, "signature_used", "signature déjà 
 async function walletAuth(pub: PublicClient, body: any, want: Expect, ip: string): Promise<string> {
   const { address, message, signature } = body ?? {};
   if (typeof address !== "string" || typeof message !== "string" || typeof signature !== "string") {
-    throw new HttpError(400, "signed_body_expected", "attendu { address, message, signature }");
+    throw new HttpError(400, "signed_body_expected", "expected { address, message, signature }");
   }
-  if (!ADDR_RE.test(address)) throw new HttpError(400, "invalid_address", "adresse invalide (0x + 40 caractères hexadécimaux)");
+  if (!ADDR_RE.test(address)) throw new HttpError(400, "invalid_address", "invalid address (0x + 40 hex characters)");
   if (message.length > 2000 || !/^0x[0-9a-fA-F]+$/.test(signature) || signature.length < 132 || signature.length > 20_000 || signature.length % 2) {
-    throw new HttpError(400, "bad_message_or_signature", "message ou signature mal formés");
+    throw new HttpError(400, "bad_message_or_signature", "malformed message or signature");
   }
   const now = Date.now();
   const m = readSignIn(message, address);
   if (m.statement !== want.statement) {
-    throw new HttpError(400, "wrong_statement", `message signé inattendu : cette action demande la phrase « ${want.statement} »`, { params: { statement: want.statement } });
+    throw new HttpError(400, "wrong_statement", `unexpected signed message: this action needs the statement "${want.statement}"`, { params: { statement: want.statement } });
   }
-  if (m.expiresAt <= now) throw new HttpError(401, "signature_expired", "signature expirée : signez à nouveau");
+  if (m.expiresAt <= now) throw new HttpError(401, "signature_expired", "signature expired: sign again");
   const life = want.read ? READ_TTL_MS : ACTION_TTL_MS;
   if (m.expiresAt <= m.issuedAt || m.expiresAt - m.issuedAt > life) {
-    throw malformed("expiry_window", `« Expiration Time » doit suivre « Issued At » de ${life / 60_000} minutes au plus`, { minutes: life / 60_000 });
+    throw malformed("expiry_window", `"Expiration Time" must follow "Issued At" by ${life / 60_000} minutes at most`, { minutes: life / 60_000 });
   }
   const n = openNonce(m.nonce);
   if (!n || n.issuedAt > now + CLOCK_SKEW_MS) {
-    throw new HttpError(401, "nonce_unknown", "nonce inconnu ou échu : signez à nouveau (le site demande un nonce neuf à chaque signature)");
+    throw new HttpError(401, "nonce_unknown", "unknown or expired nonce: sign again (the site asks for a fresh nonce for each signature)");
   }
   // a read already opened by this same message (its nonce served at first use) is valid until its expiry
   const session = want.read ? readSessionOf(address, message) : undefined;
@@ -658,10 +658,10 @@ async function walletAuth(pub: PublicClient, body: any, want: Expect, ip: string
   if (!reuse) {
     if (now > n.issuedAt + NONCE_TTL_MS) {
       const minutes = NONCE_TTL_MS / 60_000;
-      throw new HttpError(401, "nonce_expired", `nonce expiré (il sert dans les ${minutes} minutes qui suivent son émission) : signez à nouveau`, { params: { minutes } });
+      throw new HttpError(401, "nonce_expired", `nonce expired (it serves within ${minutes} minutes of its issue): sign again`, { params: { minutes } });
     }
     if (m.issuedAt < n.issuedAt - CLOCK_SKEW_MS || m.issuedAt > now + CLOCK_SKEW_MS) {
-      throw new HttpError(400, "issued_at_mismatch", "« Issued At » incohérent avec l'émission du nonce : reprenez l'heure renvoyée par GET /auth/nonce");
+      throw new HttpError(400, "issued_at_mismatch", "\"Issued At\" does not match the nonce's issue time: reuse the time GET /auth/nonce returned");
     }
   }
   // the verification costs (≈ 2 ms of processor time, or the RPC): skipped for this read's already verified signature,
@@ -670,7 +670,7 @@ async function walletAuth(pub: PublicClient, body: any, want: Expect, ip: string
     if (lim.badSignatures.count(ip) >= BAD_SIGNATURES_PER_IP) throw rateLimited("invalid_signatures", lim.badSignatures.retryAfter(ip));
     if (!(await verifySignature(pub, address as Address, message, signature as Hex))) {
       lim.badSignatures.take(ip);
-      throw new HttpError(401, "bad_signature", "signature invalide");
+      throw new HttpError(401, "bad_signature", "invalid signature");
     }
   }
   const operator = address.toLowerCase();
@@ -691,7 +691,7 @@ async function walletAuth(pub: PublicClient, body: any, want: Expect, ip: string
   if (consumed.size >= LIMITS.consumedTotal) {
     sweepSignIns(now2, false);
     if (consumed.size >= LIMITS.consumedTotal) {
-      throw new HttpError(503, "signatures_full", "trop de signatures en attente : réessayez dans une minute", { retryAfter: 60 });
+      throw new HttpError(503, "signatures_full", "too many signatures pending: try again in a minute", { retryAfter: 60 });
     }
   }
   consumed.set(n.id, { until: Math.max(n.issuedAt + NONCE_TTL_MS, m.expiresAt), ...(session ? { read: session, sig } : {}) });
@@ -760,14 +760,14 @@ const pendingByCode = (code: string, now = Date.now()) =>
 /** this code's pairing (already approved or served, not expired yet), if there is one */
 const takenByCode = (code: string, now = Date.now()) =>
   Object.values(db.pairs).find((p) => p.userCode === code && p.status !== "pending" && p.expiresAt > now);
-const codeUnknown = () => new HttpError(404, "code_unknown", "code inconnu ou expiré : relancez « archive-node pair » sur la machine");
-const machineNotFound = () => new HttpError(404, "machine_not_found", "machine inconnue pour cette adresse");
+const codeUnknown = () => new HttpError(404, "code_unknown", "unknown or expired code: run \"archive-node pair\" again on the machine");
+const machineNotFound = () => new HttpError(404, "machine_not_found", "unknown machine for this address");
 const machineLimit = () => new HttpError(409, "machine_limit",
-  `limite de ${LIMITS.machinesPerOperator} machines par opérateur atteinte : retirez-en une sur la page Opérateur`, { params: { max: LIMITS.machinesPerOperator } });
+  `limit of ${LIMITS.machinesPerOperator} machines per operator reached: remove one on the Operator page`, { params: { max: LIMITS.machinesPerOperator } });
 
 function keyView(k: Key, full: boolean) {
   const { hash: _h, ...rest } = k;
-  return full ? { ...rest, restricted: false } : { ...rest, label: k.machineId ? "clé de machine" : "clé libre (CLI, MCP)", restricted: true };
+  return full ? { ...rest, restricted: false } : { ...rest, label: k.machineId ? "machine key" : "free key (CLI, MCP)", restricted: true };
 }
 const keysOf = (op: string) => Object.values(db.keys).filter((k) => k.operator === op).sort((x, y) => y.createdAt - x.createdAt);
 
@@ -804,7 +804,7 @@ export function registerOperatorRoutes(app: Hono, arc: ArcClient) {
         return c.json(errorBody(e.code, e.message, e.params), e.status as any);
       }
       console.error("operators:", String(e?.stack ?? e).slice(0, 400));
-      return c.json(errorBody("internal_error", "erreur interne de l'API opérateurs"), 500);
+      return c.json(errorBody("internal_error", "internal error of the operators API"), 500);
     }
   };
   const tooBig = (c: Context) => c.json(bodyTooLarge(), 413);
@@ -840,21 +840,21 @@ export function registerOperatorRoutes(app: Hono, arc: ArcClient) {
     const now = Date.now();
     const pending = Object.values(db.pairs).filter((p) => p.status === "pending" && p.expiresAt > now);
     if (pending.length >= LIMITS.pendingPairsTotal) {
-      throw new HttpError(503, "pairings_full", "trop d'appairages en cours : réessayez dans quelques minutes", { retryAfter: 60 });
+      throw new HttpError(503, "pairings_full", "too many pairings in progress: try again in a few minutes", { retryAfter: 60 });
     }
     const tag = ipTag(ip), ntag = netTag(netOf(ip));
     const ttlMin = PAIR_TTL_MS / 60_000;
     if (pending.filter((p) => p.ip === tag).length >= LIMITS.pendingPairsPerIp) {
-      throw new HttpError(429, "pairings_per_ip", `déjà ${LIMITS.pendingPairsPerIp} appairages en cours depuis cette adresse : terminez-en un ou attendez son expiration (${ttlMin} min)`,
+      throw new HttpError(429, "pairings_per_ip", `already ${LIMITS.pendingPairsPerIp} pairings in progress from this address: finish one or wait for it to expire (${ttlMin} min)`,
         { retryAfter: 60, params: { max: LIMITS.pendingPairsPerIp, minutes: ttlMin } });
     }
     if (pending.filter((p) => p.net === ntag).length >= LIMITS.pendingPairsPerNet) {
-      throw new HttpError(429, "pairings_per_network", `déjà ${LIMITS.pendingPairsPerNet} appairages en cours depuis ce réseau : terminez-en un ou attendez son expiration (${ttlMin} min)`,
+      throw new HttpError(429, "pairings_per_network", `already ${LIMITS.pendingPairsPerNet} pairings in progress from this network: finish one or wait for it to expire (${ttlMin} min)`,
         { retryAfter: 60, params: { max: LIMITS.pendingPairsPerNet, minutes: ttlMin } });
     }
     let code = newUserCode();
     for (let tries = 1; pendingByCode(code, now); tries++) {
-      if (tries >= 8) throw new HttpError(503, "no_free_code", "aucun code libre : réessayez");
+      if (tries >= 8) throw new HttpError(503, "no_free_code", "no free code: try again");
       code = newUserCode();
     }
     const deviceCode = randomBytes(16).toString("hex");
@@ -884,7 +884,7 @@ export function registerOperatorRoutes(app: Hono, arc: ArcClient) {
     guardFails(net);
     const b = await readJson(c);
     const raw = typeof b.userCode === "string" ? b.userCode.trim() : "";
-    if (!raw || raw.length > 32) throw new HttpError(400, "user_code_expected", "userCode attendu (le code affiché par la machine)");
+    if (!raw || raw.length > 32) throw new HttpError(400, "user_code_expected", "userCode expected (the code the machine shows)");
     const code = normCode(raw);
     if (!code) {
       lim.fails.take(net);
@@ -899,17 +899,17 @@ export function registerOperatorRoutes(app: Hono, arc: ArcClient) {
       // Only the signer of a message that names THIS code learns it: the difference reveals no code to guess.
       const taken = takenByCode(code);
       if (taken?.operator && taken.operator !== operator) {
-        throw new HttpError(409, "pair_already_approved", "ce code vient d'être approuvé par un autre compte : relancez « archive-node pair » sur la machine et vérifiez l'adresse qu'elle affiche");
+        throw new HttpError(409, "pair_already_approved", "this code was just approved by another account: run \"archive-node pair\" again on the machine and check the address it shows");
       }
       if (taken?.operator === operator) {
-        throw new HttpError(409, "pair_already_yours", "vous avez déjà approuvé ce code : la machine affiche votre adresse et demande de confirmer");
+        throw new HttpError(409, "pair_already_yours", "you already approved this code: the machine shows your address and asks for confirmation");
       }
       lim.fails.take(net);
       throw codeUnknown();
     }
     if (machinesOf(operator).length >= LIMITS.machinesPerOperator) throw machineLimit();
     if (Object.keys(db.machines).length >= LIMITS.machinesTotal || activeKeys().length >= LIMITS.keysTotal) {
-      throw new HttpError(503, "network_full_machines", "le réseau n'accepte plus de nouvelle machine pour l'instant : réessayez plus tard");
+      throw new HttpError(503, "network_full_machines", "the network accepts no new machine for now: try again later");
     }
     const machineId = randomUUID();
     const now = Date.now();
@@ -929,7 +929,7 @@ export function registerOperatorRoutes(app: Hono, arc: ArcClient) {
     const b = await readJson(c);
     const dc = typeof b.deviceCode === "string" ? b.deviceCode : "";
     const p = /^[0-9a-f]{32}$/.test(dc) ? db.pairs[dc] : undefined;
-    if (!p) throw new HttpError(404, "device_code_unknown", "deviceCode inconnu");
+    if (!p) throw new HttpError(404, "device_code_unknown", "unknown deviceCode");
     if (p.status === "pending") return c.json({ status: p.expiresAt > Date.now() ? "pending" : "expired" });
     if (p.status === "consumed" || !p.keyPlain) return c.json({ status: "consumed" });
     const key = p.keyPlain;
@@ -942,7 +942,7 @@ export function registerOperatorRoutes(app: Hono, arc: ArcClient) {
   app.post("/pair/reject", wrap(async (c) => {
     limit(lim.signed, clientIp(c), "pairing_refusals");
     const k = bearer(c.req.header("authorization"));
-    if (!k.machineId) throw new HttpError(400, "not_a_machine_key", "seule la clé d'une machine appairée par code peut refuser son appairage");
+    if (!k.machineId) throw new HttpError(400, "not_a_machine_key", "only the key of a machine paired by code can refuse its pairing");
     revoke(k);
     const m = db.machines[k.machineId];
     if (m && !m.lastSeen) { delete db.machines[k.machineId]; logsOf.delete(k.machineId); }
@@ -956,13 +956,13 @@ export function registerOperatorRoutes(app: Hono, arc: ArcClient) {
     limit(lim.signed, ip, "signatures");
     const b = await readJson(c);
     const operator = await walletAuth(pub, b, { statement: STATEMENT.createKey() }, ip);
-    const label = cleanText(b.label ?? "clé opérateur", 48).trim() || "clé opérateur";
+    const label = cleanText(b.label ?? "operator key", 48).trim() || "operator key";
     const free = activeKeys().filter((k) => k.operator === operator && !k.machineId).length;
     if (free >= LIMITS.freeKeysPerOperator) {
-      throw new HttpError(409, "key_limit", `limite de ${LIMITS.freeKeysPerOperator} clés actives par opérateur atteinte : révoquez-en une`, { params: { max: LIMITS.freeKeysPerOperator } });
+      throw new HttpError(409, "key_limit", `limit of ${LIMITS.freeKeysPerOperator} active keys per operator reached: revoke one`, { params: { max: LIMITS.freeKeysPerOperator } });
     }
     if (activeKeys().length >= LIMITS.keysTotal) {
-      throw new HttpError(503, "network_full_keys", "le réseau n'accepte plus de nouvelle clé pour l'instant : réessayez plus tard");
+      throw new HttpError(503, "network_full_keys", "the network accepts no new key for now: try again later");
     }
     pruneRevoked(operator);
     const { key, rec } = newKey(operator, label, null);
@@ -974,7 +974,7 @@ export function registerOperatorRoutes(app: Hono, arc: ArcClient) {
   app.get("/operator/keys", wrap(async (c) => {
     limit(lim.keyList, clientIp(c), "key_reads");
     const a = String(c.req.query("address") ?? "");
-    if (!ADDR_RE.test(a)) throw new HttpError(400, "address_param_expected", "paramètre address attendu (0x + 40 caractères hexadécimaux)");
+    if (!ADDR_RE.test(a)) throw new HttpError(400, "address_param_expected", "address parameter expected (0x + 40 hex characters)");
     const op = a.toLowerCase();
     const r = readerFromBearer(c);
     const full = !!r && r.operator === op && !r.machineId;
@@ -988,7 +988,7 @@ export function registerOperatorRoutes(app: Hono, arc: ArcClient) {
     return c.json(keysOf(operator).map((k) => keyView(k, true)));
   }));
 
-  const keyNotFound = () => new HttpError(404, "key_not_found", "clé inconnue pour cette adresse");
+  const keyNotFound = () => new HttpError(404, "key_not_found", "unknown key for this address");
   app.post("/operator/keys/:keyId/revoke", wrap(async (c) => {
     const ip = clientIp(c);
     limit(lim.signed, ip, "signatures");
@@ -1018,24 +1018,24 @@ export function registerOperatorRoutes(app: Hono, arc: ArcClient) {
     const x25519 = optHex(b.x25519, 64, "x25519");
     let doctor: Machine["doctor"] | undefined;
     if (b.doctor !== undefined && b.doctor !== null) {
-      if (typeof b.doctor !== "object" || !Array.isArray(b.doctor.checks)) throw new HttpError(400, "invalid_doctor", "doctor invalide : attendu { checks: [...] }");
+      if (typeof b.doctor !== "object" || !Array.isArray(b.doctor.checks)) throw new HttpError(400, "invalid_doctor", "invalid doctor: expected { checks: [...] }");
       const checks: Check[] = (b.doctor.checks as unknown[]).slice(0, 30)
         .filter((x: any) => x && typeof x === "object" && typeof x.id === "string" && /^[a-z0-9_-]{1,32}$/.test(x.id))
         .map((x: any) => ({ id: x.id, label: cleanText(x.label, 80), ok: x.ok === true, detail: cleanText(x.detail, 300) }));
       // tdx_guest, tsm_report, dstack_socket: any one of the three attestation paths is enough
       doctor = checks.length ? { ok: checks.every((x) => x.ok || ["tdx_guest", "tsm_report", "dstack_socket"].includes(x.id)), checks } : undefined;
     }
-    if (b.logs !== undefined && !Array.isArray(b.logs)) throw new HttpError(400, "invalid_logs", "logs invalide : attendu un tableau de lignes");
+    if (b.logs !== undefined && !Array.isArray(b.logs)) throw new HttpError(400, "invalid_logs", "invalid logs: expected an array of lines");
     const logs = Array.isArray(b.logs)
       ? (b.logs as unknown[]).filter((l): l is string => typeof l === "string").slice(-LOG_LINES).map((l) => cleanText(l, LOG_LINE_MAX))
       : undefined;
 
     let m = key.machineId ? db.machines[key.machineId] : machinesOf(key.operator).find((x) => x.hostname === hostname);
-    if (key.machineId && !m) throw new HttpError(401, "machine_unknown_for_key", "machine inconnue pour cette clé : appairez à nouveau (archive-node pair --force)");
+    if (key.machineId && !m) throw new HttpError(401, "machine_unknown_for_key", "unknown machine for this key: pair again (archive-node pair --force)");
     if (!m) {
       if (machinesOf(key.operator).length >= LIMITS.machinesPerOperator) throw machineLimit();
       if (Object.keys(db.machines).length >= LIMITS.machinesTotal) {
-        throw new HttpError(503, "network_full_machines", "le réseau n'accepte plus de nouvelle machine pour l'instant");
+        throw new HttpError(503, "network_full_machines", "the network accepts no new machine for now");
       }
       const machineId = randomUUID();
       const now = Date.now();
@@ -1067,7 +1067,7 @@ export function registerOperatorRoutes(app: Hono, arc: ArcClient) {
   // an operator's list (?operator= required): public view, or complete (without logs) with its arcop_ key
   app.get("/machines", wrap(async (c) => {
     const a = String(c.req.query("operator") ?? "");
-    if (!ADDR_RE.test(a)) throw new HttpError(400, "operator_param_expected", "paramètre operator attendu (0x + 40 caractères hexadécimaux)");
+    if (!ADDR_RE.test(a)) throw new HttpError(400, "operator_param_expected", "operator parameter expected (0x + 40 hex characters)");
     const r = readerFromBearer(c);
     const list = machinesOf(a.toLowerCase()).sort((x, y) => (y.lastSeen ?? 0) - (x.lastSeen ?? 0));
     const regs = await Promise.all(list.map((m) => isRegistered(arc, m)));
@@ -1078,9 +1078,9 @@ export function registerOperatorRoutes(app: Hono, arc: ArcClient) {
   app.get("/machines/:id", wrap(async (c) => {
     const id = c.req.param("id");
     const m = UUID_RE.test(id) ? db.machines[id] : undefined;
-    if (!m) throw new HttpError(404, "machine_unknown", "machine inconnue");
+    if (!m) throw new HttpError(404, "machine_unknown", "unknown machine");
     const r = readerFromBearer(c);
-    if (r && !canRead(r, m)) throw new HttpError(403, "key_forbidden", "cette clé ne donne pas accès à cette machine");
+    if (r && !canRead(r, m)) throw new HttpError(403, "key_forbidden", "this key gives no access to this machine");
     const reg = await isRegistered(arc, m);
     return c.json(r ? ownerDetailView(m, reg) : publicView(m, reg));
   }));

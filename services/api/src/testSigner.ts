@@ -134,7 +134,7 @@ export function registerTestSigner(app: Hono) {
   function reserve(amount: bigint, what: string) {
     const s = spent();
     if (s + amount > DAILY) {
-      throw new Refus(`mode test : budget du jour atteint (${fmt(DAILY)} USDC par jour, ${fmt(DAILY - s)} restants, ${what} de ${fmt(amount)} USDC) : réessayez demain`);
+      throw new Refus(`test mode: the day's budget is reached (${fmt(DAILY)} USDC per day, ${fmt(DAILY - s)} left, ${what} of ${fmt(amount)} USDC): try again tomorrow`);
     }
     budget.spent = (s + amount).toString();
     try {
@@ -158,7 +158,7 @@ export function registerTestSigner(app: Hono) {
 
   /** one line per request (never the token) */
   type Entry = { ip: string; method: string; ok: boolean; to?: string; selector?: string; fn?: string; amount?: bigint; gas?: bigint; reason?: string; tx?: string };
-  const journal = (e: Entry) => console.log("mode test " + JSON.stringify({
+  const journal = (e: Entry) => console.log("test mode " + JSON.stringify({
     t: new Date().toISOString(), ...e, amount: e.amount !== undefined ? fmt(e.amount) : undefined, gas: e.gas?.toString(),
   }));
 
@@ -168,10 +168,10 @@ export function registerTestSigner(app: Hono) {
       if (typeof v === "number" && Number.isSafeInteger(v)) return BigInt(v);
       if (typeof v === "string" && /^(0x[0-9a-fA-F]{1,64}|\d{1,78})$/.test(v)) return BigInt(v);
     } catch { /* plus bas */ }
-    throw new Refus(`mode test : ${field} illisible`);
+    throw new Refus(`test mode: unreadable ${field}`);
   };
   const capAmount = (v: bigint, what: string) => {
-    if (v > MAX_AUTH) throw new Refus(`mode test : ${what} de ${fmt(v)} USDC refusé (${fmt(MAX_AUTH)} USDC au plus par opération)`);
+    if (v > MAX_AUTH) throw new Refus(`test mode: ${what} of ${fmt(v)} USDC refused (${fmt(MAX_AUTH)} USDC at most per operation)`);
   };
 
   async function ownerWord(to: Address, data: Hex): Promise<string> {
@@ -181,11 +181,11 @@ export function registerTestSigner(app: Hono) {
   }
   async function mustOwnSession(id: bigint) {
     const owner = await ownerWord(testnet.sessionPay, encodeFunctionData({ abi: readAbi, functionName: "getSession", args: [id] }));
-    if (owner !== me) throw new Refus(`mode test : la session n° ${id} n'appartient pas au wallet de test`);
+    if (owner !== me) throw new Refus(`test mode: session #${id} does not belong to the test wallet`);
   }
   async function mustOwnBounty(id: bigint) {
     const protocol = await ownerWord(testnet.sealedBounty, encodeFunctionData({ abi: readAbi, functionName: "getBounty", args: [id] }));
-    if (protocol !== me) throw new Refus(`mode test : la prime n° ${id} n'appartient pas au wallet de test`);
+    if (protocol !== me) throw new Refus(`test mode: bounty #${id} does not belong to the test wallet`);
   }
 
   /** allowlist: the decoded function, and the amount that leaves this wallet (already counted when the authorization is signed) */
@@ -193,25 +193,25 @@ export function registerTestSigner(app: Hono) {
     const rule = RULES.get(to);
     if (!rule) {
       throw new Refus(to === USDC
-        ? "mode test : aucune transaction sur l'USDC (les paiements passent par une autorisation EIP-3009 vers nos contrats)"
-        : "mode test : transaction vers un contrat hors de la liste blanche refusée");
+        ? "test mode: no transaction on USDC (payments go through an EIP-3009 authorization to our contracts)"
+        : "test mode: transaction to a contract outside the allowlist refused");
     }
     let d: { functionName: string; args?: readonly unknown[] };
     try { d = decodeFunctionData({ abi: rule.abi as any, data }) as any; } catch {
-      throw new Refus(`mode test : fonction non autorisée sur ${rule.name} (sélecteur ${data.slice(0, 10)})`);
+      throw new Refus(`test mode: function not allowed on ${rule.name} (selector ${data.slice(0, 10)})`);
     }
     const a = (d.args ?? []) as any[];
     const fn = `${rule.name}.${d.functionName}`;
     switch (fn) {
-      case "SessionPay.openSession": { const v = asBig(a[0]?.deposit, "dépôt"); capAmount(v, "dépôt"); return { fn, amount: v }; }
-      case "SessionPay.topUp": { const v = asBig(a[1], "montant"); capAmount(v, "recharge"); await mustOwnSession(asBig(a[0], "session")); return { fn, amount: v }; }
+      case "SessionPay.openSession": { const v = asBig(a[0]?.deposit, "deposit"); capAmount(v, "deposit"); return { fn, amount: v }; }
+      case "SessionPay.topUp": { const v = asBig(a[1], "amount"); capAmount(v, "top-up"); await mustOwnSession(asBig(a[0], "session")); return { fn, amount: v }; }
       case "SessionPay.rotateKey":
       case "SessionPay.closeSession": await mustOwnSession(asBig(a[0], "session")); return { fn, amount: 0n };
-      case "SealedBounty.createBounty": { const v = asBig(a[0]?.funding, "dotation"); capAmount(v, "dotation"); return { fn, amount: v }; }
-      case "SealedBounty.fund": { const v = asBig(a[1], "montant"); capAmount(v, "dotation"); await mustOwnBounty(asBig(a[0], "prime")); return { fn, amount: v }; }
+      case "SealedBounty.createBounty": { const v = asBig(a[0]?.funding, "funding"); capAmount(v, "funding"); return { fn, amount: v }; }
+      case "SealedBounty.fund": { const v = asBig(a[1], "amount"); capAmount(v, "funding"); await mustOwnBounty(asBig(a[0], "bounty")); return { fn, amount: v }; }
       case "SealedBounty.setPaused":
       case "SealedBounty.reopen":
-      case "SealedBounty.withdrawRemaining": await mustOwnBounty(asBig(a[0], "prime")); return { fn, amount: 0n };
+      case "SealedBounty.withdrawRemaining": await mustOwnBounty(asBig(a[0], "bounty")); return { fn, amount: 0n };
       case "SealedBounty.withdrawCredit": // to this wallet
       case "SealedBounty.acceptClaim": // hunter: pays from the bounty, gas only for this wallet
       case "SealedBounty.claim":
@@ -220,41 +220,41 @@ export function registerTestSigner(app: Hono) {
       case "OperatorBond.withdraw":
         return { fn, amount: 0n };
     }
-    throw new Refus(`mode test : fonction non autorisée (${fn})`);
+    throw new Refus(`test mode: function not allowed (${fn})`);
   }
 
   /** an EIP-3009 authorization as it will be signed (canonical domain and types: what is checked is what is signed) */
   function checkAuthorization(td: any) {
-    if (!td || typeof td !== "object") throw new Refus("mode test : données typées illisibles");
+    if (!td || typeof td !== "object") throw new Refus("test mode: unreadable typed data");
     if (td.primaryType !== "ReceiveWithAuthorization") {
-      throw new Refus("mode test : seules les autorisations de paiement USDC ReceiveWithAuthorization (EIP-3009) sont signées");
+      throw new Refus("test mode: only USDC ReceiveWithAuthorization (EIP-3009) payment authorizations are signed");
     }
     const dom = td.domain ?? {};
-    if (Number(dom.chainId) !== arcTestnet.id) throw new Refus("mode test : signature hors d'Arc testnet refusée");
+    if (Number(dom.chainId) !== arcTestnet.id) throw new Refus("test mode: signature outside Arc testnet refused");
     if (String(dom.verifyingContract ?? "").toLowerCase() !== USDC || dom.name !== "USDC" || String(dom.version) !== "2") {
-      throw new Refus("mode test : signature hors du contrat USDC d'Arc refusée");
+      throw new Refus("test mode: signature outside Arc's USDC contract refused");
     }
     const t = td.types?.ReceiveWithAuthorization;
     const want = RWA_TYPES.ReceiveWithAuthorization;
     if (!Array.isArray(t) || t.length !== want.length || t.some((x: any, i: number) => x?.name !== want[i]!.name || x?.type !== want[i]!.type)) {
-      throw new Refus("mode test : type ReceiveWithAuthorization non standard refusé");
+      throw new Refus("test mode: non-standard ReceiveWithAuthorization type refused");
     }
     const msg = td.message ?? {};
-    if (String(msg.from ?? "").toLowerCase() !== me) throw new Refus("mode test : autorisation au nom d'une autre adresse refusée");
+    if (String(msg.from ?? "").toLowerCase() !== me) throw new Refus("test mode: authorization in the name of another address refused");
     const to = String(msg.to ?? "").toLowerCase();
     const dest = AUTH_TO.get(to);
-    if (!dest) throw new Refus("mode test : autorisation de paiement vers SessionPay, SealedBounty ou X402Settler seulement");
-    const value = asBig(msg.value, "montant");
-    if (value <= 0n) throw new Refus("mode test : montant nul refusé");
-    capAmount(value, "paiement");
+    if (!dest) throw new Refus("test mode: payment authorizations to SessionPay, SealedBounty or X402Settler only");
+    const value = asBig(msg.value, "amount");
+    if (value <= 0n) throw new Refus("test mode: zero amount refused");
+    capAmount(value, "payment");
     const now = BigInt(Math.floor(Date.now() / 1000));
     const validAfter = asBig(msg.validAfter ?? 0, "validAfter");
     const validBefore = asBig(msg.validBefore, "validBefore");
-    if (validAfter > now) throw new Refus("mode test : autorisation à effet différé refusée");
+    if (validAfter > now) throw new Refus("test mode: deferred authorization refused");
     if (validBefore <= now || validBefore > now + BigInt(dest.maxTtl)) {
-      throw new Refus(`mode test : validité de l'autorisation vers ${dest.name} de ${dest.maxTtl >= 3600 ? `${dest.maxTtl / 3600} h` : `${dest.maxTtl} s`} au plus`);
+      throw new Refus(`test mode: the authorization to ${dest.name} is valid for ${dest.maxTtl >= 3600 ? `${dest.maxTtl / 3600} h` : `${dest.maxTtl} s`} at most`);
     }
-    if (typeof msg.nonce !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(msg.nonce)) throw new Refus("mode test : nonce de l'autorisation invalide");
+    if (typeof msg.nonce !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(msg.nonce)) throw new Refus("test mode: invalid authorization nonce");
     return { from: account.address, to: to as Address, value, validAfter, validBefore, nonce: msg.nonce as Hex };
   }
 
@@ -267,7 +267,7 @@ export function registerTestSigner(app: Hono) {
     return { gasPrice: await pub.getGasPrice() };
   }
 
-  app.use("/test-signer/*", bodyLimit({ maxSize: BODY_MAX, onError: (c) => c.json({ error: { code: 4200, message: "mode test : requête trop volumineuse" } }, 413) }));
+  app.use("/test-signer/*", bodyLimit({ maxSize: BODY_MAX, onError: (c) => c.json({ error: { code: 4200, message: "test mode: request too large" } }, 413) }));
 
   app.get("/test-signer/info", (c) => {
     if (!authed(c.req.header("authorization"))) return c.json({ enabled: true, chainId: arcTestnet.id });
@@ -282,11 +282,11 @@ export function registerTestSigner(app: Hono) {
     const ip = clientIp(c);
     if (!authed(c.req.header("authorization"))) {
       if (Date.now() - authFails.t > 60_000) authFails = { t: Date.now(), n: 0 };
-      if (++authFails.n <= 5) journal({ ip, method: "?", ok: false, reason: authFails.n < 5 ? "jeton absent ou invalide" : "jeton absent ou invalide (refus suivants de cette minute non journalisés)" });
-      return c.json({ error: { code: 4100, message: "mode test : jeton absent ou invalide" } }, 401);
+      if (++authFails.n <= 5) journal({ ip, method: "?", ok: false, reason: authFails.n < 5 ? "token missing or invalid" : "token missing or invalid (later refusals in this minute not logged)" });
+      return c.json({ error: { code: 4100, message: "test mode: token missing or invalid" } }, 401);
     }
     if (Date.now() - win.t > 60_000) win = { t: Date.now(), n: 0 };
-    if (++win.n > 180) return c.json({ error: { code: 4200, message: "mode test : trop de requêtes, réessayez dans une minute" } }, 429);
+    if (++win.n > 180) return c.json({ error: { code: 4200, message: "test mode: too many requests, try again in a minute" } }, 429);
     let body: { method?: unknown; params?: unknown } = {};
     try { body = (await c.req.json()) ?? {}; } catch { /* unreadable body: empty method, refused below */ }
     const method = typeof body.method === "string" ? body.method.slice(0, 64) : "";
@@ -305,41 +305,41 @@ export function registerTestSigner(app: Hono) {
           return ok(String(arcTestnet.id));
         case "wallet_switchEthereumChain": {
           const want = String(params[0]?.chainId ?? "").toLowerCase();
-          return want === CHAIN_HEX ? ok(null) : fail(4902, "mode test : Arc testnet uniquement");
+          return want === CHAIN_HEX ? ok(null) : fail(4902, "test mode: Arc testnet only");
         }
         case "personal_sign": {
           const raw = String(params[0] ?? "");
           const who = params[1] ? String(params[1]).toLowerCase() : me;
-          if (who !== me) throw new Refus("mode test : signature demandée pour une autre adresse");
+          if (who !== me) throw new Refus("test mode: signature requested for another address");
           const text = /^0x([0-9a-fA-F]{2})*$/.test(raw) ? Buffer.from(raw.slice(2), "hex").toString("utf8") : raw;
           const statement = arcHiveSignInStatement(text, me);
           if (statement === null) {
-            throw new Refus("mode test : seuls les messages de connexion ArcHive (EIP-4361) au nom de ce wallet sont signés : notre site, un nonce de cette API encore valable, 10 minutes au plus");
+            throw new Refus("test mode: only ArcHive sign-in messages (EIP-4361) in this wallet's name are signed: our site, a still valid nonce from this API, 10 minutes at most");
           }
           entry.fn = statement.slice(0, 80);
           return ok(await account.signMessage({ message: text }));
         }
         case "eth_signTypedData_v4": {
           const who = params[0] ? String(params[0]).toLowerCase() : me;
-          if (who !== me) throw new Refus("mode test : signature demandée pour une autre adresse");
+          if (who !== me) throw new Refus("test mode: signature requested for another address");
           let td: any;
-          try { td = typeof params[1] === "string" ? JSON.parse(params[1]) : params[1]; } catch { throw new Refus("mode test : données typées illisibles"); }
+          try { td = typeof params[1] === "string" ? JSON.parse(params[1]) : params[1]; } catch { throw new Refus("test mode: unreadable typed data"); }
           const auth = checkAuthorization(td);
           Object.assign(entry, { to: auth.to, fn: auth.to === X402_SETTLER ? "ReceiveWithAuthorization (x402)" : "ReceiveWithAuthorization", amount: auth.value });
-          reserve(auth.value, "autorisation");
+          reserve(auth.value, "authorization");
           try {
             return ok(await account.signTypedData({ domain: USDC_DOMAIN, types: RWA_TYPES, primaryType: "ReceiveWithAuthorization", message: auth }));
           } catch (e) { refund(auth.value); throw e; }
         }
         case "eth_sendTransaction": {
           const tx = params[0] ?? {};
-          if (tx.from && String(tx.from).toLowerCase() !== me) throw new Refus("mode test : transaction au nom d'une autre adresse refusée");
+          if (tx.from && String(tx.from).toLowerCase() !== me) throw new Refus("test mode: transaction in the name of another address refused");
           const to = String(tx.to ?? "").toLowerCase();
-          if (!/^0x[0-9a-f]{40}$/.test(to)) throw new Refus("mode test : destinataire manquant ou invalide");
+          if (!/^0x[0-9a-f]{40}$/.test(to)) throw new Refus("test mode: missing or invalid recipient");
           const data = String(tx.data ?? tx.input ?? "0x") as Hex;
-          if (!/^0x([0-9a-fA-F]{2})*$/.test(data)) throw new Refus("mode test : données de transaction invalides");
+          if (!/^0x([0-9a-fA-F]{2})*$/.test(data)) throw new Refus("test mode: invalid transaction data");
           entry.to = to; entry.selector = data.slice(0, 10);
-          if (asBig(tx.value ?? 0, "valeur") !== 0n) throw new Refus("mode test : aucun transfert de valeur");
+          if (asBig(tx.value ?? 0, "value") !== 0n) throw new Refus("test mode: no value transfer");
           const p = await policy(to, data);
           entry.fn = p.fn; entry.amount = p.amount;
           // gas: estimated HERE (the client does not choose it), with a margin, and capped
@@ -349,11 +349,11 @@ export function registerTestSigner(app: Hono) {
           }
           const gas = (est * 12n) / 10n + 20_000n;
           entry.gas = gas;
-          if (gas > GAS_CAP) throw new Refus(`mode test : transaction trop coûteuse (${gas} unités de gaz, ${GAS_CAP} au plus)`);
+          if (gas > GAS_CAP) throw new Refus(`test mode: transaction too costly (${gas} gas units, ${GAS_CAP} at most)`);
           const fees = await feesNow();
           const perGas = "gasPrice" in fees ? fees.gasPrice : fees.maxFeePerGas;
           const gasCost = (gas * perGas + WEI_PER_MICRO - 1n) / WEI_PER_MICRO; // borne haute, en micro-USDC
-          reserve(gasCost, "gaz");
+          reserve(gasCost, "gas");
           try {
             const hash = "gasPrice" in fees
               ? await wallet.sendTransaction({ account, chain: arcTestnet, to: to as Address, data, value: 0n, gas, gasPrice: fees.gasPrice })
@@ -363,7 +363,7 @@ export function registerTestSigner(app: Hono) {
           } catch (e) { refund(gasCost); throw e; }
         }
         default:
-          return fail(4200, `mode test : méthode non prise en charge (${method})`);
+          return fail(4200, `test mode: method not supported (${method})`);
       }
     } catch (e: any) {
       if (e instanceof Refus) return fail(4001, e.message);

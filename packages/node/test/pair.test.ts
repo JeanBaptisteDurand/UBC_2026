@@ -290,7 +290,7 @@ test("API without pairing (404) or unreachable: a clear message, no stack trace"
   } finally {
     await api.close();
   }
-  // an API refusal (its text is in French): the agent says it in English, by its stable code
+  // an API refusal whose text is not English: the agent says it in English, by its stable code
   const busy = await startMockApi({ startError: { status: 429, body: {
     error: "déjà 20 appairages en cours depuis cette adresse : terminez-en un ou attendez son expiration (15 min)",
     code: "pairings_per_ip", params: { max: 20, minutes: 15 },
