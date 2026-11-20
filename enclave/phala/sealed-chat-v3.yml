@@ -1,0 +1,68 @@
+# Private AI inference, v3 stack (Arc testnet, deployed 19 Nov 2026): product 1 (prepaid sessions, SessionPay
+# 0x606c379cd8758E3562e7ECC9972d0feF693F0763) and product 3 (pay per call with x402, X402Settler
+# 0x89B0381B18536f680fD952a0E7D375d7a4EC3fe6), two services of the same image in the same Intel TDX VM (PRODUCTION
+# dstack-0.5.12 OS image: no SSH access possible). The same image as v2.1 (sealed-chat-v21.yml); only the stack's
+# addresses change, so each enclave can join only the v3 EnclaveRegistry 0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E
+# and its own product (REPORTDATA binds chain id, registry, product id, operator and keys).
+# MODEL_ATTESTATION=aci: the enclave VERIFIES the model gateway (RedPill, Attested Confidential Inference: Intel quote,
+# bound keys, measured compose, PRODUCTION OS image MODEL_GATEWAY_OS_IMAGES), calls the model over TLS pinned to the
+# attested key, and requires a receipt citing a verified upstream service (src/services/model-attestation.ts).
+# EVERYTHING below is measured (compose-hash -> image fingerprint), the model, the upstream URL and the addresses
+# included; it matches the measuredEnv of the on-chain manifests web/public/manifests/sealed-chat-v3.json (product 1)
+# and sealed-x402-v3.json (product 3). Only the ${...} variables are encrypted (not measured): REDPILL_API_KEY,
+# OPERATOR_ALLOWLIST and the image registry credentials.
+services:
+  sealed-chat:
+    image: ghcr.io/jeanbaptistedurand/archive-sealed-chat@sha256:3ab9659901154934efa1be120143dbe4fb8f83bf6394af5599db49ed74bff5bd
+    ports:
+      - "8802:8802"
+    environment:
+      - RPC_URL=https://rpc.testnet.arc.io
+      - CHAIN_ID=5042002
+      - PRODUCT_ID=1
+      - REGISTRY=0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E
+      - SESSIONPAY=0x606c379cd8758E3562e7ECC9972d0feF693F0763
+      - REDPILL_BASE_URL=https://tee.redpill.ai/v1
+      - MODEL_ATTESTATION=aci
+      - MODEL_GATEWAY_OS_IMAGES=8db40cb23008d6213668b5816702d100b37b859a8a5bfd18d938ae3a1b3715bd
+      - REDPILL_MODEL=openai/gpt-oss-120b
+      - MODEL_TIMEOUT_MS=120000
+      - REDPILL_API_KEY=${REDPILL_API_KEY}
+      - OPERATOR_ALLOWLIST=${OPERATOR_ALLOWLIST}
+    volumes:
+      - /var/run/dstack.sock:/var/run/dstack.sock
+    restart: unless-stopped
+  sealed-x402:
+    image: ghcr.io/jeanbaptistedurand/archive-sealed-chat@sha256:3ab9659901154934efa1be120143dbe4fb8f83bf6394af5599db49ed74bff5bd
+    command: ["node", "dist/sealed-x402.mjs"]
+    ports:
+      - "8804:8804"
+    environment:
+      - PORT=8804
+      - RPC_URL=https://rpc.testnet.arc.io
+      - CHAIN_ID=5042002
+      - PRODUCT_ID=3
+      - REGISTRY=0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E
+      - X402SETTLER=0x89B0381B18536f680fD952a0E7D375d7a4EC3fe6
+      - USDC=0x3600000000000000000000000000000000000000
+      - REDPILL_BASE_URL=https://tee.redpill.ai/v1
+      - MODEL_ATTESTATION=aci
+      - MODEL_GATEWAY_OS_IMAGES=8db40cb23008d6213668b5816702d100b37b859a8a5bfd18d938ae3a1b3715bd
+      - REDPILL_MODEL=openai/gpt-oss-120b
+      - MAX_OUTPUT_TOKENS=1024
+      - MAX_REQUEST_BYTES=32768
+      - AUTH_VALIDITY_SECONDS=900
+      - MIN_SETTLE_WINDOW_SECONDS=600
+      - MAX_PENDING_PER_PAYER=3
+      - MAX_STORED_CALLS=2000
+      - MAX_UNSETTLED_PER_WINDOW=300
+      - UNSETTLED_WINDOW_SECONDS=600
+      - MODEL_TIMEOUT_MS=120000
+      - CHECK_PAYER_BALANCE=1
+      - PAYMENT_READS_PER_MINUTE=120
+      - PAYMENT_READS_PER_MINUTE_PER_IP=60
+      - REDPILL_API_KEY=${REDPILL_API_KEY}
+      - OPERATOR_ALLOWLIST=${OPERATOR_ALLOWLIST}
+    volumes:
+      - /var/run/dstack.sock:/var/run/dstack.sock
+    restart: unless-stopped

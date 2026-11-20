@@ -1,0 +1,24 @@
+# Sealed Bounty, open level, v3 stack (Arc testnet, deployed 19 Nov 2026, product 2): a REAL and FAITHFUL replay of an
+# exploit on a fork of Arc by arc-anvil (Arc Foundry, Arc's native precompiles), refutation of accepted claims
+# (/v1/refute). Settled by SealedBounty 0xaA229Eda6b535DF6aEe0B4D892f39e0EC006d308; the enclave joins only the v3
+# EnclaveRegistry 0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E as product 2 (REPORTDATA binds chain id, registry,
+# product id, operator and keys). The same image as v2.1 (sealed-bounty-v21.yml); only the stack's addresses change.
+# Intel TDX VM on the PRODUCTION dstack-0.5.12 OS image, logs not public. Everything is measured and matches the
+# measuredEnv of the on-chain manifest web/public/manifests/sealed-bounty-v3.json; only OPERATOR_ALLOWLIST and the
+# image registry credentials are encrypted variables.
+services:
+  sealed-bounty:
+    image: ghcr.io/jeanbaptistedurand/archive-sealed-bounty@sha256:ca06d9cc2c8f7baeb85bf15fa1592da90719b38581615109852e6fa95625ad36
+    ports:
+      - "8803:8803"
+    environment:
+      - RPC_URL=https://rpc.testnet.arc.io
+      - FORK_RPC_URL=https://rpc.testnet.arc.io
+      - CHAIN_ID=5042002
+      - PRODUCT_ID=2
+      - REGISTRY=0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E
+      - SEALEDBOUNTY=0xaA229Eda6b535DF6aEe0B4D892f39e0EC006d308
+      - OPERATOR_ALLOWLIST=${OPERATOR_ALLOWLIST}
+    volumes:
+      - /var/run/dstack.sock:/var/run/dstack.sock
+    restart: unless-stopped

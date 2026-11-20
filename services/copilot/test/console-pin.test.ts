@@ -26,8 +26,9 @@ const PIN = {
   toolDefs: "089f53031d5e526fa6906747e9facd4a7e63c846eecd2809a137b3b24b76d512",
   oaiTools: "83df4798fb997bfcc77b44d1f307d155b58ecab6c2d498c447ad8e18b7325044",
   display: "7b3ea661af720733594ed05c52bde1c5ad1ed5f9ca3e650186455fe855f9cea4",
-  // the knowledge base now carries the prices with their unit, the gas measured on Arc and its public sources
-  kb: "2adf3e3db0d8a41fcccb4c9668211e9873396b55103ecbdfff4baf4445eedee2",
+  // the knowledge base now carries the prices with their unit, the gas measured on Arc and its public sources; since
+  // 20 Nov 2026, the v3 stack's levels addresses and its verified bounty, product 5 (product 7 on v2.1)
+  kb: "a63a330e236ce5ae2fa4508f362decef29be93de5a745881001767cfe4ccb430",
   langEn: "d6820f380519f72ea6d5f4da83757c5d39211de778b730c08a7cc74713868421",
   langFr: "dc3e07217c78f1839162130a0d93cbf877a0a7f40984b6913cac3404a9e4006a",
 };

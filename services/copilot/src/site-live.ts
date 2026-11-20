@@ -3,8 +3,8 @@
  *  after the page line):
  *  - the active enclaves per product (ArcHive API index: /enclaves) and their level (/levels: verified = a chip declared
  *    by the Proof of Cloud alliance); the products with no active enclave;
- *  - product 7's settlement (OperatorBond.isSettlement, read by /levels: canSlash);
- *  - the open bounties of BOTH levels: SealedBounty through the API (/bounties), SealedBountyVerified (product 7) read
+ *  - the verified level's settlement, product 5 on v3 (OperatorBond.isSettlement, read by /levels: canSlash);
+ *  - the open bounties of BOTH levels: SealedBounty through the API (/bounties), SealedBountyVerified (product 5) read
  *    on-chain, since the API does not index it.
  *  Limits: a read of 3.5 s at most (otherwise a fallback line that points to the tools, never a guessed status), the line
  *  kept 30 s (successes only), in ASCII English (every accented character counts as 3 tokens, app.ts).
@@ -15,15 +15,13 @@ import { sealedBountyAbi, type ArcClient } from "@arcvault/sdk";
 import { apiBounties, apiEnclaves, apiLevels, apiProducts } from "./archive-api";
 import { executeTool, type ToolCtx } from "./tools";
 
-/** Each product's short name (from the facts sheet); a product published since then: "product N". */
+/** Each product's short name on the v3 stack (from the facts sheet); a product published since then: "product N". */
 export const PRODUCT_LABELS: Readonly<Record<string, string>> = {
   "1": "Private AI, prepaid session",
   "2": "Sealed Bounty, open level",
   "3": "Private AI, pay per call (x402)",
   "4": "attested copilot",
-  "5": "refutation demo of 10/11",
-  "6": "retired, replaced by 7",
-  "7": "Sealed Bounty, verified level",
+  "5": "Sealed Bounty, verified level",
 };
 const labelOf = (id: string) => (PRODUCT_LABELS[id] ? `product ${id} (${PRODUCT_LABELS[id]})` : `product ${id}`);
 
@@ -46,7 +44,7 @@ export interface VerifiedBountyRow {
 
 let verifiedCache: { t: number; key: string; v: Promise<VerifiedBountyRow[]> } | null = null;
 
-/** The SealedBountyVerified bounties (verified level, product 7), read on-chain: bountyCount, then getBounty; [] when the
+/** The SealedBountyVerified bounties (verified level, product 5), read on-chain: bountyCount, then getBounty; [] when the
  *  stack has no levels. Kept 20 s (successes only). */
 export function verifiedBountyRows(arc: ArcClient): Promise<VerifiedBountyRow[]> {
   const sbv = arc.d.levels?.sealedBountyVerified;
@@ -81,7 +79,7 @@ export function clearLiveCaches() { verifiedCache = null; liveCache.clear(); }
 const isOpen = (b: { paused: boolean; deadline: bigint; balance: bigint }, nowSec: bigint) => !b.paused && b.deadline >= nowSec && b.balance > 0n;
 
 /** The site's bounty_list: the console's (SealedBounty, open level, through the API), plus the verified-level bounties
- *  (SealedBountyVerified, product 7) read on-chain. A failed verified-level read is reported, never hidden. */
+ *  (SealedBountyVerified, product 5) read on-chain. A failed verified-level read is reported, never hidden. */
 export async function siteBountyList(input: any, ctx: ToolCtx): Promise<{ result: unknown; citations?: string[] }> {
   const base = await executeTool("bounty_list", input, ctx);
   const r = base.result as Record<string, unknown> | undefined;
@@ -108,8 +106,8 @@ export async function siteBountyList(input: any, ctx: ToolCtx): Promise<{ result
   const resume = o1 === null || o2 === null
     ? "Primes ouvertes : lecture incomplète (voir ci-dessous) ; n'en invente aucune."
     : o1 + o2 === 0
-      ? `Aucune prime ouverte en ce moment (niveau ouvert : 0 sur ${t1} ; niveau vérifié, produit 7 : 0 sur ${t2}) : pour chasser, il faut d'abord qu'un protocole publie une nouvelle prime. Ne présente aucune prime échue comme ouverte.`
-      : `${o1 + o2} prime(s) ouverte(s) en ce moment (niveau ouvert : ${o1} sur ${t1} ; niveau vérifié, produit 7 : ${o2} sur ${t2}).`;
+      ? `Aucune prime ouverte en ce moment (niveau ouvert : 0 sur ${t1} ; niveau vérifié, produit 5 : 0 sur ${t2}) : pour chasser, il faut d'abord qu'un protocole publie une nouvelle prime. Ne présente aucune prime échue comme ouverte.`
+      : `${o1 + o2} prime(s) ouverte(s) en ce moment (niveau ouvert : ${o1} sur ${t1} ; niveau vérifié, produit 5 : ${o2} sur ${t2}).`;
   return {
     result: { resume, niveauOuvert: { contrat: "SealedBounty (produits 2 et 5)", ...r }, niveauVerifie: verified },
     citations: [...(base.citations ?? []), "SealedBountyVerified.getBounty"],
@@ -175,8 +173,8 @@ export async function readLiveStatus(o: { arc?: ArcClient; base?: string; now?: 
   const known = products ? products.map((p) => p.id.toString()) : Object.keys(PRODUCT_LABELS);
   const idle = known.filter((id) => !ids.includes(id)).sort((a, b) => Number(a) - Number(b));
   if (idle.length) parts.push(`no active enclave for ${idle.map(labelOf).join(", ")}`);
-  if (levels?.canSlash === true) parts.push("product 7's settlement is authorized: it pays proven claims and can seize bonds");
-  else if (levels?.canSlash === false) parts.push("product 7's settlement is not authorized yet: it cannot pay a claim");
+  if (levels?.canSlash === true) parts.push("product 5's settlement is authorized: it pays proven claims and can seize bonds");
+  else if (levels?.canSlash === false) parts.push("product 5's settlement is not authorized yet: it cannot pay a claim");
   const nowSec = BigInt(Math.floor(now / 1000));
   if (open && verified) {
     // each open bounty by its number AND its contract (numbers restart from 1 on each contract)
