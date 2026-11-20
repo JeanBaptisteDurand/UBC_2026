@@ -58,15 +58,18 @@ function initial(): string | null {
 const fixHtml = (h: string) => h.replaceAll('href="@hive"', `href="${link.hive}" target="_blank" rel="noreferrer"`).replaceAll('href="@dev"', `href="${link.dev}" target="_blank" rel="noreferrer"`)
   .replaceAll('href="@dc"', `href="${link.datacenter}" target="_blank" rel="noreferrer"`).replace(/href="@api\//g, `href="${API_DIRECT}/`)
 
-/** the live state of a family: running if any of its products has an enclave running; the presentation's word and lamp otherwise
- *  (his "Paused" holds while nothing runs). The refutation and the retired product keep their own words. */
+/** the live state of a family: running if any of its products has an enclave running, the presentation's word and lamp
+ *  ("Not running") otherwise. Before the catalog is read, it says so, as the sled faces do. The refutation and the
+ *  retired product keep their own words. */
 function useFamState() {
   const rows = useCatalog()
+  const status = useLive((s) => s.status)
   return useCallback((id: string, lamp: string, word: string) => {
-    if (id === 'refutation' || id === 'retired' || !rows) return { lamp, word }
+    if (id === 'refutation' || id === 'retired') return { lamp, word }
+    if (!rows) return { lamp: 'off', word: ls(status === 'error' ? 'wDown' : 'wRead') }
     const n = rows.filter((r) => PIDS[id]?.includes(r.p.id)).reduce((a, r) => a + r.running, 0)
     return n > 0 ? { lamp: 'green', word: t('vit.w.on') } : { lamp, word }
-  }, [rows])
+  }, [rows, status])
 }
 
 function Title({ text, acc }: { text: string; acc: string }) {
@@ -96,10 +99,9 @@ function Intro({ root, to }: { root: React.RefObject<HTMLDivElement | null>; to:
   const lang = useLang()
   const L = VIT[lang === 'fr' ? 'fr' : 'en']
   useLiveFill(root, 'intro')
-  // a link to a section (?c=market, or from a sheet) brings it to the top of the column
-  // the sections are a table of contents: each title opens its section in place (the reader sees what
-  // is there and opens what interests them). A link to a section (?c=market, or from a sheet) opens it and brings it
-  // to the top of the column. Closed bodies stay in the DOM (hidden) so the live figures are filled in them too.
+  // the sections are a table of contents: each title opens its section in place, so the reader sees what is there
+  // and opens what interests them. A link to a section (?c=market, or from a sheet) opens it and brings it to the top
+  // of the column. Closed bodies stay in the DOM (hidden) so the live figures are filled in them too.
   const [openId, setOpenId] = useState<string | null>(to && to !== 'offers' ? to : null)
   useEffect(() => { if (to && to !== 'offers') { setOpenId(to); requestAnimationFrame(() => toTop(document.getElementById(`vt-s-${to}`))) } }, [to])
   const secs = SECS.map((id) => L.chapters.find((c) => c.id === id)).filter(Boolean) as VitChapter[]
@@ -141,8 +143,8 @@ function Intro({ root, to }: { root: React.RefObject<HTMLDivElement | null>; to:
 /** the live words of the sled faces and of the sheets' "Today" lines (the shared table, i18n.ts, does not carry them
  *  yet), English and French in step */
 const LIVE_STR = {
-  en: { wDown: 'State unknown', wRead: 'Reading…', p4on: 'Runs in its own enclave, admitted on Arc, registration valid until {t}.', off: 'No enclave runs it right now, read live on Arc. Every past payment stays readable.', none: 'No enclave runs right now, read live on Arc.' },
-  fr: { wDown: 'État inconnu', wRead: 'Lecture…', p4on: 'Tourne dans sa propre enclave, admise sur Arc, inscription valable jusqu’au {t}.', off: 'Aucune enclave ne le fait tourner en ce moment, lu en direct sur Arc. Chaque paiement passé reste lisible.', none: 'Aucune enclave ne tourne en ce moment, lu en direct sur Arc.' },
+  en: { wDown: 'State unknown', wRead: 'Reading…', p4on: 'Runs in its own enclave, admitted on Arc, registration valid until {t}.', p4off: 'No enclave runs it right now, read live on Arc. AskHive then answers from the ArcHive server, not sealed, and says so.', off: 'No enclave runs it right now, read live on Arc. Every past payment stays readable.', none: 'No enclave runs right now, read live on Arc.' },
+  fr: { wDown: 'État inconnu', wRead: 'Lecture…', p4on: 'Tourne dans sa propre enclave, admise sur Arc, inscription valable jusqu’au {t}.', p4off: 'Aucune enclave ne le fait tourner en ce moment, lu en direct sur Arc. AskHive répond alors depuis le serveur d’ArcHive, sans sceller la conversation, et le signale.', off: 'Aucune enclave ne le fait tourner en ce moment, lu en direct sur Arc. Chaque paiement passé reste lisible.', none: 'Aucune enclave ne tourne en ce moment, lu en direct sur Arc.' },
 } as const
 const ls = (k: keyof typeof LIVE_STR.en, v?: Record<string, string>) => {
   let x: string = LIVE_STR[getLang() === 'fr' ? 'fr' : 'en'][k]
@@ -151,11 +153,10 @@ const ls = (k: keyof typeof LIVE_STR.en, v?: Record<string, string>) => {
 }
 const utcDay = (unix: number, lang: string) => `${new Date(unix * 1000).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })} UTC`
 
-/** the presentation's sentences that name the products running on 19 November ("#1, #2, #3 and #7"), read live: the products whose
- *  enclave runs now. Another list drops the daily cost of 4 VMs that went with it; none running, one short line. The
- *  original text is kept per text node. */
-const RUNS = /#1, #2, #3 and #7|n°\s1, 2, 3 et 7/
-const COST = /,\sat about 5\.8\s\$ a day for 4\sVMs|,\spour environ 5,8\s\$ par jour pour 4\sVM/
+/** the presentation's sentences that name the running products ("the verified enclaves of products #1, #2, #3, #4 and
+ *  #7"), read live: the list becomes the products whose enclave runs now. With none running, the sentence becomes one
+ *  short line. Only a list that follows "enclaves of products" changes. The original text is kept per text node. */
+const RUNS = /(enclaves of products |enclaves vérifiées des produits )(#\d+(?:(?:, #\d+)* and #\d+)?|n°\s\d+(?:(?:, \d+)* et \d+)?)/
 const SENT = /(The verified enclaves of products|Les enclaves vérifiées des produits)[^.]*\./
 const runOrig = new WeakMap<Text, string>()
 function fillRuns(el: HTMLElement, ids: string[] | null, lang: string) {
@@ -169,7 +170,7 @@ function fillRuns(el: HTMLElement, ids: string[] | null, lang: string) {
   for (const x of hits) {
     if (!runOrig.has(x)) runOrig.set(x, x.data)
     const o = runOrig.get(x)!
-    const v = !ids || ids.join() === '1,2,3,7' ? o : !ids.length ? o.replace(COST, '').replace(SENT, ls('none')) : o.replace(COST, '').replace(RUNS, list)
+    const v = !ids ? o : !ids.length ? o.replace(SENT, ls('none')) : o.replace(RUNS, (_m, pre: string) => pre + list)
     if (x.data !== v) x.data = v
   }
 }
@@ -203,9 +204,9 @@ function useLiveFill(root: React.RefObject<HTMLDivElement | null>, key: string) 
       f.dataset.led = wait ? 'off' : on ? 'green' : f.dataset.origLed || 'amber'
       w.textContent = wait ? ls(status === 'error' ? 'wDown' : 'wRead') : on ? t('vit.w.on') : w.dataset.orig
     })
-    // the "Today" line of a family sheet: its lamp follows the family's products; a family that sells (bounty, private
-    // AI) and runs nothing says so; the attested copilot (#4), while its enclave runs, says until when its
-    // registration holds
+    // the "Today" line of a family sheet: its lamp follows the family's products, and a family that runs nothing says
+    // so. The attested copilot (#4) says until when its registration holds while its enclave runs, and that AskHive
+    // answers from the server, not sealed, while none does
     const fam = PIDS[key]
     if (fam && (key === 'bounty' || key === 'private-ai' || key === 'attested-copilot')) {
       const on = running(fam) > 0
@@ -220,11 +221,11 @@ function useLiveFill(root: React.RefObject<HTMLDivElement | null>, key: string) 
         if ((p as HTMLElement).dataset.orig === undefined) (p as HTMLElement).dataset.orig = txt.textContent ?? ''
         const orig = (p as HTMLElement).dataset.orig!
         txt.textContent = wait ? t(status === 'error' ? 'vit.down' : 'vit.reading')
-          : key === 'attested-copilot' ? (on && until ? ls('p4on', { t: utcDay(until, lang) }) : orig)
+          : key === 'attested-copilot' ? (!on ? ls('p4off') : until ? ls('p4on', { t: utcDay(until, lang) }) : orig)
             : on ? orig : ls('off')
       })
     }
-    // the introduction's lines that name the running products (the state of 19 November), read live
+    // the introduction's lines that name the running products, read live
     if (key === 'intro') fillRuns(el, rows ? rows.filter((r) => r.running > 0 && !isSupersededRow(r)).map((r) => r.p.id).sort((a, b) => Number(a) - Number(b)) : null, lang)
     }
     fill()

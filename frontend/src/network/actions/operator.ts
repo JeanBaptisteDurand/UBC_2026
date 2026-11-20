@@ -4,8 +4,8 @@
 // - arcop_ operator keys (create, list, revoke): they report and diagnose, they can neither spend nor withdraw the
 //   bond;
 // - enclave registration through real DCAP: the SDK reads the machine's attestation (/attest, often behind a
-//   trycloudflare tunnel), checks the quote off chain, then registerEnclave (the chain verifies Intel's signature,
-//   about 5.7 M gas); and its removal (retire).
+//   trycloudflare tunnel) and checks the quote off chain. Then registerEnclave: the chain verifies Intel's signature,
+//   ≈ 6.85 M gas (measured on v2.1). Its removal is retire.
 import type { Address, Hex } from 'viem'
 import { arc, waitOk, UserFacing } from './wallet'
 import { apiGet, apiPost, type Machine, type OperatorKey } from './archive-api'

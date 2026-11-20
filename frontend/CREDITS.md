@@ -23,7 +23,7 @@ The server room, racks, sleds and facades, the Network scene (`public/net/net3d.
 
 ## Sound
 
-The Network demo sound is synthesised at runtime with the Web Audio API; no audio file is shipped.
+The Network demo's sound is synthesised at runtime with the Web Audio API. No audio file is shipped.
 
 ## Images
 

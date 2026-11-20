@@ -105,7 +105,7 @@ function listen() {
 
 export function disconnect() { wallet = null; remember(null); setWallet({ phase: 'idle', address: undefined, chainId: undefined, balance: undefined, note: undefined }) }
 
-// The wallet follows the visitor from page to page in this tab. The site copilot changes pages in front of the user;
+// The wallet follows the visitor from page to page in this tab. AskHive changes pages in front of the user;
 // without this, the wallet would have to be reconnected on each arrival. Only a flag is kept (never an address or a
 // key), and the resume needs no prompt: eth_accounts, which the wallet only answers for an already allowed site.
 const FLAG = 'archive-wallet', FLAG_ID = 'archive-wallet-id'

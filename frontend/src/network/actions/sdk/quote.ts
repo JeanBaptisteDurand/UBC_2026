@@ -33,7 +33,7 @@ export function parseTdxQuote(quote: Hex): TdxQuoteMeasurements {
   if (b.length < HEADER + 584) throw new Error(`quote TDX trop court (${b.length} octets)`);
   const version = b[0]! | (b[1]! << 8);
   const teeType = b[4]! | (b[5]! << 8) | (b[6]! << 16) | (b[7]! << 24);
-  if (teeType !== 0x81) throw new Error(`quote non TDX (type de TEE 0x${teeType.toString(16)})`);
+  if (teeType !== 0x81) throw new Error(`not a TDX quote (TEE type 0x${teeType.toString(16)})`);
   let start = HEADER;
   let bodyType = 2;
   if (version === 5) {
@@ -68,7 +68,7 @@ export function workloadIdFromQuote(quote: Hex): Hex {
 export function expectedReportData0(b: {
   chainId: number | bigint; registry: Address; productId: bigint; operator: Address; signer: Address; x25519: Hex;
 }): Hex {
-  if (size(b.x25519) !== 32) throw new Error("x25519 : 32 octets attendus");
+  if (size(b.x25519) !== 32) throw new Error("x25519: 32 bytes expected");
   return keccak256(
     encodeAbiParameters(
       [{ type: "string" }, { type: "uint256" }, { type: "address" }, { type: "uint256" }, { type: "address" }, { type: "address" }, { type: "bytes32" }],

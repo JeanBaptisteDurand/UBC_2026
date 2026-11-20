@@ -197,7 +197,7 @@ export function networkDomain(verifyingContract: Address, chainId: number = ARC_
   return { name: DOMAIN_NAME, version: DOMAIN_VERSION, chainId, verifyingContract };
 }
 
-/** Domaine EIP-712 de l'USDC d'Arc (EIP-3009), name "USDC" version "2" (VERIFIED). */
+/** EIP-712 domain of Arc's USDC (EIP-3009): name "USDC", version "2", checked on Arc testnet. */
 export function usdcDomain(usdc: Address, chainId: number = ARC_TESTNET_ID): TypedDataDomain {
   return { name: "USDC", version: "2", chainId, verifyingContract: usdc };
 }

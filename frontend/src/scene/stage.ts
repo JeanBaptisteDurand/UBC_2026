@@ -1124,7 +1124,7 @@ gl_FragColor.rgb = hfog(gl_FragColor.rgb, vWP);`)
           if (h && h.distance / K - reach < min) { min = h.distance / K - reach; who = `${m.name} -> ${h.object.name}` }
         }
       }
-      gaps.push(min); hits.push(`${who} : ${n} sommets sur ${Math.ceil(total / step)}, obstacle à ${(hd * 1000).toFixed(1)} mm au plus, x ${bx[0].toFixed(3)}..${bx[1].toFixed(3)} y ${bx[2].toFixed(3)}..${bx[3].toFixed(3)} z ${bx[4].toFixed(3)}..${bx[5].toFixed(3)}`)
+      gaps.push(min); hits.push(`${who}: ${n} vertices of ${Math.ceil(total / step)}, obstacle at ${(hd * 1000).toFixed(1)} mm at most, x ${bx[0].toFixed(3)}..${bx[1].toFixed(3)} y ${bx[2].toFixed(3)}..${bx[3].toFixed(3)} z ${bx[4].toFixed(3)}..${bx[5].toFixed(3)}`)
     }
     sides.forEach((sd, mt) => { mt.side = sd })
     parts.forEach((p, j) => { p.o.position.y = cur[j] })

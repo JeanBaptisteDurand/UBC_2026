@@ -94,7 +94,7 @@ export function AppHeader({ page, section, sectionText, replay, wallet }: { page
   )
 }
 
-/** The site copilot (src/copilot), mounted after the first render on every app page, Network included: a separate
+/** AskHive (src/copilot), mounted after the first render on every app page, Network included: a separate
  *  React root attached to <body> (copilot/mount.tsx) */
 function CopilotMount() {
   // at once, not on an idle callback: the 3D room of the Network pages keeps the browser busy for seconds, and the

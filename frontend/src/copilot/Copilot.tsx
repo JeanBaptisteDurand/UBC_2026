@@ -1,9 +1,9 @@
-// The site copilot: a floating button and a panel in the interface grammar (flat fills without radius, one-pixel
-// rules, Montserrat, Fragment Mono for data). The conversation goes to the server copilot ("site" surface) with the
-// open page; its interface tools are played on the site (driver.ts), its prepared actions become cards signed by the
-// user's wallet (cards.tsx), and the MCP card gives the same tools to an agent. Keyboard: focus stays in the panel
-// (Tab, Shift+Tab), Escape closes it and returns focus to the button. Phone (under 640 px): a full-width sheet,
-// collapsed while the copilot shows the site.
+// AskHive's panel: a floating button and a panel in the interface grammar (flat fills without radius, one-pixel rules,
+// Montserrat, Fragment Mono for data). The conversation goes with the open page to AskHive's enclave, sealed, or to the
+// ArcHive server copilot ("site" surface) when the enclave cannot be used (api.ts). Its interface tools are played on
+// the site (driver.ts), its prepared actions become cards signed by the user's wallet (cards.tsx), and the MCP card
+// gives the same tools to an agent. Keyboard: focus stays in the panel (Tab, Shift+Tab), and Escape closes it and returns
+// focus to the button. Phone (under 640 px): a full-width sheet, collapsed while AskHive shows the site.
 import { AskHiveMark } from './AskHiveMark'
 import { useEnc, useLeg, checkEnclave } from './enclave'
 import { EXPLORER } from '../data/endpoints'

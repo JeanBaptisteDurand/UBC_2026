@@ -52,7 +52,7 @@ export async function activate(id: bigint, on: { signing?: () => void; sent?: (h
 }
 
 export interface ProductState { id: bigint; state: 'Proposed' | 'Active' | 'Retired'; activatesAt: bigint; now: bigint }
-const STATES = [null, 'Proposed', 'Active', 'Retired'] as const // IProductRegistry.State : None, Proposed, Active, Retired
+const STATES = [null, 'Proposed', 'Active', 'Retired'] as const // IProductRegistry.State: None, Proposed, Active, Retired
 export async function readProduct(id: bigint): Promise<ProductState> {
   const pub = publicClient()
   const [p, b] = await Promise.all([

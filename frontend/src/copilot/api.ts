@@ -1,4 +1,5 @@
-// The conversation with the site copilot: POST {VITE_COPILOT_URL ?? '/copilot-site'}/chat.
+// AskHive's conversation. It goes to AskHive's enclave first, sealed (enclave.ts). When the enclave cannot be used, it
+// goes to the ArcHive server copilot: POST {VITE_COPILOT_URL ?? '/copilot-site'}/chat.
 // - request: the last 20 messages sent to the copilot (never the messages written by the site), 60 KiB at most (the
 //   server refuses above 64 KiB), the language, the connected wallet and the open page;
 // - response: text, sources and tools. A tool arrives as { tool, input, result } in `tools` (contract shape) or in

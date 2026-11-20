@@ -1,8 +1,8 @@
 // The LEDs of the distant racks (the 1U servers behind their perforated doors), as the real-time room shader drew them
 // (scene/stage.ts, roomMat): each LED changes state every 2 to 6 s with a fade, never a blink. The pre-rendered scenes
 // (the landing film, the Services rack) were rendered with them off, since a frozen frame would show them as motionless
-// specks; this layer draws them live over the image, on a 2D canvas, from positions exported from Blender
-// (design/blender/film-blender/job/leds.py, design/blender/service-room). Shared by the landing and the Services page:
+// specks; this layer draws them live over the image, on a 2D canvas, from positions exported from the Blender scenes
+// (public/film/leds.json for the landing). Shared by the landing and the Services page:
 // the caller gives the projection, the visibility and the text-column veil of the current view.
 const REDUCED = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
 
