@@ -1,5 +1,5 @@
 /**
- * predicate.ts — the Sealed Bounty's predicate language, v0 (O3).
+ * predicate.ts — the Sealed Bounty's predicate language, v0.
  *
  * A predicate states "what proves the exploit": a balance drop, the attacker's profit, a changed read, a broken
  * invariant. Its canonical JSON is hashed (predicateHash) and pinned on-chain: the enclave and the protocol talk about

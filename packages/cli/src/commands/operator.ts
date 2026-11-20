@@ -24,7 +24,7 @@ const init: Command = {
   description: [
     "Sends nothing: shows the steps, with the recipient and calldata of each transaction to sign in your",
     "wallet, and the address's current state (reads). Arc testnet's ERC-8004 identity registry:",
-    `${ERC8004_IDENTITY_TESTNET} (VERIFIED ; contracts/src/interfaces/IERC8004.sol).`,
+    `${ERC8004_IDENTITY_TESTNET} (see contracts/src/interfaces/IERC8004.sol).`,
   ],
   options: [
     { name: "uri", value: "<agentURI>", desc: "URI of the operator's ERC-8004 agent card (for the register calldata)" },
