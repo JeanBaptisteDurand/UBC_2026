@@ -19,7 +19,9 @@
 | [Try it in two minutes](#try-it-in-two-minutes) | three checks, no wallet needed |
 | [Services](#services) | the five products, who pays and how much |
 | [Architecture](#architecture) | the diagram, in four steps |
-| [How it works](docs/how-it-works.md) | how Arc verifies an enclave, the agent's loop and its limits, the economics |
+| [How an AI agent pays](docs/agent-payments.md) | the agent's loop, x402 per call and prepaid sessions, the limits that cap its losses |
+| [ArcHive on Arc, with Circle's tools](docs/arc-and-circle.md) | what we use from Arc and Circle, why, and what we left out |
+| [How it works](docs/how-it-works.md) | how Arc verifies an enclave, AskHive in its enclave, the economics |
 | [Use it from your tools](docs/use-from-your-tools.md) | the MCP server, the SDK, OpenCode (`opencode-arc`), Claude Code |
 | [Proofs and contracts](docs/proofs-and-contracts.md) | every transaction and contract address on Arc testnet |
 | [Run it](docs/run-it.md) | build, test, and the repository map |
