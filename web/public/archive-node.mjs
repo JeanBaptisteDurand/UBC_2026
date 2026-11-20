@@ -1167,7 +1167,7 @@ Stop it first: Ctrl+C in its terminal, or sudo systemctl stop archive-node.`);
     return new Promise(() => {
     });
   }
-  // ---------- un tour : enclave, diagnostic, statut, journaux, battement de cœur ----------
+  // ---------- one round: enclave, checks, status, logs, heartbeat ----------
   async tick() {
     let launchError = null;
     try {
@@ -1196,7 +1196,7 @@ Stop it first: Ctrl+C in its terminal, or sudo systemctl stop archive-node.`);
       "io.archive.product": String(this.p.product),
       "io.archive.port": String(this.p.port),
       "io.archive.mode": this.p.mode,
-      // l'opérateur autorisé à recevoir un quote : quand l'appairage le fait connaître, le conteneur est remplacé
+      // the operator allowed to receive a quote: when pairing makes it known, the container is replaced
       "io.archive.operator": this.operator ?? ""
     };
   }
@@ -1213,7 +1213,7 @@ Stop it first: Ctrl+C in its terminal, or sudo systemctl stop archive-node.`);
       ...process.env.REDPILL_API_KEY ? { REDPILL_API_KEY: "" } : {}
     };
   }
-  /** le conteneur tourne avec la bonne configuration (sinon : on le crée, le relance ou le remplace) */
+  /** the container runs with the right configuration (otherwise it is created, restarted or replaced) */
   async ensureEnclave() {
     const sig = this.ac.signal;
     const ds = await dockerState(sig);
@@ -1310,7 +1310,7 @@ Stop it first: Ctrl+C in its terminal, or sudo systemctl stop archive-node.`);
     const container = await containerLogs(CONTAINER, MAX_LOG_LINES, signal);
     return mergeLogLines([container, this.events], MAX_LOG_LINES).map(formatLogLine);
   }
-  // ---------- battement de cœur ----------
+  // ---------- heartbeat ----------
   async heartbeat(status, report, logs, timeoutMs) {
     const body = {
       ...this.machineId ? { machineId: this.machineId } : {},
@@ -1383,7 +1383,7 @@ Stop it first: Ctrl+C in its terminal, or sudo systemctl stop archive-node.`);
     }
     this.note(state === "unreachable" ? "warn" : "error", message);
   }
-  /** range machineId/operator dans node.json, si la clé en vient et n'a pas changé entre-temps */
+  /** saves machineId and operator in node.json, if the key comes from there and has not changed since */
   persistIdentity() {
     if (!this.p.keyFromConfig) return;
     try {
@@ -1433,7 +1433,7 @@ Stop it first: Ctrl+C in its terminal, or sudo systemctl stop archive-node.`);
     });
     return this.tunnelPromise;
   }
-  // ---------- affichage, état local, arrêt ----------
+  // ---------- display, local state, shutdown ----------
   note(level, text, onceKey) {
     if (onceKey) {
       if (this.once.has(onceKey)) return;
@@ -2119,7 +2119,7 @@ async function statusCommand(f) {
   const lastMode = c?.labels["io.archive.mode"] ?? st?.mode;
   const [report, remote, agentAlive] = await Promise.all([
     runDoctor({ api, port, demo: lastMode === "demo" }),
-    // la clé ne part que vers l'API qui l'a délivrée (une autre --api reçoit une lecture anonyme)
+    // the key goes only to the API that issued it (another --api gets an anonymous read)
     cfg?.machineId ? fetchMachine(api, cfg.machineId, cfg.api === api ? cfg.key : null) : Promise.resolve(null),
     isAgentAlive(st?.pid ?? null)
   ]);
@@ -2190,7 +2190,7 @@ var UP = {
   port: { type: "string" },
   image: { type: "string" },
   demo: { type: "boolean" },
-  // --key est lu pour être refusé avec une explication (la clé passe par --key-file ou ARCHIVE_KEY)
+  // --key is parsed only to be refused with an explanation (the key goes through --key-file or ARCHIVE_KEY)
   key: { type: "string" },
   "key-file": { type: "string" },
   "public-url": { type: "string" },
