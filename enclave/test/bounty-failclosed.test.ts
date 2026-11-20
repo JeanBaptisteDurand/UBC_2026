@@ -1,15 +1,15 @@
 /**
- * Prime scellée v2.1 bis — ÉCHEC FERMÉ (revue adverse du 9/11 : cas t2, t2b, jit, t4).
- * Règle d'or : l'enclave ne signe JAMAIS (ni réclamation, ni réfutation) un résultat qui dépend d'une erreur de réseau, de
- * RPC, de délai ou d'environnement ; seules des règles DÉTERMINISTES, écrites et testées, donnent une « faute prouvée ».
- *  1. rejeu (anvil-fork.ts) : une lecture du prédicat refusée par le RPC du fork ne vaut jamais 0 ni « invariant non tenu »
- *     (réfutation ET réclamation : rien n'est signé) ; un revert EVM (code 3) reste la valeur de la règle v0 ; ancre (hash
- *     du bloc N) contrôlée ; contrôle du moteur au démarrage ;
- *  2. prédicat : bornes itératives (imbrication, champs, taille) et forme ; hors règles = refus à la soumission, faute
- *     prouvée à la réfutation ; toute autre exception (RangeError, environnement) = 503, rien de signé ;
- *  3. déni de service de /v1/refute : claimRecords lu seul d'abord, échecs mémorisés, concurrence et débit bornés ;
- *  4. fuites : messages fixes (notes de rejeu, réponses HTTP) ;
- *  6. époque des règles : une réclamation acceptée avant n'est pas jugée.
+ * Sealed Bounty v2.1 bis: FAIL CLOSED (adversarial review of 9 Nov: cases t2, t2b, jit, t4).
+ * The golden rule: the enclave NEVER signs (neither a claim nor a refutation) a result that depends on a network, RPC,
+ * timing or environment error; only DETERMINISTIC rules, written down and tested, give a "proven fault".
+ *  1. replay (anvil-fork.ts): a predicate read refused by the fork's RPC is never worth 0 or "invariant not held"
+ *     (refutation AND claim: nothing is signed); an EVM revert (code 3) stays the value of the v0 rule; the anchor
+ *     (the hash of block N) is checked; the engine check at start-up;
+ *  2. predicate: iterative bounds (nesting, fields, size) and shape; outside the rules = a refusal at submission, a
+ *     proven fault at refutation; any other exception (RangeError, environment) = 503, nothing signed;
+ *  3. denial of service of /v1/refute: claimRecords read alone first, cached failures, bounded concurrency and rate;
+ *  4. leaks: fixed messages (replay notes, HTTP answers);
+ *  6. rules epoch: a claim accepted before it is not judged.
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
@@ -60,14 +60,14 @@ const protocol = generateEnclaveKeys();
 const newKit = () => new EnclaveKit({ productId: PRODUCT, chainId: CHAIN, registry: REGISTRY, mockBlockHash: true });
 const attest = { operatorAllowlist: null, registeredOperator: async () => null, warn: () => {} };
 const deep = (d: number): any => { let x: any = 0; for (let i = 0; i < d; i++) x = [x]; return x; };
-/** Le même tableau imbriqué, en TEXTE JSON (le test ne sérialise jamais lui-même une valeur profonde : sa pile varie). */
+/** The same nested array, as JSON TEXT (the test never serializes a deep value itself: its stack varies). */
 const deepJson = (d: number) => "[".repeat(d) + "0" + "]".repeat(d);
 const clauseJson = (extra: string) => `{"type":"ERC20_DROP","token":"${TOKEN}","holder":"${HOLDER}","min":"1000000","x":${extra}}`;
 const erc20Pred: Predicate = { combine: "OR", clauses: [{ type: "ERC20_DROP", token: TOKEN, holder: HOLDER, min: "1000000" }] };
 const okCtx = (loss = 5_000_000n): EvalContext => ({ erc20Drop: () => loss, nativeDrop: () => 0n, attackerProfit: () => 0n, viewValue: () => 0n, invariantHeld: () => true });
 
-/** La chaîne SealedBounty vue par une enclave réfutante ; compte ses lectures (bon marché et complètes). Son heure est celle
- *  de l'horloge locale (comme sur Arc), sauf quand un test la fixe. */
+/** The SealedBounty chain as a refuting enclave sees it; counts its reads (cheap and full). Its time is the local
+ *  clock's (as on Arc), except when a test sets it. */
 class FakeChain implements RefuteReader {
   records = new Map<string, { acceptedAt: bigint; refuted: boolean; opsHash: Hex }>();
   active = new Map<string, Address>();
@@ -105,8 +105,8 @@ const httpBody = (claim: Claim, operators: Address[], q: { enc: Uint8Array; ciph
   operators, enc: toHex(q.enc), ciphertext: toHex(q.ciphertext),
 });
 
-/** Une réclamation ACCEPTÉE quelconque (forgée ou non) sur un contenu de cP donné : ce que voit une enclave réfutante.
- *  `predicateJson` : le prédicat déjà en texte JSON (pour un prédicat profond). */
+/** An arbitrary ACCEPTED claim (forged or not) on a given content of cP: what a refuting enclave sees.
+ *  `predicateJson`: the predicate already as JSON text (for a deep predicate). */
 function forgedClaim(content: { predicate?: unknown; predicateJson?: string; txs: unknown; capital?: bigint }, view: BountyView, o: { predicateHash?: Hex } = {}) {
   const text = content.predicateJson !== undefined
     ? `{"bountyId":"1","payee":"${HUNTER}","capital":"${content.capital ?? 0n}","predicate":${content.predicateJson},"txs":${JSON.stringify(content.txs)},"attackCode":null}`
@@ -144,8 +144,8 @@ async function rpc(url: string, method: string, params: unknown[] = []): Promise
   return j.result;
 }
 
-/** Mandataire JSON-RPC devant la chaîne de base : fait échouer (-32000 « missing trie node ») les `times` premières
- *  lectures de la case `slot` de `account` — un nœud qui ne sert pas cet état, une fois. */
+/** A JSON-RPC proxy in front of the base chain: makes the first `times` reads of slot `slot` of `account` fail (-32000
+ *  "missing trie node"): a node that does not serve this state, once. */
 async function flakyRpc(target: string, account: Address, slot: bigint, times: number) {
   let left = times;
   let hits = 0;
@@ -173,20 +173,20 @@ async function flakyRpc(target: string, account: Address, slot: bigint, times: n
 }
 
 // =====================================================================================================================
-// 1. le rejeu échoue fermé (vrai anvil, chaîne locale)
+// 1. the replay fails closed (real anvil, local chain)
 // =====================================================================================================================
 
-/** T : sans données → slot0 = 42 ; vue → slot0 == 42 ? slot1 : 0 (base : slot1 = 7). */
+/** T: without data → slot0 = 42; view → slot0 == 42 ? slot1 : 0 (base: slot1 = 7). */
 const T = "0x0000000000000000000000000000000000007777" as Address;
 const T_CODE = "0x3615602457600054602a14601857600060005260206000f35b60015460005260206000f35b602a60005500" as Hex;
-/** U : sans données → slot0 = 42 ; vue → slot0 == 42 ? slot1 : slot2 (base : slot1 = 7, slot2 = 5 : jamais nulle). */
+/** U: without data → slot0 = 42; view → slot0 == 42 ? slot1 : slot2 (base: slot1 = 7, slot2 = 5: never zero). */
 const U = "0x0000000000000000000000000000000000008888" as Address;
 const U_CODE = "0x3615602557600054602a1460195760025460005260206000f35b60015460005260206000f35b602a60005500" as Hex;
-/** V : sans données → slot0 = 42 ; vue → slot0 == 42 ? REVERT : 1 (l'invariant tient avant, l'appel revert après). */
+/** V: without data → slot0 = 42; view → slot0 == 42 ? REVERT : 1 (the invariant holds before, the call reverts after). */
 const V = "0x0000000000000000000000000000000000009999" as Address;
 const V_CODE = "0x3615601e57600054602a14601857600160005260206000f35b60006000fd5b602a60005500" as Hex;
 
-describe.skipIf(!ANVIL)(`1 — le rejeu échoue fermé (anvil réel : ${ANVIL ?? "absent"}, chaîne locale)`, () => {
+describe.skipIf(!ANVIL)(`1 — the replay fails closed (real anvil: ${ANVIL ?? "absent"}, local chain)`, () => {
   let base: ChildProcess | undefined;
   let url = "";
   let N = 0n;
@@ -220,7 +220,7 @@ describe.skipIf(!ANVIL)(`1 — le rejeu échoue fermé (anvil réel : ${ANVIL ??
   const blockHash = async (n: bigint) => (await rpc(url, "eth_getBlockByNumber", [numberToHex(n), false])).hash as Hex;
   const viewOf = (p: Predicate): BountyView => ({ predicateHash: predicateHash(p), protocolX25519: protocol.x25519PublicKey, tierMinLoss: [0n], deadline: 9_999_999_999n });
 
-  /** L'enclave de RÉCLAMATION (moteur réel, RPC du fork `forkUrl`). */
+  /** The CLAIM enclave (real engine, fork RPC `forkUrl`). */
   async function claimWith(p: Predicate, target: Address, forkUrl: string, blocks?: { blockHash: (n: bigint) => Promise<Hex> }) {
     const kit = newKit();
     const svc = new BountyService(kit, { sealedBounty: SEALED }, { getBounty: async () => viewOf(p) }, new DeterministicProtocolCipher(), runner(forkUrl),
@@ -234,11 +234,11 @@ describe.skipIf(!ANVIL)(`1 — le rejeu échoue fermé (anvil réel : ${ANVIL ??
   }
   const hunterPlain = (p: Predicate, txs: Hex[]) => ({ from: "hunter", bountyId: "1", payee: HUNTER, capital: "0", predicate: p, txs, r: R });
 
-  it("RÉFUTATION (preuve t2) : le RPC du réfutant rate UNE lecture de vue → 503, AUCUNE réfutation signée ; RPC rétabli → « confirmée »", async () => {
+  it("REFUTATION (proof t2): the refuter's RPC misses ONE view read → 503, NO refutation signed; RPC restored → \"confirmed\"", async () => {
     const p: Predicate = { combine: "OR", clauses: [{ type: "VIEW_CHANGED", target: T, call: "0x01", op: "eq", value: "7" }] };
     const { svc, cE, txs } = await claimWith(p, T, url);
     const sub = (await svc.submit(cE)) as Extract<SubmitResult, { status: "proven" }>;
-    expect(sub.status).toBe("proven"); // réclamation HONNÊTE (RPC sain)
+    expect(sub.status).toBe("proven"); // an HONEST claim (healthy RPC)
 
     const proxy = await flakyRpc(url, T, 1n, 1);
     try {
@@ -251,11 +251,11 @@ describe.skipIf(!ANVIL)(`1 — le rejeu échoue fermé (anvil réel : ${ANVIL ??
       const res = await app.request("/v1/refute", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(httpBody(sub.claim, [OP_A], q)) });
       expect(res.status).toBe(503);
       const j = (await res.json()) as any;
-      expect(j).toEqual({ error: UNAVAILABLE.refute }); // message fixe, rien de signé
+      expect(j).toEqual({ error: UNAVAILABLE.refute }); // a fixed message, nothing signed
       expect(proxy.hits()).toBe(1);
-      // le même contre-rejeu, demandé de nouveau tout de suite : pas de rejeu complet (échec mémorisé)
+      // the same counter-replay, requested again at once: no full replay (failure cached)
       await expect(B.service.refute(await refuteRequest(B.kit, sub.claim, [OP_A], hunterPlain(p, txs)))).rejects.toMatchObject({ reason: "recent_failure" });
-      // une minute plus tard, RPC rétabli : la réclamation honnête est CONFIRMÉE (jamais réfutée)
+      // a minute later, RPC restored: the honest claim is CONFIRMED (never refuted)
       clock += 61_000;
       const ok = await B.service.refute(await refuteRequest(B.kit, sub.claim, [OP_A], hunterPlain(p, txs)));
       expect(ok.status).toBe("confirmed");
@@ -265,7 +265,7 @@ describe.skipIf(!ANVIL)(`1 — le rejeu échoue fermé (anvil réel : ${ANVIL ??
     }
   }, 120_000);
 
-  it("RÉCLAMATION (preuve t2b) : le RPC de l'enclave rate UNE lecture d'invariant → aucune réclamation signée (témoin RPC sain : non prouvée)", async () => {
+  it("CLAIM (proof t2b): the enclave's RPC misses ONE invariant read → no claim signed (healthy RPC control: not proven)", async () => {
     const p: Predicate = { combine: "OR", clauses: [{ type: "INVARIANT_BROKEN", target: U, call: "0x01" }] };
     const healthy = await claimWith(p, U, url);
     const ok = await healthy.svc.submit(healthy.cE);
@@ -276,7 +276,7 @@ describe.skipIf(!ANVIL)(`1 — le rejeu échoue fermé (anvil réel : ${ANVIL ??
       const flaky = await claimWith(p, U, proxy.url);
       await expect(flaky.svc.submit(flaky.cE)).rejects.toBeInstanceOf(ReplayUnavailableError);
       expect(proxy.hits()).toBe(1);
-      // même chose par HTTP : 503, message fixe
+      // the same over HTTP: 503, a fixed message
       const again = await claimWith(p, U, (await flakyRpc(url, U, 1n, 1)).url);
       const app = createSealedBountyApp({ kit: again.kit, service: again.svc, attest });
       const res = await app.request("/bounty/submit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ enc: toHex(again.cE.enc), ciphertext: toHex(again.cE.ciphertext) }) });
@@ -287,7 +287,7 @@ describe.skipIf(!ANVIL)(`1 — le rejeu échoue fermé (anvil réel : ${ANVIL ??
     }
   }, 120_000);
 
-  it("un revert EVM DÉTERMINISTE (code 3) d'une lecture d'invariant reste la règle v0 (invariant non tenu) : réclamation prouvée, puis confirmée", async () => {
+  it("a DETERMINISTIC EVM revert (code 3) of an invariant read stays the v0 rule (invariant not held): claim proven, then confirmed", async () => {
     const p: Predicate = { combine: "OR", clauses: [{ type: "INVARIANT_BROKEN", target: V, call: "0x01" }] };
     const { svc, cE, txs } = await claimWith(p, V, url);
     const sub = (await svc.submit(cE)) as Extract<SubmitResult, { status: "proven" }>;
@@ -296,23 +296,23 @@ describe.skipIf(!ANVIL)(`1 — le rejeu échoue fermé (anvil réel : ${ANVIL ??
     chain.accept(sub.claim, [OP_A]);
     const B = refuterOf(chain, runner(url));
     expect((await B.service.refute(await refuteRequest(B.kit, sub.claim, [OP_A], hunterPlain(p, txs)))).status).toBe("confirmed");
-    // le journal du rejeu ne dit rien de l'exploit (ni transactions, ni nombre de transactions)
+    // the replay's log says nothing about the exploit (neither the transactions nor their number)
     expect(logs.length).toBeGreaterThan(0);
     for (const l of logs) expect(l).not.toMatch(/transaction/);
   }, 120_000);
 
-  it("ancre : un RPC du fork qui ne sert pas le bloc N de la réclamation (hash différent) → rien n'est signé", async () => {
+  it("anchor: a fork RPC that does not serve the claim's block N (different hash) → nothing is signed", async () => {
     const p: Predicate = { combine: "OR", clauses: [{ type: "VIEW_CHANGED", target: T, call: "0x01", op: "eq", value: "7" }] };
-    const wrong = await claimWith(p, T, url, { blockHash: async () => keccak256(toBytes("autre chaîne")) });
+    const wrong = await claimWith(p, T, url, { blockHash: async () => keccak256(toBytes("another chain")) });
     await expect(wrong.svc.submit(wrong.cE)).rejects.toMatchObject({ reason: "anchor" });
     const bundle: ExploitBundle = { bountyId: 1n, payee: HUNTER, capital: 0n, predicate: p, txs: wrong.txs, r: R, cP: "0x" };
     await expect(runner(url).run({ blockN: N, bundle, expectedBlockHash: zeroHash })).rejects.toMatchObject({ reason: "anchor" });
     await expect(runner(url).run({ blockN: N, bundle, expectedBlockHash: await blockHash(N) })).resolves.toHaveProperty("ctx");
   }, 120_000);
 
-  it("contrôle du moteur au démarrage : une lecture refusée par le RPC du fork remonte en erreur ; un moteur qui l'avalerait est refusé", async () => {
+  it("engine check at start-up: a read refused by the fork's RPC surfaces as an error; an engine that swallowed it is refused", async () => {
     const r = runner(url);
-    // v2.1 ter : plus les réponses invalides (bloc null, stockage mal formé) refusées par le relais strict, et le contrôle positif
+    // v2.1 ter: also the invalid answers (null block, malformed storage) refused by the strict relay, and the positive check
     expect(await r.selfTest()).toMatchObject({
       revertCode: 3,
       checks: [
@@ -324,8 +324,8 @@ describe.skipIf(!ANVIL)(`1 — le rejeu échoue fermé (anvil réel : ${ANVIL ??
   }, 120_000);
 });
 
-describe("1 — classement des erreurs et file de rejeu (sans anvil)", () => {
-  it("seul le code JSON-RPC 3 « execution reverted » est un revert ; -32603 (arrêt EVM ou panne du fork), -32000, HTTP n'en sont pas", () => {
+describe("1 — error classification and the replay queue (without anvil)", () => {
+  it("only JSON-RPC code 3 \"execution reverted\" is a revert; -32603 (an EVM halt or a fork outage), -32000 and HTTP are not", () => {
     expect(isEvmRevert(new RpcCallError("eth_call", 3, "execution reverted"))).toBe(true);
     expect(isEvmRevert(new RpcCallError("eth_call", 3, "execution reverted: Panic"))).toBe(true);
     expect(isEvmRevert(new RpcCallError("eth_call", -32603, "failed to get storage for 0x… : missing trie node"))).toBe(false);
@@ -335,9 +335,9 @@ describe("1 — classement des erreurs et file de rejeu (sans anvil)", () => {
     expect(isEvmRevert(new Error("execution reverted"))).toBe(false);
   });
 
-  it("file de rejeu bornée : au-delà de maxQueued, refus immédiat (503), rien de signé", async () => {
-    // un RPC du fork qui ne répond jamais : le premier rejeu occupe la file (contrôle de l'ancre en attente)
-    const hang = createHttpServer(() => { /* jamais de réponse */ });
+  it("bounded replay queue: beyond maxQueued, an immediate refusal (503), nothing signed", async () => {
+    // a fork RPC that never answers: the first replay holds the queue (the anchor check waits)
+    const hang = createHttpServer(() => { /* never an answer */ });
     const port = await freePort();
     await new Promise<void>((r) => hang.listen(port, "127.0.0.1", () => r()));
     const r = new AnvilForkRunner({ forkUrl: `http://127.0.0.1:${port}`, anvilBin: "/nonexistent/anvil", engine: "arc", log: () => {}, maxQueued: 1 });
@@ -350,9 +350,9 @@ describe("1 — classement des erreurs et file de rejeu (sans anvil)", () => {
     await expect(first).rejects.toBeInstanceOf(ReplayUnavailableError);
   });
 
-  it("règles du rejeu : erreurs typées à message fixe (jamais le message de viem, jamais les octets de la transaction)", () => {
+  it("replay rules: typed errors with a fixed message (never viem's message, never the transaction's bytes)", () => {
     const r = new AnvilForkRunner({ forkUrl: "http://127.0.0.1:1", anvilBin: "/nonexistent", engine: "arc", log: () => {} });
-    const SECRET_TX = "0xa9059cbb000000000000000000000000c0ffee000000000000000000" as Hex; // 28 octets
+    const SECRET_TX = "0xa9059cbb000000000000000000000000c0ffee000000000000000000" as Hex; // 28 bytes
     const b = (o: Partial<ExploitBundle>): ExploitBundle => ({ bountyId: 1n, payee: HUNTER, capital: 0n, predicate: erc20Pred, txs: [SECRET_TX], r: R, cP: "0x", ...o });
     for (const [bundle, rule] of [
       [b({}), "tx_format"], [b({ txs: [] }), "txs_empty"], [b({ txs: Array(11).fill(encodeExploitTx({ to: TOKEN, data: "0x" })) }), "txs_count"],
@@ -369,10 +369,10 @@ describe("1 — classement des erreurs et file de rejeu (sans anvil)", () => {
 });
 
 // =====================================================================================================================
-// 2. prédicats : règles déterministes ; toute autre exception = 503
+// 2. predicates: deterministic rules; any other exception = 503
 // =====================================================================================================================
 
-describe("2 — prédicat : bornes itératives et forme (règles P1–P4)", () => {
+describe("2 — predicate: iterative bounds and shape (rules P1–P4)", () => {
   const withAnnex = (x: unknown): Predicate => ({ combine: "OR", clauses: [{ ...erc20Pred.clauses[0]!, x } as any] });
   const ruleOf = (p: unknown) => {
     try {
@@ -384,20 +384,20 @@ describe("2 — prédicat : bornes itératives et forme (règles P1–P4)", () =
     }
   };
 
-  it("imbrication : 8 niveaux acceptés, 9 refusés ; champs : 256 acceptés, 257 refusés ; taille canonique : 16 Kio", () => {
+  it("nesting: 8 levels accepted, 9 refused; fields: 256 accepted, 257 refused; canonical size: 16 KiB", () => {
     expect(ruleOf(withAnnex(deep(PREDICATE_MAX_DEPTH - 3)))).toBe("ok"); // racine 1, clauses 2, clause 3, annexe 4…8
     expect(ruleOf(withAnnex(deep(PREDICATE_MAX_DEPTH - 2)))).toBe("depth");
-    const base = 2 + 1 + 4; // combine, clauses, 1 élément, 4 clés de clause
-    expect(ruleOf(withAnnex(Array(PREDICATE_MAX_FIELDS - base - 1).fill(1)))).toBe("ok"); // + la clé « x »
+    const base = 2 + 1 + 4; // combine, clauses, 1 element, 4 clause keys
+    expect(ruleOf(withAnnex(Array(PREDICATE_MAX_FIELDS - base - 1).fill(1)))).toBe("ok"); // + the key "x"
     expect(ruleOf(withAnnex(Array(PREDICATE_MAX_FIELDS - base).fill(1)))).toBe("fields");
     const sized = (n: number) => withAnnex("a".repeat(n));
     const room = PREDICATE_MAX_BYTES - new TextEncoder().encode(JSON.stringify({ clauses: [{ holder: HOLDER, min: "1000000", token: TOKEN, type: "ERC20_DROP", x: "" }], combine: "OR" })).length;
     expect(ruleOf(sized(room))).toBe("ok");
     expect(ruleOf(sized(room + 1))).toBe("size");
-    expect(ruleOf(withAnnex("é".repeat(Math.ceil(room / 2) + 1)))).toBe("size"); // octets UTF-8, pas caractères
+    expect(ruleOf(withAnnex("é".repeat(Math.ceil(room / 2) + 1)))).toBe("size"); // UTF-8 bytes, not characters
   });
 
-  it("JSON pur et forme des clauses : valeurs non JSON, type inconnu, adresse, entier, op, call → PredicateError à message fixe", () => {
+  it("pure JSON and clause shape: non-JSON values, unknown type, address, integer, op, call → PredicateError with a fixed message", () => {
     const c0 = erc20Pred.clauses[0]!;
     const cases: Array<[unknown, string]> = [
       [null, "json"], [[], "json"], [withAnnex(undefined), "json"], [withAnnex(NaN), "json"], [withAnnex(1n), "json"], [withAnnex(new Date(0)), "json"],
@@ -409,15 +409,15 @@ describe("2 — prédicat : bornes itératives et forme (règles P1–P4)", () =
       [{ combine: "OR", clauses: [{ type: "INVARIANT_BROKEN", target: TOKEN, call: "0x0" }] }, "clause"],
     ];
     for (const [p, rule] of cases) expect(ruleOf(p)).toBe(rule);
-    // admis : entier sûr en nombre, annexes bornées, clé __proto__ venue de JSON
+    // allowed: a safe integer as a number, bounded annexes, a __proto__ key that came from JSON
     expect(ruleOf({ combine: "AND", clauses: [{ ...c0, min: 1_000_000 }] })).toBe("ok");
-    expect(ruleOf(JSON.parse(`{"combine":"OR","clauses":[{"type":"NATIVE_DROP","holder":"${HOLDER}","min":"1","__proto__":{"a":1}}],"note":"démo"}`))).toBe("ok");
-    // le message ne recopie rien du prédicat
+    expect(ruleOf(JSON.parse(`{"combine":"OR","clauses":[{"type":"NATIVE_DROP","holder":"${HOLDER}","min":"1","__proto__":{"a":1}}],"note":"demo"}`))).toBe("ok");
+    // the message copies nothing from the predicate
     try { validatePredicate({ combine: "OR", clauses: [{ ...c0, token: "0xSECRETSECRET" }] } as any); } catch (e) { expect((e as Error).message).not.toContain("SECRET"); }
   });
 
-  it("les prédicats valides gardent EXACTEMENT leur predicateHash d'avant les règles (JSON canonique inchangé)", () => {
-    // l'implémentation v0 (avant le 9/11), recopiée ici telle quelle
+  it("valid predicates keep EXACTLY their predicateHash from before the rules (unchanged canonical JSON)", () => {
+    // the v0 implementation (before 9 Nov), copied here as it was; the note below is deliberately non-ASCII
     const v0 = (v: any): string => (v === null || typeof v !== "object" ? JSON.stringify(v) : Array.isArray(v) ? "[" + v.map(v0).join(",") + "]" : "{" + Object.keys(v).sort().map((k) => JSON.stringify(k) + ":" + v0(v[k])).join(",") + "}");
     const corpus: Predicate[] = [
       erc20Pred,
@@ -428,11 +428,11 @@ describe("2 — prédicat : bornes itératives et forme (règles P1–P4)", () =
     for (const p of corpus) expect(predicateHash(p)).toBe(keccak256(toBytes(v0(p))));
   });
 
-  it("un prédicat imbriqué sur 100 000 niveaux est refusé par la RÈGLE, jamais par une pile épuisée, même presque sans pile (preuve jit)", () => {
+  it("a predicate nested 100,000 levels deep is refused by the RULE, never by an exhausted stack, even with almost no stack (proof jit)", () => {
     const huge = withAnnex(deep(100_000));
     const atDepth = (k: number, f: () => unknown): unknown => (k === 0 ? f() : atDepth(k - 1, f));
-    // cadres de pile disponibles ici, mesurés avec la fonction qui s'en sert (le JIT change la taille des cadres : le plus
-    // petit des 3 relevés)
+    // stack frames available here, measured with the function that uses them (the JIT changes the size of the frames:
+    // the smallest of 3 readings)
     let room = Number.MAX_SAFE_INTEGER;
     for (let rep = 0; rep < 3; rep++) {
       let best = 0;
@@ -443,8 +443,8 @@ describe("2 — prédicat : bornes itératives et forme (règles P1–P4)", () =
       room = Math.min(room, best);
     }
     for (const left of [3_000, 1_000, 300]) {
-      // le banc de test lui-même peut déborder avant d'appeler validatePredicate (cadres de taille variable) : on recule
-      // jusqu'à y entrer ; une fois dedans, la règle répond, jamais la pile
+      // the test bench itself can overflow before calling validatePredicate (frames of variable size): step back until
+      // it gets in; once inside, the rule answers, never the stack
       let err: unknown;
       let entered = false;
       for (let k = Math.max(0, room - left); !entered && k >= 0; k -= 500) {
@@ -459,10 +459,10 @@ describe("2 — prédicat : bornes itératives et forme (règles P1–P4)", () =
   });
 });
 
-describe("2 — soumission et réfutation : hors règles = refus / faute prouvée ; autre exception = 503", () => {
+describe("2 — submission and refutation: outside the rules = refusal / proven fault; another exception = 503", () => {
   const view: BountyView = { predicateHash: predicateHash(erc20Pred), protocolX25519: protocol.x25519PublicKey, tierMinLoss: [1_000_000n], deadline: 9_000_000n };
 
-  it("soumission : prédicat de 7 000 niveaux → « non prouvée » (règle), SANS lecture on-chain ni rejeu (preuve jit/a-warm-claim)", async () => {
+  it("submission: a predicate of 7,000 levels → \"not proven\" (rule), WITHOUT an on-chain read or a replay (proof jit/a-warm-claim)", async () => {
     let reads = 0;
     let runs = 0;
     const kit = newKit();
@@ -476,7 +476,7 @@ describe("2 — soumission et réfutation : hors règles = refus / faute prouvé
     expect(reads + runs).toBe(0);
   });
 
-  it("réfutation, clé de la prime : rapport hors bornes → faute prouvée, la MÊME quelle que soit la pile (« non prouvée » signée, note fixe)", async () => {
+  it("refutation, the bounty's key: a report out of bounds → proven fault, the SAME whatever the stack (\"not proven\" signed, fixed note)", async () => {
     const deepPred = `{"combine":"OR","clauses":[${clauseJson(deepJson(5_000))}]}`;
     const { claim, cP } = forgedClaim({ predicateJson: deepPred, txs: ["0x" + "00".repeat(96)] }, view);
     const chain = new FakeChain(view);
@@ -486,7 +486,7 @@ describe("2 — soumission et réfutation : hors règles = refus / faute prouvé
     const r = await B.service.refute(await refuteRequest(B.kit, claim, [OP_A], { from: "protocol", cP, protocolPrivateKey: toHex(protocol.x25519PrivateKey) }));
     expect(r).toMatchObject({ status: "refuted", refutation: { proven: false, loss: 0n, tier: 0 }, replay: { replayed: false, note: FAULT.tooDeep } });
     expect(runs).toBe(0);
-    // par le secret de ce rapport (déchiffrement non prouvé) ou par le chasseur : REFUS, rien n'est signé
+    // through the secret of this report (decryption not proven) or by the hunter: REFUSED, nothing is signed
     const C = refuterOf(chain, { run: async () => ({ ctx: okCtx() }) });
     const shared = toHex(new Uint8Array(await import("@noble/curves/ed25519").then((m) => m.x25519.getSharedSecret(protocol.x25519PrivateKey, toBytes(cP).slice(0, 32)))));
     expect(await C.service.refute(await refuteRequest(C.kit, claim, [OP_A], { from: "protocol", cP, sharedSecret: shared }))).toMatchObject({ status: "refused", code: "exploit_mismatch" });
@@ -494,17 +494,17 @@ describe("2 — soumission et réfutation : hors règles = refus / faute prouvé
     expect(await C.service.refute(await refuteRequest(C.kit, claim, [OP_A], hunterText))).toMatchObject({ status: "refused", code: "bad_request" });
   });
 
-  it("réfutation : prédicat de forme invalide (op inconnu) dans cP → faute prouvée par la règle P4, note fixe", async () => {
+  it("refutation: a predicate of invalid shape (unknown op) in cP → fault proven by rule P4, fixed note", async () => {
     const bad = { combine: "OR", clauses: [{ type: "VIEW_CHANGED", target: TOKEN, call: "0x01", op: "xor", value: "1" }] };
     const { claim, cP } = forgedClaim({ predicate: bad, txs: ["0x" + "00".repeat(96)] }, view);
     const chain = new FakeChain(view);
     chain.accept(claim, [OP_A]);
     const B = refuterOf(chain, { run: async () => ({ ctx: okCtx() }) });
     const r = await B.service.refute(await refuteRequest(B.kit, claim, [OP_A], { from: "protocol", cP, protocolPrivateKey: toHex(protocol.x25519PrivateKey) }));
-    expect(r).toMatchObject({ status: "refuted", refutation: { proven: false }, replay: { replayed: false, note: `${FAULT.predicate} (clause 1 : op doit valoir eq, neq, gt ou lt)` } });
+    expect(r).toMatchObject({ status: "refuted", refutation: { proven: false }, replay: { replayed: false, note: `${FAULT.predicate} (clause 1: op must be eq, neq, gt or lt)` } });
   });
 
-  it("une exception qui n'est PAS une règle (RangeError, erreur d'environnement) → 503, rien de signé ; règle du rejeu (ReplayRuleError) → faute", async () => {
+  it("an exception that is NOT a rule (RangeError, an environment error) → 503, nothing signed; a replay rule (ReplayRuleError) → fault", async () => {
     const txs = ["0x" + "00".repeat(96)] as Hex[];
     const chainFor = () => {
       const { claim, cP } = forgedClaim({ predicate: erc20Pred, txs }, view);
@@ -529,19 +529,19 @@ describe("2 — soumission et réfutation : hors règles = refus / faute prouvé
       const text = await res.text();
       expect(text).not.toMatch(/stack|environnement|fetch failed|signature/);
     }
-    // ReplayRuleError : une règle déterministe → faute prouvée (note fixe)
+    // ReplayRuleError: a deterministic rule → proven fault (fixed note)
     const { claim, cP, chain } = chainFor();
-    const B = refuterOf(chain, { run: async () => ({ ctx: okCtx() }), validate: () => { throw new ReplayRuleError("txs_count", "au plus 10 transactions"); } });
+    const B = refuterOf(chain, { run: async () => ({ ctx: okCtx() }), validate: () => { throw new ReplayRuleError("txs_count", "at most 10 transactions"); } });
     const r = await B.service.refute(await refuteRequest(B.kit, claim, [OP_A], { ...key, cP }));
-    expect(r).toMatchObject({ status: "refuted", replay: { replayed: false, note: `${FAULT.replayRules} (au plus 10 transactions)` } });
+    expect(r).toMatchObject({ status: "refuted", replay: { replayed: false, note: `${FAULT.replayRules} (at most 10 transactions)` } });
   });
 });
 
 // =====================================================================================================================
-// 3. déni de service de /v1/refute
+// 3. denial of service of /v1/refute
 // =====================================================================================================================
 
-describe("3 — /v1/refute : lecture bon marché d'abord, échecs mémorisés, concurrence et débit bornés", () => {
+describe("3 — /v1/refute: the cheap read first, cached failures, bounded concurrency and rate", () => {
   const view: BountyView = { predicateHash: predicateHash(erc20Pred), protocolX25519: protocol.x25519PublicKey, tierMinLoss: [1_000_000n], deadline: 9_000_000n };
   const abi = parseAbi([
     "struct Bounty { address protocol; uint256 productId; bytes32 predicateHash; bytes32 protocolX25519; uint256 singleCap; uint8 k; address targetToPause; uint64 deadline; uint256 balance; bool paused; }",
@@ -551,7 +551,7 @@ describe("3 — /v1/refute : lecture bon marché d'abord, échecs mémorisés, c
     "function REFUTE_WINDOW() view returns (uint64)",
     "function activeOperatorAt(address signer, uint256 productId, uint256 blockNumber) view returns (address)",
   ]);
-  /** Un fournisseur RPC émulé (prime à 16 paliers) : compte ses appels JSON-RPC. */
+  /** An emulated RPC provider (a bounty with 16 tiers): counts its JSON-RPC calls. */
   function provider(state: { acceptedAt: bigint; refuted: boolean }, counter: { n: number }, tierError?: "internal") {
     return custom({
       async request({ method, params }: { method: string; params?: any }) {
@@ -565,7 +565,7 @@ describe("3 — /v1/refute : lecture bon marché d'abord, échecs mémorisés, c
           case "getBounty": return encodeFunctionResult({ abi, functionName, result: { protocol: HOLDER, productId: PRODUCT, predicateHash: zeroHash, protocolX25519: zeroHash, singleCap: 1n, k: 1, targetToPause: HOLDER, deadline: 1n, balance: 1n, paused: false } });
           case "tierMinLoss":
             if (tierError === "internal" && Number(args![1]) === 1) throw Object.assign(new Error("internal error"), { code: -32603 });
-            if (Number(args![1]) >= 16) throw Object.assign(new Error("execution reverted"), { code: 3 }); // comme le RPC public d'Arc : sans données
+            if (Number(args![1]) >= 16) throw Object.assign(new Error("execution reverted"), { code: 3 }); // like Arc's public RPC: without data
             return encodeFunctionResult({ abi, functionName, result: BigInt(Number(args![1]) + 1) });
           case "activeOperatorAt": return encodeFunctionResult({ abi, functionName, result: zeroAddress });
         }
@@ -577,9 +577,9 @@ describe("3 — /v1/refute : lecture bon marché d'abord, échecs mémorisés, c
     claim: { bountyId: "1", payee: HUNTER, blockN: "1", blockHashN: zeroHash, predicateHash: zeroHash, loss: "1", tier: 0, fingerprint: zeroHash, cPHash: zeroHash, deadline: "1" },
     operators: [OP_A], enc: "0x" + "11".repeat(32), ciphertext: "0x" + "22".repeat(16),
   };
-  const noFork: ForkRunner = { run: async () => { throw new Error("jamais"); } };
+  const noFork: ForkRunner = { run: async () => { throw new Error("never"); } };
 
-  it("réclamation inventée (preuve T4a) : 2 appels JSON-RPC par fournisseur (tête + claimRecords) au lieu de 23 ; réfutée : idem", async () => {
+  it("an invented claim (proof T4a): 2 JSON-RPC calls per provider (head + claimRecords) instead of 23; refuted: the same", async () => {
     for (const state of [{ acceptedAt: 0n, refuted: false }, { acceptedAt: 5n, refuted: true }]) {
       const counter = { n: 0 };
       const rpcQ = new RpcQuorum([provider(state, counter), provider(state, counter), provider(state, counter)]);
@@ -593,7 +593,7 @@ describe("3 — /v1/refute : lecture bon marché d'abord, échecs mémorisés, c
     }
   });
 
-  it("paliers : une erreur INTERNE du nœud (-32603) ne tronque plus les paliers (elle remonte) ; la fin de tableau est un revert (code 3)", async () => {
+  it("tiers: an INTERNAL node error (-32603) no longer truncates the tiers (it propagates); the end of the array is a revert (code 3)", async () => {
     const counter = { n: 0 };
     const ok = await chainRefuteReader(new RpcQuorum([provider({ acceptedAt: 5n, refuted: false }, counter)]), SEALED, REGISTRY).read({ claimDigest: zeroHash, bountyId: 1n, signer: HOLDER });
     expect(ok.bounty.tierMinLoss).toEqual(Array.from({ length: 16 }, (_, i) => BigInt(i + 1)));
@@ -602,14 +602,14 @@ describe("3 — /v1/refute : lecture bon marché d'abord, échecs mémorisés, c
     expect(isJsonRpcRevert(Object.assign(new Error("x"), { cause: { code: -32603 } }))).toBe(false);
   });
 
-  it("hors fenêtre (fenêtre connue) : arrêt après la lecture bon marché, sans lecture complète", async () => {
+  it("outside the window (known window): a stop after the cheap read, without a full read", async () => {
     const { claim } = forgedClaim({ predicate: erc20Pred, txs: ["0x" + "00".repeat(96)] }, view);
     const chain = new FakeChain(view);
     chain.now = 1_000_000n + 3_600n;
     chain.accept(claim, [OP_A], 1_000_000n);
     let clock = Number(1_000_000n + 3_600n) * 1000;
     const B = refuterOf(chain, noFork, { nowMs: () => clock });
-    // première demande : lecture complète (la fenêtre devient connue), indéchiffrable
+    // first request: a full read (the window becomes known), undecryptable
     expect(await B.service.refute({ claim, operators: [OP_A], enc: new Uint8Array(32), ciphertext: new Uint8Array(16) })).toMatchObject({ code: "undecryptable" });
     expect(chain.reads).toEqual({ record: 1, full: 1 });
     clock += Number(WINDOW + 3_600n) * 1000;
@@ -617,7 +617,7 @@ describe("3 — /v1/refute : lecture bon marché d'abord, échecs mémorisés, c
     expect(chain.reads).toEqual({ record: 2, full: 1 });
   });
 
-  it("rejeu en échec (preuve T4b) : 10 demandes → UN rejeu ; les suivantes 503 « échec récent » ; après le délai, un nouveau rejeu", async () => {
+  it("failed replay (proof T4b): 10 requests → ONE replay; the following ones 503 \"recent failure\"; after the delay, a new replay", async () => {
     const txs = ["0x" + "00".repeat(96)] as Hex[];
     const b: ExploitBundle = { bountyId: 1n, payee: HUNTER, capital: 0n, predicate: erc20Pred, txs, r: R, cP: "0x" };
     const cP = await new DeterministicProtocolCipher().recompute(b, protocol.x25519PublicKey);
@@ -626,18 +626,18 @@ describe("3 — /v1/refute : lecture bon marché d'abord, échecs mémorisés, c
     chain.accept(claim, [OP_A]);
     let runs = 0;
     let clock = 0;
-    const B = refuterOf(chain, { run: async () => { runs++; throw new ReplayUnavailableError("timeout", "rejeu trop long : rien n'est signé"); } }, { nowMs: () => clock });
+    const B = refuterOf(chain, { run: async () => { runs++; throw new ReplayUnavailableError("timeout", "replay too long: nothing is signed"); } }, { nowMs: () => clock });
     const ask = async () => B.service.refute(await refuteRequest(B.kit, claim, [OP_A], { from: "hunter", bountyId: "1", payee: HUNTER, capital: "0", predicate: erc20Pred, txs, r: R }));
     await expect(ask()).rejects.toMatchObject({ reason: "timeout" });
     for (let i = 0; i < 9; i++) await expect(ask()).rejects.toMatchObject({ reason: "recent_failure" });
     expect(runs).toBe(1);
-    expect(chain.reads.full).toBe(1); // les demandes rejetées ne relisent même pas la chaîne
+    expect(chain.reads.full).toBe(1); // the rejected requests do not even read the chain again
     clock += 60_001;
     await expect(ask()).rejects.toMatchObject({ reason: "timeout" });
     expect(runs).toBe(2);
   });
 
-  it("concurrence bornée : au-delà de maxInFlight réfutations en cours, refus immédiat (503 « occupée »)", async () => {
+  it("bounded concurrency: beyond maxInFlight refutations in progress, an immediate refusal (503 \"busy\")", async () => {
     let release!: () => void;
     const gate = new Promise<void>((r) => { release = r; });
     const chain = new FakeChain(view);
@@ -651,11 +651,11 @@ describe("3 — /v1/refute : lecture bon marché d'abord, échecs mémorisés, c
     }
     await expect(pending[2]).rejects.toMatchObject({ reason: "refute_busy" });
     release();
-    for (const p of pending.slice(0, 2)) expect((await p).status).toBe("confirmed"); // les deux premières aboutissent
+    for (const p of pending.slice(0, 2)) expect((await p).status).toBe("confirmed"); // the first two succeed
   });
 
-  it("débit : au-delà du seau à jetons → 429 (lecture bon marché seule, aucune lecture complète) ; le seau se remplit avec le temps ; corps trop gros → 413", async () => {
-    // v2.1 ter : le jeton n'est pris qu'APRÈS claimRecords, pour une réclamation VIVANTE (acceptée, non réfutée, dans la fenêtre)
+  it("rate: beyond the token bucket → 429 (cheap read only, no full read); the bucket refills over time; a body too large → 413", async () => {
+    // v2.1 ter: the token is taken only AFTER claimRecords, for a LIVE claim (accepted, not refuted, inside the window)
     const counter = { n: 0 };
     const state = { acceptedAt: BigInt(Math.floor(Date.now() / 1000)), refuted: false };
     const kit = newKit();
@@ -663,13 +663,13 @@ describe("3 — /v1/refute : lecture bon marché d'abord, échecs mémorisés, c
     let clock = 0;
     const app = createSealedBountyApp({ kit, service: undefined as any, refuter, attest, refuteRateLimit: { burst: 2, perMinute: 2 }, nowMs: () => clock });
     const post = (b: unknown) => app.request("/v1/refute", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(b) });
-    expect((await post(inventedBody)).status).toBe(200); // lecture complète : opérateurs faux (bad_ops)
+    expect((await post(inventedBody)).status).toBe(200); // full read: wrong operators (bad_ops)
     expect((await post(inventedBody)).status).toBe(200);
     const n = counter.n;
     const limited = await post(inventedBody);
     expect(limited.status).toBe(429);
     expect(Number(limited.headers.get("retry-after"))).toBeGreaterThan(0);
-    expect(counter.n).toBe(n + 2); // tête + claimRecords, rien d'autre
+    expect(counter.n).toBe(n + 2); // head + claimRecords, nothing else
     clock += 30_000;
     expect((await post(inventedBody)).status).toBe(200);
     const big = await app.request("/v1/refute", { method: "POST", headers: { "content-type": "application/json", "content-length": String(5 * 1024 * 1024) }, body: "x".repeat(5 * 1024 * 1024) });
@@ -681,10 +681,10 @@ describe("3 — /v1/refute : lecture bon marché d'abord, échecs mémorisés, c
 // 4. fuites : messages fixes
 // =====================================================================================================================
 
-describe("4 — fuites : notes de rejeu et réponses HTTP à message fixe", () => {
+describe("4 — leaks: replay notes and HTTP answers with fixed messages", () => {
   const view: BountyView = { predicateHash: predicateHash(erc20Pred), protocolX25519: protocol.x25519PublicKey, tierMinLoss: [1_000_000n], deadline: 9_000_000n };
 
-  it("preuve T5 : cP forgé dont une transaction n'est pas abi.encode → note FIXE, sans un octet de la transaction", async () => {
+  it("proof T5: a forged cP whose transaction is not abi.encode → a FIXED note, without one byte of the transaction", async () => {
     const SECRET_TX = "0xa9059cbb000000000000000000000000c0ffee000000000000000000" as Hex;
     const b = { bountyId: 1n, payee: HUNTER, capital: 0n, predicate: erc20Pred, txs: [SECRET_TX] };
     const cP = deterministicSeal(toBytes(protocol.x25519PublicKey), utf8(canonicalProtocolPlaintext(b)), toBytes(R));
@@ -704,7 +704,7 @@ describe("4 — fuites : notes de rejeu et réponses HTTP à message fixe", () =
     expect(text).not.toMatch(/viem|Data size/);
   });
 
-  it("/bounty/submit : bundle illisible → raison fixe (ni extrait du JSON, ni valeur refusée par BigInt)", async () => {
+  it("/bounty/submit: an unreadable bundle → a fixed reason (neither an excerpt of the JSON nor a value refused by BigInt)", async () => {
     const kit = newKit();
     const svc = new BountyService(kit, { sealedBounty: SEALED }, { getBounty: async () => view }, new DeterministicProtocolCipher(), { run: async () => ({ ctx: okCtx() }) }, { current: async () => 2_000n, blockHash: async () => zeroHash }, () => 1_000n);
     const app = createSealedBountyApp({ kit, service: svc, attest });
@@ -716,7 +716,7 @@ describe("4 — fuites : notes de rejeu et réponses HTTP à message fixe", () =
       expect(JSON.parse(text).reason).toMatch(/^unreadable bundle: (JSON expected|bountyId: integer expected)$/);
       expect(text).not.toMatch(/deadbeef|SECRET|position/);
     }
-    // bénéficiaire qui n'est pas une adresse (ou objet imbriqué) : refus déterministe, sans le recopier
+    // a payee that is not an address (or a nested object): a deterministic refusal, without copying it
     for (const payee of ['"0xSECRET"', `{"a":${deepJson(50_000)}}`]) {
       const text = `{"bountyId":"1","payee":${payee},"capital":"0","predicate":${JSON.stringify(erc20Pred)},"txs":[],"r":"${R}","cP":"0x"}`;
       const cE = await seal(toBytes(kit.keys.x25519PublicKey), utf8(text));
@@ -724,7 +724,7 @@ describe("4 — fuites : notes de rejeu et réponses HTTP à message fixe", () =
     }
   });
 
-  it("503 : jamais le message de l'exception (lecture on-chain en échec, rejeu en échec)", async () => {
+  it("503: never the exception's message (a failed on-chain read, a failed replay)", async () => {
     const kit = newKit();
     const refuter = new RefutationService(kit, { sealedBounty: SEALED }, { read: async () => { throw new Error("SECRET-RPC 0xc0ffee"); } }, new DeterministicProtocolCipher(), { run: async () => ({ ctx: okCtx() }) });
     const svc = new BountyService(kit, { sealedBounty: SEALED }, { getBounty: async () => view }, new DeterministicProtocolCipher(),
@@ -744,11 +744,11 @@ describe("4 — fuites : notes de rejeu et réponses HTTP à message fixe", () =
 });
 
 // =====================================================================================================================
-// 6. époque des règles
+// 6. rules epoch
 // =====================================================================================================================
 
-describe("6 — époque des règles (REFUTE_ACCEPTED_FROM) : une réclamation acceptée avant n'est pas jugée", () => {
-  it("acceptée avant l'époque → refus « rules_epoch » dès la lecture bon marché, rien n'est déchiffré ni rejoué ; après → jugée", async () => {
+describe("6 — rules epoch (REFUTE_ACCEPTED_FROM): a claim accepted before it is not judged", () => {
+  it("accepted before the epoch → refusal \"rules_epoch\" from the cheap read, nothing is decrypted or replayed; after it → judged", async () => {
     const view: BountyView = { predicateHash: predicateHash(erc20Pred), protocolX25519: protocol.x25519PublicKey, tierMinLoss: [1_000_000n], deadline: 9_000_000n };
     const old = forgedClaim({ predicate: erc20Pred, txs: ["0x" + "00".repeat(96)] }, view);
     const recent = forgedClaim({ predicate: erc20Pred, txs: ["0x" + "00".repeat(96)], capital: 1n }, view);
@@ -763,7 +763,7 @@ describe("6 — époque des règles (REFUTE_ACCEPTED_FROM) : une réclamation ac
     expect(chain.reads).toEqual({ record: 1, full: 0 });
     expect(runs).toBe(0);
     const r2 = await B.service.refute(await refuteRequest(B.kit, recent.claim, [OP_A], { ...key, cP: recent.cP }));
-    expect(r2.status).toBe("refuted"); // perte 0 au contre-rejeu : « non prouvée »
+    expect(r2.status).toBe("refuted"); // loss 0 at the counter-replay: "not proven"
     expect(runs).toBe(1);
   });
 });
