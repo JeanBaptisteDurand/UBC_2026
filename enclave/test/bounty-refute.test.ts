@@ -1,15 +1,15 @@
 /**
- * Prime scellée v2.1 — RÉFUTATION d'une réclamation acceptée (RefutationService, POST /v1/refute), avec un FAUX moteur de
- * rejeu déterministe (le rejeu réel par anvil est dans bounty-refute-anvil.test.ts) :
- *  - confirmée (même perte, même palier) → aucune signature ;
- *  - ne se reproduit pas, autre perte, autre palier → Refutation EIP-712 signée, digest recalculé À LA MAIN comme
- *    SealedBounty._countRefuters (typehash et domaine lus dans contracts/src/SealedBounty.sol) ;
- *  - exploit qui ne redonne pas le cPHash (ou l'empreinte) de la réclamation → refus, rien rejoué ni signé ;
- *  - opérateur de la réclamation, enclave inactive, hors fenêtre, déjà réfutée, opérateurs faux → refus ;
- *  - cP établi mais contredit par la réclamation (empreinte signée ≠ celle de cP, rapport illisible prouvé par la clé de la
- *    prime) → « non prouvée » sans rejeu ;
- *  - bout en bout avec le SDK : requestRefutations → /v1/refute de plusieurs enclaves → prepareRefuteCall ; quorum non
- *    atteignable (un seul autre opérateur) → rien n'est envoyé.
+ * Sealed Bounty v2.1: the REFUTATION of an accepted claim (RefutationService, POST /v1/refute), with a FAKE deterministic
+ * replay engine (the real replay by anvil is in bounty-refute-anvil.test.ts):
+ *  - confirmed (same loss, same tier) → no signature;
+ *  - does not reproduce, another loss, another tier → a signed EIP-712 Refutation, with the digest recomputed BY HAND as
+ *    SealedBounty._countRefuters does (typehash and domain read from contracts/src/SealedBounty.sol);
+ *  - an exploit that does not give back the claim's cPHash (or fingerprint) → refused, nothing replayed or signed;
+ *  - the claim's operator, an inactive enclave, outside the window, already refuted, wrong operators → refused;
+ *  - cP established but contradicted by the claim (signed fingerprint ≠ cP's, an unreadable report proven with the
+ *    bounty's key) → "not proven" without a replay;
+ *  - end to end with the SDK: requestRefutations → /v1/refute of several enclaves → prepareRefuteCall; an unreachable
+ *    quorum (only one other operator) → nothing is sent.
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
@@ -40,7 +40,7 @@ const PRODUCT = 2n;
 const TOKEN = "0x0000000000000000000000000000000000000010" as Address;
 const HOLDER = "0x0000000000000000000000000000000000000011" as Address;
 const HUNTER = "0x0000000000000000000000000000000000000012" as Address;
-const OP_A = getAddress("0x000000000000000000000000000000000000a001"); // a signé la réclamation
+const OP_A = getAddress("0x000000000000000000000000000000000000a001"); // signed the claim
 const OP_B = getAddress("0x000000000000000000000000000000000000b002");
 const OP_C = getAddress("0x000000000000000000000000000000000000c003");
 const NOW = 1_000_000n;
@@ -51,12 +51,12 @@ const WINDOW = 259_200n;
 
 const utf8 = (s: string) => new TextEncoder().encode(s);
 const pred: Predicate = { combine: "OR", clauses: [{ type: "ERC20_DROP", token: TOKEN, holder: HOLDER, min: "1000000" }] };
-const protocol = generateEnclaveKeys(); // la clé X25519 de la prime (le protocole)
+const protocol = generateEnclaveKeys(); // the bounty's X25519 key (the protocol)
 const bountyView: BountyView = { predicateHash: predicateHash(pred), protocolX25519: protocol.x25519PublicKey, tierMinLoss: [1_000_000n, 10_000_000n], deadline: 9_000_000n };
 
 const newKit = () => new EnclaveKit({ productId: PRODUCT, chainId: CHAIN, registry: REGISTRY, mockBlockHash: true });
 
-/** Faux moteur déterministe : la perte mesurée est celle qu'on lui donne ; compte ses rejeux ; mêmes règles de forme que le vrai. */
+/** A fake deterministic engine: the measured loss is the one it is given; it counts its replays; the same shape rules as the real one. */
 function fakeFork(loss: bigint) {
   const f = {
     runs: 0,
@@ -66,13 +66,13 @@ function fakeFork(loss: bigint) {
       return { ctx };
     },
     validate(b: ExploitBundle) {
-      if (!Array.isArray(b.txs) || b.txs.length < 1 || b.txs.length > 10) throw new Error("1 à 10 transactions");
+      if (!Array.isArray(b.txs) || b.txs.length < 1 || b.txs.length > 10) throw new Error("1 to 10 transactions");
     },
   };
   return f satisfies ForkRunner;
 }
 
-/** La chaîne vue par les enclaves réfutantes : claimRecords, fenêtre, prime, opérateur actif de chaque signataire. */
+/** The chain as the refuting enclaves see it: claimRecords, window, bounty, the active operator of each signer. */
 class FakeChain implements RefuteReader {
   records = new Map<string, { acceptedAt: bigint; refuted: boolean; opsHash: Hex }>();
   active = new Map<string, Address>();
@@ -95,7 +95,7 @@ class FakeChain implements RefuteReader {
   }
 }
 
-/** Le chasseur prouve son exploit auprès de l'enclave A (elle a son propre moteur : c'est elle qui ment, ou non). */
+/** The hunter proves their exploit to enclave A (it has its own engine: it is the one that lies, or not). */
 async function claimFrom(lossAtA: bigint, o: { capital?: bigint; view?: BountyView } = {}) {
   const kitA = newKit();
   const blocks = { current: async () => 2_000n, blockHash: async (n: bigint) => keccak256(numberToHex(n, { size: 32 })) };
@@ -110,7 +110,7 @@ async function claimFrom(lossAtA: bigint, o: { capital?: bigint; view?: BountyVi
   return { claim: res.claim, cP: res.cP };
 }
 
-/** Une enclave réfutante (opérateur `op`) et son moteur. */
+/** A refuting enclave (operator `op`) and its engine. */
 function refuter(chain: FakeChain, op: Address | null, lossSeen: bigint) {
   const kit = newKit();
   if (op) chain.active.set(kit.keys.signer.toLowerCase(), op);
@@ -119,7 +119,7 @@ function refuter(chain: FakeChain, op: Address | null, lossSeen: bigint) {
   return { kit, fork, service };
 }
 
-/** La demande, chiffrée vers `kit` pour CETTE réclamation (aad = digest). */
+/** The request, encrypted to `kit` for THIS claim (aad = digest). */
 async function request(kit: EnclaveKit, claim: Claim, operators: Address[], plaintext: object) {
   const s = await seal(toBytes(kit.keys.x25519PublicKey), utf8(JSON.stringify(plaintext)), refuteRequestAad(claimDigestOf(SEALED, claim, CHAIN)));
   return { claim, operators, enc: s.enc, ciphertext: s.ciphertext };
@@ -139,7 +139,7 @@ const refusedCode = (r: RefuteResult) => {
   return (r as Extract<RefuteResult, { status: "refused" }>).code;
 };
 
-// ---- le contrat, lu dans sa source : typehash, domaine ; digests recalculés à la main ----
+// ---- the contract, read from its source: typehash, domain; digests recomputed by hand ----
 const SOL = readFileSync(new URL("../../contracts/src/SealedBounty.sol", import.meta.url), "utf8");
 const REFUTATION_TYPE = /REFUTATION_TYPEHASH =\s*keccak256\("([^"]+)"\)/.exec(SOL)![1]!;
 const CLAIM_TYPE = /CLAIM_TYPEHASH = keccak256\(\s*"([^"]+)"\s*\)/.exec(SOL)![1]!;
@@ -171,14 +171,14 @@ function refutationDigestByHand(f: { claimDigest: Hex; proven: boolean; loss: bi
   return keccak256(concat(["0x1901", DOMAIN_SEPARATOR, structHash]));
 }
 
-describe("réfutation — le contre-rejeu ne signe que ce qui contredit la réclamation", () => {
-  it("le typehash et le domaine de l'enclave sont ceux de SealedBounty.sol", () => {
+describe("refutation: the counter-replay signs only what contradicts the claim", () => {
+  it("the enclave's typehash and domain are those of SealedBounty.sol", () => {
     expect(REFUTATION_TYPE).toBe("Refutation(bytes32 claimDigest,bool proven,uint256 loss,uint8 tier)");
     expect(DOMAIN_NAME).toBe("ArcEnclaveNetwork");
     expect(DOMAIN_VERSION).toBe("1");
   });
 
-  it("réclamation confirmée (même perte, même palier) → « confirmée », AUCUNE signature ; un seul rejeu par réclamation", async () => {
+  it("claim confirmed (same loss, same tier) → \"confirmed\", NO signature; one single replay per claim", async () => {
     const { claim, cP } = await claimFrom(5_000_000n);
     const chain = new FakeChain();
     chain.accept(claim, [OP_A]);
@@ -187,29 +187,29 @@ describe("réfutation — le contre-rejeu ne signe que ce qui contredit la récl
     expect(r1.status).toBe("confirmed");
     expect(r1).not.toHaveProperty("signature");
     expect((r1 as any).replay).toMatchObject({ replayed: true, satisfied: true, loss: 5_000_000n, tier: 0, proven: true, blockN: 1_990n });
-    // le protocole, avec le secret de ce seul rapport : même contenu, même verdict, sans nouveau rejeu
+    // the protocol, with the secret of this one report: the same content, the same verdict, without a new replay
     const r2 = await B.service.refute(await request(B.kit, claim, [OP_A], { from: "protocol", cP, sharedSecret: sharedSecretOf(cP) }));
     expect(r2.status).toBe("confirmed");
     expect(B.fork.runs).toBe(1);
   });
 
-  it("ne se reproduit pas (prédicat non vérifié) → Refutation { proven: false, loss: 0, tier: 0 } signée, digest = celui du contrat", async () => {
-    const { claim } = await claimFrom(5_000_000n); // l'enclave A annonce 5 USDC de perte…
+  it("does not reproduce (predicate not met) → Refutation { proven: false, loss: 0, tier: 0 } signed, digest = the contract's", async () => {
+    const { claim } = await claimFrom(5_000_000n); // enclave A announces a 5 USDC loss…
     const chain = new FakeChain();
     const digest = chain.accept(claim, [OP_A]);
-    const B = refuter(chain, OP_B, 0n); // …le contre-rejeu ne voit rien baisser
+    const B = refuter(chain, OP_B, 0n); // …the counter-replay sees nothing drop
     const r = refuted(await B.service.refute(await request(B.kit, claim, [OP_A], hunterPlain())));
     expect(r.refutation).toEqual({ claimDigest: digest, proven: false, loss: 0n, tier: 0 });
     expect(r.replay).toMatchObject({ replayed: true, satisfied: false, proven: false, tier: -1 });
     expect(r.operator).toBe(OP_B);
-    // le digest de la réclamation et celui de la réfutation, recalculés à la main comme le contrat
+    // the digest of the claim and that of the refutation, recomputed by hand as the contract does
     expect(claimDigestByHand(claim)).toBe(digest);
     const d = refutationDigestByHand(r.refutation);
     expect((await recoverAddress({ hash: d, signature: r.signature })).toLowerCase()).toBe(B.kit.keys.signer.toLowerCase());
-    expect(sdk.refutationDigestOf(SEALED, r.refutation, CHAIN)).toBe(d); // le SDK calcule le même digest
+    expect(sdk.refutationDigestOf(SEALED, r.refutation, CHAIN)).toBe(d); // the SDK computes the same digest
   });
 
-  it("autre perte (même palier), puis autre palier → réfutation « prouvée » avec la perte et le palier MESURÉS", async () => {
+  it("another loss (same tier), then another tier → a \"proven\" refutation with the MEASURED loss and tier", async () => {
     const chain = new FakeChain();
     const one = await claimFrom(5_000_000n);
     chain.accept(one.claim, [OP_A]);
@@ -218,7 +218,7 @@ describe("réfutation — le contre-rejeu ne signe que ce qui contredit la récl
     expect(r1.refutation).toMatchObject({ proven: true, loss: 3_000_000n, tier: 0 });
     expect((await recoverAddress({ hash: refutationDigestByHand(r1.refutation), signature: r1.signature })).toLowerCase()).toBe(B.kit.keys.signer.toLowerCase());
 
-    const two = await claimFrom(50_000_000n, { capital: CAPITAL + 1n }); // palier 1 annoncé (autre exploit : autre capital)
+    const two = await claimFrom(50_000_000n, { capital: CAPITAL + 1n }); // tier 1 announced (another exploit: another capital)
     expect(two.claim.tier).toBe(1);
     chain.accept(two.claim, [OP_A]);
     const C = refuter(chain, OP_C, 5_000_000n);
@@ -227,8 +227,8 @@ describe("réfutation — le contre-rejeu ne signe que ce qui contredit la récl
     expect((await recoverAddress({ hash: refutationDigestByHand(r2.refutation), signature: r2.signature })).toLowerCase()).toBe(C.kit.keys.signer.toLowerCase());
   });
 
-  it("prédicat satisfait mais perte sous le plus bas palier → « non prouvée » (forme canonique : perte 0, palier 0)", async () => {
-    const view = { ...bountyView, tierMinLoss: [2_000_000n, 10_000_000n] }; // prédicat : ≥ 1 USDC ; premier palier : 2 USDC
+  it("predicate met but loss below the lowest tier → \"not proven\" (canonical form: loss 0, tier 0)", async () => {
+    const view = { ...bountyView, tierMinLoss: [2_000_000n, 10_000_000n] }; // predicate: ≥ 1 USDC; first tier: 2 USDC
     const { claim } = await claimFrom(5_000_000n, { view });
     const chain = new FakeChain();
     chain.bounty = { ...view, productId: PRODUCT };
@@ -240,8 +240,8 @@ describe("réfutation — le contre-rejeu ne signe que ce qui contredit la récl
   });
 });
 
-describe("réfutation — l'exploit doit redonner la réclamation, sinon rien n'est rejoué ni signé", () => {
-  it("chasseur : autres transactions, autre capital, autre r → refus (cPHash non redonné)", async () => {
+describe("refutation: the exploit must give back the claim, otherwise nothing is replayed or signed", () => {
+  it("hunter: other transactions, another capital, another r → refused (cPHash not given back)", async () => {
     const { claim } = await claimFrom(5_000_000n);
     const chain = new FakeChain();
     chain.accept(claim, [OP_A]);
@@ -253,7 +253,7 @@ describe("réfutation — l'exploit doit redonner la réclamation, sinon rien n'
     expect(B.fork.runs).toBe(0);
   });
 
-  it("protocole : cP d'une autre réclamation, secret faux, clé qui n'est pas celle de la prime → refus", async () => {
+  it("protocol: the cP of another claim, a false secret, a key that is not the bounty's → refused", async () => {
     const { claim, cP } = await claimFrom(5_000_000n);
     const other = await claimFrom(5_000_000n, { capital: 7n });
     const chain = new FakeChain();
@@ -267,7 +267,7 @@ describe("réfutation — l'exploit doit redonner la réclamation, sinon rien n'
     expect(B.fork.runs).toBe(0);
   });
 
-  it("demande chiffrée pour une autre réclamation (aad), ou vers une autre enclave → indéchiffrable", async () => {
+  it("a request encrypted for another claim (aad), or to another enclave → undecryptable", async () => {
     const { claim } = await claimFrom(5_000_000n);
     const other = await claimFrom(5_000_000n, { capital: 7n });
     const chain = new FakeChain();
@@ -279,7 +279,7 @@ describe("réfutation — l'exploit doit redonner la réclamation, sinon rien n'
     expect(refusedCode(await B.service.refute(await request(C.kit, claim, [OP_A], hunterPlain())))).toBe("undecryptable");
   });
 
-  it("cP établi mais l'empreinte SIGNÉE n'est pas la sienne → « non prouvée » sans rejeu (cP n'est pas l'exploit annoncé)", async () => {
+  it("cP established but the SIGNED fingerprint is not its own → \"not proven\" without a replay (cP is not the announced exploit)", async () => {
     const honest = await claimFrom(5_000_000n);
     const forged: Claim = { ...honest.claim, fingerprint: keccak256(toBytes("autre exploit")) };
     const chain = new FakeChain();
@@ -292,9 +292,9 @@ describe("réfutation — l'exploit doit redonner la réclamation, sinon rien n'
     expect(B.fork.runs).toBe(0);
   });
 
-  it("rapport illisible : le secret partagé ne prouve rien (refus), la clé de la prime vérifiée on-chain le prouve (« non prouvée »)", async () => {
+  it("unreadable report: the shared secret proves nothing (refused), the bounty's key verified on-chain proves it (\"not proven\")", async () => {
     const honest = await claimFrom(5_000_000n);
-    // des enclaves forgées ont signé pour un cP qui n'est pas un rapport : clé éphémère valide, chiffré quelconque
+    // forged enclaves signed for a cP that is not a report: a valid ephemeral key, an arbitrary ciphertext
     const garbage = toHex(concat([x25519.getPublicKey(new Uint8Array(32).fill(3)), new Uint8Array(80).fill(1)]));
     const forged: Claim = { ...honest.claim, cPHash: keccak256(garbage) };
     const chain = new FakeChain();
@@ -305,7 +305,7 @@ describe("réfutation — l'exploit doit redonner la réclamation, sinon rien n'
     const viaKey = refuted(await B.service.refute(await request(B.kit, forged, [OP_A], { from: "protocol", cP: garbage, protocolPrivateKey: toHex(protocol.x25519PrivateKey) })));
     expect(viaKey.refutation).toMatchObject({ proven: false, loss: 0n, tier: 0 });
     expect(viaKey.replay.note).toContain("unreadable");
-    // un « rapport » trop court pour être un scellé (3 octets) : même règle
+    // a "report" too short to be a seal (3 bytes): the same rule
     const tiny = "0x010203" as Hex;
     const forged2: Claim = { ...honest.claim, cPHash: keccak256(tiny) };
     chain.accept(forged2, [OP_A]);
@@ -315,7 +315,7 @@ describe("réfutation — l'exploit doit redonner la réclamation, sinon rien n'
     expect(B.fork.runs).toBe(0);
   });
 
-  it("le secret partagé ouvre exactement ce que scelle deterministicSeal (même construction que le kit)", () => {
+  it("the shared secret opens exactly what deterministicSeal seals (the same construction as the kit)", () => {
     const msg = utf8(canonicalProtocolPlaintext({ bountyId: 1n, payee: HUNTER, capital: 0n, predicate: pred, txs: TXS }));
     const sealed = deterministicSeal(toBytes(protocol.x25519PublicKey), msg, toBytes(R));
     expect(openSealedWithSharedSecret(sealed, toBytes(sharedSecretOf(sealed)))).toEqual(msg);
@@ -323,12 +323,12 @@ describe("réfutation — l'exploit doit redonner la réclamation, sinon rien n'
   });
 });
 
-describe("réfutation — refus avant tout déchiffrement (le contrat refuserait aussi)", () => {
-  it("opérateur de la réclamation, enclave inactive, autre produit → refus", async () => {
+describe("refutation: refusals before any decryption (the contract would refuse too)", () => {
+  it("the claim's operator, an inactive enclave, another product → refused", async () => {
     const { claim } = await claimFrom(5_000_000n);
     const chain = new FakeChain();
     chain.accept(claim, [OP_A, OP_C]);
-    const sameOp = refuter(chain, OP_C, 0n); // OP_C a co-signé la réclamation
+    const sameOp = refuter(chain, OP_C, 0n); // OP_C co-signed the claim
     expect(refusedCode(await sameOp.service.refute(await request(sameOp.kit, claim, [OP_A, OP_C], hunterPlain())))).toBe("claim_operator");
     const inactive = refuter(chain, null, 0n);
     expect(refusedCode(await inactive.service.refute(await request(inactive.kit, claim, [OP_A, OP_C], hunterPlain())))).toBe("inactive");
@@ -338,7 +338,7 @@ describe("réfutation — refus avant tout déchiffrement (le contrat refuserait
     expect(sameOp.fork.runs + inactive.fork.runs + B.fork.runs).toBe(0);
   });
 
-  it("hors fenêtre (après acceptedAt + 3 jours), déjà réfutée, inconnue, opérateurs faux → refus ; la borne est incluse comme dans le contrat", async () => {
+  it("outside the window (after acceptedAt + 3 days), already refuted, unknown, wrong operators → refused; the bound is inclusive as in the contract", async () => {
     const { claim } = await claimFrom(5_000_000n);
     const chain = new FakeChain();
     const digest = chain.accept(claim, [OP_A]);
@@ -347,7 +347,7 @@ describe("réfutation — refus avant tout déchiffrement (le contrat refuserait
 
     chain.now = NOW + WINDOW + 1n;
     expect(refusedCode(await ask())).toBe("window_over");
-    chain.now = NOW + WINDOW; // block.timestamp > acceptedAt + REFUTE_WINDOW revert : l'égalité passe
+    chain.now = NOW + WINDOW; // block.timestamp > acceptedAt + REFUTE_WINDOW reverts: equality passes
     expect((await ask()).status).toBe("refuted");
 
     expect(refusedCode(await ask([OP_B]))).toBe("bad_ops");
@@ -356,7 +356,7 @@ describe("réfutation — refus avant tout déchiffrement (le contrat refuserait
     expect(refusedCode(await ask())).toBe("already_refuted");
   });
 
-  it("requêtes concurrentes sur la même réclamation : UN rejeu, la MÊME signature (jamais deux réfutations différentes)", async () => {
+  it("concurrent requests on the same claim: ONE replay, the SAME signature (never two different refutations)", async () => {
     const { claim, cP } = await claimFrom(5_000_000n);
     const chain = new FakeChain();
     chain.accept(claim, [OP_A]);
@@ -372,8 +372,8 @@ describe("réfutation — refus avant tout déchiffrement (le contrat refuserait
   });
 });
 
-describe("POST /v1/refute et lecteur on-chain", () => {
-  it("HTTP : réfutation en JSON (montants en chaînes), 400 si mal formée, 503 si la chaîne est illisible, 501 sans service", async () => {
+describe("POST /v1/refute and the on-chain reader", () => {
+  it("HTTP: refutation in JSON (amounts as strings), 400 if malformed, 503 if the chain is unreadable, 501 without a service", async () => {
     const { claim } = await claimFrom(5_000_000n);
     const chain = new FakeChain();
     chain.accept(claim, [OP_A]);
@@ -395,14 +395,14 @@ describe("POST /v1/refute et lecteur on-chain", () => {
     expect((await post({ ...body, claim: { ...body.claim, tier: 256 } })).status).toBe(400);
     expect((await post({ ...body, enc: "0x1234" })).status).toBe(400);
 
-    const broken = new RefutationService(B.kit, { sealedBounty: SEALED }, { read: async () => { throw new Error("quorum en désaccord"); } }, new DeterministicProtocolCipher(), fakeFork(0n));
+    const broken = new RefutationService(B.kit, { sealedBounty: SEALED }, { read: async () => { throw new Error("quorum disagrees"); } }, new DeterministicProtocolCipher(), fakeFork(0n));
     const r503 = await post(body, createSealedBountyApp({ kit: B.kit, service, refuter: broken, attest }));
     expect(r503.status).toBe(503);
     expect(((await r503.json()) as any).error).toContain("nothing is signed");
     expect((await post(body, createSealedBountyApp({ kit: B.kit, service, attest }))).status).toBe(501);
   });
 
-  it("chainRefuteReader lit tout au même bloc : claimRecords, REFUTE_WINDOW, prime, paliers, activeOperatorAt, horodatage", async () => {
+  it("chainRefuteReader reads everything at one block: claimRecords, REFUTE_WINDOW, bounty, tiers, activeOperatorAt, timestamp", async () => {
     const abi = parseAbi([
       "struct Bounty { address protocol; uint256 productId; bytes32 predicateHash; bytes32 protocolX25519; uint256 singleCap; uint8 k; address targetToPause; uint64 deadline; uint256 balance; bool paused; }",
       "function getBounty(uint256 id) view returns (Bounty)",
@@ -411,7 +411,7 @@ describe("POST /v1/refute et lecteur on-chain", () => {
       "function REFUTE_WINDOW() view returns (uint64)",
       "function activeOperatorAt(address signer, uint256 productId, uint256 blockNumber) view returns (address)",
     ]);
-    const DIGEST = keccak256(toBytes("réclamation"));
+    const DIGEST = keccak256(toBytes("claim"));
     const OPS_HASH = claimOperatorsHash([OP_A]);
     const SIGNER = "0x00000000000000000000000000000000000000e1" as Address;
     const seen: bigint[] = [];
@@ -421,7 +421,7 @@ describe("POST /v1/refute et lecteur on-chain", () => {
         if (method === "eth_getBlockByNumber") {
           return { number: params[0], hash: pad("0x07", { size: 32 }), timestamp: numberToHex(NOW + 99n), parentHash: zeroHash, transactions: [], logsBloom: null, nonce: null };
         }
-        if (method !== "eth_call") throw new Error(`méthode inattendue ${method}`);
+        if (method !== "eth_call") throw new Error(`unexpected method ${method}`);
         seen.push(BigInt(params[1]));
         const { functionName, args } = decodeFunctionData({ abi, data: params[0].data });
         switch (functionName) {
@@ -440,14 +440,14 @@ describe("POST /v1/refute et lecteur on-chain", () => {
             expect(args).toEqual([SIGNER, PRODUCT, 7_000n]);
             return encodeFunctionResult({ abi, functionName, result: OP_B });
           default:
-            throw new Error(`lecture inattendue ${functionName}`);
+            throw new Error(`unexpected read ${functionName}`);
         }
       },
     }, { retryCount: 0 });
     const v = await chainRefuteReader(new RpcQuorum([transport]), SEALED, REGISTRY).read({ claimDigest: DIGEST, bountyId: 1n, signer: SIGNER });
     expect(v).toMatchObject({ block: 7_000n, blockTimestamp: NOW + 99n, refuteWindow: WINDOW, myOperator: OP_B, record: { acceptedAt: NOW, refuted: false, opsHash: OPS_HASH } });
     expect(v.bounty).toMatchObject({ productId: PRODUCT, tierMinLoss: [1_000_000n, 10_000_000n], predicateHash: bountyView.predicateHash });
-    expect(new Set(seen)).toEqual(new Set([7_000n])); // un seul bloc pour toutes les lectures
+    expect(new Set(seen)).toEqual(new Set([7_000n])); // one single block for all the reads
   });
 });
 
@@ -459,7 +459,7 @@ function sdkBody(claim: Claim, operators: Address[], enc: Uint8Array, ciphertext
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// bout en bout : le SDK (clés vérifiées on-chain, quorum, signatures réunies) ↔ les vraies applications /v1/refute
+// end to end: the SDK (keys verified on-chain, quorum, signatures gathered) ↔ the real /v1/refute applications
 
 describe("SDK ↔ enclaves : requestRefutations, quorum, prepareRefuteCall", () => {
   async function network(lossSeen: bigint, ops: Array<Address | null>) {
@@ -476,11 +476,11 @@ describe("SDK ↔ enclaves : requestRefutations, quorum, prepareRefuteCall", () 
     const fetchFn = (async (url: any, init?: any) => {
       const u = new URL(String(url));
       const node = nodes.find((n) => u.href.startsWith(n.url));
-      if (!node) throw new Error(`hôte inconnu ${u.href}`);
+      if (!node) throw new Error(`unknown host ${u.href}`);
       calls.push(`${node.url}${u.pathname.slice(new URL(node.url).pathname.length)}`);
       return node.app.request(u.pathname.slice(new URL(node.url).pathname.length), init);
     }) as typeof fetch;
-    // la chaîne vue par le SDK : registre des enclaves (clé X25519 inscrite, opérateur actif)
+    // the chain as the SDK sees it: the enclave registry (registered X25519 key, active operator)
     const pub = {
       async getBlockNumber() { return 7_000n; },
       async readContract(a: any) {
@@ -489,7 +489,7 @@ describe("SDK ↔ enclaves : requestRefutations, quorum, prepareRefuteCall", () 
           return { signer: n ? n.kit.keys.signer : zeroAddress, x25519: n ? n.kit.keys.x25519PublicKey : zeroHash, productId: PRODUCT, operator: n?.op ?? zeroAddress, workloadId: zeroHash, fmspc: "0x000000000000", tcbStatus: 0, quoteHash: zeroHash, anchorBlock: 1n, registeredAt: 1n, expiresAt: 2n, active: true, fromBlock: 1n, untilBlock: 9_999n };
         }
         if (a.functionName === "activeOperatorAt") return n?.op ?? zeroAddress;
-        throw new Error(`lecture non émulée : ${a.functionName}`);
+        throw new Error(`read not emulated: ${a.functionName}`);
       },
     } as any;
     const accepted: sdk.AcceptedClaim = {
@@ -504,17 +504,17 @@ describe("SDK ↔ enclaves : requestRefutations, quorum, prepareRefuteCall", () 
     return { claim, cP, digest, nodes, calls, ask, accepted, deployment };
   }
 
-  it("3 enclaves (dont une de l'opérateur de la réclamation) : 2 opérateurs distincts signent la même réfutation → refute prêt", async () => {
+  it("3 enclaves (one of them the claim operator's): 2 distinct operators sign the same refutation → refute ready", async () => {
     const net = await network(0n, [OP_A, OP_B, OP_C]);
     const source = sdk.protocolRefuteSource({ cP: net.cP, protocolPrivateKey: protocol.x25519PrivateKey });
-    expect(source).toHaveProperty("sharedSecret"); // par défaut : le secret de CE rapport, pas la clé de la prime
+    expect(source).toHaveProperty("sharedSecret"); // by default: the secret of THIS report, not the bounty's key
     const round = await net.ask(source);
     expect(round.status).toBe("ready");
     expect(round.needed).toBe(2);
     expect(round.results.map((r) => r.status)).toEqual(["excluded", "refuted", "refuted"]);
     expect(round.refuters).toEqual([OP_B, OP_C]);
     expect(round.refutation).toEqual({ claimDigest: net.digest, proven: false, loss: 0n, tier: 0 });
-    expect(net.calls.filter((c) => c.endsWith("/v1/refute"))).toHaveLength(2); // rien envoyé à l'enclave de OP_A
+    expect(net.calls.filter((c) => c.endsWith("/v1/refute"))).toHaveLength(2); // nothing sent to OP_A's enclave
     for (const [i, sig] of round.signatures!.entries()) {
       expect((await recoverAddress({ hash: refutationDigestByHand(round.refutation!), signature: sig })).toLowerCase()).toBe(net.nodes[i + 1]!.kit.keys.signer.toLowerCase());
     }
@@ -524,7 +524,7 @@ describe("SDK ↔ enclaves : requestRefutations, quorum, prepareRefuteCall", () 
     expect(call.args).toEqual([net.claim, [OP_A], round.refutation, round.signatures]);
   });
 
-  it("chasseur, réclamation qui se reproduit : les enclaves confirment, rien n'est signé, prepareRefuteCall refuse", async () => {
+  it("hunter, a claim that reproduces: the enclaves confirm, nothing is signed, prepareRefuteCall refuses", async () => {
     const net = await network(5_000_000n, [OP_B, OP_C]);
     const round = await net.ask(sdk.hunterRefuteSource({ bountyId: 1n, payee: HUNTER, exploit: { predicate: pred, txs: TXS, capital: CAPITAL }, r: R }));
     expect(round.status).toBe("confirmed");
@@ -533,8 +533,8 @@ describe("SDK ↔ enclaves : requestRefutations, quorum, prepareRefuteCall", () 
     expect(() => sdk.prepareRefuteCall(net.accepted, round, net.deployment)).toThrow(/not ready/);
   });
 
-  it("quorum non atteignable (un seul autre opérateur sur le réseau) : message clair, RIEN n'est envoyé aux enclaves", async () => {
-    const net = await network(0n, [OP_A, OP_B, OP_B]); // deux enclaves… du même opérateur OP_B
+  it("unreachable quorum (only one other operator on the network): a clear message, NOTHING is sent to the enclaves", async () => {
+    const net = await network(0n, [OP_A, OP_B, OP_B]); // two enclaves… of the same operator OP_B
     const round = await net.ask(sdk.protocolRefuteSource({ cP: net.cP, protocolPrivateKey: protocol.x25519PrivateKey }));
     expect(round.status).toBe("unreachable");
     expect(round.message).toMatch(/only one eligible operator/);
@@ -545,7 +545,7 @@ describe("SDK ↔ enclaves : requestRefutations, quorum, prepareRefuteCall", () 
     expect(plan.message).toMatch(/only operator has signed the claim/);
   });
 
-  it("source qui ne redonne pas le cPHash : refusée par le SDK avant toute connexion", async () => {
+  it("a source that does not give back the cPHash: refused by the SDK before any connection", async () => {
     const net = await network(0n, [OP_B, OP_C]);
     await expect(net.ask(sdk.hunterRefuteSource({ bountyId: 1n, payee: HUNTER, exploit: { predicate: pred, txs: ["0xdeadbeee"], capital: CAPITAL }, r: R }))).rejects.toThrow(/cPHash/);
     expect(net.calls).toEqual([]);
