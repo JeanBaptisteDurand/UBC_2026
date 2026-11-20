@@ -52,4 +52,4 @@ async function main() {
   const after = await arc.getSession(s.sessionId);
   console.log(`close: ${ctx} (status ${cr.status}, gas ${cr.gasUsed}) → refunded ${formatUnits(cl?.args.refund ?? 0n, 6)} USDC; ERC-8004 verdict written: ${after.verdictWritten ? "yes" : "NO"}`);
 }
-main().catch((e) => { console.error("FAILED:", explainArcError(e)); process.exit(1); });
+main().catch((e) => { console.error("FAILED:", explainArcError(e, "en")); process.exit(1); });

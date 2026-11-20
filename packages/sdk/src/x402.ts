@@ -1205,7 +1205,7 @@ export class X402SettlementQueue {
       try {
         v = await verifyCallOnChain(this.o.publicClient, call, d, { expectedOperator: this.o.operator });
       } catch (e) {
-        r.failed.push({ ...id, error: explainArcError(e) });
+        r.failed.push({ ...id, error: explainArcError(e, "en") });
         continue;
       }
       if (v.alreadyUsed) {
@@ -1262,7 +1262,7 @@ export class X402SettlementQueue {
           r.failed.push({ ...id, error: `transaction reverted on-chain (${s.tx})` });
         }
       } catch (e) {
-        r.failed.push({ ...id, error: explainArcError(e) });
+        r.failed.push({ ...id, error: explainArcError(e, "en") });
       } finally {
         this.inFlight.delete(key);
       }

@@ -47,4 +47,4 @@ async function main() {
   console.log(`  authenticated receipt, payable on-chain: ${out.verified}  (cumulative ${out.receipt.cumulativeUnits} units)`);
   console.log(out.verified ? "\n✅ end to end on a real TDX enclave: keys verified, real inference, payable receipt." : "\n⚠️ receipt not payable");
 }
-main().catch((e) => { console.error("ERREUR:", explainArcError(e)); process.exit(1); });
+main().catch((e) => { console.error("FAILED:", explainArcError(e, "en")); process.exit(1); });

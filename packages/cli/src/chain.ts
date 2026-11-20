@@ -123,7 +123,7 @@ export async function confirm(w: Writer, label: string, hash: Hex): Promise<Tran
 export function explainError(e: unknown): string {
   if (e instanceof CliError || e instanceof UsageError) return e.message;
   if (e instanceof EnclaveKeyMismatchError) return e.message;
-  return explainArcError(e);
+  return explainArcError(e, "en");
 }
 
 // ---------- HTTP (enclaves) ----------

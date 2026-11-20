@@ -29,4 +29,4 @@ async function main() {
   const after = await arc.getSession(id);
   console.log(`close #${id}: ${tx} (status ${r.status}, gas ${r.gasUsed}, ${r.logs.length} logs); paid ${formatUnits(after.paid, 6)} USDC, closed ${after.closed}`);
 }
-main().catch((e) => { console.error("FAILED:", explainArcError(e)); process.exit(1); });
+main().catch((e) => { console.error("FAILED:", explainArcError(e, "en")); process.exit(1); });

@@ -95,4 +95,4 @@ async function main() {
   console.log(`\nERC-8004 verdicts written during this pass: ${written}`);
 }
 
-main().catch((e) => { console.error("FAILED:", explainArcError(e)); process.exit(1); });
+main().catch((e) => { console.error("FAILED:", explainArcError(e, "en")); process.exit(1); });

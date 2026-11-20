@@ -57,7 +57,7 @@ async function main() {
     await pub.simulateContract({ account, address: testnet.sealedBounty, abi: [...sealedBountyAbi, ...arcErrorsAbi], functionName: "acceptClaim", args: [tampered, [proven.signature]] });
     console.log("3) ✗ the changed claim was NOT refused");
   } catch (e) {
-    console.log(`3) ✓ claim changed by one byte REFUSED by the contract (${explainArcError(e).slice(0, 110)})`);
+    console.log(`3) ✓ claim changed by one byte REFUSED by the contract (${explainArcError(e, "en").slice(0, 110)})`);
   }
 
   // 4) reservation (acceptClaim), then delivery and payment (deliver)
@@ -75,4 +75,4 @@ async function main() {
     console.log(`5) ✓ the protocol decrypted the report: hunter ${j.payee}, capital ${Number(j.capital) / 1e6} USDC, predicate ${j.predicate.clauses[0].type}`);
   }
 }
-main().catch((e) => { console.error("FAILED:", explainArcError(e)); process.exit(1); });
+main().catch((e) => { console.error("FAILED:", explainArcError(e, "en")); process.exit(1); });

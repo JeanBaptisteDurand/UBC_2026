@@ -90,6 +90,6 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error("FAILED:", explainArcError(e));
+  console.error("FAILED:", explainArcError(e, "en"));
   process.exit(1);
 });

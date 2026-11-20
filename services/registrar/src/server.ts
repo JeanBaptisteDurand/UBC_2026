@@ -276,7 +276,7 @@ async function x402Loop() {
       if (k !== "x402") return; // this product is not paid per call
       await settleX402Once();
     } catch (e) {
-      console.error(`[${now()}] x402: pass failed:`, explainArcError(e));
+      console.error(`[${now()}] x402: pass failed:`, explainArcError(e, "en"));
     }
     if (process.env.ONCE === "1") return;
     await sleep(X402_EVERY_S * 1000);
@@ -292,15 +292,15 @@ async function loop() {
       if (why) { console.log(`[${now()}] re-attestation: ${why}`); fresh = await reattest(signer); }
       // verified level: the new registration changes the quote; the machine binding is redone right away
       const q = fresh ? await quoteFromRegisterTx(pub as any, fresh.tx).catch(() => undefined) : undefined;
-      await keepVerified(fresh?.signer ?? signer, q).catch((e) => console.error(`[${now()}] verified level: upkeep failed:`, explainArcError(e)));
-      await retirePrevious(signer).catch((e) => console.error(`[${now()}] could not retire the old key:`, explainArcError(e)));
+      await keepVerified(fresh?.signer ?? signer, q).catch((e) => console.error(`[${now()}] verified level: upkeep failed:`, explainArcError(e, "en")));
+      await retirePrevious(signer).catch((e) => console.error(`[${now()}] could not retire the old key:`, explainArcError(e, "en")));
       if (SETTLE) {
         const k = await settlementKind().catch(() => undefined);
-        if (k === "session") await settleSessions(fresh?.signer ?? signer).catch((e) => console.error(`[${now()}] automatic settlement failed:`, explainArcError(e)));
+        if (k === "session") await settleSessions(fresh?.signer ?? signer).catch((e) => console.error(`[${now()}] automatic settlement failed:`, explainArcError(e, "en")));
       }
       lastSigner = signer;
     } catch (e) {
-      console.error(`[${now()}] registrar error:`, explainArcError(e));
+      console.error(`[${now()}] registrar error:`, explainArcError(e, "en"));
       if (arcErrorOf(e)?.name === "OperatorUnderbonded") {
         console.error(`[${now()}] → free bond too low: an old key still reserves the minimum bond. Run "arcvault operator status ${account.address}", then "arcvault operator retire --signer <old key>", or top up the bond.`);
       }

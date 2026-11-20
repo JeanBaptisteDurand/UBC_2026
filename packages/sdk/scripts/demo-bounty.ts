@@ -38,4 +38,4 @@ async function main() {
   console.log(`bounty #${r.bountyId} published and funded (3 USDC), deadline ${new Date(Number(deadline) * 1000).toISOString()}  tx ${r.tx}`);
   console.log(`the protocol's X25519 key: public ${toHex(pubKey).slice(0, 18)}…, private in .secrets/demo-protocol-x25519.json`);
 }
-main().catch((e) => { console.error("FAILED:", explainArcError(e)); process.exit(1); });
+main().catch((e) => { console.error("FAILED:", explainArcError(e, "en")); process.exit(1); });

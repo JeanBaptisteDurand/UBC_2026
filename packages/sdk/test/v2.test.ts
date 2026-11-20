@@ -8,7 +8,7 @@ import {
 } from "viem";
 import { privateKeyToAccount, generatePrivateKey } from "viem/accounts";
 import {
-  arcErrorsAbi, ARC_ERRORS_FR, arcErrorOf, explainArcError,
+  arcErrorsAbi, ARC_ERRORS_EN, ARC_ERRORS_FR, arcErrorOf, explainArcError,
   verifyEnclaveKeys, EnclaveKeyMismatchError, ENCLAVE_KEY_MISMATCH_FR, type VerifiedEnclaveKeys,
   sealExploitForEnclave, checkProvenClaim, protocolCanonical,
   createInferenceClient, InsufficientSessionBalance, ReceiptMismatchError,
@@ -83,6 +83,13 @@ describe("contract refusals: named and explained", () => {
     const names = arcErrorsAbi.filter((x: any) => x.type === "error").map((x: any) => x.name as string);
     expect(names.length).toBeGreaterThan(80);
     expect(names.filter((n) => !ARC_ERRORS_FR[n])).toEqual([]);
+    expect(names.filter((n) => !ARC_ERRORS_EN[n])).toEqual([]);
+  });
+  it("explains a refusal in English on request, in French by default", () => {
+    const data = encodeErrorResult({ abi: arcErrorsAbi, errorName: "WrongEnclave" });
+    expect(explainArcError({ data }, "en")).toMatch(/^refused by the contract: WrongEnclave: \S/);
+    expect(arcErrorOf({ data })?.en).toBe(ARC_ERRORS_EN.WrongEnclave);
+    expect(explainArcError({ data })).toMatch(/^refusé par le contrat : WrongEnclave — /);
   });
   it("decodes a refusal bubbled up from another contract (raw data)", () => {
     const data = encodeErrorResult({ abi: arcErrorsAbi, errorName: "WrongEnclave" });

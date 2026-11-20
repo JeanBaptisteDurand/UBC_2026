@@ -29,4 +29,4 @@ async function main() {
   }
   console.log("\n✅ end to end: the enclave's keys verified on-chain, encrypted inference, signed and authenticated receipts.");
 }
-main().catch((e) => { console.error("ERREUR:", explainArcError(e)); process.exit(1); });
+main().catch((e) => { console.error("FAILED:", explainArcError(e, "en")); process.exit(1); });

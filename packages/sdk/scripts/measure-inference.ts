@@ -50,4 +50,4 @@ async function main() {
   console.log(`tokens: ${tokIn} read, ${tokOut} written; output throughput ≈ ${(tokOut / totalS).toFixed(1)} tokens/s (end to end, encryption and verification included)`);
   console.log(`authenticated and payable receipts: ${okReceipts}/${N}`);
 }
-main().catch((e) => { console.error("FAILED:", explainArcError(e)); process.exit(1); });
+main().catch((e) => { console.error("FAILED:", explainArcError(e, "en")); process.exit(1); });
