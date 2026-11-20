@@ -187,10 +187,14 @@ export function buildWall(enclaves: Enclave[] = [], products: Product[] = [], bo
   let li = 0, xi = 0
   const heroSig = proofSigner?.toLowerCase()
   const heroTaken = !!heroSig && byAge.some((e) => e.signer.toLowerCase() === heroSig)
+  // the products that run an enclave now: an inactive enclave of one of them (an image its author replaced, a closed
+  // window) is not drawn, so the wall shows what serves today; the history views keep it
+  const runningP = new Set(enclaves.filter((e) => ledOf(e, byP.get(e.productId), bad).led === 'green').map((e) => e.productId))
   byAge.forEach((e) => {
     const p = byP.get(e.productId)
     const s = e.signer.toLowerCase()
     const st = ledOf(e, p, bad)
+    if (st.led === 'amber' && lapsed(st) && runningP.has(e.productId)) return
     let i: number | undefined
     if (heroTaken && s === heroSig) i = HERO_SLOT
     // Inactive (window closed), replaced and stopped sleds stay low with the invalid ones

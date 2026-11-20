@@ -30,19 +30,7 @@ function UseCount({ pay }: { pay?: Activity }) {
   const last = pay ?? activity?.find(isPay)
   const micro = Number(last?.args.amount ?? last?.args.paidDelta ?? 0)
   const ref = useRef<HTMLSpanElement>(null)
-  useEffect(() => {
-    if (!micro) return
-    const full = usdc(micro, lang) ?? ''
-    const dec = (full.split(' ')[0].split(/[.,]/)[1] ?? '').length
-    return onTick(() => {
-      const gp = world.sec.use ?? 0
-      // done at 0.30, before the section stop (story.ts, STATE_STOP)
-      const c = Math.min(1, Math.max(0, (gp - 0.14) / 0.16))
-      const v = (Math.round(micro * c) / 1e6).toFixed(dec)
-      const txt = `${lang === 'fr' ? v.replace('.', ',') : v} USDC`
-      if (ref.current && ref.current.textContent !== txt) ref.current.textContent = txt
-    })
-  }, [micro, lang])
+  // the amount is shown as it is on Arc (the count-up depended on the scroll progress and could stay at 0.00)
   // no payment in the read window is stated, instead of an endless reading
   if (!last) return <>{activity ? t('end.none') : t('state.loading')}</>
   return <span ref={ref} className="tnum">{usdc(micro, lang)}</span>

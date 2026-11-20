@@ -16,8 +16,8 @@ const EN = {
   'doc.of': '{a} of {b}',
   'doc.start': 'Start reading',
   // live sentences (contract counts are deployment facts; enclaves and verdicts are read live)
-  'doc.verdict': '13 of our contracts in service on Arc testnet, 51 deployed with Intel’s verifier through the live stack, plus the 14 of the next stack (v3). {e} enclaves admitted so far, {v} verdicts written.',
-  'doc.verdict.r': '13 of our contracts in service on Arc testnet, 51 deployed with Intel’s verifier through the live stack, plus the 14 of the next stack (v3).',
+  'doc.verdict': 'The live stack is v3: 14 of our contracts on Arc testnet (13 in service and a demo vault), 65 deployed in all with Intel’s verifier. {e} enclaves admitted so far, {v} verdicts written.',
+  'doc.verdict.r': 'The live stack is v3: 14 of our contracts on Arc testnet (13 in service and a demo vault), 65 deployed in all with Intel’s verifier.',
   'doc.readAt': 'Arc testnet, read at block {b}',
   'doc.reading': 'Reading Arc testnet',
   'doc.st.off': 'No enclave running right now (0 of {n}). Everything on Arc stays readable, and every proof on this page is a real past transaction.',
