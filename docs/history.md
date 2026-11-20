@@ -62,7 +62,39 @@ are on-chain: every contract deployment and enclave admission listed below links
   every other one in [`deployments.v3.testnet.json`](deployments.v3.testnet.json)).
 - **Claude Code's request format on ArcHive's private inference**, tested on 19 Nov (three paid calls).
 
-## First proofs
+## Proofs (the previous set)
+
+These runs were made on the v2.1 set; its bytecode is the one deployed again in v3.
+
+**20 Nov 2026 (UTC)**
+
+| What it proves | Time | Transaction |
+|---|---|---|
+| Prepaid session #3 opened (0.05 USDC), locked on the product 1 enclave | 09:00 | [`0x64495f16…b0a1`](https://explorer.testnet.arc.io/tx/0x64495f162f13f306b4d8d415b26efe6b9a4e5875a40ed606522e6b596e2fb0a1) |
+| The session topped up by 0.02 USDC, with one EIP-3009 signature | 09:02 | [`0x5102ae30…b0d4`](https://explorer.testnet.arc.io/tx/0x5102ae3068bbef7486ff172c21539410e6f3ee46b1bce031026a8071a735b0d4) |
+| A pay-per-call answer settled by the operator: 0.01 USDC (0.0095 operator, 0.0005 network) | 09:04 | [`0x3c15d9a3…71b7`](https://explorer.testnet.arc.io/tx/0x3c15d9a30a24dc435424d989fc3c51639ee891431ca938b0a788714c9ab271b7) |
+| A second pay-per-call answer settled: 0.01 USDC | 09:04 | [`0x3c0c167c…21cc`](https://explorer.testnet.arc.io/tx/0x3c0c167cafd1fe5acaf603fba393eeef1a0a70739b60832b43dc3d06044b21cc) |
+| A third pay-per-call answer settled: 0.01 USDC | 09:05 | [`0x05544243…8a8a`](https://explorer.testnet.arc.io/tx/0x05544243b954b1c4c26c69f902d20130941da9166ec4e41eeb0af8fc32578a8a) |
+| The session settled by the operator on the enclave's last cumulative receipt: 0.0592 USDC (0.05624 operator, 0.00296 network) | 09:05 | [`0x1ebe664a…a62b`](https://explorer.testnet.arc.io/tx/0x1ebe664a736bf41b3ed7eb3ccc1333766713c64e8eae5c6bbc3e699f0612a62b) |
+| The session closed by its owner: 0.0108 USDC refunded (0.07 deposited, 0.0592 paid) and an ERC-8004 verdict of 100 written, in the same transaction | 10:12 | [`0x319c34ea…b305`](https://explorer.testnet.arc.io/tx/0x319c34eacadce231c7a8cd4cf0060e57285b40d5567cf5c723523e058a8ab305) |
+
+**19 Nov 2026 (UTC)**
+
+| What it proves | Time | Transaction |
+|---|---|---|
+| Product 3 enclave (pay per call) admitted: Intel DCAP and boot-log replay | 00:55 | [`0x54d7cf7e…37ef`](https://explorer.testnet.arc.io/tx/0x54d7cf7e891d489093b139d99db37620f9e422c69005eff4bf1549fb9eae37ef) |
+| Product 2 enclave (sealed bounty) admitted | 00:55 | [`0x351edb8c…0357`](https://explorer.testnet.arc.io/tx/0x351edb8ca280a7a0dca7ffbd562afeb9215522df250d28288c28fdc4802f0357) |
+| Proof of Cloud token verified on Arc (Ed25519): the chip is declared until 26 Nov | 00:56 | [`0x38c587ae…1e83`](https://explorer.testnet.arc.io/tx/0x38c587aefb3d325383f471be5f6f359dd40123b4c57ce259b0c0bd96987b1e83) |
+| Product 1 enclave (private AI) admitted | 01:01 | [`0x3ab1e3da…ae72`](https://explorer.testnet.arc.io/tx/0x3ab1e3dac834f9fb4d5a97f67f7ea5f299b9e92ea3a1a76791a86886e0a1ae72) |
+| Product 7 enclave (verified bounty) admitted | 01:02 | [`0xf18cb68f…6a2c`](https://explorer.testnet.arc.io/tx/0xf18cb68f068e5cfaa993a67da2fd98f4c5d73123460533d0901052b06d166a2c) |
+| A pay-per-call answer settled by the operator: 0.01 USDC (0.0095 operator, 0.0005 network) | 02:00 | [`0xeadad0b4…fbd0`](https://explorer.testnet.arc.io/tx/0xeadad0b46d51a733997777bccfedd3f05dc69a0a942620f7458c75e35c16fbd0) |
+| Prepaid session #2 opened (0.05 USDC), locked on the product 1 enclave | 02:11 | [`0xdb7fc9e3…666d`](https://explorer.testnet.arc.io/tx/0xdb7fc9e3b024415599eee67746ae162f3032add224afed25ab7c09862b83666d) |
+| A demo bounty posted on the verified bounty (1 USDC pool, open until 22 Nov) | 02:16 | [`0x28d12457…daea`](https://explorer.testnet.arc.io/tx/0x28d12457644404621d37c52b4c93fab0317c8b0883adb74f347bf5e65f6edaea) |
+| The session settled by the operator on the enclave's last cumulative receipt: 0.034 USDC | 02:20 | [`0x97c17946…79ee`](https://explorer.testnet.arc.io/tx/0x97c17946a14c02cdbdd1d6aafd7a405500b6bd44a5f536c77af560aa0cbc79ee) |
+| The session closed: 0.016 USDC refunded and ERC-8004 verdict 100, in one transaction | 03:23 | [`0x95c9f59e…b1c2`](https://explorer.testnet.arc.io/tx/0x95c9f59eee7597a532ce72162b83944e9364b1b600ff35ea6b9fd4eb2290b1c2) |
+| AskHive's enclave admitted (product 4) | 22:37 | [`0xde9628b2…0176`](https://explorer.testnet.arc.io/tx/0xde9628b23d0483bb666a0cd13c55c4f32a1204151323a80da9451b0aeb330176) |
+
+**14 to 16 Nov 2026 (UTC)**
 
 **First runs, 14 to 16 Nov 2026 (UTC)**
 

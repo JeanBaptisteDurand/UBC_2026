@@ -383,9 +383,9 @@ own wallet.
    refuted by the enclaves of at least two other operators within 3 days (`SealedBounty.refute`), seize the operator's
    whole bond and ban it, and `VerdictLog` writes 0 to the ERC-8004 validation registry on Arc. A session that was
    served and paid closes with a verdict of 100. The refutation demo ran on Arc on 15 Nov (product 5 of the previous set), and sessions closed with 100
-   on 14 and 19 Nov (see [Proofs on Arc testnet](#proofs-on-arc-testnet)).
+   on 14 and 19 Nov (see [the previous set's proofs](docs/history.md#proofs-the-previous-set)).
 
-Every payment in [our proofs](#proofs-on-arc-testnet) came from our own testnet wallets.
+Every payment in [the proofs](docs/history.md#proofs-the-previous-set) came from our own testnet wallets.
 [`packages/sdk/scripts/x402-call.ts`](packages/sdk/scripts/x402-call.ts) is a buyer that runs this loop with the SDK.
 
 **Safety limits**
@@ -463,35 +463,21 @@ a session. An attestation proves which code ran, not that an AI answer is right,
 
 ## Proofs on Arc testnet
 
-These runs are on the previous set, whose bytecode is the one deployed again in v3.
-
-**20 Nov 2026 (UTC)**
+**20 Nov 2026 (UTC), the live v3 stack**
 
 | What it proves | Time | Transaction |
 |---|---|---|
-| Prepaid session #3 opened (0.05 USDC), locked on the product 1 enclave | 09:00 | [`0x64495f16…b0a1`](https://explorer.testnet.arc.io/tx/0x64495f162f13f306b4d8d415b26efe6b9a4e5875a40ed606522e6b596e2fb0a1) |
-| The session topped up by 0.02 USDC, with one EIP-3009 signature | 09:02 | [`0x5102ae30…b0d4`](https://explorer.testnet.arc.io/tx/0x5102ae3068bbef7486ff172c21539410e6f3ee46b1bce031026a8071a735b0d4) |
-| A pay-per-call answer settled by the operator: 0.01 USDC (0.0095 operator, 0.0005 network) | 09:04 | [`0x3c15d9a3…71b7`](https://explorer.testnet.arc.io/tx/0x3c15d9a30a24dc435424d989fc3c51639ee891431ca938b0a788714c9ab271b7) |
-| A second pay-per-call answer settled: 0.01 USDC | 09:04 | [`0x3c0c167c…21cc`](https://explorer.testnet.arc.io/tx/0x3c0c167cafd1fe5acaf603fba393eeef1a0a70739b60832b43dc3d06044b21cc) |
-| A third pay-per-call answer settled: 0.01 USDC | 09:05 | [`0x05544243…8a8a`](https://explorer.testnet.arc.io/tx/0x05544243b954b1c4c26c69f902d20130941da9166ec4e41eeb0af8fc32578a8a) |
-| The session settled by the operator on the enclave's last cumulative receipt: 0.0592 USDC (0.05624 operator, 0.00296 network) | 09:05 | [`0x1ebe664a…a62b`](https://explorer.testnet.arc.io/tx/0x1ebe664a736bf41b3ed7eb3ccc1333766713c64e8eae5c6bbc3e699f0612a62b) |
-| The session closed by its owner: 0.0108 USDC refunded (0.07 deposited, 0.0592 paid) and an ERC-8004 verdict of 100 written, in the same transaction | 10:12 | [`0x319c34ea…b305`](https://explorer.testnet.arc.io/tx/0x319c34eacadce231c7a8cd4cf0060e57285b40d5567cf5c723523e058a8ab305) |
+| The five products' workloads and policies set on-chain, and product 5's manifest updated: the v3 stack serves all five | 11:00 | [`0x97903745…58ae`](https://explorer.testnet.arc.io/tx/0x97903745a141230b581af9c0827441517476cb31656e821b6aa0357e7b4e58ae), [`0x8d4ae669…738c`](https://explorer.testnet.arc.io/tx/0x8d4ae6693fa4fc9443dacb2ff2ab78f81ae3a35e7ba75afa3b840a83ef53738c) then [`0x9d04f9ab…4a05`](https://explorer.testnet.arc.io/tx/0x9d04f9ab5d19d11d2d51043edccf4b5627752730e7bde3e8b5c3c8794a494a05) |
 
-**19 Nov 2026 (UTC)**
+**19 Nov 2026 (UTC), the v3 stack deployed and wired**
 
 | What it proves | Time | Transaction |
 |---|---|---|
-| Product 3 enclave (pay per call) admitted: Intel DCAP and boot-log replay | 00:55 | [`0x54d7cf7e…37ef`](https://explorer.testnet.arc.io/tx/0x54d7cf7e891d489093b139d99db37620f9e422c69005eff4bf1549fb9eae37ef) |
-| Product 2 enclave (sealed bounty) admitted | 00:55 | [`0x351edb8c…0357`](https://explorer.testnet.arc.io/tx/0x351edb8ca280a7a0dca7ffbd562afeb9215522df250d28288c28fdc4802f0357) |
-| Proof of Cloud token verified on Arc (Ed25519): the chip is declared until 26 Nov | 00:56 | [`0x38c587ae…1e83`](https://explorer.testnet.arc.io/tx/0x38c587aefb3d325383f471be5f6f359dd40123b4c57ce259b0c0bd96987b1e83) |
-| Product 1 enclave (private AI) admitted | 01:01 | [`0x3ab1e3da…ae72`](https://explorer.testnet.arc.io/tx/0x3ab1e3dac834f9fb4d5a97f67f7ea5f299b9e92ea3a1a76791a86886e0a1ae72) |
-| Product 7 enclave (verified bounty) admitted | 01:02 | [`0xf18cb68f…6a2c`](https://explorer.testnet.arc.io/tx/0xf18cb68f068e5cfaa993a67da2fd98f4c5d73123460533d0901052b06d166a2c) |
-| A pay-per-call answer settled by the operator: 0.01 USDC (0.0095 operator, 0.0005 network) | 02:00 | [`0xeadad0b4…fbd0`](https://explorer.testnet.arc.io/tx/0xeadad0b46d51a733997777bccfedd3f05dc69a0a942620f7458c75e35c16fbd0) |
-| Prepaid session #2 opened (0.05 USDC), locked on the product 1 enclave | 02:11 | [`0xdb7fc9e3…666d`](https://explorer.testnet.arc.io/tx/0xdb7fc9e3b024415599eee67746ae162f3032add224afed25ab7c09862b83666d) |
-| A demo bounty posted on the verified bounty (1 USDC pool, open until 22 Nov) | 02:16 | [`0x28d12457…daea`](https://explorer.testnet.arc.io/tx/0x28d12457644404621d37c52b4c93fab0317c8b0883adb74f347bf5e65f6edaea) |
-| The session settled by the operator on the enclave's last cumulative receipt: 0.034 USDC | 02:20 | [`0x97c17946…79ee`](https://explorer.testnet.arc.io/tx/0x97c17946a14c02cdbdd1d6aafd7a405500b6bd44a5f536c77af560aa0cbc79ee) |
-| The session closed: 0.016 USDC refunded and ERC-8004 verdict 100, in one transaction | 03:23 | [`0x95c9f59e…b1c2`](https://explorer.testnet.arc.io/tx/0x95c9f59eee7597a532ce72162b83944e9364b1b600ff35ea6b9fd4eb2290b1c2) |
-| AskHive's enclave admitted (product 4) | 22:37 | [`0xde9628b2…0176`](https://explorer.testnet.arc.io/tx/0xde9628b23d0483bb666a0cd13c55c4f32a1204151323a80da9451b0aeb330176) |
+| `EnclaveRegistry` deployed: admits a machine after Intel DCAP, boot-log replay and policy | 20:33 | [`0xdf5d2ad6…9049`](https://explorer.testnet.arc.io/tx/0xdf5d2ad6529eb2bfdbc0f4dfda4368822cbe03eb7ee7b3087f145065f5679049) |
+| `TdxAttestationModule` deployed: calls Automata's DCAP verifier on Arc | 20:33 | [`0xb70b7086…238a`](https://explorer.testnet.arc.io/tx/0xb70b70868acc9c9ca4c64ae66279d68a936be6c950668cb603e6b286cb4f238a) |
+| `OperatorBond` and `VerdictLog` wired to the settlements at initialize: the bond bounds and slashes, the log writes verdicts | 20:37 | [`0x92233e31…6b15`](https://explorer.testnet.arc.io/tx/0x92233e31fefe8f153e2dd0be939910344a8cad4ec56df056618f482984796b15), [`0x5ef23fa5…58f6`](https://explorer.testnet.arc.io/tx/0x5ef23fa5074e01b5711ae7e868957d1c89a16a41e791fe716023bbb6b16358f6) |
+| Product 5, the verified bounty, published with its 1 USDC level | 20:42 | propose [`0xd5ebcd8d…acf3`](https://explorer.testnet.arc.io/tx/0xd5ebcd8d7150c6e8672ad2831e2e706e3f0fc6850828f59dc0841a2a0a6bacf3), activate [`0xb3589c76…df83`](https://explorer.testnet.arc.io/tx/0xb3589c76e92930ac1f32173b3c63aae17867a719c87d7e43df31a05fbf39df83) |
+| Every one of the 14 contracts deployed and checked (code, receipt, wiring) | 20:33–20:37 | 14 transactions in [`deployments.v3.testnet.json`](deployments.v3.testnet.json) |
 
 The site keeps the full proof chain of a live enclave: image, Intel measurement, Arc admission, signed answer, USDC
 payment and ERC-8004 verdict. Read it with `curl -s https://arc-hive.xyz/api/proof`.
