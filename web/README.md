@@ -4,8 +4,7 @@ The console is where people use ArcHive on Arc testnet (chainId 5042002). Browse
 serve them. Chat with a private AI over an encrypted session, or pay per call with x402. Post a sealed bounty or hunt
 one, run an operator machine, publish a product. On every page, AskHive explains what you see.
 
-Live: https://archive.62-171-153-35.sslip.io/console/ (https://arc-hive.xyz/console/ leads there). The 3D server room
-is at `/datacenter/` on both hosts.
+Live: https://arc-hive.xyz/console/. The 3D server room is at https://arc-hive.xyz/datacenter/.
 
 The console is built with React 18, Vite 5, TypeScript and Tailwind. Wallets connect through wagmi and RainbowKit, and
 viem talks to Arc. The ArcHive SDK (`../packages/sdk`) is compiled from source, through `vite.config.ts` and
@@ -60,12 +59,12 @@ it. The service URLs are fixed at build time and default to the local services (
 http://localhost:8809). The production build uses the live paths, as `deploy/build.sh` does:
 
 ```sh
-VITE_API_URL=https://archive.62-171-153-35.sslip.io/api \
-VITE_COPILOT_URL=https://archive.62-171-153-35.sslip.io/copilot \
-VITE_ENCLAVE_URL=https://archive.62-171-153-35.sslip.io/enclave/inference \
-VITE_O3_URL=https://archive.62-171-153-35.sslip.io/enclave/bounty \
-VITE_X402_URL=https://archive.62-171-153-35.sslip.io/enclave/x402 \
-VITE_COPILOT_SITE_ENCLAVE_URL=https://archive.62-171-153-35.sslip.io/enclave/copilot-site \
+VITE_API_URL=https://arc-hive.xyz/api \
+VITE_COPILOT_URL=https://arc-hive.xyz/copilot \
+VITE_ENCLAVE_URL=https://arc-hive.xyz/enclave/inference \
+VITE_O3_URL=https://arc-hive.xyz/enclave/bounty \
+VITE_X402_URL=https://arc-hive.xyz/enclave/x402 \
+VITE_COPILOT_SITE_ENCLAVE_URL=https://arc-hive.xyz/enclave/copilot-site \
 npx vite build --base /console/
 ```
 
@@ -89,7 +88,7 @@ all through `errors.ts`:
   (products 1 to 5 and 7). That match lets the console show a product's image as proven. Older sets stay unchanged, so
   earlier registrations remain checkable.
 - `archive-node.mjs`: the operator agent, built from `packages/node` (`npm run build` there copies it here).
-- `install.sh`: installs that agent (`curl -fsSL https://archive.62-171-153-35.sslip.io/install.sh | sh`). It prints
+- `install.sh`: installs that agent (`curl -fsSL https://arc-hive.xyz/install.sh | sh`). It prints
   the agent's SHA-256, and refuses a mismatch when `ARCHIVE_NODE_SHA256` is set.
 
 ## The 3D server room

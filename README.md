@@ -45,14 +45,11 @@ rack is a product with its live state; the others are open slots.
 | The services, prices and shares | https://arc-hive.xyz/service.html |
 | The Doc: how Arc checks every machine, every proof linked | https://arc-hive.xyz/doc.html |
 | Bring USDC to Arc with Circle's CCTP (from Ethereum Sepolia or Base Sepolia) | https://arc-hive.xyz/bridge.html |
-| Console (sessions, bounties, operators, developers) | https://archive.62-171-153-35.sslip.io/console/ |
+| Console (sessions, bounties, operators, developers) | https://arc-hive.xyz/console/ |
 | 3D server room (live, or a replay of recorded events) | https://arc-hive.xyz/datacenter/ |
 | Read API (JSON, no key) | https://arc-hive.xyz/api/stats |
 | MCP server for AI agents (16 tools, no key) | https://arc-hive.xyz/mcp |
 | Arc testnet explorer | https://explorer.testnet.arc.io |
-
-The same site also answers at the server's own address, https://archive.62-171-153-35.sslip.io. The console and the
-operators' wallet sign-in run there, and https://arc-hive.xyz/console/ redirects to it.
 
 ## Check it in two minutes
 
@@ -76,7 +73,7 @@ below opens on the explorer at `https://explorer.testnet.arc.io/tx/<hash>`.
 1. **Get test USDC** from https://faucet.circle.com: 20 USDC every 2 hours on Arc testnet, where USDC also pays the
    gas.
 2. **Pay for one answer**: one 0.01 USDC call to product 3 from the console's pay-per-call chat
-   (https://archive.62-171-153-35.sslip.io/console/), or a prepaid session on product 1 from *My space* on
+   (https://arc-hive.xyz/console/), or a prepaid session on product 1 from *My space* on
    https://arc-hive.xyz. The operator then settles it on Arc: 95 % to the operator and 5 % to the network, in one
    transaction.
 

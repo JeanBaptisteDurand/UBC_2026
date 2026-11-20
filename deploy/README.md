@@ -1,6 +1,6 @@
 # Deploying ArcHive
 
-One server runs https://arc-hive.xyz. It also answers at `archive.62-171-153-35.sslip.io`, the console's origin.
+One server runs https://arc-hive.xyz.
 
 The whole site runs from one folder, `/opt/archive`. The server builds it from the source in `/opt/archive/src`: this
 repository, without secrets. The enclaves do not run here, because this server has no Intel TDX. They run in Intel

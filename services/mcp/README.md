@@ -4,7 +4,7 @@ The MCP server lets any AI agent use ArcHive on Arc testnet: Claude Code, Claude
 It **reads** the network: products, enclaves, bounties, sessions, activity and on-chain state. It **prepares**
 operations that the user signs in their own wallet. It holds no key, and no tool sends a transaction.
 
-The server is live at **https://arc-hive.xyz/mcp** (also served at `https://archive.62-171-153-35.sslip.io/mcp`):
+The server is live at **https://arc-hive.xyz/mcp**:
 
 ```sh
 claude mcp add --transport http archive https://arc-hive.xyz/mcp

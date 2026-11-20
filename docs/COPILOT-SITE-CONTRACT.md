@@ -6,8 +6,7 @@ product 4 (`/enclave/copilot-site/`). The site's panel (`frontend/src/copilot/`)
 verify it, and says so on screen.
 
 This document is the contract between the panel, the copilot service and the MCP server. In production,
-https://arc-hive.xyz is one server where Caddy routes by path. The same routes answer at the server's own address,
-https://archive.62-171-153-35.sslip.io, where the console runs (`https://arc-hive.xyz/console/` redirects there).
+https://arc-hive.xyz is one server where Caddy routes by path; the console is at `https://arc-hive.xyz/console/`.
 
 ## 1. Routes in production
 
