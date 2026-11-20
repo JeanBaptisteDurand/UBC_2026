@@ -47,7 +47,7 @@ function enclaveKeyError(first: any, fr: boolean): string {
       return t("err.enclave.wrongOperator", { op: op && short(op, 4), expected: expected && short(expected, 4) });
     }
   }
-  // « la clé de l'enclave ne correspond pas à celle inscrite sur Arc : envoi refusé (…) »
+  // in French, the SDK's own sentence: the enclave's key does not match the one registered on Arc, sending refused
   return fr ? String(first.message) : t("err.enclave.mismatch", { detail });
 }
 
@@ -112,7 +112,7 @@ export function explainError(e: unknown): string {
 
   const hit = arcErrorOf(e);
   if (hit) {
-    if (fr) return explainArcError(e); // « refusé par le contrat : Nom(args) — explication »
+    if (fr) return explainArcError(e); // the SDK's French sentence: refused by the contract, Name(args), the reason
     const args = hit.args.length ? ` (${hit.args.map((a) => (typeof a === "bigint" ? a.toString() : String(a))).join(", ")})` : "";
     const why = ARC_ERRORS_EN[hit.name];
     return why ? t("err.contract", { name: hit.name, args, why }) : t("err.contractGeneric", { name: hit.name, args });
