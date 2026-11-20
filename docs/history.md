@@ -5,10 +5,10 @@ ArcHive's earlier contract sets, kept for the record. The site, the API and the 
 
 ## Timeline
 
-Everything below was built during the hackathon week, and the commit times are the push times. The dates that matter
-are on-chain: every contract deployment and enclave admission listed below links to its transaction.
+The week went into the core below, then into the marketplace, AskHive and the v3 stack, and every deployment and
+admission here links to its transaction on Arc. The commit times are the push times.
 
-**The core, 13 to 16 Nov 2026** (the dates come from the deployment records and Arc's explorer):
+**The core, 13 to 16 Nov 2026:**
 
 - **Contracts** (`contracts/`): stack v2 deployed on Arc testnet on 13 Nov (its `EnclaveRegistry`:
   [`0x36ac21e4…d493`](https://explorer.testnet.arc.io/tx/0x36ac21e47bf96affcdfa496780f27ef8204eb770d7cab859fe367ed89873d493)),
