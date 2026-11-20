@@ -84,6 +84,9 @@ export function Hero() {
             <span className="hero-cp-t">{t('hero.copilot')}</span>
             <span className="hero-cp-k">{t('hero.copilot.k')}</span>
           </a>
+          {/* for AI agents: one quiet line under the copilot bar, no new button; it opens the Services chapter that holds
+              the MCP address to copy */}
+          <a className="hero-agent" href={`${link.catalog}?c=build`}>{t('hero.agent')}</a>
         </div>
         <WallMirror />
       </div>

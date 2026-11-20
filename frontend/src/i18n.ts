@@ -33,6 +33,9 @@ const EN = {
   'sv.k.bounty': 'Post a reward for a proven answer. Operators’ enclaves claim it, and a false claim is refuted on Arc and its bond seized.',
   'sv.k.author': 'A service published by an independent author and run by operators in sealed Intel TDX enclaves.',
   'hero.copilot': 'Ask AskHive', 'hero.copilot.k': 'finds and prepares, you sign',
+  // the line for AI agents under the hero buttons (sections/Hero.tsx); the entry xyz.arc-hive/archive is live in the
+  // official MCP Registry (registry.modelcontextprotocol.io, read on 20 November 2026)
+  'hero.agent': 'For AI agents: an MCP server at arc-hive.xyz/mcp, listed in the official MCP Registry, 16 tools, no key. It reads and prepares, it never signs.',
   'svc.ai': 'Private AI', 'svc.x402': 'Private AI, pay per call', 'svc.bounty': 'Sealed Bounty', 'svc.copilot': 'Attested copilot', 'svc.author': 'Author service',
   'led.off': 'open slot', 'led.amber': 'waiting', 'led.replay': 'replayed, waiting', 'led.green': 'running',
   'plate.off': 'Open slot', 'plate.sub.off': 'Available', 'plate.sub.green': 'Running', 'plate.sub.amber': 'Waiting', 'plate.sub.red': 'Invalid', 'plate.sub.refused': 'Refused', 'plate.sub.dim': 'Inactive', 'why.expiredShort': 'inactive', 'why.invalidated': 'invalidated', 'why.retired': 'withdrawn by its operator', 'why.slashed': 'caught lying, bond seized', 'why.productRetired': 'product retired',
@@ -45,7 +48,7 @@ const EN = {
   'read.open': 'open slot', 'read.walls': 'Wall of sleds. Arrow keys move between slots, Enter opens the sled’s service.',
   // state sections (legend)
   'use.title': 'Use {a service}.',
-  'use.lede': 'A green light is a service running in a sealed enclave that Arc has verified. Call it from the browser, an agent or the SDK. Paid services settle each use in USDC.',
+  'use.lede': 'A green light is a service running in a sealed enclave that Arc has admitted. Call it from the browser, the SDK or your own agent. Private AI costs 0.01 USDC a call, paid with x402 through our SDK: one signature, no account, no gas. Each payment is capped at the price read on Arc, bound to that one request, and paid only against the enclave’s signed receipt.',
   'use.pick': 'Pick a service right on the wall: choose any sled to see what it does and use it.', 'svx.lede': 'Every service registered on ArcHive, read live on Arc testnet. Each one runs in sealed Intel TDX enclaves; open it to see what it does, or use it at once.', 'svx.free': 'free', 'svx.run': '{a} of {b} enclaves running', 'svx.more': 'See the service', 'svx.back': 'All services', 'nav.catalog': 'Services', 'use.key': 'Green, running', 'use.lastNet': 'Latest payment on ArcHive',
   // Services page (src/services/Vitrine.tsx): the product presentation, read in the left column
   'vit.k': 'Services', 'vit.back': 'All services', 'vit.toc': 'On this page', 'hero.scroll': 'Scroll', 'vit.cta': 'The sleds on the right are interactive: click one to see its service and use it.', 'vit.of': '{a} of {b}', 'vit.prev': 'Previous chapter', 'vit.next': 'Next chapter', 'vit.more': 'Also on this page',
