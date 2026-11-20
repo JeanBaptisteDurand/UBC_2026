@@ -18,7 +18,7 @@ import { dstackImageFromAttest } from "../../packages/sdk/src/dstack-eventlog";
 import { parseTdxQuote } from "../../packages/sdk/src/quote";
 
 const ROOT = new URL("../../", import.meta.url);
-const D = JSON.parse(readFileSync(new URL(process.env.DEPLOYMENTS ?? "deployments.v2.testnet.json", ROOT), "utf8"));
+const D = JSON.parse(readFileSync(new URL(process.env.DEPLOYMENTS ?? "docs/history/deployments.v2.testnet.json", ROOT), "utf8"));
 const K = D.contracts as Record<string, Address>;
 const abi = (name: string, dir = name): Abi => JSON.parse(readFileSync(new URL(`contracts/out/${dir}.sol/${name}.json`, ROOT), "utf8")).abi;
 const ENCLAVE = (process.env.ENCLAVE_URL ?? "").replace(/\/$/, "");

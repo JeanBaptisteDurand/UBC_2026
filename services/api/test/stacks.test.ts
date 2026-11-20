@@ -16,7 +16,7 @@ import { EventIndexer, abiFingerprint } from "../src/indexer";
 import { EVENTS, EVENTS_LEVELS } from "../src/events";
 
 // the two deployment records of the repository, as the API reads them
-const json = (f: string) => JSON.parse(readFileSync(new URL(`../../../${f}`, import.meta.url), "utf8"));
+const json = (f: string) => JSON.parse(readFileSync(new URL(`../../../${f.startsWith("docs/") ? "" : "docs/history/"}${f}`, import.meta.url), "utf8"));
 const v3 = json("deployments.v3.testnet.json");
 const v21 = json("deployments.v21.testnet.json");
 

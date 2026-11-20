@@ -85,11 +85,11 @@ tests. The sources exactly as deployed, with their original French comments, are
 
 ## Deployments
 
-- **Live stack, v2.1 (13 contracts in service)**: [`../deployments.v21.testnet.json`](../deployments.v21.testnet.json).
-  The core was deployed with `script/DeployTestnet.s.sol`; the operator levels and `SealedBountyVerified` with
-  [`../enclave/scripts/levels-setup.ts`](../enclave/scripts/levels-setup.ts), which deploys the artifacts built here.
-- **Next stack, v3 (14 contracts deployed, not yet live)**: [`../deployments.v3.testnet.json`](../deployments.v3.testnet.json),
+- **Live stack, v3 (14 contracts in service)**: [`../deployments.v3.testnet.json`](../deployments.v3.testnet.json),
   with every transaction and the bytecode check against this source.
+  The core is deployed with `script/DeployTestnet.s.sol`; the operator levels and `SealedBountyVerified` with
+  [`../enclave/scripts/levels-setup.ts`](../enclave/scripts/levels-setup.ts), which deploys the artifacts built here.
+- **The previous set, v2.1**: [`history/deployments.v21.testnet.json`](history/deployments.v21.testnet.json).
 - **Intel's verifier** (Automata DCAP, deployed by us from its MIT code with Intel's collateral):
   [`../deployments.dcap.testnet.json`](../deployments.dcap.testnet.json).
 - `script/Deploy.s.sol` deploys and wires the core for Arc mainnet. Its guardrails refuse a timelock below 48 h, a

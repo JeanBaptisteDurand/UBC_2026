@@ -287,7 +287,7 @@ async function main(): Promise<void> {
   const args = new Set(process.argv.slice(2));
   const KEYS_ONLY = args.has("--keys");
   const DRY = args.has("--dry");
-  const DEPLOYMENTS = process.env.DEPLOYMENTS ?? "deployments.v21.testnet.json";
+  const DEPLOYMENTS = process.env.DEPLOYMENTS ?? "docs/history/deployments.v21.testnet.json";
   if (!/v21/.test(DEPLOYMENTS)) throw new Error("DEPLOYMENTS must be the v2.1 stack (deployments.v21.testnet.json): this script does not touch the other stacks");
   const DEPLOY_URL = new URL(DEPLOYMENTS, ROOT);
   const readDeployments = () => JSON.parse(readFileSync(DEPLOY_URL, "utf8"));

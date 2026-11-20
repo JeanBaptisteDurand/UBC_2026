@@ -216,7 +216,7 @@
       "productId": 7
     }
   },
-  "previous": "deployments.v2.testnet.json (stack v2 of 13 Nov 2026, retired after the switch to v2.1)",
+  "previous": "docs/history/deployments.v2.testnet.json (stack v2 of 13 Nov 2026, retired after the switch to v2.1)",
   "os": {
     "name": "dstack-0.5.12 (production, no SSH)",
     "osImageHash": "0x8db40cb23008d6213668b5816702d100b37b859a8a5bfd18d938ae3a1b3715bd"

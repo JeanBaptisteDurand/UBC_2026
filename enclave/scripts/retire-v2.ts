@@ -12,7 +12,7 @@ import { createPublicClient, createWalletClient, http, type Abi, type Address, t
 import { privateKeyToAccount } from "viem/accounts";
 
 const ROOT = new URL("../../", import.meta.url);
-const D = JSON.parse(readFileSync(new URL("deployments.v2.testnet.json", ROOT), "utf8"));
+const D = JSON.parse(readFileSync(new URL("docs/history/deployments.v2.testnet.json", ROOT), "utf8"));
 const K = D.contracts as Record<string, Address>;
 const abi = (n: string): Abi => JSON.parse(readFileSync(new URL(`contracts/out/${n}.sol/${n}.json`, ROOT), "utf8")).abi;
 const chain = { id: 5042002, name: "Arc testnet", nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 }, rpcUrls: { default: { http: ["https://rpc.testnet.arc.io"] } } } as const;

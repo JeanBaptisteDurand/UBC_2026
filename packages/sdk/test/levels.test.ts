@@ -30,7 +30,7 @@ describe("Proof of Cloud alliance token", () => {
 
 describe("levels addresses", () => {
   it("the v2.1 deployment file and the SDK's testnet stack give the same ones", () => {
-    const d = deploymentFromJson(JSON.parse(readFileSync(new URL("../../../deployments.v21.testnet.json", import.meta.url), "utf8")));
+    const d = deploymentFromJson(JSON.parse(readFileSync(new URL("../../../docs/history/deployments.v21.testnet.json", import.meta.url), "utf8")));
     expect(d.levels).toBeDefined();
     for (const k of ["machineRegistry", "proofOfCloudAuditor", "ed25519Verifier", "policyEnclaves", "sealedBountyVerified"] as const) {
       expect(d.levels![k].toLowerCase()).toBe(testnet.levels![k].toLowerCase());

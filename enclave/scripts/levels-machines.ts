@@ -21,7 +21,7 @@ import {
 import { privateKeyToAccount } from "viem/accounts";
 
 const ROOT = new URL("../../", import.meta.url);
-const DEPLOY_FILE = new URL(process.env.DEPLOYMENTS ?? "deployments.v21.testnet.json", ROOT);
+const DEPLOY_FILE = new URL(process.env.DEPLOYMENTS ?? "docs/history/deployments.v21.testnet.json", ROOT);
 const D = JSON.parse(readFileSync(DEPLOY_FILE, "utf8"));
 const K = D.contracts as Record<string, Address>;
 const L = D.levels as Record<string, any>;

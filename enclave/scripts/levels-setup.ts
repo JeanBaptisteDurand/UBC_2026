@@ -18,7 +18,7 @@ import { createPublicClient, createWalletClient, http, type Abi, type Address, t
 import { privateKeyToAccount } from "viem/accounts";
 
 const ROOT = new URL("../../", import.meta.url);
-const DEPLOY_FILE = new URL(process.env.DEPLOYMENTS ?? "deployments.v21.testnet.json", ROOT);
+const DEPLOY_FILE = new URL(process.env.DEPLOYMENTS ?? "docs/history/deployments.v21.testnet.json", ROOT);
 const D = JSON.parse(readFileSync(DEPLOY_FILE, "utf8"));
 const K = D.contracts as Record<string, Address>;
 const X = D.external as Record<string, Address>;

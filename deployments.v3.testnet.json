@@ -325,7 +325,7 @@
       "v21Equivalent": "product 7 of v2.1"
     }
   },
-  "previous": "deployments.v21.testnet.json (v2.1, live until the switch)",
+  "previous": "docs/history/deployments.v21.testnet.json (v2.1, live until the switch)",
   "productsNote": "Published on 19 Nov 2026, 20:42-20:43 UTC by the deployer (author), timelock 0, same economic parameters as the v2.1 products (read on-chain from the v2.1 ProductRegistry). The v3 manifests are served at https://archive.62-171-153-35.sslip.io/manifests/ (web/public/manifests/*-v3.json; the on-chain hashes are of these exact files).",
   "operatorSetup": {
     "operator": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a",

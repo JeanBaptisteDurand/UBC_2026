@@ -11,7 +11,7 @@ import { readFileSync } from "node:fs";
 import { type Address } from "viem";
 import { COMPOSE_FILES, DEMO_PRODUCT, MAIN_OPERATOR, buildManifest, checkComposes, parseCompose } from "../scripts/refute-demo";
 
-const D = JSON.parse(readFileSync(new URL("../../deployments.v21.testnet.json", import.meta.url), "utf8"));
+const D = JSON.parse(readFileSync(new URL("../../docs/history/deployments.v21.testnet.json", import.meta.url), "utf8"));
 const K = D.contracts as Record<string, Address>;
 const X = D.external as Record<string, Address>;
 const text = (f: string) => readFileSync(new URL(`../phala/${f}`, import.meta.url), "utf8");

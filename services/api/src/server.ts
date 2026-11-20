@@ -32,8 +32,8 @@ import {
   equivalentProducts, indexSpecs, loadStacks, mergeByBlock, mergeStats, parseStack, railOf as railKind, stackValues, supersededBounties, tagEvent,
   type Rail, type StackChoice, type StackDef,
 } from "./stacks";
-import deploymentsV2 from "../../../deployments.v2.testnet.json";
-import deploymentsV21 from "../../../deployments.v21.testnet.json";
+import deploymentsV2 from "../../../docs/history/deployments.v2.testnet.json";
+import deploymentsV21 from "../../../docs/history/deployments.v21.testnet.json";
 
 const PORT = Number(process.env.PORT ?? "8809");
 const DATA_DIR = process.env.DATA_DIR ?? "./data";

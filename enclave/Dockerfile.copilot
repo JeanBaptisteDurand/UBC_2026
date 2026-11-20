@@ -47,6 +47,7 @@ COPY --from=build /src/enclave/node_modules ./node_modules
 # the deployed stacks (contract addresses, never hard-coded): DEPLOYMENTS=/app/deployments/<file>, written in clear
 # in the compose file (measured); the file itself is inside the image (pinned by digest)
 COPY deployments.*.json ./deployments/
+COPY docs/history/deployments.v2*.json ./deployments/
 ENV PORT=8808
 EXPOSE 8808
 CMD ["node", "copilot-enclave.mjs"]

@@ -579,7 +579,7 @@ frontend/           the marketplace site (Vite, React, three.js)
 web/                the console (React, in English) and the 3D server room (web/public/datacenter)
 deploy/             server deployment (built on the server from this source)
 docs/               operator levels, the AskHive and MCP contract, the earlier sets (history.md), screenshots of the site
-deployments.*.json  every deployed address and transaction: v3 (live), the earlier sets, Intel's DCAP verifier
+deployments.*.json  every deployed address and transaction: v3 (live) and Intel's DCAP verifier; the earlier sets in docs/history/
 ```
 
 Package guides: [`contracts`](contracts/README.md), [`dcap-integration`](dcap-integration/README.md),

@@ -50,7 +50,7 @@ const here = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 const COMPOSE_V22 = here("../../../enclave/phala/copilot-site-v22.yml");
 const COMPOSE_V21 = here("../../../enclave/phala/copilot-v21.yml");
 const VPS_COMPOSE = here("../../../deploy/docker-compose.vps.yml");
-const DEPLOYMENTS_V21 = here("../../../deployments.v21.testnet.json");
+const DEPLOYMENTS_V21 = here("../../../docs/history/deployments.v21.testnet.json");
 const COMPOSE_V3 = here("../../../enclave/phala/copilot-site-v3.yml");
 const DEPLOYMENTS_V3 = here("../../../deployments.v3.testnet.json");
 /** The v21 VM's app-compose.json template, saved outside the repository (V21_APP_COMPOSE=<path>): without it, the part

@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { createPublicClient, createWalletClient, http, keccak256, toBytes, type Abi, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 const ROOT = new URL("../../", import.meta.url);
-const K = JSON.parse(readFileSync(new URL(process.env.DEPLOYMENTS ?? "deployments.v2.testnet.json", ROOT), "utf8")).contracts as Record<string, Address>;
+const K = JSON.parse(readFileSync(new URL(process.env.DEPLOYMENTS ?? "docs/history/deployments.v2.testnet.json", ROOT), "utf8")).contracts as Record<string, Address>;
 const pr = JSON.parse(readFileSync(new URL("contracts/out/ProductRegistry.sol/ProductRegistry.json", ROOT), "utf8")).abi as Abi;
 const chain = { id: 5042002, name: "Arc testnet", nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 }, rpcUrls: { default: { http: ["https://rpc.testnet.arc.io"] } } } as const;
 const account = privateKeyToAccount(JSON.parse(readFileSync(new URL(".secrets/deployer.json", ROOT), "utf8")).privateKey as Hex);

@@ -114,7 +114,7 @@ These runs were made on the v2.1 set; its bytecode is the one deployed again in 
 ## Addresses
 
 - v2.1 (the previous live stack): every address and deployment transaction in
-  [`deployments.v21.testnet.json`](../deployments.v21.testnet.json).
-- v2 (the first stack, replaced on 14 Nov): [`deployments.v2.testnet.json`](../deployments.v2.testnet.json).
+  [`deployments.v21.testnet.json`](deployments.v21.testnet.json).
+- v2 (the first stack, replaced on 14 Nov): [`deployments.v2.testnet.json`](deployments.v2.testnet.json).
 - Intel's DCAP verifier and its collateral: [`deployments.dcap.testnet.json`](../deployments.dcap.testnet.json).
 - v3 (the live stack since 19 Nov): [`deployments.v3.testnet.json`](../deployments.v3.testnet.json).

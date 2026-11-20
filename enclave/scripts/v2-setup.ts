@@ -12,7 +12,7 @@ import { createPublicClient, createWalletClient, http, keccak256, toBytes, toHex
 import { privateKeyToAccount } from "viem/accounts";
 
 const ROOT = new URL("../../", import.meta.url);
-const D = JSON.parse(readFileSync(new URL(process.env.DEPLOYMENTS ?? "deployments.v2.testnet.json", ROOT), "utf8"));
+const D = JSON.parse(readFileSync(new URL(process.env.DEPLOYMENTS ?? "docs/history/deployments.v2.testnet.json", ROOT), "utf8"));
 const K = D.contracts as Record<string, Address>;
 const X = D.external as Record<string, Address>;
 const abi = (name: string): Abi => JSON.parse(readFileSync(new URL(`contracts/out/${name}.sol/${name}.json`, ROOT), "utf8")).abi;

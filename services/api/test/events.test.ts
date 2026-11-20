@@ -219,6 +219,6 @@ test("index start block: the deployment's when known, otherwise INDEX_FROM_BLOCK
   assert.deepEqual(indexStartBlock(0n, "abc"), { block: 0n, source: "genesis" });
   assert.deepEqual(indexStartBlock(null, undefined), { block: 0n, source: "genesis" });
   // the v2.1 deployment file does carry its block
-  const d = JSON.parse(readFileSync(new URL("../../../deployments.v21.testnet.json", import.meta.url), "utf8"));
+  const d = JSON.parse(readFileSync(new URL("../../../docs/history/deployments.v21.testnet.json", import.meta.url), "utf8"));
   assert.deepEqual(indexStartBlock(BigInt(d.deployBlock)), { block: 71481927n, source: "deployment" });
 });

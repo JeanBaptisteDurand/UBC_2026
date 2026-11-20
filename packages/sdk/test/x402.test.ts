@@ -100,7 +100,7 @@ describe("x402: canonical forms", () => {
   });
 
   it("deploymentFromJson: the v2 stack file gives back exactly the SDK's v2 stack; a missing address throws", () => {
-    const j = JSON.parse(readFileSync(new URL("../../../deployments.v2.testnet.json", import.meta.url), "utf8"));
+    const j = JSON.parse(readFileSync(new URL("../../../docs/history/deployments.v2.testnet.json", import.meta.url), "utf8"));
     const d = deploymentFromJson(j);
     for (const k of ["usdc", "productRegistry", "operatorBond", "enclaveRegistry", "verdictLog", "sessionPay", "sealedBounty", "x402Settler", "attestationModule", "erc8004Validation", "erc8004Identity", "history"] as const) {
       expect(L(d[k]), k).toBe(L(testnetV2[k]));

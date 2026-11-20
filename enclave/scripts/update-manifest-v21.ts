@@ -11,7 +11,7 @@ import { createPublicClient, createWalletClient, http, keccak256, type Abi, type
 import { privateKeyToAccount } from "viem/accounts";
 
 const ROOT = new URL("../../", import.meta.url);
-const D = JSON.parse(readFileSync(new URL(process.env.DEPLOYMENTS ?? "deployments.v21.testnet.json", ROOT), "utf8"));
+const D = JSON.parse(readFileSync(new URL(process.env.DEPLOYMENTS ?? "docs/history/deployments.v21.testnet.json", ROOT), "utf8"));
 const K = D.contracts as Record<string, Address>;
 const PRODUCT_ID = BigInt(process.env.PRODUCT_ID ?? "0");
 const MANIFEST = process.env.MANIFEST ?? "";
