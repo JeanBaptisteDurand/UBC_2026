@@ -1,0 +1,18 @@
+{
+  "name": "opencode-archive",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "OpenCode on ArcHive's private AI: a local OpenAI-compatible bridge that seals each request to an enclave verified on Arc and pays it by x402",
+  "scripts": {
+    "bridge": "tsx archive-bridge.ts",
+    "mock": "MOCK=1 tsx archive-bridge.ts"
+  },
+  "dependencies": {
+    "@arcvault/sdk": "file:../../packages/sdk",
+    "@hono/node-server": "1.13.7",
+    "hono": "4.6.14",
+    "tsx": "4.19.2",
+    "viem": "2.21.54"
+  }
+}

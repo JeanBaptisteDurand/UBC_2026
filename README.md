@@ -321,6 +321,19 @@ between 20:22 and 20:23 UTC:
 [`0xec0bd6b0…68e3`](https://explorer.testnet.arc.io/tx/0xec0bd6b04fdaa3cc4966a604e8967f0e73b5ca91423d9921edb3d05c574168e3),
 [`0xe7a0e00f…f52b`](https://explorer.testnet.arc.io/tx/0xe7a0e00fe514f10d602b1495d2d84a5e9f5b4c67e1fb5ba33cf7e190d8a1f52b).
 
+### Run your coding agent on ArcHive (OpenCode)
+
+[`examples/opencode-archive`](examples/opencode-archive/) makes product 3 the AI of OpenCode, the open-source coding
+agent: not an MCP server, the agent's own model. A local bridge seals each request to the enclave whose key Arc checked
+and pays 0.01 USDC per call by x402; OpenCode's tools run on your machine and their output goes back sealed. The model
+is `gpt-oss-120b`, which the enclave calls. On 20 Nov 2026 OpenCode listed a folder this way, and the operator settled
+the paid Glob call on Arc: [`0xb381773a…fa31`](https://explorer.testnet.arc.io/tx/0xb381773a089fb338a11081a9098174fdc4d0db14374d8a7f3ee1652f2727fa31).
+
+```sh
+cd packages/sdk && npm ci && cd ../../examples/opencode-archive && npm ci
+ARCHIVE_PAYER_KEY_FILE=<test wallet JSON> ./opencode-archive
+```
+
 ## Agent decision loop and safety limits
 
 An AI agent reads ArcHive through the API or the MCP server and calls a service through the SDK

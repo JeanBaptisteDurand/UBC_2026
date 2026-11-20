@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+# opencode-archive: OpenCode (the open-source coding agent) on ArcHive's private AI, product 3 on Arc testnet.
+# Each model request is sealed (HPKE) to the product 3 enclave, whose Intel TDX key is checked on Arc, and paid
+# 0.01 test USDC per call by x402 (one EIP-3009 authorization per request); the operator settles it on Arc
+# (X402Settler, event CallSettled). Your usual OpenCode setup is untouched: this one reads ./opencode.json only
+# and keeps its own data under $ARCHIVE_HOME.
+#
+#   ./opencode-archive [opencode args]   start the local bridge if needed, then OpenCode on archive/gpt-oss-120b
+#   ./opencode-archive start             start the bridge only (in the background)
+#   ./opencode-archive log               follow the bridge: each paid call, its receipt, its settlement tx on Arc
+#   ./opencode-archive status            is the bridge up (payer, enclave, paid calls)
+#   ./opencode-archive stop              stop the bridge (this also resets its cap of paid calls per run)
+#   ./opencode-archive bridge            run the bridge in the foreground
+#
+# Required: ARCHIVE_PAYER_KEY_FILE, a JSON file {"privateKey": "0x..."} of your own TEST wallet holding test USDC on
+# Arc testnet. Only the bridge process reads it; OpenCode and its tools never get the variable.
+# Optional: ARCHIVE_ENCLAVE_URL, ARCHIVE_BRIDGE_PORT (8789), ARCHIVE_MAX_CALLS (30), ARCHIVE_TOOLS (emulate | off),
+# ARCHIVE_RPC_URLS, ARCHIVE_HOME (~/.local/state/opencode-archive).
+set -euo pipefail
+
+SELF="${BASH_SOURCE[0]}"
+while [ -L "$SELF" ]; do
+  d="$(cd "$(dirname "$SELF")" && pwd)"; SELF="$(readlink "$SELF")"; [[ "$SELF" = /* ]] || SELF="$d/$SELF"
+done
+HERE="$(cd "$(dirname "$SELF")" && pwd)"
+
+STATE="${ARCHIVE_HOME:-$HOME/.local/state/opencode-archive}"
+LOGDIR="$STATE/logs"
+PIDFILE="$STATE/bridge.pid"
+export ARCHIVE_BRIDGE_PORT="${ARCHIVE_BRIDGE_PORT:-8789}"   # read by opencode.json ({env:ARCHIVE_BRIDGE_PORT})
+PORT="$ARCHIVE_BRIDGE_PORT"
+# product 3's enclave (the live endpoint is also listed by https://arc-hive.xyz/api/enclaves)
+ENCLAVE_URL="${ARCHIVE_ENCLAVE_URL:-https://54623c0974ceed19ccbcf121548937016f8cbab8-8804.dstack-pha1-prod9.phala.network}"
+mkdir -p "$LOGDIR"
+
+health() { curl -s -m 3 "http://127.0.0.1:$PORT/health" 2>/dev/null; }
+up() { health | grep -q '"ok":true'; }
+
+# the bridge's settings go to the bridge process only
+BRIDGE=(env ENCLAVE_URL="$ENCLAVE_URL" PAYER_KEY_FILE="${ARCHIVE_PAYER_KEY_FILE:-}" PRODUCT_ID=3 PORT="$PORT"
+  MAX_AMOUNT=10000 MAX_CALLS="${ARCHIVE_MAX_CALLS:-30}" TOOLS="${ARCHIVE_TOOLS:-emulate}" LOG_FILE="$LOGDIR/calls.jsonl"
+  RPC_URLS="${ARCHIVE_RPC_URLS:-https://rpc.testnet.arc.io,https://rpc.testnet.arc.network}"
+  "$HERE/node_modules/.bin/tsx" "$HERE/archive-bridge.ts")
+check_setup() {
+  [ -n "${ARCHIVE_PAYER_KEY_FILE:-}" ] && [ -f "$ARCHIVE_PAYER_KEY_FILE" ] || {
+    echo "opencode-archive: set ARCHIVE_PAYER_KEY_FILE to a JSON file {\"privateKey\": \"0x...\"} of a test wallet" >&2; exit 1; }
+  [ -x "$HERE/node_modules/.bin/tsx" ] || {
+    echo "opencode-archive: run npm ci in packages/sdk, then in $HERE (see README.md)" >&2; exit 1; }
+}
+
+start_bridge() {
+  up && return 0
+  check_setup
+  echo "opencode-archive: starting the ArcHive bridge (it checks the enclave key on Arc)..." >&2
+  ( cd "$HERE" || exit 1
+    nohup "${BRIDGE[@]}" >>"$LOGDIR/bridge.log" 2>&1 </dev/null &
+    echo $! >"$PIDFILE" )
+  for _ in $(seq 1 60); do
+    up && { tail -n 3 "$LOGDIR/bridge.log" | sed 's/^/  /' >&2; return 0; }
+    sleep 0.5
+  done
+  echo "opencode-archive: the bridge did not start; last lines of $LOGDIR/bridge.log:" >&2
+  tail -n 15 "$LOGDIR/bridge.log" >&2
+  exit 1
+}
+
+case "${1:-}" in
+  start)
+    start_bridge; exit 0 ;;
+  log|logs)
+    touch "$LOGDIR/bridge.log"; exec tail -n "${2:-20}" -f "$LOGDIR/bridge.log" ;;
+  status)
+    if up; then health; echo; else echo "bridge: down (port $PORT)"; fi; exit 0 ;;
+  stop)
+    pids="$(lsof -ti "tcp:$PORT" -sTCP:LISTEN 2>/dev/null || true)"
+    [ -f "$PIDFILE" ] && pids="$pids $(cat "$PIDFILE")"
+    if [ -n "${pids// /}" ]; then kill $pids 2>/dev/null || true; sleep 0.5; echo "bridge stopped"; else echo "bridge: not running"; fi
+    rm -f "$PIDFILE"; exit 0 ;;
+  bridge)
+    up && { echo "bridge already running on port $PORT"; exit 0; }
+    check_setup; cd "$HERE" && "${BRIDGE[@]}" 2>&1 | tee -a "$LOGDIR/bridge.log"; exit 0 ;;
+esac
+
+start_bridge
+# OpenCode and the tools it runs (bash included) never see the payer's key file path or the bridge's settings
+unset ARCHIVE_PAYER_KEY_FILE ARCHIVE_ENCLAVE_URL ARCHIVE_MAX_CALLS ARCHIVE_TOOLS ARCHIVE_RPC_URLS
+export OPENCODE_CONFIG="$HERE/opencode.json"
+export XDG_DATA_HOME="$STATE/data"            # its own sessions and logs: never shares (or locks) your usual OpenCode data
+export OPENCODE_DISABLE_PROJECT_CONFIG=1      # a project's opencode.json cannot switch the model away from ArcHive
+export OPENCODE_DISABLE_CLAUDE_CODE=1         # no instruction files or skills of other agents in the prompt: requests stay small,
+export OPENCODE_DISABLE_EXTERNAL_SKILLS=1     # and those files stay on your machine
+export OPENCODE_DISABLE_AUTOUPDATE=1 OPENCODE_DISABLE_SHARE=1
+export OPENCODE_DISABLE_MODELS_FETCH=1 OPENCODE_DISABLE_DEFAULT_PLUGINS=1   # no network at start-up: only the bridge is used
+exec opencode "$@"
