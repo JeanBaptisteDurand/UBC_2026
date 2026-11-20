@@ -67,7 +67,7 @@ export async function startFakeApi(routes: Record<string, Route> = defaultRoutes
 /** A fake Arc client: any SDK list (hence the Blockscout explorer) fails the test; the one-off on-chain reads return
  *  fixed values. */
 export function fakeArc(): ArcClient {
-  const forbidden = () => { throw new Error("liste du SDK appelée : l'explorateur ne doit plus jamais servir de source"); };
+  const forbidden = () => { throw new Error("SDK list called: the explorer must never be a source again"); };
   return {
     d: testnet,
     listEnclaves: forbidden, listBounties: forbidden, listProducts: forbidden, listMySessions: forbidden,
@@ -82,7 +82,7 @@ export function fakeArc(): ArcClient {
           case "WINDOW": return 86_400n;
           case "VALIDITY_BLOCKS": case "GRACE_BLOCKS": return 1_000n;
           case "BLOCK_TIME_MS": return 500n;
-          default: throw new Error(`lecture inattendue : ${functionName}`);
+          default: throw new Error(`unexpected read: ${functionName}`);
         }
       },
     },

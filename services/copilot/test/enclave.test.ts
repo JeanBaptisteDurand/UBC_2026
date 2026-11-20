@@ -112,7 +112,7 @@ function fakeChain(h: { kit: EnclaveKit; chain: ChainState }): any {
         case "isWorkloadAllowed": assert.equal(args[1], WORKLOAD); return st.allowed;
         case "banned": assert.equal(address, BOND); return st.banned;
         case "getProduct": return { param: keccak256(toBytes("openai/gpt-oss-120b")) };
-        default: throw new Error(`lecture inattendue : ${functionName}`);
+        default: throw new Error(`unexpected read: ${functionName}`);
       }
     },
   };

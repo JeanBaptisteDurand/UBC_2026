@@ -147,7 +147,7 @@ function harness(o: { mock?: boolean; turn?: Turn; facts?: Partial<EnclaveFacts>
     if (name === "docs_search") return base.executeTool(name, args, user);
     if (name === "operator_prepare_bond") return { result: { ...BOND_CARD, owner: user ?? null } };
     if (name === "enclaves_list") return { result: { enclaves: [{ signer: kit.keys.signer, productId: "4", active: true }] } };
-    throw new Error(`outil inattendu dans ce test : ${name}`);
+    throw new Error(`unexpected tool in this test: ${name}`);
   };
   const copilot = siteEnclaveOptions({
     ...base, llm: m.llm, executeTool, allowedOrigins: [SITE], rate: { perMinute: 1_000, perDay: 10_000, globalPerDay: 0 }, secrets: [SERVER_KEY],
@@ -189,7 +189,7 @@ async function panelProof(signer: Address, enc: Uint8Array, reqCt: Uint8Array, i
     [REPLY_TAG, BigInt(CHAIN), REG, PRODUCT, signer, request, bodyHash],
   ));
   let who = "";
-  try { who = await recoverMessageAddress({ message: { raw: digest }, signature }); } catch { /* signature malformée */ }
+  try { who = await recoverMessageAddress({ message: { raw: digest }, signature }); } catch { /* malformed signature */ }
   return who.toLowerCase() === signer.toLowerCase() ? { kind: "signed", digest } : { kind: "sealed", bad: true, digest };
 }
 

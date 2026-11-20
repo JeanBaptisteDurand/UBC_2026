@@ -53,7 +53,7 @@ test("outils de liste du copilote contre l'API en ligne", { skip }, async () => 
   }
   for (const x of [e, p, s, a]) assert.ok(x.ms < 8_500, "each list fits in the 8 s timeout");
   const hosts = [...new Set(contacted.map((u) => new URL(u).host))];
-  console.log("  hôtes contactés :", hosts.join(", "));
+  console.log("  hosts contacted:", hosts.join(", "));
   assert.ok(contacted.some((u) => u.startsWith(api)), "the index API served the lists");
   assert.ok(contacted.every((u) => !/explorer|blockscout/i.test(u)), "the explorer is never contacted");
 });

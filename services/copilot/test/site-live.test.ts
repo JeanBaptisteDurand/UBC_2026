@@ -74,7 +74,7 @@ function arcWith(verified: Array<{ productId: number; balance: bigint; deadline:
             const b = verified[Number(args![0]) - 1]!;
             return { protocol: "0x5724d89D610c3017b8DC161c025248341556f6Ab", productId: BigInt(b.productId), balance: b.balance, deadline: BigInt(b.deadline), paused: !!b.paused, paidAmount: 0n };
           }
-          default: throw new Error(`lecture inattendue : ${functionName}`);
+          default: throw new Error(`unexpected read: ${functionName}`);
         }
       },
     },

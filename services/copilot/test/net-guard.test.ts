@@ -172,7 +172,7 @@ test("refused: redirect, response too large, timeout", async () => {
   const big = await safeFetch(`${base}/attest`, {}, { ...pin, maxBytes: 1_000 });
   await assert.rejects(big.text(), /too large/);
 
-  handler = () => { /* ne répond jamais */ };
+  handler = () => { /* never answers */ };
   const t0 = Date.now();
   await assert.rejects(safeFetch(`${base}/attest`, {}, { ...pin, timeoutMs: 300 }), /timed out/);
   assert.ok(Date.now() - t0 < 3_000);

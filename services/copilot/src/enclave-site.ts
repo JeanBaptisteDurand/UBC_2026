@@ -114,12 +114,12 @@ export async function verifySiteReply(
   if (!isObj(inner) || !isObj(inner.body)) return { ok: false, why: "reply outside the { status, body } shape" };
   const sig = isObj(inner.sig) ? inner.sig : null;
   if (!sig || sig.v !== SITE_REPLY_TAG) return { ok: false, why: "unsigned reply" };
-  if (typeof sig.signature !== "string" || !/^0x[0-9a-fA-F]{130}$/.test(sig.signature)) return { ok: false, why: "signature illisible" };
+  if (typeof sig.signature !== "string" || !/^0x[0-9a-fA-F]{130}$/.test(sig.signature)) return { ok: false, why: "unreadable signature" };
   const requestHash = siteRequestHash(o.enc, o.ciphertext);
   const bodyHash = siteBodyHash(inner.body);
   const digest = siteReplyDigest({ ...o, requestHash, bodyHash });
   let who: Address;
-  try { who = await recoverMessageAddress({ message: { raw: digest }, signature: sig.signature as Hex }); } catch { return { ok: false, why: "signature illisible" }; }
+  try { who = await recoverMessageAddress({ message: { raw: digest }, signature: sig.signature as Hex }); } catch { return { ok: false, why: "unreadable signature" }; }
   if (who.toLowerCase() !== o.signer.toLowerCase()) return { ok: false, why: `signed by ${who}, not by the registered key ${o.signer}` };
   return { ok: true, digest, signer: getAddress(who) };
 }

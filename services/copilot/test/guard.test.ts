@@ -85,7 +85,7 @@ test("bounded body: an announced Content-Length too large, or a stream that goes
   assert.deepEqual(await readBodyCapped(req("x", { "content-length": "70000" }), 65_536), { ok: false, status: 413 });
   assert.deepEqual(await readBodyCapped(req("x", { "content-length": "abc" }), 65_536), { ok: false, status: 400 });
   const stream = new ReadableStream<Uint8Array>({
-    start(c) { for (let i = 0; i < 20; i++) c.enqueue(new Uint8Array(8_192)); c.close(); }, // 160 Kio sans Content-Length
+    start(c) { for (let i = 0; i < 20; i++) c.enqueue(new Uint8Array(8_192)); c.close(); }, // 160 KiB without Content-Length
   });
   assert.deepEqual(await readBodyCapped(req(stream), 65_536), { ok: false, status: 413 });
   assert.deepEqual(await readBodyCapped(req('{"a":1}'), 65_536), { ok: true, text: '{"a":1}' });
