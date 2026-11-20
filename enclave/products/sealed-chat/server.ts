@@ -1,17 +1,17 @@
 /**
- * sealed-chat/server.ts — Produit B : l'inférence d'IA en enclave (O2), en service HTTP.
- * Routes compatibles OpenAI (voir ./app.ts). L'enclave déchiffre la requête, interroge le modèle,
- * signe un reçu cumulatif, chiffre la réponse. En vraie VM TDX : llama-server + Qwen2.5-1.5B, ou RedPill.
+ * sealed-chat/server.ts — product B: AI inference in an enclave (O2), as an HTTP service.
+ * OpenAI-compatible routes (see ./app.ts). The enclave decrypts the request, queries the model, signs a cumulative
+ * receipt and encrypts the answer. The model is RedPill (verified, see MODEL_ATTESTATION below), or a local mock in
+ * development.
  *
- * Variables d'environnement v2 :
- *  - UNIT_TOKENS, OUT_WEIGHT : comptage des unités facturées (défaut 1 et 1 = v1). À écrire EN CLAIR
- *    dans le docker-compose (donc mesurées dans le workloadId), jamais en variable chiffrée : sinon un
- *    opérateur changerait la facture sans changer l'empreinte de l'image.
- *  - OPERATOR_ALLOWLIST : opérateurs autorisés à recevoir un quote (voir src/server/attest-server.ts) ; v2 bis :
- *    absente = personne (on échoue fermé), `*` = développement ; ce sont aussi les seuls opérateurs dont l'enclave
- *    sert les sessions.
- *  - RPC_URLS : fournisseurs du quorum de lecture, séparés par des virgules (défaut : RPC_URL seul).
- *  - MODEL_TIMEOUT_MS : délai maximal d'un appel au modèle (défaut 120 000).
+ * Environment variables, v2:
+ *  - UNIT_TOKENS, OUT_WEIGHT: the counting of billed units (default 1 and 1 = v1). Write them IN CLEAR in the
+ *    docker-compose file (so measured in the workloadId), never as an encrypted variable: otherwise an operator could
+ *    change the bill without changing the image fingerprint.
+ *  - OPERATOR_ALLOWLIST: the operators allowed to receive a quote (see src/server/attest-server.ts); v2 bis: absent =
+ *    nobody (it fails closed), `*` = development; they are also the only operators whose sessions the enclave serves.
+ *  - RPC_URLS: the providers of the read quorum, separated by commas (default: RPC_URL alone).
+ *  - MODEL_TIMEOUT_MS: the maximum duration of a call to the model (default 120,000).
  */
 import { AttestedModel, composeHashesFromEnv, modelAttestationBody, osImagesFromEnv } from "../../src/services/model-attestation";
 import { serve } from "@hono/node-server";
@@ -31,11 +31,11 @@ const RPC = process.env.RPC_URL ?? "https://rpc.testnet.arc.io";
 const RPC_URLS = (process.env.RPC_URLS ?? RPC).split(",").map((s) => s.trim()).filter(Boolean);
 const CHAIN_ID = Number(process.env.CHAIN_ID ?? "5042002");
 const PRODUCT_ID = BigInt(process.env.PRODUCT_ID ?? "0");
-/** Adresse de contrat requise (posée et mesurée par le compose de l'enclave) : sans elle, arrêt. */
+/** A required contract address (set and measured by the enclave's compose file): without it, stop. */
 function requiredAddress(name: string): Address {
   const v = process.env[name];
   if (!v || !/^0x[0-9a-fA-F]{40}$/.test(v)) {
-    console.error(`${name} requis (adresse du contrat sur Arc) : arrêt.`);
+    console.error(`${name} required (the contract's address on Arc): stopping.`);
     process.exit(1);
   }
   return v as Address;
@@ -45,8 +45,8 @@ const REGISTRY = requiredAddress("REGISTRY");
 const PORT = Number(process.env.PORT ?? "8802");
 
 const pub = createPublicClient({ transport: http(RPC) });
-// v2 bis : la session porte tout ce qui est verrouillé à l'ouverture (prix, enclave, unité, modèle) : plus besoin
-// de lire le produit (dont le prix ou le modèle ont pu changer depuis).
+// v2 bis: the session carries everything locked at opening (price, enclave, unit, model): no need to read the product
+// any more (its price or model may have changed since).
 const sessionAbi = parseAbi([
   "struct Session { address owner; uint256 productId; address operator; address sessionKey; uint256 deposit; uint256 cap; uint128 paidUnits; uint256 paid; uint64 expiresAt; bool closed; bool verdictWritten; uint256 price; address enclave; uint32 unitTokens; uint32 outWeight; bytes32 param; }",
   "function getSession(uint256 id) view returns (Session)",
@@ -63,24 +63,25 @@ const reader: SessionReader = {
   },
 };
 
-// Modèle : RedPill (inférence confidentielle en TEE, compatible OpenAI) si REDPILL_API_KEY présent,
-// sinon mock déterministe (dev). En option : llama-server local dans l'enclave (souverain).
+// Model: RedPill (confidential inference in a TEE, OpenAI-compatible) if REDPILL_API_KEY is present, otherwise a
+// deterministic mock (development). The LlamaClient interface also fits a local llama-server inside the enclave; none is
+// wired today.
 const REDPILL_KEY = process.env.REDPILL_API_KEY;
 const REDPILL_URL = (process.env.REDPILL_BASE_URL ?? "https://api.redpill.ai/v1").replace(/\/$/, "");
 const REDPILL_MODEL = process.env.REDPILL_MODEL ?? "openai/gpt-oss-120b";
-// L'empreinte du modèle est CALCULÉE à partir du modèle réellement appelé, jamais fournie à part (plus de MODEL_HASH) :
-// chaque reçu porte keccak256(identifiant du modèle). Le produit fixe cette empreinte (param) et chaque session la
-// verrouille à l'ouverture : un opérateur qui change de modèle ne peut plus produire de reçu payable. Écrire
-// REDPILL_MODEL et REDPILL_BASE_URL EN CLAIR dans le compose (mesurés dans le workloadId) ; seule la clé est secrète.
-// Sans clé amont : modèle factice local (développement), d'empreinte différente, refusé par toute session réelle.
-// 9/11 : une erreur de RedPill ne remonte que son statut (model.ts) : son corps, qui peut recopier la clé, n'est jamais lu
-// ni journalisé ; app.ts répond alors un message générique avec un code (upstream_model).
+// The model's fingerprint is COMPUTED from the model really called, never supplied separately (no more MODEL_HASH):
+// each receipt carries keccak256(model id). The product fixes this fingerprint (param) and each session locks it at
+// opening: an operator who changes the model can no longer produce a payable receipt. Write REDPILL_MODEL and
+// REDPILL_BASE_URL IN CLEAR in the compose file (measured in the workloadId); only the key is secret.
+// Without an upstream key: a local fake model (development), with a different fingerprint that every real session refuses.
+// 9 Nov: a RedPill error surfaces only its status (model.ts): its body, which can copy the key, is never read nor
+// logged; app.ts then answers with a generic message and a code (upstream_model).
 const MODEL_ID = REDPILL_KEY ? REDPILL_MODEL : MOCK_MODEL_ID;
 const MODEL_HASH = keccak256(toBytes(MODEL_ID)) as Hex;
-// 11/11 : MODEL_ATTESTATION=aci (mesurée) : la passerelle de RedPill est VÉRIFIÉE avant tout appel (quote Intel, clés liées,
-// compose mesuré, image système de production), chaque appel part en TLS épinglé sur sa clé attestée et chaque réponse
-// exige un reçu citant un service amont vérifié (src/services/model-attestation.ts). Échec au démarrage : l'enclave refuse
-// de démarrer.
+// 11 Nov: MODEL_ATTESTATION=aci (measured): RedPill's gateway is VERIFIED before any call (Intel quote, bound keys,
+// measured compose, production OS image), each call goes over TLS pinned to its attested key, and each answer requires
+// a receipt that names a verified upstream service (src/services/model-attestation.ts). If this fails at start-up, the
+// enclave refuses to start.
 const MODEL_ATTESTATION = process.env.MODEL_ATTESTATION?.trim() || "none";
 let llama: LlamaClient = REDPILL_KEY
   ? createRedpillLlama({ baseUrl: REDPILL_URL, model: REDPILL_MODEL, apiKey: REDPILL_KEY })
@@ -88,12 +89,12 @@ let llama: LlamaClient = REDPILL_KEY
 const blocks: BlockSource = { current: () => pub.getBlockNumber() };
 
 async function main() {
-  // Configuration lue et validée au démarrage : une valeur invalide arrête l'enclave.
+  // Configuration read and validated at start-up: an invalid value stops the enclave.
   const billing = billingFromEnv();
   const operatorAllowlist = parseOperatorAllowlist(process.env.OPERATOR_ALLOWLIST);
   const inferTimeoutMs = Number(process.env.MODEL_TIMEOUT_MS ?? "120000");
   if (!Number.isSafeInteger(inferTimeoutMs) || inferTimeoutMs < 1) {
-    throw new Error(`MODEL_TIMEOUT_MS doit être un entier ≥ 1 (reçu « ${process.env.MODEL_TIMEOUT_MS} »)`);
+    throw new Error(`MODEL_TIMEOUT_MS must be an integer ≥ 1 (got "${process.env.MODEL_TIMEOUT_MS}")`);
   }
 
   let attested: AttestedModel | undefined;
@@ -102,29 +103,29 @@ async function main() {
     attested = await AttestedModel.open({ baseUrl: REDPILL_URL, osImages: osImagesFromEnv(process.env.MODEL_GATEWAY_OS_IMAGES), composeHashes: composeHashesFromEnv(process.env.MODEL_GATEWAY_COMPOSE_HASHES), log: (m) => console.log(m) });
     llama = createRedpillLlama({ baseUrl: REDPILL_URL, model: REDPILL_MODEL, apiKey: REDPILL_KEY, fetch: attested.fetch });
   } else if (MODEL_ATTESTATION !== "none") {
-    throw new Error("MODEL_ATTESTATION : « aci » ou « none »");
+    throw new Error("MODEL_ATTESTATION: \"aci\" or \"none\"");
   }
 
   const dstack = await createDstackClient();
   const kit = new EnclaveKit({ productId: PRODUCT_ID, chainId: CHAIN_ID, registry: REGISTRY, rpc: new RpcQuorum(RPC_URLS), dstack: dstack ?? undefined });
-  console.log(dstack ? "quote: dstack TDX réel" : "quote: mock (hors VM TDX)");
+  console.log(dstack ? "quote: real dstack TDX" : "quote: mock (outside a TDX VM)");
   const gateway = new InferenceGateway(
     kit,
-    // v2 bis : seules les sessions des opérateurs de cette enclave sont servies (null = développement, `*`)
+    // v2 bis: only the sessions of this enclave's operators are served (null = development, `*`)
     { sessionPay: SESSIONPAY, modelHash: MODEL_HASH, ...billing, inferTimeoutMs, operators: operatorAllowlist ?? undefined },
     reader, llama, blocks,
   );
 
   const app = createSealedChatApp({ kit, gateway, reader, modelHash: MODEL_HASH, attest: { operatorAllowlist } });
-  // public : ce que l'enclave a vérifié du fournisseur du modèle
+  // public: what the enclave verified about the model provider
   app.get("/model-attestation", (c) => c.json(modelAttestationBody(attested) as any));
 
   serve({ fetch: app.fetch, port: PORT, hostname: "0.0.0.0" });
   console.log(
-    `sealed-chat (O2) sur http://localhost:${PORT}  signer=${kit.keys.signer}  modèle=${MODEL_ID}  modelHash=${MODEL_HASH}  ` +
+    `sealed-chat (O2) on http://localhost:${PORT}  signer=${kit.keys.signer}  model=${MODEL_ID}  modelHash=${MODEL_HASH}  ` +
       `UNIT_TOKENS=${billing.unitTokens}  OUT_WEIGHT=${billing.outWeight}  quorum=${RPC_URLS.length} RPC`,
   );
 }
 
-// au démarrage, seul le message (configuration invalide…) : jamais l'objet d'erreur entier
-main().catch((e) => { console.error(`sealed-chat : démarrage refusé : ${(e as Error)?.message ?? e}`); process.exit(1); });
+// at start-up, only the message (invalid configuration…): never the whole error object
+main().catch((e) => { console.error(`sealed-chat: start-up refused: ${(e as Error)?.message ?? e}`); process.exit(1); });

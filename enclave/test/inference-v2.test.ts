@@ -138,7 +138,7 @@ describe("race on seq: atomic reservation per session", () => {
     for (const r of refused) {
       expect(r.reason).toBeInstanceOf(GatewayError);
       expect((r.reason as GatewayError).httpStatus).toBe(409);
-      expect((r.reason as GatewayError).message).toBe("seq attendu 2, reçu 1");
+      expect((r.reason as GatewayError).message).toBe("expected seq 2, got 1");
     }
   });
 
@@ -337,6 +337,6 @@ describe("GET /v1/session/:id/receipt (last receipt, HTTP)", () => {
 
     const replay = await chat(2n, "rejeu du seq 2");
     expect(replay.res.status).toBe(409);
-    expect(await replay.res.json()).toEqual({ error: "seq attendu 3, reçu 2", expectedSeq: "3" });
+    expect(await replay.res.json()).toEqual({ error: "expected seq 3, got 2", expectedSeq: "3" });
   });
 });

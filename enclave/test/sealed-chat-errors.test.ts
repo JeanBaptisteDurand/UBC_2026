@@ -89,7 +89,7 @@ describe("sealed-chat: upstream model errors and internal errors", () => {
     const llama = createRedpillLlama({ baseUrl: "https://api.redpill.example/v1/", model: "m", apiKey: KEY, fetch: up.f });
     const err = await llama.infer("bonjour", {}).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(UpstreamModelError);
-    expect((err as UpstreamModelError).message).toBe("modèle amont : HTTP 401");
+    expect((err as UpstreamModelError).message).toBe("upstream model: HTTP 401");
     expect((err as UpstreamModelError).upstreamStatus).toBe(401);
     expect(JSON.stringify(err) + String(err) + (err as Error).stack).not.toContain("SECRET");
     expect(up.seen.pulled).toBe(0); // never read
@@ -103,7 +103,7 @@ describe("sealed-chat: upstream model errors and internal errors", () => {
     expect(res.status).toBe(502);
     const raw = await res.text();
     expect(JSON.parse(raw)).toEqual({
-      error: "le modèle amont n'a pas répondu correctement : aucun reçu n'a été signé, rejouez la même requête (même seq)",
+      error: "the upstream model did not answer correctly: no receipt was signed, replay the same request (same seq)",
       code: "upstream_model",
       upstreamStatus: 401,
     });
@@ -136,7 +136,7 @@ describe("sealed-chat: upstream model errors and internal errors", () => {
     const h = harness({ log: (m) => logs.push(m), reader });
     for (const res of [await h.app.request("/v1/session/1"), await h.chat(1n, "x")]) {
       expect(res.status).toBe(500);
-      expect(await res.json()).toEqual({ error: "erreur interne de l'enclave", code: "internal_error" });
+      expect(await res.json()).toEqual({ error: "internal enclave error", code: "internal_error" });
     }
     expect(logs).toEqual(["[sealed-chat] internal_error : Error", "[sealed-chat] internal_error : Error"]);
     expect(h.up.seen.calls).toBe(0); // the model was never called

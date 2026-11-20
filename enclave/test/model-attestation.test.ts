@@ -89,7 +89,7 @@ describe("model provider attestation", () => {
 
   it("an unverified gateway blocks opening (the enclave does not start)", async () => {
     await expect(AttestedModel.open({ baseUrl: "https://tee.redpill.ai/v1", osImages: [DSTACK_PROD_OS_0_5_12], connect: vi.fn(async () => fakeConnection({ verified: false })) as any }))
-      .rejects.toThrow(/NON vérifiée/);
+      .rejects.toThrow(/NOT verified/);
     expect((modelAttestationBody(undefined) as any).verified).toBe(false);
   });
 
@@ -117,9 +117,9 @@ describe("model provider attestation", () => {
     const l2 = JSON.parse(REPORT.attestation.evidence.event_log);
     l2.find((e: any) => e.event === "compose-hash").event_payload = "ef".repeat(32);
     f2.attestation.evidence.event_log = JSON.stringify(l2);
-    expect(() => checkGatewayIdentity(identity({ report: f2 }), [DSTACK_PROD_OS_0_5_12])).toThrow(/compose non liée/);
+    expect(() => checkGatewayIdentity(identity({ report: f2 }), [DSTACK_PROD_OS_0_5_12])).toThrow(/compose fingerprint not bound/);
     // optional compose pinning: an authentic but unpinned compose is refused
-    expect(() => checkGatewayIdentity(identity(), [DSTACK_PROD_OS_0_5_12], ["00".repeat(32)])).toThrow(/hors de la liste épinglée/);
+    expect(() => checkGatewayIdentity(identity(), [DSTACK_PROD_OS_0_5_12], ["00".repeat(32)])).toThrow(/outside the pinned list/);
   });
 
   it("defence in depth: the RTMR3 event log must fold into the quote's RTMR3 (the library is not trusted)", () => {
@@ -152,7 +152,7 @@ describe("model provider attestation", () => {
     };
     const m = await AttestedModel.open({ baseUrl: "x", osImages: [DSTACK_PROD_OS_0_5_12], connect: vi.fn(async () => conn) as any, refreshMs: 3_600_000 });
     await m.refresh().catch(() => {}); // re-verification fails and marks the gateway unhealthy
-    await expect(m.fetch("https://tee.redpill.ai/v1/chat/completions", { method: "POST", body: "{}" })).rejects.toThrow(/échec fermé/);
+    await expect(m.fetch("https://tee.redpill.ai/v1/chat/completions", { method: "POST", body: "{}" })).rejects.toThrow(/fail closed/);
     expect(conn.fetch).not.toHaveBeenCalled(); // nothing was sent to the rejected gateway
     expect(m.status().verified).toBe(false);
     await m.close();

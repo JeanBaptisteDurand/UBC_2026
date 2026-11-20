@@ -1,21 +1,21 @@
 /**
- * sealed-chat/model.ts — le modèle appelé par l'enclave d'inférence (produit B, sessions) : RedPill (compatible OpenAI,
- * inférence confidentielle en TEE) si une clé est fournie, sinon un modèle factice local (développement : son empreinte,
- * keccak256("mock-echo-model"), n'est celle d'aucun produit réel).
+ * sealed-chat/model.ts — the model the inference enclave calls (product B, sessions): RedPill (OpenAI-compatible,
+ * confidential inference in a TEE) if a key is given, otherwise a local fake model (development: its fingerprint,
+ * keccak256("mock-echo-model"), is no real product's).
  *
- * 9/11 (vérificateur) : une erreur de l'amont ne remonte JAMAIS son corps. Un fournisseur peut y recopier la clé reçue
- * (« Invalid API key provided: … »), et le gestionnaire d'erreurs par défaut de Hono journalisait le message levé
- * (`redpill 401: <corps>`) dans les journaux de la CVM, qui peuvent être publics. Le corps est abandonné sans être lu ;
- * seul le code HTTP remonte (UpstreamModelError), et app.ts répond un message générique avec un code.
+ * 9 Nov (verifier): an upstream error NEVER surfaces its body. A provider can copy the key it received into it
+ * ("Invalid API key provided: …"), and Hono's default error handler logged the thrown message (`redpill 401: <body>`)
+ * into the CVM's logs, which can be public. The body is dropped without being read; only the HTTP code surfaces
+ * (UpstreamModelError), and app.ts answers with a generic message and a code.
  */
 import type { LlamaClient } from "../../src/services/inference";
 
 export const MOCK_MODEL_ID = "mock-echo-model";
 
-/** Le modèle amont a répondu en erreur (ou illisiblement) : seulement son statut HTTP, jamais son corps. */
+/** The upstream model answered with an error (or unreadably): only its HTTP status, never its body. */
 export class UpstreamModelError extends Error {
   constructor(readonly upstreamStatus: number | null) {
-    super(upstreamStatus === null ? "modèle amont : réponse illisible" : `modèle amont : HTTP ${upstreamStatus}`);
+    super(upstreamStatus === null ? "upstream model: unreadable answer" : `upstream model: HTTP ${upstreamStatus}`);
     this.name = "UpstreamModelError";
   }
 }
@@ -46,7 +46,7 @@ export function createRedpillLlama(o: RedpillLlamaOptions): LlamaClient {
         signal,
       });
       if (!r.ok) {
-        await r.body?.cancel().catch(() => {}); // corps jamais lu ni journalisé : seul le statut remonte
+        await r.body?.cancel().catch(() => {}); // the body is never read nor logged: only the status surfaces
         throw new UpstreamModelError(r.status);
       }
       const j = (await r.json().catch(() => null)) as any;
@@ -63,11 +63,11 @@ export function createRedpillLlama(o: RedpillLlamaOptions): LlamaClient {
   };
 }
 
-/** Modèle factice (développement hors VM, sans clé amont). */
+/** A fake model (development outside a VM, without an upstream key). */
 export function createMockLlama(): LlamaClient {
   return {
     async infer(prompt) {
-      const text = `Réponse attestée (démo, enclave) — invite reçue : « ${prompt.slice(0, 120)} »`;
+      const text = `Attested answer (demo, enclave): prompt received: "${prompt.slice(0, 120)}"`;
       return { text, tokensIn: Math.max(1, Math.ceil(prompt.length / 4)), tokensOut: Math.ceil(text.length / 4) };
     },
   };
