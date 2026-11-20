@@ -103,15 +103,9 @@ for the enclaves that serve each product.
   reads the chip ID (PPID) from Intel's certificate inside the quote and verifies the alliance's Ed25519 signature.
   Product 7 requires this level.
 
-**Bonds and slashing** (`OperatorBond`):
-
-- Each enclave reserves the product's minimum bond (1 USDC for the live products on testnet).
-- On the word of an operator's enclaves, settlement contracts never release more than half of its free bond in any
-  24 hours, nor more than the product's exposure cap (10 USDC on testnet).
-- A fault proven on-chain seizes the whole bond: two signed answers to one request, or a bounty claim refuted by other
-  operators' replays. Half goes to the reporter, half to the victim (or to the network treasury when there is no
-  victim).
-- A bond leaves 7 days after the request and after its last exposure.
+**Bonds and slashing** (`OperatorBond`): every admitted enclave is backed by its operator's USDC bond, and a fault
+proven on-chain seizes all of it. The rules and their figures are in
+[Economic design and risk assumptions](#economic-design-and-risk-assumptions).
 
 **Verdicts** (`VerdictLog`): written to the ERC-8004 validation registry on Arc, under the operator's agent identity
 (agent 897812). A session or a bounty that is verified and paid scores 100; a proven fault scores 0.
@@ -369,6 +363,62 @@ The most a dishonest enclave can take from an agent is what the agent signed: on
 a session. An attestation proves which code ran, not that an AI answer is right, so only provable faults are slashed
 (see [Economic design and risk assumptions](#economic-design-and-risk-assumptions)).
 
+## Economic design and risk assumptions
+
+**Who pays whom.** The contracts enforce every split, in the transaction that moves the USDC.
+
+- **Buyers pay per use**, from a prepaid session (`SessionPay`) or with one authorization per call (`X402Settler`).
+  Each payment is split between operator, author and network: `ProductRegistry` keeps the network at 5 % or more and
+  an author at 30 % or less, and the operator gets the rest. All seven products are ours and set no author share, so
+  each one splits **95 / 0 / 5**.
+- **Protocols fund bounty pools** (`SealedBounty`, `SealedBountyVerified`). The hunter gets 100 % of the tier the
+  exploit reaches. On top, and only when a claim is paid, the pool pays 10 % to the network and 5 % to the operators
+  whose enclaves signed the claim. On 9 Nov, a 0.5 USDC tier paid 0.5 to the hunter, 0.05 to the network and 0.025 to
+  the operator ([`0xecbd089a…807e`](https://explorer.testnet.arc.io/tx/0xecbd089a092edd939ff646fae8d22c0f2616b6a92f58a49928c231c770bb807e)).
+- **Operators pay the gas** of admissions (0.14 to 0.17 USDC each) and of settlements
+  ([gas table](#usdc-is-the-money-and-the-gas)). Admission charges no fee beyond gas. At testnet prices, settling one
+  0.01 USDC call costs about 0.005 USDC of the operator's 0.0095 USDC share, while a session settles many requests on
+  one receipt.
+
+**What the operator puts at stake** (`OperatorBond`):
+
+- The operator owns its USDC bond. Each enclave reserves the product's minimum bond (1 USDC on the live products), and
+  only the free rest can be withdrawn.
+- **Exposure caps.** On the word of an operator's enclaves, the settlement contracts release at most half of its bond
+  (less any pending withdrawal) in any 24 hours, all products together, and at most each product's exposure cap
+  (10 USDC on testnet). Our operator's 8 USDC bond allows 4 USDC per 24 hours.
+- **Slashing.** A fault proven on-chain seizes the whole bond and bans the operator: two signed answers to one request,
+  or a bounty claim refuted by the enclaves of at least two other operators within 3 days. Half goes to whoever proved
+  it, half to the victim, or to the network treasury when there is no victim. It ran on Arc on 10 Nov
+  ([`0x0ffca543…051f`](https://explorer.testnet.arc.io/tx/0x0ffca5433186735bf5525e525995f3589d842681da8ffcaa82acb5993025051f)).
+- A bond leaves 7 days after the withdrawal request and after its last exposure, so a fault can still be proven.
+- The bond bounds the outflow; it does not refund it. An inflated inference receipt cannot be proven, which is why a
+  buyer only ever risks what it signed.
+
+**Risk assumptions**
+
+- **Trust in Intel TDX**: Intel's hardware and signing keys, Automata's DCAP contracts and Intel's collateral
+  (refreshed monthly; the next update is due on 9 Dec 2026). An attestation proves which code ran, not that an AI
+  answer is right, so only provable faults are slashed. Bounty replays are deterministic, so other operators can check
+  them.
+- **Trust in Proof of Cloud**, at the verified level: the alliance declares that the chip sits in an inspected
+  datacenter. Physical attacks on a machine someone can touch are bounded, not prevented: capped exposure, bond
+  seizure, and the verified level for high stakes.
+- **One operator today.** Our team runs every enclave, on Phala Cloud. The contracts accept any bonded operator, but
+  our enclave images are not public yet, so a second operator cannot run the allowed fingerprints until we publish
+  them.
+- **Admin keys.** On testnet, one key, the deployer's (kept off the server), owns `OperatorBond` and `VerdictLog` and
+  is the author of all seven products. It can propose a new settlement contract or verdict writer, which waits 8 days,
+  and remove one at once. Product changes have no timelock on testnet (`ProductRegistry.timelock` is 0). The mainnet
+  plan is a 2-of-3 multisig and 48-hour timelocks.
+- **The treasury is the deployer's address on testnet**, so the network's 5 % and the victimless half of a slash go
+  back to that same key.
+- **No state proofs yet.** A bounty replay reads Arc's state through a strict relay that re-hashes every block header.
+  Per-read state proofs (`eth_getProof`) are implemented and tested, and turn on once an Arc RPC serves historical
+  proofs.
+- **Scope.** Arc testnet only, with no third-party audit, and every payment so far came from our own wallets. Testnet
+  prices are set so that every flow shows on the explorer; they are not market prices.
+
 ## Proofs on Arc testnet
 
 **19 Nov 2026 (UTC)**
@@ -538,20 +588,6 @@ Package guides: [`contracts`](contracts/README.md), [`dcap-integration`](dcap-in
 [`packages/cli`](packages/cli/README.md), [`packages/node`](packages/node/README.md),
 [`services/api`](services/api/README.md), [`services/registrar`](services/registrar/README.md), [`web`](web/README.md),
 [`deploy`](deploy/README.md).
-
-## Trust assumptions and scope
-
-- **Roots of trust**: Intel's hardware and signing keys; Automata's DCAP contracts and Intel's collateral (refreshed
-  monthly); at the verified level, the Proof of Cloud alliance.
-- **What an attestation proves**: which code ran, not that an AI answer is right. Only provable faults are slashed.
-  Bounty replays are deterministic, so other operators can check them.
-- **Physical attacks** on a machine someone can touch are bounded, not prevented: capped exposure, bond seizure, and
-  the verified level for high stakes.
-- **State reads of a bounty replay** go through the strict relay. Per-read state proofs (`eth_getProof`) are
-  implemented and tested, and they turn on once an Arc RPC serves historical proofs.
-- **Scope today**: Arc testnet, with no third-party audit. One operator (our team) runs Phala Cloud machines, while the
-  contracts accept any bonded operator. Every payment so far came from our own wallets. On testnet, the owner key can
-  propose a settlement contract (8-day delay on v2.1) and set its own products' policies.
 
 ## What's next
 
