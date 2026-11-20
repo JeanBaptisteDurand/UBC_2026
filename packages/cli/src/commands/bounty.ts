@@ -25,25 +25,25 @@ import {
   EIP2935_WINDOW, ZERO, bountyFeesBps, confirm, contractName, fetchLogs, httpJson, isActiveAt,
   reader, readTiers, sameAddr, verifiedEnclave, writer, type Pub, type Tier, type Writer,
 } from "../chain";
-import { listBounties, stateFr } from "./read";
+import { listBounties, stateLabel } from "./read";
 import {
   BOUNTY_KEY_DIR, LEGACY_PROTOCOL_KEY, createBountyKey, findBountyKey, loadProtocolKey, recordBountyId, saveR, type ProtocolKey,
 } from "../secrets";
 
-/** v2.1 : l'ancienne clé partagée (encore lue pour les primes créées avec elle) ; les nouvelles primes ont chacune la leur. */
+/** The older shared key (still read for the bounties created with it); every new bounty has its own key. */
 export const DEFAULT_PROTOCOL_KEY = LEGACY_PROTOCOL_KEY;
 export { loadProtocolKey };
 
-// ---------- prédicat, paliers, bundle ----------
+// ---------- predicate, tiers, bundle ----------
 
-/** Le prédicat d'un fichier : règles P1–P4 du SDK (JSON pur, imbrication ≤ 8, ≤ 256 champs, ≤ 16 Kio canonique, 1 à 8
- *  clauses de forme connue). Hors règles : refusé ICI, il n'atteint jamais createBounty (aucune enclave ne le prouverait). */
+/** A file's predicate, under the SDK's rules P1–P4 (pure JSON, nesting ≤ 8, ≤ 256 fields, ≤ 16 KiB canonical, 1 to 8
+ *  clauses of a known shape). A predicate outside the rules is refused HERE and never reaches createBounty (no enclave would prove it). */
 export function loadPredicate(raw: unknown, label: string): Predicate {
   const p = raw as Predicate;
   try {
     validatePredicate(p);
   } catch (e) {
-    throw new CliError(`${label} : prédicat invalide (${(e as Error).message})`);
+    throw new CliError(`${label}: invalid predicate (${(e as Error).message})`);
   }
   return p;
 }
@@ -51,13 +51,13 @@ export function loadPredicate(raw: unknown, label: string): Predicate {
 function parseTiers(v: string): Tier[] {
   const tiers = v.split(",").map((pair) => {
     const [loss, amount] = pair.split(":").map((x) => x.trim());
-    if (!loss || !amount) throw new CliError(`--tiers : « ${pair} » attendu sous la forme perte:montant (ex. 1:1,1000:50)`);
+    if (!loss || !amount) throw new CliError(`--tiers: "${pair}" expected as loss:amount (e.g. 1:1,1000:50)`);
     return { minLoss: parseUsdc(loss, "--tiers (perte)"), amount: parseUsdc(amount, "--tiers (montant)") };
   });
   for (let i = 0; i < tiers.length; i++) {
-    if ((tiers[i] as Tier).amount === 0n) throw new CliError("--tiers : chaque palier doit payer plus de 0");
+    if ((tiers[i] as Tier).amount === 0n) throw new CliError("--tiers: each tier must pay more than 0");
     if (i > 0 && ((tiers[i] as Tier).minLoss <= (tiers[i - 1] as Tier).minLoss || (tiers[i] as Tier).amount <= (tiers[i - 1] as Tier).amount)) {
-      throw new CliError("--tiers : seuils de perte ET montants strictement croissants (le contrat v2 refuse sinon : BadTiers)");
+      throw new CliError("--tiers: loss thresholds AND amounts must strictly increase (the contract refuses otherwise: BadTiers)");
     }
   }
   return tiers;
@@ -75,20 +75,20 @@ export interface ExploitFile {
 }
 
 export function loadExploit(path: string): ExploitFile {
-  const j = readJson(path, "bundle d'exploit") as any;
+  const j = readJson(path, "exploit bundle") as any;
   const predicate = loadPredicate(j?.predicate, path);
   const txs = j?.txs;
   if (!Array.isArray(txs) || txs.length < 1 || txs.length > 10 || !txs.every((t: unknown) => typeof t === "string" && isHex(t))) {
-    throw new CliError(`${path} : « txs » doit être une liste de 1 à 10 transactions hexadécimales`);
+    throw new CliError(`${path}: "txs" must be a list of 1 to 10 hex transactions`);
   }
   const capital = j?.capital === undefined ? "0" : String(big(j.capital, `${path} : capital`));
   if (j?.attackCode !== undefined && !(typeof j.attackCode === "string" && isHex(j.attackCode))) {
-    throw new CliError(`${path} : « attackCode » doit être hexadécimal`);
+    throw new CliError(`${path}: "attackCode" must be hex`);
   }
   return { predicate, txs, capital, attackCode: j?.attackCode };
 }
 
-// ---------- réclamation ----------
+// ---------- claim ----------
 
 interface Claim {
   bountyId: bigint; payee: Address; blockN: bigint; blockHashN: Hex; predicateHash: Hex; loss: bigint;
@@ -97,11 +97,11 @@ interface Claim {
 
 function normalizeClaim(c: any): Claim {
   const b32 = (k: string): Hex => {
-    if (!isBytes32(c?.[k])) throw new CliError(`réclamation : ${k} n'est pas un bytes32`);
+    if (!isBytes32(c?.[k])) throw new CliError(`claim: ${k} is not a bytes32`);
     return c[k];
   };
   const tier = Number(c?.tier);
-  if (!Number.isInteger(tier) || tier < 0 || tier > 255) throw new CliError("réclamation : palier invalide");
+  if (!Number.isInteger(tier) || tier < 0 || tier > 255) throw new CliError("claim: invalid tier");
   return {
     bountyId: big(c?.bountyId, "bountyId"), payee: parseAddr(String(c?.payee), "payee"), blockN: big(c?.blockN, "blockN"),
     blockHashN: b32("blockHashN"), predicateHash: b32("predicateHash"), loss: big(c?.loss, "loss"), tier,
@@ -113,7 +113,7 @@ const claimJson = (c: Claim) => ({
   ...c, bountyId: c.bountyId.toString(), blockN: c.blockN.toString(), loss: c.loss.toString(), deadline: c.deadline.toString(),
 });
 
-/** Sauvegarde la réclamation prouvée (sans l'exploit en clair) pour pouvoir la réclamer sans resoumettre. */
+/** Saves the proven claim (without the plaintext exploit), so it can be claimed without submitting again. */
 function saveClaim(path: string | undefined, data: object, bountyId: bigint, fingerprint: Hex): string {
   let p = path ?? `claim-b${bountyId}-${fingerprint.slice(2, 10)}.json`;
   if (!path) for (let i = 2; existsSync(p); i++) p = `claim-b${bountyId}-${fingerprint.slice(2, 10)}-${i}.json`;
@@ -121,78 +121,78 @@ function saveClaim(path: string | undefined, data: object, bountyId: bigint, fin
   return p;
 }
 
-/** Vérifie la réclamation signée par les enclaves (contrôles du contrat v2, hors chaîne), puis la fait payer :
- *  acceptClaim (réserve le paiement ; cP n'est pas dans la transaction) puis deliver (livre cP, paie). Reprend à
- *  deliver si la réservation existe déjà (--resume après un échec). */
+/** Checks the claim the enclaves signed (the contract's checks, off-chain), then gets it paid: acceptClaim (reserves
+ *  the payment; cP is not in the transaction), then deliver (delivers cP and pays). Resumes at deliver when the
+ *  reservation already exists (--resume after a failure). */
 async function verifyAndClaim(w: Writer, a: {
   claim: Claim; signatures: Hex[]; cP: Hex; enclaveSigners: Address[]; expectedPayee?: Address; savedAt: string;
 }): Promise<void> {
   const { claim, signatures, cP } = a;
   const fail = (m: string): never => {
-    throw new CliError(`réclamation refusée avant envoi : ${m} (réclamation sauvegardée : ${a.savedAt})`);
+    throw new CliError(`claim refused before sending: ${m} (claim saved at: ${a.savedAt})`);
   };
   const b = await w.arc.getBounty(claim.bountyId);
   if (b.protocol === ZERO) fail(`prime #${claim.bountyId} inexistante`);
   const pending = await w.arc.pendingOf(claim.bountyId, claim.fingerprint);
   const reserved = pending.payee !== ZERO;
   if (reserved) {
-    if (pending.cPHash.toLowerCase() !== keccak256(cP).toLowerCase()) fail("un paiement est réservé pour cette empreinte avec un autre cP");
-    info(`paiement déjà réservé pour cette empreinte (${usdc(pending.amount)} à ${pending.payee}) : livraison seulement`);
+    if (pending.cPHash.toLowerCase() !== keccak256(cP).toLowerCase()) fail("a payment is reserved for this fingerprint with another cP");
+    info(`payment already reserved for this fingerprint (${usdc(pending.amount)} to ${pending.payee}): delivery only`);
   } else {
     const signers = await Promise.all(signatures.map((signature) => recoverTypedDataAddress({
       domain: networkDomain(testnet.sealedBounty, testnet.chainId) as any, types: claimTypes, primaryType: "Claim", message: claim, signature,
     })));
-    signers.forEach((sg, i) => { if (!a.enclaveSigners.some((e) => sameAddr(e, sg))) fail(`signature ${i + 1} : signée par ${sg}, pas par une enclave vérifiée`); });
-    if (a.expectedPayee && !sameAddr(claim.payee, a.expectedPayee)) fail(`bénéficiaire ${claim.payee} ≠ ${a.expectedPayee}`);
-    if (claim.predicateHash.toLowerCase() !== String(b.predicateHash).toLowerCase()) fail("predicateHash différent de celui de la prime");
+    signers.forEach((sg, i) => { if (!a.enclaveSigners.some((e) => sameAddr(e, sg))) fail(`signature ${i + 1}: signed by ${sg}, not by a verified enclave`); });
+    if (a.expectedPayee && !sameAddr(claim.payee, a.expectedPayee)) fail(`payee ${claim.payee} ≠ ${a.expectedPayee}`);
+    if (claim.predicateHash.toLowerCase() !== String(b.predicateHash).toLowerCase()) fail("predicateHash differs from the bounty's");
     if (keccak256(cP).toLowerCase() !== claim.cPHash.toLowerCase()) fail("keccak256(cP) ≠ cPHash");
-    if (b.paused && claim.blockN >= b.pausedFromBlock) fail(`prime en pause pour les réclamations ancrées à partir du bloc ${b.pausedFromBlock}`);
-    if (Number(b.deadline) < nowS()) fail("prime échue");
-    if (Number(claim.deadline) < nowS()) fail(`échéance signée de la réclamation dépassée (${fmtTime(claim.deadline)}) : redemandez une preuve (ClaimExpired)`);
+    if (b.paused && claim.blockN >= b.pausedFromBlock) fail(`bounty paused for claims anchored from block ${b.pausedFromBlock}`);
+    if (Number(b.deadline) < nowS()) fail("bounty expired");
+    if (Number(claim.deadline) < nowS()) fail(`the claim's signed deadline has passed (${fmtTime(claim.deadline)}): ask for a new proof (ClaimExpired)`);
     const head = await w.pub.getBlockNumber();
-    if (claim.blockN >= head || head - claim.blockN > EIP2935_WINDOW) fail(`bloc N ${claim.blockN} hors de la fenêtre EIP-2935 (tête ${head})`);
-    if (claim.blockN <= b.lastPaidBlock) fail(`bloc N ${claim.blockN} au plus tard au dernier paiement ou réarmement (${b.lastPaidBlock}) : rejouez sur un bloc plus récent (AnchorBeforeLastPayout)`);
-    for (const sg of signers) if (!(await isActiveAt(w.pub, sg, b.productId, claim.blockN))) fail(`l'enclave ${sg} n'était pas active au bloc N`);
+    if (claim.blockN >= head || head - claim.blockN > EIP2935_WINDOW) fail(`block N ${claim.blockN} outside the EIP-2935 window (head ${head})`);
+    if (claim.blockN <= b.lastPaidBlock) fail(`block N ${claim.blockN} is at or before the last payout or re-arming (${b.lastPaidBlock}): replay on a more recent block (AnchorBeforeLastPayout)`);
+    for (const sg of signers) if (!(await isActiveAt(w.pub, sg, b.productId, claim.blockN))) fail(`enclave ${sg} was not active at block N`);
     const paid = await w.pub.readContract({ address: testnet.sealedBounty, abi: sealedBountyAbi, functionName: "fingerprintPaid", args: [claim.bountyId, claim.fingerprint] });
-    if (paid) fail("empreinte déjà payée : cet exploit a déjà été récompensé");
+    if (paid) fail("fingerprint already paid: this exploit was already rewarded");
     const tiers = await readTiers(w.pub, claim.bountyId);
     const tier = tiers[claim.tier];
     if (!tier) fail(`palier ${claim.tier} inexistant`);
-    if (claim.loss < (tier as Tier).minLoss) fail(`perte ${usdc(claim.loss)} sous le seuil du palier ${claim.tier}`);
+    if (claim.loss < (tier as Tier).minLoss) fail(`loss ${usdc(claim.loss)} below the threshold of tier ${claim.tier}`);
     const tierAmount = (tier as Tier).amount;
-    if (tierAmount <= b.paidAmount) fail(`palier ${claim.tier} (${usdc(tierAmount)}) déjà couvert : ${usdc(b.paidAmount)} déjà payé depuis le dernier armement (TierAlreadyPaid)`);
+    if (tierAmount <= b.paidAmount) fail(`tier ${claim.tier} (${usdc(tierAmount)}) already covered: ${usdc(b.paidAmount)} already paid since the last arming (TierAlreadyPaid)`);
     const amount = tierAmount - b.paidAmount;
     if (tierAmount > b.singleCap) {
       const ops = new Set<string>();
       for (const sg of signers) ops.add(String((await w.arc.getEnclave(sg)).operator).toLowerCase());
-      if (ops.size < b.k) fail(`palier ${usdc(tierAmount)} > plafond d'une seule enclave (${usdc(b.singleCap)}) : ${b.k} opérateurs distincts requis, ${ops.size} signent (--enclave url1,url2,…)`);
+      if (ops.size < b.k) fail(`tier ${usdc(tierAmount)} > single-enclave cap (${usdc(b.singleCap)}): ${b.k} distinct operators required, ${ops.size} sign (--enclave url1,url2,…)`);
     }
     const fees = await bountyFeesBps(w.pub);
     const total = amount + (amount * BigInt(fees.network)) / 10_000n + (amount * BigInt(fees.operator)) / 10_000n;
-    if (b.balance < total) fail(`solde de la prime ${usdc(b.balance)} < ${usdc(total)} (palier + frais)`);
-    info(`5/6 · réservation on-chain (acceptClaim) : palier ${claim.tier} (${usdc(amount)}), bloc N ${claim.blockN}, empreinte ${claim.fingerprint}`);
+    if (b.balance < total) fail(`bounty balance ${usdc(b.balance)} < ${usdc(total)} (tier + fees)`);
+    info(`5/6 · on-chain reservation (acceptClaim): tier ${claim.tier} (${usdc(amount)}), block N ${claim.blockN}, fingerprint ${claim.fingerprint}`);
     let hash: Hex;
     try {
       hash = await w.arc.acceptClaim(claim, signatures);
     } catch (e) {
-      info(`échec de la réservation : ne resoumettez pas le bundle à l'enclave, rejouez « arcvault bounty submit --resume ${a.savedAt} »`);
+      info(`reservation failed: do not submit the bundle to the enclave again, run "arcvault bounty submit --resume ${a.savedAt}"`);
       throw e;
     }
     const rcpt = await confirm(w, "acceptClaim", hash);
-    if (!rcpt) return out(`[simulation] la réclamation serait acceptée : ${usdc(amount)} réservés pour ${claim.payee} ; deliver suivrait`);
+    if (!rcpt) return out(`[dry run] the claim would be accepted: ${usdc(amount)} reserved for ${claim.payee}; deliver would follow`);
   }
-  info("6/6 · livraison du rapport chiffré et paiement (deliver)");
+  info("6/6 · delivery of the encrypted report and payment (deliver)");
   let dh: Hex;
   try {
     dh = await w.arc.deliver(claim.bountyId, claim.fingerprint, cP);
   } catch (e) {
-    info(`échec de la livraison : le paiement reste réservé 24 h ; rejouez « arcvault bounty submit --resume ${a.savedAt} »`);
+    info(`delivery failed: the payment stays reserved for 24 h; run "arcvault bounty submit --resume ${a.savedAt}"`);
     throw e;
   }
   const rcpt = await confirm(w, "deliver", dh);
-  if (!rcpt) return out(`[simulation] le rapport serait livré et la prime payée à ${claim.payee}`);
+  if (!rcpt) return out(`[dry run] the report would be delivered and the bounty paid to ${claim.payee}`);
   const ev = parseEventLogs({ abi: sealedBountyAbi, logs: rcpt.logs, eventName: "BountyPaid" })[0];
-  out(`prime #${claim.bountyId} payée : ${usdc(ev ? ev.args.amount : 0n)} à ${claim.payee} (palier ${claim.tier}) — rapport livré au protocole`);
+  out(`bounty #${claim.bountyId} paid: ${usdc(ev ? ev.args.amount : 0n)} to ${claim.payee} (tier ${claim.tier}), report delivered to the protocol`);
 }
 
 // ---------- commandes ----------
@@ -208,7 +208,7 @@ const status: Command = {
   path: ["bounty", "status"],
   summary: "a bounty in detail: tiers, fees, single-enclave cap, protocol key, balance",
   usage: "bounty status <id>",
-  args: [{ name: "id", desc: "identifiant de la prime" }],
+  args: [{ name: "id", desc: "the bounty's id" }],
   examples: ["arcvault bounty status 1"],
   async run(ctx) {
     const id = parseId(ctx.args[0], "<id>");
@@ -220,43 +220,43 @@ const status: Command = {
     const p = await arc.getProduct(b.productId);
     const top = tiers.length ? (tiers[tiers.length - 1] as Tier).amount : 0n;
     const topTotal = top + (top * BigInt(fees.network + fees.operator)) / 10_000n;
-    out(`prime #${id}  ${b.paused ? "en pause" : Number(b.deadline) < nowS() ? "échue" : "ouverte"}`);
+    out(`bounty #${id}  ${b.paused ? "paused" : Number(b.deadline) < nowS() ? "expired" : "open"}`);
     out(`  protocole            ${b.protocol}`);
-    out(`  produit              #${b.productId} (${p.deterministic ? "déterministe" : "non déterministe"}, règlement ${contractName(p.settlement)}, ${stateFr(p.state)})`);
+    out(`  product              #${b.productId} (${p.deterministic ? "deterministic" : "not deterministic"}, settlement ${contractName(p.settlement)}, ${stateLabel(p.state)})`);
     out(`  predicateHash        ${b.predicateHash}`);
-    out(`  clé du protocole     ${b.protocolX25519} (X25519 : les rapports cP lui sont chiffrés)`);
+    out(`  protocol key         ${b.protocolX25519} (X25519: the cP reports are encrypted to it)`);
     out(`  paliers              ${tiers.length ? tiersText(tiers) : "—"}`);
-    out(`  frais en plus        réseau ${fees.network / 100} % + opérateurs ${fees.operator / 100} % (pris sur le solde)`);
-    out(`  plafond 1 enclave    ${usdc(b.singleCap)} ; au-delà : ${b.k} opérateur(s) distinct(s)`);
-    out(`  cible mise en pause  ${b.targetToPause === ZERO ? "aucune" : b.targetToPause}`);
-    out(`  échéance             ${fmtTime(b.deadline)}`);
-    out(`  déjà payé            ${b.paidAmount > 0n ? `${usdc(b.paidAmount)} depuis le dernier armement (un palier plus haut ne paie que la différence ; ancrage après le bloc ${b.lastPaidBlock})` : "rien depuis le dernier armement"}`);
-    if (b.paused) out(`  pause                pour les réclamations ancrées à partir du bloc ${b.pausedFromBlock}`);
-    out(`  solde                ${usdc(b.balance)}${topTotal > 0n ? ` (paie ${b.balance / topTotal} fois le plus haut palier, frais compris)` : ""}`);
+    out(`  extra fees           network ${fees.network / 100} % + operators ${fees.operator / 100} % (taken from the balance)`);
+    out(`  single-enclave cap   ${usdc(b.singleCap)}; above it: ${b.k} distinct operator(s)`);
+    out(`  target to pause      ${b.targetToPause === ZERO ? "none" : b.targetToPause}`);
+    out(`  deadline             ${fmtTime(b.deadline)}`);
+    out(`  already paid         ${b.paidAmount > 0n ? `${usdc(b.paidAmount)} since the last arming (a higher tier pays only the difference; anchors after block ${b.lastPaidBlock})` : "nothing since the last arming"}`);
+    if (b.paused) out(`  pause                for claims anchored from block ${b.pausedFromBlock}`);
+    out(`  balance              ${usdc(b.balance)}${topTotal > 0n ? ` (pays the highest tier ${b.balance / topTotal} time(s), fees included)` : ""}`);
   },
 };
 
 const create: Command = {
   path: ["bounty", "create"],
-  summary: "creates and funds a sealed bounty (protocol)",
-  usage: "bounty create --product <id> --predicate <prédicat.json> --tiers <perte:montant,…> --funding <usdc> [--cap <usdc>] [--k 2] [--pause <adresse>] [--deadline 7d] [--protocol-key <nouveau fichier>]",
+  summary: "creates and funds a Sealed Bounty (protocol)",
+  usage: "bounty create --product <id> --predicate <predicate.json> --tiers <loss:amount,…> --funding <usdc> [--cap <usdc>] [--k 2] [--pause <address>] [--deadline 7d] [--protocol-key <new file>]",
   description: [
-    "Le prédicat (JSON { combine, clauses }) décrit ce qui prouve l'exploit ; son hash canonique est épinglé",
-    "on-chain : publiez le fichier pour les chasseurs. Les cibles sont les adresses des clauses. Bornes : imbrication",
-    "≤ 8 niveaux, ≤ 256 champs, JSON canonique ≤ 16 Kio, 1 à 8 clauses (au-delà, aucune enclave ne le prouverait).",
-    "Une clé X25519 NEUVE est créée pour CHAQUE prime (fichier 0600 dans ~/.arcvault/bounty-keys/, nommé par sa clé",
-    "publique) : elle seule déchiffre les rapports de cette prime, et la révéler (bounty refute --reveal-key) n'ouvre que ceux-là.",
+    "The predicate (JSON { combine, clauses }) describes what proves the exploit; its canonical hash is pinned",
+    "on-chain: publish the file for the hunters. The targets are the clauses' addresses. Bounds: nesting",
+    "≤ 8 levels, ≤ 256 fields, canonical JSON ≤ 16 KiB, 1 to 8 clauses (beyond that, no enclave would prove it).",
+    "A NEW X25519 key is created for EACH bounty (a 0600 file in ~/.arcvault/bounty-keys/, named by its public",
+    "key): only it decrypts this bounty's reports, and revealing it (bounty refute --reveal-key) opens only those.",
   ],
   options: [
-    { name: "product", value: "<id>", desc: "produit « Prime scellée » (déterministe, réglé par SealedBounty)", required: true },
-    { name: "predicate", value: "<fichier>", desc: "prédicat JSON v0 (1 à 8 clauses)", required: true },
-    { name: "tiers", value: "<liste>", desc: "paliers perte:montant en USDC, seuils et montants croissants (ex. 1:1,1000:50)", required: true },
-    { name: "funding", value: "<usdc>", desc: "financement initial du pool", required: true },
-    { name: "cap", value: "<usdc>", desc: "plafond payable sur une seule enclave (défaut : le plus haut palier)" },
-    { name: "k", value: "<n>", desc: "opérateurs distincts exigés au-delà du plafond (1 à 5, défaut 2)" },
-    { name: "pause", value: "<adresse>", desc: "cible à mettre en pause (pause()) au paiement, si elle l'autorise" },
-    { name: "deadline", value: "<quand>", desc: "échéance : durée (7d), horodatage Unix ou date ISO (défaut 7d)" },
-    { name: "protocol-key", value: "<nouveau fichier>", desc: `où écrire la clé X25519 NEUVE de cette prime (défaut ${BOUNTY_KEY_DIR}/x25519-<clé publique>.json ; jamais un fichier existant)` },
+    { name: "product", value: "<id>", desc: "a Sealed Bounty product (deterministic, settled by SealedBounty)", required: true },
+    { name: "predicate", value: "<file>", desc: "JSON predicate v0 (1 to 8 clauses)", required: true },
+    { name: "tiers", value: "<list>", desc: "loss:amount tiers in USDC, with increasing thresholds and amounts (e.g. 1:1,1000:50)", required: true },
+    { name: "funding", value: "<usdc>", desc: "initial funding of the pool", required: true },
+    { name: "cap", value: "<usdc>", desc: "amount payable on a single enclave (default: the highest tier)" },
+    { name: "k", value: "<n>", desc: "distinct operators required above the cap (1 to 5, default 2)" },
+    { name: "pause", value: "<address>", desc: "target to pause (pause()) at payout, if it allows it" },
+    { name: "deadline", value: "<when>", desc: "deadline: a duration (7d), a Unix timestamp or an ISO date (default 7d)" },
+    { name: "protocol-key", value: "<new file>", desc: `where to write this bounty's NEW X25519 key (default ${BOUNTY_KEY_DIR}/x25519-<public key>.json; never an existing file)` },
   ],
   write: true,
   examples: [
@@ -265,86 +265,86 @@ const create: Command = {
   async run(ctx) {
     const productId = parseId(req(ctx, "product"), "--product");
     const predicatePath = req(ctx, "predicate");
-    const predicate = loadPredicate(readJson(predicatePath, "prédicat"), predicatePath);
+    const predicate = loadPredicate(readJson(predicatePath, "predicate"), predicatePath);
     const ph = predicateHash(predicate);
     const tiers = parseTiers(req(ctx, "tiers"));
     const funding = parseUsdc(req(ctx, "funding"), "--funding");
     const top = (tiers[tiers.length - 1] as Tier).amount;
     const singleCap = opt(ctx, "cap") !== undefined ? parseUsdc(req(ctx, "cap"), "--cap") : top;
     const k = opt(ctx, "k") !== undefined ? Number(parseId(opt(ctx, "k"), "--k")) : 2;
-    if (k < 1 || k > 5) throw new CliError("--k : entre 1 et 5 (le contrat accepte au plus 5 signatures)");
+    if (k < 1 || k > 5) throw new CliError("--k: between 1 and 5 (the contract accepts at most 5 signatures)");
     const target = opt(ctx, "pause") !== undefined ? parseAddr(req(ctx, "pause"), "--pause") : ZERO;
     const deadline = parseWhen(opt(ctx, "deadline") ?? "7d", "--deadline");
-    if (Number(deadline) <= nowS()) throw new CliError("--deadline est dans le passé");
+    if (Number(deadline) <= nowS()) throw new CliError("--deadline is in the past");
     const keyOut = opt(ctx, "protocol-key");
     if (keyOut !== undefined && existsSync(keyOut)) {
-      throw new CliError(`--protocol-key : ${keyOut} existe déjà ; une clé X25519 par prime (elle ouvre tous les rapports chiffrés vers elle) : donnez un nouveau fichier`);
+      throw new CliError(`--protocol-key: ${keyOut} already exists; one X25519 key per bounty (it opens every report encrypted to it): give a new file`);
     }
 
     const w = await writer(ctx);
     const p = await w.arc.getProduct(productId);
-    if (p.state !== "Active") throw new CliError(`produit #${productId} non actif (${stateFr(p.state)})`);
+    if (p.state !== "Active") throw new CliError(`product #${productId} not active (${stateLabel(p.state)})`);
     if (!p.deterministic || !sameAddr(p.settlement, testnet.sealedBounty)) {
-      throw new CliError(`le produit #${productId} n'est pas une Prime scellée (déterministe, réglé par SealedBounty)`);
+      throw new CliError(`product #${productId} is not a Sealed Bounty (deterministic, settled by SealedBounty)`);
     }
     const bal = await w.arc.usdcBalance(w.account.address);
     if (bal < funding) throw new CliError(`solde USDC insuffisant : ${usdc(bal)} < ${usdc(funding)}`);
     const fees = await bountyFeesBps(w.pub);
     const topTotal = top + (top * BigInt(fees.network + fees.operator)) / 10_000n;
-    if (funding < topTotal) warn(`le financement (${usdc(funding)}) ne couvre pas le plus haut palier frais compris (${usdc(topTotal)})`);
+    if (funding < topTotal) warn(`the funding (${usdc(funding)}) does not cover the highest tier with fees (${usdc(topTotal)})`);
     if (singleCap < top && k > 1) {
-      warn(`les paliers au-dessus de ${usdc(singleCap)} exigent ${k} signatures d'opérateurs distincts : le chasseur devra faire prouver l'exploit par ${k} enclaves (arcvault bounty submit --enclave url1,url2,…)`);
+      warn(`tiers above ${usdc(singleCap)} require ${k} signatures from distinct operators: the hunter will need ${k} enclaves to prove the exploit (arcvault bounty submit --enclave url1,url2,…)`);
     }
 
-    // une clé X25519 NEUVE pour cette prime (jamais celle d'une autre prime : --reveal-key n'ouvrira que ses rapports)
+    // a NEW X25519 key for this bounty (never another bounty's: --reveal-key will open only its reports)
     let key: ProtocolKey;
     let keyPath: string | undefined;
     if (w.dryRun) {
       const k2 = generateX25519();
       key = { publicKey: k2.publicKey, privateKey: k2.privateKey };
-      info("[simulation] clé de la prime éphémère (aucun fichier écrit ; une clé neuve serait créée en 0600)");
+      info("[dry run] ephemeral bounty key (no file written; a new key would be created in 0600)");
     } else {
       ({ path: keyPath, key } = createBountyKey({ path: keyOut, sealedBounty: testnet.sealedBounty, chainId: testnet.chainId }));
-      info(`clé de la prime créée : ${keyPath} (mode 0600, une clé par prime) — publique ${key.publicKey}`);
+      info(`bounty key created: ${keyPath} (mode 0600, one key per bounty), public ${key.publicKey}`);
     }
 
-    info(`prime : produit #${productId}, prédicat ${ph}, paliers ${tiersText(tiers)}, plafond 1 enclave ${usdc(singleCap)}, k = ${k}, échéance ${fmtTime(deadline)}`);
+    info(`bounty: product #${productId}, predicate ${ph}, tiers ${tiersText(tiers)}, single-enclave cap ${usdc(singleCap)}, k = ${k}, deadline ${fmtTime(deadline)}`);
     const r = await w.arc.createBounty({
       productId, predicateHash: ph, protocolX25519: key.publicKey, tierMinLoss: tiers.map((t) => t.minLoss),
       tierAmount: tiers.map((t) => t.amount), singleCap, k, targetToPause: target, deadline, funding,
     });
     const rcpt = await confirm(w, "createBounty", r.tx);
-    if (!rcpt) return out(`[simulation] prime #${r.bountyId} serait créée et financée (${usdc(funding)})`);
+    if (!rcpt) return out(`[dry run] bounty #${r.bountyId} would be created and funded (${usdc(funding)})`);
     const ev = parseEventLogs({ abi: sealedBountyAbi, logs: rcpt.logs, eventName: "BountyCreated" })[0];
     const id = ev ? ev.args.bountyId : r.bountyId;
     if (keyPath) recordBountyId(keyPath, id);
-    out(`prime #${id} créée et financée (${usdc(funding)})`);
-    info(`publiez ${predicatePath} pour les chasseurs (predicateHash ${ph}) ; rapports : arcvault bounty reports ${id} (clé : ${keyPath})`);
+    out(`bounty #${id} created and funded (${usdc(funding)})`);
+    info(`publish ${predicatePath} for the hunters (predicateHash ${ph}); reports: arcvault bounty reports ${id} (key: ${keyPath})`);
   },
 };
 
 const submit: Command = {
   path: ["bounty", "submit"],
   summary: "hunter: proves an exploit in one or k enclaves (keys verified on-chain), then gets the bounty paid",
-  usage: "bounty submit --bounty <id> --bundle <exploit.json> --enclave <url O3>[,<url O3>…] [--payee <adresse>] [--out <fichier>] [--save-r <nouveau fichier>] | --resume <fichier>",
+  usage: "bounty submit --bounty <id> --bundle <exploit.json> --enclave <url>[,<url>…] [--payee <address>] [--out <file>] [--save-r <new file>] | --resume <file>",
   description: [
-    "exploit.json : { predicate, txs: [0x…] (1 à 10), capital?: \"<entier>\", attackCode?: 0x… } ;",
-    "le prédicat doit être celui de la prime (même hash). Étapes : lecture de la prime, contrôle que la clé de chaque",
-    "enclave est celle INSCRITE on-chain et qu'elle est active pour le produit de la prime (sinon rien n'est chiffré),",
-    "chiffrement de cP (vers le protocole) puis de cE (vers chaque enclave), preuve, contrôles de la réclamation signée,",
-    "sauvegarde, puis paiement v2 en deux temps : acceptClaim (réserve) puis deliver (livre le rapport et paie).",
-    "Plusieurs enclaves (k opérateurs distincts, au-delà du plafond d'une seule) : même bloc N et même échéance pour toutes.",
-    "Une réclamation prouvée est sauvegardée (sans l'exploit en clair) : en cas d'échec, --resume la rejoue",
-    "sans resoumettre le bundle. --dry-run fait prouver par les enclaves mais ne fait que simuler la réservation.",
+    "exploit.json: { predicate, txs: [0x…] (1 to 10), capital?: \"<integer>\", attackCode?: 0x… };",
+    "the predicate must be the bounty's (same hash). Steps: read the bounty, check that each enclave's key is the one",
+    "REGISTERED on-chain and that it is active for the bounty's product (otherwise nothing is encrypted), encrypt cP",
+    "(to the protocol), then cE (to each enclave), prove, check the signed claim, save it, then pay in two steps:",
+    "acceptClaim (reserves), then deliver (delivers the report and pays).",
+    "Several enclaves (k distinct operators, above the single-enclave cap): the same block N and deadline for all.",
+    "A proven claim is saved (without the plaintext exploit): after a failure, --resume replays it",
+    "without submitting the bundle again. --dry-run has the enclaves prove the exploit but only simulates the reservation.",
   ],
   options: [
-    { name: "bounty", value: "<id>", desc: "prime visée" },
-    { name: "bundle", value: "<fichier>", desc: "bundle d'exploit JSON (reste sur cette machine, envoyé chiffré)" },
-    { name: "enclave", value: "<url[,url…]>", desc: "URL du service Prime scellée (O3) d'une ou plusieurs enclaves inscrites" },
-    { name: "payee", value: "<adresse>", desc: "bénéficiaire (défaut : l'adresse de PRIVATE_KEY)" },
-    { name: "out", value: "<fichier>", desc: "où sauvegarder la réclamation prouvée (défaut claim-b<id>-<empreinte>.json)" },
-    { name: "resume", value: "<fichier>", desc: "fait payer une réclamation déjà prouvée et sauvegardée" },
-    { name: "save-r", value: "<nouveau fichier>", desc: "garde l'aléa r de cP dans ce fichier NEUF (0600) : de quoi réfuter plus tard (bounty refute --r-file) ; avec le cP public, r ouvre l'exploit" },
+    { name: "bounty", value: "<id>", desc: "the target bounty" },
+    { name: "bundle", value: "<file>", desc: "JSON exploit bundle (stays on this machine, sent encrypted)" },
+    { name: "enclave", value: "<url[,url…]>", desc: "URL of the Sealed Bounty service of one or more registered enclaves" },
+    { name: "payee", value: "<address>", desc: "payee (default: the PRIVATE_KEY address)" },
+    { name: "out", value: "<file>", desc: "where to save the proven claim (default claim-b<id>-<fingerprint>.json)" },
+    { name: "resume", value: "<file>", desc: "gets an already proven and saved claim paid" },
+    { name: "save-r", value: "<new file>", desc: "keeps cP's random r in this NEW file (0600): enough to refute later (bounty refute --r-file); with the public cP, r opens the exploit" },
   ],
   write: true,
   examples: [
@@ -354,8 +354,8 @@ const submit: Command = {
   async run(ctx) {
     const resume = opt(ctx, "resume");
     if (resume) {
-      const j = readJson(resume, "réclamation sauvegardée") as any;
-      if (j?.kind !== "arcvault-bounty-claim") throw new CliError(`${resume} n'est pas une réclamation sauvegardée par arcvault`);
+      const j = readJson(resume, "saved claim") as any;
+      if (j?.kind !== "arcvault-bounty-claim") throw new CliError(`${resume} is not a claim saved by arcvault`);
       const w = await writer(ctx);
       const signatures: Hex[] = Array.isArray(j.signatures) ? j.signatures : [j.signature];
       const signers: string[] = Array.isArray(j.signers) ? j.signers : [j.signer];
@@ -368,40 +368,40 @@ const submit: Command = {
     const id = parseId(req(ctx, "bounty"), "--bounty");
     const bundlePath = req(ctx, "bundle");
     const urls = req(ctx, "enclave").split(",").map((u) => u.trim().replace(/\/$/, "")).filter(Boolean);
-    if (!urls.length || urls.length > 5) throw new CliError("--enclave : 1 à 5 URL séparées par des virgules (le contrat accepte au plus 5 signatures)");
+    if (!urls.length || urls.length > 5) throw new CliError("--enclave: 1 to 5 comma-separated URLs (the contract accepts at most 5 signatures)");
     const exploit = loadExploit(bundlePath);
     const w = await writer(ctx);
     const payee = opt(ctx, "payee") !== undefined ? parseAddr(req(ctx, "payee"), "--payee") : w.account.address;
 
-    info(`1/6 · prime #${id} : lecture on-chain`);
+    info(`1/6 · bounty #${id}: on-chain read`);
     const b = await w.arc.getBounty(id);
     if (b.protocol === ZERO) throw new CliError(`prime #${id} inexistante`);
-    if (b.paused) warn(`prime #${id} en pause pour les réclamations ancrées à partir du bloc ${b.pausedFromBlock}`);
-    if (Number(b.deadline) < nowS()) throw new CliError(`prime #${id} échue`);
+    if (b.paused) warn(`bounty #${id} paused for claims anchored from block ${b.pausedFromBlock}`);
+    if (Number(b.deadline) < nowS()) throw new CliError(`bounty #${id} expired`);
     const ph = predicateHash(exploit.predicate);
     if (ph.toLowerCase() !== String(b.predicateHash).toLowerCase()) {
-      throw new CliError(`le prédicat du bundle (${ph}) n'est pas celui de la prime (${b.predicateHash})`);
+      throw new CliError(`the bundle's predicate (${ph}) is not the bounty's (${b.predicateHash})`);
     }
     const tiers = await readTiers(w.pub, id);
-    if (!tiers.length) throw new CliError(`prime #${id} sans palier`);
+    if (!tiers.length) throw new CliError(`bounty #${id} has no tier`);
 
-    info(`2/6 · enclave(s) : clé X25519 = celle inscrite on-chain, active pour le produit #${b.productId}`);
+    info(`2/6 · enclave(s): X25519 key = the one registered on-chain, active for product #${b.productId}`);
     const keys = [];
     for (const url of urls) {
       const k = await verifiedEnclave(w.pub, url, b.productId);
-      info(`  ✓ ${url} → enclave ${k.signer} (opérateur ${k.operator})`);
+      info(`  ✓ ${url} → enclave ${k.signer} (operator ${k.operator})`);
       keys.push(k);
     }
 
-    info("3/6 · chiffrement : cP vers la clé du protocole (lue on-chain), puis cE vers chaque enclave vérifiée (HPKE)");
-    // plusieurs enclaves : le même aléa, le même bloc N et la même échéance, pour qu'elles signent la MÊME réclamation
+    info("3/6 · encryption: cP to the protocol key (read on-chain), then cE to each verified enclave (HPKE)");
+    // several enclaves: the same random r, block N and deadline, so that they sign the SAME claim
     const multi = keys.length > 1;
     const head = await w.pub.getBlockNumber();
     const r = globalThis.crypto.getRandomValues(new Uint8Array(32));
     const saveRPath = opt(ctx, "save-r");
     if (saveRPath !== undefined) {
       saveR(saveRPath, r);
-      info(`  aléa r gardé dans ${saveRPath} (0600) : avec le cP public il ouvre l'exploit, gardez-le comme le bundle`);
+      info(`  random r kept in ${saveRPath} (0600): with the public cP it opens the exploit, so guard it like the bundle`);
     }
     const anchor = multi ? { blockN: head - 8n, deadline: BigInt(nowS() + 480) } : {};
     const sealed: SealedExploit[] = [];
@@ -412,12 +412,12 @@ const submit: Command = {
     }
     r.fill(0);
 
-    info(`4/6 · preuve : ${keys.length} enclave(s) rejouent l'exploit et signent la réclamation si le prédicat est satisfait`);
+    info(`4/6 · proof: ${keys.length} enclave(s) replay the exploit and sign the claim if the predicate is satisfied`);
     const proven: ProvenClaim[] = [];
     for (const sx of sealed) {
       const res = await httpJson(`${sx.enclave.enclaveUrl}/bounty/submit`, { body: sx.submitBody, timeoutMs: 180_000 });
-      if (res?.status !== "proven") throw new CliError(`non prouvé par l'enclave ${sx.enclave.signer} : ${res?.reason ?? res?.error ?? JSON.stringify(res)}`);
-      if (!isHex(res.signature) || !isHex(res.cP)) throw new CliError("réponse de l'enclave incomplète (signature, cP)");
+      if (res?.status !== "proven") throw new CliError(`not proven by enclave ${sx.enclave.signer}: ${res?.reason ?? res?.error ?? JSON.stringify(res)}`);
+      if (!isHex(res.signature) || !isHex(res.cP)) throw new CliError("incomplete enclave answer (signature, cP)");
       try {
         proven.push(await checkProvenClaim(sx, { claim: res.claim, signature: res.signature, cP: res.cP }, { sealedBounty: testnet.sealedBounty, chainId: testnet.chainId }));
       } catch (e) {
@@ -427,13 +427,13 @@ const submit: Command = {
     const first = proven[0]!;
     const claim = normalizeClaim(claimJson(first.claim));
     const same = proven.every((p) => JSON.stringify(claimJson(p.claim)) === JSON.stringify(claimJson(first.claim)));
-    if (!same) throw new CliError("les enclaves n'ont pas signé la même réclamation (bloc N ou échéance différents) : réessayez");
+    if (!same) throw new CliError("the enclaves did not sign the same claim (different block N or deadline): try again");
     const signatures = proven.map((p) => p.signature);
     const signers = proven.map((p) => p.signer);
     const savedAt = saveClaim(opt(ctx, "out"), {
       kind: "arcvault-bounty-claim", enclaves: urls, signers, signatures, claim: claimJson(claim), cP: first.cP,
     }, id, claim.fingerprint);
-    info(`  réclamation prouvée${multi ? ` par ${signers.length} enclaves` : ""} et sauvegardée : ${savedAt}`);
+    info(`  claim proven${multi ? ` by ${signers.length} enclaves` : ""} and saved: ${savedAt}`);
     await verifyAndClaim(w, { claim, signatures, cP: first.cP, enclaveSigners: signers, expectedPayee: payee, savedAt });
   },
 };
@@ -443,13 +443,13 @@ const reports: Command = {
   summary: "protocol: decrypts the delivered exploit reports (ExploitDelivered events) with its key",
   usage: "bounty reports <id> [--key <fichier>] [--out <dossier>]",
   description: [
-    "Chaque réclamation payée livre cP (chiffré vers la clé X25519 du protocole) dans l'événement ExploitDelivered.",
-    "Le rapport déchiffré (bénéficiaire, capital, prédicat, transactions, code d'attaque) est écrit sur stdout.",
+    "Each paid claim delivers cP (encrypted to the protocol's X25519 key) in the ExploitDelivered event.",
+    "The decrypted report (payee, capital, predicate, transactions, attack code) is written to stdout.",
   ],
-  args: [{ name: "id", desc: "identifiant de la prime" }],
+  args: [{ name: "id", desc: "the bounty's id" }],
   options: [
-    { name: "key", value: "<fichier>", desc: `clé X25519 de la prime (défaut : retrouvée par sa clé publique dans ${BOUNTY_KEY_DIR}, sinon ${LEGACY_PROTOCOL_KEY})` },
-    { name: "out", value: "<dossier>", desc: "écrit aussi chaque rapport déchiffré dans ce dossier (fichiers 0600)" },
+    { name: "key", value: "<file>", desc: `the bounty's X25519 key (default: found by its public key in ${BOUNTY_KEY_DIR}, otherwise ${LEGACY_PROTOCOL_KEY})` },
+    { name: "out", value: "<folder>", desc: "also writes each decrypted report to this folder (0600 files)" },
   ],
   examples: ["arcvault bounty reports 3", "arcvault bounty reports 3 --key ./protocole.json --out ./rapports"],
   async run(ctx) {
@@ -459,9 +459,9 @@ const reports: Command = {
     const b = await arc.getBounty(id);
     if (b.protocol === ZERO) throw new CliError(`prime #${id} inexistante`);
     const { key, path: keyPath } = findBountyKey(b.protocolX25519, { path: opt(ctx, "key") });
-    info(`clé de la prime : ${keyPath}`);
+    info(`bounty key: ${keyPath}`);
     const logs = await deliveredReports(pub, id);
-    if (!logs.length) return out(`aucun rapport livré pour la prime #${id}`);
+    if (!logs.length) return out(`no report delivered for bounty #${id}`);
     if (outDir) mkdirSync(outDir, { recursive: true, mode: 0o700 });
     let n = 0;
     for (const log of logs) {
@@ -472,7 +472,7 @@ const reports: Command = {
       try {
         report = JSON.parse(new TextDecoder().decode(deterministicOpen(key.privateKey, cP)));
       } catch {
-        out("  illisible : chiffré pour une autre clé, ou cP non conforme au format arcvault");
+        out("  unreadable: encrypted to another key, or cP not in the arcvault format");
         continue;
       }
       out(JSON.stringify(report, null, 2).split("\n").map((l) => `  ${l}`).join("\n"));

@@ -9,7 +9,7 @@ npm run arcvault -- products
 ```
 
 - **Reads need no key**: `products`, `enclaves`, `bounties`, `verify`, and the `list` and `status` commands of each group.
-- **Writes are signed** with the `PRIVATE_KEY` environment variable, which is never printed. Every signing command supports `--dry-run`, which simulates the transaction without sending it. A key passed on the command line is refused, so it never lands in shell history or the process list.
+- **Writes are signed** with the `PRIVATE_KEY` environment variable, which is never printed. Every signing command supports `--dry-run`, which simulates the transaction without sending it. The CLI refuses a key passed on the command line, so the key never lands in shell history or the process list.
 
 Command groups:
 
@@ -22,6 +22,6 @@ Command groups:
 | `auditor` | `attest`, `revoke` |
 | top level | `products`, `enclaves`, `bounties`, `verify`, `proxy` |
 
-Sealed Bounty secrets stay on the user's disk: `bounty create` generates a fresh X25519 key per bounty and writes it with file mode 0600. These rules, and the argument parser, are tested in `packages/sdk/test/bounty-rules.test.ts` (run `npm test` in `packages/sdk`).
+Sealed Bounty secrets stay on the user's disk. `bounty create` generates a fresh X25519 key per bounty and writes it with file mode 0600. The CLI has no test runner of its own: `packages/sdk/test/bounty-rules.test.ts` tests these rules and the argument parser (run `npm test` in `packages/sdk`).
 
-The package and its binary are named `arcvault`, the npm scope shared by every package in this repository.
+The binary is named `arcvault`, like the npm scope `@arcvault` that every package in this repository shares.

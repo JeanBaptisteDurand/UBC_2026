@@ -1,6 +1,6 @@
-/** x402.test.ts — le rail « paiement à l'appel » côté SDK : signature canonique pour l'USDC, lecture d'un fichier de
- *  déploiement, vérification d'un appel comme X402Settler.settle, file de règlement de l'opérateur (sans double
- *  règlement), garde-fous du client avant toute signature. Le parcours complet contre la vraie enclave est dans
+/** x402.test.ts — the pay-per-call rail on the SDK side: canonical signatures for USDC, reading a deployment file,
+ *  checking a call the way X402Settler.settle does, the operator's settlement queue (no double settlement), and the
+ *  client's safeguards before any signature. The full path against the real enclave is in
  *  enclave/test/x402-e2e.test.ts. */
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
@@ -41,13 +41,13 @@ function pub(c: Chain): any {
         case "activeOperatorAt": return c.enclaves.get(L(x[0])) ?? zeroAddress;
         case "authorizationState": return c.used.has(`${L(x[0])}:${L(x[1])}`);
         case "balanceOf": return c.balances.get(L(x[0])) ?? 0n;
-        default: throw new Error(`lecture non émulée : ${a.functionName}`);
+        default: throw new Error(`read not emulated: ${a.functionName}`);
       }
     },
   };
 }
 
-/** Un appel servi par `enclave`, payé par `payer` (autorisation EIP-3009 de `value`, échéance `validBefore`). */
+/** A call served by `enclave`, paid by `payer` (EIP-3009 authorization of `value`, expiry `validBefore`). */
 async function servedCall(o: { enclave: ReturnType<typeof privateKeyToAccount>; payer: ReturnType<typeof privateKeyToAccount>; value?: bigint; validBefore?: bigint; nonce?: Hex }): Promise<PendingCall> {
   const nonce = o.nonce ?? (keccak256(toBytes(`n-${Math.random()}`)) as Hex);
   const receipt: CallReceipt = {
@@ -73,10 +73,10 @@ describe("x402: canonical forms", () => {
     const s = BigInt(`0x${sig.slice(66, 130)}`);
     const v = parseInt(sig.slice(130), 16);
     const high = `0x${sig.slice(2, 66)}${(N - s).toString(16).padStart(64, "0")}${(v === 27 ? 28 : 27).toString(16)}` as Hex;
-    expect(eip3009SignatureProblem(high)).toMatch(/s haut/);
-    expect(await recoverTypedDataAddress({ ...msg, signature: high })).toBe(acc.address); // viem l'accepte…
+    expect(eip3009SignatureProblem(high)).toMatch(/high-s/);
+    expect(await recoverTypedDataAddress({ ...msg, signature: high })).toBe(acc.address); // viem accepts it…
     const fixed = normalizeEcdsaSignature(high);
-    expect(fixed).toBe(L(sig)); // …le SDK la rend canonique
+    expect(fixed).toBe(L(sig)); // …the SDK makes it canonical
     const v01 = `${sig.slice(0, 130)}${(v - 27).toString(16).padStart(2, "0")}` as Hex;
     expect(normalizeEcdsaSignature(v01)).toBe(L(sig));
     expect(() => normalizeEcdsaSignature("0x1234" as Hex)).toThrow("65-byte");
@@ -136,7 +136,7 @@ describe("x402: verify a call like X402Settler.settle", () => {
     await failing((x) => { x.settlement = D.sessionPay; }, "settlement");
     await failing((x) => { x.enclaves.clear(); }, "active");
     await failing(() => {}, "operator", undefined, "0x000000000000000000000000000000000000dEaD");
-    await failing((x) => { x.price = 20_000n; }, "authorization"); // le prix a changé : l'autorisation ne paie plus le montant dû
+    await failing((x) => { x.price = 20_000n; }, "authorization"); // the price changed: the authorization no longer pays the amount due
     await failing((x) => { x.balances.set(L(payer.address), PRICE - 1n); }, "funds");
     await failing((x) => { x.timestamp = call.auth.validBefore; }, "window");
     const used = await failing((x) => { x.used.add(`${L(payer.address)}:${L(call.receipt.nonce)}`); }, "unused");
@@ -180,7 +180,7 @@ describe("x402: the operator's settlement queue", () => {
     expect(a.settled).toHaveLength(2);
     expect(s.sent).toHaveLength(2);
     expect(s.acked).toHaveLength(2);
-    const again = await s.q.runOnce(); // l'enclave les liste encore (pas encore traité le signalement) : rien n'est renvoyé
+    const again = await s.q.runOnce(); // the enclave still lists them (it has not processed the report yet): nothing is sent again
     expect(again.alreadySettled).toBe(2);
     expect(s.sent).toHaveLength(2);
   });
@@ -201,9 +201,9 @@ describe("x402: the operator's settlement queue", () => {
     expect(r1.waiting.map((w) => w.payer)).toEqual(expect.arrayContaining([payer.address, poor.address]));
     s.setOutcome("success");
     const r2 = await s.q.runOnce();
-    expect(s.sent).toEqual([mine.receipt.nonce]); // refroidissement : pas de 2e envoi
+    expect(s.sent).toEqual([mine.receipt.nonce]); // cooldown: no second send
     expect(r2.settled).toHaveLength(0);
-    expect(s.q.size).toBe(2); // le mien (en attente de reçu) et celui du payeur sans fonds
+    expect(s.q.size).toBe(2); // mine (waiting for a receipt) and the one from the payer with no funds
   });
 
   it("an authorization that expires before settlement leaves the queue (lost), with no send", async () => {
@@ -238,14 +238,14 @@ describe("x402: the client refuses before signing", () => {
       return base(a);
     };
     const payer = privateKeyToAccount(generatePrivateKey());
-    const ai = createX402Client({ enclaveUrl: "https://e.example", productId: PRODUCT, walletClient: { account: payer, signTypedData: () => { throw new Error("ne doit pas signer"); } } as any, publicClient: p, deployment: D, fetch: f });
+    const ai = createX402Client({ enclaveUrl: "https://e.example", productId: PRODUCT, walletClient: { account: payer, signTypedData: () => { throw new Error("must not sign"); } } as any, publicClient: p, deployment: D, fetch: f });
     await expect(ai.chat.completions.create({ messages: [{ role: "user", content: "a" }] })).rejects.toBeInstanceOf(X402ChallengeError);
     expect(seen.filter((u) => u.includes("chat/completions"))).toEqual([]);
   });
 });
 
 describe("x402: after the paid send, never \"nothing is owed\"", () => {
-  /** Une passerelle factice : clés vérifiables on-chain, 402 conforme à la chaîne, puis `paid` pour chaque envoi payé. */
+  /** A fake gateway: keys verifiable on-chain, a 402 that matches the chain, then `paid` for each paid send. */
   function gateway(paid: (n: number) => Response | Promise<Response>) {
     const c = chain();
     const enclave = privateKeyToAccount(generatePrivateKey());
@@ -283,28 +283,28 @@ describe("x402: after the paid send, never \"nothing is owed\"", () => {
       () => new Response(JSON.stringify({ error: "x", code: "chain_unavailable" }), { status: 503 }),
       () => new Response(JSON.stringify({ error: "x", code: "payer_pending_limit" }), { status: 429 }),
       () => { throw new TypeError("fetch failed"); },
-      () => new Response(JSON.stringify({ x402Version: 1, error: "insufficient_funds", detail: "rien n'est dû, promis", accepts: [] }), { status: 402 }),
+      () => new Response(JSON.stringify({ x402Version: 1, error: "insufficient_funds", detail: "nothing is owed, promise", accepts: [] }), { status: 402 }),
     ];
     const g = gateway((n) => answers[n - 1]!());
     const ai = createX402Client({ enclaveUrl: "https://e.example", productId: PRODUCT, walletClient: g.wallet, publicClient: g.p, deployment: D, fetch: g.f, paidRetryDelaysMs: [1, 1, 1] });
     const err = await ai.chat.completions.create({ messages: [{ role: "user", content: "a" }] }).catch((e) => e);
     expect(err).toBeInstanceOf(X402PaidCallError);
     expect(err).not.toBeInstanceOf(X402CallError);
-    expect(err.message).not.toContain("rien n'est dû"); // ni le nôtre, ni celui (non authentifié) du serveur
-    expect(err.serverDetail).toBe("rien n'est dû, promis"); // gardé à part, comme donnée non authentifiée
+    expect(err.message).not.toContain("nothing is owed"); // neither ours, nor the server's (not authenticated)
+    expect(err.serverDetail).toBe("nothing is owed, promise"); // kept apart, as unauthenticated data
     expect(err).toMatchObject({ status: 402, code: "insufficient_funds", attempts: 4 });
     expect(g.signed()).toBe(1);
     const paid = g.sent.filter((x) => x.paid);
     expect(paid).toHaveLength(4);
-    expect(new Set(paid.map((x) => x.body)).size).toBe(1); // même enveloppe
-    expect(new Set(paid.map((x) => x.xPayment)).size).toBe(1); // même autorisation
+    expect(new Set(paid.map((x) => x.body)).size).toBe(1); // same envelope
+    expect(new Set(paid.map((x) => x.xPayment)).size).toBe(1); // same authorization
     const pending = err.pending;
     expect(JSON.parse(paid[0]!.body)).toEqual(pending.envelope);
     expect(pending.authorization.value).toBe(PRICE);
-    expect(pending.authorization.validBefore - BigInt(Math.floor(Date.now() / 1000))).toBeGreaterThan(850n); // 900 s annoncées
+    expect(pending.authorization.validBefore - BigInt(Math.floor(Date.now() / 1000))).toBeGreaterThan(850n); // 900 s announced
     expect(parseX402PaidRequest(serializeX402PaidRequest(pending))).toEqual({ ...pending, envelope: { ...pending.envelope } });
-    expect(JSON.stringify(err)).not.toContain(pending.ephemeralPrivateKey.slice(2)); // clé éphémère non énumérable
-    // reprise : la même requête, la même autorisation ; toujours en échec ici → de nouveau X402PaidCallError
+    expect(JSON.stringify(err)).not.toContain(pending.ephemeralPrivateKey.slice(2)); // ephemeral key not enumerable
+    // resume: the same request, the same authorization; still failing here → X402PaidCallError again
     const again = await ai.resume(pending).catch((e) => e);
     expect(again).toBeInstanceOf(X402PaidCallError);
     expect(g.signed()).toBe(1);
@@ -319,7 +319,7 @@ describe("x402: after the paid send, never \"nothing is owed\"", () => {
     expect(g.signed()).toBe(1);
 
     const g2 = gateway((n) => {
-      if (n === 2) g2.c.price = PRICE / 2n; // le prix baisse vraiment on-chain
+      if (n === 2) g2.c.price = PRICE / 2n; // the price really drops on-chain
       return new Response(JSON.stringify(PC), { status: 402 });
     });
     const ai2 = createX402Client({ enclaveUrl: "https://e.example", productId: PRODUCT, walletClient: g2.wallet, publicClient: g2.p, deployment: D, fetch: g2.f, paidRetryDelaysMs: [1, 1] });
@@ -328,33 +328,33 @@ describe("x402: after the paid send, never \"nothing is owed\"", () => {
     expect(g2.signed()).toBe(2);
     const auths = err.pending.authorizations;
     expect(auths.map((a: any) => a.value)).toEqual([PRICE, PRICE / 2n]);
-    expect(auths[0].nonce).toBe(auths[1].nonce); // même nonce : au plus une des deux est consommable on-chain
-    expect(new Set(g2.sent.filter((x) => x.paid).map((x) => x.body)).size).toBe(1); // même requête
+    expect(auths[0].nonce).toBe(auths[1].nonce); // same nonce: at most one of the two can be consumed on-chain
+    expect(new Set(g2.sent.filter((x) => x.paid).map((x) => x.body)).size).toBe(1); // same request
   });
 
   it("price REALLY raised during the call (×100) → NO authorization at the new price; X402PaidCallError \"price_increased\" with newPrice; accepted explicitly through resume({ renew, maxPrice })", async () => {
     const PC = { x402Version: 1, error: "invalid_exact_evm_payload_authorization_value", accepts: [] };
     const g = gateway((n) => {
-      if (n === 1) g.c.price = 100n * PRICE; // l'auteur relève le prix pendant qu'un mandataire cache la réponse
+      if (n === 1) g.c.price = 100n * PRICE; // the author raises the price while a proxy hides the answer
       return new Response(JSON.stringify(PC), { status: 402 });
     });
     const ai = createX402Client({ enclaveUrl: "https://e.example", productId: PRODUCT, walletClient: g.wallet, publicClient: g.p, deployment: D, fetch: g.f, paidRetryDelaysMs: [1, 1, 1] });
     const err = await ai.chat.completions.create({ messages: [{ role: "user", content: "a" }] }).catch((e) => e);
     expect(err).toBeInstanceOf(X402PaidCallError);
     expect(err).toMatchObject({ code: "price_increased", newPrice: 100n * PRICE });
-    expect(g.signed()).toBe(1); // jamais ×100 sans accord
+    expect(g.signed()).toBe(1); // never ×100 without consent
     const values = g.sent.filter((x) => x.paid).map((x) => JSON.parse(atob(x.xPayment!)).payload.authorization.value);
     expect(new Set(values)).toEqual(new Set([PRICE.toString()]));
-    expect(err.message).toMatch(/au-delà du plafond de cet appel/);
+    expect(err.message).toMatch(/above the ceiling of this call/);
     expect(err.message).toContain("client.resume(err.pending, { renew: true, maxPrice: err.newPrice })");
-    expect(err.pending.maxPrice).toBe(PRICE); // le plafond de l'appel = le prix lu à son début
-    // une reprise SANS accord ne signe rien de plus cher
+    expect(err.pending.maxPrice).toBe(PRICE); // the call's ceiling = the price read when it began
+    // a resume WITHOUT consent signs nothing dearer
     const again = await ai.resume(err.pending, { renew: true }).catch((e) => e);
     expect(again).toMatchObject({ code: "price_increased", newPrice: 100n * PRICE });
     expect(g.signed()).toBe(1);
-    // le plafond survit à la sérialisation
+    // the ceiling survives serialization
     expect(parseX402PaidRequest(serializeX402PaidRequest(err.pending)).maxPrice).toBe(PRICE);
-    // accord explicite : une autorisation au nouveau prix, MÊME nonce (au plus une des deux est consommable)
+    // explicit consent: an authorization at the new price, SAME nonce (at most one of the two can be consumed)
     const accepted = await ai.resume(err.pending, { renew: true, maxPrice: err.newPrice }).catch((e) => e);
     expect(g.signed()).toBe(2);
     expect(accepted.pending.authorizations.map((a: any) => a.value)).toEqual([PRICE, 100n * PRICE]);
@@ -367,17 +367,17 @@ describe("x402: after the paid send, never \"nothing is owed\"", () => {
     const ai = createX402Client({ enclaveUrl: "https://e.example", productId: PRODUCT, walletClient: g.wallet, publicClient: g.p, deployment: D, fetch: g.f, paidRetryDelaysMs: [] });
     const err = await ai.chat.completions.create({ messages: [{ role: "user", content: "a" }] }).catch((e) => e);
     expect(err).toBeInstanceOf(X402PaidCallError);
-    // le message général dit jusqu'à quand l'enclave garde la réponse
-    expect(err.message).toMatch(/ne garde la réponse que jusqu'à .*et seulement si elle ne redémarre pas/);
-    // l'enclave redémarre : nouvelle clé à la même URL
+    // the general message says until when the enclave keeps the answer
+    expect(err.message).toMatch(/keeps the answer only until .*and only if it does not restart/);
+    // the enclave restarts: a new key at the same URL
     const restarted = { ...err.pending, enclave: privateKeyToAccount(generatePrivateKey()).address };
     const changed = await ai.resume(restarted).catch((e) => e);
     expect(changed).toBeInstanceOf(X402PaidCallError);
     expect(changed.code).toBe("enclave_changed");
-    expect(changed.message).toMatch(/réponse est PERDUE/);
-    expect(changed.message).toMatch(/a PU être réglé/);
-    expect(changed.message).not.toMatch(/resume\(err\.pending\)/); // la reprise ne rendrait pas cette réponse
-    expect(changed.message).not.toContain("rien n'est dû");
+    expect(changed.message).toMatch(/answer is LOST/);
+    expect(changed.message).toMatch(/MAY still have been settled/);
+    expect(changed.message).not.toMatch(/resume\(err\.pending\)/); // a resume would not bring this answer back
+    expect(changed.message).not.toContain("nothing is owed");
   });
 
   it("a disconnect BEFORE any payment stays X402CallError (nothing was signed)", async () => {
@@ -396,10 +396,10 @@ describe("x402: after the paid send, never \"nothing is owed\"", () => {
       return base(a);
     };
     const payer = privateKeyToAccount(generatePrivateKey());
-    const ai = createX402Client({ enclaveUrl: "https://e.example", productId: PRODUCT, walletClient: { account: payer, signTypedData: () => { throw new Error("ne doit pas signer"); } } as any, publicClient: p, deployment: D, fetch: f });
+    const ai = createX402Client({ enclaveUrl: "https://e.example", productId: PRODUCT, walletClient: { account: payer, signTypedData: () => { throw new Error("must not sign"); } } as any, publicClient: p, deployment: D, fetch: f });
     const err = await ai.chat.completions.create({ messages: [{ role: "user", content: "a" }] }).catch((e) => e);
     expect(err).toBeInstanceOf(X402CallError);
-    expect(err.message).toContain("avant tout paiement");
+    expect(err.message).toContain("before any payment");
     expect(X402_PAID_RETRY_DELAYS_MS.length).toBe(3);
   });
 
@@ -420,8 +420,8 @@ describe("x402: after the paid send, never \"nothing is owed\"", () => {
     expect(eip3009SignatureProblem(sig)).toBeNull();
     expect(await recoverTypedDataAddress({ domain: usdcDomain(D.usdc, D.chainId) as any, types: cancelAuthorizationTypes, primaryType: "CancelAuthorization", message: { authorizer: payer.address, nonce }, signature: sig })).toBe(payer.address);
     c.used.add(`${L(payer.address)}:${L(nonce)}`);
-    await expect(ai.cancelAuthorization({ nonce })).rejects.toThrow("déjà consommée");
-    await expect(ai.cancelAuthorization({ nonce, payer: OPERATOR })).rejects.toThrow("pas de ce client");
+    await expect(ai.cancelAuthorization({ nonce })).rejects.toThrow("already consumed");
+    await expect(ai.cancelAuthorization({ nonce, payer: OPERATOR })).rejects.toThrow("not to this client");
   });
 });
 
@@ -434,7 +434,7 @@ describe("x402: the operator queue's reports are signed and never duplicated", (
     const payer = privateKeyToAccount(generatePrivateKey());
     c.balances.set(L(payer.address), 1_000_000n);
     const call = await servedCall({ enclave, payer });
-    c.used.add(`${L(payer.address)}:${L(call.receipt.nonce)}`); // déjà réglé (par le payeur lui-même)
+    c.used.add(`${L(payer.address)}:${L(call.receipt.nonce)}`); // already settled (by the payer alone)
     const item = { receipt: serializeCallReceipt(call.receipt), signature: call.signature, auth: { validAfter: "0", validBefore: call.auth.validBefore.toString(), nonce: call.auth.nonce, signature: call.auth.signature }, amount: "10000", servedAt: 1 };
     const posted: any[] = [];
     const f = (async (u: any, init?: any) => {
@@ -442,7 +442,7 @@ describe("x402: the operator queue's reports are signed and never duplicated", (
       posted.push(JSON.parse(init.body));
       return new Response(JSON.stringify({ settled: [], pending: [], unknown: [] }), { status: 200 });
     }) as typeof fetch;
-    // l'événement CallSettled de ce payeur porte ce nonce : le payeur a réglé lui-même par X402Settler
+    // this payer's CallSettled event carries this nonce: the payer settled alone through X402Settler
     const logsAsked: any[] = [];
     const p = { ...pub(c), async getLogs(a: any) { logsAsked.push(a); return [{ args: { productId: PRODUCT, payer: payer.address, operator: operator.address, amount: PRICE, nonce: call.receipt.nonce } }]; } };
     const q = createX402SettlementQueue({ enclaveUrl: "https://e.example", publicClient: p as any, walletClient: { account: operator } as any, deployment: D, fetch: f });
@@ -483,7 +483,7 @@ describe("x402: the operator queue's reports are signed and never duplicated", (
     }) as typeof fetch;
     const p = {
       ...pub(c),
-      async getLogs() { return []; }, // aucun événement CallSettled : pas un règlement
+      async getLogs() { return []; }, // no CallSettled event: not a settlement
       async simulateContract(a: any) { return { request: a }; },
       async waitForTransactionReceipt() { return { status: "success", gasUsed: 1n }; },
     };
@@ -497,8 +497,8 @@ describe("x402: the operator queue's reports are signed and never duplicated", (
       { payer: payer.address, nonce: L(cancelled.receipt.nonce), settled: false },
       { payer: payer.address, nonce: L(mine.receipt.nonce), settled: true },
     ]));
-    // le signalement a échoué (503) : renvoyé au passage suivant ; l'enclave liste encore les deux appels : le nôtre reste
-    // « réglé » (nous l'avons réglé), l'annulé reste « consommé autrement »
+    // the report failed (503): sent again on the next pass; the enclave still lists both calls: ours stays
+    // "settled" (we settled it), the cancelled one stays "consumed another way"
     ackStatus = 200;
     const r2 = await q.runOnce();
     expect(r2.settled).toHaveLength(0);
@@ -532,9 +532,9 @@ describe("x402: the operator queue fetches EVERYTHING and settles covered calls 
     expect(asked).toEqual(["?limit=3&offset=0", "?limit=3&offset=3", "?limit=3&offset=6"]);
     expect(r.fetched).toBe(7);
     expect(q.size).toBe(7);
-    // aucune revérification d'appel « non couvert » permise : tous attendent, sans lecture
+    // no re-check of an "uncovered" call allowed: they all wait, unread
     expect(r.waiting).toHaveLength(7);
-    expect(r.waiting[0]!.reasons[0]).toMatch(/non couvert/);
+    expect(r.waiting[0]!.reasons[0]).toMatch(/not covered/);
     asked.length = 0;
     const q2 = createX402SettlementQueue({ enclaveUrl: "https://e.example", publicClient: pub(c), walletClient: { account: operator } as any, deployment: D, fetch: paged(false), limit: 3 });
     expect((await q2.runOnce()).fetched).toBe(3);
@@ -547,7 +547,7 @@ describe("x402: the operator queue fetches EVERYTHING and settles covered calls 
     c.enclaves.set(L(enclave.address), OPERATOR);
     const honest = privateKeyToAccount(generatePrivateKey());
     c.balances.set(L(honest.address), 1_000_000n);
-    const attackers = Array.from({ length: 30 }, () => privateKeyToAccount(generatePrivateKey())); // soldes vidés : 0
+    const attackers = Array.from({ length: 30 }, () => privateKeyToAccount(generatePrivateKey())); // drained balances: 0
     const junk: PendingCall[] = [];
     for (const [i, a] of attackers.entries()) junk.push({ ...(await servedCall({ enclave, payer: a, validBefore: c.timestamp + 300n + BigInt(i) })), covered: false });
     const good: PendingCall = { ...(await servedCall({ enclave, payer: honest, validBefore: c.timestamp + 900n })), covered: true };
@@ -555,16 +555,16 @@ describe("x402: the operator queue fetches EVERYTHING and settles covered calls 
     let verified = 0;
     const p = pub(c);
     const base = p.getBlock;
-    p.getBlock = async () => { verified++; return base(); }; // une vérification on-chain = une lecture de tête
+    p.getBlock = async () => { verified++; return base(); }; // one on-chain check = one head read
     const q = new X402SettlementQueue({
       publicClient: p, deployment: D, operator: OPERATOR, maxUncoveredChecks: 5,
-      fetchPending: async () => [...junk, good], // les impayés d'abord, échéance plus proche
+      fetchPending: async () => [...junk, good], // the unpaid ones first, nearest expiry
       settle: async (call) => { sent.push(call.receipt.nonce); c.used.add(`${L(call.receipt.payer)}:${L(call.receipt.nonce)}`); return { tx: keccak256(toBytes(call.receipt.nonce)), status: "success" }; },
     });
     const r = await q.runOnce();
-    expect(sent).toEqual([good.receipt.nonce]); // réglé d'abord, au premier passage
+    expect(sent).toEqual([good.receipt.nonce]); // settled first, on the first pass
     expect(r.settled).toHaveLength(1);
-    expect(verified).toBe(1 + 5); // l'honnête, puis 5 impayés seulement
+    expect(verified).toBe(1 + 5); // the honest one, then only 5 unpaid ones
     expect(r.waiting).toHaveLength(30);
   });
 });

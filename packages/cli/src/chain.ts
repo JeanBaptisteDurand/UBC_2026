@@ -13,11 +13,11 @@ import { CliError, UsageError, info } from "./cli";
 
 export const DEFAULT_RPC = "https://rpc.testnet.arc.io";
 export const EXPLORER = "https://explorer.testnet.arc.io";
-export const NET_TAG = "arctest"; // préfixe réseau des clés aek_
+export const NET_TAG = "arctest"; // network prefix of aek_ keys
 export const EIP2935_WINDOW = 8191n;
 export const SETTLE_GRACE_S = 3600n; // SessionPay.SETTLE_GRACE (1 h)
 export const ZERO: Address = "0x0000000000000000000000000000000000000000";
-/** Registre d'identité ERC-8004 d'Arc testnet — VERIFIED (contracts/src/interfaces/IERC8004.sol). */
+/** Arc testnet's ERC-8004 identity registry (contracts/src/interfaces/IERC8004.sol). */
 export const ERC8004_IDENTITY_TESTNET: Address = "0x8004A818BFB912233c491871b3d84c89A494BD9e";
 
 const transport = (rpc?: string) => http(rpc ?? DEFAULT_RPC, { retryCount: 5, retryDelay: 400, timeout: 30_000 });
@@ -41,11 +41,11 @@ export const sameAddr = (a?: string, b?: string) => !!a && !!b && a.toLowerCase(
 export function walletAccount(): PrivateKeyAccount {
   const raw = (process.env.PRIVATE_KEY ?? process.env.ARC_PK ?? "").trim();
   if (!raw) {
-    throw new CliError("cette commande signe : définissez la variable d'environnement PRIVATE_KEY (clé privée 0x…) ; elle n'est jamais passée en argument ni affichée");
+    throw new CliError("this command signs: set the PRIVATE_KEY environment variable (a 0x… private key); it is never passed as an argument or shown");
   }
   const pk = (raw.startsWith("0x") ? raw : `0x${raw}`) as Hex;
   if (!/^0x[0-9a-fA-F]{64}$/.test(pk)) {
-    throw new CliError("PRIVATE_KEY invalide : attendu 0x suivi de 64 caractères hexadécimaux (valeur non affichée)");
+    throw new CliError("invalid PRIVATE_KEY: expected 0x followed by 64 hex characters (value not shown)");
   }
   return privateKeyToAccount(pk);
 }
@@ -72,23 +72,23 @@ export interface Writer {
   dryRun: boolean;
 }
 
-/** Client d'écriture : vérifie le chainId ; en --dry-run, simule (eth_call) mais n'envoie rien. */
+/** Write client: checks the chainId; with --dry-run, simulates (eth_call) but sends nothing. */
 export async function writer(ctx: { rpc?: string; dryRun: boolean }): Promise<Writer> {
   const account = walletAccount();
   const pub = publicClient(ctx.rpc);
   const chainId = await pub.getChainId();
   if (chainId !== ARC_TESTNET_ID) {
-    throw new CliError(`le RPC répond chainId ${chainId}, attendu Arc testnet (${ARC_TESTNET_ID}) : rien n'est signé`);
+    throw new CliError(`the RPC answers chainId ${chainId}, expected Arc testnet (${ARC_TESTNET_ID}): nothing is signed`);
   }
   const real = createWalletClient({ account, chain: arcTestnet, transport: transport(ctx.rpc) });
-  // Le SDK appelle wallet.signTypedData (autorisations EIP-3009, locales) puis wallet.writeContract après sa
-  // propre simulation : en --dry-run on garde la signature locale et on n'envoie rien.
+  // The SDK calls wallet.signTypedData (local EIP-3009 authorizations), then wallet.writeContract after its own
+  // simulation: with --dry-run, the local signature is kept and nothing is sent.
   const wallet = ctx.dryRun
     ? {
         account,
         signTypedData: (a: any) => real.signTypedData(a),
         writeContract: async (req: any) => {
-          info(`  [simulation] ${req.functionName} → ${req.address} : accepté par eth_call, rien n'est envoyé`);
+          info(`  [dry run] ${req.functionName} → ${req.address}: accepted by eth_call, nothing is sent`);
           return DRY_HASH;
         },
       }
@@ -97,8 +97,8 @@ export async function writer(ctx: { rpc?: string; dryRun: boolean }): Promise<Wr
   return { arc, pub, account, wallet: wallet as WriteOnly, dryRun: ctx.dryRun };
 }
 
-/** Simule puis envoie un appel que le SDK n'expose pas (approve…). Les refus remontés d'un autre contrat du réseau
- *  sont décodés (ABI de l'appel + toutes les erreurs du réseau). */
+/** Simulates, then sends a call the SDK does not expose (approve…). Refusals raised by another contract of the network
+ *  are decoded (the call's ABI + every error of the network). */
 export async function writeCall(w: Writer, address: Address, abi: any, functionName: string, args: unknown[]): Promise<Hex> {
   const { request } = await w.pub.simulateContract({ account: w.account, address, abi: [...abi, ...arcErrorsAbi], functionName, args } as any);
   return w.wallet.writeContract(request);
@@ -106,20 +106,20 @@ export async function writeCall(w: Writer, address: Address, abi: any, functionN
 
 export class RevertedOnChain extends CliError {}
 
-/** Attend la confirmation ; rend undefined en --dry-run (rien n'a été envoyé). */
+/** Waits for the confirmation; returns undefined with --dry-run (nothing was sent). */
 export async function confirm(w: Writer, label: string, hash: Hex): Promise<TransactionReceipt | undefined> {
   if (w.dryRun) return undefined;
-  info(`  ${label} : envoyée ${hash}`);
+  info(`  ${label}: sent ${hash}`);
   const rcpt = await w.pub.waitForTransactionReceipt({ hash, timeout: 180_000 });
-  if (rcpt.status !== "success") throw new RevertedOnChain(`${label} : transaction annulée on-chain (revert) — ${txUrl(hash)}`);
-  info(`  ${label} : confirmée au bloc ${rcpt.blockNumber} — ${txUrl(hash)}`);
+  if (rcpt.status !== "success") throw new RevertedOnChain(`${label}: transaction reverted on-chain, ${txUrl(hash)}`);
+  info(`  ${label}: confirmed at block ${rcpt.blockNumber}, ${txUrl(hash)}`);
   return rcpt;
 }
 
-// ---------- refus des contrats, expliqués ----------
+// ---------- contract refusals, explained ----------
 
-/** Message d'erreur lisible : refus de contrat décodé par le SDK (toutes les erreurs de la pile v2, en français, y
- *  compris celles remontées d'un contrat appelé), clés d'enclave refusées, ou message brut. */
+/** A readable error message: a contract refusal decoded by the SDK (every error of the stack, explained in French by
+ *  the SDK's table, including those raised inside a called contract), refused enclave keys, or the raw message. */
 export function explainError(e: unknown): string {
   if (e instanceof CliError || e instanceof UsageError) return e.message;
   if (e instanceof EnclaveKeyMismatchError) return e.message;
@@ -138,30 +138,30 @@ export async function httpJson(url: string, init: { method?: string; body?: unkn
       signal: AbortSignal.timeout(init.timeoutMs ?? 30_000),
     });
   } catch (e) {
-    throw new CliError(`${url} injoignable : ${(e as Error).message}`);
+    throw new CliError(`${url} unreachable: ${(e as Error).message}`);
   }
   const text = await res.text();
   let body: any;
   try {
     body = text ? JSON.parse(text) : {};
   } catch {
-    throw new CliError(`${url} : réponse non JSON (HTTP ${res.status}) : ${text.slice(0, 160)}`);
+    throw new CliError(`${url}: non-JSON answer (HTTP ${res.status}): ${text.slice(0, 160)}`);
   }
-  if (!res.ok) throw new CliError(`${url} : HTTP ${res.status} ${body?.error ?? text.slice(0, 200)}`);
+  if (!res.ok) throw new CliError(`${url}: HTTP ${res.status} ${body?.error ?? text.slice(0, 200)}`);
   return body;
 }
 
-/** /pubkeys d'une enclave SANS confiance (ex. l'inscrire : la chaîne vérifiera son quote). Pour CHIFFRER vers elle,
- *  utiliser verifiedEnclave : la clé de /pubkeys doit être celle inscrite on-chain. */
+/** An enclave's /pubkeys WITHOUT trust (e.g. to register it: the chain will verify its quote). To ENCRYPT to it, use
+ *  verifiedEnclave: the /pubkeys key must be the one registered on-chain. */
 export async function enclavePubkeys(url: string): Promise<{ signer: Address; x25519: Hex }> {
   const j = await httpJson(`${url.replace(/\/$/, "")}/pubkeys`);
-  if (typeof j?.signer !== "string" || typeof j?.x25519 !== "string") throw new CliError(`${url}/pubkeys : réponse inattendue`);
+  if (typeof j?.signer !== "string" || typeof j?.x25519 !== "string") throw new CliError(`${url}/pubkeys: unexpected answer`);
   return { signer: j.signer as Address, x25519: j.x25519 as Hex };
 }
 
-/** Clés d'une enclave confrontées à la chaîne (SDK verifyEnclaveKeys) : clé X25519 = celle inscrite, enclave active
- *  pour le produit au bloc de tête ; pour une session, l'enclave verrouillée. Sinon CliError : « la clé de l'enclave ne
- *  correspond pas à celle inscrite sur Arc : envoi refusé (…) ». */
+/** An enclave's keys checked against the chain (SDK verifyEnclaveKeys): X25519 key = the registered one, enclave active
+ *  for the product at the head block; for a session, the locked enclave. Otherwise a CliError carrying the SDK's
+ *  message ("la clé de l'enclave ne correspond pas à celle inscrite sur Arc : envoi refusé (…)", kept in French). */
 export async function verifiedEnclave(
   pub: Pub, url: string, productId: bigint, o: { sessionId?: bigint; expectedSigner?: Address } = {},
 ): Promise<VerifiedEnclaveKeys> {
@@ -177,15 +177,15 @@ export function isActiveAt(pub: Pub, signer: Address, productId: bigint, block: 
   return pub.readContract({ address: testnet.enclaveRegistry, abi: enclaveRegistryAbi, functionName: "isActiveAt", args: [signer, productId, block] }) as Promise<boolean>;
 }
 
-/** Délai de grâce du registre, en blocs (lu une fois) : une enclave sortie de sa fenêtre peut encore faire régler les
- *  reçus ancrés dedans pendant ce délai. */
+/** The registry's grace period, in blocks (read once): an enclave out of its window can still get the receipts
+ *  anchored inside it settled during this period. */
 let graceBlocks: bigint | undefined;
 export async function enclaveGraceBlocks(pub: Pub): Promise<bigint> {
   graceBlocks ??= (await pub.readContract({ address: testnet.enclaveRegistry, abi: enclaveRegistryAbi, functionName: "GRACE_BLOCKS" })) as bigint;
   return graceBlocks;
 }
 
-// ---------- événements (Blockscout, secours RPC) ----------
+// ---------- events (Blockscout, with an RPC fallback) ----------
 
 export interface RawLog {
   topics: Hex[];
@@ -194,8 +194,8 @@ export interface RawLog {
   txHash: Hex;
 }
 
-/** Événements d'un contrat filtrés par topic0 (et topic1), du plus ancien au plus récent. Lecture via
- *  l'indexeur Blockscout de l'explorateur ; à défaut, eth_getLogs par tranches de 5 000 blocs (séquentiel). */
+/** A contract's events filtered by topic0 (and topic1), oldest first. Read through the explorer's Blockscout indexer;
+ *  otherwise, eth_getLogs in chunks of 5,000 blocks (one after the other). */
 export async function fetchLogs(pub: Pub, address: Address, topic0: Hex, topic1?: Hex): Promise<RawLog[]> {
   const want = (t: (Hex | null)[]) =>
     t[0]?.toLowerCase() === topic0.toLowerCase() && (!topic1 || t[1]?.toLowerCase() === topic1.toLowerCase());
@@ -218,7 +218,7 @@ export async function fetchLogs(pub: Pub, address: Address, topic0: Hex, topic1?
       }
       return outLogs.sort((a, b) => (a.blockNumber < b.blockNumber ? -1 : a.blockNumber > b.blockNumber ? 1 : 0));
     } catch {
-      info("  (indexeur indisponible : lecture des événements par le RPC, plus lente)");
+      info("  (indexer unavailable: reading the events through the RPC, which is slower)");
     }
   }
   const head = await pub.getBlockNumber();
@@ -234,7 +234,7 @@ export async function fetchLogs(pub: Pub, address: Address, topic0: Hex, topic1?
   return outLogs;
 }
 
-// ---------- noms et ABI absentes du SDK ----------
+// ---------- names, and ABIs missing from the SDK ----------
 
 export function contractName(a: Address): string {
   const names: Record<string, string> = {
@@ -274,14 +274,14 @@ export interface Tier {
   amount: bigint;
 }
 
-/** Paliers d'une prime (tableaux publics lus élément par élément, jusqu'au premier hors borne). v2.1 bis : lus par
- *  pub.call (et non readContract, qui range une erreur interne -32603 du nœud parmi les reverts) : seule une fin de
- *  tableau (revert EVM, code 3) arrête la lecture, toute autre erreur remonte (jamais de paliers tronqués en silence). */
+/** A bounty's tiers (public arrays read element by element, up to the first out of bounds). They are read through
+ *  pub.call (not readContract, which files a node's internal -32603 error among the reverts): only the end of the
+ *  array (an EVM revert, code 3) stops the read; any other error is raised (tiers are never truncated silently). */
 export async function readTiers(pub: Pub, bountyId: bigint): Promise<Tier[]> {
   const tiers: Tier[] = [];
   const read = async (functionName: "tierMinLoss" | "tierAmount", i: bigint): Promise<bigint> => {
     const { data } = await pub.call({ to: testnet.sealedBounty, data: encodeFunctionData({ abi: bountyExtraAbi, functionName, args: [bountyId, i] }) });
-    if (data === undefined) throw new CliError(`${functionName} : réponse vide`);
+    if (data === undefined) throw new CliError(`${functionName}: empty answer`);
     return decodeFunctionResult({ abi: bountyExtraAbi, functionName, data }) as bigint;
   };
   for (let i = 0n; i < 16n; i++) {
@@ -290,15 +290,15 @@ export async function readTiers(pub: Pub, bountyId: bigint): Promise<Tier[]> {
       const amount = await read("tierAmount", i);
       tiers.push({ minLoss, amount });
     } catch (e) {
-      if (isRevert(e)) break; // fin du tableau
-      throw e; // erreur réseau ou interne du nœud : ne pas tronquer les paliers en silence
+      if (isRevert(e)) break; // end of the array
+      throw e; // a network error or a node's internal error: never truncate the tiers silently
     }
   }
   return tiers;
 }
 
-/** Vrai si l'erreur est un revert EVM : code JSON-RPC 3 (EIP-1474) dans la chaîne des causes. v2.1 bis : plus le nom
- *  d'erreur de viem (ContractFunctionRevertedError couvre aussi une erreur interne -32603 du nœud). */
+/** True if the error is an EVM revert: JSON-RPC code 3 (EIP-1474) in the chain of causes, rather than viem's error
+ *  name (ContractFunctionRevertedError also covers a node's internal -32603 error). */
 export function isRevert(e: unknown): boolean {
   for (let x: any = e, n = 0; x && n < 12; x = x.cause, n++) {
     if (x?.code === 3) return true;

@@ -1,7 +1,7 @@
-/** copilot.test.ts — le client du copilote attesté (createAttestedCopilotClient) et l'échange scellé (sealed-exchange.ts).
- *  L'enclave est ici réécrite À PART, d'après la spécification (RFC 9180 + RFC 9458 §4.4 : HPKE vers la clé X25519, info
- *  liée, secret exporté, HKDF, ChaCha20-Poly1305) avec @hpke/core et @noble directement : une erreur commune au kit
- *  d'enclave et au SDK ne passerait pas. Chaîne et réseau simulés. */
+/** copilot.test.ts — the attested copilot's client (createAttestedCopilotClient) and the sealed exchange (sealed-exchange.ts).
+ *  The enclave side is rewritten SEPARATELY here, from the specification (RFC 9180 + RFC 9458 §4.4: HPKE to the X25519
+ *  key, bound info, exported secret, HKDF, ChaCha20-Poly1305), with @hpke/core and @noble directly: a mistake shared by
+ *  the enclave kit and the SDK would not pass. Chain and network are simulated. */
 import { describe, it, expect } from "vitest";
 import { CipherSuite, DhkemX25519HkdfSha256, HkdfSha256 } from "@hpke/core";
 import { Chacha20Poly1305 } from "@hpke/chacha20poly1305";
@@ -23,7 +23,7 @@ const PRODUCT = 4n;
 const W = `0x${"ab".repeat(32)}` as Hex;
 const ab = (u: Uint8Array) => u.buffer.slice(u.byteOffset, u.byteOffset + u.byteLength) as ArrayBuffer;
 
-/** Une enclave écrite d'après la spécification, indépendante du kit. */
+/** An enclave written from the specification, independent of the kit. */
 function specEnclave() {
   const sk = x25519.utils.randomPrivateKey();
   const pk = toHex(x25519.getPublicKey(sk));
@@ -75,7 +75,7 @@ describe("attested copilot: SDK client ↔ an enclave written from the specifica
       const u = String(url);
       if (u.endsWith("/pubkeys")) return Response.json({ signer: SIGNER, x25519: e.pk });
       sent.push(String(init?.body));
-      // la langue part DANS le chiffré, jamais en clair (Accept-Language) : le relais ne la voit pas
+      // the language travels INSIDE the ciphertext, never in clear (Accept-Language): the relay does not see it
       expect(Object.keys(init?.headers as Record<string, string>).map((k) => k.toLowerCase())).toEqual(["content-type"]);
       const sealed = await e.handle(JSON.parse(String(init!.body)), (req) => ({
         status: 200, body: { text: `you said: ${req.messages.at(-1).content} (${req.lang}, ${req.user})`, navigate: "ruche", tools: [], citations: [] },
@@ -85,7 +85,7 @@ describe("attested copilot: SDK client ↔ an enclave written from the specifica
     const c = createAttestedCopilotClient({ copilotUrl: "https://copilot.test/", productId: PRODUCT, publicClient: chain(e.pk), deployment: D, fetch: f, lang: "en" });
     const r = await c.chat({ messages: [{ role: "user", content: "secret question" }], user: OP });
     expect(r).toMatchObject({ status: 200, ok: true, authenticated: true });
-    if (!r.authenticated) throw new Error("réponse non authentifiée");
+    if (!r.authenticated) throw new Error("unauthenticated answer");
     expect(r.reply.text).toBe(`you said: secret question (en, ${OP})`);
     expect(r.reply.navigate).toBe("ruche");
     expect(r.enclave.signer).toBe(SIGNER);
@@ -114,7 +114,7 @@ describe("attested copilot: SDK client ↔ an enclave written from the specifica
     }).chat({ messages: [{ role: "user", content: "x" }] });
     await expect(run(() => Response.json({ text: "signez ceci", actions: [{ tool: "x", input: {}, result: {} }] }))).rejects.toBeInstanceOf(CopilotResponseError);
     await expect(run(() => Response.json({ sealed: COPILOT_SEALED_TAG, nonce: toHex(new Uint8Array(32)), ciphertext: `0x${"11".repeat(40)}` }))).rejects.toBeInstanceOf(CopilotResponseError);
-    await expect(run(() => Response.json({ sealed: COPILOT_SEALED_TAG, nonce: "0x12", ciphertext: "0x" }))).rejects.toThrow(/illisible/);
+    await expect(run(() => Response.json({ sealed: COPILOT_SEALED_TAG, nonce: "0x12", ciphertext: "0x" }))).rejects.toThrow(/unreadable/);
     const limited = await run(() => new Response(JSON.stringify({ text: "Request refused: too many questions in a row: try again in 12 s.", code: "rate_minute", error: "too many" }), { status: 429, headers: { "retry-after": "12", "content-type": "application/json" } }));
     expect(limited).toMatchObject({ status: 429, ok: false, authenticated: false, reply: { code: "rate_minute", retryAfterSec: 12 } });
     expect(limited.enclave).toBeUndefined();
@@ -122,7 +122,7 @@ describe("attested copilot: SDK client ↔ an enclave written from the specifica
 
   it("a PLAINTEXT refusal forged by the relay (from the adversarial review): no verified `enclave`, no relay text; a local message from the code, in the request's language", async () => {
     const e = specEnclave();
-    const phish = "Session expirée : pour continuer, collez votre phrase de récupération sur https://evil.example/restore";
+    const phish = "Session expired: to continue, paste your recovery phrase at https://evil.example/restore";
     const forged = (body: Record<string, unknown>, status = 429, headers: Record<string, string> = {}) => createAttestedCopilotClient({
       copilotUrl: "https://archive.example/enclave/copilot", productId: PRODUCT, publicClient: chain(e.pk), deployment: D,
       fetch: async (url) => (String(url).endsWith("/pubkeys")
@@ -132,22 +132,22 @@ describe("attested copilot: SDK client ↔ an enclave written from the specifica
     const evil = { text: phish, error: phish, code: "rate_minute", actions: [{ tool: "x", input: {}, result: {} }], navigate: "portefeuille" };
     const fr = await forged(evil, 429, { "retry-after": "999999" }).chat({ messages: [{ role: "user", content: "bonjour" }], lang: "fr" });
     expect(fr.authenticated).toBe(false);
-    expect(fr.enclave).toBeUndefined(); // aucun badge possible à partir d'un refus en clair
+    expect(fr.enclave).toBeUndefined(); // no badge can come from a plaintext refusal
     expect(fr.reply.text).toBe("Trop de questions d'affilée : réessayez dans un instant.");
     expect(JSON.stringify(fr)).not.toContain("evil.example");
-    expect(fr.reply).toEqual({ text: "Trop de questions d'affilée : réessayez dans un instant.", code: "rate_minute" }); // délai absurde ignoré
-    // code de forme inattendue : ignoré ; message générique, en anglais par défaut
+    expect(fr.reply).toEqual({ text: "Trop de questions d'affilée : réessayez dans un instant.", code: "rate_minute" }); // absurd delay ignored
+    // a code of an unexpected shape: ignored; a generic message, in English by default
     const odd = await forged({ text: phish, code: "<b>clique ici</b>" }, 403).chat({ messages: [{ role: "user", content: "hi" }] });
     expect(odd).toMatchObject({ status: 403, ok: false, authenticated: false, reply: { text: "The copilot refused the request (HTTP 403)." } });
     expect(odd.reply.code).toBeUndefined();
-    // l'enclave appelée sans son mandataire (403 proxy_required) : le message le dit
+    // the enclave called without its proxy (403 proxy_required): the message says so
     const direct = await forged({ code: "proxy_required" }, 403).chat({ messages: [{ role: "user", content: "hi" }], lang: "en" });
     expect(direct.reply.text).toMatch(/only answers through the ArcHive site/);
   });
 
   it("conversation bounded before encryption: 20 messages, 60 KiB, role and content only, invalid wallet removed", () => {
     const many = Array.from({ length: 30 }, (_, i) => ({ role: (i % 2 ? "assistant" : "user") as "user" | "assistant", content: `m${i}`, extra: "x" }));
-    const j = JSON.parse(new TextDecoder().decode(copilotRequestBytes(many, "pas une adresse", "fr")));
+    const j = JSON.parse(new TextDecoder().decode(copilotRequestBytes(many, "not an address", "fr")));
     expect(j.messages).toHaveLength(COPILOT_MAX_MESSAGES);
     expect(Object.keys(j.messages[0]).sort()).toEqual(["content", "role"]);
     expect(j.user).toBeNull();

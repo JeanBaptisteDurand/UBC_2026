@@ -1,9 +1,9 @@
-/** proxy.ts — mandataire local compatible OpenAI. Tout programme qui parle à OpenAI marche en
- *  changeant l'URL de base vers http://localhost:8787/v1 et en donnant la clé aek_ comme token.
- *  Le mandataire chiffre chaque requête pour l'enclave, la signe avec la clé de session, vérifie
- *  et déchiffre chaque réponse et son reçu. Seul ce mandataire, sur la machine du dev, voit le clair.
- *  v2 : au démarrage puis régulièrement, les clés de l'enclave sont confrontées à la chaîne (clé X25519 inscrite,
- *  enclave active, enclave verrouillée de la session) ; une réponse non signée par elle est refusée. */
+/** proxy.ts — a local OpenAI-compatible proxy. Any program that talks to OpenAI works once its base URL points to
+ *  http://localhost:8787/v1 and it passes the aek_ key as its token.
+ *  The proxy encrypts each request for the enclave, signs it with the session key, then verifies and decrypts each
+ *  answer and its receipt. Only this proxy, on the developer's machine, sees the plaintext.
+ *  At start, then at intervals, the enclave's keys are checked against the chain (registered X25519 key, active
+ *  enclave, the session's locked enclave); an answer it did not sign is refused. */
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { createPublicClient, http } from "viem";
@@ -22,7 +22,7 @@ export async function startProxy(o: ProxyOpts) {
     sessionKey: { privateKey: sessionPrivateKey, address: "0x0000000000000000000000000000000000000000" },
   });
   const port = o.port ?? 8787;
-  // avant d'écouter : les clés de l'enclave doivent être celles inscrites on-chain pour CETTE session
+  // before listening: the enclave's keys must be the ones registered on-chain for THIS session
   const keys = await ic.verifiedKeys();
   const app = new Hono();
 
@@ -50,10 +50,10 @@ export async function startProxy(o: ProxyOpts) {
     }
   });
 
-  // 17/11 : écoute seulement sur la machine elle-même. Sans hostname, Node écoutait sur toutes les interfaces : n'importe qui
-  // sur le même réseau pouvait dépenser la session (le mandataire n'a pas de mot de passe).
+  // listens on the machine itself only. Without a hostname, Node would listen on every interface, and anyone on the
+  // same network could spend the session (the proxy has no password).
   serve({ fetch: app.fetch, port, hostname: "127.0.0.1" });
-  console.log(`proxy OpenAI local : http://localhost:${port}/v1  (session #${sessionId} → ${o.enclaveUrl})`);
-  console.log(`enclave vérifiée on-chain : ${keys.signer} (opérateur ${keys.operator}, clé X25519 inscrite, active au bloc ${keys.checkedAtBlock})`);
-  console.log(`Exemple : openai.base_url = "http://localhost:${port}/v1" ; appelle /chat/completions en boucle.`);
+  console.log(`local OpenAI proxy: http://localhost:${port}/v1  (session #${sessionId} → ${o.enclaveUrl})`);
+  console.log(`enclave verified on-chain: ${keys.signer} (operator ${keys.operator}, registered X25519 key, active at block ${keys.checkedAtBlock})`);
+  console.log(`Example: openai.base_url = "http://localhost:${port}/v1"; call /chat/completions in a loop.`);
 }

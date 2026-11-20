@@ -291,8 +291,8 @@ describe("x402 — un mandataire après l'envoi payé (preuves 1 et 2, retourné
     const err = await ai.chat.completions.create({ messages: [{ role: "user", content: "q" }] }).catch((x) => x);
     expect(err).toBeInstanceOf(X402PaidCallError);
     expect(err).not.toBeInstanceOf(X402CallError); // X402CallError = avant tout paiement, rien n'est dû
-    expect(String(err.message)).not.toContain("rien n'est dû");
-    expect(String(err.message)).toMatch(/PEUT le régler/);
+    expect(String(err.message)).not.toContain("nothing is owed");
+    expect(String(err.message)).toMatch(/operator MAY settle it/);
     expect(err).toMatchObject({ status: 502, code: "http_502", attempts: 1 + FAST.length, paid: true });
     const p = err.pending;
     expect(p.envelope).toMatchObject({ enc: expect.stringMatching(/^0x[0-9a-f]{64}$/), clientEphemeralPub: expect.stringMatching(/^0x[0-9a-f]{64}$/) });
@@ -396,7 +396,7 @@ describe("x402 — reprise d'un appel payé (resume)", () => {
     expect(w.balances.get(payer)).toBe(1_000_000n - PRICE);
     // reprendre avec un autre compte, ou pour un autre produit : refusé avant tout envoi
     const intruder = createX402Client({ enclaveUrl: URL0, productId: PRODUCT, walletClient: payerWallet(), publicClient: fakePub(w), deployment: D, fetch: e.direct });
-    await expect(intruder.resume(err.pending)).rejects.toThrow("pas par ce client");
+    await expect(intruder.resume(err.pending)).rejects.toThrow("not by this client");
   });
 });
 

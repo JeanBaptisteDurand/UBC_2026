@@ -11,9 +11,9 @@ import { deterministicOpen, deterministicSeal, generateX25519 } from "@arcvault/
 import { CliError } from "./cli";
 
 export const KEY_KIND = "arcvault-protocol-x25519";
-/** v2.1 : la clé UNIQUE partagée par toutes les primes d'un protocole (lue encore, jamais plus créée). */
+/** The older layout: ONE key shared by every bounty of a protocol (still read, never created any more). */
 export const LEGACY_PROTOCOL_KEY = join(homedir(), ".arcvault", "protocol-x25519.json");
-/** v2.1 bis : une clé par prime, ici. */
+/** The current layout: one key per bounty, stored here. */
 export const BOUNTY_KEY_DIR = join(homedir(), ".arcvault", "bounty-keys");
 
 export interface ProtocolKey {
@@ -24,55 +24,55 @@ export interface ProtocolKey {
 const utf8 = (s: string) => new TextEncoder().encode(s);
 const isBytes32 = (v: unknown): v is Hex => typeof v === "string" && /^0x[0-9a-fA-F]{64}$/.test(v);
 
-/** Fichier d'une clé de prime, nommé par sa clé publique (on le retrouve à partir de Bounty.protocolX25519). */
+/** File of a bounty key, named by its public key (found again from Bounty.protocolX25519). */
 export function bountyKeyPath(publicKey: Hex, dir = BOUNTY_KEY_DIR): string {
   return join(dir, `x25519-${publicKey.slice(2).toLowerCase()}.json`);
 }
 
-/** Un fichier de secret ne doit être lisible que par son propriétaire (aucun droit pour le groupe ni les autres). */
+/** A secret file must be readable by its owner only (no rights for the group or others). */
 export function assertOwnerOnly(path: string, what: string): void {
   let mode: number;
   try {
     mode = statSync(path).mode;
   } catch {
-    throw new CliError(`${what} introuvable ou illisible : ${path}`);
+    throw new CliError(`${what} not found or unreadable: ${path}`);
   }
   if (process.platform !== "win32" && (mode & 0o077) !== 0) {
-    throw new CliError(`${what} : ${path} est lisible par d'autres (mode ${(mode & 0o777).toString(8)}) ; chmod 600 ${path}`);
+    throw new CliError(`${what}: ${path} is readable by others (mode ${(mode & 0o777).toString(8)}); chmod 600 ${path}`);
   }
 }
 
 export function loadProtocolKey(path: string): ProtocolKey {
-  assertOwnerOnly(path, "clé du protocole");
+  assertOwnerOnly(path, "protocol key");
   let j: any;
   try {
     j = JSON.parse(readFileSync(path, "utf8"));
   } catch {
-    throw new CliError(`clé du protocole illisible (JSON attendu) : ${path}`);
+    throw new CliError(`unreadable protocol key (JSON expected): ${path}`);
   }
   if (j?.kind !== KEY_KIND || !isBytes32(j?.publicKey) || !isBytes32(j?.privateKey)) {
-    throw new CliError(`${path} n'est pas une clé de protocole arcvault (champs kind/publicKey/privateKey)`);
+    throw new CliError(`${path} is not an arcvault protocol key (fields kind/publicKey/privateKey)`);
   }
   const privateKey = toBytes(j.privateKey as Hex);
-  // cohérence : un scellé vers la clé publique doit s'ouvrir avec la clé privée
+  // consistency: a seal to the public key must open with the private key
   const probe = deterministicSeal(toBytes(j.publicKey as Hex), utf8("arcvault-probe"), new Uint8Array(32).fill(7));
   try {
     if (new TextDecoder().decode(deterministicOpen(privateKey, probe)) !== "arcvault-probe") throw new Error();
   } catch {
-    throw new CliError(`${path} : clé publique et clé privée incohérentes`);
+    throw new CliError(`${path}: public key and private key do not match`);
   }
   return { publicKey: (j.publicKey as Hex).toLowerCase() as Hex, privateKey };
 }
 
 /**
- * Une clé X25519 NEUVE pour une prime : fichier 0600 (dossier 0700), jamais écrasé. Chemin par défaut : nommé par la clé
- * publique dans BOUNTY_KEY_DIR ; un chemin explicite qui existe déjà est refusé (une clé ne sert qu'une prime).
+ * A NEW X25519 key for one bounty: a 0600 file (in a 0700 folder), never overwritten. Default path: named by the public
+ * key in BOUNTY_KEY_DIR; an explicit path that already exists is refused (one key serves one bounty).
  */
 export function createBountyKey(o: { path?: string; dir?: string; sealedBounty: string; chainId: number }): { path: string; key: ProtocolKey } {
   const k = generateX25519();
   const path = o.path ?? bountyKeyPath(k.publicKey, o.dir);
   if (existsSync(path)) {
-    throw new CliError(`${path} existe déjà : une clé X25519 par prime (elle ouvre tous les rapports chiffrés vers elle) ; choisissez un nouveau fichier`);
+    throw new CliError(`${path} already exists: one X25519 key per bounty (it opens every report encrypted to it); choose a new file`);
   }
   mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
   const body = {
@@ -83,14 +83,14 @@ export function createBountyKey(o: { path?: string; dir?: string; sealedBounty: 
     sealedBounty: o.sealedBounty,
     chainId: o.chainId,
     bountyId: null as string | null,
-    note: "Clé privée X25519 d'UNE prime : seule à pouvoir déchiffrer ses rapports d'exploit (cP). Ne jamais la partager ; " +
-      "--reveal-key (réfutation) l'envoie chiffrée aux seules enclaves vérifiées, et n'ouvre alors que les rapports de cette prime.",
+    note: "X25519 private key of ONE bounty: the only key that can decrypt its exploit reports (cP). Never share it; " +
+      "--reveal-key (refutation) sends it encrypted to the verified enclaves only, and then it opens only this bounty's reports.",
   };
   writeFileSync(path, `${JSON.stringify(body, null, 2)}\n`, { mode: 0o600, flag: "wx" });
   return { path, key: { publicKey: k.publicKey.toLowerCase() as Hex, privateKey: k.privateKey } };
 }
 
-/** Inscrit le numéro de la prime dans son fichier de clé (réécriture atomique, 0600). */
+/** Writes the bounty's number into its key file (atomic rewrite, 0600). */
 export function recordBountyId(path: string, bountyId: bigint): void {
   const j = JSON.parse(readFileSync(path, "utf8"));
   j.bountyId = bountyId.toString();
@@ -100,20 +100,20 @@ export function recordBountyId(path: string, bountyId: bigint): void {
 }
 
 /**
- * La clé locale d'une prime, à partir de sa clé publique on-chain (Bounty.protocolX25519) : le fichier donné, sinon celui
- * de BOUNTY_KEY_DIR, sinon l'ancienne clé partagée (LEGACY_PROTOCOL_KEY) si c'est elle. `shared` : vrai pour l'ancienne clé.
+ * A bounty's local key, from its on-chain public key (Bounty.protocolX25519): the file given, otherwise the one in
+ * BOUNTY_KEY_DIR, otherwise the older shared key (LEGACY_PROTOCOL_KEY) if it matches. `shared`: true for the older key.
  */
 export function findBountyKey(publicKey: Hex, o: { path?: string; dir?: string; legacyPath?: string } = {}): { path: string; key: ProtocolKey; shared: boolean } {
   const want = publicKey.toLowerCase();
   if (o.path) {
     const key = loadProtocolKey(o.path);
-    if (key.publicKey !== want) throw new CliError(`la clé ${o.path} (${key.publicKey}) n'est pas celle de la prime (${publicKey})`);
+    if (key.publicKey !== want) throw new CliError(`the key ${o.path} (${key.publicKey}) is not the bounty's (${publicKey})`);
     return { path: o.path, key, shared: false };
   }
   const own = bountyKeyPath(publicKey, o.dir);
   if (existsSync(own)) {
     const key = loadProtocolKey(own);
-    if (key.publicKey !== want) throw new CliError(`${own} ne contient pas la clé ${publicKey}`);
+    if (key.publicKey !== want) throw new CliError(`${own} does not hold the key ${publicKey}`);
     return { path: own, key, shared: false };
   }
   const legacy = o.legacyPath ?? LEGACY_PROTOCOL_KEY;
@@ -121,22 +121,22 @@ export function findBountyKey(publicKey: Hex, o: { path?: string; dir?: string; 
     const key = loadProtocolKey(legacy);
     if (key.publicKey === want) return { path: legacy, key, shared: true };
   }
-  throw new CliError(`aucune clé locale pour la clé publique ${publicKey} (cherchée : ${own}, ${legacy}) ; donnez le fichier avec --protocol-key / --key`);
+  throw new CliError(`no local key for the public key ${publicKey} (looked in: ${own}, ${legacy}); give the file with --protocol-key / --key`);
 }
 
-/** Le message de --reveal-key : EXACTEMENT ce que la clé révélée ouvre (les primes dont Bounty.protocolX25519 est elle). */
+/** The --reveal-key message: EXACTLY what the revealed key opens (the bounties whose Bounty.protocolX25519 it is). */
 export function revealKeyWarning(a: { publicKey: Hex; bountyId: bigint; sharing?: bigint[] }): string {
-  const head = `la clé privée X25519 ${a.publicKey} part chiffrée vers chaque enclave VÉRIFIÉE (qui l'efface après usage) ; ` +
-    "elle ouvre TOUT rapport chiffré vers cette clé publique";
-  if (!a.sharing) return `${head} : ceux de la prime #${a.bountyId} et ceux de toute autre prime créée avec la même clé (liste des primes illisible)`;
+  const head = `the X25519 private key ${a.publicKey} goes encrypted to each VERIFIED enclave (which erases it after use); ` +
+    "it opens EVERY report encrypted to this public key";
+  if (!a.sharing) return `${head}: those of bounty #${a.bountyId} and those of any other bounty created with the same key (bounty list unreadable)`;
   const others = [...new Set(a.sharing.map(String))].filter((x) => x !== a.bountyId.toString()).sort((x, y) => (BigInt(x) < BigInt(y) ? -1 : 1));
-  if (!others.length) return `${head} : ceux de la prime #${a.bountyId} seulement (aucune autre prime n'utilise cette clé)`;
-  return `${head} : ceux de la prime #${a.bountyId} ET ceux des primes ${others.map((x) => `#${x}`).join(", ")}, qui utilisent la même clé`;
+  if (!others.length) return `${head}: those of bounty #${a.bountyId} only (no other bounty uses this key)`;
+  return `${head}: those of bounty #${a.bountyId} AND those of bounties ${others.map((x) => `#${x}`).join(", ")}, which use the same key`;
 }
 
-// ---------- l'aléa r ----------
+// ---------- the random r ----------
 
-/** r : 0x + 64 hexadécimaux, ou un JSON { "r": "0x…" } ; tout le reste est refusé (sans recopier le contenu). */
+/** r: 0x + 64 hex characters, or a JSON { "r": "0x…" }; anything else is refused (without echoing the content). */
 export function parseR(text: string, from: string): Hex {
   const t = text.trim();
   let v: unknown = t;
@@ -147,25 +147,25 @@ export function parseR(text: string, from: string): Hex {
       v = undefined;
     }
   }
-  if (!isBytes32(v)) throw new CliError(`${from} : r attendu (0x + 64 caractères hexadécimaux, ou JSON { "r": "0x…" })`);
+  if (!isBytes32(v)) throw new CliError(`${from}: r expected (0x + 64 hex characters, or JSON { "r": "0x…" })`);
   return (v as string).toLowerCase() as Hex;
 }
 
-/** Lit r dans un fichier 0600, ou sur l'entrée standard (« - ») redirigée (jamais saisi au clavier : il s'afficherait). */
+/** Reads r from a 0600 file, or from redirected standard input ("-"), never typed at the keyboard (it would show). */
 export async function readR(source: string, stdin: NodeJS.ReadStream = process.stdin): Promise<Hex> {
   if (source === "-") {
-    if (stdin.isTTY) throw new CliError("--r-file - : redirigez r sur l'entrée standard (ex. < r.hex) ; la saisie au clavier s'afficherait");
+    if (stdin.isTTY) throw new CliError("--r-file -: redirect r to standard input (e.g. < r.hex); typing it would show it on screen");
     const chunks: Buffer[] = [];
     for await (const c of stdin) chunks.push(typeof c === "string" ? Buffer.from(c) : (c as Buffer));
-    return parseR(Buffer.concat(chunks).toString("utf8"), "entrée standard");
+    return parseR(Buffer.concat(chunks).toString("utf8"), "standard input");
   }
-  assertOwnerOnly(source, "fichier de r");
+  assertOwnerOnly(source, "r file");
   return parseR(readFileSync(source, "utf8"), source);
 }
 
-/** Écrit r dans un fichier NEUF en 0600 (bounty submit --save-r) : de quoi réfuter plus tard sans le passer en argument. */
+/** Writes r into a NEW 0600 file (bounty submit --save-r): enough to refute later without passing it as an argument. */
 export function saveR(path: string, r: Uint8Array): void {
-  if (existsSync(path)) throw new CliError(`${path} existe déjà : choisissez un nouveau fichier pour r`);
+  if (existsSync(path)) throw new CliError(`${path} already exists: choose a new file for r`);
   mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
   writeFileSync(path, `${toHex(r)}\n`, { mode: 0o600, flag: "wx" });
 }

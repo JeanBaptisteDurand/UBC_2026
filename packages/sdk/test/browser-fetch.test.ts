@@ -1,5 +1,5 @@
-/** Régression du 9/11 : dans un navigateur, fetch appelé comme MÉTHODE d'un objet (this.f(...)) lève « Illegal
- *  invocation ». Node l'accepte, d'où ce faux fetch qui reproduit la règle des navigateurs. */
+/** A browser regression: in a browser, fetch called as a METHOD of an object (this.f(...)) throws "Illegal
+ *  invocation". Node accepts it, hence this fake fetch that reproduces the browsers' rule. */
 import { readFileSync, readdirSync } from "node:fs";
 import { afterEach, describe, expect, it } from "vitest";
 import { generatePrivateKey } from "viem/accounts";

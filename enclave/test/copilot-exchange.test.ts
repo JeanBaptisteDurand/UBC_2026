@@ -71,7 +71,7 @@ describe("sealed exchange (attested copilot): enclave kit ↔ SDK", () => {
     const nonce = Uint8Array.from(ra.nonce);
     nonce[0]! ^= 1;
     expect(() => a.openResponse(nonce, ra.ciphertext)).toThrow();
-    expect(() => a.openResponse(ra.nonce.slice(0, 12), ra.ciphertext)).toThrow(/32 octets/);
+    expect(() => a.openResponse(ra.nonce.slice(0, 12), ra.ciphertext)).toThrow(/32 bytes/);
     expect(text(a.openResponse(ra.nonce, ra.ciphertext))).toBe("response to A");
   });
 });

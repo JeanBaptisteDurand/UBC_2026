@@ -426,7 +426,7 @@ describe("x402 de bout en bout : ce qu'un mandataire malveillant ne peut pas fai
     expect(err).toBeInstanceOf(X402PaidCallError);
     expect(err.code).toBe("receipt_mismatch");
     expect(err.cause).toBeInstanceOf(X402ReceiptMismatchError);
-    expect(err.message).not.toContain("rien n'est dû");
+    expect(err.message).not.toContain("nothing is owed");
     expect(err.attempts).toBe(4); // l'envoi payé + 3 renvois à l'identique (le mandataire falsifie chaque réponse)
     expect(e.calls()).toBe(1); // l'enclave n'a servi qu'une fois (les renvois sont des reprises)
     // sans le mandataire, la reprise rend la VRAIE réponse (gardée par l'enclave), sans 2e appel au modèle

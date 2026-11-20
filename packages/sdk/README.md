@@ -12,13 +12,15 @@ What it covers:
 - **Sealed Bounty**: create, fund, submit, refute and read bounties.
 - **CCTP** and native USDC helpers.
 
-Network: Arc testnet (chainId 5042002). `testnet` in `src/network.ts` is the live v2.1 stack (`deployments.v21.testnet.json`); `deploymentFromJson()` loads any `deployments.*.json` file at the repository root.
+The SDK targets Arc testnet (chainId 5042002). `testnet` in `src/network.ts` is the live v2.1 stack (`deployments.v21.testnet.json`). `deploymentFromJson()` loads any `deployments.*.json` file at the repository root.
+
+Messages, logs and errors are in English. A few values stay French on purpose, because the console shows them as they are in French: the `fr` field of receipt and call checks, `ARC_ERRORS_FR` and `explainArcError`, `ENCLAVE_KEY_MISMATCH_FR`, and the French entries of the copilot client's refusal table.
 
 ## Run it
 
 ```sh
 npm ci
-npm test          # vitest
+npm test          # vitest, 81 tests
 npm run build     # tsc
 ```
 
@@ -26,4 +28,4 @@ The package is private and is used from source (`file:` links), not from npm. Th
 
 ## Operator scripts
 
-`scripts/` holds operator scripts for Arc testnet (end-to-end runs, measurements, settlement, x402 calls, bounty demos). Run one with `npx tsx scripts/<name>.ts`. The scripts that send transactions read a funded testnet key from `.secrets/deployer.json` at the repository root; `.secrets/` is git-ignored and never committed.
+`scripts/` holds operator scripts for Arc testnet (end-to-end runs, measurements, settlement, x402 calls, bounty demos). Run one with `npx tsx scripts/<name>.ts`. The scripts that send transactions read a funded testnet key from `.secrets/deployer.json` at the repository root. Git ignores `.secrets/`, so the key is never committed.

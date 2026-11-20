@@ -1,4 +1,4 @@
-/** Lectures sans clé : produits, enclaves, primes, vérification d'un reçu ; et le mandataire OpenAI. */
+/** Reads that need no key: products, enclaves, bounties, a receipt check; and the OpenAI-compatible proxy. */
 import { formatUnits, isHex, type Address, type Hex } from "viem";
 import { type ProductView, type Receipt } from "@arcvault/sdk";
 import {
@@ -6,20 +6,20 @@ import {
 } from "../cli";
 import { ZERO, contractName, enclaveGraceBlocks, reader, sameAddr } from "../chain";
 
-const STATE_FR: Record<string, string> = { None: "inexistant", Proposed: "proposé", Active: "actif", Retired: "retiré" };
-export const stateFr = (s: string) => STATE_FR[s] ?? s;
+const STATE_LABEL: Record<string, string> = { None: "nonexistent", Proposed: "proposed", Active: "active", Retired: "retired" };
+export const stateLabel = (s: string) => STATE_LABEL[s] ?? s;
 
 export function productLine(p: ProductView): string {
   const pct = (b: number) => `${b / 100}`;
-  const state = p.state === "Proposed" ? `proposé (activable ${fmtTime(p.activatesAt)})` : STATE_FR[p.state] ?? p.state;
+  const state = p.state === "Proposed" ? `proposed (can activate ${fmtTime(p.activatesAt)})` : STATE_LABEL[p.state] ?? p.state;
   return [
     `#${p.id}`,
     state,
-    `${formatUnits(p.price, 6)} USDC/unité (${p.unitTokens} jeton${p.unitTokens > 1 ? "s" : ""}${p.outWeight > 1 ? `, sortie ×${p.outWeight}` : ""})`,
-    p.deterministic ? "déterministe" : "non déterministe",
-    `parts op/auteur/réseau ${pct(p.bpsOperator)}/${pct(p.bpsAuthor)}/${pct(p.bpsNetwork)} %`,
+    `${formatUnits(p.price, 6)} USDC/unit (${p.unitTokens} token${p.unitTokens > 1 ? "s" : ""}${p.outWeight > 1 ? `, output ×${p.outWeight}` : ""})`,
+    p.deterministic ? "deterministic" : "not deterministic",
+    `shares op/author/network ${pct(p.bpsOperator)}/${pct(p.bpsAuthor)}/${pct(p.bpsNetwork)} %`,
     `caution min ${usdc(p.minBond)}`,
-    `règlement ${contractName(p.settlement)}`,
+    `settlement ${contractName(p.settlement)}`,
     `auteur ${p.author}`,
     ...(p.manifestURI ? [`manifeste ${p.manifestURI}`] : []),
   ].join("  ");
@@ -28,19 +28,19 @@ export function productLine(p: ProductView): string {
 export async function listProducts(ctx: Ctx): Promise<void> {
   const { arc } = reader(ctx.rpc);
   const list = await arc.listProducts();
-  if (!list.length) return out("aucun produit");
+  if (!list.length) return out("no product");
   for (const p of list) out(productLine(p));
 }
 
 export async function listBounties(ctx: Ctx): Promise<void> {
   const { arc } = reader(ctx.rpc);
   const list = await arc.listBounties();
-  if (!list.length) return out("aucune prime");
+  if (!list.length) return out("no bounty");
   for (const b of list.sort((x, y) => (x.id < y.id ? -1 : 1))) {
-    const state = b.paused ? "en pause" : Number(b.deadline) < nowS() ? "échue" : "ouverte";
+    const state = b.paused ? "paused" : Number(b.deadline) < nowS() ? "expired" : "open";
     out(
-      `#${b.id}  ${state}  produit #${b.productId}  solde ${usdc(b.balance)}  échéance ${fmtTime(b.deadline)}  protocole ${b.protocol}` +
-        (b.paidAmount > 0n ? `  déjà payé ${usdc(b.paidAmount)}` : "") + (b.targetToPause !== ZERO ? `  cible ${b.targetToPause}` : ""),
+      `#${b.id}  ${state}  product #${b.productId}  balance ${usdc(b.balance)}  deadline ${fmtTime(b.deadline)}  protocol ${b.protocol}` +
+        (b.paidAmount > 0n ? `  already paid ${usdc(b.paidAmount)}` : "") + (b.targetToPause !== ZERO ? `  target ${b.targetToPause}` : ""),
     );
   }
 }
@@ -62,15 +62,15 @@ export const bountiesCmd: Command = {
 export const enclavesCmd: Command = {
   path: ["enclaves"],
   summary: "lists the registered enclaves (the \"hive\") and their state",
-  usage: "enclaves [--product <id>] [--operator <adresse>]",
+  usage: "enclaves [--product <id>] [--operator <address>]",
   description: [
-    "« active » : l'enclave peut signer des reçus maintenant (bloc de tête dans sa fenêtre de validité) ;",
-    "« en grâce » : fenêtre écoulée, ses reçus ancrés dedans restent réglables pendant la grâce (en blocs) ;",
-    "« inactive » : invalidée, retirée ou trop ancienne. Les validités se comptent en blocs (≈ 24 h).",
+    "\"active\": the enclave can sign receipts now (the head block is inside its validity window);",
+    "\"in grace\": the window has passed, and its receipts anchored inside it stay settleable during the grace period (in blocks);",
+    "\"inactive\": killed, retired or too old. Validity is counted in blocks (≈ 24 h).",
   ],
   options: [
-    { name: "product", value: "<id>", desc: "seulement ce produit" },
-    { name: "operator", value: "<adresse>", desc: "seulement cet opérateur" },
+    { name: "product", value: "<id>", desc: "only this product" },
+    { name: "operator", value: "<address>", desc: "only this operator" },
   ],
   examples: ["arcvault enclaves", "arcvault enclaves --product 1"],
   async run(ctx) {
@@ -80,28 +80,28 @@ export const enclavesCmd: Command = {
     const list = (await arc.listEnclaves()).filter(
       (e) => (product === undefined || e.productId === product) && (!operator || sameAddr(e.operator, operator)),
     );
-    if (!list.length) return out("aucune enclave");
+    if (!list.length) return out("no enclave");
     const grace = await enclaveGraceBlocks(pub);
     for (const e of list) {
       const head = e.head ?? 0n;
-      const state = e.active ? "⬡ active           " : head <= e.untilBlock + grace ? "◌ en grâce         " : "· inactive         ";
-      out(`${state}produit #${e.productId}  signer ${e.signer}  opérateur ${e.operator}  TCB ${e.tcbStatus}  blocs ${e.fromBlock}→${e.untilBlock} (≈ ${fmtTime(e.expiresAt)})`);
+      const state = e.active ? "⬡ active           " : head <= e.untilBlock + grace ? "◌ in grace         " : "· inactive         ";
+      out(`${state}product #${e.productId}  signer ${e.signer}  operator ${e.operator}  TCB ${e.tcbStatus}  blocks ${e.fromBlock}→${e.untilBlock} (≈ ${fmtTime(e.expiresAt)})`);
     }
   },
 };
 
-/** Lit un reçu depuis un fichier : { receipt, signature } ou le reçu à plat (+ signature). */
+/** Reads a receipt from a file: { receipt, signature }, or the flat receipt (+ signature). */
 export function loadReceiptFile(path: string, sigOpt?: string): { receipt: Receipt; signature: Hex } {
-  const j = readJson(path, "reçu") as any;
+  const j = readJson(path, "receipt") as any;
   const r = j?.receipt ?? j;
   const signature = (sigOpt ?? j?.signature ?? r?.signature) as Hex | undefined;
-  if (!signature || !isHex(signature)) throw new CliError("signature du reçu absente : --sig 0x… ou champ « signature » du fichier");
+  if (!signature || !isHex(signature)) throw new CliError("receipt signature missing: --sig 0x… or a \"signature\" field in the file");
   return { receipt: normalizeReceipt(r), signature };
 }
 
 export function normalizeReceipt(r: any): Receipt {
   const h = (k: string) => {
-    if (!isHex(r?.[k]) || r[k].length !== 66) throw new CliError(`reçu : ${k} doit être un bytes32 (0x + 64 hex)`);
+    if (!isHex(r?.[k]) || r[k].length !== 66) throw new CliError(`receipt: ${k} must be a bytes32 (0x + 64 hex)`);
     return r[k] as Hex;
   };
   return {
@@ -117,23 +117,23 @@ export const verifyCmd: Command = {
   summary: "verifies an inference receipt like SessionPay.settle: locked enclave, active, operator, model, total",
   usage: "verify --receipt <fichier.json> [--sig 0x…]",
   description: [
-    "Le fichier contient { receipt, signature } (tel que rendu par l'enclave) ou le reçu à plat.",
-    "Mêmes contrôles que le contrat au règlement (lectures seulement). Code de sortie 0 si le reçu est réglable, 1 sinon.",
+    "The file holds { receipt, signature } (as the enclave returns it) or the flat receipt.",
+    "The same checks as the contract at settlement (reads only). Exit code 0 if the receipt is settleable, 1 otherwise.",
   ],
   options: [
-    { name: "receipt", value: "<fichier>", desc: "reçu JSON", required: true },
-    { name: "sig", value: "<0x…>", desc: "signature EIP-712 du reçu, si absente du fichier" },
+    { name: "receipt", value: "<file>", desc: "JSON receipt", required: true },
+    { name: "sig", value: "<0x…>", desc: "the receipt's EIP-712 signature, if the file lacks it" },
   ],
   examples: ["arcvault verify --receipt recu.json"],
   async run(ctx) {
     const { receipt, signature } = loadReceiptFile(req(ctx, "receipt"), opt(ctx, "sig"));
     const { arc } = reader(ctx.rpc);
     const v = await arc.verifyReceipt(receipt, signature);
-    out(`signataire ${v.signer} — opérateur actif au bloc d'ancrage : ${v.activeOperatorAtAnchor === ZERO ? "aucun" : v.activeOperatorAtAnchor}`);
+    out(`signer ${v.signer}, active operator at the anchor block: ${v.activeOperatorAtAnchor === ZERO ? "none" : v.activeOperatorAtAnchor}`);
     for (const c of v.checks) out(`  ${check(c.ok)} ${c.fr}`);
-    out(`  cumul ${receipt.cumulativeUnits} unités — seq ${receipt.seq}${v.settleable ? ` — settle verserait ${usdc(v.payableNow)}` : ""}`);
+    out(`  cumulative ${receipt.cumulativeUnits} units, seq ${receipt.seq}${v.settleable ? `, settle would pay ${usdc(v.payableNow)}` : ""}`);
     if (!v.settleable) {
-      info("reçu NON réglable");
+      info("receipt NOT settleable");
       process.exitCode = 1;
     }
   },
@@ -144,23 +144,23 @@ export const proxyCmd: Command = {
   summary: "local OpenAI-compatible proxy: encrypts, signs with the aek_ key, verifies every receipt",
   usage: "proxy --key <aek_…> --enclave <url> [--port 8787]",
   description: [
-    "Tout programme qui parle à OpenAI marche en changeant son URL de base vers http://localhost:<port>/v1.",
-    "Seul ce mandataire, sur votre machine, voit le clair. Préférez ARC_AEK=… à --key (historique du shell).",
-    "Avant tout envoi, les clés de --enclave sont confrontées à la chaîne (clé X25519 inscrite, enclave active,",
-    "enclave verrouillée de la session) : une URL qui sert une autre clé est refusée.",
+    "Any program that talks to OpenAI works once its base URL points to http://localhost:<port>/v1.",
+    "Only this proxy, on your machine, sees the plaintext. Prefer ARC_AEK=… to --key (shell history).",
+    "Before any send, the --enclave keys are checked against the chain (registered X25519 key, active enclave,",
+    "the session's locked enclave): a URL that serves another key is refused.",
   ],
   options: [
-    { name: "key", value: "<aek_…>", desc: "clé d'accès de la session (sinon variable d'environnement ARC_AEK)" },
-    { name: "enclave", value: "<url>", desc: "URL de l'enclave d'inférence (O2)", required: true },
-    { name: "port", value: "<port>", desc: "port local (défaut 8787)" },
+    { name: "key", value: "<aek_…>", desc: "the session's access key (otherwise the ARC_AEK environment variable)" },
+    { name: "enclave", value: "<url>", desc: "URL of the inference enclave", required: true },
+    { name: "port", value: "<port>", desc: "local port (default 8787)" },
   ],
   examples: ["ARC_AEK=aek_arctest_12_… arcvault proxy --enclave https://…-8802.dstack-pha1-prod9.phala.network"],
   async run(ctx) {
     const aek = opt(ctx, "key") ?? process.env.ARC_AEK;
-    if (!aek) throw new CliError("clé d'accès requise : --key aek_… ou variable d'environnement ARC_AEK");
+    if (!aek) throw new CliError("access key required: --key aek_… or the ARC_AEK environment variable");
     const port = opt(ctx, "port") !== undefined ? Number(parseId(opt(ctx, "port"), "--port")) : undefined;
-    const { startProxy } = await import("../proxy"); // chargé à la demande (serveur HTTP)
-    await startProxy({ aek, enclaveUrl: req(ctx, "enclave"), port, rpcUrl: ctx.rpc }); // refuse de démarrer si les clés ne sont pas celles inscrites
+    const { startProxy } = await import("../proxy"); // loaded on demand (HTTP server)
+    await startProxy({ aek, enclaveUrl: req(ctx, "enclave"), port, rpcUrl: ctx.rpc }); // refuses to start if the keys are not the registered ones
     await new Promise(() => {}); // reste ouvert
   },
 };

@@ -1,11 +1,12 @@
-/** errors.ts — les refus des contrats du réseau (pile v2), nommés et expliqués en français.
- *  Une seule table pour tous les clients (SDK, CLI, copilote, MCP, site) : chaque erreur de `arcErrorsAbi` y a sa phrase
- *  (un test le vérifie). Les erreurs viem peuvent venir de plusieurs copies de viem (SDK, CLI, service) : on les
- *  reconnaît par leur nom et on remonte la chaîne des causes, sans `instanceof`. */
+/** errors.ts — the refusals of the network's contracts, named and explained in French.
+ *  One table serves every client (SDK, CLI, copilot, MCP, site): each error in `arcErrorsAbi` has its sentence here
+ *  (a test checks it). The console shows these French sentences as they are in French and keeps its own English table
+ *  (web/src/i18n/contract-errors.en.ts). viem errors can come from several copies of viem (SDK, CLI, service), so
+ *  they are recognized by name, walking up the chain of causes, without `instanceof`. */
 import { decodeErrorResult, type Hex } from "viem";
 import { arcErrorsAbi } from "./abis";
 
-/** Nom de l'erreur (sans les paramètres) → explication en français. */
+/** Error name (without parameters) → explanation in French (the French side of the console's translations). */
 export const ARC_ERRORS_FR: Record<string, string> = {
   // ---- ProductRegistry
   AuthorShareTooHigh: "la part de l'auteur dépasse le plafond du réseau (MAX_AUTHOR_BPS, 30 %)",
@@ -31,7 +32,7 @@ export const ARC_ERRORS_FR: Record<string, string> = {
   NothingToWithdraw: "rien à retirer",
   TooMuchExposure: "au-delà de la moitié de la caution disponible sur 24 h : réglez plus tôt et plus souvent, ou augmentez la caution",
   UnbondLocked: "retrait de caution verrouillé (7 jours après la demande)",
-  // ---- EnclaveRegistry (politique « on échoue fermé »)
+  // ---- EnclaveRegistry ("fail closed" policy)
   AnchorHashMismatch: "REPORTDATA[32:64] différent du hash EIP-2935 du bloc d'ancrage (P7) : redemandez un quote à l'enclave",
   AnchorTooOld: "bloc d'ancrage (ou bloc N) hors de la fenêtre EIP-2935 de 8 191 blocs, ou pas encore produit",
   DebugEnclave: "enclave en mode DEBUG : refusée (P3, l'hôte pourrait lire sa mémoire)",
@@ -109,15 +110,15 @@ export const ARC_ERRORS_FR: Record<string, string> = {
 };
 
 export interface ArcErrorInfo {
-  /** Nom de l'erreur du contrat (ex. WrongEnclave). */
+  /** Name of the contract error (e.g. WrongEnclave). */
   name: string;
-  /** Arguments décodés, s'il y en a (ex. EnclaveHeldByOtherOperator(operator, freeFromBlock)). */
+  /** Decoded arguments, if any (e.g. EnclaveHeldByOtherOperator(operator, freeFromBlock)). */
   args: readonly unknown[];
-  /** Explication en français. */
+  /** Explanation in French. */
   fr: string;
 }
 
-/** Données de revert (0x + sélecteur…) trouvées dans une erreur viem, en remontant les causes. */
+/** Revert data (0x + selector…) found in a viem error, walking up the causes. */
 function revertData(e: unknown): Hex | undefined {
   for (let x: any = e, n = 0; x && n < 12; x = x.cause, n++) {
     for (const d of [x?.data, x?.data?.data, x?.raw]) {
@@ -127,28 +128,29 @@ function revertData(e: unknown): Hex | undefined {
   return undefined;
 }
 
-/** Erreur d'un de nos contrats contenue dans `e` (simulation ou transaction viem), ou undefined. */
+/** The error of one of our contracts contained in `e` (a viem simulation or transaction), or undefined. */
 export function arcErrorOf(e: unknown): ArcErrorInfo | undefined {
-  // 1) viem a déjà décodé l'erreur (l'ABI de l'appel la contenait)
+  // 1) viem already decoded the error (the call's ABI contained it)
   for (let x: any = e, n = 0; x && n < 12; x = x.cause, n++) {
     const name = x?.data?.errorName ?? (x?.name === "ContractFunctionRevertedError" ? x?.errorName : undefined);
     if (typeof name === "string" && ARC_ERRORS_FR[name]) {
       return { name, args: (x?.data?.args ?? []) as readonly unknown[], fr: ARC_ERRORS_FR[name]! };
     }
   }
-  // 2) données brutes : on les décode avec TOUTES les erreurs du réseau (un refus remonté d'un contrat appelé)
+  // 2) raw data: decode it with EVERY error of the network (a refusal raised inside a called contract)
   const data = revertData(e);
   if (data) {
     try {
       const d = decodeErrorResult({ abi: arcErrorsAbi, data });
       const fr = ARC_ERRORS_FR[d.errorName];
       if (fr) return { name: d.errorName, args: (d.args ?? []) as readonly unknown[], fr };
-    } catch { /* erreur hors de nos contrats */ }
+    } catch { /* an error outside our contracts */ }
   }
   return undefined;
 }
 
-/** Message lisible en français pour une erreur de simulation ou de transaction ; `undefined` si rien de connu. */
+/** A readable French message for a simulation or transaction error, as the console shows it in French; otherwise the
+ *  error's own message. */
 export function explainArcError(e: unknown): string {
   const hit = arcErrorOf(e);
   if (hit) {

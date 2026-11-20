@@ -21,11 +21,11 @@ const CONTRACTS = [
   ["operatorBondAbi", "OperatorBond", "OperatorBond: the operator bond"],
   ["enclaveRegistryAbi", "EnclaveRegistry", "EnclaveRegistry: enclave registration, verified by DCAP"],
   ["sessionPayAbi", "SessionPay", "SessionPay: prepaid sessions and their cumulative receipts"],
-  ["sealedBountyAbi", "SealedBounty", "SealedBounty: the sealed bounty"],
+  ["sealedBountyAbi", "SealedBounty", "SealedBounty: the Sealed Bounty"],
   ["x402Abi", "X402Settler", "X402Settler: pay per call (x402)"],
   ["verdictLogAbi", "VerdictLog", "VerdictLog: verdicts written to the ERC-8004 validation registry"],
   ["tdxAttestationModuleAbi", "TdxAttestationModule", "TdxAttestationModule: the attestation module (Automata DCAP)"],
-  ["demoVaultAbi", "DemoVault", "DemoVault: the disposable target of the sealed bounty demos"],
+  ["demoVaultAbi", "DemoVault", "DemoVault: the disposable target of the Sealed Bounty demos"],
 ];
 
 function structName(p) {

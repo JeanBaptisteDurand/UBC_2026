@@ -1,4 +1,4 @@
-/** usdc.ts — autorisations EIP-3009 (ReceiveWithAuthorization) sur l'USDC d'Arc. */
+/** usdc.ts — EIP-3009 authorizations (ReceiveWithAuthorization) on Arc's USDC. */
 import { type Address, type Hex, toHex } from "viem";
 import { usdcDomain } from "./network";
 
@@ -29,7 +29,7 @@ export type SignTypedDataFn = (args: {
   message: Record<string, unknown>;
 }) => Promise<Hex>;
 
-/** Construit une autorisation EIP-3009 pour que `to` encaisse `value` de `from`. */
+/** Builds an EIP-3009 authorization for `to` to collect `value` from `from`. */
 export async function buildReceiveAuthorization(
   signTypedData: SignTypedDataFn,
   params: { usdc: Address; chainId: number; from: Address; to: Address; value: bigint; nonce?: Hex; ttlSeconds?: number; now?: number },

@@ -23,7 +23,7 @@ function postJson(url: string, body: unknown, insecure: boolean, timeoutMs: numb
       let size = 0;
       rs.on("data", (c: Buffer) => {
         size += c.length;
-        if (size > 1 << 20) rq.destroy(new Error("réponse trop grande"));
+        if (size > 1 << 20) rq.destroy(new Error("response too large"));
         else chunks.push(c);
       });
       rs.on("end", () => {
@@ -31,7 +31,7 @@ function postJson(url: string, body: unknown, insecure: boolean, timeoutMs: numb
         try { resolve({ status: rs.statusCode ?? 0, body: JSON.parse(t) }); } catch { resolve({ status: rs.statusCode ?? 0, body: t.slice(0, 300) }); }
       });
     });
-    rq.on("timeout", () => rq.destroy(new Error("délai dépassé")));
+    rq.on("timeout", () => rq.destroy(new Error("timed out")));
     rq.on("error", reject);
     rq.end(data);
   });
@@ -45,8 +45,8 @@ export interface AllianceTokenOptions {
   log?: (m: string) => void;
 }
 
-/** Demande, vérifie et rend le jeton de l'alliance pour `quote` (hexadécimal). Lève si un serveur refuse (machine hors
- *  liste ou révoquée : HTTP 403) ou ne répond pas : il faut les TROIS signatures. */
+/** Requests, verifies and returns the alliance's token for `quote` (hex). Throws if a server refuses (machine not on
+ *  the list or revoked: HTTP 403) or does not answer: all THREE signatures are needed. */
 export async function requestAllianceToken(quote: Hex, o: AllianceTokenOptions = {}): Promise<AllianceToken> {
   const peers = o.peers ?? PROOF_OF_CLOUD.peers;
   const insecureHosts = o.insecureHosts ?? ["trust-server.scrtlabs.com"];
@@ -64,17 +64,17 @@ export async function requestAllianceToken(quote: Hex, o: AllianceTokenOptions =
     } else log(`alliance : ${u} → ${r.status} ${typeof r.body === "string" ? r.body.slice(0, 120) : JSON.stringify(r.body).slice(0, 120)}`);
   }
   const chosen = Object.keys(nonces).sort();
-  if (chosen.length < peers.length) throw new Error(`alliance Proof of Cloud : ${chosen.length}/${peers.length} serveurs ont accepté (machine hors liste, révoquée, ou serveur en panne)`);
+  if (chosen.length < peers.length) throw new Error(`Proof of Cloud alliance: ${chosen.length}/${peers.length} servers accepted (machine not on the list, revoked, or a server down)`);
   let partial: Record<string, string> = {};
   for (const m of chosen) {
     const r = await postJson(`${urlOf[m]}/get_jwt`, { quote: q, timestamp: ts, nonces, partial_sigs: partial }, insecure(urlOf[m]!), timeoutMs);
-    if (r.status !== 200) throw new Error(`alliance Proof of Cloud : signature refusée par ${m} (HTTP ${r.status})`);
+    if (r.status !== 200) throw new Error(`Proof of Cloud alliance: signature refused by ${m} (HTTP ${r.status})`);
     if (typeof r.body?.jwt === "string") {
       const t = parseAllianceToken(r.body.jwt, o.allianceKey ?? PROOF_OF_CLOUD.allianceKey);
-      if (t.quoteSha256 !== createHash("sha256").update(Buffer.from(q, "hex")).digest("hex")) throw new Error("alliance Proof of Cloud : jeton d'un autre quote");
+      if (t.quoteSha256 !== createHash("sha256").update(Buffer.from(q, "hex")).digest("hex")) throw new Error("Proof of Cloud alliance: token for another quote");
       return t;
     }
     partial = { ...partial, ...r.body };
   }
-  throw new Error("alliance Proof of Cloud : pas de jeton final");
+  throw new Error("Proof of Cloud alliance: no final token");
 }

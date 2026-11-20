@@ -1,5 +1,5 @@
-/** Niveaux d'opérateur (10/11/2026) : le VRAI jeton de l'alliance Proof of Cloud (contracts/test/vectors) se lit et se
- *  vérifie ; trafiqué, il est refusé ; le fichier de déploiement v2.1 porte les adresses des niveaux. */
+/** Operator levels: the REAL Proof of Cloud alliance token (contracts/test/vectors) reads and verifies; tampered,
+ *  it is refused; the v2.1 deployment file carries the levels' addresses. */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { PROOF_OF_CLOUD, deploymentFromJson, parseAllianceToken, testnet } from "../src";
@@ -20,11 +20,11 @@ describe("Proof of Cloud alliance token", () => {
   it("tampered (content, signature, another key): refused", () => {
     const p = V.payload as string;
     const forged = `${V.header}.${p.slice(0, 20)}${p[20] === "A" ? "B" : "A"}${p.slice(21)}.${sigB64}`;
-    expect(() => parseAllianceToken(forged)).toThrow(/signature invalide/);
+    expect(() => parseAllianceToken(forged)).toThrow(/invalid signature/);
     const badSig = `${V.header}.${V.payload}.${sigB64.slice(0, 10)}${sigB64[10] === "A" ? "B" : "A"}${sigB64.slice(11)}`;
     expect(() => parseAllianceToken(badSig)).toThrow();
     expect(() => parseAllianceToken(JWT, `0x${"11".repeat(32)}`)).toThrow();
-    expect(() => parseAllianceToken("a.b")).toThrow(/trois parties/);
+    expect(() => parseAllianceToken("a.b")).toThrow(/three parts/);
   });
 });
 

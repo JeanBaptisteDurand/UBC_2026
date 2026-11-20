@@ -1,4 +1,4 @@
-/** v2.1 : le journal RTMR3 de dstack, sur le VRAI quote de notre enclave Phala (7/11) et son vrai journal. */
+/** dstack's RTMR3 event log, on the REAL quote of our Phala enclave and its real log. */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { keccak256, toHex, toBytes, type Hex } from "viem";
@@ -11,7 +11,7 @@ const VEC = new URL("../../../contracts/test/vectors/", import.meta.url);
 const attest = JSON.parse(readFileSync(new URL("phala-dstack-attest.json", VEC), "utf8")) as { quote: Hex; eventLog: Hex };
 const events = JSON.parse(readFileSync(new URL("phala-dstack-eventlog.json", VEC), "utf8")) as Array<Record<string, unknown>>;
 
-// valeurs établies par l'agent des contrats (Python + forge, 8/11) et par la pile v2 en ligne
+// values established by the contracts work (Python + forge) and by the v2 stack on-chain
 const IMAGE_ID = "0x4e4d0a863c0ebd6b3734254bfa2d54407ba754f5113970dd76ab89941aef5c5b";
 const COMPOSE = "0x6d26fa8f8b96b5e3398596ff5822ed2db578d2e7a5fb1b15802d3e5a8be504d3";
 const OS_IMAGE = "0xe866e987221db357129ebc3f066b6706ef955889ea95e5510acbdf3d3055186b";
@@ -28,8 +28,8 @@ describe("dstack RTMR3 event log (v2.1)", () => {
     expect(r.composeHash).toBe(COMPOSE);
     expect(r.osImageHash).toBe(OS_IMAGE);
     expect(r.imageId).toBe(IMAGE_ID);
-    expect(r.workloadId.startsWith("0x9b21399b")).toBe(true); // empreinte complète de la v2 (deployments.v2.testnet.json)
-    expect((r.eventLog!.length - 2) / 2).toBe(2752); // taille mesurée par forge
+    expect(r.workloadId.startsWith("0x9b21399b")).toBe(true); // the v2 stack's full image id (deployments.v2.testnet.json)
+    expect((r.eventLog!.length - 2) / 2).toBe(2752); // size measured by forge
   });
 
   it("same result from the raw JSON text", () => {
@@ -64,7 +64,7 @@ describe("dstack RTMR3 event log (v2.1)", () => {
 
   it("empty, unreadable or already encoded log: null", () => {
     expect(parseDstackEventLog("0x")).toBeNull();
-    expect(parseDstackEventLog(toHex(toBytes("pas du json")))).toBeNull();
+    expect(parseDstackEventLog(toHex(toBytes("not json")))).toBeNull();
     const enc = encodeDstackEventLog(parseDstackEventLog(JSON.stringify(events))!);
     expect(parseDstackEventLog(enc)).toBeNull();
   });

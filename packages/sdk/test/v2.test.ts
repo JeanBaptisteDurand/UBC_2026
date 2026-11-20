@@ -18,7 +18,7 @@ import {
   type Predicate, type Receipt,
 } from "../src/index";
 
-// ---------------------------------------------------------------- une chaîne et une enclave émulées
+// ---------------------------------------------------------------- an emulated chain and enclave
 
 const OPERATOR = "0x5724d89D610c3017b8DC161c025248341556f6Ab" as Address;
 const PRODUCT = 1n;
@@ -57,13 +57,13 @@ function fakeChain(st: ChainState) {
           const s = st.sessions.get(String(a.args[0]));
           return s ?? { owner: zeroAddress, productId: 0n, operator: zeroAddress, sessionKey: zeroAddress, deposit: 0n, cap: 0n, paidUnits: 0n, paid: 0n, expiresAt: 0n, closed: false, verdictWritten: false, price: 0n, enclave: zeroAddress, unitTokens: 0, outWeight: 0, param: `0x${"00".repeat(32)}` };
         }
-        default: throw new Error(`lecture non émulée : ${a.functionName}`);
+        default: throw new Error(`read not emulated: ${a.functionName}`);
       }
     },
   } as any;
 }
 
-/** /pubkeys de l'enclave, éventuellement réécrit par un mandataire malveillant. */
+/** The enclave's /pubkeys, possibly rewritten by a malicious proxy. */
 function pubkeysFetch(e: ReturnType<typeof makeEnclave>, tamper?: (j: any) => any): typeof fetch {
   return (async (url: any) => {
     if (String(url).endsWith("/pubkeys")) {
@@ -96,7 +96,7 @@ describe("contract refusals: named and explained", () => {
   });
 });
 
-// ---------------------------------------------------------------- clés d'enclave contre la chaîne
+// ---------------------------------------------------------------- enclave keys against the chain
 
 describe("verifyEnclaveKeys — encrypt only to the key registered on-chain", () => {
   const e = makeEnclave();
@@ -134,11 +134,11 @@ describe("verifyEnclaveKeys — encrypt only to the key registered on-chain", ()
   });
 });
 
-// ---------------------------------------------------------------- Prime scellée
+// ---------------------------------------------------------------- Sealed Bounty
 
 const PREDICATE: Predicate = { combine: "OR", clauses: [{ type: "ERC20_DROP", token: testnet.usdc, holder: testnet.demoVault, min: "1000000" }] };
 
-/** Ce que fait l'enclave O3 (enclave/src/services/bounty.ts) : ouvrir cE, lire le bundle, recalculer cP. */
+/** What the Sealed Bounty enclave does (enclave/src/services/bounty.ts): open cE, read the bundle, recompute cP. */
 async function enclaveRecomputes(e: ReturnType<typeof makeEnclave>, body: { enc: Hex; ciphertext: Hex }, protocolX25519: Hex) {
   const obj = JSON.parse(new TextDecoder().decode(await hpkeOpen(e.x25519Priv, toBytes(body.enc), toBytes(body.ciphertext))));
   const canonical = JSON.stringify({
@@ -186,14 +186,14 @@ describe("Sealed Bounty: encryption to the verified enclave, claim check", () =>
     const good = await checkProvenClaim(s, { claim: j(claim), signature: await sign(e.signer), cP: s.cP }, o);
     expect(good.signer).toBe(e.signer.address);
     const intruder = privateKeyToAccount(generatePrivateKey());
-    await expect(checkProvenClaim(s, { claim: j(claim), signature: await sign(intruder), cP: s.cP }, o)).rejects.toThrow(/pas par l'enclave vérifiée/);
+    await expect(checkProvenClaim(s, { claim: j(claim), signature: await sign(intruder), cP: s.cP }, o)).rejects.toThrow(/not by the verified enclave/);
     const other = { ...claim, payee: "0x000000000000000000000000000000000000dEaD" as Address };
-    await expect(checkProvenClaim(s, { claim: j(other), signature: await sign(e.signer, other), cP: s.cP }, o)).rejects.toThrow(/bénéficiaire/);
+    await expect(checkProvenClaim(s, { claim: j(other), signature: await sign(e.signer, other), cP: s.cP }, o)).rejects.toThrow(/payee/);
     await expect(checkProvenClaim(s, { claim: j(claim), signature: await sign(e.signer), cP: "0xdead" }, o)).rejects.toThrow(/cP/);
   });
 });
 
-// ---------------------------------------------------------------- inférence de bout en bout (enclave émulée)
+// ---------------------------------------------------------------- end-to-end inference (emulated enclave)
 
 function emulatedEnclave(e: ReturnType<typeof makeEnclave>, st: ChainState, opts: { tamperText?: boolean; balance402?: boolean } = {}) {
   const seen: string[] = [];
@@ -212,7 +212,7 @@ function emulatedEnclave(e: ReturnType<typeof makeEnclave>, st: ChainState, opts
       if (seq !== lastSeq + 1n) return new Response(JSON.stringify({ error: "seq", expectedSeq: (lastSeq + 1n).toString() }), { status: 409 });
       if (opts.balance402) return new Response(JSON.stringify({ error: "insufficient_session_balance", balance: "5" }), { status: 402 });
       const prompt = new TextDecoder().decode(await hpkeOpen(e.x25519Priv, toBytes(b.enc), toBytes(b.ciphertext)));
-      const text = `écho : ${prompt}`;
+      const text = `echo: ${prompt}`;
       cum += 10n;
       const receipt: Receipt = {
         productId: s.productId, sessionId: BigInt(b.sessionId), seq, modelHash: MODEL,
@@ -221,7 +221,7 @@ function emulatedEnclave(e: ReturnType<typeof makeEnclave>, st: ChainState, opts
       };
       lastSeq = seq;
       const signature = await e.signer.signTypedData({ domain: networkDomain(testnet.sessionPay, testnet.chainId) as any, types: receiptTypes, primaryType: "Receipt", message: receipt });
-      const sealed = await hpkeSeal(toBytes(b.clientEphemeralPub), new TextEncoder().encode(opts.tamperText ? "texte forgé" : text));
+      const sealed = await hpkeSeal(toBytes(b.clientEphemeralPub), new TextEncoder().encode(opts.tamperText ? "forged text" : text));
       const ser = Object.fromEntries(Object.entries(receipt).map(([k, v]) => [k, typeof v === "bigint" ? v.toString() : v]));
       return new Response(JSON.stringify({ enc: toHex(sealed.enc), ciphertext: toHex(sealed.ciphertext), receipt: ser, signature }), { status: 200 });
     }
@@ -246,8 +246,8 @@ describe("inference client", () => {
 
   it("encrypts to the verified key, authenticates the reply, says whether the receipt is payable", async () => {
     const { ai } = setup();
-    const r = await ai.chat.completions.create({ messages: [{ role: "user", content: "bonjour" }], temperature: 0.2 });
-    expect(r.text).toBe("écho : user: bonjour");
+    const r = await ai.chat.completions.create({ messages: [{ role: "user", content: "hello" }], temperature: 0.2 });
+    expect(r.text).toBe("echo: user: hello");
     expect(r.verified).toBe(true);
     expect(r.receipt.seq).toBe(1n);
     const r2 = await ai.chat.completions.create({ messages: [{ role: "user", content: "encore" }] });
@@ -264,7 +264,7 @@ describe("inference client", () => {
   });
   it("resyncs on the enclave's seq (409 expectedSeq)", async () => {
     const { ai, emu } = setup();
-    emu.setLastSeq(4n); // une autre instance a déjà servi 4 requêtes avec la même clé aek_
+    emu.setLastSeq(4n); // another instance already served 4 requests with the same aek_ key
     const r = await ai.chat.completions.create({ messages: [{ role: "user", content: "x" }] });
     expect(r.receipt.seq).toBe(5n);
   });
@@ -273,11 +273,11 @@ describe("inference client", () => {
     const p = ai.chat.completions.create({ messages: [{ role: "user", content: "x" }] });
     await expect(p).rejects.toBeInstanceOf(InsufficientSessionBalance);
     await expect(ai.chat.completions.create({ messages: [{ role: "user", content: "x" }] })).rejects.toBeInstanceOf(InsufficientSessionBalance);
-    expect(emu.seqs).toEqual(["1", "1"]); // jamais de 409 : le même seq est rejoué
+    expect(emu.seqs).toEqual(["1", "1"]); // never a 409: the same seq is replayed
   });
 });
 
-// ---------------------------------------------------------------- reçus, quote
+// ---------------------------------------------------------------- receipts, quote
 
 describe("receipts and quote", () => {
   it("verifies a receipt like SessionPay.settle", async () => {
@@ -288,7 +288,7 @@ describe("receipts and quote", () => {
     const sig = await e.signer.signTypedData({ domain: networkDomain(testnet.sessionPay, testnet.chainId) as any, types: receiptTypes, primaryType: "Receipt", message: r });
     const v = await verifyReceiptOnChain(fakeChain(st), r, sig);
     expect(v.settleable).toBe(true);
-    expect(v.payableNow).toBe(800n); // 20 × 100 borné au dépôt 1 000, moins 200 déjà payés
+    expect(v.payableNow).toBe(800n); // 20 × 100 capped at the 1,000 deposit, minus 200 already paid
     const forged = await verifyReceiptOnChain(fakeChain(st), { ...r, modelHash: keccak256(toBytes("autre")) }, sig);
     expect(forged.settleable).toBe(false);
     expect(payableFor({ deposit: 1_000n, cap: 500n, paid: 0n, price: 100n }, 20n)).toBe(500n);
