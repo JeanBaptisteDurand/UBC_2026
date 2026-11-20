@@ -530,19 +530,19 @@ describe("SDK ↔ enclaves : requestRefutations, quorum, prepareRefuteCall", () 
     expect(round.status).toBe("confirmed");
     expect(round.confirmations).toBe(2);
     expect(round.signatures).toBeUndefined();
-    expect(() => sdk.prepareRefuteCall(net.accepted, round, net.deployment)).toThrow(/non prête/);
+    expect(() => sdk.prepareRefuteCall(net.accepted, round, net.deployment)).toThrow(/not ready/);
   });
 
   it("quorum non atteignable (un seul autre opérateur sur le réseau) : message clair, RIEN n'est envoyé aux enclaves", async () => {
     const net = await network(0n, [OP_A, OP_B, OP_B]); // deux enclaves… du même opérateur OP_B
     const round = await net.ask(sdk.protocolRefuteSource({ cP: net.cP, protocolPrivateKey: protocol.x25519PrivateKey }));
     expect(round.status).toBe("unreachable");
-    expect(round.message).toMatch(/un seul opérateur éligible/);
-    expect(round.message).toMatch(/rien n'a été envoyé/);
+    expect(round.message).toMatch(/only one eligible operator/);
+    expect(round.message).toMatch(/nothing was sent/);
     expect(net.calls.filter((c) => c.endsWith("/v1/refute"))).toEqual([]);
     const plan = sdk.refuteQuorumPlan({ claimOperators: [OP_A], candidateOperators: [OP_A], scope: "network" });
     expect(plan.reachable).toBe(false);
-    expect(plan.message).toMatch(/seul opérateur a signé la réclamation/);
+    expect(plan.message).toMatch(/only operator has signed the claim/);
   });
 
   it("source qui ne redonne pas le cPHash : refusée par le SDK avant toute connexion", async () => {
