@@ -1,7 +1,6 @@
-// Text of the wallet flow, in English and French, kept here rather than in i18n.ts: the landing loads nothing of this
-// flow, so nothing is added to its weight. The language follows the site's (getLang).
+// Text of the wallet flow, in English (the site is English only), kept here rather than in i18n.ts: the landing loads
+// nothing of this flow, so nothing is added to its weight.
 // Site rules: no semicolon, em dash, arrow or ellipsis in visible text.
-import { getLang } from '../../i18n'
 
 const EN = {
   'w.connect': 'Connect wallet', 'w.connecting': 'Waiting for the wallet', 'w.disconnect': 'Disconnect',
@@ -130,132 +129,9 @@ const EN = {
   'p.dm.published': 'Service published, active on Arc (simulated). Recorded example: activate(3).', 'p.dm.state': 'Active',
 } as const
 
-const FR: Record<keyof typeof EN, string> = {
-  'w.connect': 'Connecter le wallet', 'w.connecting': 'En attente du wallet', 'w.disconnect': 'Déconnecter',
-  'w.connectingS': 'En attente',
-  'w.loadFail': 'Le module du wallet ne s’est pas chargé. Vérifiez votre connexion et réessayez.',
-  'w.none': 'Aucun wallet dans ce navigateur. Installez un wallet de navigateur comme MetaMask ou Rabby, puis rechargez la page.',
-  'w.nonePhone': 'Aucun wallet dans ce navigateur. Ouvrez cette page dans l’app de votre wallet pour signer, ou lancez la démo, qui se passe de wallet.',
-  'w.openIn': 'Ouvrir dans {app}',
-  'w.pick': 'Choisir un wallet', 'w.net': 'Réseau', 'w.arc': 'Arc testnet', 'w.wrong': 'Mauvais réseau',
-  'w.switch': 'Passer sur Arc testnet', 'w.switching': 'Confirmez le réseau dans votre wallet',
-  'w.addr': 'Adresse', 'w.bal': 'USDC sur Arc', 'w.reading': 'lecture', 'w.unread': 'non lu',
-  'w.faucet': 'Obtenir des USDC de test', 'w.who': 'Vous signez tout avec votre propre wallet. ArcHive ne détient aucune clé.',
-  'w.refused.connect': 'Le wallet a refusé la connexion. Rien n’a été partagé.',
-  'w.refused.switch': 'Le wallet est resté sur son réseau. Passez sur Arc testnet pour agir.',
-  'w.pending': 'Votre wallet a déjà une demande en cours : ouvrez-le pour y répondre.',
-  'w.menu': 'Wallet', 'w.close': 'Fermer', 'w.switchToRead': 'passez sur Arc pour lire', 'u.free': 'gratuit', 'u.pool': 'payée par sa cagnotte', 'u.capWhy': 'signature refusée par la garde de la page (plafond {cap})',
-  'x.close': 'Fermer et revenir à la vue d’ensemble',
-  's1.need': 'Connectez votre wallet avec le bouton en haut à droite de la page.', 's1.ok': 'Connecté avec {addr} sur Arc testnet.',
-  'u.runningNow': 'En marche, {n} enclaves', 'u.waitingW': 'En attente', 'u.retiredW': 'Retiré',
-  'u.pickBtn': 'Ouvrir le catalogue', 'u.change': 'Changer de service', 'u.catTitle': 'Choisir un service', 'u.catLede': 'Le catalogue en direct, lu sur Arc. Choisissez un service pour voir ce qu’il fait ; les étapes à gauche le suivent.', 'u.search': 'Chercher dans le catalogue', 'u.searchPh': 'Un service, un numéro, un état',
-  'u.choose': 'Choisir', 'u.chooseAria': 'Choisir {name}', 'u.catClose': 'Fermer le catalogue', 'u.none': 'Aucun service choisi pour l’instant.',
-
-  'st.todo': 'à faire', 'st.doing': 'en cours', 'st.done': 'fait', 'st.fail': 'échoué', 'st.soon': 'bientôt',
-  'tx.view': 'Voir dans l’explorateur', 'tx.pending': 'Transaction envoyée, en attente d’un bloc', 'tx.ok': 'Confirmée sur Arc',
-  'tx.label': 'Transaction',
-
-  'e.noWallet': 'Connectez d’abord votre wallet.', 'e.wrongNet': 'Votre wallet est sur un autre réseau. Passez sur Arc testnet.',
-  'e.refused': 'Vous avez refusé la signature dans votre wallet. Rien n’a été signé, rien n’est parti.',
-  'e.funds': 'Pas assez d’USDC sur Arc. Vous avez {have}, il en faut {need}.',
-  'e.reverted': 'La transaction est passée dans un bloc mais le contrat l’a refusée. Rien n’a changé sur Arc. Vérifiez les valeurs de cette étape, puis réessayez.',
-  'e.rejected': 'Arc a refusé la transaction avant l’envoi : {why}. Rien n’a été signé sur la chaîne.',
-  'e.net': 'Le réseau n’a pas répondu : {why}. Réessayez.',
-  'e.other': 'Cette étape a échoué : {why}. Réessayez.',
-
-  'u.s1': 'Se connecter sur Arc', 'u.s1d': 'Votre wallet, sur Arc testnet, avec ses USDC.',
-  'u.s2': 'Choisir un service', 'u.s2d': 'Dans le catalogue en direct. Le prix d’un appel est lu sur Arc.',
-  'u.pick': 'Service', 'u.price': 'Prix d’un appel', 'u.priceReading': 'lecture du prix sur Arc',
-  'u.notPerCall': 'Ce service se paie par {rail}, pas à l’appel. Utilisez-le depuis la console.', 'u.inactive': 'Ce service n’est pas actif sur Arc. Choisissez un autre service.',
-  'u.notCallOf': '{name} ne se paie pas à l’appel : ce formulaire reste sur le service payé à l’appel.',
-  'u.go.ai': 'Ouvrir une session prépayée', 'u.go.bounty': 'Publier ou chasser une prime', 'u.go.other': 'Voir ce service',
-  'u.s3': 'Vérifier la clé de l’enclave sur Arc', 'u.s3d': 'La page lit la clé de l’enclave à son adresse, puis la confronte à EnclaveRegistry. Une lecture, aucune transaction.',
-  'u.url': 'Adresse de l’enclave', 'u.urlHint': 'L’adresse où l’opérateur sert ce produit.',
-  'u.keyOk': 'Clé vérifiée sur Arc. Enclave {signer}, active.', 'u.keyBad': 'Clé non vérifiée : {why}. Changez de service ou collez une autre adresse d’enclave.', 'u.keyBad1': 'Clé non vérifiée : {why}. Collez une autre adresse d’enclave.',
-  'u.keyChecking': 'Vérification de la clé sur Arc', 'u.keyNoUrl': 'Aucune adresse publique connue pour ce service. Collez l’adresse de l’enclave.',
-  'u.s4': 'Payer et envoyer le message scellé', 'u.s4d': 'Votre message est chiffré pour cette enclave seule, et payé par une signature EIP-3009 du prix exact. Une signature n’envoie aucune transaction, donc pas de gas.',
-  'u.msg': 'Message', 'u.defaultMsg': 'En une phrase, que protège une enclave Intel TDX ?',
-  'u.send': 'Payer {price} et envoyer', 'u.sendPlain': 'Payer et envoyer',
-  'u.signing': 'Signez le paiement de {price} dans votre wallet', 'u.calling': 'Requête scellée en route vers l’enclave',
-  'u.s5': 'La réponse signée', 'u.s5d': 'Signée par l’enclave dont Arc tient la clé, pour vous, ce montant et ce texte.',
-  'u.signedBy': 'Signée par {signer}', 'u.amount': 'Payé {amount}', 'u.anchor': 'Ancrée au bloc {n}',
-  'u.paidLost': 'Payé, mais aucune réponse vérifiée n’est revenue. Le paiement peut encore être réglé. {why}',
-  'u.s6': 'Réglé sur Arc', 'u.s6d': 'L’opérateur règle l’appel sur X402Settler. La page le lit sur Arc.',
-  'u.settlePending': 'En attente du règlement par l’opérateur, jusqu’à {until}', 'u.settled': 'Réglé, {amount}',
-  'u.consumed': 'L’autorisation a servi, l’événement n’est pas encore lisible.', 'u.expired': 'Jamais réglé avant son échéance. Rien n’a été prélevé.',
-  'u.enclaveDown': 'L’enclave ne répond pas à cette page ({why}). Elle est peut-être arrêtée, ou son adresse n’accepte que les appels du site de la console. Rien n’a été signé.',
-  'u.k.unreachable': 'l’enclave ne répond pas à cette page. Elle est peut-être arrêtée, ou son adresse n’accepte que les appels du site de la console',
-  'u.k.unreadable': 'l’adresse ne donne pas de clé d’enclave lisible', 'u.k.not_registered': 'cette enclave n’est pas inscrite sur Arc',
-  'u.k.wrong_product': 'cette enclave est inscrite pour un autre produit', 'u.k.x25519_mismatch': 'la clé donnée n’est pas celle inscrite sur Arc',
-  'u.k.inactive': 'cette enclave n’est pas active sur Arc en ce moment', 'u.useConsole': 'L’utiliser dans la console',
-
-  'c.title': 'Vos USDC sur les autres chaînes', 'c.lede': 'Lus sur les chaînes CCTP de Circle que liste le SDK, une fois le wallet connecté. Arc est le domaine CCTP 26.',
-  'c.read': 'Lire mes soldes', 'c.reading': 'lecture', 'c.err': 'non lu ({why})', 'c.bring': 'Ramener sur Arc',
-  'c.how': 'La page Pont le fait depuis Ethereum Sepolia ou Base Sepolia : votre wallet y brûle les USDC, Circle atteste la combustion, et votre wallet les reçoit sur Arc. Transferts standard, sans frais de Circle : 1 USDC envoyé = 1 USDC reçu, vous ne payez que le gaz. Vous signez vous-même chaque étape.',
-  'c.howOff': 'La page Pont apporte des USDC d’Ethereum Sepolia ou de Base Sepolia sur Arc : la combustion, l’attestation de Circle, puis l’émission sur Arc, signées par votre wallet. Transferts standard, gratuits. Connectez un wallet pour l’ouvrir.',
-
-  'r.s1': 'Se connecter sur Arc', 'r.s1d': 'Le wallet de l’opérateur, sur Arc testnet.',
-  'r.s2': 'Poser la caution', 'r.s2d': 'Une signature EIP-3009, puis une transaction : OperatorBond prend les USDC. Chaque enclave inscrite réserve la caution minimale de son produit.',
-  'r.amount': 'Montant (USDC)', 'r.bondNow': 'Votre caution {bond}, libre {free}', 'r.bondBtn': 'Bloquer {amount}',
-  'r.bondSign': 'Signez l’autorisation de {amount} dans votre wallet', 'r.bondSend': 'Confirmez la transaction de caution dans votre wallet',
-  'r.bondDone': 'Caution posée.', 'r.badAmount': 'Écrivez un montant en USDC, par exemple 4 ou 0,5.',
-  'r.s3': 'Installer l’agent', 'r.s3d': 'Sur la machine, ces commandes installent archive-node, vérifient Intel TDX, demandent un code d’appairage, puis lancent l’enclave.',
-  'r.s4': 'Appairer la machine', 'r.s4d': 'La machine affiche un code comme HIVE-7K2P-QX9M. Vous l’approuvez d’une signature, sans transaction ni frais.',
-  'r.code': 'Code d’appairage', 'r.pairBtn': 'Signer et appairer', 'r.pairSign': 'Signez le message d’appairage dans votre wallet',
-  'r.pairDone': 'Appairée avec {host}. La machine affiche maintenant votre adresse et demande de confirmer.',
-  'r.badCode': 'Le code a la forme HIVE-XXXX-XXXX.', 'r.codeUnknown': 'Ce code est inconnu ou échu. Relancez archive-node pair sur la machine.',
-  'r.wrongSite': 'L’API d’ArcHive n’accepte que les signatures faites sur {site}. Rien n’a été appairé. Approuvez le code là-bas, la signature est la même.',
-  'r.openConsole': 'Approuver dans la console',
-  'r.s5': 'Arc admet la machine', 'r.s5d': 'En direct d’EnclaveRegistry : les enclaves inscrites par votre adresse, avec leur état.',
-  'r.none': 'Aucune enclave inscrite par cette adresse pour l’instant. Elle apparaît ici dès que l’agent l’inscrit.',
-  'r.led.green': 'en marche', 'r.led.amber': 'utilisable, pas en marche', 'r.led.red': 'invalidée', 'r.led.off': 'échue',
-  'r.product': 'produit {id}',
-
-  'p.s1': 'Se connecter sur Arc', 'p.s1d': 'Le wallet de l’auteur, sur Arc testnet.',
-  'p.s2': 'Écrire le manifeste', 'p.s2d': 'Le manifeste est haché dans votre navigateur (keccak256). Hébergez-le à l’adresse donnée : l’API ne l’affiche comme épinglé que si son hash concorde.',
-  'p.manifest': 'Manifeste (JSON)', 'p.uri': 'Adresse du manifeste', 'p.hash': 'Hash',
-  'p.s3': 'Empreinte, prix et parts', 'p.s3d': 'Seules les enclaves qui font tourner exactement cette image peuvent servir. Les parts font 100 %, l’auteur au plus 30 %, le réseau au moins 5 %.',
-  'p.image': 'Empreinte de l’image (bytes32)', 'p.price': 'Prix d’un appel (USDC)', 'p.price.tok': 'Prix par jeton (USDC)', 'p.minBond': 'Caution minimale (USDC)',
-  'p.rail': 'Paiement', 'p.rail.x402': 'À l’appel (x402)', 'p.rail.session': 'Session prépayée', 'p.op': 'Opérateur %', 'p.author': 'Auteur %', 'p.network': 'Réseau %',
-  'p.badShares': 'Les parts doivent faire 100 %, l’auteur au plus 30 %, le réseau au moins 5 %.', 'p.badImage': 'L’empreinte s’écrit 0x suivi de 64 caractères hexadécimaux.',
-  'p.badJson': 'Le manifeste n’est pas un JSON valide.', 'p.badUri': 'Donnez une adresse https ou ipfs pour le manifeste.',
-  'p.s4': 'Proposer sur ProductRegistry', 'p.s4d': 'Une transaction. Arc inscrit le produit, son hash et l’empreinte autorisée (WorkloadAdded).',
-  'p.propose': 'Signer et proposer', 'p.proposeSign': 'Confirmez la proposition dans votre wallet', 'p.proposed': 'Proposé comme produit {id}.',
-  'p.s5': 'Activation', 'p.s5d': 'La publication est ouverte : personne ne la relit. Sur Arc, le produit est Proposé, puis Actif une fois activé après son délai de protection (0 s sur ce testnet).',
-  'p.state': 'État sur Arc', 'p.activate': 'Activer', 'p.activateSign': 'Confirmez l’activation dans votre wallet', 'p.activeOn': 'Activable à partir du {when}',
-  'p.st.Proposed': 'Proposé', 'p.st.Active': 'Actif', 'p.st.Retired': 'Retiré', 'p.mine': 'Vos produits',
-  'p.noMine': 'Aucun produit proposé par cette adresse pour l’instant.',
-  'r.unbondTooMuch': 'Vous pouvez retirer au plus {amt} USDC de caution libre pour l’instant.', 'r.unbondSign': 'Confirmez la demande de retrait dans votre wallet',
-  'r.unbondDone': 'Retrait de {amount} demandé. Le délai d’OperatorBond commence.', 'r.withdrawSign': 'Confirmez le retrait dans votre wallet',
-  'r.withdrawDone': '{amount} revenus dans votre wallet.', 'r.unbondLede': 'Partir : demandez une partie de la caution libre, puis retirez-la une fois le délai passé.',
-  'r.pending': '{amount} demandés, retirables {when}.', 'r.now': 'maintenant', 'r.readingDelay': 'après le délai (lecture)',
-  'r.withdrawBtn': 'Retirer', 'r.unbondAmount': 'Montant à reprendre (USDC)', 'r.unbondBtn': 'Demander le retrait',
-  'show.play': 'Lancer la démo', 'show.stop': 'Arrêter', 'show.replay': 'Rejouer la démo',
-  'show.note.use': 'Un rejeu dans la scène : un utilisateur choisit un service, l’appelle, paie et reçoit la réponse. Aucun wallet, rien n’est signé ni envoyé.',
-  'show.note.rent': 'Un rejeu dans la scène : un opérateur ajoute une enclave, de la caution à son admission sur Arc. Aucun wallet, rien n’est signé ni envoyé.',
-  'show.note.publish': 'Un rejeu dans la scène : un auteur publie un service, du manifeste à son activation sur Arc. Aucun wallet, rien n’est signé ni envoyé.',
-  'show.on': 'Démo en cours, étape {n}',
-  'show.reset': 'Réinitialiser', 'show.badge': 'Démo, simulée. Aucun wallet, rien n’est signé ni envoyé.',
-  'show.ok.use': 'Démo terminée : la réponse est arrivée, signée par l’enclave, et 0,01 USDC a été payé.',
-  'show.ok.rent': 'Démo terminée : l’enclave est inscrite sur Arc.', 'show.ok.publish': 'Démo terminée : le service est publié sur Arc.',
-  'dm.wallet': 'Wallet de démo, simulé. Votre propre wallet n’est pas utilisé.', 'dm.rec': 'enregistré',
-  'u.dm.key': 'Clé vérifiée sur Arc (simulé). Clé d’enclave enregistrée {signer}, produit n° {pid}.',
-  'u.dm.signing': 'Signature de {price} (simulée, sans wallet)', 'u.dm.sent': 'Scellé et envoyé (simulé).',
-  'u.dm.answer': 'Une enclave Intel TDX garde le code et les données du service dans une mémoire chiffrée : même le propriétaire de la machine ne peut pas les lire.',
-  'u.dm.ansMeta': 'Réponse simulée. Signataire affiché : la clé d’enclave enregistrée {signer}, {amount}',
-  'u.dm.paid': 'Payé {amount}. Règlement enregistré sur Arc testnet, bloc {block}.',
-  'r.dm.bond': 'Caution posée, {amount} USDC. Caution enregistrée sur Arc testnet.',
-  'r.dm.agent': 'L’agent démarre l’image et demande un quote à la puce TDX (enregistré : {q} octets, journal de {n} événements).',
-  'r.dm.pair': 'Appairée (simulé). Rien ne passe par Arc à cette étape.',
-  'r.dm.adm': 'Enclave inscrite sur Arc. Inscription enregistrée, bloc {block}, gaz {gas} USDC.', 'r.dm.led': 'admise, enregistrée',
-  'p.dm.hash': 'Exemple enregistré, produit n° 3',
-  'p.dm.proposed': 'Proposé (simulé). Exemple enregistré : la proposition du produit n° 3.',
-  'p.dm.published': 'Service publié, actif sur Arc (simulé). Exemple enregistré : activate(3).', 'p.dm.state': 'Actif',
-}
-
 export type WKey = keyof typeof EN
 export function w(k: WKey, vars?: Record<string, string | number>): string {
-  let s: string = (getLang() === 'fr' ? FR : EN)[k] ?? k
+  let s: string = EN[k] ?? k
   if (vars) for (const [a, b] of Object.entries(vars)) s = s.split(`{${a}}`).join(String(b))
   return s
 }

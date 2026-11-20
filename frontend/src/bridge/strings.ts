@@ -1,6 +1,5 @@
 // The bridge page's words, English first (the site's rule, i18n.ts: no middle dot, semicolon, em dash or arrow in
-// visible text). Kept apart from i18n.ts, like the space and doc pages keep theirs.
-import { getLang } from '../i18n'
+// visible text). Kept apart from i18n.ts, like the space and doc pages keep theirs. English only, like the whole site.
 
 /** the page's address under the build base */
 export const BRIDGE_HREF = `${import.meta.env.BASE_URL}bridge.html`
@@ -57,60 +56,9 @@ const EN = {
   'how': 'How it works', 'how.d': 'CCTP is Circle’s own bridge for USDC. It never wraps or pools your USDC: it burns it on one chain and mints it on another, once Circle has signed the burn. This page sends standard transfers only: free, the whole amount arrives, the price is the wait for finality. Arc is CCTP domain 26.',
 }
 type Key = keyof typeof EN
-const FR: Record<Key, string> = {
-  'nav': 'Pont', 'nav.t': 'Apportez vos USDC sur Arc avec CCTP', 'nav.off': 'Connectez d’abord un wallet',
-  'doc': 'ArcHive. Pont', 'sec': 'Pont, CCTP', 'skip': 'Aller au transfert',
-  'title': 'Apportez vos USDC sur Arc.',
-  'lede': 'Envoyez des USDC d’un autre testnet vers Arc testnet avec CCTP, le pont de Circle. Votre wallet les brûle sur la chaîne de départ, Circle atteste la combustion, et les mêmes USDC sont émis à votre adresse sur Arc. Personne ne les détient en route.',
-  'testnet': 'Testnets uniquement. Ces USDC n’ont pas de valeur.',
-  'w.need': 'Connectez un wallet pour voir vos USDC sur les autres testnets.', 'w.connect': 'Connecter un wallet',
-  'w.ok': 'Connecté en {addr}. Les USDC arrivent à cette même adresse sur Arc.',
-  'from.h': 'Depuis', 'from.lede': 'Vos USDC sur les testnets que CCTP relie à Arc, lus en direct.',
-  'bal.reading': 'en lecture', 'bal.fail': 'non lu', 'bal.gas': 'gaz {v}',
-  'amount': 'Montant, en USDC', 'max': 'Max',
-  'free': 'Sans frais de Circle : 1 USDC envoyé = 1 USDC reçu. Vous ne payez que le gaz.',
-  'free.d': 'Un transfert CCTP standard : Circle ne garde rien et atteste une fois la combustion définitive sur {net}, {wait}.',
-  'wait.eth-sepolia': 'environ 15 à 19 minutes', 'wait.base-sepolia': 'environ 15 à 19 minutes, parfois jusqu’à 35 (Base publie d’abord son lot sur Ethereum)',
-  'range': '{from} à {to} min', 'range.up': '{from} à {to} min, jusqu’à {upTo}', 'elapsed': '{m} min {s} s', 'elapsed.m': '{m} min',
-  'fee.old': 'Un transfert rapide commencé plus tôt : Circle garde au plus {fee}.',
-  'get': 'Vous recevez {v} sur Arc.',
-  'go': 'Envoyer sur Arc', 'new': 'Nouveau transfert', 'retry': 'Réessayer',
-  'steps': 'Le transfert, étape par étape',
-  's1.t': 'Brûler sur {net}', 's1.d': 'Votre wallet passe sur {net}, autorise les USDC, puis les brûle vers Arc (CCTP V2, depositForBurn). Deux signatures au plus, gaz en {gas}.',
-  's2.t': 'Circle atteste', 's2.d': 'Circle attend que la combustion soit définitive sur {net}, puis en signe la preuve : {wait}. Vous pouvez fermer la page : le transfert reprend ici.',
-  's3.t': 'Émettre sur Arc', 's3.d': 'Votre wallet passe sur Arc testnet et remet la preuve à Arc (receiveMessage). Cette signature paie un peu de gaz en USDC sur Arc.',
-  'st.todo': 'à faire', 'st.doing': 'en cours', 'st.done': 'fait', 'st.fail': 'arrêté',
-  'n.switch': 'Passage de votre wallet sur {net}.', 'n.approve': 'Autorisez {v} dans votre wallet.', 'n.approving': 'Autorisation envoyée, attente de {net}.',
-  'n.burn': 'Confirmez la combustion dans votre wallet.', 'n.burning': 'Combustion envoyée, attente de {net}.', 'n.burned': '{v} brûlés sur {net}.',
-  'n.wait': 'En attente de l’attestation de Circle : {t} écoulées, d’habitude {range}.', 'n.unseen': 'En attente de l’attestation de Circle : {t} écoulées. Circle n’a pas encore indexé la combustion.',
-  'n.late': 'Toujours en attente de l’attestation de Circle : {t} écoulées, plus que d’habitude. Vos USDC sont brûlés et en sûreté, la page redemande.', 'n.attested': 'Attesté par Circle.',
-  'n.mint': 'Confirmez l’émission dans votre wallet.', 'n.minting': 'Émission envoyée, attente d’Arc.', 'n.done': '{v} émis sur Arc à votre adresse.',
-  'n.already': 'Déjà reçu sur Arc : quelqu’un l’a relayé pour vous. Les USDC sont à votre adresse.',
-  'n.resume': 'Un transfert commencé le {date} n’est pas fini. Il reprend ici.',
-  'tx': 'tx', 'tx.on': 'Sur {net}', 'arc.now': 'Vos USDC sur Arc maintenant : {v}', 'arc.h': 'Vos USDC sur Arc',
-  'src.none': 'Pas encore d’USDC sur {net}. Prenez-en au robinet de Circle, il donne des USDC de testnet.',
-  'mint.go': 'Recevoir sur Arc', 'arc.gas': 'Gaz sur Arc : {v}',
-  'gas.arc': 'Vous n’avez pas d’USDC sur Arc pour payer le gaz de cette dernière étape. Prenez-en un peu au robinet de Circle (choisissez Arc Testnet), puis revenez : le transfert vous attend.',
-  'gas.src': 'Vous n’avez pas d’{gas} sur {net} pour payer le gaz. Prenez-en d’abord à un robinet.',
-  'faucet': 'Robinet de Circle', 'faucet.eth': 'Robinet d’ETH Sepolia', 'faucet.base': 'Robinet d’ETH Base Sepolia',
-  'e.refused': 'Vous avez refusé dans votre wallet. Rien n’est parti.',
-  'e.refusedBurn': 'L’autorisation est passée, puis vous avez refusé la combustion dans votre wallet. Aucun USDC n’a quitté votre wallet : renvoyez quand vous voulez.',
-  'e.refused3': 'Vous avez refusé dans votre wallet. Vos USDC sont brûlés et attestés, ils vous attendent : recevez-les quand vous voulez.',
-  'e.chain': 'Votre wallet est sur un autre réseau. Passez-le sur {net}, puis réessayez.',
-  'e.switch': 'Votre wallet n’est pas passé sur {net}. Changez-le à la main, puis réessayez.',
-  'e.gas': 'Pas assez d’{gas} sur {net} pour payer le gaz.',
-  'e.funds': 'Vous avez {have} sur {net}, moins que {need}.',
-  'e.amount': 'Indiquez un montant supérieur à 0, dans la limite de votre solde.',
-  'e.notfree': 'Circle facture maintenant un transfert standard depuis {net}. Cette page n’envoie que des transferts gratuits : elle s’arrête ici.',
-  'e.revert': '{net} a refusé la transaction.',
-  'e.net': '{net} n’a pas répondu ({why}). Réessayez.',
-  'e.iris': 'Le service d’attestation de Circle n’a pas répondu ({why}). La page redemande.',
-  'e.other': 'Échec : {why}.',
-  'how': 'Comment ça marche', 'how.d': 'CCTP est le pont de Circle pour l’USDC. Il n’enveloppe ni ne met en commun vos USDC : il les brûle sur une chaîne et les émet sur une autre, une fois que Circle a signé la combustion. Cette page n’envoie que des transferts standard : gratuits, le montant entier arrive, le prix est l’attente de la finalité. Arc est le domaine CCTP 26.',
-}
 export type BKey = Key
-/** a string in the current language, with its {placeholders} filled */
+/** a string, with its {placeholders} filled */
 export function bt(k: Key, v: Record<string, string | number> = {}): string {
-  const s = (getLang() === 'fr' ? FR : EN)[k] ?? EN[k]
+  const s: string = EN[k]
   return s.replace(/\{(\w+)\}/g, (_m, n: string) => String(v[n] ?? `{${n}}`))
 }

@@ -44,7 +44,9 @@ function header() {
   if (count < 0 && got >= 20) {
     if (dv.getUint32(0, true) !== 0x31544c46) return fail('magic')
     if (dv.getUint32(12, true) !== N) return fail('n')
-    if (dv.getUint32(16, true) !== FP) return fail('fp')
+    // FP 0: the fingerprint is checked by the main thread on the 'head' message (?prog=1 starts the light pack before
+    // meta.bin, without its version)
+    if (FP && dv.getUint32(16, true) !== FP) return fail('fp')
     count = dv.getUint32(4, true); hdr = 20 + count * 8
     if (count < 1 || count > N) return fail('count')
   }
@@ -62,7 +64,7 @@ function header() {
     }
     total = at
     if (buf.length < total) { const nb = new Uint8Array(total); nb.set(buf.subarray(0, got)); buf = nb }
-    ctx.postMessage({ type: 'head', w: dv.getUint16(8, true), h: dv.getUint16(10, true), count, total, gateAt, ks, ends })
+    ctx.postMessage({ type: 'head', w: dv.getUint16(8, true), h: dv.getUint16(10, true), count, total, gateAt, ks, ends, fp: dv.getUint32(16, true) })
   }
 }
 function take(c: Uint8Array) {

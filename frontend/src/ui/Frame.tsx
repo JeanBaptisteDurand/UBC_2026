@@ -3,9 +3,9 @@
 // hugs it to the pixel (this stretch is the lock loading), then the card stays open and "Open Service" can be
 // clicked. Touch: a tap locks. Keyboard: focusing a slot locks it.
 import { useEffect, useRef, useState } from 'react'
-import { useLive, blockTime, ago } from '../data/live'
-import { num, short, usdc } from '../data/fmt'
-import { t, useLang, setLang, getLang, type TKey } from '../i18n'
+import { useLive } from '../data/live'
+import { num, short } from '../data/fmt'
+import { t, useLang, getLang, type TKey } from '../i18n'
 import { link, networkFor } from '../links'
 import { world, setLock, useLock, useWallVersion, useLoupe } from '../world'
 import { G, SLOTS, NSLOTS, slotLabel, productLabel, priceText, reasonText, stateText, colX, type Sled } from '../data/wall'
@@ -41,13 +41,9 @@ export function Header({ loaded }: { loaded: number | (() => number) }) {
   const [open, setOpen] = useMenu()
   const block = useLive((s) => s.block)
   const stats = useLive((s) => s.stats)
-  const activity = useLive((s) => s.activity)
-  const pay = activity?.find((a) => a.name === 'CallSettled' || a.name === 'Settled')
-  // age of the last payment, read from its block time (Arc RPC), recomputed every minute
-  const [payAt, setPayAt] = useState<number | null>(null)
-  const [, setMin] = useState(0)
-  useEffect(() => { let ok = true; setPayAt(null); if (pay?.block) blockTime(pay.block).then((v) => { if (ok) setPayAt(v) }); return () => { ok = false } }, [pay?.block])
-  useEffect(() => { const id = setInterval(() => setMin((m) => m + 1), 60000); return () => clearInterval(id) }, [])
+  // the verified machines running now, read live (active enclaves); singular for one (French: for zero too)
+  const live = stats?.enclavesActive
+  const one = live !== undefined && (live === 1 || (lang === 'fr' && live === 0))
   const bar = useRef<HTMLDivElement>(null)
   const pct = useRef<HTMLSpanElement>(null)
   const sec = useRef<HTMLSpanElement>(null)
@@ -74,19 +70,23 @@ export function Header({ loaded }: { loaded: number | (() => number) }) {
         <a className="logo" href={link.home} aria-label="ArcHive"><Logo /></a>
         <nav className="hd-nav" aria-label={t('nav.main')}>{nav}</nav>
         <div className="hd-side">
-          {/* the bridge, at the right next to the language and the wallet (hidden under 1100 px: it is in the menu) */}
+          {/* the bridge, at the right next to the wallet (hidden under 1100 px: it is in the menu) */}
           <div className="hd-nav hd-br"><BridgeNav /></div>
-          <button className="lang" onClick={() => setLang(lang === 'fr' ? 'en' : 'fr')} lang={lang === 'fr' ? 'en' : 'fr'} aria-label={t('lang.to')}>{lang === 'fr' ? 'EN' : 'FR'}</button>
           {/* the visitor's wallet, as on the app pages */}
           <HeaderWallet />
           <MenuButton open={open} set={setOpen} />
         </div>
       </div>
       <div className="hd-row2 lbl" aria-live="off">
-        <span className="band-i"><b>{t('band.net')}</b></span>
+        <span className="band-i band-arc"><b>{t('band.net')}</b></span>
         <span className="band-i">{t('band.block')} <span className="mono tnum nowrap">{block ? num(block, lang) : t('band.reading')}</span></span>
-        <span className="band-i">{t('band.active')} <span className="mono tnum nowrap">{stats ? `${stats.enclavesActive} / ${stats.enclaves}` : t('band.reading')}</span></span>
-        <span className="band-i band-pay">{t('band.paid')} <span className="mono tnum nowrap">{pay ? `${usdc(pay.args.amount ?? pay.args.paidDelta, lang)}, ${t('word.block')} ${num(pay.block, lang)}${payAt ? `, ${ago(payAt, lang)}` : ''}` : activity ? t('end.none') : t('band.reading')}</span></span>
+        {/* "5 verified machines live · open to any operator": a live count with no ceiling, not a share of the
+            registered ones; the latest payment is told lower down (the Use section and the proof chain) */}
+        <span className="band-i band-mach">
+          <span className="band-v">{live !== undefined ? <><span className="mono tnum">{num(live, lang)}</span> {t(one ? 'band.mach1' : 'band.mach')}</> : <>{t('band.mach.r')} <span className="mono">{t('band.reading')}</span></>}</span>
+          <span aria-hidden="true">·</span>
+          <span>{t('band.open')}</span>
+        </span>
         <span className="band-sec"><span ref={sec} className="sec-n">{t('sec.hero')}</span><span className="prog-pct mono tnum" ref={pct} aria-hidden="true">{lang === 'fr' ? '0\u00a0%' : '0%'}</span></span>
       </div>
       <div className="prog" aria-hidden="true"><div className="prog-bar" ref={bar} /></div>

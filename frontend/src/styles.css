@@ -119,6 +119,9 @@ html[data-pin='1'] .veil { opacity: 0; }
 .hd-row1, .hd-row2 { padding-left: max(var(--gut), env(safe-area-inset-left)); padding-right: max(var(--gut), env(safe-area-inset-right)); }
 .band-i { display: inline-flex; gap: 8px; }
 .band-i > span:last-child { color: var(--ink2); }
+/* landing band: the live count of verified machines, then "open to any operator" (the count has no ceiling) */
+.band-mach > span, .band-mach > span:last-child { color: var(--ink3); }
+.band-mach > .band-v { color: var(--ink2); }
 .band-sec { margin-left: auto; display: inline-flex; align-items: baseline; gap: 8px; color: var(--ink); }
 .prog-pct { color: var(--acc); min-width: 4ch; text-align: right; margin-left: 8px; }
 .prog { position: relative; height: 1px; }
@@ -130,8 +133,6 @@ html[data-pin='1'] .veil { opacity: 0; }
 .hd-drawer { position: relative; display: flex; flex-direction: column; align-items: flex-start; max-height: calc(100vh - var(--hd)); max-height: calc(100dvh - var(--hd)); overflow-y: auto; overscroll-behavior: contain; padding: 8px var(--gut) 16px; gap: 4px; font-size: 20px; background: var(--bg); box-shadow: inset 0 -1px 0 var(--rule); }
 .hd-drawer a, .hd-drawer button { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink2); transition: color var(--t2) var(--productive); }
 .hd-drawer a:hover, .hd-drawer a:focus-visible, .hd-drawer a[aria-current='page'], .hd-drawer button:hover { color: var(--ink); }
-.hd-drawer-x { display: flex; flex-wrap: wrap; align-items: center; gap: 0 32px; align-self: stretch; margin-top: 8px; padding-top: 4px; box-shadow: inset 0 1px 0 var(--rule); font-size: 15px; }
-.hd-drawer .hd-drawer-lang { display: none; }
 .hd-scrim { position: fixed; left: 0; right: 0; bottom: 0; top: var(--hd); background: rgb(var(--bg-c) / 0.62); }
 html.menu-open { overflow: hidden; }
 html.menu-open .hd { z-index: 69; }
@@ -238,6 +239,9 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
 .hero-cp-mk { position: relative; display: inline-block; flex: none; width: 14px; height: 14px; box-shadow: inset 0 0 0 1px currentColor; }
 .hero-cp-mk i { position: absolute; left: 4px; top: 4px; width: 6px; height: 6px; background: var(--arc-elec); }
 .hero-cp-k { min-width: 0; margin-left: auto; padding-left: 16px; color: var(--ink3); font-weight: 400; overflow: hidden; text-overflow: ellipsis; }
+/* the line for AI agents under the copilot bar: quiet text, as wide as the buttons and never wider (it wraps) */
+.hero-agent { width: 0; min-width: 100%; margin-top: 6px; font-size: 14px; line-height: 1.5; color: var(--ink2); text-wrap: pretty; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--ink) 30%, transparent); text-underline-offset: 4px; transition: color var(--t2) var(--productive), text-decoration-color var(--t2) var(--productive); }
+.hero-agent:hover, .hero-agent:focus-visible { color: var(--ink); text-decoration-color: currentColor; }
 .hero-demo { margin-top: 20px; font-size: 14px; color: var(--ink2); }
 .hero-demo-r { width: 12px; height: 1px; background: currentColor; }
 /* Headline in opposite corners: "Sealed machines," top left, filling the space before the hero rack; "open market."
@@ -515,6 +519,11 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
 /* Narrow phones: the second header row drops the section name (the page title already says it; on the landing the
    progress bar does), and row 1 tightens so the logo, the language, the wallet and the menu always fit */
 @media (max-width: 480px) { .hd-row2 .band-sec { display: none; } }
+/* Landing band: "5 verified machines live · open to any operator" is never cut. Under 860 px the block number goes;
+   on narrow phones the network name goes too, and the line is set one pixel smaller */
+@media (max-width: 860px) { .band-arc + .band-i { display: none; } }
+@media (max-width: 480px) { .hd-row2 .band-arc { display: none; } .band-mach, .band-mach .mono { font-size: 12px; } }
+@media (max-width: 370px) { .band-mach, .band-mach .mono { font-size: 11.5px; } }
 @media (max-width: 400px) {
   .hd-row1, .hd-side { gap: 8px; }
   .lang, .menu-btn { padding: 0 10px; }
@@ -522,11 +531,6 @@ html[data-cur='1'] .axis[data-on='1'] { opacity: 1; }
 /* the replayed demo's second row on the narrowest phones: "Recorded at block N" stays whole, the network name goes
    (app/AppFrame.tsx) */
 @media (max-width: 359px) { .hd-row2 .band-net-r { display: none; } }
-/* Under 375 px the language moves into the menu (ui/Menu.tsx): the wallet button keeps its full label */
-@media (max-width: 374px) {
-  .hd-side > .lang:not(.hd-w-b) { display: none; }
-  .hd-drawer .hd-drawer-lang { display: inline-flex; }
-}
 /* Every field at 16 px on phones and touch screens: below that, iOS Safari zooms the page on focus and stays zoomed
    (important: some page rules set 13 to 15 px with two classes) */
 @media (max-width: 760px), (pointer: coarse) {
@@ -864,9 +868,6 @@ html.veil-none body::after { display: none; }
 .ah-mark .ah-eye-b { fill: #eaf4ff; filter: drop-shadow(0 0 2px #4a86ff) drop-shadow(0 0 5px #3a6bff); }
 .ah-mark .ah-eye-a { fill: #fff1e0; filter: drop-shadow(0 0 2px #ff7a24) drop-shadow(0 0 5px #c4400c); }
 
-/* The drawer's last row holds only the language, which moves there under 375 px (ui/Menu.tsx): no empty rule above it */
-.hd-drawer-x { display: none; }
-@media (max-width: 374px) { .hd-drawer .hd-drawer-x { display: flex; } }
 /* Phones: the replayed demo link of the hero reads at 15 px and is 44 px tall for the thumb */
 @media (max-width: 760px) { .hero-live:is(.hero *, .end *) { font-size: 15px; min-height: 44px; } }
 /* The footer's last line scrolls clear of the floating AskHive button (copilot.css: 48 px tall at 40 px from the edge,
@@ -879,7 +880,6 @@ html.veil-none body::after { display: none; }
 .hd-drawer > a, .hd-drawer > button { display: flex; align-self: stretch; width: 100%; }
 @media (max-height: 500px) {
   .hd-drawer { gap: 0; padding-top: 0; padding-bottom: 8px; font-size: 17px; }
-  .hd-drawer-x { margin-top: 0; }
 }
 /* Phones: a chapter link inside the Doc's text (Tokenomics' "The numbers"...) gets a 44 px tall hit area; padding on an
    inline link leaves the lines where they are */
