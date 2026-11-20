@@ -214,8 +214,8 @@ We use four Circle and Arc tools:
 
 We left the others out on purpose. **Gateway, Nanopayments and Circle's x402 facilitator** settle a transfer to an
 address, in batches or through Circle, while `X402Settler` pays only against the receipt of a machine Arc admitted and
-splits the payment in that same transaction. **Circle Paymaster** is not deployed on Arc (no code at its v0.7 and v0.8
-addresses on 20 Nov); on Arc, gas is already USDC, and our buyers pay none. **Circle Wallets and Agent Wallets** are
+splits the payment in that same transaction. **Circle Paymaster** is not deployed on Arc (its v0.7 and v0.8 addresses
+hold no code on Arc testnet on 20 Nov); on Arc, gas is already USDC, and our buyers pay none. **Circle Wallets and Agent Wallets** are
 not wired in: buyers sign with their own wallet, and the enclave accepts only plain accounts (EOAs) as x402 payers,
 since it does not check ERC-1271 signatures yet. Gateway and its Nanopayments come next, for sub-cent calls (see
 [What's next](#whats-next)).
@@ -410,8 +410,8 @@ a session. An attestation proves which code ran, not that an AI answer is right,
   is the author of all seven products. It can propose a new settlement contract or verdict writer, which waits 8 days,
   and remove one at once. Product changes have no timelock on testnet (`ProductRegistry.timelock` is 0). The mainnet
   plan is a 2-of-3 multisig and 48-hour timelocks.
-- **The treasury is the deployer's address on testnet**, so the network's 5 % and the victimless half of a slash go
-  back to that same key.
+- **The treasury is the deployer's address on testnet**, so the network's share of every payment and the victimless
+  half of a slash go back to that same key.
 - **No state proofs yet.** A bounty replay reads Arc's state through a strict relay that re-hashes every block header.
   Per-read state proofs (`eth_getProof`) are implemented and tested, and turn on once an Arc RPC serves historical
   proofs.
