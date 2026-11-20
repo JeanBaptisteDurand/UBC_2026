@@ -591,12 +591,19 @@ Package guides: [`contracts`](contracts/README.md), [`dcap-integration`](dcap-in
 
 ## What's next
 
-- Switch the site, the API and the enclaves to the v3 stack, after the hackathon.
-- Publish the enclave images, so any operator can run the allowed fingerprints, and bring in a second, independent
-  operator.
-- Go to mainnet: Intel's verifier first, then the contracts behind a 2-of-3 multisig and 48-hour timelocks.
-- Add streaming to the `arcvault` proxy, so Claude Code can use a prepaid session behind the gateway.
-- Publish the SDK and the `arcvault` CLI on npm.
+- **The v3 switch.** Move the site, the API and the enclaves to the v3 stack, already deployed, after the hackathon.
+- **A budget on the buyer's side.** Accept smart-account payers in the enclave (ERC-1271), so an agent's spending
+  rules can live in an EIP-7702 smart account or in ERC-7715 / ERC-7710 delegated permissions, on top of today's
+  per-call cap.
+- **Circle Agent Wallets** for buying agents, with daily limits.
+- **Circle Nanopayments** for sub-cent calls, with each batch still tied to the enclaves' signed receipts.
+- **Product 3 in Circle's Agent Marketplace**, once it speaks x402 v2.
+- **ERC-8183 job escrow**, for longer agent jobs that an admitted enclave completes and signs.
+- **A second operator.** Publish the enclave images, so any operator can run the allowed fingerprints, and bring in a
+  second, independent operator.
+- **Mainnet.** Intel's verifier first, then the contracts behind a 2-of-3 multisig and 48-hour timelocks.
+- **The developer kit.** Streaming in the `arcvault` proxy, so Claude Code can use a prepaid session behind the
+  gateway, and the SDK and the CLI on npm.
 
 ## Feedback for Arc and Circle
 
