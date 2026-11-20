@@ -830,8 +830,10 @@ function downTier() {
 if (Q.get('rb') === '0') document.documentElement.classList.add('rb-off')
 const GATE_DEFAULT = false
 export const GATE = Q.get('gate') === '1' || (GATE_DEFAULT && Q.get('gate') !== '0' && !FIREFOX && !CONN?.saveData)
-/** ?prog=1: the progressive film, nothing blocks (section "Progressive film" below); not with ?gate=1 */
-export const PROG = !GATE && Q.get('prog') === '1'
+/** The progressive film, nothing blocks (section "Progressive film" below): the default (?prog=0: today's film); not
+ *  with ?gate=1, nor in Firefox or on a data saver (today's film, as GATE_DEFAULT would do) */
+const PROG_DEFAULT = true
+export const PROG = !GATE && (Q.get('prog') === '1' || (PROG_DEFAULT && Q.get('prog') !== '0' && !FIREFOX && !CONN?.saveData))
 // the first frame (the poster) shows as soon as this module runs: the page-transition veil (ui/veil.ts) waits for
 // nothing on the progressive film
 if (PROG) { const h = document.documentElement; if (!h.classList.contains('veil-off')) { h.classList.remove('veil-on'); h.classList.add('veil-off') } }
