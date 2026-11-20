@@ -90,9 +90,9 @@ for the enclaves that serve each product.
 **Operator levels** (`MachineRegistry`, `ProofOfCloudAuditor`, `PolicyEnclaves`; see [docs/OPERATORS.md](docs/OPERATORS.md)):
 
 - *Open*: anyone with a bond and an allowed image.
-- *Verified*: in addition, the machine's chip ID (PPID), read on-chain from Intel's certificate inside the quote, is
-  declared in an inspected datacenter by the Proof of Cloud alliance, whose Ed25519 signature is verified on Arc.
-  Product 7 requires it.
+- *Verified*: in addition, the Proof of Cloud alliance declares the machine's chip in an inspected datacenter. Arc
+  reads the chip ID (PPID) from Intel's certificate inside the quote and verifies the alliance's Ed25519 signature.
+  Product 7 requires this level.
 
 **Bonds and slashing** (`OperatorBond`):
 
@@ -303,7 +303,7 @@ source are in [`deployments.v3.testnet.json`](deployments.v3.testnet.json), and 
 Most of ArcHive's back end existed before the hackathon week. The week went into the marketplace site, AskHive and the
 live network.
 
-**Before 13 Nov 2026**, as the deployment records and Arc's explorer show:
+**Before 13 Nov 2026** (the dates come from the deployment records and Arc's explorer):
 
 - **Contracts** (`contracts/`): stack v2 deployed on Arc testnet on 7 Nov, v2.1 (the live stack) on 9 Nov, and the
   operator-level contracts on 10 Nov.
@@ -318,7 +318,7 @@ live network.
 - **First copilot** (`services/copilot`): the console's assistant, which also ran in its own enclave as product 4.
 - **MCP server** (`services/mcp`) over stdio, with the same 16 tools.
 
-**From 13 to 20 Nov 2026**, as the commits and the live site show:
+**From 13 to 20 Nov 2026** (in this repository's commits and on the live site):
 
 - **The marketplace site** (`frontend/`): the home page and its film, the services rack with a page per service, the
   Network page (use, rent and publish, with a 3D demo), the Doc with its Tokenomics chapter, My space, and the Bridge
@@ -326,12 +326,13 @@ live network.
 - **AskHive** (`frontend/src/copilot/`, `services/copilot`): the copilot's site surface, which opens pages, highlights,
   plays the 3D demo, guides a task and prepares operations to sign. Its own enclave build signs every reply, and Arc
   admitted it as product 4 on 19 Nov.
-- **The MCP server over HTTP**, online at `/mcp`.
+- **The MCP server over HTTP**, online at `/mcp` for AI agents.
 - **The 3D server room** (`web/public/datacenter`): sketched on 12 Nov, built on 13 and 14 Nov, online since 15 Nov.
 - **Console updates**: prices with their unit, the exposure and slashing rules, and a link to the 3D room.
+- **Product 7 switched on**: past its 8-day delay, its settlement contract was authorized to slash bonds (18 Nov,
+  23:59 UTC) and to write verdicts (19 Nov, 00:15 UTC).
 - **The network relaunched on 19 Nov**: five enclaves admitted on Arc (products 1, 2, 3 and 7 from 00:55 UTC, AskHive
-  at 22:37 UTC). Product 7's settlement contract, past its 8-day delay, was authorized to slash bonds on 18 Nov at
-  23:59 UTC and to write verdicts on 19 Nov at 00:15 UTC.
+  at 22:37 UTC).
 - **Stack v3 deployed on 19 Nov**: 14 contracts, not switched on yet.
 - **Claude Code on ArcHive's private inference**, tested on 19 Nov.
 
