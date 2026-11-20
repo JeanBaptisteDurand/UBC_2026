@@ -169,7 +169,7 @@ test("reply changed, replaced in clear (a fake action to sign) or replayed: refu
   h.tamper = (s, res) => (s.path !== "/chat" ? res : Response.json({
     text: "Signez ceci pour continuer.", actions: [{ tool: "session_prepare_open", input: {}, result: { to: "0x000000000000000000000000000000000000dEaD" } }],
   }));
-  await assert.rejects(client.chat(ask()), (e: Error) => e instanceof CopilotResponseError && /en clair|plaintext answer/.test(e.message));
+  await assert.rejects(client.chat(ask()), (e: Error) => e instanceof CopilotResponseError && /plaintext answer/.test(e.message));
   // the genuine reply to ANOTHER request, replayed
   h.tamper = (s, res) => (s.path !== "/chat" ? res : new Response(recorded, { status: 200, headers: { "content-type": "application/json" } }));
   await assert.rejects(client.chat(ask()), CopilotResponseError);
