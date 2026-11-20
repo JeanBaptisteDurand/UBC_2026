@@ -22,7 +22,8 @@ Any other MCP client: `{ "mcpServers": { "archive": { "url": "https://arc-hive.x
 Both build the same server ([`src/mcp-server.ts`](src/mcp-server.ts)) with the same tools ([`src/tools.ts`](src/tools.ts)).
 The on-chain logic is shared with the copilot ([`services/copilot/src/arc-actions.ts`](../copilot/src/arc-actions.ts)),
 so AskHive and the MCP server give the same answers. The shared code names its output fields in French; the MCP
-server returns them with English keys (`englishKeys`).
+server returns them with English keys (`englishKeys`), and its errors and list notes in English. Some explanatory
+values, such as advice and step notes, are still the copilot's French texts; translating them is a next step.
 
 ## The 16 tools
 
