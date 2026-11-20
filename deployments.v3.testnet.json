@@ -338,6 +338,28 @@
   },
   "enclaves": {},
   "enclavesNote": "No enclave registered on v3 yet (the 5 live enclaves stay on v2.1 until the switch).",
+  "levels": {
+    "txs": {
+      "MachineRegistry": "0x3e2b4613984e0036b007e837291b7b676d3fe1e0cf6c954476c999699b3cee6b",
+      "Ed25519Verifier": "0xf962c4c909e53f8675d43db4a278448409a1c41e134cd0b612a3be8db098be4d",
+      "ProofOfCloudAuditor": "0xc6870fd5005234de09c79426735d751efb1c0ffc46bd183498ad508a8f7149d0",
+      "PolicyEnclaves": "0x83470109e86071d1cb865432abf7dc6e146471944c4c8d6197ff3e17e91945fc",
+      "SealedBountyVerified": "0xd927f7fe46182b5d42aa8d334cad15426f6fd42356463cad905ff223604e718e",
+      "OperatorBond.initialize": "0x92233e31fefe8f153e2dd0be939910344a8cad4ec56df056618f482984796b15",
+      "VerdictLog.initialize": "0x5ef23fa5074e01b5711ae7e868957d1c89a16a41e791fe716023bbb6b16358f6"
+    },
+    "Ed25519Verifier": "0xf2c47D6eCD25290C9daa826b3D11AC43baaEcEf6",
+    "allianceKey": "0x5ea69fede5bcf71054395b273bad67f67158c242d77945d436374020ece525cb",
+    "note": "Two operator levels on v3, deployed with the core on 19 Nov 2026 (blocks 73075354-73075383): MachineRegistry (binds an enclave to its chip PPID; declarations; policies), ProofOfCloudAuditor (the Proof of Cloud alliance's EdDSA token verified on-chain, through Ed25519Verifier), PolicyEnclaves (the registry seen through the product's policy), SealedBountyVerified (the same code as SealedBounty, wired to PolicyEnclaves; settlement of product 5, the v3 equivalent of v2.1's product 7; policyOf(5) = level 1, auditor ProofOfCloudAuditor). OperatorBond.initialize and VerdictLog.initialize wired it at once, so there is no 8-day delay on v3: isSettlement and isCaller are true and settlementApplyAt / callerApplyAt are 0 on-chain. No machine is bound on v3 yet (machines fill in at the switch: registrar with LEVELS on, bindMachine and a Proof of Cloud token). Block added on 20 Nov 2026: the five addresses are those of contracts, each checked on Arc (code, deploy receipt, wiring).",
+    "superseded": [],
+    "MachineRegistry": "0xC64e9556AA896b2E8c0bE0fdf3dC7b2c0be24b86",
+    "ProofOfCloudAuditor": "0xEaf8163fa5Eb2f047d4876bb3Ef2E67250360b73",
+    "PolicyEnclaves": "0x12c0C33C62666AbE0ab03B286b428C554De71BF8",
+    "SealedBountyVerified": "0x8958EA25c9cF7bbee39B32C43187d854B5d73ee6",
+    "settlementApplyAt": 0,
+    "callerApplyAt": 0,
+    "machines": {}
+  },
   "txCount": {
     "deployer": "nonce 328 -> 356 (28 txs)",
     "operator": "5 txs (5 USDC gas top-up to the deployer, VerdictLog approval, approve, bondFrom, setAgentId)"
