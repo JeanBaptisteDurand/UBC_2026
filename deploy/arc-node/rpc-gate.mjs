@@ -71,7 +71,7 @@ createServer((rq, rs) => {
         const [b, c] = JSON.parse(text);
         json(rs, 200, { ok: true, block: b?.result ? Number(BigInt(b.result)) : null, chainId: c?.result ? Number(BigInt(c.result)) : null, methods: [...ALLOWED] });
       })
-      .catch(() => json(rs, 503, { ok: false, error: "nœud indisponible" }));
+      .catch(() => json(rs, 503, { ok: false, error: "node unavailable" }));
     return;
   }
   if (rq.method !== "POST") return json(rs, 405, { error: "POST JSON-RPC seulement" });
@@ -98,9 +98,9 @@ createServer((rq, rs) => {
     try {
       const { status, text } = await upstream(JSON.stringify(q));
       rs.writeHead(status === 200 ? 200 : 502, { "content-type": "application/json", "cache-control": "no-store" });
-      rs.end(status === 200 ? text : JSON.stringify(rpcErr(null, -32603, "nœud en erreur")));
+      rs.end(status === 200 ? text : JSON.stringify(rpcErr(null, -32603, "node error")));
     } catch {
-      json(rs, 502, rpcErr(null, -32603, "nœud indisponible"));
+      json(rs, 502, rpcErr(null, -32603, "node unavailable"));
     }
   });
 }).listen(PORT, HOST, () => console.log(`passerelle RPC d'Arc : ${HOST}:${PORT} → ${UPSTREAM} (lectures seulement)`));
