@@ -71,6 +71,14 @@ function stops(): Stop[] {
   return res
 }
 ;(window as unknown as { __stops: typeof stops }).__stops = stops
+/** Stops still to come: before the first measure, a section not mounted yet (no top), or a page taller than the
+ *  scroll range Lenis knows (it re-measures after a debounce; the stops are capped at its limit): a gesture with no
+ *  stop ahead waits for it (clock.ts, stepGo) */
+const more = () => tops.length < ORDER.length || tops.some((t) => !Number.isFinite(t)) || (getLenis()?.limit ?? Infinity) < total - innerHeight - 8
+// The stops are set when this module runs, before the landing's first render (main-video.tsx waits for the fonts, up
+// to 1.5 s, while the progressive film shows its first frame at once): a wheel turned on the first frame is a gesture
+// that waits for its stop, instead of a free scroll lost on a page that has no height yet
+setStops(stops, more)
 export const secTop = (id: SecId) => tops[ORDER.indexOf(id)] ?? 0
 export const secH = (id: SecId) => hs[ORDER.indexOf(id)] ?? 0
 // ---- The exploded view always plays in full, in order ----
@@ -102,7 +110,7 @@ export function qStep(q: number, v: number, p: number, dt: number): [number, num
 }
 export function startStory() {
   measure()
-  setStops(stops)
+  setStops(stops, more)
   setScrollBound((dir) => {
     const l = getLenis(), i = ORDER.indexOf('protocol')
     if (!l || REDUCED) return null

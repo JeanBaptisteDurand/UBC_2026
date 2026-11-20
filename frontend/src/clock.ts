@@ -77,23 +77,36 @@ const take = () => {
 // - nothing is locked: the native scrollbar and links stay free. ?step=0 restores free scrolling.
 export interface Stop { y: number; id: string; k: string; ready?: () => boolean }
 let stopsFn: (() => Stop[]) | null = null
-export const setStops = (f: () => Stop[]) => { stopsFn = f }
+/** True while sections are still being added below (the video landing mounts them one per idle period): the next stop
+ *  may not exist yet */
+let stopsMore: () => boolean = () => false
+export const setStops = (f: () => Stop[], more?: () => boolean) => { stopsFn = f; stopsMore = more ?? (() => false) }
 const DWELL = 0.75
 const STEPQ = q.get('step') !== '0'
-export const step = { trip: null as null | { y0: number; y1: number; t0: number; dur: number; ease: (x: number) => number }, idx: -1, moving: false, to: null as Stop | null, arrivedAt: 0, settledAt: 1, queue: 0, lastEv: 0, lastMag: 0, gDir: 0, gPeak: 0, gStart: 0, sustain: 0, log: [] as { k: string; y: number; arrive: number; settle: number; leave: number }[] }
+export const step = { trip: null as null | { y0: number; y1: number; t0: number; dur: number; ease: (x: number) => number }, idx: -1, moving: false, to: null as Stop | null, arrivedAt: 0, settledAt: 1, queue: 0, qUntil: 0, lastEv: 0, lastMag: 0, gDir: 0, gPeak: 0, gStart: 0, sustain: 0, log: [] as { k: string; y: number; arrive: number; settle: number; leave: number }[] }
 ;(window as unknown as { __step: typeof step }).__step = step
 const stepOn = () => STEPQ && !!stopsFn && !!lenis && !REDUCED && !MOBILE && !lenis.isStopped
 export const stepEase = (x: number) => 0.5 - 0.5 * Math.cos(Math.PI * Math.pow(x, 0.78))
 const busy = () => step.moving || !step.settledAt || (performance.now() - step.settledAt) / 1000 < DWELL
-/** Go to the next stop in direction dir (1 or -1) from the current page position */
-function stepGo(dir: number) {
+/** Go to the next stop in direction dir (1 or -1) from the current page position; fresh: a new gesture (not a replay) */
+function stepGo(dir: number, fresh = false) {
   if (!lenis || !stopsFn) return
   const list = stopsFn(), y = step.moving && step.to ? step.to.y : lenis.animatedScroll
   let to: Stop | undefined
   if (dir > 0) to = list.find((x) => x.y > y + 4)
   else to = [...list].reverse().find((x) => x.y < y - 4)
-  if (!to) return
   const now = performance.now()
+  if (!to) {
+    // The page is still mounting its sections (the first seconds of the video landing): the gesture waits for the next
+    // stop, 3 s at most, instead of being dropped; stepTick replays it on every refresh until the stop exists
+    if (dir > 0 && stopsMore()) {
+      if (fresh || !step.qUntil) step.qUntil = now + 3000
+      if (now < step.qUntil) { step.queue = dir; return }
+    }
+    step.qUntil = 0
+    return
+  }
+  step.qUntil = 0
   const last = step.log[step.log.length - 1]
   if (last && !last.leave) last.leave = now
   const H = innerHeight || 800, dist = Math.abs(to.y - lenis.animatedScroll) / H
@@ -111,7 +124,7 @@ function stepGo(dir: number) {
 function stepAsk(dir: number) {
   if (busy()) { step.queue = dir; return }
   step.queue = 0
-  stepGo(dir)
+  stepGo(dir, true)
 }
 /** Every frame: arrival, scene caught up, dwell, then the pending gesture or the sustained push */
 function stepTick() {
