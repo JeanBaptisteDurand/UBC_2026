@@ -851,8 +851,8 @@ contract SessionPayTest is Base {
         vm.prank(user);
         sessionPay.closeSession(sessionId);
         assertEq(usdc.balanceOf(user) - before, 1000e6, "remboursement integral");
-        assertEq(validation.requests(), 0, "aucune demande ERC-8004");
-        assertEq(validation.responses(), 0, "aucun verdict");
+        assertEq(validation.requests(), 0, "no ERC-8004 request");
+        assertEq(validation.responses(), 0, "no verdict");
         assertFalse(sessionPay.getSession(sessionId).verdictWritten);
     }
 

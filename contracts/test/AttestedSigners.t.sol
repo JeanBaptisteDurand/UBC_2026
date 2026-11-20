@@ -182,7 +182,7 @@ contract AttestedSignersTest is Base {
         verifier.submitBatch(0, dl, items, sig);
     }
 
-    /// Signature illisible : NotAttested(0).
+    /// Unreadable signature: NotAttested(0).
     function test_malformedSignature_refused() public {
         bytes32[] memory items = _items(1, "lot-m");
         uint64 dl = _deadline();

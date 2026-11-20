@@ -495,7 +495,7 @@ contract AdversarialV2Test is Base {
         _bondOperator(op2Pk, 100e6);
         vm.prank(operator2);
         vm.expectRevert(OperatorBond.NotAgentOwner.selector);
-        bond.setAgentId(agent); // aucun emprunt
+        bond.setAgentId(agent); // no borrowing another operator's agent
 
         _registerEnclave(chatId, op2Pk, 0x5353, "chat-op2");
         SessionPay.OpenParams memory q =

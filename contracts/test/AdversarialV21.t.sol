@@ -469,9 +469,9 @@ contract V21SessionPayTest is V21Helpers {
         }
         assertEq(notApplicable, 3, "one record per session closed without settlement");
         (bool skipped,) = _skippedReason(logs, address(sessionPay));
-        assertFalse(skipped, "aucun verdict tente");
+        assertFalse(skipped, "no verdict attempted");
         assertEq(usdc.balanceOf(sock), 3e6, "deposits refunded in full");
-        assertEq(strict.getAgentValidations(agent).length, 0, "aucun 100 fabrique");
+        assertEq(strict.getAgentValidations(agent).length, 0, "no forged 100");
     }
 
     // ---- second round, FINDING 6: a flag shared between the closing "100" and the fault "0" ----

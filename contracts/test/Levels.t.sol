@@ -437,7 +437,7 @@ contract LevelsTest is Base {
         sg2[40] = bytes1(uint8(sg2[40]) ^ 1);
         vm.expectRevert(ProofOfCloudAuditor.BadSignature.selector);
         poc.submit(tokHeader, tokPayload, sg2);
-        // signature trop courte
+        // signature too short
         bytes memory short_ = new bytes(63);
         vm.expectRevert(ProofOfCloudAuditor.BadToken.selector);
         poc.submit(tokHeader, tokPayload, short_);
@@ -452,7 +452,7 @@ contract LevelsTest is Base {
         vm.revertToState(snap);
         vm.warp(tokTs + 1 days + 1);
         vm.expectRevert(ProofOfCloudAuditor.StaleToken.selector);
-        poc.submit(tokHeader, tokPayload, tokSig); // trop vieux
+        poc.submit(tokHeader, tokPayload, tokSig); // too old
         vm.warp(tokTs - 10 minutes);
         vm.expectRevert(ProofOfCloudAuditor.StaleToken.selector);
         poc.submit(tokHeader, tokPayload, tokSig); // in the future
