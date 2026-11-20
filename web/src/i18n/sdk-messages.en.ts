@@ -1,5 +1,6 @@
-/** sdk-messages.en.ts — English for the French messages that reach the site from elsewhere: the SDK's own checks
- *  (packages/sdk, not translated on purpose), the enclaves (refusal reasons) and, as a fallback, the ArcHive API
+/** sdk-messages.en.ts — English for the French messages that reach the site from elsewhere: the SDK (the French
+ *  texts packages/sdk keeps for this console, and those of its earlier versions), the enclaves (refusal reasons)
+ *  and, as a fallback, the ArcHive API
  *  (services/api: its errors carry a stable code, translated first by api-errors.ts; these rules serve an API
  *  without codes, during a deployment). Used in English only: in French the original text is shown. Each rule
  *  matches a whole message; a rule can translate the inner part again (`en`). A message no rule knows is shown as
