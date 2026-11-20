@@ -452,6 +452,7 @@ a session. An attestation proves which code ran, not that an AI answer is right,
 | A second pay-per-call answer settled: 0.01 USDC | 09:04 | [`0x3c0c167c…21cc`](https://explorer.testnet.arc.io/tx/0x3c0c167cafd1fe5acaf603fba393eeef1a0a70739b60832b43dc3d06044b21cc) |
 | A third pay-per-call answer settled: 0.01 USDC | 09:05 | [`0x05544243…8a8a`](https://explorer.testnet.arc.io/tx/0x05544243b954b1c4c26c69f902d20130941da9166ec4e41eeb0af8fc32578a8a) |
 | The session settled by the operator on the enclave's last cumulative receipt: 0.0592 USDC (0.05624 operator, 0.00296 network) | 09:05 | [`0x1ebe664a…a62b`](https://explorer.testnet.arc.io/tx/0x1ebe664a736bf41b3ed7eb3ccc1333766713c64e8eae5c6bbc3e699f0612a62b) |
+| The session closed by its owner: 0.0108 USDC refunded (0.07 deposited, 0.0592 paid) and an ERC-8004 verdict of 100 written, in the same transaction | 10:12 | [`0x319c34ea…b305`](https://explorer.testnet.arc.io/tx/0x319c34eacadce231c7a8cd4cf0060e57285b40d5567cf5c723523e058a8ab305) |
 
 **19 Nov 2026 (UTC)**
 
