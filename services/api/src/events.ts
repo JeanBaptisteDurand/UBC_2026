@@ -53,10 +53,10 @@ export const EVENTS = parseAbi([
   "event ManifestURIUpdated(uint256 indexed productId, string manifestURI)",
 ]);
 
-/** 19/11 : les événements du SECOND index (server.ts, idxLevels) : la caution des opérateurs (OperatorBond) et les deux
- *  niveaux (MachineRegistry, ProofOfCloudAuditor). La Prime au niveau vérifié (SealedBountyVerified, même code que
- *  SealedBounty) émet les événements d'EVENTS. Gardés hors d'EVENTS : l'empreinte de l'index principal ne change pas
- *  (pas de relecture de toute la chaîne au déploiement). */
+/** The events of the SECOND index (server.ts, idxLevels): the operator bond (OperatorBond) and the two levels
+ *  (MachineRegistry, ProofOfCloudAuditor). The Bounty at the verified level (SealedBountyVerified, the same code as
+ *  SealedBounty) emits the events of EVENTS. Kept out of EVENTS so that the main index's fingerprint does not change
+ *  (no re-read of the whole chain at deployment). */
 export const EVENTS_LEVELS = parseAbi([
   "event Bonded(address indexed operator, uint256 amount)",
   "event UnbondRequested(address indexed operator, uint256 amount, uint64 withdrawableAt)",
@@ -77,22 +77,22 @@ export const EVENTS_LEVELS = parseAbi([
   "event ProofOfCloudToken(bytes16 indexed ppid, uint64 timestamp, uint64 expiresAt, bytes32 quoteSha256, string label)",
 ]);
 
-/** Les écritures qui accompagnent CHAQUE inscription et chaque règlement : réserve, libération et exposition de la caution,
- *  et la liaison de l'enclave à la puce de sa machine (refaite à chaque renouvellement, toutes les quatre heures). Comptées
- *  et lisibles, mais hors de /activity par défaut (?minor=1 les montre) : la fenêtre des 100 derniers événements reste
- *  celle des faits (inscriptions, paiements, primes, verdicts, saisies).
- *  19/11 (r2) : aussi les écritures d'administration des deux niveaux (déclarations de machines et jetons de l'alliance
- *  Proof of Cloud, renouvelés par le registrar ; contrats de règlement autorisés par la caution ; politiques des
- *  produits ; identité ERC-8004 d'un opérateur) : sans cela, elles poussaient hors de la fenêtre de 100 des faits plus
- *  anciens que le site lit pour dire l'état des produits (inscriptions, invalidations, manifestes). Les primes, les
- *  dépôts de caution (Bonded) et les saisies (Slashed) restent dans la fenêtre par défaut. */
+/** The writes that come with EACH registration and each settlement: reserve, release and exposure of the bond, and
+ *  the binding of the enclave to its machine's chip (redone at each renewal, every four hours). Counted and readable,
+ *  but out of /activity by default (?minor=1 shows them): the window of the latest 100 events stays the window of
+ *  facts (registrations, payments, bounties, verdicts, slashes).
+ *  Also the administration writes of the two levels (machine attestations and Proof of Cloud alliance tokens,
+ *  renewed by the registrar; settlement contracts allowed by the bond; product policies; an operator's ERC-8004
+ *  identity): without this, they pushed out of the 100-event window older facts that the site reads to tell the
+ *  products' state (registrations, kills, manifests). Bounties, bond deposits (Bonded) and slashes (Slashed) stay
+ *  in the default window. */
 export const MINOR_EVENTS: ReadonlySet<string> = new Set([
   "BondReserved", "BondReleased", "ExposureConsumed", "MachineBound",
   "MachineAttested", "ProofOfCloudToken", "SettlementProposed", "SettlementAuthorized", "SettlementRemoved",
   "PolicyProposed", "PolicyApplied", "AgentIdSet",
 ]);
 
-// ---------------------------------------------------------------- libellés (/activity)
+// ---------------------------------------------------------------- labels (/activity)
 
 const usdc = (v: unknown): string => {
   try { return `${formatUnits(BigInt(String(v)), 6)} USDC`; } catch { return "? USDC"; }
@@ -101,10 +101,10 @@ const short = (h: unknown): string => {
   const s = String(h ?? "");
   return s.length > 14 ? `${s.slice(0, 8)}…${s.slice(-4)}` : s;
 };
-/** les primes au niveau vérifié (SealedBountyVerified) ont leurs propres numéros : le libellé le dit */
+/** bounties at the verified level (SealedBountyVerified) have their own numbers: the label says so */
 const lvl = (e: Ev): string => (e.contract === "SealedBountyVerified" ? " (verified level)" : "");
 
-/** Le libellé anglais d'un événement indexé, d'après son nom et ses valeurs (contrat émetteur pour les homonymes). */
+/** The English label of an indexed event, from its name and values (the emitting contract for same-name events). */
 const LABELS: Record<string, (a: Record<string, unknown>, e: Ev) => string> = {
   EnclaveRegistered: (a) => `Enclave ${short(a.signer)} registered (product #${a.productId})`,
   EnclaveImage: (a) => `Enclave image fingerprint recorded (product #${a.productId}, image ${short(a.imageId)})`,
@@ -131,7 +131,7 @@ const LABELS: Record<string, (a: Record<string, unknown>, e: Ev) => string> = {
   BountyReopened: (a, e) => `Bounty #${a.bountyId}${lvl(e)} re-armed`,
   BountyPauseSet: (a, e) => `Bounty #${a.bountyId}${lvl(e)} ${String(a.paused) === "true" ? "paused" : "resumed"}`,
   UndeliveredCancelled: (a, e) => `Undelivered payout returned to the pool (bounty #${a.bountyId}${lvl(e)}, ${usdc(a.returned)})`,
-  // 19/11 : la caution et les deux niveaux (second index)
+  // the bond and the two levels (second index)
   Bonded: (a) => `Operator ${short(a.operator)} posted a bond (${usdc(a.amount)})`,
   UnbondRequested: (a) => `Operator ${short(a.operator)} asked to withdraw ${usdc(a.amount)} of bond`,
   Withdrawn: (a) => `Operator ${short(a.operator)} withdrew ${usdc(a.amount)} of bond`,
@@ -166,14 +166,14 @@ export function eventLabel(e: Ev): string {
   try { return f ? f(e.args ?? {}, e) : e.name; } catch { return e.name; }
 }
 
-// ---------------------------------------------------------------- raison d'un verdict sauté
+// ---------------------------------------------------------------- reason of a skipped verdict
 
-/** Les erreurs du réseau (SDK : NotCaller de VerdictLog, InsufficientGasForVerdict…), plus AlreadyRecorded (VerdictLog
- *  v2.1 : un verdict déjà écrit pour ce requestHash) ; Error(string) et Panic(uint256) sont décodés par viem lui-même. */
+/** The network's errors (SDK: VerdictLog's NotCaller, InsufficientGasForVerdict…), plus AlreadyRecorded (VerdictLog
+ *  v2.1: a verdict already written for this requestHash); Error(string) and Panic(uint256) are decoded by viem itself. */
 const REASON_ABI = [...arcErrorsAbi, ...parseAbi(["error AlreadyRecorded()"])] as const;
 
-/** La raison d'un VerdictSkipped (données de revert, 132 octets au plus) en clair : nom et valeurs de l'erreur si elle
- *  est connue, sinon les octets tels quels ; vide : revert sans raison (registre qui refuse sans message, gaz épuisé). */
+/** The reason of a VerdictSkipped (revert data, 132 bytes at most) in clear: the error's name and values if it is
+ *  known, otherwise the bytes as they are; empty: a revert without a reason (a registry that refuses without a message, gas ran out). */
 export function decodeSkipReason(data: unknown): string {
   const hex = typeof data === "string" && /^0x([0-9a-fA-F]{2})*$/.test(data) ? (data as Hex) : null;
   if (!hex) return "unreadable revert data";
@@ -187,22 +187,22 @@ export function decodeSkipReason(data: unknown): string {
   }
 }
 
-// ---------------------------------------------------------------- issue du verdict de chaque session (/proof)
+// ---------------------------------------------------------------- outcome of each session's verdict (/proof)
 
 export type VerdictOutcome = "written" | "not_applicable" | "skipped" | "none" | "pending";
 
 export interface SessionVerdict {
   sessionId: string;
   outcome: VerdictOutcome;
-  /** la transaction de fermeture (null : session pas encore close) */
+  /** the closing transaction (null: session not closed yet) */
   tx: string | null;
   block: number | null;
-  /** written : l'agent et la note écrits (Recorded), et le hash réellement écrit (salé s'il le fallait) */
+  /** written: the agent and the note written (Recorded), and the hash really written (salted if it had to be) */
   agentId?: string;
   response?: number;
   requestHash?: string;
   salted?: boolean;
-  /** skipped : la raison décodée, et les octets de revert tels quels */
+  /** skipped: the decoded reason, and the revert bytes as they are */
   reason?: string;
   reasonData?: string;
 }
@@ -211,12 +211,12 @@ const isClosing = (e: Ev) => e.contract === "SessionPay" && (e.name === "Verdict
 const isVerdictLog = (e: Ev) => e.contract === "VerdictLog" && (e.name === "Recorded" || e.name === "RequestHashSalted");
 
 /**
- * L'issue du verdict de fermeture de chaque session, d'après les événements indexés (dans n'importe quel ordre).
- * Dans la transaction de fermeture, SessionPay émet d'abord l'issue — VerdictLog.Recorded (précédé de RequestHashSalted
- * si le hash était pris), SessionPay.VerdictSkipped, ou SessionPay.VerdictNotApplicable — puis SessionClosed(sessionId).
- * Une issue appartient donc au SessionClosed qui la SUIT dans la même transaction, après le SessionClosed précédent
- * (plusieurs fermetures dans une même transaction, par un portefeuille qui groupe ses appels, restent distinctes).
- * Les sessions ouvertes et pas encore closes sont « pending ».
+ * The outcome of each session's closing verdict, from the indexed events (in any order).
+ * In the closing transaction, SessionPay first emits the outcome (VerdictLog.Recorded, preceded by RequestHashSalted
+ * if the hash was taken, SessionPay.VerdictSkipped, or SessionPay.VerdictNotApplicable), then SessionClosed(sessionId).
+ * An outcome therefore belongs to the SessionClosed that FOLLOWS it in the same transaction, after the previous
+ * SessionClosed (several closings in one transaction, by a wallet that batches its calls, stay distinct).
+ * Sessions opened and not closed yet are "pending".
  */
 export function sessionVerdicts(events: readonly Ev[]): Map<string, SessionVerdict> {
   const out = new Map<string, SessionVerdict>();
@@ -248,7 +248,7 @@ export function sessionVerdicts(events: readonly Ev[]): Map<string, SessionVerdi
         v.reasonData = String(skip.args.reason ?? "0x");
         v.reason = decodeSkipReason(skip.args.reason);
       }
-      // la même session ne se ferme qu'une fois : en cas de doublon (index relu), la fermeture la plus récente l'emporte
+      // a session closes only once: for a duplicate (index read again), the most recent closing wins
       const prev = out.get(id);
       if (!prev || (prev.block ?? 0) <= e.block) out.set(id, v);
       pending = [];
@@ -263,13 +263,13 @@ export function sessionVerdicts(events: readonly Ev[]): Map<string, SessionVerdi
 }
 
 /**
- * La session dont parle le maillon « verdict » de la chaîne de preuves, parmi celles de l'enclave montrée :
- *  1. la plus récente dont le verdict est ÉCRIT, parmi les sessions qu'elle a servies (un règlement payé sur un reçu
- *     qu'elle a signé) : c'est la preuve, comme avant ;
- *  2. sinon, sa fermeture la plus récente sans verdict écrit : sautée (raison), sans objet (session close sans
- *     paiement : `unpaid`, sessions verrouillées sur cette enclave) ou aucun verdict ;
- *  3. sinon, la session du règlement montré, encore ouverte : « pending », le verdict s'écrit à sa fermeture ;
- *  4. sinon, null.
+ * The session the "verdict" link of the proof chain speaks of, among the sessions of the enclave shown:
+ *  1. the most recent one whose verdict is WRITTEN, among the sessions it served (a payment settled on a receipt it
+ *     signed): that is the proof, as before;
+ *  2. otherwise, its most recent closing without a written verdict: skipped (reason), not applicable (session closed
+ *     without payment: `unpaid`, sessions locked to this enclave) or no verdict;
+ *  3. otherwise, the session of the settlement shown, still open: "pending", the verdict is written at its closing;
+ *  4. otherwise, null.
  */
 export function proofVerdict(
   outcomes: ReadonlyMap<string, SessionVerdict>, served: ReadonlySet<string>, unpaid: ReadonlySet<string>, settleSession: string | null,
@@ -284,10 +284,10 @@ export function proofVerdict(
   return null;
 }
 
-// ---------------------------------------------------------------- bloc de départ de l'index
+// ---------------------------------------------------------------- start block of the index
 
-/** Le bloc de départ de l'index : celui du déploiement (deployBlock) s'il est connu (> 0) ; sinon INDEX_FROM_BLOCK
- *  (entier décimal) ; sinon 0, c'est-à-dire toute la chaîne (lent : à éviter, d'où l'avertissement de server.ts). */
+/** The start block of the index: the deployment's (deployBlock) if known (> 0); otherwise INDEX_FROM_BLOCK
+ *  (a decimal integer); otherwise 0, that is the whole chain (slow: avoid it, hence the warning in server.ts). */
 export function indexStartBlock(deployBlock: bigint | number | undefined | null, envValue?: string): { block: bigint; source: "deployment" | "env" | "genesis" } {
   const d = deployBlock === undefined || deployBlock === null ? 0n : BigInt(deployBlock);
   if (d > 0n) return { block: d, source: "deployment" };

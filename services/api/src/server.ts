@@ -29,13 +29,13 @@ const DATA_DIR = process.env.DATA_DIR ?? "./data";
 const MULTICALL3 = "0xcA11bde05977b3631167028862bE2a173976CA11" as const; // deployed on Arc testnet (checked on-chain)
 const pub = createPublicClient({
   chain: { ...arcTestnet, contracts: { multicall3: { address: MULTICALL3 } } },
-  batch: { multicall: { wait: 16 } }, // les lectures lancées ensemble partent en UN eth_call
-  transport: http(process.env.RPC_URL, { retryCount: 6, retryDelay: 700 }), // le RPC public refuse les rafales (429)
+  batch: { multicall: { wait: 16 } }, // reads started together leave as ONE eth_call
+  transport: http(process.env.RPC_URL, { retryCount: 6, retryDelay: 700 }), // the public RPC refuses bursts (429)
 });
 const arc = createArcClient({ publicClient: pub as any });
-/** 19/11 : la Prime au niveau vérifié (produit 7) est le même code que SealedBounty, sur un autre contrat
- *  (SealedBountyVerified, branché sur PolicyEnclaves) : ses primes ont leurs propres numéros (n° 1 et 2 existent aux deux
- *  niveaux). Le client du SDK la lit en remplaçant l'adresse de SealedBounty. */
+/** The Bounty at the verified level (product 7) runs the same code as SealedBounty, on another contract
+ *  (SealedBountyVerified, wired to PolicyEnclaves): its bounties have their own numbers (#1 and #2 exist at both
+ *  levels). The SDK client reads it by swapping SealedBounty's address. */
 const LV = testnet.levels;
 const arcVerified = LV ? createArcClient({ publicClient: pub as any, deployment: { ...testnet, sealedBounty: LV.sealedBountyVerified } }) : null;
 type Level = "open" | "verified";
@@ -51,11 +51,11 @@ const app = new Hono();
 app.use("*", cors());
 const J = (v: unknown) => JSON.parse(JSON.stringify(v, (_k, x) => (typeof x === "bigint" ? x.toString() : x)));
 
-// Cache mémoire : le navigateur lit l'état via cette API (une lecture groupée côté serveur), au lieu de
-// marteler le RPC public d'Arc (qui plafonne à 429). Une entrée périmée est servie tout de suite et
-// rafraîchie en arrière-plan (une seule lecture à la fois par clé) : aucun visiteur n'attend une lecture
-// à froid, sauf la toute première après le démarrage (préchauffée au lancement). Si la lecture échoue,
-// le dernier bon résultat reste servi.
+// In-memory cache: the browser reads the state through this API (one batched read on the server side) instead of
+// hammering Arc's public RPC (which caps at 429). A stale entry is served at once and refreshed in the background
+// (one read at a time per key): no visitor waits for a cold read, except the very first one after startup (warmed
+// up at launch).
+// If a read fails, the last good result stays served.
 const cache = new Map<string, { t: number; v: unknown }>();
 const inflight = new Map<string, Promise<unknown>>();
 function refresh(key: string, fn: () => Promise<unknown>): Promise<unknown> {
@@ -69,22 +69,22 @@ function refresh(key: string, fn: () => Promise<unknown>): Promise<unknown> {
 async function cached(key: string, ttlMs: number, fn: () => Promise<unknown>) {
   const hit = cache.get(key);
   if (hit) {
-    if (Date.now() - hit.t >= ttlMs) refresh(key, fn).catch((e) => console.warn(`rafraîchissement ${key} :`, (e as Error).message));
+    if (Date.now() - hit.t >= ttlMs) refresh(key, fn).catch((e) => console.warn(`refresh ${key}:`, (e as Error).message));
     return hit.v;
   }
   return refresh(key, fn);
 }
 
 app.get("/health", (c) => c.json({ ok: true, chainId: testnet.chainId }));
-// ---------- listes : l'index donne QUI existe, une lecture groupée donne leur état actuel ----------
+// ---------- lists: the index says WHO exists, a batched read gives their current state ----------
 
 async function listProducts() {
   const n = Number(await arc.productCount());
   return Promise.all(Array.from({ length: n }, (_, i) => arc.getProduct(BigInt(i + 1))));
 }
 
-/** v2 : chaque enclave avec sa clé X25519 inscrite, sa fenêtre de validité en blocs et son état au bloc de tête
- *  (activeOperatorAt ≠ 0 : elle peut signer maintenant). */
+/** Each enclave with its registered X25519 key, its validity window in blocks and its state at the head block
+ *  (activeOperatorAt ≠ 0: it can sign now). */
 async function listEnclaves(): Promise<Array<EnclaveView & { status: EnclaveStatus; statusReason?: string }>> {
   const ev = await events();
   const signers: Address[] = [];
@@ -98,9 +98,9 @@ async function listEnclaves(): Promise<Array<EnclaveView & { status: EnclaveStat
   return views.map((v) => ({ ...v, ...statusOf(ev, String(v.signer), !!(v as any).active) }));
 }
 
-/** 19/11 : l'état d'une clé d'enclave, dit par la chaîne : active (elle signe maintenant), retirée par son opérateur
- *  (EnclaveRetired), invalidée (EnclaveInvalidated, avec la raison) ou expirée (inscription non renouvelée). C'est le
- *  dernier de ces événements, après sa dernière inscription, qui décide. */
+/** The state of an enclave key, as the chain tells it: active (it signs now), retired by its operator
+ *  (EnclaveRetired), killed (EnclaveInvalidated, with the reason) or expired (registration not renewed). The last of
+ *  these events, after its latest registration, decides. */
 type EnclaveStatus = "active" | "retired" | "invalidated" | "expired";
 function statusOf(ev: Ev[], signer: string, active: boolean): { status: EnclaveStatus; statusReason?: string } {
   if (active) return { status: "active" };
@@ -111,17 +111,17 @@ function statusOf(ev: Ev[], signer: string, active: boolean): { status: EnclaveS
   return { status: "expired" };
 }
 
-/** 19/11 : les primes des DEUX niveaux. Chaque ligne garde les champs du SDK (BountyRow) et dit son niveau (`level`), son
- *  contrat (`contract`, `address`) et ce qui s'est passé sur Arc : `paidOut` = USDC réellement versés (somme des
- *  BountyPaid), `claimsAccepted` et `claimsRefuted` (réclamations acceptées, puis réfutées : rien de payé pour elles).
- *  `paidAmount` reste le champ on-chain (le plus haut palier réservé ou payé depuis l'armement) : il ne dit PAS qu'un
- *  paiement a eu lieu (la prime n° 2 du produit 5, réfutée le 10/11, garde 0,5 USDC réservés et n'a rien payé). */
+/** The bounties of BOTH levels. Each row keeps the SDK's fields (BountyRow) and gives its level (`level`), its
+ *  contract (`contract`, `address`) and what happened on Arc: `paidOut` = USDC really paid (sum of the BountyPaid
+ *  events), `claimsAccepted` and `claimsRefuted` (claims accepted, then refuted: nothing paid for them).
+ *  `paidAmount` stays the on-chain field (the highest tier reserved or paid since the arming): it does NOT say that a
+ *  payment took place (bounty #2 of product 5, refuted, keeps 0.5 USDC reserved and paid nothing). */
 async function listBounties(level: Level | "all" = "open") {
   const ev = await events();
   const rows: Array<{ block: number; row: Record<string, unknown> }> = [];
   for (const r of BOUNTY_RAILS) {
     if (level !== "all" && r.level !== level) continue;
-    const created = new Map<string, number>(); // numéro → bloc de création
+    const created = new Map<string, number>(); // number → creation block
     for (const e of ev) {
       if (e.contract === r.contract && e.name === "BountyCreated" && !created.has(String(e.args.bountyId))) created.set(String(e.args.bountyId), e.block);
     }
@@ -141,17 +141,17 @@ async function listBounties(level: Level | "all" = "open") {
       });
     });
   }
-  // la plus récente d'abord, tous niveaux confondus
+  // the most recent first, all levels together
   return rows.sort((a, b) => b.block - a.block).map((x) => x.row);
 }
-/** le produit de chaque prime (« contrat:numéro » → produit), d'après son BountyCreated */
+/** each bounty's product ("contract:number" → product), from its BountyCreated */
 function bountyProducts(ev: Ev[]): Map<string, string> {
   const m = new Map<string, string>();
   for (const e of ev) if (e.name === "BountyCreated") m.set(`${e.contract}:${String(e.args.bountyId)}`, String(e.args.productId));
   return m;
 }
 
-/** v2 : la session porte son enclave, son prix, son modèle et son unité, verrouillés à l'ouverture. */
+/** The session carries its enclave, price, model and unit, locked at opening. */
 async function listSessionsOf(owner: string) {
   const o = owner.toLowerCase();
   const ids = [...new Set((await events()).filter((e) => e.name === "SessionOpened" && String(e.args.owner).toLowerCase() === o).map((e) => String(e.args.sessionId)))].map((x) => BigInt(x));
@@ -164,9 +164,9 @@ async function listSessionsOf(owner: string) {
 
 app.get("/products", async (c) => c.json(J(await cached("products", 30_000, listProducts))));
 
-/** 10/11 : les DEUX NIVEAUX d'opérateur. Pour chaque enclave active : sa machine (PPID du certificat d'Intel), si la
- *  liaison est à jour, et la déclaration de l'alliance Proof of Cloud (vérifiée on-chain) ; pour chaque produit : le
- *  niveau qu'il exige et ses vérificateurs ; et quand la Prime au niveau vérifié peut saisir (délai de la caution). */
+/** The TWO operator levels. For each active enclave: its machine (the PPID from Intel's certificate), whether the
+ *  binding is up to date, and the Proof of Cloud alliance's attestation (verified on-chain); for each product: the
+ *  level it requires and its verifiers; and when the Bounty at the verified level can slash (the bond's delay). */
 async function computeLevels() {
   const L = testnet.levels;
   if (!L) return { enabled: false };
@@ -198,11 +198,11 @@ async function computeLevels() {
 }
 app.get("/levels", async (c) => c.json(J(await cached("levels", 30_000, computeLevels))));
 
-/** 19/11 : les paramètres de lecture sont vérifiés (un numéro, une adresse) : une valeur illisible est un 400 en JSON,
- *  jamais un 503 « Cannot convert … to a BigInt » ; un produit qui n'existe pas est un 404, jamais un produit tout à zéro. */
+/** Read parameters are checked (a number, an address): an unreadable value is a 400 in JSON, never a 503 "Cannot
+ *  convert … to a BigInt"; a product that does not exist is a 404, never a product full of zeros. */
 const ID_RE = /^\d{1,12}$/;
 const badParam = (name: string, expected: string) => errorBody("invalid_param", `${name}: ${expected} expected`, { param: name });
-/** un paramètre de requête que la route ne connaît pas : refusé (une faute de frappe ne doit pas donner une autre réponse) */
+/** a query parameter the route does not know: refused (a typo must not give another answer) */
 function unknownParam(c: { req: { queries: () => Record<string, string[]> } }, allowed: string[]) {
   const k = Object.keys(c.req.queries()).find((x) => !allowed.includes(x));
   return k ? errorBody("unknown_param", `unknown query parameter: ${k} (allowed: ${allowed.join(", ") || "none"})`, { param: k }) : null;
@@ -219,9 +219,9 @@ app.get("/products/:id", async (c) => {
   return c.json(J(p));
 });
 app.get("/enclaves", async (c) => c.json(J(await cached("enclaves", 15_000, listEnclaves))));
-/** /bounties : les primes du niveau ouvert (SealedBounty), comme avant ; ?level=verified : celles du niveau vérifié
- *  (SealedBountyVerified, produit 7) ; ?level=all : les deux, la plus récente d'abord (le numéro seul ne suffit pas à
- *  désigner une prime : lire `level` ou `contract`). */
+/** /bounties: the bounties of the open level (SealedBounty), as before; ?level=verified: those of the verified level
+ *  (SealedBountyVerified, product 7); ?level=all: both, the most recent first (the number alone does not identify a
+ *  bounty: read `level` or `contract`). */
 app.get("/bounties", async (c) => {
   const bad = unknownParam(c, ["level"]);
   if (bad) return c.json(bad, 400);
@@ -247,7 +247,7 @@ app.get("/pricing", async (c) => {
   if (!p) return c.json(errorBody("unknown_product", `no product #${rawId}`, { id: rawId }), 404);
   return c.json({
     productId: id.toString(), pricePerUnit: formatUnits(p.price, 6) + " USDC", units: units.toString(), total: formatUnits(p.price * units, 6) + " USDC",
-    // v2 : unités = ceil((jetons d'entrée + outWeight × jetons de sortie) / unitTokens), verrouillées à l'ouverture de session
+    // units = ceil((input tokens + outWeight × output tokens) / unitTokens), locked when the session opens
     unitTokens: p.unitTokens, outWeight: p.outWeight,
   });
 });
@@ -303,11 +303,11 @@ const idx = new EventIndexer({
     VerdictLog: testnet.verdictLog, X402Settler: testnet.x402Settler, ProductRegistry: testnet.productRegistry,
   },
 });
-/** 19/11 : le SECOND index, dans son propre fichier : la Prime au niveau vérifié (SealedBountyVerified : ses primes, ses
- *  réclamations, ses paiements), la caution des opérateurs (OperatorBond : dépôts, saisies) et les deux niveaux
- *  (MachineRegistry : machines liées à leur puce, déclarations, politiques ; ProofOfCloudAuditor : jetons de l'alliance).
- *  L'index principal garde son fichier et son empreinte : rien à relire au déploiement. Les deux listes sont fusionnées
- *  par bloc ; la première lecture du second index (depuis le bloc du déploiement) se fait en arrière-plan. */
+/** The SECOND index, in its own file: the Bounty at the verified level (SealedBountyVerified: its bounties, claims and
+ *  payments), the operator bond (OperatorBond: deposits, slashes) and the two levels (MachineRegistry: machines bound
+ *  to their chip, attestations, policies; ProofOfCloudAuditor: the alliance's tokens). The main index keeps its file
+ *  and its fingerprint, so nothing is read again at deployment. The two lists are merged by block; the first read of
+ *  the second index (from the deployment block) runs in the background. */
 const idxLevels = LV ? new EventIndexer({
   pub: pub as any, chainId: testnet.chainId, abi: [...EVENTS, ...EVENTS_LEVELS] as any, fromBlock: START.block,
   file: `${DATA_DIR}/events-${testnet.chainId}-levels-${LV.machineRegistry.slice(2, 10).toLowerCase()}.json`,
@@ -317,8 +317,8 @@ const idxLevels = LV ? new EventIndexer({
   },
 }) : null;
 let merged: { a: Ev[]; b: Ev[]; v: Ev[] } | null = null;
-/** Les événements à jour (synchronisés il y a moins de 10 s) ; si le RPC refuse, ceux déjà indexés. Du plus récent au plus
- *  ancien, les deux index fusionnés (le second n'est attendu que 2,5 s : une longue reprise ne bloque aucune page). */
+/** The events, up to date (synced less than 10 s ago); if the RPC refuses, those already indexed. Most recent first,
+ *  both indexes merged (the second is awaited for 2.5 s only: a long catch-up blocks no page). */
 async function events(): Promise<Ev[]> {
   const warn = (e: unknown) => console.warn("index :", (e as Error).message.slice(0, 160));
   const second = idxLevels ? idxLevels.sync(10_000).catch(warn) : null;
@@ -339,7 +339,7 @@ const countOf = (ev: Ev[], name: string) => ev.filter((e) => e.name === name).le
 app.get("/stats", async (c) => c.json(J(await cached("stats", 15_000, async () => {
   const ev = await events();
   const encs = await cached("enclaves", 15_000, listEnclaves) as any[];
-  // 19/11 : les primes des deux niveaux (SealedBounty et SealedBountyVerified)
+  // the bounties of both levels (SealedBounty and SealedBountyVerified)
   const bounties = await cached("bounties:all", 20_000, () => listBounties("all")) as any[];
   const now = BigInt(Math.floor(Date.now() / 1000));
   const plist = await cached("products", 30_000, listProducts) as any[];
@@ -349,23 +349,23 @@ app.get("/stats", async (c) => c.json(J(await cached("stats", 15_000, async () =
     productsActive: plist.filter((p) => p.state === "Active").length,
     sessions: countOf(ev, "SessionOpened"),
     settlements: countOf(ev, "Settled"),
-    // tout ce qui est réglé aux opérateurs (et partagé avec l'auteur et le réseau) : sessions ET appels payés x402
+    // everything settled to operators (and shared with the author and the network): sessions AND x402 paid calls
     settledUsdc: sumOf(ev, "Settled", "paidDelta") + sumOf(ev, "CallSettled", "amount"),
     sessionSettledUsdc: sumOf(ev, "Settled", "paidDelta"),
     refundedUsdc: sumOf(ev, "SessionClosed", "refund"),
-    // paiement à l'appel (X402Settler.CallSettled) : nombre d'appels réglés et USDC réglés
+    // pay per call (X402Settler.CallSettled): the number of settled calls and the USDC settled
     x402Calls: countOf(ev, "CallSettled"),
     x402SettledUsdc: sumOf(ev, "CallSettled", "amount"),
     verdicts: countOf(ev, "Recorded"),
-    // v2.1 : verdicts sautés (VerdictSkipped) et fermetures sans paiement, donc sans verdict (VerdictNotApplicable)
+    // skipped verdicts (VerdictSkipped) and closings without payment, hence without a verdict (VerdictNotApplicable)
     verdictsSkipped: countOf(ev, "VerdictSkipped"),
     verdictsNotApplicable: countOf(ev, "VerdictNotApplicable"),
     bounties: bounties.length, bountyPool: bounties.reduce((s, b) => s + BigInt(b.balance), 0n),
-    // ouvertes : ni en pause ni échues (on peut les chasser maintenant), et le compte par niveau
+    // open: neither paused nor expired (they can be hunted now), and the count per level
     bountiesOpen: bounties.filter((b) => !b.paused && BigInt(b.deadline) >= now).length,
     bountiesByLevel: { open: bounties.filter((b) => b.level === "open").length, verified: bounties.filter((b) => b.level === "verified").length },
     bountiesPaid: ev.filter((e) => e.name === "BountyPaid").length, bountyPaidUsdc: sumOf(ev, "BountyPaid", "amount"),
-    // réclamations réfutées (rien de payé pour elles) et cautions saisies (OperatorBond.Slashed, second index)
+    // refuted claims (nothing paid for them) and slashed bonds (OperatorBond.Slashed, second index)
     claimsRefuted: countOf(ev, "ClaimRefuted"), bondSlashedUsdc: sumOf(ev, "Slashed", "amount"), bondPostedUsdc: sumOf(ev, "Bonded", "amount"),
     head: await pub.getBlockNumber(),
     index: idx.status(),
@@ -375,12 +375,12 @@ app.get("/stats", async (c) => c.json(J(await cached("stats", 15_000, async () =
 app.get("/activity", async (c) => {
   const raw = Number(c.req.query("limit") ?? "25");
   const limit = Number.isFinite(raw) ? Math.max(1, Math.min(Math.floor(raw), 100)) : 25;
-  // 19/11 : les écritures de la caution (réserve, libération, exposition) seulement sur demande (?minor=1)
+  // the bond's bookkeeping events (reserve, release, exposure) only on request (?minor=1)
   const minor = c.req.query("minor") === "1";
   const ev = await events();
-  // 19/11 : un événement de prime qui ne porte que le numéro (réclamation, paiement, réfutation…) reçoit le produit de
-  // sa prime (args.productId, lu dans le BountyCreated du MÊME contrat) : les numéros existent aux deux niveaux, le
-  // numéro seul rattacherait la prime n° 2 du produit 7 à la prime n° 2 du produit 5
+  // a bounty event that carries only the number (claim, payment, refutation…) gets the product of its bounty
+  // (args.productId, read from the BountyCreated of the SAME contract): numbers exist at both levels, and the number
+  // alone would tie bounty #2 of product 7 to bounty #2 of product 5
   const pid = bountyProducts(ev);
   const out: Array<Ev & { label: string }> = [];
   for (const e of ev) {
@@ -390,11 +390,11 @@ app.get("/activity", async (c) => {
     out.push({ ...x, label: eventLabel(x) });
     if (out.length >= limit) break;
   }
-  // chaque événement garde sa forme (contract, name, args, block, logIndex, tx) ; `label` : son libellé lisible (anglais)
+  // each event keeps its shape (contract, name, args, block, logIndex, tx); `label`: its readable label (English)
   return c.json(J(out));
 });
 
-// Signataire du reçu payé par une transaction settle(r, signature) : lu dans ses données d'appel (immuable, mis en cache).
+// Signer of the receipt paid by a settle(r, signature) transaction: read from its calldata (immutable, cached).
 const settleSigner = new Map<string, string | null>();
 async function signerOfSettle(tx: string): Promise<string | null> {
   if (settleSigner.has(tx)) return settleSigner.get(tx)!;
@@ -406,13 +406,13 @@ async function signerOfSettle(tx: string): Promise<string | null> {
       const [r, sig] = d.args as unknown as [any, Hex];
       who = (await recoverReceiptSigner(testnet.sessionPay, r, sig, testnet.chainId)).toLowerCase();
     }
-  } catch { return null; } // lecture ratée : on réessaiera au prochain rafraîchissement
+  } catch { return null; } // a failed read: retried at the next refresh
   settleSigner.set(tx, who);
   return who;
 }
 
-/** 19/11 : l'enclave qui a signé le reçu d'un appel payé x402 : X402Settler.settle(cr, enclaveSig, auth), lu dans les
- *  données d'appel de la transaction (immuable, mis en cache) ; null si l'appel est passé par un autre contrat. */
+/** The enclave that signed the receipt of an x402 paid call: X402Settler.settle(cr, enclaveSig, auth), read from the
+ *  transaction's calldata (immutable, cached); null if the call went through another contract. */
 const callSigner = new Map<string, string | null>();
 async function signerOfCall(tx: string): Promise<string | null> {
   if (callSigner.has(tx)) return callSigner.get(tx)!;
@@ -429,8 +429,8 @@ async function signerOfCall(tx: string): Promise<string | null> {
   return who;
 }
 
-/** 19/11 : les enclaves qui ont signé une réclamation de prime acceptée : acceptClaim(claim, signatures) ou
- *  claim(claim, signatures, cP), lus dans les données d'appel de la transaction (immuable, mis en cache). */
+/** The enclaves that signed an accepted bounty claim: acceptClaim(claim, signatures) or claim(claim, signatures, cP),
+ *  read from the transaction's calldata (immutable, cached). */
 const claimSigners = new Map<string, string[]>();
 async function signersOfClaim(tx: string, contract: Address): Promise<string[] | null> {
   const key = `${contract.toLowerCase()}:${tx}`;
@@ -449,8 +449,8 @@ async function signersOfClaim(tx: string, contract: Address): Promise<string[] |
   return who;
 }
 
-/** Le rail de règlement d'un produit : session prépayée, appel payé x402, prime scellée (deux niveaux), gratuit (aucun
- *  contrat de règlement : le copilote attesté) ou autre. */
+/** A product's settlement rail: prepaid session, x402 paid call, Sealed Bounty (two levels), free (no settlement
+ *  contract: the attested copilot) or other. */
 type Rail = "session" | "x402" | "bounty" | "free" | "other";
 function railOf(settlement: string): { rail: Rail; bounty?: BountyRail } {
   const s = settlement.toLowerCase();
@@ -463,16 +463,16 @@ function railOf(settlement: string): { rail: Rail; bounty?: BountyRail } {
   return { rail: "other" };
 }
 
-// La chaîne de preuves ne montre QUE des faits de l'enclave affichée : son inscription, un règlement payé sur un reçu
-// qu'elle a signé (signataire retrouvé dans l'appel settle), et le verdict écrit à la clôture d'une de ses sessions.
-// Jamais un fait emprunté à une autre enclave (ex. la machine de démo de la prime).
-// v2.1 : quand aucun verdict n'est écrit, la chaîne dit pourquoi pour la session montrée (proofVerdict, events.ts) :
-// sautée (VerdictSkipped, avec la raison), sans objet (session close sans paiement : VerdictNotApplicable) ou en attente.
+// The proof chain shows ONLY facts of the enclave on display: its registration, a payment settled on a receipt it
+// signed (signer found in the settle call), and the verdict written when one of its sessions closed.
+// Never a fact borrowed from another enclave (e.g. the bounty's demo machine).
+// When no verdict is written, the chain says why for the session shown (proofVerdict, events.ts):
+// skipped (VerdictSkipped, with the reason), not applicable (session closed without payment: VerdictNotApplicable) or pending.
 
-/** L'enclave verrouillée d'une session (immuable dès l'ouverture) : lue une fois on-chain, gardée. */
+/** A session's locked enclave (immutable from opening): read once on-chain, then kept. */
 const sessionEnclave = new Map<string, string>();
-/** Les sessions de ce produit closes SANS paiement (VerdictNotApplicable) et verrouillées sur cette enclave : aucun
- *  règlement ne les relie à elle, leur enclave se lit donc on-chain (les 20 plus récentes, lectures groupées). */
+/** This product's sessions closed WITHOUT payment (VerdictNotApplicable) and locked to this enclave: no settlement
+ *  ties them to it, so their enclave is read on-chain (the 20 most recent, in batched reads). */
 async function unpaidSessionsOf(signer: string, productId: string, ev: Ev[], outcomes: Map<string, SessionVerdict>): Promise<Set<string>> {
   const ofProduct = new Set(ev.filter((e) => e.name === "SessionOpened" && String(e.args.productId) === productId).map((e) => String(e.args.sessionId)));
   const ids = [...outcomes.values()]
@@ -482,19 +482,19 @@ async function unpaidSessionsOf(signer: string, productId: string, ev: Ev[], out
   await Promise.all(ids.map(async (id) => {
     let enc = sessionEnclave.get(id);
     if (enc === undefined) {
-      try { enc = String((await arc.getSession(BigInt(id))).enclave).toLowerCase(); } catch { return; } // relue au prochain passage
+      try { enc = String((await arc.getSession(BigInt(id))).enclave).toLowerCase(); } catch { return; } // read again on the next pass
       sessionEnclave.set(id, enc);
     }
     if (enc === signer) out.add(id);
   }));
   return out;
 }
-// L'image affichée au maillon 1 est celle que l'AUTEUR du produit a épinglée : son manifeste public, dont le hash est
-// inscrit dans ProductRegistry. On ne l'affiche comme épinglée que si keccak256(manifeste) = manifestHash on-chain.
+// The image shown at link 1 is the one the product's AUTHOR pinned: its public manifest, whose hash is registered in
+// ProductRegistry. It shows as pinned only if keccak256(manifest) = the on-chain manifestHash.
 const manifests = new Map<string, { t: number; v: { image: string; manifestURI: string; manifestVerified: boolean } }>();
-/** 19/11 (r2) : l'image qu'un manifeste épingle : son champ `image`, sinon l'image unique de ses `composes` (le manifeste
- *  de la démo de réfutation, produit 5, décrit trois VM sur la même image) ; aucune (vide) s'il n'en nomme pas une seule.
- *  Jamais l'image par défaut ci-dessus : la chaîne du produit 5 montrait l'image de l'IA privée comme « épinglée ». */
+/** The image a manifest pins: its `image` field, otherwise the single image of its `composes` (the refutation demo's
+ *  manifest, product 5, describes three VMs on the same image); none (empty) if it names no single image.
+ *  Never the default image above. */
 function imageOfManifest(m: any): string {
   const ok = (x: unknown): x is string => typeof x === "string" && x.startsWith("ghcr.io/");
   if (ok(m?.image)) return m.image;
@@ -511,26 +511,26 @@ async function pinnedImage(productId: bigint) {
     const res = await fetch(p.manifestURI, { signal: AbortSignal.timeout(5_000) });
     const bytes = new Uint8Array(await res.arrayBuffer());
     if (res.ok && keccak256(bytes).toLowerCase() === String(p.manifestHash).toLowerCase()) {
-      // vérifié = le manifeste est celui inscrit sur Arc ET il épingle une image (sinon, le maillon 1 se rabat sur
-      // l'empreinte rejouée à l'inscription et sur nos déploiements)
+      // verified = the manifest is the one registered on Arc AND it pins an image (otherwise, link 1 falls back to the
+      // image id replayed at registration and to our deployments)
       const img = imageOfManifest(JSON.parse(new TextDecoder().decode(bytes)));
       v = { image: img || IMAGE, manifestURI: p.manifestURI, manifestVerified: !!img };
     }
-  } catch { /* manifeste injoignable : image par défaut, non marquée vérifiée */ }
+  } catch { /* manifest unreachable: default image, not marked verified */ }
   manifests.set(key, { t: Date.now(), v });
   return v;
 }
 
-/** La chaîne de preuves d'UNE enclave. Sans paramètre : l'enclave d'inférence (celle en service, sinon celle qui a servi
- *  la dernière session payée), comme avant. 19/11 : `signer` (une clé d'enclave inscrite) ou `product` (l'enclave active
- *  de ce produit, sinon sa dernière inscrite). Les maillons 5 et 6 suivent le RAIL du produit : session (Settled payé sur
- *  un reçu signé par l'enclave, puis le verdict de fermeture), appel payé x402 (CallSettled dont le reçu d'appel est signé
- *  par l'enclave ; un appel n'écrit pas de verdict ERC-8004), prime (BountyPaid d'une réclamation signée par l'enclave, et
- *  le verdict écrit avec), gratuit (le copilote attesté : rien à régler, pas de verdict). */
+/** The proof chain of ONE enclave. With no parameter: the inference enclave (the one in service, otherwise the one that
+ *  served the last paid session), as before. `signer` (a registered enclave key) or `product` (the product's active
+ *  enclave, otherwise its latest registered one). Links 5 and 6 follow the product's RAIL: session (Settled paid on a
+ *  receipt signed by the enclave, then the closing verdict), x402 paid call (a CallSettled whose call receipt the
+ *  enclave signed; a call writes no ERC-8004 verdict), bounty (BountyPaid of a claim the enclave signed, and the verdict
+ *  written with it), free (the attested copilot: nothing to settle, no verdict). */
 async function computeProof(o: { signer?: string; product?: string } = {}) {
   const ev = await events();
   const encs = await cached("enclaves", 15_000, listEnclaves) as any[];
-  // jamais une machine de démo (empreinte « démo », mesures déclarées au module de test)
+  // never a demo machine (image id "demo", measurements declared to the test module)
   const DEMO_WORKLOAD = "0x595b5067f7b9e6b4153462ea198226ec97dfbc2f5a8200b0c4ce763c983f54e4";
   const real = encs.filter((e) => String(e.workloadId).toLowerCase() !== DEMO_WORKLOAD);
   const inference = String(testnet.products?.inference ?? 1n);
@@ -541,9 +541,9 @@ async function computeProof(o: { signer?: string; product?: string } = {}) {
     })()
     : real.find((e) => e.active && String(e.productId) === inference) ?? real.find((e) => e.active) ?? null;
   if (!act && o.signer === undefined && o.product === undefined) {
-    // 16/11 : sans enclave active (VM en pause), l'enclave d'INFÉRENCE qui a servi la dernière session payée (chaîne
-    // complète : règlement et verdict), sinon la dernière enclave d'inférence ; jamais la première venue (souvent le
-    // copilote, sans règlement ni verdict : 3 maillons vides)
+    // with no active enclave (VM paused): the INFERENCE enclave that served the last paid session (full chain:
+    // settlement and verdict), otherwise the latest inference enclave; never the first one found (often the copilot,
+    // with no settlement or verdict: 3 empty links)
     const infSessions = new Set(ev.filter((e) => e.name === "SessionOpened" && String(e.args.productId) === inference).map((e) => String(e.args.sessionId)));
     const served = new Set<string>();
     for (const e of ev) {
@@ -562,13 +562,13 @@ async function computeProof(o: { signer?: string; product?: string } = {}) {
   let settle: Ev | undefined;
   let settleUsdc: unknown = null;
   let settleBounty: string | null = null;
-  // prime : le verdict écrit (ou sauté) dans la transaction de la réclamation ou du paiement
+  // bounty: the verdict written (or skipped) in the claim's or the payment's transaction
   let paidVerdict: Partial<SessionVerdict> & { outcome: "written" | "skipped" | "none"; tx: string | null } | null = null;
   const servedSessions = new Set<string>();
   if (act && reg && rail === "session") {
     const ofProduct = new Set(ev.filter((e) => e.name === "SessionOpened" && String(e.args.productId) === String(act.productId)).map((e) => String(e.args.sessionId)));
-    for (const e of ev) { // du plus récent au plus ancien
-      // pas de filtre par bloc : une réinscription (même clé) ne doit pas effacer ses règlements ; la preuve, c'est le signataire
+    for (const e of ev) { // most recent first
+      // no filter by block: a re-registration (same key) must not erase its settlements; the proof is the signer
       if (e.name !== "Settled" || !ofProduct.has(String(e.args.sessionId))) continue;
       if ((await signerOfSettle(e.tx)) !== signer) continue;
       servedSessions.add(String(e.args.sessionId));
@@ -587,7 +587,7 @@ async function computeProof(o: { signer?: string; product?: string } = {}) {
     for (const p of ev) {
       if (p.contract !== bounty.contract || p.name !== "BountyPaid") continue;
       const id = String(p.args.bountyId);
-      // la réclamation payée : la dernière acceptée pour cette prime au plus tard dans le bloc du paiement
+      // the paid claim: the latest accepted for this bounty, at the latest in the payment's block
       const claim = ev.find((e) => e.contract === bounty.contract && e.name === "ClaimAccepted" && String(e.args.bountyId) === id && e.block <= p.block);
       if (!claim || !(await signersOfClaim(claim.tx, bounty.address))?.includes(signer)) continue;
       settle = p; settleUsdc = p.args.amount; settleBounty = id;
@@ -600,33 +600,33 @@ async function computeProof(o: { signer?: string; product?: string } = {}) {
       break;
     }
   }
-  // l'issue du verdict de fermeture de chaque session, et celle que montre la chaîne (écrit, sinon pourquoi pas)
+  // the outcome of each session's closing verdict, and the one the chain shows (written, otherwise why not)
   const outcomes = sessionVerdicts(ev);
   const unpaid = act && rail === "session" ? await unpaidSessionsOf(signer, String(act.productId), ev, outcomes) : new Set<string>();
   const shown = !act ? null
     : rail === "session" ? proofVerdict(outcomes, servedSessions, unpaid, settle ? String(settle.args.sessionId) : null)
     : rail === "bounty" ? (paidVerdict as SessionVerdict | null)
-    // un appel payé x402 et un produit gratuit n'écrivent pas de verdict ERC-8004 (seules les sessions et les primes en écrivent)
+    // an x402 paid call and a free product write no ERC-8004 verdict (only sessions and bounties write one)
     : ({ sessionId: "", outcome: "no_verdict_rail", tx: null, block: null } as unknown as SessionVerdict);
-  const verdict = shown?.outcome === "written" ? shown : null; // le verdict ÉCRIT le plus récent d'une session servie
-  // v2.1 : l'empreinte d'IMAGE de l'enclave (journal RTMR3 rejoué on-chain à l'inscription), si elle a été émise
+  const verdict = shown?.outcome === "written" ? shown : null; // the most recent WRITTEN verdict of a served session
+  // the enclave's IMAGE id (RTMR3 event log replayed on-chain at registration), if it was emitted
   const image = act ? ev.find((e) => e.name === "EnclaveImage" && String(e.args.signer).toLowerCase() === signer) : undefined;
   const pin = act ? await pinnedImage(BigInt(act.productId)) : { image: IMAGE, manifestURI: "", manifestVerified: false };
-  // 17/11 : sans manifeste vérifié, l'image que CETTE enclave a fait tourner (son empreinte, lue sur Arc, est dans nos
-  // déploiements) ; inconnue : vide, jamais l'image par défaut
+  // without a verified manifest: the image THIS enclave ran (its image id, read on Arc, is in our deployments);
+  // unknown: empty, never the default image
   const ran = act ? IMAGE_OF.get(String(image?.args.imageId ?? act.workloadId).toLowerCase()) : undefined;
   const imageRef = pin.manifestVerified ? pin.image : (ran ?? "");
   const imageSource = pin.manifestVerified ? "manifest" : ran ? "deployments" : "unknown";
   return {
     image: imageRef, imageSource, manifestURI: pin.manifestURI, manifestVerified: pin.manifestVerified, enclave: act ?? null, registerTx: reg?.tx ?? null,
-    // 19/11 : le rail du produit de l'enclave (session | x402 | bounty | free | other) ; le règlement montré au maillon 5
-    // est une session (`settleSession`), un appel payé (CallSettled) ou une prime (`settleBounty`, de niveau `settleLevel`)
+    // the rail of the enclave's product (session | x402 | bounty | free | other); the settlement shown at link 5
+    // is a session (`settleSession`), a paid call (CallSettled) or a bounty (`settleBounty`, at level `settleLevel`)
     rail, settleTx: settle?.tx ?? null, settleUsdc, settleSession: rail === "session" ? settle?.args.sessionId ?? null : null,
     settleBounty, settleLevel: settleBounty !== null ? bounty?.level ?? null : null,
     verdictTx: verdict?.tx ?? null, verdictAgentId: verdict?.agentId ?? null, verdictResponse: verdict?.response ?? null,
-    // champs ajoutés (9/11) : la session dont parle le maillon « verdict » et l'issue de son verdict
-    // ("written" | "not_applicable" : close sans paiement | "skipped" : écriture refusée, `verdictReason` | "none" | "pending"
-    // | 19/11 "no_verdict_rail" : appel payé x402 ou produit gratuit, qui n'écrivent pas de verdict)
+    // added fields: the session the "verdict" link speaks of, and the outcome of its verdict
+    // ("written" | "not_applicable": closed without payment | "skipped": write refused, `verdictReason` | "none" | "pending"
+    // | "no_verdict_rail": x402 paid call or free product, which write no verdict)
     verdictSession: shown?.sessionId || null, verdictStatus: shown?.outcome ?? null, verdictStatusTx: shown?.tx ?? null,
     verdictReason: shown?.reason ?? null, verdictReasonData: shown?.reasonData ?? null, verdictSalted: shown?.salted ?? null,
     enclaveImage: image ? {
@@ -635,9 +635,9 @@ async function computeProof(o: { signer?: string; product?: string } = {}) {
     index: idx.status(),
   };
 }
-/** /proof : la chaîne de l'enclave d'inférence ; ?signer=0x… : celle d'une clé d'enclave inscrite ; ?product=N : celle de
- *  l'enclave active du produit N (sinon sa dernière inscrite). Une clé ou un produit sans enclave : 404 (jamais la chaîne
- *  d'une autre enclave). */
+/** /proof: the inference enclave's chain; ?signer=0x…: that of a registered enclave key; ?product=N: that of the
+ *  product's active enclave N (otherwise its latest registered one). A key or a product without an enclave: 404 (never
+ *  another enclave's chain). */
 app.get("/proof", async (c) => {
   const bad = unknownParam(c, ["signer", "product"]);
   if (bad) return c.json(bad, 400);
@@ -658,8 +658,8 @@ app.get("/proof", async (c) => {
   return c.json(J(await cached(key, 15_000, () => computeProof({ signer, product }))));
 });
 
-/** v2 : un reçu est vérifié EXACTEMENT comme SessionPay.settle le fera (enclave verrouillée de la session, active au bloc
- *  d'ancrage chez l'opérateur de la session, modèle verrouillé, cumul croissant) ; `active` garde l'ancien sens. */
+/** A receipt is checked EXACTLY as SessionPay.settle will check it (the session's locked enclave, active at the anchor
+ *  block with the session's operator, locked model, increasing cumulative total); `active` keeps its old meaning. */
 app.post("/verify-receipt", async (c) => {
   const body = await c.req.json().catch(() => null) as any;
   if (!body?.receipt || !body?.signature) return c.json(errorBody("receipt_expected", "expected { receipt, signature }"), 400);
@@ -667,7 +667,7 @@ app.post("/verify-receipt", async (c) => {
   try { r = normalizeReceipt(body.receipt); } catch { return c.json(errorBody("receipt_unreadable", "unreadable receipt"), 400); }
   let signer: Address;
   try { signer = await recoverReceiptSigner(testnet.sessionPay, r, body.signature as Hex, testnet.chainId); } catch { return c.json(errorBody("signature_unreadable", "unreadable signature"), 400); }
-  void signer; // signature lisible : la vérification complète suit
+  void signer; // a readable signature: the full check follows
   const v = await arc.verifyReceipt(r, body.signature as Hex);
   return c.json(J({
     signer: v.signer, operator: v.activeOperatorAtAnchor, active: v.checks.find((x) => x.id === "active")?.ok ?? false,
@@ -675,27 +675,27 @@ app.post("/verify-receipt", async (c) => {
   }));
 });
 
-// arrivée des machines d'opérateurs : appairage par code, clés arcop_, battements de cœur, diagnostic
+// arrival of the operators' machines: pairing by code, arcop_ keys, heartbeats, diagnosis
 registerOperatorRoutes(app, arc);
-// mode test (testnet) : wallet serveur provisionné, désactivé sans TEST_SIGNER_PK + TEST_SIGNER_TOKEN
+// test mode (testnet): a provisioned server wallet, off without TEST_SIGNER_PK + TEST_SIGNER_TOKEN
 registerTestSigner(app);
 
-// toute erreur non prévue sort en JSON lisible (jamais une page HTML vide), avec son code stable
+// any unexpected error leaves as readable JSON (never an empty HTML page), with its stable code
 app.onError((err, c) => c.json(errorBody("server_error", String(err?.message ?? err)), 503));
-// 19/11 : une route inconnue aussi (jamais le « 404 Not Found » en texte brut)
+// an unknown route too (never a plain-text "404 Not Found")
 app.notFound((c) => c.json(errorBody("not_found", `unknown route: ${c.req.method} ${c.req.path}`), 404));
 
 serve({ fetch: app.fetch, port: PORT });
-console.log(`API ArcHive sur http://localhost:${PORT}  (products, enclaves, bounties, sessions/:owner, pricing, verify-receipt)`);
-// l'index reste à jour même sans visiteur (sinon la première visite après une longue pause attend le rattrapage)
+console.log(`ArcHive API on http://localhost:${PORT}  (products, enclaves, bounties, sessions/:owner, pricing, verify-receipt)`);
+// the index stays up to date even with no visitor (otherwise the first visit after a long pause waits for the catch-up)
 setInterval(() => {
   idx.sync(30_000).catch((e) => console.warn("index :", (e as Error).message.slice(0, 160)));
   idxLevels?.sync(30_000).catch((e) => console.warn("index (niveaux) :", (e as Error).message.slice(0, 160)));
 }, 60_000).unref();
-// préchauffage : la première visite ne paie pas la lecture à froid des événements (le second index lit en arrière-plan)
+// warm-up: the first visit does not pay for a cold read of the events (the second index reads in the background)
 idxLevels?.sync(0).catch((e) => console.warn("index (niveaux) :", (e as Error).message))
   .then(() => idxLevels && console.log(`levels index: ${idxLevels.status().events} events up to block ${idxLevels.status().lastBlock}`));
 idx.sync(0).catch((e) => console.warn("index :", (e as Error).message))
   .then(() => cached("proof", 15_000, computeProof))
   .then(() => console.log(`cache warmed: ${idx.status().events} events indexed up to block ${idx.status().lastBlock}`))
-  .catch((e) => console.warn("préchauffage :", (e as Error).message));
+  .catch((e) => console.warn("warm-up:", (e as Error).message));

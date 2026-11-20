@@ -74,7 +74,7 @@ const sealedBountyAbi = parseAbi([
   "function deliver(uint256 bountyId, bytes32 fingerprint, bytes cP)",
 ]);
 const operatorBondAbi = parseAbi(["function requestUnbond(uint256 amount)", "function withdraw()"]);
-/** lectures de propriété : Session et Bounty sont des structs statiques, le 1er mot est owner / protocol */
+/** ownership reads: Session and Bounty are static structs, and the first word is owner / protocol */
 const readAbi = parseAbi(["function getSession(uint256 sessionId)", "function getBounty(uint256 bountyId)"]);
 
 const RWA_TYPES = {
@@ -84,7 +84,7 @@ const RWA_TYPES = {
   ],
 } as const;
 
-/** refus du mode test : renvoyé au site comme un refus de wallet (code 4001) */
+/** a test-mode refusal: sent back to the site as a wallet refusal (code 4001) */
 class Refus extends Error {}
 
 export function registerTestSigner(app: Hono) {
@@ -112,9 +112,9 @@ export function registerTestSigner(app: Hono) {
     [testnet.operatorBond.toLowerCase(), { name: "OperatorBond", abi: operatorBondAbi }],
   ]);
   const X402_SETTLER = testnet.x402Settler.toLowerCase();
-  /** destinataires permis d'une autorisation EIP-3009, avec la validité maximale de chacun (s) : les contrats qui
-   *  encaissent depuis l'APPELANT (SessionPay, SealedBounty : 24 h), et X402Settler pour le paiement d'un appel x402
-   *  (1 h, comme le client x402 du SDK). Jamais OperatorBond (une caution bloque l'argent 7 jours). */
+  /** allowed recipients of an EIP-3009 authorization, with the longest validity of each (s): the contracts that
+   *  collect from the CALLER (SessionPay, SealedBounty: 24 h), and X402Settler for an x402 call payment (1 h, like
+   *  the SDK's x402 client). Never OperatorBond (a bond locks the money for 7 days). */
   const AUTH_TO = new Map<string, { name: string; maxTtl: number }>([
     [SESSION_PAY, { name: "SessionPay", maxTtl: MAX_AUTH_TTL_S }],
     [SEALED_BOUNTY, { name: "SealedBounty", maxTtl: MAX_AUTH_TTL_S }],
@@ -122,13 +122,13 @@ export function registerTestSigner(app: Hono) {
   ]);
   const USDC_DOMAIN = { name: "USDC", version: "2", chainId: arcTestnet.id, verifyingContract: testnet.usdc } as const;
 
-  // ---- budget du jour (UTC), en micro-USDC, gardé dans DATA_DIR (un redémarrage ne le remet pas à zéro) ----
+  // ---- the day's budget (UTC), in micro-USDC, kept in DATA_DIR (a restart does not reset it) ----
   const BUDGET_FILE = join(process.env.DATA_DIR ?? "./data", "test-signer-budget.json");
   let budget = { day: "", spent: "0" };
   try {
     const saved = existsSync(BUDGET_FILE) ? JSON.parse(readFileSync(BUDGET_FILE, "utf8")) : null;
     if (saved && /^\d{4}-\d{2}-\d{2}$/.test(String(saved.day)) && /^\d{1,30}$/.test(String(saved.spent))) budget = { day: String(saved.day), spent: String(saved.spent) };
-  } catch { /* budget illisible : on repart du jour */ }
+  } catch { /* unreadable budget: start from today */ }
   const today = () => new Date().toISOString().slice(0, 10);
   const spent = () => { if (budget.day !== today()) budget = { day: today(), spent: "0" }; return BigInt(budget.spent); };
   function reserve(amount: bigint, what: string) {
@@ -142,7 +142,7 @@ export function registerTestSigner(app: Hono) {
       if (!existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 });
       writeFileSync(BUDGET_FILE + ".tmp", JSON.stringify(budget), { mode: 0o600 });
       renameSync(BUDGET_FILE + ".tmp", BUDGET_FILE);
-    } catch (e) { console.error("mode test : budget non enregistré :", (e as Error).message); }
+    } catch (e) { console.error("test mode: budget not saved:", (e as Error).message); }
   }
   const refund = (amount: bigint) => { const s = spent(); budget.spent = (s > amount ? s - amount : 0n).toString(); };
 
@@ -153,10 +153,10 @@ export function registerTestSigner(app: Hono) {
     return a.length === b.length && timingSafeEqual(a, b);
   };
   let win = { t: Date.now(), n: 0 };
-  /** refus de jeton : 5 lignes de journal par minute au plus (un inconnu ne doit pas pouvoir remplir le disque) */
+  /** token refusals: 5 log lines per minute at most (a stranger must not be able to fill the disk) */
   let authFails = { t: Date.now(), n: 0 };
 
-  /** une ligne par requête (jamais le jeton) */
+  /** one line per request (never the token) */
   type Entry = { ip: string; method: string; ok: boolean; to?: string; selector?: string; fn?: string; amount?: bigint; gas?: bigint; reason?: string; tx?: string };
   const journal = (e: Entry) => console.log("mode test " + JSON.stringify({
     t: new Date().toISOString(), ...e, amount: e.amount !== undefined ? fmt(e.amount) : undefined, gas: e.gas?.toString(),
@@ -188,7 +188,7 @@ export function registerTestSigner(app: Hono) {
     if (protocol !== me) throw new Refus(`mode test : la prime n° ${id} n'appartient pas au wallet de test`);
   }
 
-  /** liste blanche : la fonction décodée, et le montant qui quitte ce wallet (déjà compté à la signature de l'autorisation) */
+  /** allowlist: the decoded function, and the amount that leaves this wallet (already counted when the authorization is signed) */
   async function policy(to: string, data: Hex): Promise<{ fn: string; amount: bigint }> {
     const rule = RULES.get(to);
     if (!rule) {
@@ -212,18 +212,18 @@ export function registerTestSigner(app: Hono) {
       case "SealedBounty.setPaused":
       case "SealedBounty.reopen":
       case "SealedBounty.withdrawRemaining": await mustOwnBounty(asBig(a[0], "prime")); return { fn, amount: 0n };
-      case "SealedBounty.withdrawCredit": // vers ce wallet
-      case "SealedBounty.acceptClaim": // chasseur : paie depuis la prime, gaz seulement pour ce wallet
+      case "SealedBounty.withdrawCredit": // to this wallet
+      case "SealedBounty.acceptClaim": // hunter: pays from the bounty, gas only for this wallet
       case "SealedBounty.claim":
       case "SealedBounty.deliver":
-      case "OperatorBond.requestUnbond": // sa propre caution, qui lui revient
+      case "OperatorBond.requestUnbond": // its own bond, which comes back to it
       case "OperatorBond.withdraw":
         return { fn, amount: 0n };
     }
     throw new Refus(`mode test : fonction non autorisée (${fn})`);
   }
 
-  /** une autorisation EIP-3009 telle qu'elle sera signée (domaine et types canoniques : ce qui est vérifié est ce qui est signé) */
+  /** an EIP-3009 authorization as it will be signed (canonical domain and types: what is checked is what is signed) */
   function checkAuthorization(td: any) {
     if (!td || typeof td !== "object") throw new Refus("mode test : données typées illisibles");
     if (td.primaryType !== "ReceiveWithAuthorization") {
@@ -263,7 +263,7 @@ export function registerTestSigner(app: Hono) {
     try {
       const f = await pub.estimateFeesPerGas();
       if (f.maxFeePerGas !== undefined && f.maxPriorityFeePerGas !== undefined) return { maxFeePerGas: f.maxFeePerGas, maxPriorityFeePerGas: f.maxPriorityFeePerGas };
-    } catch { /* chaîne sans EIP-1559 : prix unique */ }
+    } catch { /* chain without EIP-1559: a single price */ }
     return { gasPrice: await pub.getGasPrice() };
   }
 
@@ -288,7 +288,7 @@ export function registerTestSigner(app: Hono) {
     if (Date.now() - win.t > 60_000) win = { t: Date.now(), n: 0 };
     if (++win.n > 180) return c.json({ error: { code: 4200, message: "mode test : trop de requêtes, réessayez dans une minute" } }, 429);
     let body: { method?: unknown; params?: unknown } = {};
-    try { body = (await c.req.json()) ?? {}; } catch { /* corps illisible : méthode vide, refusée plus bas */ }
+    try { body = (await c.req.json()) ?? {}; } catch { /* unreadable body: empty method, refused below */ }
     const method = typeof body.method === "string" ? body.method.slice(0, 64) : "";
     const params: any[] = Array.isArray(body.params) ? body.params : [];
     const entry: Entry = { ip, method, ok: false };
@@ -342,7 +342,7 @@ export function registerTestSigner(app: Hono) {
           if (asBig(tx.value ?? 0, "valeur") !== 0n) throw new Refus("mode test : aucun transfert de valeur");
           const p = await policy(to, data);
           entry.fn = p.fn; entry.amount = p.amount;
-          // gaz : estimé ICI (le client ne le choisit pas), avec une marge, et plafonné
+          // gas: estimated HERE (the client does not choose it), with a margin, and capped
           let est: bigint;
           try { est = await pub.estimateGas({ account: account.address, to: to as Address, data, value: 0n }); } catch (e: any) {
             return fail(-32000, String(e?.shortMessage ?? e?.message ?? e).slice(0, 300));
@@ -370,5 +370,5 @@ export function registerTestSigner(app: Hono) {
       return fail(-32000, String(e?.shortMessage ?? e?.message ?? e).slice(0, 300));
     }
   });
-  console.log(`mode test : wallet serveur ${account.address} (Arc testnet seulement ; ${fmt(MAX_AUTH)} USDC au plus par opération, ${fmt(DAILY)} USDC par jour)`);
+  console.log(`test mode: server wallet ${account.address} (Arc testnet only; ${fmt(MAX_AUTH)} USDC at most per operation, ${fmt(DAILY)} USDC per day)`);
 }

@@ -66,44 +66,44 @@ const DATA_DIR = process.env.DATA_DIR ?? "./data";
 const FILE = join(DATA_DIR, "operators.json");
 const WEB_URL = (process.env.WEB_URL ?? "http://62.171.153.35:8900").replace(/\/$/, "");
 
-/** Plafonds de stockage (un wallet neuf ne coûte rien : chaque opérateur, et l'ensemble, sont bornés). */
+/** Storage caps (a new wallet costs nothing, so each operator, and the whole, are bounded). */
 const LIMITS = {
-  freeKeysPerOperator: 10, // clés libres actives (CLI, MCP) ; les clés de machine suivent le plafond des machines
-  revokedKeptPerOperator: 20, // clés révoquées gardées pour l'historique (les plus anciennes sont effacées)
+  freeKeysPerOperator: 10, // active free keys (CLI, MCP); machine keys follow the machine cap
+  revokedKeptPerOperator: 20, // revoked keys kept for history (the oldest are erased)
   machinesPerOperator: 20,
-  keysTotal: 5_000, // clés actives, tous opérateurs
+  keysTotal: 5_000, // active keys, all operators
   machinesTotal: 1_000,
-  pendingPairsTotal: 5_000, // ≈ 300 octets chacun ; 15 minutes au plus
-  pendingPairsPerIp: 20, // toute une salle derrière un même Wi-Fi partage son adresse
-  pendingPairsPerNet: 50, // par /24 (IPv4) ou /48 (IPv6) : remplir la table demande au moins 100 réseaux
-  /** nonces consommés, gardés jusqu'à leur échéance (≈ 140 octets pour une action, 230 pour une lecture). Chaque entrée
-   *  coûte une signature VALIDE, vérifiée ici ; ce plafond ne protège que la mémoire (≈ 120 Mo au pire) : au débit de
-   *  vérification d'un processeur (≈ 500 par seconde), 10 minutes de lectures en remplissent 300 000. */
+  pendingPairsTotal: 5_000, // ≈ 300 bytes each; 15 minutes at most
+  pendingPairsPerIp: 20, // a whole room behind one Wi-Fi shares its address
+  pendingPairsPerNet: 50, // per /24 (IPv4) or /48 (IPv6): filling the table takes at least 100 networks
+  /** consumed nonces, kept until they expire (≈ 140 bytes for an action, 230 for a read). Each entry
+   *  costs a VALID signature, verified here; this cap only protects memory (≈ 120 MB at worst): at the verification
+   *  rate of one processor (≈ 500 per second), 10 minutes of reads fill 300,000. */
   consumedTotal: 500_000,
 };
-/** Débit par IP et par minute : assez pour une salle entière derrière un même Wi-Fi (une démo en salle : des dizaines
- *  d'opérateurs, une seule adresse ; le site lit la liste toutes les 10 s et un détail toutes les 15 s). */
+/** Rate per IP and per minute: enough for a whole room behind one Wi-Fi (a room demo: dozens of operators, a single
+ *  address; the site reads the list every 10 s and a detail every 15 s). */
 const RATE = { pairStart: 30, pairLookup: 30, pairPoll: 600, signed: 120, signedRead: 600, nonce: 240, keyList: 300, heartbeatIp: 600, heartbeatKey: 30 };
-/** Signatures INVALIDES par IP et par minute : au-delà, plus aucune vérification pour cette IP jusqu'à la fin de la
- *  minute. Une vérification coûte ≈ 2 ms de processeur (ou un appel au RPC pour un smart wallet) ; une signature invalide
- *  ne coûte rien à produire : c'est elle qu'on borne par adresse. Un humain n'en produit jamais (son wallet signe juste). */
+/** INVALID signatures per IP and per minute: above this, no more verification for this IP until the end of the
+ *  minute. A verification costs ≈ 2 ms of processor time (or an RPC call for a smart wallet); an invalid signature
+ *  costs nothing to produce, so it is the one capped per address. A person never produces one (their wallet just signs). */
 const BAD_SIGNATURES_PER_IP = 30;
-/** Par compte (adresse) et par minute, comptés APRÈS la vérification de la signature : chaque unité coûte une signature
- *  valide et un nonce neuf, et personne ne peut épuiser le budget d'un autre compte. Un humain signe quelques actions par
- *  minute et ouvre une lecture toutes les 10 minutes. */
+/** Per account (address) and per minute, counted AFTER the signature check: each unit costs a valid signature and a
+ *  fresh nonce, and nobody can exhaust another account's budget. A person signs a few actions per minute and opens a
+ *  read every 10 minutes. */
 const ACCOUNT_RATE = { signed: 30, readOpen: 10, read: 300 };
-/** Codes faux (recherche ou approbation) par réseau (/24 en IPv4, /48 en IPv6) et par minute : au-delà, plus de recherche
- *  de code depuis ce réseau jusqu'à la fin de la minute. Aucun plafond global (30 IP suffisaient à bloquer tout
- *  appairage) : un code de 8 signes (31^8 ≈ 8,5·10^11) ne se devine pas à ce débit. */
+/** Wrong codes (lookup or approval) per network (/24 in IPv4, /48 in IPv6) and per minute: above this, no more code
+ *  lookups from this network until the end of the minute. No global cap (30 IPs were enough to block all pairing):
+ *  an 8-character code (31^8 ≈ 8.5·10^11) cannot be guessed at this rate. */
 const FAILS_PER_NET = 60;
 const PAIR_TTL_MS = 15 * 60_000;
-const PAIR_PURGE_GRACE_MS = 2 * 60_000; // l'agent interroge jusqu'à l'échéance + 30 s : on garde la trace un peu plus
-/** Un nonce sert UNE fois, dans les 5 minutes qui suivent son émission. */
+const PAIR_PURGE_GRACE_MS = 2 * 60_000; // the agent polls until the expiry + 30 s, so the record is kept a little longer
+/** A nonce serves ONCE, within the 5 minutes after it was issued. */
 const NONCE_TTL_MS = 5 * 60_000;
-/** « Expiration Time » au plus 5 minutes après « Issued At » pour une action, 10 minutes pour la lecture (réutilisable). */
+/** "Expiration Time" at most 5 minutes after "Issued At" for an action, 10 minutes for the read (reusable). */
 const ACTION_TTL_MS = 5 * 60_000;
 const READ_TTL_MS = 10 * 60_000;
-/** tolérance d'horloge sur « Issued At » (le site reprend l'heure renvoyée par /auth/nonce : aucun écart en pratique) */
+/** clock tolerance on "Issued At" (the site reuses the time /auth/nonce returns: no drift in practice) */
 const CLOCK_SKEW_MS = 60_000;
 const BODY_MAX = 64 * 1024;
 const LOG_LINES = 100;
@@ -117,31 +117,31 @@ function load(): Store {
   try {
     if (existsSync(DATA_DIR)) accessSync(DATA_DIR, fsc.R_OK | fsc.W_OK | fsc.X_OK);
   } catch {
-    console.error(`opérateurs : le dossier ${DATA_DIR} n'est pas lisible ET inscriptible par ce processus (uid ${process.getuid?.() ?? "?"}) : clés et machines ne seront ni lues ni enregistrées. Vérifiez les droits du volume de données.`);
+    console.error(`operators: the folder ${DATA_DIR} is not readable AND writable by this process (uid ${process.getuid?.() ?? "?"}): keys and machines will be neither read nor saved. Check the rights of the data volume.`);
   }
   try {
     if (!existsSync(FILE)) return empty;
     const raw = JSON.parse(readFileSync(FILE, "utf8")) ?? {};
     const s: Store = { keys: raw.keys ?? {}, pairs: raw.pairs ?? {}, machines: raw.machines ?? {} };
-    for (const m of Object.values(s.machines) as Array<Machine & { logs?: unknown }>) delete m.logs; // plus jamais sur disque
-    // machines d'avant « pairedBy » : une clé liée à la machine ne naît que d'un appairage par code ; sinon, inconnu
+    for (const m of Object.values(s.machines) as Array<Machine & { logs?: unknown }>) delete m.logs; // never on disk again
+    // machines from before "pairedBy": a machine-bound key is only born from a pairing by code; otherwise, unknown
     const bound = new Set(Object.values(s.keys).map((k) => k.machineId).filter(Boolean));
     for (const m of Object.values(s.machines)) {
       if (!m.pairedBy && bound.has(m.machineId)) Object.assign(m, { pairedBy: "code", approvedBy: m.operator, viaKey: null });
     }
     return s;
   } catch (e) {
-    console.error(`opérateurs : ${FILE} illisible (${(e as Error).message}) : on repart à vide`);
+    console.error(`operators: ${FILE} unreadable (${(e as Error).message}): starting empty`);
     return empty;
   }
 }
 const db: Store = load();
-/** journaux des machines : en mémoire seulement (100 lignes au plus par machine, renvoyées à chaque battement) */
+/** machine logs: in memory only (100 lines at most per machine, sent back with each heartbeat) */
 const logsOf = new Map<string, string[]>();
 
 let saveTimer: NodeJS.Timeout | null = null;
 let saveDue = 0;
-/** Écriture différée : 200 ms pour un changement d'état (clé, appairage, retrait), 5 s pour un simple battement. */
+/** Deferred write: 200 ms for a state change (key, pairing, removal), 5 s for a plain heartbeat. */
 function save(urgent = true) {
   const delay = urgent ? 200 : 5_000;
   const due = Date.now() + delay;
@@ -156,32 +156,32 @@ function flush() {
   try {
     if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true, mode: 0o700 });
     writeFileSync(FILE + ".tmp", JSON.stringify(db), { mode: 0o600 });
-    renameSync(FILE + ".tmp", FILE); // écriture atomique
-  } catch (e) { console.error("sauvegarde opérateurs impossible :", (e as Error).message); }
+    renameSync(FILE + ".tmp", FILE); // atomic write
+  } catch (e) { console.error("operators: save failed:", (e as Error).message); }
 }
 
 // ---------------------------------------------------------------- outils
 
-/** Les codes d'erreur stables : chaque réponse d'erreur porte { error, code, params? }. `error` reste la phrase française
- *  (humains, anciens clients) ; le site (EN et FR) et l'agent (EN) traduisent par `code`, avec les valeurs de `params`.
- *  Un code ne change jamais de sens ; un nouveau cas reçoit un nouveau code. */
+/** Stable error codes: every error answer carries { error, code, params? }. `error` stays the French sentence
+ *  (people, older clients); the site (EN and FR) and the agent (EN) translate from `code`, with the `params` values.
+ *  A code never changes meaning; a new case gets a new code. */
 export type ErrorCode =
-  // validation des champs
+  // field validation
   | "invalid_enum" | "invalid_hex" | "invalid_product_id" | "invalid_enclave_url" | "unreadable_enclave_url" | "enclave_url_scheme"
   | "invalid_doctor" | "invalid_logs" | "body_too_large" | "invalid_address" | "address_param_expected" | "operator_param_expected"
   | "user_code_expected" | "signed_body_expected" | "bad_message_or_signature"
-  // débit et capacité
+  // rate and capacity
   | "rate_limited" | "too_many_wrong_codes" | "signatures_full" | "pairings_full" | "pairings_per_ip" | "pairings_per_network"
   | "no_free_code" | "machine_limit" | "key_limit" | "network_full_machines" | "network_full_keys"
-  // clés opérateur (Authorization: Bearer arcop_…)
+  // operator keys (Authorization: Bearer arcop_…)
   | "key_missing" | "key_unknown_or_revoked" | "key_invalid" | "key_forbidden" | "not_a_machine_key"
-  // messages signés par le wallet (EIP-4361)
+  // messages signed by the wallet (EIP-4361)
   | "malformed_message" | "wrong_site" | "address_mismatch" | "wrong_chain" | "wrong_statement" | "signature_expired"
   | "nonce_unknown" | "nonce_expired" | "signature_used" | "issued_at_mismatch" | "bad_signature"
-  // appairage, machines, clés
+  // pairing, machines, keys
   | "code_unknown" | "pair_already_approved" | "pair_already_yours" | "device_code_unknown" | "machine_unknown_for_key"
   | "machine_unknown" | "machine_not_found" | "key_not_found"
-  // lecture (server.ts) et imprévu ; 19/11 : paramètres de lecture refusés, produit ou enclave inconnus, route inconnue
+  // reading (server.ts) and the unexpected: refused read parameters, unknown product or enclave, unknown route
   | "receipt_expected" | "receipt_unreadable" | "signature_unreadable" | "internal_error" | "server_error"
   | "invalid_param" | "unknown_param" | "unknown_product" | "unknown_enclave" | "not_found";
 type Params = Record<string, string | number | boolean>;
@@ -194,17 +194,17 @@ export class HttpError extends Error {
     this.params = o.params;
   }
 }
-/** le corps JSON d'une erreur : { error, code, params? } */
+/** an error's JSON body: { error, code, params? } */
 export const errorBody = (code: ErrorCode, error: string, params?: Params) => ({ error, code, ...(params ? { params } : {}) });
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
 const b64url = (b: Buffer) => b.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-const ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // 31 signes, sans I, L, O, 0, 1 (lisibles à voix haute)
+const ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // 31 characters, without I, L, O, 0, 1 (easy to read aloud)
 const ADDR_RE = /^0x[0-9a-fA-F]{40}$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const KEYID_RE = /^[0-9a-f]{8}$/;
 const mask = (k: string) => k.replace(/^(arcop_[0-9a-f]+_)(.{4}).*(.{4})$/, "$1$2…$3");
 
-/** n signes de ALPHA, sans biais (tirage rejeté au-delà de 248 = 8 × 31) */
+/** n characters of ALPHA, without bias (draws above 248 = 8 × 31 are rejected) */
 function randomChars(n: number): string {
   let out = "";
   while (out.length < n) {
@@ -217,7 +217,7 @@ function randomChars(n: number): string {
   return out;
 }
 const newUserCode = () => { const s = randomChars(8); return `HIVE-${s.slice(0, 4)}-${s.slice(4)}`; };
-/** « hive-7k2p qx9m », « HIVE-7K2PQX9M », « 7K2P-QX9M » → « HIVE-7K2P-QX9M » ; null si ce n'est pas un code */
+/** "hive-7k2p qx9m", "HIVE-7K2PQX9M", "7K2P-QX9M" → "HIVE-7K2P-QX9M"; null if it is not a code */
 function normCode(raw: unknown): string | null {
   const s = String(raw ?? "").toUpperCase().replace(/[\s_]+/g, "");
   const m = s.match(/^(?:HIVE-?)?([A-Z0-9]{4})-?([A-Z0-9]{4})$/);
@@ -227,14 +227,14 @@ function normCode(raw: unknown): string | null {
   return `HIVE-${m[1]}-${m[2]}`;
 }
 
-/** texte libre affichable : sans caractères de contrôle, de séquences ANSI ni d'inversion bidirectionnelle */
+/** free text fit for display: no control characters, ANSI sequences or bidirectional overrides */
 function cleanText(v: unknown, max: number): string {
   return String(v ?? "")
     .replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, "")
     .replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e\u2066-\u2069\ufeff]/g, " ")
     .slice(0, max);
 }
-/** nom d'hôte : lettres, chiffres, point, tiret, souligné ; le reste devient « - » */
+/** host name: letters, digits, dot, dash, underscore; anything else becomes "-" */
 function cleanHostname(v: unknown): string {
   const h = cleanText(v ?? "machine", 64).trim().replace(/[^A-Za-z0-9._-]/g, "-").replace(/^-+|-+$/g, "");
   return h || "machine";
@@ -288,7 +288,7 @@ async function readJson(c: Context): Promise<any> {
   }
 }
 
-// ---------------------------------------------------------------- IP du client et débit
+// ---------------------------------------------------------------- client IP and rate
 
 function isPrivatePeer(a: string): boolean {
   const v4 = a.startsWith("::ffff:") ? a.slice(7) : a;
@@ -298,7 +298,7 @@ function isPrivatePeer(a: string): boolean {
   }
   return a === "::1" || /^f[cd][0-9a-f]{2}:/i.test(a);
 }
-/** IPv4 telle quelle ; IPv6 réduite à son /64 (une machine IPv6 dispose souvent de tout le préfixe) */
+/** IPv4 as is; IPv6 reduced to its /64 (an IPv6 machine often has the whole prefix) */
 function ipKey(raw: string): string {
   const ip = raw.replace(/%.*$/, "");
   const v4 = ip.toLowerCase().startsWith("::ffff:") ? ip.slice(7) : ip;
@@ -310,8 +310,8 @@ function ipKey(raw: string): string {
   const groups = tail !== undefined ? [...h, ...Array(Math.max(0, 8 - h.length - t.length)).fill("0"), ...t] : h;
   return groups.slice(0, 4).map((g) => g.replace(/^0+(?=.)/, "")).join(":") + "::/64";
 }
-/** L'IP du client : la dernière entrée de X-Forwarded-For (posée par Caddy, qui ne transmet pas celle du client),
- *  seulement si la connexion vient du réseau interne (Caddy) ; sinon l'adresse de la connexion elle-même. */
+/** The client's IP: the last entry of X-Forwarded-For (set by Caddy, which does not pass on the client's own),
+ *  only if the connection comes from the internal network (Caddy); otherwise the connection's own address. */
 export function clientIp(c: Context): string {
   const peer = String((c.env as any)?.incoming?.socket?.remoteAddress ?? "");
   let ip = peer;
@@ -322,23 +322,23 @@ export function clientIp(c: Context): string {
   }
   return ipKey(ip);
 }
-/** Le réseau d'une IP (telle que clientIp la rend) : /24 en IPv4, /48 en IPv6 (un fournisseur en donne au moins autant à
- *  un seul client). Les codes faux et les appairages en cours s'y comptent aussi. */
+/** The network of an IP (as clientIp returns it): /24 in IPv4, /48 in IPv6 (a provider gives at least that much to
+ *  a single customer). Wrong codes and pending pairings are counted there too. */
 export function netOf(ipk: string): string {
   if (isIP(ipk) === 4) return ipk.split(".").slice(0, 3).join(".") + ".0/24";
   const g = /^([0-9a-f]{1,4}):([0-9a-f]{1,4}):([0-9a-f]{1,4}):/.exec(ipk);
   return g ? `${g[1]}:${g[2]}:${g[3]}::/48` : ipk;
 }
 
-/** La clé (tirée au démarrage, en mémoire seulement) qui répartit les clés de débit dans la table partagée. */
+/** The key (drawn at startup, in memory only) that spreads the rate keys over the shared table. */
 const LIMIT_KEY = randomBytes(32);
 const SHARED_SLOTS = 1 << 16;
 
-/** Débit par fenêtre fixe d'une minute, par clé (IP, réseau, compte, clé d'opérateur). Exact pour les `maxKeys` premières
- *  clés de la minute ; au-delà (une inondation d'adresses différentes, par exemple des milliers de /64 IPv6), une clé
- *  NOUVELLE compte dans une table fixe de 65 536 cases, choisie par un HMAC à clé secrète : rien ne grandit, et personne
- *  n'est refusé d'office (l'ancienne table, une fois pleine, refusait toute adresse nouvelle pendant une minute). Deux
- *  clés dans la même case partagent leur budget : rare, et impossible à viser sans la clé du hachage. */
+/** Rate per fixed one-minute window, per key (IP, network, account, operator key). Exact for the first `maxKeys` keys
+ *  of the minute; beyond that (a flood of different addresses, for example thousands of IPv6 /64s), a NEW key counts
+ *  in a fixed table of 65,536 slots, chosen by an HMAC with a secret key: nothing grows, and nobody is refused
+ *  outright (the old table, once full, refused every new address for a minute). Two keys in the same slot share
+ *  their budget: rare, and impossible to aim at without the hash key. */
 export class Limiter {
   private exact = new Map<string, { t: number; n: number }>();
   private sharedT: Float64Array | null = null;
@@ -353,7 +353,7 @@ export class Limiter {
     if (b && now - b.t >= this.windowMs) { this.exact.delete(key); return undefined; }
     return b;
   }
-  /** compte un passage ; false au-delà de la limite */
+  /** counts one pass; false above the limit */
   take(key: string, now = Date.now()): boolean {
     let b = this.live(key, now);
     if (!b) {
@@ -372,7 +372,7 @@ export class Limiter {
     if (b.n <= this.limit) b.n++;
     return b.n <= this.limit;
   }
-  /** ce que `key` a compté dans sa minute en cours */
+  /** what `key` counted in its current minute */
   count(key: string, now = Date.now()): number {
     const b = this.live(key, now);
     if (b) return b.n;
@@ -380,14 +380,14 @@ export class Limiter {
     const i = this.slot(key);
     return now - this.sharedT[i]! >= this.windowMs ? 0 : this.sharedN[i]!;
   }
-  /** secondes avant la fin de la minute en cours de `key` */
+  /** seconds before the end of `key`'s current minute */
   retryAfter(key: string, now = Date.now()): number {
     const b = this.live(key, now);
     const t = b ? b.t : this.sharedT ? this.sharedT[this.slot(key)]! : now;
     return Math.max(1, Math.ceil((t + this.windowMs - now) / 1000));
   }
-  /** efface les minutes finies ; hors purge périodique (`force`), une fois par seconde au plus : sous une inondation, la
-   *  table pleine ne coûte pas un parcours complet à chaque requête */
+  /** erases finished minutes; outside the periodic purge (`force`), at most once per second: under a flood, the
+   *   full table does not cost a complete scan on every request */
   sweep(now = Date.now(), force = true) {
     if (!force && now - this.sweptAt < 1_000) return;
     this.sweptAt = now;
@@ -402,8 +402,8 @@ const lim = {
   accountSigned: new Limiter(ACCOUNT_RATE.signed), accountReadOpen: new Limiter(ACCOUNT_RATE.readOpen), accountRead: new Limiter(ACCOUNT_RATE.read),
   fails: new Limiter(FAILS_PER_NET),
 };
-/** Ce que compte un débit refusé : un identifiant stable (params.scope de l'erreur « rate_limited ») et son libellé
- *  français (dans « error »). */
+/** What a refused rate counts: a stable identifier (params.scope of the "rate_limited" error) and its French
+ *  label (in "error"). */
 const SCOPE_FR = {
   signatures: "signatures", signed_reads: "lectures signées", nonce_requests: "demandes de nonce", code_requests: "demandes de code",
   code_lookups: "recherches de code", pairing_polls: "attente d'appairage", pairing_refusals: "refus d'appairage",
@@ -417,7 +417,7 @@ const rateLimited = (scope: RateScope, s: number) =>
 function limit(l: Limiter, key: string, scope: RateScope) {
   if (!l.take(key)) throw rateLimited(scope, l.retryAfter(key));
 }
-/** codes faux : plafond par réseau (/24, /48), jamais global */
+/** wrong codes: capped per network (/24, /48), never globally */
 function guardFails(net: string) {
   if (lim.fails.count(net) >= FAILS_PER_NET) {
     const s = lim.fails.retryAfter(net);
@@ -427,7 +427,7 @@ function guardFails(net: string) {
 const ipTag = (ip: string) => sha("archive-ip:" + ip).slice(0, 16);
 const netTag = (net: string) => sha("archive-net:" + net).slice(0, 16);
 
-// ---------------------------------------------------------------- clés opérateur
+// ---------------------------------------------------------------- operator keys
 
 function newKey(operator: string, label: string, machineId: string | null): { key: string; rec: Key } {
   let keyId = randomBytes(4).toString("hex");
@@ -452,18 +452,18 @@ function bearer(auth?: string | null): Key {
 
 const activeKeys = () => Object.values(db.keys).filter((k) => !k.revoked);
 function revoke(k: Key) { if (!k.revoked) { k.revoked = true; k.revokedAt = Date.now(); } }
-/** au-delà de LIMITS.revokedKeptPerOperator clés révoquées, les plus anciennes sont effacées */
+/** above LIMITS.revokedKeptPerOperator revoked keys, the oldest are erased */
 function pruneRevoked(operator: string) {
   const old = Object.values(db.keys).filter((k) => k.operator === operator && k.revoked)
     .sort((x, y) => (y.revokedAt ?? y.createdAt) - (x.revokedAt ?? x.createdAt));
   for (const k of old.slice(LIMITS.revokedKeptPerOperator)) delete db.keys[k.keyId];
 }
 
-// ---------------------------------------------------------------- messages signés par le wallet (EIP-4361)
+// ---------------------------------------------------------------- messages signed by the wallet (EIP-4361)
 
-/** Les sites qui font signer : WEB_URL (le site public), plus SIGN_ORIGINS pour le développement (origines séparées par
- *  des virgules, par exemple http://localhost:5173). Le domaine (« archive.62-171-153-35.sslip.io ») et l'URI
- *  (« https://archive.62-171-153-35.sslip.io ») d'un message viennent du même site. */
+/** The sites that ask for signatures: WEB_URL (the public site), plus SIGN_ORIGINS for development (comma-separated
+ *  origins, for example http://localhost:5173). A message's domain ("archive.62-171-153-35.sslip.io") and URI
+ *  ("https://archive.62-171-153-35.sslip.io") come from the same site. */
 const ORIGINS: Array<{ domain: string; uri: string }> = (() => {
   const out: Array<{ domain: string; uri: string }> = [];
   for (const raw of [WEB_URL, ...String(process.env.SIGN_ORIGINS ?? "").split(",")]) {
@@ -472,18 +472,18 @@ const ORIGINS: Array<{ domain: string; uri: string }> = (() => {
     try {
       const u = new URL(s);
       if ((u.protocol === "https:" || u.protocol === "http:") && !out.some((o) => o.domain === u.host)) out.push({ domain: u.host, uri: u.origin });
-    } catch { console.error(`opérateurs : origine de signature illisible ignorée (« ${s.slice(0, 80)} »)`); }
+    } catch { console.error(`operators: unreadable signing origin ignored ("${s.slice(0, 80)}")`); }
   }
   if (!out.length) out.push({ domain: "archive.62-171-153-35.sslip.io", uri: "https://archive.62-171-153-35.sslip.io" });
   return out;
 })();
-/** le réseau des signatures : Arc testnet (5042002) */
+/** the signatures' network: Arc testnet (5042002) */
 const CHAIN_ID: number = arcTestnet.id;
 
-/** La phrase de chaque signature (ligne « statement » d'EIP-4361), en anglais : on la lit dans son wallet.
- *  En ASCII : c'est la grammaire d'EIP-4361, et un wallet ne contrôle le domaine que d'un message qu'il sait lire. Le
- *  site écrit exactement les mêmes (web/src/signin.ts ; services/api/test/security.test.ts vérifie qu'elles concordent).
- *  Toutes commencent par STATEMENT_PREFIX (le mode test ne signe que ces messages-là). */
+/** The sentence of each signature (the "statement" line of EIP-4361), in English: it is read in the wallet.
+ *  In ASCII: that is EIP-4361's grammar, and a wallet only checks the domain of a message it can read. The
+ *  site writes exactly the same ones (web/src/signin.ts; services/api/test/security.test.ts checks that they match).
+ *  All start with STATEMENT_PREFIX (test mode signs only these messages). */
 export const STATEMENT_PREFIX = "ArcHive: ";
 export const STATEMENT = {
   pair: (code: string) => `${STATEMENT_PREFIX}pair the machine showing code ${code} with my account`,
@@ -492,14 +492,14 @@ export const STATEMENT = {
   removeMachine: (machineId: string) => `${STATEMENT_PREFIX}remove machine ${machineId} from my account (its key is revoked)`,
   read: () => `${STATEMENT_PREFIX}read my operator data for 10 minutes (diagnostics, logs, machine and key names)`,
 } as const;
-/** ce que la grammaire d'EIP-4361 permet dans « statement » : lettres et chiffres ASCII, espace, ponctuation d'URI */
+/** what EIP-4361's grammar allows in "statement": ASCII letters and digits, space, URI punctuation */
 const STATEMENT_CHARS = /^[A-Za-z0-9 :/?#[\]@!$&'()*+,;=._~-]{1,200}$/;
 const RFC3339 = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])T([01]\d|2[0-3]):[0-5]\d:([0-5]\d|60)(\.\d{1,9})?(Z|[+-]([01]\d|2[0-3]):[0-5]\d)$/;
 
-/** Nonces SANS table : nonce = heure d'émission (12 hex, ms) + aléa (16 hex) + HMAC-SHA-256 tronqué à 128 bits (32 hex)
- *  de ces deux champs, sous une clé tirée au démarrage et gardée en mémoire seulement. 60 caractères alphanumériques
- *  (grammaire d'EIP-4361). L'API le vérifie sans rien stocker ; un redémarrage invalide les nonces en circulation
- *  (5 minutes au plus : le site en redemande un). */
+/** Nonces WITHOUT a table: nonce = issue time (12 hex, ms) + randomness (16 hex) + HMAC-SHA-256 truncated to 128 bits
+ *  (32 hex) of those two fields, under a key drawn at startup and kept in memory only. 60 alphanumeric characters
+ *  (EIP-4361's grammar). The API checks it without storing anything; a restart invalidates the nonces in circulation
+ *  (5 minutes at most: the site asks for a new one). */
 const NONCE_KEY = randomBytes(32);
 const NONCE_RE = /^([0-9a-f]{12})([0-9a-f]{16})([0-9a-f]{32})$/;
 const nonceMac = (t: string, r: string) => createHmac("sha256", NONCE_KEY).update(`archive-nonce/1/${t}/${r}`).digest().subarray(0, 16);
@@ -508,32 +508,32 @@ function issueNonce(now: number): string {
   const r = randomBytes(8).toString("hex");
   return t + r + nonceMac(t, r).toString("hex");
 }
-/** Un nonce émis ici : son heure d'émission et sa clé dans la liste des nonces consommés ; null sinon (forme, ou HMAC
- *  comparé en temps constant). La clé est une chaîne neuve et courte : elle ne retient pas le message signé en mémoire. */
+/** A nonce issued here: its issue time and its key in the list of consumed nonces; null otherwise (shape, or HMAC
+ *  compared in constant time). The key is a new short string: it does not keep the signed message in memory. */
 function openNonce(nonce: string): { issuedAt: number; id: string } | null {
   const m = NONCE_RE.exec(nonce);
   if (!m || !timingSafeEqual(nonceMac(m[1]!, m[2]!), Buffer.from(m[3]!, "hex"))) return null;
   return { issuedAt: parseInt(m[1]!, 16), id: Buffer.from(m[1]! + m[2]!, "hex").toString("base64") };
 }
 
-/** Les nonces CONSOMMÉS, seuls gardés : jusqu'à l'échéance du nonce, ou de la lecture qu'il a ouverte si elle est plus
- *  tardive (après quoi le nonce comme le message sont refusés d'eux-mêmes). Pour une lecture : l'empreinte de
- *  (adresse, message) qu'il a ouverte, et celle de la signature déjà vérifiée (la même, présentée de nouveau pendant les
- *  10 minutes, n'est pas revérifiée : la liste et le détail se relisent toutes les 10 à 15 s). */
+/** The CONSUMED nonces, the only ones kept: until the nonce's expiry, or that of the read it opened if later (after
+ *  which the nonce and the message are refused by themselves). For a read: the fingerprint of the (address, message)
+ *  it opened, and that of the signature already verified (the same one, presented again during the 10 minutes, is not
+ *  verified again: the list and the detail are read again every 10 to 15 s). */
 const consumed = new Map<string, { until: number; read?: string; sig?: string }>();
 const digest16 = (s: string) => createHash("sha256").update(s).digest().subarray(0, 16).toString("base64");
 const readSessionOf = (address: string, message: string) => digest16(address.toLowerCase() + "\n" + message);
 
 let signInsSweptAt = 0;
-/** efface les nonces consommés échus ; hors purge périodique (`force`), une fois par seconde au plus */
+/** erases expired consumed nonces; outside the periodic purge (`force`), at most once per second */
 function sweepSignIns(now = Date.now(), force = true) {
   if (!force && now - signInsSweptAt < 1_000) return;
   signInsSweptAt = now;
   for (const [k, v] of consumed) if (v.until < now) consumed.delete(k);
 }
 
-/** « message signé mal formé : … » : code « malformed_message », la partie fautive dans params.part (format, header,
- *  blank_lines, uri, version, nonce, time, expiry_window) et ses valeurs */
+/** "message signé mal formé : …": code "malformed_message", the faulty part in params.part (format, header,
+ *  blank_lines, uri, version, nonce, time, expiry_window) and its values */
 const malformed = (part: string, detailFr: string, params: Params = {}) =>
   new HttpError(400, "malformed_message", `message signé mal formé : ${detailFr}`, { params: { part, ...params } });
 
@@ -544,9 +544,9 @@ function timeLine(line: string, label: string): number {
   return t;
 }
 
-/** Lit un message EIP-4361 ligne à ligne et vérifie tout ce qui ne dépend pas de l'action ni du nonce :
- *  « <domaine> wants you to sign in with your Ethereum account: » / adresse EIP-55 / « » / phrase / « » / « URI: … » /
- *  « Version: 1 » / « Chain ID: 5042002 » / « Nonce: … » / « Issued At: … » / « Expiration Time: … » ; rien d'autre. */
+/** Reads an EIP-4361 message line by line and checks everything that does not depend on the action or the nonce:
+ *  "<domain> wants you to sign in with your Ethereum account:" / EIP-55 address / "" / statement / "" / "URI: …" /
+ *  "Version: 1" / "Chain ID: 5042002" / "Nonce: …" / "Issued At: …" / "Expiration Time: …"; nothing else. */
 function readSignIn(message: string, address: string) {
   const l = message.split("\n");
   if (l.length !== 11) {
@@ -571,9 +571,9 @@ function readSignIn(message: string, address: string) {
   return { statement: l[3]!, nonce: nm[1]!, issuedAt: timeLine(l[9]!, "Issued At"), expiresAt: timeLine(l[10]!, "Expiration Time") };
 }
 
-/** Pour le wallet du mode test (testSigner.ts) : la phrase du message si c'est une connexion ArcHive (EIP-4361) pour l'un
- *  de nos sites, au nom de `address`, avec un nonce émis ici, ni servi ni échu, et une durée de 10 minutes au plus ;
- *  null sinon. N'engage rien : la route qui recevra la signature refait toutes les vérifications. */
+/** For the test-mode wallet (testSigner.ts): the message's statement if it is an ArcHive sign-in (EIP-4361) for one
+ *  of our sites, in the name of `address`, with a nonce issued here, neither used nor expired, and a lifetime of 10
+ *  minutes at most; null otherwise. It commits to nothing: the route that receives the signature redoes every check. */
 export function arcHiveSignInStatement(text: string, address: string): string | null {
   try {
     if (text.length > 2000) return null;
@@ -588,8 +588,8 @@ export function arcHiveSignInStatement(text: string, address: string): string | 
   } catch { return null; }
 }
 
-/** présence de code à une adresse (smart wallet ERC-1271), mise en cache 10 min ; un RPC en panne n'est PAS mis en
- *  cache (sinon un smart wallet serait refusé 10 minutes après une panne passagère) */
+/** code at an address (ERC-1271 smart wallet), cached for 10 min; a failing RPC is NOT cached (otherwise a smart
+ *  wallet would be refused for 10 minutes after a passing outage) */
 const codeCache = new Map<string, { t: number; v: boolean }>();
 async function hasCode(pub: PublicClient, a: Address): Promise<boolean> {
   const k = a.toLowerCase();
@@ -602,30 +602,30 @@ async function hasCode(pub: PublicClient, a: Address): Promise<boolean> {
   codeCache.set(k, { t: Date.now(), v });
   return v;
 }
-/** EOA : vérification locale (aucun appel RPC) ; smart wallet (code à l'adresse, ou signature ERC-6492) : par le RPC */
+/** EOA: local check (no RPC call); smart wallet (code at the address, or an ERC-6492 signature): through the RPC */
 async function verifySignature(pub: PublicClient, address: Address, message: string, signature: Hex): Promise<boolean> {
   if (signature.length === 132) {
     try {
       const rec = await recoverMessageAddress({ message, signature });
       if (rec.toLowerCase() === address.toLowerCase()) return true;
-    } catch { /* signature mal formée : seul un smart wallet peut encore la valider */ }
+    } catch { /* malformed signature: only a smart wallet can still validate it */ }
     if (!(await hasCode(pub, address))) return false;
   }
   try { return await pub.verifyMessage({ address, message, signature }); } catch { return false; }
 }
 
-/** Ce qu'une route attend d'une signature : la phrase exacte de son action ; `read` pour la lecture réservée, que la
- *  même signature ouvre pendant ses 10 minutes (son nonce ne sert qu'une fois : au premier usage). */
+/** What a route expects from a signature: the exact statement of its action; `read` for the reserved read, which
+ *  the same signature opens for its 10 minutes (its nonce serves only once: at first use). */
 type Expect = { statement: string; read?: boolean };
 
 const spentError = () => new HttpError(409, "signature_used", "signature déjà utilisée (son nonce a servi) : signez à nouveau");
 
-/** Signature du wallet sur un message EIP-4361 construit par le site, vérifiée LIGNE À LIGNE (readSignIn), puis : la
- *  phrase de l'action, l'échéance (5 min pour une action, 10 pour la lecture), le nonce (émis ici, servi une fois,
- *  dans les 5 minutes), « Issued At » (pas avant l'émission du nonce, pas dans le futur), enfin la signature (EOA en
- *  local ; smart wallet ERC-1271 ou ERC-6492 par le RPC). Coût : tout ce qui précède la vérification est gratuit (texte,
- *  HMAC, table) ; une vérification ratée se compte par IP (`ip`), une réussie par compte, avant de consommer le nonce.
- *  Rend l'adresse (minuscules). */
+/** The wallet's signature on an EIP-4361 message built by the site, checked LINE BY LINE (readSignIn), then: the
+ *  action's statement, the expiry (5 min for an action, 10 for the read), the nonce (issued here, used once, within
+ *  5 minutes), "Issued At" (not before the nonce was issued, not in the future), and finally the signature (EOA
+ *  locally; ERC-1271 or ERC-6492 smart wallet through the RPC). Cost: everything before the verification is free (text,
+ *  HMAC, table); a failed verification counts per IP (`ip`), a successful one per account, before the nonce is consumed.
+ *  Returns the address (lower case). */
 async function walletAuth(pub: PublicClient, body: any, want: Expect, ip: string): Promise<string> {
   const { address, message, signature } = body ?? {};
   if (typeof address !== "string" || typeof message !== "string" || typeof signature !== "string") {
@@ -649,7 +649,7 @@ async function walletAuth(pub: PublicClient, body: any, want: Expect, ip: string
   if (!n || n.issuedAt > now + CLOCK_SKEW_MS) {
     throw new HttpError(401, "nonce_unknown", "nonce inconnu ou échu : signez à nouveau (le site demande un nonce neuf à chaque signature)");
   }
-  // une lecture déjà ouverte par ce même message (son nonce a servi au premier usage) vaut jusqu'à son échéance
+  // a read already opened by this same message (its nonce served at first use) is valid until its expiry
   const session = want.read ? readSessionOf(address, message) : undefined;
   const sig = digest16(signature.toLowerCase());
   const spent = consumed.get(n.id);
@@ -664,8 +664,8 @@ async function walletAuth(pub: PublicClient, body: any, want: Expect, ip: string
       throw new HttpError(400, "issued_at_mismatch", "« Issued At » incohérent avec l'émission du nonce : reprenez l'heure renvoyée par GET /auth/nonce");
     }
   }
-  // la vérification coûte (≈ 2 ms de processeur, ou le RPC) : sautée pour la signature déjà vérifiée de cette lecture,
-  // refusée d'office à une IP qui a déjà présenté trop de signatures invalides dans la minute
+  // the verification costs (≈ 2 ms of processor time, or the RPC): skipped for this read's already verified signature,
+  // refused outright to an IP that already presented too many invalid signatures in the minute
   if (!(reuse && spent.sig === sig)) {
     if (lim.badSignatures.count(ip) >= BAD_SIGNATURES_PER_IP) throw rateLimited("invalid_signatures", lim.badSignatures.retryAfter(ip));
     if (!(await verifySignature(pub, address as Address, message, signature as Hex))) {
@@ -674,7 +674,7 @@ async function walletAuth(pub: PublicClient, body: any, want: Expect, ip: string
     }
   }
   const operator = address.toLowerCase();
-  // relu APRÈS l'attente de la vérification : de deux requêtes simultanées portant le même message, une seule consomme le nonce
+  // read again AFTER waiting for the verification: of two simultaneous requests carrying the same message, only one consumes the nonce
   const now2 = Date.now();
   const again = consumed.get(n.id);
   if (again) {
@@ -682,8 +682,8 @@ async function walletAuth(pub: PublicClient, body: any, want: Expect, ip: string
     limit(lim.accountRead, operator, "account_reads");
     return operator;
   }
-  // premier usage : les plafonds du compte (signatures valides seulement), PUIS le nonce est consommé (un refus pour
-  // débit ne brûle pas la signature : elle resservira dans la minute suivante, avant son échéance)
+  // first use: the account's caps (valid signatures only), THEN the nonce is consumed (a refusal for the rate does not
+  // burn the signature: it can serve again in the next minute, before its expiry)
   if (session) {
     limit(lim.accountRead, operator, "account_reads");
     limit(lim.accountReadOpen, operator, "account_new_reads");
@@ -698,7 +698,7 @@ async function walletAuth(pub: PublicClient, body: any, want: Expect, ip: string
   return operator;
 }
 
-// ---------------------------------------------------------------- vues des machines
+// ---------------------------------------------------------------- machine views
 
 const regCache = new Map<string, { t: number; v: boolean }>();
 async function isRegistered(arc: ArcClient, m: Machine): Promise<boolean> {
@@ -708,7 +708,7 @@ async function isRegistered(arc: ArcClient, m: Machine): Promise<boolean> {
   if (hit && Date.now() - hit.t < 30_000) return hit.v;
   let v = false;
   try {
-    // v2 : inscrite = active pour son produit au bloc de tête, pour CET opérateur (la validité se compte en blocs)
+    // registered = active for its product at the head block, for THIS operator (validity is counted in blocks)
     const e = await arc.getEnclave(m.signer as Address);
     if (e && e.signer !== "0x0000000000000000000000000000000000000000") {
       const op = await arc.activeOperatorAt(m.signer as Address, BigInt(e.productId));
@@ -721,7 +721,7 @@ async function isRegistered(arc: ArcClient, m: Machine): Promise<boolean> {
 
 const isOnline = (m: Machine) => !!m.lastSeen && Date.now() - m.lastSeen < 90_000;
 const failingOf = (m: Machine) => (m.doctor?.checks ?? []).filter((x) => !x.ok).map((x) => x.id);
-/** Ce que tout le monde voit : l'état utile, sans nom de machine, sans adresse http://IP, sans journaux ni détail. */
+/** What everyone sees: the useful state, without a machine name, an http://IP address, logs or details. */
 function publicView(m: Machine, registered: boolean) {
   return {
     machineId: m.machineId, operator: m.operator, hostname: `machine ${m.machineId.slice(0, 8)}`, hostnameHidden: true,
@@ -729,35 +729,35 @@ function publicView(m: Machine, registered: boolean) {
     enclaveUrl: m.enclaveUrl && m.enclaveUrl.startsWith("https://") ? m.enclaveUrl : null,
     signer: m.signer, status: m.status, online: isOnline(m), lastSeen: m.lastSeen, createdAt: m.createdAt,
     doctorOk: m.doctor?.ok ?? null, failing: failingOf(m), registered, restricted: true,
-    // provenance explicite (null : machine d'avant ce champ) ; l'adresse qui a approuvé est celle du compte
+    // explicit provenance (null: a machine from before this field); the approving address is the account's
     pairedBy: m.pairedBy ?? null, approvedBy: m.approvedBy ?? null, viaKey: m.viaKey ?? null, pairedAt: m.pairedAt ?? null,
   };
 }
-/** Ce que voit l'opérateur dans sa liste (sans les journaux) */
+/** What the operator sees in their list (without the logs) */
 function ownerListView(m: Machine, registered: boolean) {
   return { ...publicView(m, registered), hostname: m.hostname, hostnameHidden: false, enclaveUrl: m.enclaveUrl, x25519: m.x25519, restricted: false };
 }
-/** Le détail complet, pour l'opérateur seul : diagnostic et journaux */
+/** The full detail, for the operator alone: diagnosis and logs */
 function ownerDetailView(m: Machine, registered: boolean) {
   return { ...ownerListView(m, registered), doctor: m.doctor, logs: logsOf.get(m.machineId) ?? [] };
 }
 
 type Reader = { operator: string; machineId: string | null };
-/** une clé arcop_ dans Authorization (facultative) ; une clé présente mais fausse → 401 */
+/** an arcop_ key in Authorization (optional); a key present but wrong → 401 */
 function readerFromBearer(c: Context): Reader | null {
   const h = c.req.header("authorization");
   if (!h) return null;
   const k = bearer(h);
   return { operator: k.operator, machineId: k.machineId };
 }
-/** une clé de machine ne lit que SA machine ; une clé libre lit toutes les machines de son opérateur */
+/** a machine key reads only ITS machine; a free key reads all of its operator's machines */
 const canRead = (r: Reader | null, m: Machine) => !!r && r.operator === m.operator && (!r.machineId || r.machineId === m.machineId);
 
 const machinesOf = (op: string) => Object.values(db.machines).filter((m) => m.operator === op);
 const pendingByCode = (code: string, now = Date.now()) =>
   Object.values(db.pairs).find((p) => p.userCode === code && p.status === "pending" && p.expiresAt > now);
 
-/** l'appairage (déjà approuvé ou servi, pas encore échu) de ce code, s'il y en a un */
+/** this code's pairing (already approved or served, not expired yet), if there is one */
 const takenByCode = (code: string, now = Date.now()) =>
   Object.values(db.pairs).find((p) => p.userCode === code && p.status !== "pending" && p.expiresAt > now);
 const codeUnknown = () => new HttpError(404, "code_unknown", "code inconnu ou expiré : relancez « archive-node pair » sur la machine");
@@ -773,8 +773,8 @@ const keysOf = (op: string) => Object.values(db.keys).filter((k) => k.operator =
 
 // ---------------------------------------------------------------- purge
 
-/** Appairages expirés (tous statuts) effacés. Une approbation jamais remise à la machine : sa clé est révoquée et la
- *  machine, jamais vue, retirée (keyPlain ne reste pas sur disque). */
+/** Expired pairings (any status) are erased. An approval never handed to the machine: its key is revoked and the
+ *  machine, never seen, is removed (keyPlain does not stay on disk). */
 function purge(now = Date.now()) {
   let changed = false;
   for (const [dc, p] of Object.entries(db.pairs)) {
@@ -803,19 +803,19 @@ export function registerOperatorRoutes(app: Hono, arc: ArcClient) {
         if (e.retryAfter) c.header("Retry-After", String(e.retryAfter));
         return c.json(errorBody(e.code, e.message, e.params), e.status as any);
       }
-      console.error("opérateurs :", String(e?.stack ?? e).slice(0, 400));
+      console.error("operators:", String(e?.stack ?? e).slice(0, 400));
       return c.json(errorBody("internal_error", "erreur interne de l'API opérateurs"), 500);
     }
   };
   const tooBig = (c: Context) => c.json(bodyTooLarge(), 413);
   for (const p of ["/pair/*", "/operator/*", "/machines/*"]) app.use(p, bodyLimit({ maxSize: BODY_MAX, onError: tooBig }));
 
-  purge(); // au démarrage
+  purge(); // at startup
   setInterval(() => purge(), 60_000).unref();
 
-  // ---- connexion signée (EIP-4361) : un nonce neuf pour chaque signature du wallet ----
-  // L'heure d'émission est rendue telle quelle : le site la reprend dans « Issued At » (aucun écart d'horloge possible).
-  // Rien n'est stocké ici : le nonce porte sa propre preuve (HMAC) ; seul son usage le sera.
+  // ---- signed sign-in (EIP-4361): a new nonce for each wallet signature ----
+  // The issue time is returned as is: the site reuses it in "Issued At" (no clock drift possible).
+  // Nothing is stored here: the nonce carries its own proof (HMAC); only its use will be.
   app.get("/auth/nonce", wrap(async (c) => {
     limit(lim.nonce, clientIp(c), "nonce_requests");
     const now = Date.now();
@@ -829,7 +829,7 @@ export function registerOperatorRoutes(app: Hono, arc: ArcClient) {
     });
   }));
 
-  // ---- appairage par code (flux « appareil ») ----
+  // ---- pairing by code ("device" flow) ----
   app.post("/pair/start", wrap(async (c) => {
     const ip = clientIp(c);
     limit(lim.pairStart, ip, "code_requests");
@@ -860,11 +860,11 @@ export function registerOperatorRoutes(app: Hono, arc: ArcClient) {
     const deviceCode = randomBytes(16).toString("hex");
     db.pairs[deviceCode] = { deviceCode, userCode: code, hostname, mode, version, createdAt: now, expiresAt: now + PAIR_TTL_MS, status: "pending", ip: tag, net: ntag };
     save();
-    // « #/operator » : la route anglaise (alias du site), lue telle quelle dans le terminal de l'opérateur
+    // "#/operator": the English route (an alias of the site), read as is in the operator's terminal
     return c.json({ deviceCode, userCode: code, verifyUrl: `${WEB_URL}/#/operator?code=${code}`, expiresIn: PAIR_TTL_MS / 1000, interval: 3 });
   }));
 
-  // le site vérifie qu'un code existe ; le nom de la machine n'est remis qu'après la signature (réponse de /pair/approve)
+  // the site checks that a code exists; the machine's name is given only after the signature (answer of /pair/approve)
   app.get("/pair/:code", wrap(async (c) => {
     const ip = clientIp(c), net = netOf(ip);
     limit(lim.pairLookup, ip, "code_lookups");
@@ -890,13 +890,13 @@ export function registerOperatorRoutes(app: Hono, arc: ArcClient) {
       lim.fails.take(net);
       throw codeUnknown();
     }
-    // la signature nomme LE code (forme normalisée HIVE-XXXX-XXXX) : elle n'approuve aucune autre machine
+    // the signature names THE code (normalized form HIVE-XXXX-XXXX): it approves no other machine
     const operator = await walletAuth(pub, b, { statement: STATEMENT.pair(code) }, ip);
     const p = pendingByCode(code);
     if (!p) {
-      // déjà approuvé (pas encore échu) : par un AUTRE compte (409, la machine montrera son adresse : refusez-la là-bas),
-      // ou par ce compte-ci (un autre onglet, un double envoi) ; sinon inconnu ou échu (404, compté comme code faux).
-      // Seul le signataire d'un message qui nomme CE code l'apprend : la différence ne révèle aucun code à deviner.
+      // already approved (not expired yet): by ANOTHER account (409, the machine will show its address: refuse it there),
+      // or by this account (another tab, a double send); otherwise unknown or expired (404, counted as a wrong code).
+      // Only the signer of a message that names THIS code learns it: the difference reveals no code to guess.
       const taken = takenByCode(code);
       if (taken?.operator && taken.operator !== operator) {
         throw new HttpError(409, "pair_already_approved", "ce code vient d'être approuvé par un autre compte : relancez « archive-node pair » sur la machine et vérifiez l'adresse qu'elle affiche");
@@ -933,12 +933,12 @@ export function registerOperatorRoutes(app: Hono, arc: ArcClient) {
     if (p.status === "pending") return c.json({ status: p.expiresAt > Date.now() ? "pending" : "expired" });
     if (p.status === "consumed" || !p.keyPlain) return c.json({ status: "consumed" });
     const key = p.keyPlain;
-    p.keyPlain = undefined; p.status = "consumed"; save(); // la clé ne sort qu'UNE fois
+    p.keyPlain = undefined; p.status = "consumed"; save(); // the key leaves only ONCE
     return c.json({ status: "approved", key, machineId: p.machineId, operator: p.operator });
   }));
 
-  // La machine refuse l'appairage : l'humain, devant l'adresse complète du compte qui a approuvé son code, a répondu
-  // « non » (ce n'est pas son wallet). Sa clé meurt, et la machine, jamais vue, disparaît du compte qui l'avait approuvée.
+  // The machine refuses the pairing: the person, shown the full address of the account that approved their code,
+  // answered "no" (it is not their wallet). Its key dies, and the machine, never seen, leaves the account that approved it.
   app.post("/pair/reject", wrap(async (c) => {
     limit(lim.signed, clientIp(c), "pairing_refusals");
     const k = bearer(c.req.header("authorization"));
@@ -950,7 +950,7 @@ export function registerOperatorRoutes(app: Hono, arc: ArcClient) {
     return c.json({ ok: true });
   }));
 
-  // ---- clés opérateur (pour la machine, la CLI, le serveur MCP) ----
+  // ---- operator keys (for the machine, the CLI, the MCP server) ----
   app.post("/operator/keys", wrap(async (c) => {
     const ip = clientIp(c);
     limit(lim.signed, ip, "signatures");
@@ -970,7 +970,7 @@ export function registerOperatorRoutes(app: Hono, arc: ArcClient) {
     return c.json({ key, keyId: rec.keyId, masked: mask(key) });
   }));
 
-  // liste : complète avec une clé arcop_ libre de cet opérateur ; sinon sans les libellés (qui peuvent nommer la machine)
+  // list: complete with a free arcop_ key of this operator; otherwise without the labels (which can name the machine)
   app.get("/operator/keys", wrap(async (c) => {
     limit(lim.keyList, clientIp(c), "key_reads");
     const a = String(c.req.query("address") ?? "");
@@ -980,7 +980,7 @@ export function registerOperatorRoutes(app: Hono, arc: ArcClient) {
     const full = !!r && r.operator === op && !r.machineId;
     return c.json(keysOf(op).map((k) => keyView(k, full)));
   }));
-  // liste complète (vrais libellés) sur signature de lecture (la même ouvre tout pendant 10 min)
+  // complete list (real labels) with a read signature (the same one opens everything for 10 min)
   app.post("/operator/keys/list", wrap(async (c) => {
     const ip = clientIp(c);
     limit(lim.signedRead, ip, "signed_reads");
@@ -1008,7 +1008,7 @@ export function registerOperatorRoutes(app: Hono, arc: ArcClient) {
     const key = bearer(c.req.header("authorization"));
     limit(lim.heartbeatKey, key.keyId, "key_heartbeats");
     const b = await readJson(c);
-    // validation stricte des champs typés (un champ faux → 400, rien n'est enregistré)
+    // strict validation of the typed fields (one wrong field → 400, nothing is saved)
     const hostname = cleanHostname(b.hostname);
     const mode = b.mode === undefined ? undefined : enumOf(b.mode, MODES, "mode");
     const status = enumOf(b.status ?? "running", STATUSES, "status");
@@ -1022,7 +1022,7 @@ export function registerOperatorRoutes(app: Hono, arc: ArcClient) {
       const checks: Check[] = (b.doctor.checks as unknown[]).slice(0, 30)
         .filter((x: any) => x && typeof x === "object" && typeof x.id === "string" && /^[a-z0-9_-]{1,32}$/.test(x.id))
         .map((x: any) => ({ id: x.id, label: cleanText(x.label, 80), ok: x.ok === true, detail: cleanText(x.detail, 300) }));
-      // tdx_guest, tsm_report, dstack_socket : une seule des trois voies d'attestation suffit
+      // tdx_guest, tsm_report, dstack_socket: any one of the three attestation paths is enough
       doctor = checks.length ? { ok: checks.every((x) => x.ok || ["tdx_guest", "tsm_report", "dstack_socket"].includes(x.id)), checks } : undefined;
     }
     if (b.logs !== undefined && !Array.isArray(b.logs)) throw new HttpError(400, "invalid_logs", "logs invalide : attendu un tableau de lignes");
@@ -1045,8 +1045,8 @@ export function registerOperatorRoutes(app: Hono, arc: ArcClient) {
         pairedBy: "key", approvedBy: key.operator, viaKey: key.keyId, pairedAt: now,
       };
     } else if (!key.machineId && (m.pairedBy !== "key" || m.viaKey !== key.keyId)) {
-      // une clé LIBRE reprend une machine existante (même nom) : ce qu'elle annonce désormais n'a été confirmé sur aucune
-      // machine ; le site redemande confirmation avant l'inscription
+      // a FREE key takes over an existing machine (same name): what it announces from now on was confirmed on no
+      // machine; the site asks for confirmation again before the registration
       Object.assign(m, { pairedBy: "key", approvedBy: key.operator, viaKey: key.keyId, pairedAt: Date.now() });
     }
     Object.assign(m, {
@@ -1064,7 +1064,7 @@ export function registerOperatorRoutes(app: Hono, arc: ArcClient) {
     return c.json({ ok: true, machineId: m.machineId, operator: m.operator, next: { registered: await isRegistered(arc, m) } });
   }));
 
-  // liste d'un opérateur (?operator= obligatoire) : vue publique, ou complète (sans journaux) avec sa clé arcop_
+  // an operator's list (?operator= required): public view, or complete (without logs) with its arcop_ key
   app.get("/machines", wrap(async (c) => {
     const a = String(c.req.query("operator") ?? "");
     if (!ADDR_RE.test(a)) throw new HttpError(400, "operator_param_expected", "paramètre operator attendu (0x + 40 caractères hexadécimaux)");
@@ -1074,7 +1074,7 @@ export function registerOperatorRoutes(app: Hono, arc: ArcClient) {
     return c.json(list.map((m, i) => (canRead(r, m) ? ownerListView(m, regs[i]!) : publicView(m, regs[i]!))));
   }));
 
-  // une machine : vue publique ; diagnostic et journaux avec une clé arcop_ de son opérateur
+  // one machine: public view; diagnosis and logs with an arcop_ key of its operator
   app.get("/machines/:id", wrap(async (c) => {
     const id = c.req.param("id");
     const m = UUID_RE.test(id) ? db.machines[id] : undefined;
@@ -1084,7 +1084,7 @@ export function registerOperatorRoutes(app: Hono, arc: ArcClient) {
     const reg = await isRegistered(arc, m);
     return c.json(r ? ownerDetailView(m, reg) : publicView(m, reg));
   }));
-  // la liste de l'opérateur en entier (noms des machines, adresses d'enclave) sur signature de lecture (10 min)
+  // the operator's whole list (machine names, enclave addresses) with a read signature (10 min)
   app.post("/machines/list", wrap(async (c) => {
     const ip = clientIp(c);
     limit(lim.signedRead, ip, "signed_reads");
@@ -1094,7 +1094,7 @@ export function registerOperatorRoutes(app: Hono, arc: ArcClient) {
     return c.json(list.map((m, i) => ownerListView(m, regs[i]!)));
   }));
 
-  // diagnostic et journaux sur signature de lecture (la même ouvre tout pendant 10 min)
+  // diagnosis and logs with a read signature (the same one opens everything for 10 min)
   app.post("/machines/:id/detail", wrap(async (c) => {
     const ip = clientIp(c);
     limit(lim.signedRead, ip, "signed_reads");
@@ -1114,7 +1114,7 @@ export function registerOperatorRoutes(app: Hono, arc: ArcClient) {
     const operator = await walletAuth(pub, b, { statement: STATEMENT.removeMachine(id) }, ip);
     const m = db.machines[id];
     if (!m || m.operator !== operator) throw machineNotFound();
-    for (const k of Object.values(db.keys)) if (k.machineId === id) revoke(k); // sa clé meurt avec elle
+    for (const k of Object.values(db.keys)) if (k.machineId === id) revoke(k); // its key dies with it
     delete db.machines[id]; logsOf.delete(id); save();
     return c.json({ ok: true });
   }));
