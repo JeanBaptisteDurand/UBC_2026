@@ -6,7 +6,7 @@ export interface ExecResult {
   code: number | null;
   stdout: string;
   stderr: string;
-  /** binaire introuvable (ENOENT) */
+  /** binary not found (ENOENT) */
   missing?: boolean;
   timedOut?: boolean;
   aborted?: boolean;
