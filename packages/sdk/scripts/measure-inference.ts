@@ -1,11 +1,11 @@
 // Operator script for Arc testnet: it reads its funded testnet key from .secrets/ at the repository root (git-ignored,
 // never committed). Run it from packages/sdk with `npx tsx scripts/measure-inference.ts`.
 /**
- * measure-inference.ts — mesure la latence et le débit de l'IA privée, de bout en bout comme un client :
- * session ouverte on-chain, requêtes chiffrées (HPKE) vers la VRAIE enclave Intel TDX (Phala), reçus vérifiés,
- * en direct ou à travers le proxy HTTPS du site (pile v2 : les clés de l'enclave sont vérifiées on-chain avant tout
- * chiffrement, la session est verrouillée sur elle). N requêtes séquentielles ; latence médiane et p90, jetons par seconde.
- * Usage : N=8 [ENCLAVE_URL=https://…-8802.dstack-pha1-prod9.phala.network] npx tsx scripts/measure-inference.ts
+ * measure-inference.ts — measures the latency and throughput of private inference, end to end like a client:
+ * a session opened on-chain, requests encrypted (HPKE) to the REAL Intel TDX enclave (Phala), receipts verified,
+ * directly or through the site's HTTPS proxy (the enclave's keys are verified on-chain before any encryption, and the
+ * session is locked to it). N sequential requests; median and p90 latency, tokens per second.
+ * Usage: N=8 [ENCLAVE_URL=https://…-8802.dstack-pha1-prod9.phala.network] npx tsx scripts/measure-inference.ts
  */
 import { readFileSync } from "node:fs";
 import { createPublicClient, createWalletClient, http, parseUnits, type Hex } from "viem";
@@ -22,10 +22,10 @@ const wallet = createWalletClient({ account, chain: arcTestnet, transport: http(
 const arc = createArcClient({ publicClient: pub as any, walletClient: wallet as any, account });
 
 const Q = [
-  "En une phrase, qu'est-ce qu'une enclave Intel TDX ?",
-  "Pourquoi un reçu signé par l'enclave est-il utile pour payer à l'usage ?",
-  "Donne deux usages d'une IA dont personne ne peut lire les questions.",
-  "Qu'est-ce que l'USDC, en une phrase ?",
+  "In one sentence, what is an Intel TDX enclave?",
+  "Why is a receipt signed by the enclave useful for paying per use?",
+  "Give two uses of an AI whose questions nobody can read.",
+  "What is USDC, in one sentence?",
 ];
 
 async function main() {
@@ -45,9 +45,9 @@ async function main() {
   lat.sort((a, b) => a - b);
   const med = lat[Math.floor(lat.length / 2)]!, p90 = lat[Math.min(lat.length - 1, Math.floor(lat.length * 0.9))]!;
   const totalS = lat.reduce((a, b) => a + b, 0) / 1000;
-  console.log(`session #${s.sessionId} ouverte et confirmée en ${openMs} ms`);
-  console.log(`${N} requêtes chiffrées vers l'enclave TDX : latence médiane ${med} ms, p90 ${p90} ms, min ${lat[0]} ms, max ${lat[lat.length - 1]} ms`);
-  console.log(`jetons : ${tokIn} lus, ${tokOut} écrits ; débit de sortie ≈ ${(tokOut / totalS).toFixed(1)} jetons/s (de bout en bout, chiffrement et vérification compris)`);
-  console.log(`reçus authentifiés et payables : ${okReceipts}/${N}`);
+  console.log(`session #${s.sessionId} opened and confirmed in ${openMs} ms`);
+  console.log(`${N} encrypted requests to the TDX enclave: median latency ${med} ms, p90 ${p90} ms, min ${lat[0]} ms, max ${lat[lat.length - 1]} ms`);
+  console.log(`tokens: ${tokIn} read, ${tokOut} written; output throughput ≈ ${(tokOut / totalS).toFixed(1)} tokens/s (end to end, encryption and verification included)`);
+  console.log(`authenticated and payable receipts: ${okReceipts}/${N}`);
 }
-main().catch((e) => { console.error("ÉCHEC :", explainArcError(e)); process.exit(1); });
+main().catch((e) => { console.error("FAILED:", explainArcError(e)); process.exit(1); });

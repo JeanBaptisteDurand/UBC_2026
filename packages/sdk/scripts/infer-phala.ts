@@ -1,8 +1,8 @@
 // Operator script for Arc testnet: it reads its funded testnet key from .secrets/ at the repository root (git-ignored,
 // never committed). Run it from packages/sdk with `npx tsx scripts/infer-phala.ts`.
-/** infer-phala.ts — session + inférence réelle contre l'enclave TDX live (pile v2, déjà inscrite par DCAP).
- *  Les clés de l'enclave sont vérifiées on-chain avant tout chiffrement ; la session est verrouillée sur elle (son prix,
- *  son modèle et son unité aussi, lus au produit à l'ouverture).
+/** infer-phala.ts — a session + real inference against a live TDX enclave (already registered through DCAP).
+ *  The enclave's keys are verified on-chain before any encryption; the session is locked to it (and so are its price,
+ *  model and unit, read from the product at opening).
  *  Usage : [ENCLAVE_URL=…] npx tsx scripts/infer-phala.ts */
 import { readFileSync } from "node:fs";
 import { createPublicClient, createWalletClient, http, parseUnits, type Hex } from "viem";
@@ -18,15 +18,15 @@ const arc = createArcClient({ publicClient: pub as any, walletClient: wallet as 
 
 async function main() {
   const p = await arc.getProduct(PRODUCT_INFERENCE);
-  console.log(`produit #${p.id} : ${Number(p.price) / 1e6} USDC par unité (${p.unitTokens} jeton(s) par unité, sortie ×${p.outWeight})`);
+  console.log(`product #${p.id}: ${Number(p.price) / 1e6} USDC per unit (${p.unitTokens} token(s) per unit, output ×${p.outWeight})`);
   const s = await arc.openSession({ productId: PRODUCT_INFERENCE, enclaveUrl: V2_INFERENCE_URL, deposit: parseUnits("2", 6) });
   await pub.waitForTransactionReceipt({ hash: s.tx });
-  console.log(`session #${s.sessionId} ouverte (dépôt 2 USDC), verrouillée sur l'enclave ${s.enclave}`);
+  console.log(`session #${s.sessionId} opened (deposit 2 USDC), locked to enclave ${s.enclave}`);
   const ai = createInferenceClient({ enclaveUrl: V2_INFERENCE_URL, sessionId: s.sessionId, sessionKey: s.sessionKey, publicClient: pub as any });
-  for (const q of ["En une phrase : qu'est-ce qu'une enclave Intel TDX ?", "Donne un exemple d'usage en 1 phrase."]) {
+  for (const q of ["In one sentence: what is an Intel TDX enclave?", "Give one example of a use in 1 sentence."]) {
     const out = await ai.chat.completions.create({ messages: [{ role: "user", content: q }] });
-    console.log(`\nQ: ${q}\nIA: ${out.text}\n   reçu authentifié, payable on-chain : ${out.verified} · cumul ${out.receipt.cumulativeUnits} unités`);
+    console.log(`\nQ: ${q}\nAI: ${out.text}\n   authenticated receipt, payable on-chain: ${out.verified} · cumulative ${out.receipt.cumulativeUnits} units`);
   }
-  console.log("\n✅ bout-en-bout v2 : clés de l'enclave vérifiées on-chain, inférence chiffrée, reçus signés et authentifiés.");
+  console.log("\n✅ end to end: the enclave's keys verified on-chain, encrypted inference, signed and authenticated receipts.");
 }
 main().catch((e) => { console.error("ERREUR:", explainArcError(e)); process.exit(1); });

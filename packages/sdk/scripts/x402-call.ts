@@ -1,13 +1,13 @@
 // Operator script for Arc testnet: it reads its funded testnet key from .secrets/ at the repository root (git-ignored,
 // never committed). Run it from packages/sdk with `npx tsx scripts/x402-call.ts`.
 /**
- * x402-call.ts — paie N appels d'inférence À L'APPEL (x402, schéma « exact ») à la VRAIE enclave sealed-x402, comme un
- * agent : clé de l'enclave vérifiée on-chain, 402 géré par le SDK, autorisation EIP-3009 signée (le payeur n'envoie
- * aucune transaction pour payer), réponse déchiffrée, reçu vérifié. Ensuite :
- *  - SETTLE_NOW=1 : le payeur règle lui-même chaque appel (X402Settler.settle, il paie le gaz) : paiement + preuve
- *    d'enclave + partage dans la même transaction ;
- *  - sinon : on attend (jusqu'à WAIT_S secondes) que le registrar de l'opérateur règle (USDC.authorizationState).
- * Usage (depuis packages/sdk) :
+ * x402-call.ts — pays N inference calls PER CALL (x402, "exact" scheme) to the REAL sealed-x402 enclave, the way an
+ * agent does: the enclave's key verified on-chain, the 402 handled by the SDK, an EIP-3009 authorization signed (the
+ * payer sends no transaction to pay), the answer decrypted, the receipt verified. Then:
+ *  - SETTLE_NOW=1: the payer settles each call itself (X402Settler.settle, it pays the gas): payment + enclave
+ *    proof + split in the same transaction;
+ *  - otherwise: it waits (up to WAIT_S seconds) for the operator's registrar to settle (USDC.authorizationState).
+ * Usage (from packages/sdk):
  *   DEPLOYMENTS=deployments.v21.testnet.json ENCLAVE_URL=https://…-8804.dstack-pha1-prod9.phala.network \
  *   [PRODUCT_ID=3] [N=3] [SETTLE_NOW=1] [WAIT_S=120] [PAYER_KEY_FILE=.secrets/deployer.json] npx tsx scripts/x402-call.ts
  */
@@ -27,7 +27,7 @@ const PRODUCT_ID = BigInt(process.env.PRODUCT_ID ?? String(D.products?.x402 ?? 0
 const N = Number(process.env.N ?? "3");
 const WAIT_S = Number(process.env.WAIT_S ?? "120");
 if (!ENCLAVE || PRODUCT_ID === 0n) {
-  console.error("ENCLAVE_URL et PRODUCT_ID requis (PRODUCT_ID : le produit réglé par X402Settler, ex. 3 sur la v2.1)");
+  console.error("ENCLAVE_URL and PRODUCT_ID are required (PRODUCT_ID: the product settled by X402Settler, e.g. 3 on v2.1)");
   process.exit(1);
 }
 
@@ -37,15 +37,15 @@ const chain = { ...arcTestnet, id: D.chainId };
 const pub = createPublicClient({ chain, transport: http(process.env.RPC_URL, { retryCount: 5, retryDelay: 800 }) });
 const wallet = createWalletClient({ account, chain, transport: http(process.env.RPC_URL) });
 const Q = [
-  "En une phrase : qu'est-ce qu'une enclave Intel TDX ?",
-  "En une phrase : pourquoi payer une IA à l'appel plutôt qu'à l'abonnement ?",
-  "En une phrase : que prouve un reçu signé par une enclave ?",
+  "In one sentence: what is an Intel TDX enclave?",
+  "In one sentence: why pay for an AI per call rather than by subscription?",
+  "In one sentence: what does a receipt signed by an enclave prove?",
 ];
 
 async function main() {
   const ai = createX402Client({ enclaveUrl: ENCLAVE, productId: PRODUCT_ID, walletClient: wallet as any, publicClient: pub as any, deployment: D });
   const p = await ai.product();
-  console.log(`payeur ${account.address} · produit #${PRODUCT_ID} · ${Number(p.pricePerCall) / 1e6} USDC par appel · X402Settler ${D.x402Settler}`);
+  console.log(`payer ${account.address} · product #${PRODUCT_ID} · ${Number(p.pricePerCall) / 1e6} USDC per call · X402Settler ${D.x402Settler}`);
   const done: X402Completion[] = [];
   for (let i = 0; i < N; i++) {
     const t = Date.now();
@@ -54,22 +54,22 @@ async function main() {
       r = await ai.chat.completions.create({ messages: [{ role: "user", content: Q[i % Q.length]! }] });
     } catch (e) {
       if (!(e instanceof X402PaidCallError)) throw e;
-      // appel PAYÉ sans réponse vérifiée : on reprend la MÊME requête (aucune 2e facturation) après 10 s
+      // a PAID call with no verified answer: the SAME request is resumed (no second charge) after 10 s
       console.warn(`#${i + 1} ${e.message}`);
       await new Promise((ok) => setTimeout(ok, 10_000));
       r = await ai.resume(e.pending);
-      console.log(`#${i + 1} repris : réponse ${r.replay ? "gardée par l'enclave (replay)" : "servie"}`);
+      console.log(`#${i + 1} resumed: answer ${r.replay ? "kept by the enclave (replay)" : "served"}`);
     }
     done.push(r);
     console.log(
-      `#${i + 1} ${Date.now() - t} ms · ${Number(r.amount) / 1e6} USDC autorisés · reçu de ${r.signer} (bloc ${r.receipt.anchorBlock}, réglable : ${r.settleable}) · « ${r.text.slice(0, 100).replace(/\s+/g, " ")} »`,
+      `#${i + 1} ${Date.now() - t} ms · ${Number(r.amount) / 1e6} USDC authorized · receipt from ${r.signer} (block ${r.receipt.anchorBlock}, settleable: ${r.settleable}) · "${r.text.slice(0, 100).replace(/\s+/g, " ")}"`,
     );
   }
   if (process.env.SETTLE_NOW === "1") {
     for (const r of done) {
       const tx = await ai.settle(r);
       const rc = await pub.waitForTransactionReceipt({ hash: tx });
-      console.log(`réglé par le payeur : ${tx} (statut ${rc.status}, gas ${rc.gasUsed})`);
+      console.log(`settled by the payer: ${tx} (status ${rc.status}, gas ${rc.gasUsed})`);
     }
     return;
   }
@@ -78,11 +78,11 @@ async function main() {
     const states = await Promise.all(done.map((r) => ai.isSettled(r)));
     const n = states.filter(Boolean).length;
     if (n === done.length) {
-      console.log(`les ${n} appels sont réglés on-chain par le registrar de l'opérateur (X402Settler.settle)`);
+      console.log(`the ${n} calls are settled on-chain by the operator's registrar (X402Settler.settle)`);
       return;
     }
     if (Date.now() > until) {
-      console.log(`${n}/${done.length} appels réglés après ${WAIT_S} s : vérifier le registrar x402 (journal « x402 : »)`);
+      console.log(`${n}/${done.length} calls settled after ${WAIT_S} s: check the x402 registrar (its "x402:" log lines)`);
       return;
     }
     await new Promise((r) => setTimeout(r, 5_000));
@@ -90,6 +90,6 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error("ÉCHEC :", explainArcError(e));
+  console.error("FAILED:", explainArcError(e));
   process.exit(1);
 });
