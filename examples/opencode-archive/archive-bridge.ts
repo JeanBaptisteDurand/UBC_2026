@@ -354,7 +354,7 @@ app.post("/v1/chat/completions", async (c) => {
       log({ ok: true, call, ms, stream: !!body.stream, msgs: messages.length, bytes, tools: tools.length, reply: tc ? `tool_call:${tc.name}` : "text", cutNote: cutNote || undefined, usage, ...x_arc });
       say(`call #${call}  sealed to enclave ${short(r.signer)} (key checked on Arc)  paid ${Number(r.amount) / 1e6} USDC  receipt verified  ${(ms / 1000).toFixed(1)} s  -> ${tc ? `tool call: ${tc.name}` : "answer"}${cutNote ? `  [${cutNote}]` : ""}`);
     } catch (e: any) {
-      const base = { ok: false, call, ms: Date.now() - t0, stream: !!body.stream, msgs: messages.length, bytes, error: String(e?.message ?? e).slice(0, 300) };
+      const base = { ok: false, call, ms: Date.now() - t0, stream: !!body.stream, msgs: messages.length, bytes, error: String(e?.en ?? e?.message ?? e).slice(0, 300) };
       if (e instanceof X402PaidCallError) {
         const code = String((e as any).code ?? "");
         log({ ...base, kind: "paid_call_error", code, nonce: (e as any).pending?.nonce });
@@ -367,12 +367,12 @@ app.post("/v1/chat/completions", async (c) => {
         const st = (e as any).status;
         log({ ...base, kind: e instanceof X402CallError ? "refused_before_payment" : "challenge_refused", status: st, code: (e as any).code ?? (e as any).reason });
         say(`call #${call}  refused BEFORE payment (${st ?? ""} ${(e as any).code ?? (e as any).reason ?? ""}): nothing signed`);
-        return c.json({ error: { message: `ArcHive refused before payment: ${e.message}`, type: st === 413 ? "request_too_large" : "invalid_request_error" } }, st === 413 ? 413 : 400);
+        return c.json({ error: { message: `ArcHive refused before payment: ${e?.en ?? e.message}`, type: st === 413 ? "request_too_large" : "invalid_request_error" } }, st === 413 ? 413 : 400);
       }
       log({ ...base, kind: "other" });
-      say(`call #${call}  error: ${String(e?.message ?? e).slice(0, 120)}`);
+      say(`call #${call}  error: ${String(e?.en ?? e?.message ?? e).slice(0, 120)}`);
       failures.set(reqKey, (failures.get(reqKey) ?? 0) + 1);
-      return c.json({ error: { message: `ArcHive bridge: ${String(e?.message ?? e)}`, type: "invalid_request_error" } }, 400);
+      return c.json({ error: { message: `ArcHive bridge: ${String(e?.en ?? e?.message ?? e)}`, type: "invalid_request_error" } }, 400);
     }
   }
 
