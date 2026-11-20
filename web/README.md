@@ -13,21 +13,24 @@ viem talks to Arc. The ArcHive SDK (`../packages/sdk`) is compiled from source, 
 
 ## Screens
 
-| Menu | Screen | What it does |
-| --- | --- | --- |
-| Explore | Overview (`screens/Overview.tsx`) | The proof chain of a live enclave, link by link, and the latest activity on Arc |
-| Explore | Hive (`screens/Hive.tsx`) | The registered enclaves, with their operator, product, level and price |
-| Explore | 3D server room (`/datacenter/`) | The same enclaves as racks in a server room, live |
-| Explore | Products (`screens/Products.tsx`) | The seven products, their settlement rail and their price |
-| Explore | Bounties (`screens/Bounties.tsx`, `screens/Bounty.tsx`) | Sealed bounties at the open and verified levels. A hunter proves an exploit in an enclave, on a copy of Arc. The accepted claim reserves the payout, and the delivered report pays it |
-| Use | Private AI (`screens/Playground.tsx`, `Chat.tsx`, `X402Chat.tsx`) | An encrypted chat with the inference enclave, prepaid by session or paid per call with x402 |
-| Use | Keys & sessions (`screens/Keys.tsx`) | Your sessions (each locked to one enclave), access keys (`aek_`) backed by a prepaid session, operator keys (`arcop_`) and the local OpenAI-compatible proxy |
-| Use | Post a bounty (`screens/PostBounty.tsx`) | Fund a sealed bounty in USDC |
-| Provide | Operator (`screens/Operator.tsx`) | From bare machine to paid enclave: install the agent, pair it with your wallet, follow its checks and its bond |
-| Provide | Publish a product (`screens/Publish.tsx`) | Register a product and its manifest on Arc |
-| Account | Wallet (`screens/Wallet.tsx`) | Your USDC on Arc, your operator bond, and the way to bring USDC over from other chains with CCTP |
-| Build | Developers (`screens/Developers.tsx`) | The MCP server, the SDK, the CLI, the API endpoints, the enclave routes and the contract addresses |
-| Every page | AskHive (`screens/FloatingCopilot.tsx`, `CopilotActions.tsx`) | Explains the page and prepares actions that you sign with your own wallet (Cmd+K / Ctrl+K) |
+| Menu | Screen | Route | What it does |
+| --- | --- | --- | --- |
+| Explore | Overview (`screens/Overview.tsx`) | `#/vue` | The proof chain of a live enclave, link by link, and the latest activity on Arc |
+| Explore | Hive (`screens/Hive.tsx`) | `#/ruche` | The registered enclaves, with their operator, product, level and price |
+| Explore | 3D server room (`datacenter-src/`) | `/datacenter/` | The same enclaves as racks in a server room, live |
+| Explore | Products (`screens/Products.tsx`) | `#/produits` | The seven products, their settlement rail and their price |
+| Explore | Bounties (`screens/Bounties.tsx`, `screens/Bounty.tsx`) | `#/primes` | Sealed bounties at the open and verified levels. A hunter proves an exploit in an enclave, on a copy of Arc. The accepted claim reserves the payout, and the delivered report pays it |
+| Use | Private AI (`screens/Playground.tsx`, `Chat.tsx`, `X402Chat.tsx`) | `#/playground` | An encrypted chat with the inference enclave, prepaid by session or paid per call with x402 |
+| Use | Keys & sessions (`screens/Keys.tsx`) | `#/cles` | Your sessions (each locked to one enclave), access keys (`aek_`) backed by a prepaid session, operator keys (`arcop_`) and the local OpenAI-compatible proxy |
+| Use | Post a bounty (`screens/PostBounty.tsx`) | `#/publier-prime` | Fund a sealed bounty in USDC |
+| Provide | Operator (`screens/Operator.tsx`) | `#/operateur` | From bare machine to paid enclave: install the agent, pair it with your wallet, follow its checks and its bond |
+| Provide | Publish a product (`screens/Publish.tsx`) | `#/publier-produit` | Register a product and its manifest on Arc |
+| Account | Wallet (`screens/Wallet.tsx`) | `#/portefeuille` | Your USDC on Arc, your operator bond, and the way to bring USDC over from other chains with CCTP |
+| Build | Developers (`screens/Developers.tsx`) | `#/developpeurs` | The MCP server, the SDK, the CLI, the API endpoints, the enclave routes and the contract addresses |
+| Every page | AskHive (`screens/FloatingCopilot.tsx`, `CopilotActions.tsx`) | on every route | Explains the page and prepares actions that you sign with your own wallet (Cmd+K / Ctrl+K) |
+
+The routes keep their original names, mostly French: shared links and AskHive use them, and the labels follow the
+language.
 
 ## How it reads and checks the chain
 

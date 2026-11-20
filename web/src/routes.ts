@@ -6,7 +6,8 @@ import {
 import { t, type StaticKey } from "./i18n";
 
 /** ArcHive's menu: each capability has ONE home, grouped by intent (like a SaaS console).
- *  Route ids keep their original names (shared links, the copilot); the labels follow the language. */
+ *  Route ids keep their original names, mostly French: shared links and the copilot use them. The labels follow the
+ *  language. */
 export type RouteId =
   | "vue" | "ruche" | "produits" | "primes"
   | "playground" | "cles" | "publier-prime"
