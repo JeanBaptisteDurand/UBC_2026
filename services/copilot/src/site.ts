@@ -1,33 +1,33 @@
-/** site.ts — the copilot's "site" surface, AskHive (COPILOT_SURFACE=site; Caddy serves it under /copilot-site/): the
- *  panel of the marketplace site (home, products, technology, use, service, bounties, sessions, operator, rent, publish,
- *  demo), following docs/COPILOT-SITE-CONTRACT.md §2-§4, including the pages where the visitor signs (Bounties,
- *  Sessions, Operator; Network). The "console" surface (the default) does not depend on it and stays unchanged
- *  (test/console-pin.test.ts).
- *  - Prompt: the console's, with the paragraph that drives the console's screens replaced by SITE_UI_PARAGRAPH
- *    (assembled in copilot.ts: SITE_SYSTEM): the copilot SHOWS while it explains, one interface action at a time, each
- *    told in a short sentence (reason, note), at most 3 per answer; it answers about a product in the buyer's order (for
- *    whom, price, how to start, guarantees, proof); a sheet of checked FACTS (frontend/src/products/faits.json) overrides
- *    its memory; it never invents an address.
- *  - Tools: the console's, except its ui_navigate (the console's screens), replaced by the site's interface tools:
- *    ui_navigate, ui_highlight, ui_demo. They run IN THE BROWSER: the server only validates them (enumerations, numbers,
- *    bounded strings, anchors known on the page) and returns the normalized input ({ ok: true, … }) or
- *    { ok: false, error }, to the model and to the panel, which runs the ok ones in order. The current page is tracked
- *    during the request (the `page` context, then each accepted ui_navigate); at most 3 accepted actions per answer;
- *    none after network, datacenter or console (the panel is not there).
+/** site.ts — AskHive, the copilot's "site" surface (COPILOT_SURFACE=site; Caddy serves it under /copilot-site/). It is
+ *  the panel of the marketplace site and follows docs/COPILOT-SITE-CONTRACT.md §2-§4, including the pages where the
+ *  visitor signs (Bounties, Sessions, Operator and the Network roles). The "console" surface (the default) does not
+ *  depend on it and stays unchanged (test/console-pin.test.ts).
+ *
+ *  - Prompt: the console's, with SITE_UI_PARAGRAPH in place of the paragraph that drives the console's screens
+ *    (copilot.ts assembles SITE_SYSTEM). The copilot SHOWS while it explains: one interface action at a time, each told
+ *    in a short sentence (reason, note), at most 3 per answer. It answers about a product in the buyer's order (for
+ *    whom, price, how to start, guarantees, proof). A dated FACTS paragraph overrides its memory, and it never invents
+ *    an address.
+ *  - Tools: the console's, with the site's four interface tools in place of the console's ui_navigate: ui_navigate,
+ *    ui_highlight, ui_demo and ui_guide. They run IN THE BROWSER. The server only validates them (enumerations,
+ *    numbers, bounded strings, anchors known on the page) and returns the normalized input ({ ok: true, … }) or
+ *    { ok: false, error } to the model and to the panel, which runs the ok ones in order.
+ *  - The current page is tracked during the request: the `page` context, then each accepted ui_navigate. An answer
+ *    gets at most 3 accepted actions, and none after datacenter or console (the panel is not there).
  *  - Context: the request's `page` field (the page on screen) is validated and bounded, then stated in ONE line of the
- *    prompt ("The user is looking at: …"); any invalid or unknown value is dropped silently, never copied.
+ *    prompt ("The user is looking at: …"). Any invalid or unknown value is dropped silently, never copied.
  *  - docs_search: the console's knowledge base, with the console-only entries (screens, Developers page, levels)
  *    replaced by the site's (SITE_KB): pages, product families, market, notary, contracts.
- *  The model's answers and captions (reason, note) follow the language of the user's last message when app.ts
- *  recognises it, otherwise the site's; pages and buttons keep their on-screen labels (siteLanguageDirective).
- *  The copilot GUIDES: a fourth interface tool, ui_guide, is a step-by-step tour of ONE page (at most 6 steps, each
- *  highlighted with its note) that the browser plays; the server validates it (page, anchors of the shared registry,
- *  120-character notes, never a button that signs, copying limited to the commands on screen) and returns it
- *  normalized. The guide never signs or clicks: on a step where the visitor signs (wait "signature"), it waits.
- *  Four checked recipes (install, operator, session, bounty) give the steps and notes in the answer's language; app.ts's
- *  fallback plays them when a clear request (install the tool, launch an enclave, open a session, post a bounty) gets
- *  no guide. Where the copilot runs is said in one line (SITE_WHERE_NOTE on the site's server; in an enclave, its own
- *  note): never "in an enclave" on the server. */
+ *  - Language: the answers and captions (reason, note) follow the language of the user's last message when app.ts
+ *    recognizes it, otherwise the site's. Pages and buttons keep their on-screen labels (siteLanguageDirective).
+ *  - Guides: ui_guide is a step-by-step tour of ONE page (at most 6 steps, each highlighted with its note) that the
+ *    browser plays. The server validates it: the page, anchors of the shared registry, 120-character notes, never a
+ *    button that signs, copying limited to the commands on screen. The guide never signs or clicks: on a step where
+ *    the visitor signs (wait "signature"), it waits. Four checked recipes (install, operator, session, bounty) give
+ *    the steps and notes in the answer's language. app.ts's fallback plays them when a clear request (install the
+ *    tool, launch an enclave, open a session, post a bounty) gets no guide.
+ *  - Where the copilot runs is said in one line: SITE_WHERE_NOTE on the site's server, its own note in an enclave.
+ *    Never "in an enclave" on the server. */
 import { BUTTONS, MASKED_NOTE_EN, PAGES, type Lang, type PageId } from "./i18n";
 import { DISPLAY, KB, TOOL_DEFS, executeTool, searchDocs, type ToolCtx } from "./tools";
 import { scrubSecrets } from "./secrets";
@@ -241,8 +241,8 @@ export const SITE_PAGE_LABELS: Record<Lang, Record<SitePage, string>> = {
 // ---------------------------------------------------------------- the prompt and the tools
 
 /** The prompt paragraph that drives the site (it replaces the console's; copilot.ts assembles SITE_SYSTEM): the
- *  gestures, the order of an answer about a product, where the visitor signs, the allowed addresses, then the FACTS
- *  (the checked sheet frontend/src/products/faits.json), which override the model's memory. Every character counts: the
+ *  gestures, the order of an answer about a product, where the visitor signs, the allowed addresses, then the dated
+ *  FACTS, which override the model's memory. Every character counts: the
  *  prompt is sent with every model call and weighs on the input token budget (app.ts). */
 export const SITE_UI_PARAGRAPH = `You are AskHive, the ArcHive site's assistant: the name on this panel and on the AskHive button of every page. AskHive is product 4 on Arc, the attested copilot: in its own Intel TDX enclave the conversation is sealed to the enclave's key (HPKE) and every answer is signed by that key, registered on Arc; when that enclave cannot be reached, the site's server answers in its place (server mode). Where THIS answer runs is the WHERE YOU RUN line: never claim more. Always call yourself AskHive, in every language. Where the site shows AskHive: the AskHive button on every page (on the landing's first screen, the hero's "Ask AskHive" button stands in for it: home, anchor top); its own sheet in Services, product 4, family attested-copilot ("Ask about ArcHive in AskHive", button "Open AskHive"); in the Doc, the Tokenomics chapter's card #4. Asked where the site presents AskHive: show those places (ui_navigate service with productId 4, then ui_highlight attested-copilot; or home, ui_highlight top), never say there is none.
 You DRIVE the site in front of the user: you live in a panel of the ArcHive site, and its pages move when you call your four UI tools, which the user's browser runs: ui_navigate (open a page; scroll to a section), ui_highlight (make an element of the displayed page glow, with a note), ui_demo (play the 3D demo of the Network page) and ui_guide (walk the user through a task, step by step, on one page). These actions happen ONLY by CALLING the tools: never write a tool name, its parameters (recipe, target, action, wait...), an anchor, JSON, a table or a list of "UI actions" in your reply; the user sees only your text. SHOW while you explain: one action at a time, each told in ONE short sentence in its caption (reason, note), in the user's language (e.g. "Here is the Rent role", in French « Voici la Prime scellée »); never more than 3 UI actions per answer; then answer in a few sentences, without repeating the captions. Show things on the site's EXISTING pages (list in ui_navigate), never invent a place: service (Services) is the shop window: what ArcHive sells in 5 families, for whom, at what price, why a sealed machine (productId opens that product's family and sheet); doc (Doc) explains how Arc checks every machine, one chapter at a time (section = chapter); space (My space) holds the visitor's own bounties, sessions, machines and services, read by wallet: bounty, sessions and operator are its tabs, where the visitor acts with their wallet; network shows the roles in 3D (section = a view: arc, cctp, demo), and its three roles are the pages use (a paid call), rent (rent out a machine) and publish (publish a service), each its steps signed by the visitor's wallet (/network.html?focus=use, rent or publish). A demo, "show me how it works", "show me a demo": ui_demo (the Network page's 3D demo, "How ArcHive works" in 3 chapters: 1 publish the service, 2 bring an enclave, 3 use it; or one role's own demo; or part refusal: Arc refusing a machine whose image changed), then explain the chapter shown; there is no separate demo page. datacenter and console leave your panel: last action only, and only when asked or for what only the console does (aek_ and arcop_ keys, wallet). "The hive", "the enclaves" = the wall (home, anchor wall). What runs NOW: answer from the LIVE STATUS line (product by product); call enclaves_list only for details (signers, operators, windows), and copy an address only from its own row. The labels of these instructions (LIVE STATUS, FACTS, WHERE YOU RUN) and the sources of docs_search are internal: never write them in a reply (say "right now, read on Arc").
@@ -309,7 +309,7 @@ export const SITE_DISPLAY: Record<string, string> = { ...DISPLAY, ui_navigate: "
 
 // ---------------------------------------------------------------- the site's knowledge base
 
-/** What each page of the site shows and what can be bought there (checked facts: frontend/src/products/faits.json), for
+/** What each page of the site shows and what can be bought there (checked facts), for
  *  docs_search. The site's entries come BEFORE the console's (SITE_KB). On equal scores the first one wins (searchDocs):
  *  first the single-topic entries (status, MCP), then the pages and the developers' entry, then the product families
  *  and the technology, overviews last. The entries are in English: every accented character counts as 3 tokens in the
@@ -857,9 +857,9 @@ function guide(a: unknown, current: SitePage | undefined, lang: Lang, first?: Si
 }
 
 /** The interface tools of ONE request: the current page (the `page` context, then each accepted ui_navigate or
- *  ui_guide) and the number of accepted actions (MAX_UI_ACTIONS at most). After network, datacenter or console, nothing
- *  runs any more; nor after a guide (it holds the page: one guide per answer, last). `lang`: the answer's language (the
- *  recipes' notes). */
+ *  ui_guide) and the number of accepted actions (MAX_UI_ACTIONS at most). After datacenter or console, nothing runs any
+ *  more; nor after a guide (it holds the page: one guide per answer, last). `lang`: the answer's language (the recipes'
+ *  notes). */
 export function createUiSession(start?: string, lang: Lang = "en"): UiSession {
   // a preview page (products, technology) is followed to the page that holds it (Services, Doc), as in the front
   const at = typeof start === "string" ? PAGE_ALIAS[start] ?? start : start;

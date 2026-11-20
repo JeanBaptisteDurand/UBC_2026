@@ -1,42 +1,53 @@
-/** app.ts — the copilot's HTTP app (Hono), with no global state: server.ts mounts it with the real model and the real
- *  tools (so does enclave-app.ts, in an enclave), the tests with a simulated model. Guards:
- *  - CORS limited to the site (ALLOWED_ORIGINS) and a request from another origin refused server-side; JSON only;
- *    body ≤ 64 KiB; conversation validated (user and assistant roles, text only, 20 messages, 4,000 characters each,
- *    16,000 in total); per-IP rate (20 per minute, 300 per day) and a global daily cap; tools capped (4 per round, 10 per
- *    request; extra calls in a round are neither run nor returned to the model) and at most 6 model calls per request;
- *    a global timeout below Caddy's;
- *  - bounded cost: max_tokens on every model call (2,000 by default) and a SUMMED cap on the tool results returned to
- *    the model during a request (40,000 characters by default, refusals included); beyond it, no more tools and a
- *    text-only answer;
- *  - secrets filter on the messages (stricter on the user's), on EACH tool result sent to the model (machine logs
- *    included) and on the answer; the server's secrets (the model key) are removed from everything that goes out;
- *  - a model provider's error is never returned as is: the visitor gets a generic message and a code (modele_401,
- *    modele_429, modele_delai…), the filtered detail goes to the server's log;
- *  - language (i18n.ts): the body's `lang` field ("en" | "fr"), else the language of the user's last message, else
- *    Accept-Language, else English; answers, refusals and action messages in that language (refusals before the body
- *    is read follow Accept-Language); every refusal also carries a stable `code`;
- *  - encrypted conversation (`sealed` option, copilot in an enclave): POST /chat also accepts { sealed, enc, ciphertext },
- *    a conversation encrypted with HPKE to the enclave's X25519 key (checked on Arc by the client); everything after it
- *    is opened (refusals included) goes back SEALED for that client only, with HTTP 200 and the real status inside the
- *    ciphertext. Clear mode stays accepted (compatibility);
- *  - cost: the model's OUTPUTS sent back at the next round (text and tool-call arguments) count in the summed history
- *    cap (COPILOT_MAX_TOOL_CHARS), like tool results; and a summed INPUT budget per request (COPILOT_MAX_INPUT_CHARS,
- *    160,000 characters by default: prompt, tool definitions and history of EACH model call): a tool round is allowed
- *    only if the final call after it still fits the budget, and no call exceeds it (beyond it, a local answer with code
- *    input_budget);
- *  - per-IP rate of the copilot in an enclave (`proxyToken` option): POST /chat requires the site proxy's
- *    x-archive-proxy-token header (constant-time comparison), otherwise 403 proxy_required, and X-Forwarded-For is
- *    trusted only when it is right; /health (and, in the enclave, /attest and /pubkeys) stay public. Without the option
- *    (on the server), nothing changes;
- *  - the input budget is ALSO counted in ESTIMATED TOKENS (COPILOT_MAX_INPUT_TOKENS, 50,000 by default; estimateTokens:
- *    0.3 token per ASCII character, 3 per other character, over the prompt, tool definitions and history of EACH call),
- *    because 98,000 characters of Yi syllables make about 139,000 tokens. A HARD limit, first call included: the oldest
- *    history is dropped so that it fits (otherwise a local answer, code input_budget). The character budget
- *    (COPILOT_MAX_INPUT_CHARS) stays as well;
- *  - site surface only (the console does not change): ui_guide validated in the loop like the other interface tools
- *    (notes in the answer's language); the guide fallback (a clear request to do something with no guide played: its
- *    page if it is not on screen, then its recipe); the site's "where you run" line (whereNote) when no enclave note
- *    (systemNote) replaces it. */
+/** app.ts — the copilot's HTTP app (Hono), with no global state. server.ts mounts it with the real model and tools,
+ *  and so does enclave-app.ts inside an enclave; the tests mount it with a simulated model.
+ *
+ *  Requests
+ *  - CORS is limited to the site (ALLOWED_ORIGINS), and the server refuses a request from another origin.
+ *  - JSON only, with a body of 64 KiB at most.
+ *  - The conversation is validated: user and assistant roles, text only, 20 messages, 4,000 characters each and
+ *    16,000 in total.
+ *  - A per-IP rate limit (20 per minute, 300 per day) and a global daily cap apply.
+ *  - A global timeout stays below Caddy's.
+ *
+ *  Tools and cost
+ *  - At most 4 tools run per round and 10 per request; a round's extra calls are neither run nor sent back to the
+ *    model. A request makes at most 6 model calls.
+ *  - Every model call carries max_tokens (2,000 by default).
+ *  - A summed history cap (COPILOT_MAX_TOOL_CHARS, 40,000 characters by default) counts the tool results, refusals
+ *    included, and the model's outputs sent back at the next round (text and tool-call arguments). Beyond it, no more
+ *    tools run and the answer is text only.
+ *  - A summed input budget per request covers the prompt, the tool definitions and the history of EACH model call. It
+ *    is counted in characters (COPILOT_MAX_INPUT_CHARS, 160,000 by default) and in ESTIMATED tokens
+ *    (COPILOT_MAX_INPUT_TOKENS, 50,000 by default; estimateTokens: 0.3 token per ASCII character, 3 per other
+ *    character), because 98,000 characters of Yi syllables make about 139,000 tokens.
+ *  - The token budget is a HARD limit, first call included: the oldest history is dropped so that it fits. A tool round
+ *    runs only if the final call after it still fits. Otherwise the answer is local, with the code input_budget.
+ *
+ *  Secrets and errors
+ *  - The secrets filter covers the messages (stricter on the user's), EACH tool result sent to the model (machine logs
+ *    included) and the answer. The server's own secrets (the model key) are removed from everything that goes out.
+ *  - A model provider's error is never returned as is. The visitor gets a generic message and a code (modele_401,
+ *    modele_429, modele_delai…); the filtered detail goes to the server's log.
+ *
+ *  Language (i18n.ts)
+ *  - The answer's language is the body's `lang` field ("en" | "fr"), else the language of the user's last message,
+ *    else Accept-Language, else English. Answers, refusals and action messages use it; refusals before the body is
+ *    read follow Accept-Language. Every refusal also carries a stable `code`.
+ *
+ *  In an enclave
+ *  - Sealed conversation (`sealed` option): POST /chat also accepts { sealed, enc, ciphertext }, a conversation
+ *    encrypted with HPKE to the enclave's X25519 key, which the client checks on Arc. Once it is opened, everything
+ *    goes back SEALED for that client only (refusals included), with HTTP 200 and the real status inside the
+ *    ciphertext. Clear mode stays accepted for compatibility.
+ *  - Proxy token (`proxyToken` option): POST /chat requires the site proxy's x-archive-proxy-token header, compared in
+ *    constant time; otherwise 403 proxy_required. X-Forwarded-For is trusted only with the right token. /health stays
+ *    public, and so do /attest and /pubkeys in the enclave. Without the option (on the server), nothing changes.
+ *
+ *  Site surface only (the console does not change)
+ *  - ui_guide is validated in the loop like the other interface tools, with notes in the answer's language.
+ *  - The guide fallback: a clear request to do something, with no guide played, gets its page (when it is not on
+ *    screen), then its recipe.
+ *  - The site's "where you run" line (whereNote) applies when no enclave note (systemNote) replaces it. */
 import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
 import { type Address, type Hex, toBytes, toHex } from "viem";
