@@ -1,0 +1,58 @@
+# AskHive, the attested copilot of the site's panel, v3 stack (Arc testnet, deployed 19 Nov 2026, product 4): the SAME
+# program as copilot-site-v22.yml (the site surface: prompt, interface tools rendered by the browser, prepare tools the
+# visitor signs with THEIR wallet, docs_search; no tool that spends) in its own Intel TDX VM (PRODUCTION dstack-0.5.12
+# OS image, tdx.small, node prod9). Image r5 (enclave/Dockerfile.copilot): r4's program and v3 knowledge
+# (copilot-site-v3.yml) plus the coding-agent knowledge (services/copilot/src/site.ts, claude-code.ts, site-urls.ts:
+# OpenCode through opencode-arc and any OpenAI-compatible tool on product 3 through the local bridge of
+# examples/opencode-archive, Claude Code in text only, paying from a Circle developer-controlled wallet), and the v3
+# deployments file WITH its levels block baked in (/app/deployments/deployments.v3.testnet.json). Built on 20 Nov 2026
+# from the askhive-r5 commit 8171fdc0 (git archive: r4's source 0c21a568 plus that knowledge), with the options of
+# enclave/Dockerfile.copilot (SOURCE_DATE_EPOCH=1794960000), pushed as
+# ghcr.io/jeanbaptistedurand/archive-copilot-enclave:v3-site-r5; its bundle is byte for byte the tested one.
+# Only two measured values differ from v22: REGISTRY (the v3 EnclaveRegistry 0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E,
+# which must equal the file's: services/copilot/src/enclave-config.ts) and DEPLOYMENTS (the v3 file). The question
+# arrives encrypted to the enclave (ARC-COPILOT-CHAT-v1); each answer goes back sealed for the request AND signed by the
+# enclave's key registered on Arc (ARC-COPILOT-SITE-REPLY-v1, bound to the v3 registry). MODEL_ATTESTATION=aci: the model
+# gateway (RedPill) is VERIFIED by the enclave before any call (Intel quote, production OS image, pinned TLS, receipts
+# required; GET /model-attestation), otherwise the enclave refuses to start.
+# EVERYTHING below is measured (compose-hash -> image fingerprint allowed by the author of product 4), the surface, the
+# model and its URL included: an operator can neither change the prompt nor plug in another model under the "attested"
+# badge. ENCRYPTED variables (not measured, never written here): OPENAI_API_KEY (the model provider's key),
+# OPERATOR_ALLOWLIST (public operator addresses), COPILOT_PROXY_TOKEN (>= 32 bytes, hexadecimal: only the site's proxy
+# can ask questions; /attest, /pubkeys, /health and /model-attestation stay public), and the image registry credentials
+# (DSTACK_DOCKER_REGISTRY, DSTACK_DOCKER_USERNAME, DSTACK_DOCKER_PASSWORD). Never DEBUG, env_file or NODE_OPTIONS here
+# (the enclave refuses to start with DEBUG).
+services:
+  copilot-enclave:
+    image: ghcr.io/jeanbaptistedurand/archive-copilot-enclave@sha256:24396a643fcf96a94ab5809c66bda36aed096bad825fbc3fd4b4565e0fbec567
+    ports:
+      - "8808:8808"
+    environment:
+      - PORT=8808
+      - PRODUCT_ID=4
+      - CHAIN_ID=5042002
+      - REGISTRY=0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E
+      - DEPLOYMENTS=/app/deployments/deployments.v3.testnet.json
+      - RPC_URL=https://rpc.testnet.arc.io
+      - COPILOT_SURFACE=site
+      - OPENAI_BASE_URL=https://tee.redpill.ai/v1
+      - MODEL_ATTESTATION=aci
+      - MODEL_GATEWAY_OS_IMAGES=8db40cb23008d6213668b5816702d100b37b859a8a5bfd18d938ae3a1b3715bd
+      - COPILOT_MODEL=openai/gpt-oss-120b
+      - COPILOT_MAX_TOKENS=2000
+      - COPILOT_MAX_TOOL_CHARS=40000
+      - COPILOT_MAX_INPUT_TOKENS=120000
+      - COPILOT_MAX_INPUT_CHARS=320000
+      - COPILOT_RATE_PER_MINUTE=20
+      - COPILOT_RATE_PER_DAY=300
+      - COPILOT_GLOBAL_PER_DAY=1000
+      - ALLOWED_ORIGINS=https://archive.62-171-153-35.sslip.io
+      - ARCHIVE_API=https://archive.62-171-153-35.sslip.io/api
+      - ENCLAVE_URL=https://archive.62-171-153-35.sslip.io/enclave/inference
+      - ENCLAVE_PATH_PREFIXES=/enclave/inference,/enclave/bounty,/enclave/x402
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPERATOR_ALLOWLIST=${OPERATOR_ALLOWLIST}
+      - COPILOT_PROXY_TOKEN=${COPILOT_PROXY_TOKEN}
+    volumes:
+      - /var/run/dstack.sock:/var/run/dstack.sock
+    restart: unless-stopped
