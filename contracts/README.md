@@ -35,8 +35,8 @@ The runtime code of all 14 contracts of the v3 deployment on Arc testnet matches
 On 20 Nov 2026 the comments and NatSpec in `src/` were translated from French to English. Nothing else changed:
 `forge build` gives every contract the same creation and runtime bytecode as before, apart from the metadata hash
 that solc appends (it covers every byte of a source, comments included), and `forge test` still passes all 253
-tests. The annotated tag `contracts-original-comments` keeps the sources exactly as deployed, with their original
-French comments.
+tests. The sources exactly as deployed, with their original French comments, are those of commit
+[`d63e9c29`](https://github.com/JeanBaptisteDurand/UBC_2026/tree/d63e9c294beeb48bcddc4f593dee5ae242ea98c2/contracts/src).
 
 ## Contracts
 
