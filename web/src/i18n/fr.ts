@@ -3,8 +3,6 @@
 import type { Dict } from "./en";
 
 const s = (n: number) => (n > 1 ? "s" : "");
-/** French "de" before a name, elided before a vowel: « d'Ethereum Sepolia », « de Base Sepolia ». */
-const de = (x: string) => (/^[aeiouyâàéèêëîïôöûüAEIOUYÂÀÉÈÊËÎÏÔÖÛÜ]/.test(x) ? `d'${x}` : `de ${x}`);
 
 export const fr: Dict = {
   // ---------- page
@@ -1074,23 +1072,6 @@ export const fr: Dict = {
   "wallet.cctp.title": "Rapatrier de l'USDC vers Arc",
   "wallet.cctp.lead": "Bridge : transfert standard CCTP gratuit, 1 USDC envoyé = 1 USDC reçu sur Arc.",
   "wallet.cctp.link": "Ouvrir le Bridge",
-  "onramp.title": "Vos USDC sur les autres chaînes",
-  "onramp.sub": "Lisez vos soldes sur chaque chaîne, puis rapatriez-les vers Arc avec CCTP : l'USDC est brûlé au départ et frappé sur Arc, sans glissement (hors gas).",
-  "onramp.address": "Adresse (vide = portefeuille connecté)",
-  "onramp.reading": "lecture…",
-  "onramp.show": "Voir mes USDC",
-  "onramp.total": "Total multi-chaînes",
-  "onramp.onArc": "Sur Arc",
-  "onramp.toMove": "À rapatrier",
-  "onramp.byChain": "Soldes par chaîne",
-  "onramp.domain": "domaine CCTP {n}",
-  "onramp.convert": "Convertir →Arc",
-  "onramp.needConfig": "sur la page Pont",
-  "onramp.note": "Pour apporter des USDC d'Ethereum Sepolia ou de Base Sepolia sur Arc, passez par la page Pont du site, {link} : CCTP de Circle, transferts standard gratuits (1 USDC envoyé = 1 USDC reçu), 3 étapes signées dans votre propre wallet : autoriser et brûler ({burn}), l'attestation de Circle (environ 15 à 19 min), puis {mint} sur Arc.",
-  "onramp.err.429": (v) => `le RPC ${de(v.chain)} limite le débit (HTTP 429) : réessayez dans quelques secondes`,
-  "onramp.err.http": (v) => `le RPC ${de(v.chain)} a répondu par une erreur (HTTP ${v.status})`,
-  "onramp.err.down": (v) => `le RPC ${de(v.chain)} ne répond pas`,
-  "onramp.err.slow": (v) => `le RPC ${de(v.chain)} a mis trop de temps à répondre`,
 
   // ---------- developers
   "dev.title": "Développeurs",
