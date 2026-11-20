@@ -618,11 +618,11 @@ test("site prompt: the FACTS sheet, the visitor signs with their wallet, no inve
   // the site asks for signatures (Bounties, Sessions, Operator, Rent, Publish): no sentence says "the site only reads"
   const siteTexts = [SITE_SYSTEM, ...SITE_UI_TOOL_DEFS.map((t) => JSON.stringify(t)), ...SITE_PAGES_KB.map((k) => k.text)];
   for (const t of siteTexts) assert.ok(!/ne fait que lire|only reads/i.test(t), t.slice(0, 120));
-  // every absolute address the site gives the model is on the site (the panel itself links hashes to the explorer),
+  // every absolute address the site gives the model is on the site, under either of its names (the panel itself links hashes to the explorer),
   // except the arcvault CLI's local proxy and the example's local bridge and LiteLLM gateway, on the visitor's machine
   // (the Claude Code and coding-agent entries), and ArcHive's code on GitHub (examples/opencode-archive)
   const OFF_SITE = ["http://localhost:8787/v1", "http://127.0.0.1:8789/v1", "http://127.0.0.1:8789", "http://127.0.0.1:4000", "https://github.com/JeanBaptisteDurand/UBC_2026"];
-  for (const t of siteTexts) for (const u of urls(t)) assert.ok(u.startsWith(SITE_ORIGIN) || OFF_SITE.includes(u), `${u} dans ${t.slice(0, 80)}`);
+  for (const t of siteTexts) for (const u of urls(t)) assert.ok(u.startsWith(SITE_ORIGIN) || u.startsWith("https://arc-hive.xyz/") || OFF_SITE.includes(u), `${u} dans ${t.slice(0, 80)}`);
   // "5 contracts" appears only to be forbidden
   for (const t of [SITE_SYSTEM, ...SITE_PAGES_KB.map((k) => k.text)]) {
     for (const m of t.matchAll(/5 contra(?:cts|ts)/gi)) assert.match(t.slice(Math.max(0, m.index! - 12), m.index!), /never|jamais/i, t.slice(0, 80));
