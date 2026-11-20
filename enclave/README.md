@@ -34,11 +34,17 @@ signs with their own wallet.
 
 ## Measured compose files
 
-`phala/` holds the app-compose file of each enclave. dstack measures each file byte for byte, comments included, so
-the files stay exactly as deployed. `phala/README.md` describes each one in English.
+`phala/` holds the docker-compose of each enclave. dstack does not hash these files on their own. It hashes the VM's
+whole `app-compose.json`, whose `docker_compose_file` field holds the file, every byte of it, comments included. The
+other fields (the pre-launch script, the names of the encrypted variables, dstack's options) are not in this
+repository. That SHA-256, the compose-hash, goes into the TDX register RTMR3 as the `compose-hash` event. Arc replays
+the RTMR3 event log against the Intel-signed quote and puts the compose-hash into the image fingerprint that a product
+allows. One changed byte in a file therefore gives another fingerprint, so the files stay exactly as deployed.
+`phala/README.md` gives the exact chain, how to recompute it, and the check of 20 Nov 2026 against Arc. It also
+describes each file in English.
 
-`docker-compose.bounty.yml` is a template of the Sealed Bounty machine's app-compose (a real replay by anvil on a fork
-of Arc at block N). It leaves the image digest as a parameter; the deployed files in `phala/` pin it in clear.
+`docker-compose.bounty.yml` is a template of the Sealed Bounty machine's docker-compose (a real replay by anvil on a
+fork of Arc at block N). It leaves the image digest as a parameter; the deployed files in `phala/` pin it in clear.
 
 ## Build the images
 

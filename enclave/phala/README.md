@@ -1,17 +1,64 @@
 # Phala Cloud compose files (measured)
 
-Each file here is the app-compose of one ArcHive enclave on Phala Cloud (dstack, Intel TDX). dstack measures the whole
-file, comments included, into the compose hash. The image fingerprint that a product's author allows on Arc is derived
-from that hash. These files therefore stay exactly as deployed, with their original comments. Most of those comments
-are in French; the two refutation-demo files are in English. This page describes every file in English.
+Each file here is the docker-compose of one ArcHive enclave on Phala Cloud (dstack, Intel TDX). dstack does not hash
+this file on its own: it hashes the VM's whole `app-compose.json`, and each file here is one field of that JSON. One
+changed byte in a file, a comment or a space included, gives another compose-hash and so another image fingerprint.
+These files therefore stay exactly as deployed, with their original comments. Most of those comments are in French;
+the two refutation-demo files are in English. This page describes every file in English.
+
+## What is measured, exactly
+
+1. **The compose-hash.** A Phala VM boots from an `app-compose.json`. Its `docker_compose_file` field holds one of the
+   files in this folder as a string, every byte of it. Its other fields are the pre-launch script
+   (`pre_launch_script`, which among other things logs in to the image registry), the names of the encrypted
+   variables (`allowed_envs`) and dstack's options (`name`, `kms_enabled`, `gateway_enabled`, `public_logs`,
+   `no_instance_id`, `runner` and a few more). The compose-hash is the SHA-256 of that JSON, written compact, with
+   sorted keys and UTF-8 text left unescaped.
+2. **The event in RTMR3.** Before the application starts, dstack extends the TDX register RTMR3 with a runtime event
+   named `compose-hash` whose payload is those 32 bytes. In the event format of our enclaves' logs, the event's digest
+   is SHA-384(`01 00 00 08` ‖ `:compose-hash:` ‖ payload), and RTMR3 becomes SHA-384(RTMR3 ‖ digest). The other
+   runtime events include `os-image-hash` and `system-ready`; some are specific to the VM instance.
+3. **The check on Arc.** When an admission carries the RTMR3 event log, as ours do, `EnclaveRegistry.registerEnclave`
+   replays the whole log in the EVM (`../../contracts/src/lib/DstackEventLog.sol`) and reverts unless the result
+   equals the RTMR3 of the Intel-signed quote. It reads `compose-hash` and `os-image-hash` only among the events
+   before the first `system-ready`, and only if each appears exactly once.
+4. **The image fingerprint.** The value that a product's author allows is keccak256(MRTD ‖ RTMR0 ‖ RTMR1 ‖ RTMR2 ‖
+   compose-hash ‖ os-image-hash ‖ XFAM ‖ TDATTRIBUTES) (`EnclaveRegistry.imageIdOf`). RTMR3 itself is left out,
+   because it also holds events specific to the instance. MRTD and RTMR0 to RTMR2 depend on the firmware, the OS
+   image and the VM size, not on the compose. The registry emits the fingerprint, the compose-hash and the
+   os-image-hash in an `EnclaveImage` event.
+
+What follows for a reader who wants to recompute it:
+
+- **The YAML alone does not give the compose-hash.** The other fields of `app-compose.json` count too, and this
+  repository does not hold them: the app-compose.json files saved from our Phala VMs are kept outside it.
+- **With an app-compose.json**, set `docker_compose_file` to the file from this folder, unchanged, and take the
+  SHA-256 of the canonical JSON. `../../services/copilot/src/enclave-site-measure.ts` does it (`appComposeFor`,
+  `composeHashOf`) with no network and no key, and prints the fingerprint it predicts for a VM of the same size, OS
+  image and firmware as the console copilot's.
+- **Against Arc**, the `EnclaveImage` event of an enclave's admission transaction carries the compose-hash, the
+  os-image-hash and the fingerprint.
+- **The program enters the measurement only through the image digest** written in the file (`image: …@sha256:…`).
+  The compose-hash proves which image ran, not what is inside it. Checking what is inside means pulling that image by
+  its digest, or rebuilding it from these sources (`../README.md`, "Build the images"; this repository does not
+  rebuild the deployed digests byte for byte today).
+
+**Checked on 20 Nov 2026.** The six `*-v21.yml` files, `sealed-chat-v2.yml` and `sealed-bounty-v2.yml` are byte for
+byte the `docker_compose_file` of the app-compose.json saved from their Phala VMs on 14 Nov 2026
+(`sealed-bounty-v1.yml` has no saved VM to compare with). `copilot-site-v22.yml`, set into the app-compose.json of the
+console copilot's v2.1 VM, gives the compose-hash `0xc5efc024…8a37`. That is the compose-hash in the `EnclaveImage`
+event of AskHive's admission transaction
+[`0xde9628b2…0176`](https://explorer.testnet.arc.io/tx/0xde9628b23d0483bb666a0cd13c55c4f32a1204151323a80da9451b0aeb330176)
+(status 1), next to the image fingerprint `0x5771d334…ebe0`. So the site enclave booted from exactly that JSON.
 
 What every file has in common:
 
 - The image is pinned by digest (`image: ghcr.io/…@sha256:…`).
 - Every setting written in clear is measured, including the model and its URL for the inference and copilot enclaves.
   An operator cannot change the code, the prompt or the model under the "attested" badge.
-- Only secrets and the operator allowlist are encrypted environment variables, which are not measured: the model
-  provider's API key, `OPERATOR_ALLOWLIST`, the copilot's proxy token and the image registry credentials.
+- Only secrets and the operator allowlist are encrypted environment variables. Their values are not measured; their
+  names are, in `allowed_envs`. They are the model provider's API key, `OPERATOR_ALLOWLIST`, the copilot's proxy
+  token and the image registry credentials.
 
 ## Live stack, v2.1 (Arc testnet)
 
@@ -58,10 +105,10 @@ flaw in the copilot cannot produce quotes for inference or for the bounty. The c
 enclave (`ARC-COPILOT-CHAT-v1`), and the reply is sealed for the request. The model gateway is verified as above
 (`MODEL_ATTESTATION=aci`).
 
-**`copilot-site-v22.yml` (product 4).** AskHive on the site's assistant panel. This file is byte for byte the compose
-of AskHive's live enclave (image fingerprint `0x5771d334…ebe0`, allowed on Arc on 19 Nov 2026). It runs the same
-program as the site's assistant: its prompt, interface tools rendered in the browser, prepare tools that the visitor
-signs with their own wallet, and `docs_search`. No tool spends funds. Questions arrive encrypted
+**`copilot-site-v22.yml` (product 4).** AskHive on the site's assistant panel. This file is the docker-compose of
+AskHive's live enclave (image fingerprint `0x5771d334…ebe0`, allowed on Arc on 19 Nov 2026; the check is above). It
+runs the same program as the site's assistant: its prompt, interface tools rendered in the browser, prepare tools that
+the visitor signs with their own wallet, and `docs_search`. No tool spends funds. Questions arrive encrypted
 (`ARC-COPILOT-CHAT-v1`). Each reply is sealed for the request and signed by the enclave key registered on Arc
 (`ARC-COPILOT-SITE-REPLY-v1`, `services/copilot/src/enclave-site.ts`). `COPILOT_GLOBAL_PER_DAY` bounds the daily cost.
 
