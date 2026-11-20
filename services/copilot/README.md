@@ -62,7 +62,7 @@ The main groups:
 ```sh
 (cd enclave && npm ci --legacy-peer-deps)   # the enclave kit, which the copilot's enclave code imports
 cd packages/sdk && npm ci && cd ../../services/copilot && npm ci
-npm test               # 184 tests with a simulated model: no call to a model provider
+npm test               # 184 tests with a stub model: no call to a model provider
 npm run typecheck
 npm start              # needs a .env with a model key (see .env.example)
 npm run test:live      # optional: one real read per list tool against the live API (no transaction, no model)

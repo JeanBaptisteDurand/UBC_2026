@@ -72,7 +72,7 @@ own dependencies, in this order, as the CI does:
 cd packages/sdk && npm ci && cd ../../services/copilot && npm ci && cd ../mcp && npm ci
 npm start              # stdio server (for an MCP client, `npm start --silent` keeps npm's banner off stdout)
 npm run start:http     # Streamable HTTP server on :8812
-npm test               # 15 tests: a fake local ArcHive API and a fake Arc client, no outgoing network call
+npm test               # 15 tests: a local stub of the ArcHive API and a stubbed Arc client, no outgoing network call
 npm run typecheck
 npm run test:live      # optional: one real read per list tool against the live API (reads only, no transaction)
 ```

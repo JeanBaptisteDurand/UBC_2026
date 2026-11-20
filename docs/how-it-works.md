@@ -115,7 +115,7 @@ and the contract between them in [`docs/COPILOT-SITE-CONTRACT.md`](../docs/COPIL
   datacenter. Physical attacks on a machine someone can touch are bounded, not prevented: capped exposure, bond
   seizure, and the verified level for high stakes.
 - **One operator today.** Our team runs every enclave, on Phala Cloud. The contracts accept any bonded operator, but
-  our enclave images are not public yet: we publish them, and a second operator can then run the allowed fingerprints.
+  our enclave images are the next thing we publish, so that a second operator can run the allowed fingerprints.
 - **Admin keys.** On testnet, one key, the deployer's (kept off the server), owns `OperatorBond` and `VerdictLog` and
   is the author of all five products. It can propose a new settlement contract or verdict writer, which waits 8 days,
   and remove one at once. Product changes have no timelock on testnet (`ProductRegistry.timelock` is 0). The mainnet

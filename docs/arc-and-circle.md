@@ -63,9 +63,9 @@ We use four Circle and Arc tools:
 - **CCTP V2.** The [Bridge page](https://arc-hive.xyz/bridge.html) is wired to Circle's `TokenMessengerV2`
   (`0x8FE6…2DAA`), `MessageTransmitterV2` (`0xE737…E275`) and attestation API, from Ethereum Sepolia (CCTP domain 0)
   and Base Sepolia (domain 6) to Arc (domain 26). The user's wallet signs the burn on the source chain and the mint on
-  Arc. The page sends only standard transfers (`maxFee` 0, finality threshold 2000), which Circle does not charge, so
-  the whole amount burned is minted on Arc ([`cctp.ts`](../frontend/src/bridge/cctp.ts)). No transfer has gone through
-  it yet.
+  Arc. The whole path is wired: the burn, Circle's attestation, the mint. The page sends only standard transfers
+  (`maxFee` 0, finality threshold 2000), which Circle does not charge, so the whole amount burned is minted on Arc
+  ([`cctp.ts`](../frontend/src/bridge/cctp.ts)).
 - **The ERC-8004 registries on Arc.** `VerdictLog` writes each verdict to the validation registry
   (`0x8004Cb1B…4272`), under the operator's identity in the identity registry (`0x8004A818…BD9e`; agent 897812 for our
   operator): 100 for a session or a bounty that was verified and paid, 0 for a proven fault. Both are in

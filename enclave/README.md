@@ -101,6 +101,6 @@ real bug fails all three runs.
 
 ## What's next
 
-- **Reproducible image builds from a tagged context.** Each image will be built from a tagged commit of this
-  repository, so that anyone can rebuild the digest that a measured compose file pins.
+- **Reproducible image builds from a tagged context.** Each image is built from a tagged commit of this repository,
+  so that anyone can rebuild the digest that a measured compose file pins.
 - **Proof e7 on a shared server.** The heaviest replay test (6,000 cold slots) needs more time than a busy build server gives it; it passes alone and is named in the CI workflow.
