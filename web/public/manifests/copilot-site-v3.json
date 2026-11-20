@@ -1,0 +1,72 @@
+{
+  "product": "ArcHive - AskHive, the attested copilot of the site (copilot-enclave, site surface)",
+  "version": "3",
+  "status": "v3 stack deployed on Arc testnet on 2026-11-19, during the UBC 2026 hackathon (deployments.v3.testnet.json); live from the switch of 2026-11-20. This manifest replaces copilot-enclave-v3.json (the console copilot, image b4e784a5) for product 4 on v3 (proposeUpdateWithURI): AskHive, the copilot of the site's panel, image r4, with the copilot's v3 knowledge and the v3 deployments file (with its levels block) inside the image",
+  "summary": "AskHive, the assistant of the site's panel (retrieval plus interface tools the browser plays, and tools that read Arc and PREPARE operations the visitor signs with their own wallet; it never holds a key and no tool spends) runs in its own Intel TDX VM. The browser verifies the enclave's key against the registry (product 4, allowed image, operator not banned), then encrypts the conversation to it: the web server that relays it sees ciphertext only. Every answer comes back sealed for that request and signed by the enclave's registered key.",
+  "protocol": {
+    "name": "ARC-COPILOT-CHAT-v1",
+    "request": "HPKE base mode, DHKEM(X25519, HKDF-SHA256) / HKDF-SHA256 / ChaCha20-Poly1305, info = keccak256(abi.encode(tag, chainId, EnclaveRegistry, productId, enclaveSigner)): a ciphertext prepared for another enclave, product or chain does not open",
+    "response": "sealed for that request only, with a key exported from the request's HPKE context (as in Oblivious HTTP, RFC 9458): a relay can neither read, modify nor replay it",
+    "signedReply": "ARC-COPILOT-SITE-REPLY-v1: digest = keccak256(abi.encode(string \"ARC-COPILOT-SITE-REPLY-v1\", uint256 5042002, address EnclaveRegistry 0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E, uint256 4, address signer, bytes32 requestHash, bytes32 bodyHash)), requestHash = keccak256(enc || ciphertext), bodyHash = keccak256(utf8(JSON.stringify(body))); signature = EIP-191 over the 32-byte digest, recovered to the key the registry holds for product 4 (services/copilot/src/enclave-site.ts, verifySiteReply)"
+  },
+  "surface": "site (COPILOT_SURFACE=site, measured): the same program as the site's server copilot (/copilot-site/), whose answers are never called attested",
+  "model": "openai/gpt-oss-120b",
+  "upstream": "https://tee.redpill.ai/v1",
+  "modelAttestation": {
+    "provider": "RedPill private AI gateway (Attested Confidential Inference), verified by the enclave with @phala/aci-verifier 0.11.0 (Apache-2.0)",
+    "checks": "at start and every 30 min with a fresh nonce: the gateway's Intel TDX quote to Intel's root (dcap-qvl), its workload keyset bound to the quote for our nonce, keys not expired, its docker-compose measured into RTMR3 (event log replayed), and - ArcHive's own check - its OS image is the PRODUCTION dstack image (os-image-hash in RTMR3: 8db40cb23008d6213668b5816702d100b37b859a8a5bfd18d938ae3a1b3715bd)",
+    "channel": "every model call goes over TLS pinned to the gateway's attested key (SPKI in the keyset)",
+    "serving": "every answer must carry a gateway receipt citing a verified upstream session (requireVerified, requireReceipt)",
+    "publicStatus": "GET /model-attestation on this enclave",
+    "failClosed": "if the gateway cannot be verified, the enclave does not start"
+  },
+  "price": "free (no receipts, no settlement)",
+  "isolation": "own VM: a flaw in the copilot cannot produce quotes for the inference or bounty products",
+  "knowledge": "the v3 stack: its 14 contracts, its 5 products (1 private AI session, 2 Sealed Bounty open level, 3 private AI per call (x402), 4 this copilot, 5 Sealed Bounty verified level); the v2.1 stack's proofs kept as history (services/copilot/src/site.ts, tools.ts, site-live.ts)",
+  "build": {
+    "context": ".",
+    "dockerfile": "enclave/Dockerfile.copilot",
+    "entry": "services/copilot/src/enclave-server.ts",
+    "sourceCommit": "1bac5bff88cb4415944702ab4858a6e04c145ef6",
+    "sourceDateEpoch": 1794960000,
+    "options": "docker buildx build --platform linux/amd64 -f enclave/Dockerfile.copilot --provenance=false --sbom=false --build-arg SOURCE_DATE_EPOCH --output type=image,name=<ref>,push=true,rewrite-timestamp=true .",
+    "bundleSha256": "28471d8cbee7e0a93d938b33be7785ef90cdfc8f0b28d90d43f1418dcfca29a7",
+    "deploymentsFile": "/app/deployments/deployments.v3.testnet.json, sha256 d80c0c7bf52dc6b70750d0d8e8284384e202e590c656707b7adca1b695e26774 (with its levels block)"
+  },
+  "composeFile": "enclave/phala/copilot-site-v3.yml",
+  "service": "copilot-enclave",
+  "image": "ghcr.io/jeanbaptistedurand/archive-copilot-enclave@sha256:9c8762a84a1f5fc338436760ddef9ccf0e08f7ab670f6364296c67f541ef298b",
+  "measuredEnv": {
+    "PORT": "8808",
+    "PRODUCT_ID": "4",
+    "CHAIN_ID": "5042002",
+    "REGISTRY": "0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E",
+    "DEPLOYMENTS": "/app/deployments/deployments.v3.testnet.json",
+    "RPC_URL": "https://rpc.testnet.arc.io",
+    "COPILOT_SURFACE": "site",
+    "OPENAI_BASE_URL": "https://tee.redpill.ai/v1",
+    "MODEL_ATTESTATION": "aci",
+    "MODEL_GATEWAY_OS_IMAGES": "8db40cb23008d6213668b5816702d100b37b859a8a5bfd18d938ae3a1b3715bd",
+    "COPILOT_MODEL": "openai/gpt-oss-120b",
+    "COPILOT_MAX_TOKENS": "2000",
+    "COPILOT_MAX_TOOL_CHARS": "40000",
+    "COPILOT_MAX_INPUT_TOKENS": "120000",
+    "COPILOT_MAX_INPUT_CHARS": "320000",
+    "COPILOT_RATE_PER_MINUTE": "20",
+    "COPILOT_RATE_PER_DAY": "300",
+    "COPILOT_GLOBAL_PER_DAY": "1000",
+    "ALLOWED_ORIGINS": "https://archive.62-171-153-35.sslip.io",
+    "ARCHIVE_API": "https://archive.62-171-153-35.sslip.io/api",
+    "ENCLAVE_URL": "https://archive.62-171-153-35.sslip.io/enclave/inference",
+    "ENCLAVE_PATH_PREFIXES": "/enclave/inference,/enclave/bounty,/enclave/x402"
+  },
+  "encryptedEnv": [
+    "OPENAI_API_KEY",
+    "OPERATOR_ALLOWLIST",
+    "COPILOT_PROXY_TOKEN"
+  ],
+  "tee": "Intel TDX confidential VM (dstack) on Phala Cloud",
+  "verifiedOnArc": "Intel's signature on each TDX quote is checked on-chain by Automata DCAP: TdxAttestationModule 0x3275fA3b519FAD912eA4a5e75Bf5078Def29D491 -> AutomataDcapAttestationFee 0x48640f7d94dE64b13c89686F3d1240A31Aeb4dc9",
+  "imageFingerprint": "the registry replays the dstack RTMR3 event log on-chain (SHA-384), requires it to reproduce the quote's RTMR3, and allows the image by keccak256(MRTD | RTMR0 | RTMR1 | RTMR2 | compose-hash | os-image-hash | XFAM | TDATTRIBUTES) - no instance id, so a restart keeps the same fingerprint",
+  "reportData": "REPORTDATA[0:32] binds chain id, registry, product id, operator, enclave signer and X25519 key; REPORTDATA[32:64] is a recent block hash (EIP-2935)"
+}
