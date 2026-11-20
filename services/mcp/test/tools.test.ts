@@ -192,3 +192,40 @@ test("output: public keys stay readable, a private key is still masked; the last
   assert.match(englishValue("les parts font 10100 points de base au lieu de 10 000 : propose() reverterait (BadShares)"), /^the shares add up to 10,100 basis points instead of 10,000/);
   assert.equal(englishValue("Toi compris (arc_operator_plan) : caution, VM, registerEnclave."), "Including you (arc_operator_plan): bond, VM, registerEnclave.");
 });
+
+test("arc_verify_receipt: a bad signature is a plain English error (never the crypto library's); NATIVE_DROP reads in native USDC", async () => {
+  const { privateKeyToAccount } = await import("viem/accounts");
+  const { receiptTypes, networkDomain, normalizeReceipt } = await import("@arcvault/sdk");
+  const receipt = {
+    productId: "1", sessionId: "3", seq: "1", tokensIn: "10", tokensOut: "20", cumulativeUnits: "30", anchorBlock: "100",
+    modelHash: "0x" + "ab".repeat(32), paramsHash: "0x" + "cd".repeat(32), requestHash: "0x" + "ef".repeat(32), responseHash: "0x" + "12".repeat(32),
+  };
+  const enclave = privateKeyToAccount(`0x${"5a".repeat(32)}`);
+  const good = await enclave.signTypedData({ domain: networkDomain(testnet.sessionPay, testnet.chainId) as any, types: receiptTypes, primaryType: "Receipt", message: normalizeReceipt(receipt) });
+  const body = good.slice(2, 130);
+  const cases: Array<[string, RegExp]> = [
+    [`0x${body}05`, /^Error: invalid signature: its last byte \(v\) is 0x05, SessionPay\.settle takes only 0x1b or 0x1c/],
+    [`0x${body}00`, /^Error: invalid signature: its last byte \(v\) is 0x00/],
+    [`0x${body}`, /^Error: invalid signature: 64 bytes \(compact form\)/],
+    [`0x${"00".repeat(32)}${body.slice(64)}1b`, /^Error: invalid signature: no signer can be recovered from it/],
+    [`0x${"11".repeat(64)}1c`, /^Error: invalid signature: no signer can be recovered from it/],
+  ];
+  for (const [signature, want] of cases) {
+    const out = await callTool(fakeArc(), actx(), "arc_verify_receipt", { receipt, signature });
+    const text = out.content[0]!.text;
+    assert.equal(out.isError, true, signature);
+    assert.match(text, want);
+    assert.doesNotMatch(text, /yParityOrV|BigInt|curve|expected valid|square root/, text);
+    assertEnglish(text, "arc_verify_receipt error");
+  }
+  // a valid signature passes the check and reaches the on-chain verification
+  let reached = "";
+  const arc = { ...fakeArc(), verifyReceipt: async (_r: unknown, sig: string) => { reached = sig; return { signer: enclave.address, settleable: false, payableNow: 0n, activeOperatorAtAnchor: "0x0000000000000000000000000000000000000000", checks: [] }; } } as unknown as ArcClient;
+  const ok = await callTool(arc, actx(), "arc_verify_receipt", { receipt, signature: good });
+  assert.equal(ok.isError, undefined, ok.content[0]!.text);
+  assert.equal(reached, good);
+  assert.ok(ok.content[0]!.text.includes(enclave.address), ok.content[0]!.text);
+
+  const holder = "0x" + "ab".repeat(20);
+  assert.equal(englishValue(`exploit prouvé si le solde natif de ${holder} baisse d'au moins 1`), `exploit proven if the native balance of ${holder} drops by at least 1 native USDC`);
+});

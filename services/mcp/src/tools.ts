@@ -9,8 +9,8 @@
  *    development: a VM on the local network) allows private networks, http and any port, with the other guards kept. */
 import { readFileSync } from "node:fs";
 import { basename } from "node:path";
-import { createPublicClient, http, formatUnits, parseUnits } from "viem";
-import { arcTestnet, createArcClient, normalizeReceipt, testnet, deploymentFromJson, type ArcClient, type Deployment } from "@arcvault/sdk";
+import { createPublicClient, http, formatUnits, parseUnits, type Hex } from "viem";
+import { arcTestnet, createArcClient, normalizeReceipt, recoverReceiptSigner, testnet, deploymentFromJson, type ArcClient, type Deployment } from "@arcvault/sdk";
 import {
   enclaveStatus, sessionStatus, prepareBountyCreate, operatorPlan, prepareBond, prepareRegister,
   productScaffold, machinesList, machineDiagnostics, enclavesList, productsList, sessionsList, activityList, scrubSecrets, railOf,
@@ -153,6 +153,21 @@ export function receiptErrors(r: unknown, sig: unknown): string[] {
   }
   if (!(typeof sig === "string" && /^0x([0-9a-fA-F]{128}|[0-9a-fA-F]{130})$/.test(sig))) errs.push("signature: 65-byte signature expected (0x + 130 hex)");
   return errs;
+}
+
+/** The signature alone, before any read: SessionPay.settle recovers the signer with ecrecover, which takes a last byte (v)
+ *  of 27 or 28 only, and r, s must be valid secp256k1 values. A plain "invalid signature: ..." instead of the crypto
+ *  library's own error ("Invalid yParityOrV value", "Point is not on curve"...). */
+export async function signatureError(arc: ArcClient, receipt: ReturnType<typeof normalizeReceipt>, sig: string): Promise<string | null> {
+  if (sig.length === 132) {
+    const v = sig.slice(130).toLowerCase();
+    if (v !== "1b" && v !== "1c") return `invalid signature: its last byte (v) is 0x${v}, SessionPay.settle takes only 0x1b or 0x1c (v = 27 or 28)`;
+  }
+  try { await recoverReceiptSigner(arc.d.sessionPay, receipt, sig as Hex, arc.d.chainId); return null; }
+  catch {
+    return sig.length === 130 ? "invalid signature: 64 bytes (compact form); give the enclave's 65-byte signature (0x + 130 hex: r, s, v)"
+      : "invalid signature: no signer can be recovered from it (r or s is not a valid secp256k1 value)";
+  }
 }
 
 const PREP = "PREPARES only: signs and sends nothing, returns the data the user signs in their wallet.";
@@ -348,7 +363,10 @@ async function run(arc: ArcClient, actx: ActionCtx, name: string, a: any): Promi
       if (typeof receipt === "string") { try { receipt = JSON.parse(receipt); } catch { /* reported below */ } }
       const errs = receiptErrors(receipt, a.signature);
       if (errs.length) throw new Error(`invalid receipt: ${errs.join("; ")}`);
-      const v = await arc.verifyReceipt(normalizeReceipt(receipt), a.signature);
+      const r = normalizeReceipt(receipt);
+      const sigErr = await signatureError(arc, r, a.signature);
+      if (sigErr) throw new Error(sigErr);
+      const v = await arc.verifyReceipt(r, a.signature);
       return { signer: v.signer, settleable: v.settleable, payableNow: formatUnits(v.payableNow, 6) + " USDC", activeOperatorAtAnchor: v.activeOperatorAtAnchor, checks: v.checks.map((c) => ({ ok: c.ok, quoi: (c as { en?: string }).en ?? c.fr })) };
     }
     case "arc_enclave_status": return enclaveStatus(arc, a.signer);

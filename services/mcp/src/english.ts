@@ -201,7 +201,7 @@ const TEXTS: Pair[] = [
   ["target : l'adresse du contrat dont le solde est surveillé (ex. le coffre du protocole)", "target: the address of the contract whose balance is watched (e.g. the protocol's vault)"],
   ["minDrop : la baisse minimale qui prouve l'exploit (en {})", "minDrop: the minimum drop that proves the exploit (in {0})"],
   ["exploit prouvé si le solde {} de {} baisse d'au moins {} {}", "exploit proven if the {0} balance of {1} drops by at least {2} {3}"],
-  ["exploit prouvé si le solde natif de {} baisse d'au moins {}", "exploit proven if the native balance of {0} drops by at least {1}"],
+  ["exploit prouvé si le solde natif de {} baisse d'au moins {}", "exploit proven if the native balance of {0} drops by at least {1} native USDC"],
   ["exploit prouvé si l'attaquant gagne au moins {} {}", "exploit proven if the attacker gains at least {0} {1}"],
   ["reward : la récompense du chasseur en USDC (ou tiers : [{ minLoss, amount }] pour plusieurs paliers)", "reward: the hunter's reward in USDC (or tiers: [{ minLoss, amount }] for several tiers)"],
   ["8 paliers au plus", "8 tiers at most"],
