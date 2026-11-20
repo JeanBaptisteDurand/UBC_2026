@@ -854,9 +854,9 @@ export async function prepareBountyCreate(arc: ArcClient, q: any, cx: ActionCtx 
     singleCap: singleCap.toString(), k, targetToPause, deadline: deadline.toString(), funding: funding.toString(), auth: a.auth,
   } : null;
   const sdkCall = ready ? [
-    "// sur ta machine ou dans ton navigateur : ton wallet signe l'autorisation EIP-3009, puis envoie la transaction",
+    "// on your machine or in your browser: your wallet signs the EIP-3009 authorization, then sends the transaction",
     rail?.verified
-      ? "const arc = createArcClient({ publicClient, walletClient, deployment: { ...testnet, sealedBounty: testnet.levels!.sealedBountyVerified } }); // @arcvault/sdk : le niveau vérifié"
+      ? "const arc = createArcClient({ publicClient, walletClient, deployment: { ...testnet, sealedBounty: testnet.levels!.sealedBountyVerified } }); // @arcvault/sdk: the verified level"
       : "const arc = createArcClient({ publicClient, walletClient }); // @arcvault/sdk",
     "const { tx, bountyId } = await arc.createBounty({",
     `  productId: ${product.id}n, predicateHash: "${ph}", protocolX25519: "${protocolX25519}",`,
@@ -892,7 +892,7 @@ export async function prepareBountyCreate(arc: ArcClient, q: any, cx: ActionCtx 
     appelSdk: sdkCall,
     cleDuProtocole: present(q.protocolX25519) ? undefined : {
       pourquoi: "L'exploit prouvé t'est livré chiffré pour cette clé ; seule ta clé privée le déchiffre. Elle ne doit jamais quitter ta machine.",
-      snippet: 'import { generateX25519 } from "@arcvault/sdk";\nconst kp = generateX25519(); // garde kp.privateKey en lieu sûr, chez toi\nconsole.log(kp.publicKey);    // → protocolX25519',
+      snippet: 'import { generateX25519 } from "@arcvault/sdk";\nconst kp = generateX25519(); // keep kp.privateKey safe, on your side\nconsole.log(kp.publicKey);    // → protocolX25519',
     },
     ouSigner: `Ton wallet signe : SDK arc.createBounty (ci-dessus) ou Mon espace › Mes bounties du site (/space.html?tab=bounties, niveau ${rail?.verified ? "vérifié" : "ouvert"}). Le copilote n'envoie rien.`,
     lueAuBloc: h.number.toString(),
@@ -1218,26 +1218,26 @@ export async function productScaffold(arc: ArcClient, q: any) {
     'import { createDstackClient } from "../../src/kit/dstack";',
     "",
     'const RPC = process.env.RPC_URL ?? "https://rpc.testnet.arc.io";',
-    'const PRODUCT_ID = BigInt(process.env.PRODUCT_ID ?? "0"); // rendu par propose()',
+    'const PRODUCT_ID = BigInt(process.env.PRODUCT_ID ?? "0"); // returned by propose()',
     `const REGISTRY = "${arc.d.enclaveRegistry}";`,
     `const SETTLEMENT = "${settlement}"; // ${railOf(arc, settlement)}`,
-    `const PARAM = "${param}"; // = param du produit${modelId ? ` (keccak256 de « ${modelId} »)` : ""}`,
+    `const PARAM = "${param}"; // = the product's param${modelId ? ` (keccak256 of "${modelId}")` : ""}`,
     "",
-    "const dstack = await createDstackClient(); // null hors VM TDX : quote simulé",
+    "const dstack = await createDstackClient(); // null outside a TDX VM: simulated quote",
     `const kit = new EnclaveKit({ productId: PRODUCT_ID, chainId: ${arc.d.chainId}, registry: REGISTRY as any, rpc: new RpcQuorum([RPC]), dstack: dstack ?? undefined });`,
     "const app = createAttestServer(kit); // POST /attest, GET /pubkeys, GET /health",
     "",
     'app.post("/v1/run", async (c) => {',
     rail === "session"
-      ? "  // 1) lire la session on-chain (SessionPay.getSession) et vérifier la signature de la clé de session sur l'enveloppe"
-      : "  // 1) sans paiement : répondre 402 avec les exigences x402 ; avec l'en-tête X-PAYMENT : vérifier l'autorisation (voir enclave/src/services/x402.ts)",
-    "  // 2) déchiffrer la requête : await kit.open(enc, ciphertext)  (HPKE vers la clé X25519 attestée)",
-    `  // 3) faire le travail du service${deterministic ? " (déterministe : même entrée, même sortie, rejouable)" : ""}`,
+      ? "  // 1) read the session on-chain (SessionPay.getSession) and check the session key's signature on the envelope"
+      : "  // 1) without payment: answer 402 with the x402 requirements; with the X-PAYMENT header: check the authorization (see enclave/src/services/x402.ts)",
+    "  // 2) decrypt the request: await kit.open(enc, ciphertext)  (HPKE to the attested X25519 key)",
+    `  // 3) do the service's work${deterministic ? " (deterministic: same input, same output, replayable)" : ""}`,
     rail === "session"
-      ? "  // 4) reçu cumulatif signé : await kit.signReceipt(SETTLEMENT, { productId: PRODUCT_ID, sessionId, seq, modelHash: PARAM, …, cumulativeUnits })"
-      : "  // 4) reçu d'appel signé (CallReceipt : productId, payer, requestHash, responseHash, units, anchorBlock, nonce), réglé par X402Settler.settle",
-    "  // 5) chiffrer la réponse vers la clé éphémère du client : await kit.seal(clientPub, réponse)",
-    '  return c.json({ error: "à implémenter" }, 501);',
+      ? "  // 4) signed cumulative receipt: await kit.signReceipt(SETTLEMENT, { productId: PRODUCT_ID, sessionId, seq, modelHash: PARAM, …, cumulativeUnits })"
+      : "  // 4) signed call receipt (CallReceipt: productId, payer, requestHash, responseHash, units, anchorBlock, nonce), settled by X402Settler.settle",
+    "  // 5) encrypt the answer to the client's ephemeral key: await kit.seal(clientPub, answer)",
+    '  return c.json({ error: "not implemented" }, 501);',
     "});",
     "",
     'serve({ fetch: app.fetch, port: Number(process.env.PORT ?? "8802"), hostname: "0.0.0.0" });',
@@ -1256,16 +1256,16 @@ export async function productScaffold(arc: ArcClient, q: any) {
     `CMD ["node", "dist/${slug}.mjs"]`,
   ].join("\n");
   const compose = [
-    `# app-compose Phala Cloud (dstack, VM Intel TDX) — phala deploy -c docker-compose.yml -t tdx.small --name ${slug}`,
+    `# Phala Cloud app-compose (dstack, Intel TDX VM) — phala deploy -c docker-compose.yml -t tdx.small --name ${slug}`,
     "services:",
     `  ${slug}:`,
-    `    image: ${image}   # TOUJOURS par digest : le workloadId en dépend`,
+    `    image: ${image}   # ALWAYS by digest: the workloadId depends on it`,
     '    ports: ["8802:8802"]',
     "    environment:",
     "      - RPC_URL=https://rpc.testnet.arc.io",
     "      - PRODUCT_ID=<id rendu par propose()>",
     `      - REGISTRY=${arc.d.enclaveRegistry}`,
-    "      - OPERATOR_ALLOWLIST=${OPERATOR_ALLOWLIST}   # variable chiffrée : l'adresse de l'opérateur",
+    "      - OPERATOR_ALLOWLIST=${OPERATOR_ALLOWLIST}   # encrypted variable: the operator's address",
     "    volumes:",
     "      - /var/run/dstack.sock:/var/run/dstack.sock",
     "    restart: unless-stopped",
