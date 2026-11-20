@@ -1,0 +1,267 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="t d">
+<title id="t">ArcHive architecture</title>
+<desc id="d">Who pays (AI agents through the MCP server, apps through the TypeScript SDK, people through the site and AskHive), what runs where (the operator's registrar and archive-node; five enclaves in Intel TDX VMs on Phala Cloud) and what Arc checks and records (admission through EnclaveRegistry, TdxAttestationModule and Automata's DCAP verifier; the verified level; payments with EIP-3009 split 95/0/5; bonds and slashing; verdicts in the ERC-8004 validation registry), with CCTP V2 bringing USDC to Arc. Steps 1 to 4: admit a machine, an agent pays per call, the enclave answers with a signed receipt and the operator settles, a lie is replayed, refuted and the bond seized.</desc>
+<defs><style>.s{font-family:ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif}.m{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}</style><symbol id="i-bot" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></symbol><symbol id="i-app-window" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 4v4"/><path d="M2 8h20"/><path d="M6 4v4"/></symbol><symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol><symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></symbol><symbol id="i-server" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></symbol><symbol id="i-cpu" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></symbol><symbol id="i-terminal" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></symbol><symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></symbol><symbol id="i-message-circle" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></symbol><symbol id="i-plug" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></symbol><symbol id="i-package" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7"/><path d="m7.5 4.27 9 5.15"/></symbol><symbol id="i-database" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></symbol><marker id="m-slate" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M1,1 L8.5,5 L1,9" fill="none" stroke="#5a6a81" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker><marker id="m-blue" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M1,1 L8.5,5 L1,9" fill="none" stroke="#2563eb" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker><marker id="m-teal" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M1,1 L8.5,5 L1,9" fill="none" stroke="#087a79" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker><marker id="m-purple" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M1,1 L8.5,5 L1,9" fill="none" stroke="#9a32b8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker><marker id="m-amber" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M1,1 L8.5,5 L1,9" fill="none" stroke="#a35f00" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker><marker id="m-green" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M1,1 L8.5,5 L1,9" fill="none" stroke="#1a7f37" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker><marker id="m-red" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M1,1 L8.5,5 L1,9" fill="none" stroke="#cf222e" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker><marker id="m-grey" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M1,1 L8.5,5 L1,9" fill="none" stroke="#6e7781" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker><marker id="m-white" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M1,1 L8.5,5 L1,9" fill="none" stroke="#57606a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<rect width="1600" height="900" fill="#ffffff"/>
+<text x="32.0" y="48.0" class="s" font-size="30" font-weight="700" fill="#1f2328" text-anchor="start">ArcHive architecture</text>
+<text x="32.0" y="76.0" class="s" font-size="15" font-weight="400" fill="#59636e" text-anchor="start">Sealed machines, open market. AI agents, apps and people pay per use in USDC for work done in Intel TDX enclaves that Arc admits, pays on and can slash.</text>
+<text x="1572.0" y="44.0" class="s" font-size="14" font-weight="400" fill="#59636e" text-anchor="end">Arc testnet · chainId 5042002</text>
+<text x="1572.0" y="64.0" class="s" font-size="14" font-weight="400" fill="#59636e" text-anchor="end">13 contracts in service and a demo vault, all shown</text>
+<rect x="24" y="112" width="176" height="680" rx="12" fill="#f3f5f8" stroke="#5a6a81" stroke-width="1.5"/>
+<rect x="34" y="121" width="90.8" height="24" rx="6" fill="#ffffff" stroke="#5a6a81" stroke-width="1"/>
+<text x="44.0" y="137.5" class="s" font-size="12.5" font-weight="650" fill="#1f2328" text-anchor="start" letter-spacing="0.6">WHO PAYS</text>
+<use href="#i-bot" x="97.0" y="175.0" width="30" height="30" stroke="#1f2328"/>
+<text x="112.0" y="225.0" class="s" font-size="17" font-weight="600" fill="#1f2328" text-anchor="middle">AI agent</text>
+<text x="112.0" y="244.0" class="s" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="middle">Claude Code, Cursor,</text>
+<text x="112.0" y="260.5" class="s" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="middle">any MCP client</text>
+<use href="#i-user" x="97.0" y="323.0" width="30" height="30" stroke="#1f2328"/>
+<text x="112.0" y="373.0" class="s" font-size="17" font-weight="600" fill="#1f2328" text-anchor="middle">Person</text>
+<text x="112.0" y="392.0" class="s" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="middle">site and AskHive</text>
+<use href="#i-app-window" x="97.0" y="425.0" width="30" height="30" stroke="#1f2328"/>
+<text x="112.0" y="475.0" class="s" font-size="17" font-weight="600" fill="#1f2328" text-anchor="middle">App or agent</text>
+<text x="112.0" y="494.0" class="s" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="middle">pays per call</text>
+<text x="112.0" y="510.5" class="s" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="middle">through the SDK</text>
+<use href="#i-shield" x="97.0" y="605.0" width="30" height="30" stroke="#1f2328"/>
+<text x="112.0" y="655.0" class="s" font-size="17" font-weight="600" fill="#1f2328" text-anchor="middle">Protocol · hunter</text>
+<text x="112.0" y="674.0" class="s" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="middle">funds a bounty pool</text>
+<text x="112.0" y="690.5" class="s" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="middle">sends an exploit</text>
+<text x="112.0" y="740.0" class="s" font-size="12.5" font-weight="400" fill="#59636e" text-anchor="middle">Payers sign in</text>
+<text x="112.0" y="756.0" class="s" font-size="12.5" font-weight="400" fill="#59636e" text-anchor="middle">their own wallet;</text>
+<text x="112.0" y="772.0" class="s" font-size="12.5" font-weight="400" fill="#59636e" text-anchor="middle">USDC moves by EIP-3009</text>
+<rect x="244" y="112" width="376" height="680" rx="12" fill="#f0f5ff" stroke="#2563eb" stroke-width="1.5"/>
+<rect x="254" y="121" width="170.4" height="24" rx="6" fill="#ffffff" stroke="#2563eb" stroke-width="1"/>
+<text x="264.0" y="137.5" class="s" font-size="12.5" font-weight="650" fill="#1f2328" text-anchor="start" letter-spacing="0.6">ARCHIVE OFF-CHAIN</text>
+<rect x="522.7" y="123" width="87.3" height="20" rx="10" fill="none" stroke="#2563eb" stroke-width="1" stroke-opacity="0.8"/>
+<text x="566.4" y="137.0" class="s" font-size="12" font-weight="600" fill="#2563eb" text-anchor="middle">Caddy · TLS</text>
+<use href="#i-plug" x="309.0" y="175.0" width="30" height="30" stroke="#1f2328"/>
+<text x="324.0" y="225.0" class="s" font-size="17" font-weight="600" fill="#1f2328" text-anchor="middle">MCP server</text>
+<text x="324.0" y="244.0" class="s" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="middle">/mcp · 16 tools</text>
+<text x="324.0" y="260.5" class="s" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="middle">reads and prepares,</text>
+<text x="324.0" y="277.0" class="s" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="middle">never signs</text>
+<use href="#i-database" x="479.0" y="175.0" width="30" height="30" stroke="#1f2328"/>
+<text x="494.0" y="225.0" class="s" font-size="17" font-weight="600" fill="#1f2328" text-anchor="middle">Read API</text>
+<text x="494.0" y="244.0" class="s" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="middle">/api, no key</text>
+<text x="494.0" y="260.5" class="s" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="middle">own event index</text>
+<use href="#i-globe" x="309.0" y="323.0" width="30" height="30" stroke="#1f2328"/>
+<text x="324.0" y="373.0" class="s" font-size="17" font-weight="600" fill="#1f2328" text-anchor="middle">Site + console</text>
+<text x="324.0" y="392.0" class="s" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="middle">marketplace, Bridge,</text>
+<text x="324.0" y="408.5" class="s" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="middle">3D room</text>
+<use href="#i-message-circle" x="479.0" y="323.0" width="30" height="30" stroke="#1f2328"/>
+<text x="494.0" y="373.0" class="s" font-size="17" font-weight="600" fill="#1f2328" text-anchor="middle">AskHive panel</text>
+<text x="494.0" y="392.0" class="s" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="middle">checks the key</text>
+<text x="494.0" y="408.5" class="s" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="middle">on Arc, then seals</text>
+<use href="#i-package" x="309.0" y="425.0" width="30" height="30" stroke="#1f2328"/>
+<text x="324.0" y="475.0" class="s" font-size="17" font-weight="600" fill="#1f2328" text-anchor="middle">SDK + arcvault CLI</text>
+<text x="324.0" y="494.0" class="s" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="middle">in your app, checks</text>
+<text x="324.0" y="510.5" class="s" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="middle">the keys on Arc</text>
+<rect x="586" y="300" width="22" height="352" rx="11" fill="#ffffff" stroke="#2563eb" stroke-width="1.25"/>
+<text transform="translate(601,535) rotate(-90)" class="s" font-size="11.5" font-weight="600" fill="#2563eb" text-anchor="middle">relay · ciphertext only</text>
+<rect x="664" y="112" width="336" height="132" rx="12" fill="#ebf7f7" stroke="#087a79" stroke-width="1.5"/>
+<rect x="674" y="121" width="205.8" height="24" rx="6" fill="#ffffff" stroke="#087a79" stroke-width="1"/>
+<text x="684.0" y="137.5" class="s" font-size="12.5" font-weight="650" fill="#1f2328" text-anchor="start" letter-spacing="0.6">OPERATOR · EARNS 95 %</text>
+<use href="#i-terminal" x="676.0" y="178.0" width="28" height="28" stroke="#1f2328"/>
+<text x="712.0" y="191.0" class="s" font-size="15" font-weight="600" fill="#1f2328" text-anchor="start">archive-node</text>
+<text x="712.0" y="207.0" class="s" font-size="12.5" font-weight="400" fill="#59636e" text-anchor="start">operator agent:</text>
+<text x="712.0" y="222.0" class="s" font-size="12.5" font-weight="400" fill="#59636e" text-anchor="start">pair, up, status</text>
+<use href="#i-server" x="832.0" y="178.0" width="28" height="28" stroke="#1f2328"/>
+<text x="868.0" y="191.0" class="s" font-size="15" font-weight="600" fill="#1f2328" text-anchor="start">registrar ×5</text>
+<text x="868.0" y="207.0" class="s" font-size="12.5" font-weight="400" fill="#59636e" text-anchor="start">renews admissions,</text>
+<text x="868.0" y="222.0" class="s" font-size="12.5" font-weight="400" fill="#59636e" text-anchor="start">settles payments</text>
+<rect x="664" y="262" width="336" height="530" rx="12" fill="#ebf7f7" stroke="#087a79" stroke-width="1.5"/>
+<rect x="674" y="271" width="276.6" height="24" rx="6" fill="#ffffff" stroke="#087a79" stroke-width="1"/>
+<text x="684.0" y="287.5" class="s" font-size="12.5" font-weight="650" fill="#1f2328" text-anchor="start" letter-spacing="0.6">ENCLAVES · INTEL TDX ON PHALA</text>
+<use href="#i-cpu" x="676.0" y="324.0" width="28" height="28" stroke="#087a79"/>
+<text x="712.0" y="337.0" class="s" font-size="15" font-weight="600" fill="#1f2328" text-anchor="start">AskHive copilot</text>
+<text x="712.0" y="353.0" class="s" font-size="12.5" font-weight="400" fill="#59636e" text-anchor="start">the site's assistant</text>
+<use href="#i-cpu" x="676.0" y="426.0" width="28" height="28" stroke="#087a79"/>
+<text x="712.0" y="439.0" class="s" font-size="15" font-weight="600" fill="#1f2328" text-anchor="start">Private AI · per call</text>
+<text x="712.0" y="455.0" class="s" font-size="12.5" font-weight="400" fill="#59636e" text-anchor="start">x402, 0.01 USDC a call</text>
+<use href="#i-cpu" x="676.0" y="516.0" width="28" height="28" stroke="#087a79"/>
+<text x="712.0" y="529.0" class="s" font-size="15" font-weight="600" fill="#1f2328" text-anchor="start">Private AI · session</text>
+<text x="712.0" y="545.0" class="s" font-size="12.5" font-weight="400" fill="#59636e" text-anchor="start">prepaid, billed per token</text>
+<use href="#i-cpu" x="676.0" y="606.0" width="28" height="28" stroke="#087a79"/>
+<text x="712.0" y="619.0" class="s" font-size="15" font-weight="600" fill="#1f2328" text-anchor="start">Sealed Bounty · open</text>
+<text x="712.0" y="635.0" class="s" font-size="12.5" font-weight="400" fill="#59636e" text-anchor="start">replays on arc-anvil</text>
+<use href="#i-cpu" x="676.0" y="691.0" width="28" height="28" stroke="#087a79"/>
+<text x="712.0" y="704.0" class="s" font-size="15" font-weight="600" fill="#1f2328" text-anchor="start">Sealed Bounty · verified</text>
+<text x="712.0" y="720.0" class="s" font-size="12.5" font-weight="400" fill="#59636e" text-anchor="start">declared chips only</text>
+<rect x="678.0" y="748" width="115.4" height="22" rx="11" fill="none" stroke="#087a79" stroke-width="1"/>
+<text x="735.7" y="763.0" class="s" font-size="11.5" font-weight="600" fill="#087a79" text-anchor="middle">keys born inside</text>
+<rect x="801.4" y="748" width="59.5" height="22" rx="11" fill="none" stroke="#087a79" stroke-width="1"/>
+<text x="831.1" y="763.0" class="s" font-size="11.5" font-weight="600" fill="#087a79" text-anchor="middle">HPKE in</text>
+<rect x="868.8" y="748" width="109.2" height="22" rx="11" fill="none" stroke="#087a79" stroke-width="1"/>
+<text x="923.4" y="763.0" class="s" font-size="11.5" font-weight="600" fill="#087a79" text-anchor="middle">receipts signed</text>
+<rect x="918" y="318" width="70" height="228" rx="8" fill="#f6f8fa" stroke="#8c959f" stroke-width="1.25" stroke-dasharray="5 4"/>
+<text x="953.0" y="394.0" class="s" font-size="13" font-weight="650" fill="#1f2328" text-anchor="middle">RedPill</text>
+<text x="953.0" y="410.0" class="s" font-size="12" font-weight="400" fill="#59636e" text-anchor="middle">attested</text>
+<text x="953.0" y="426.0" class="s" font-size="12" font-weight="400" fill="#59636e" text-anchor="middle">model</text>
+<text x="953.0" y="442.0" class="s" font-size="12" font-weight="400" fill="#59636e" text-anchor="middle">gateway,</text>
+<text x="953.0" y="458.0" class="s" font-size="12" font-weight="400" fill="#59636e" text-anchor="middle">checked</text>
+<text x="953.0" y="474.0" class="s" font-size="12" font-weight="400" fill="#59636e" text-anchor="middle">before</text>
+<text x="953.0" y="490.0" class="s" font-size="12" font-weight="400" fill="#59636e" text-anchor="middle">any call</text>
+<rect x="1046" y="112" width="534" height="680" rx="12" fill="#eef7f0" stroke="#1a7f37" stroke-width="1.5"/>
+<rect x="1056" y="121" width="232.4" height="24" rx="6" fill="#ffffff" stroke="#1a7f37" stroke-width="1"/>
+<text x="1066.0" y="137.5" class="s" font-size="12.5" font-weight="650" fill="#1f2328" text-anchor="start" letter-spacing="0.6">ARC TESTNET · THE NOTARY</text>
+<rect x="1296.4" y="123" width="113.2" height="20" rx="10" fill="none" stroke="#1a7f37" stroke-width="1" stroke-opacity="0.8"/>
+<text x="1353.0" y="137.0" class="s" font-size="12" font-weight="600" fill="#1a7f37" text-anchor="middle">USDC is the gas</text>
+<rect x="1056" y="152" width="514" height="152" rx="12" fill="#ebf7f7" stroke="#087a79" stroke-width="1.5"/>
+<rect x="1066" y="161" width="99.6" height="24" rx="6" fill="#ffffff" stroke="#087a79" stroke-width="1"/>
+<text x="1076.0" y="177.5" class="s" font-size="12.5" font-weight="650" fill="#1f2328" text-anchor="start" letter-spacing="0.6">ADMISSION</text>
+<rect x="1064" y="192" width="238" height="44" rx="7" fill="#ffffff" stroke="#087a79" stroke-width="1.25"/>
+<text x="1076.0" y="211.0" class="m" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">EnclaveRegistry</text>
+<text x="1076.0" y="227.5" class="s" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">boot-log replay, SHA-384, EIP-2935</text>
+<rect x="1064" y="248" width="238" height="44" rx="7" fill="#ffffff" stroke="#087a79" stroke-width="1.25"/>
+<text x="1076.0" y="267.0" class="m" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">TdxAttestationModule</text>
+<text x="1076.0" y="283.5" class="s" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">TDX quote → DCAP verifier</text>
+<rect x="1324" y="192" width="238" height="44" rx="7" fill="#ffffff" stroke="#087a79" stroke-width="1.25"/>
+<text x="1336.0" y="211.0" class="m" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">ProductRegistry</text>
+<text x="1336.0" y="227.5" class="s" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">prices, shares, allowed images</text>
+<rect x="1324" y="248" width="238" height="44" rx="7" fill="#ffffff" stroke="#8c959f" stroke-width="1.25" stroke-dasharray="5 4"/>
+<text x="1336.0" y="267.0" class="s" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">Automata DCAP verifier</text>
+<text x="1336.0" y="283.5" class="s" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">Intel's collateral, P-256 precompile</text>
+<rect x="1056" y="312" width="514" height="146" rx="12" fill="#ebf7f7" stroke="#087a79" stroke-width="1.5"/>
+<rect x="1066" y="321" width="143.9" height="24" rx="6" fill="#ffffff" stroke="#087a79" stroke-width="1"/>
+<text x="1076.0" y="337.5" class="s" font-size="12.5" font-weight="650" fill="#1f2328" text-anchor="start" letter-spacing="0.6">VERIFIED LEVEL</text>
+<rect x="1064" y="352" width="238" height="44" rx="7" fill="#ffffff" stroke="#087a79" stroke-width="1.25"/>
+<text x="1076.0" y="371.0" class="m" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">MachineRegistry</text>
+<text x="1076.0" y="387.5" class="s" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">chip PPID → machine</text>
+<rect x="1064" y="404" width="238" height="44" rx="7" fill="#ffffff" stroke="#087a79" stroke-width="1.25"/>
+<text x="1076.0" y="423.0" class="m" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">ProofOfCloudAuditor</text>
+<text x="1076.0" y="439.5" class="s" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">Proof of Cloud attestations</text>
+<rect x="1324" y="352" width="238" height="44" rx="7" fill="#ffffff" stroke="#087a79" stroke-width="1.25"/>
+<text x="1336.0" y="371.0" class="m" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">PolicyEnclaves</text>
+<text x="1336.0" y="387.5" class="s" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">verified-level enclaves</text>
+<rect x="1324" y="404" width="238" height="44" rx="7" fill="#ffffff" stroke="#087a79" stroke-width="1.25"/>
+<text x="1336.0" y="423.0" class="m" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">Ed25519Verifier</text>
+<text x="1336.0" y="439.5" class="s" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">the alliance's signature</text>
+<rect x="1056" y="468" width="254" height="318" rx="12" fill="#fdf5e8" stroke="#a35f00" stroke-width="1.5"/>
+<rect x="1066" y="477" width="90.8" height="24" rx="6" fill="#ffffff" stroke="#a35f00" stroke-width="1"/>
+<text x="1076.0" y="493.5" class="s" font-size="12.5" font-weight="650" fill="#1f2328" text-anchor="start" letter-spacing="0.6">PAYMENTS</text>
+<rect x="1164.8" y="479" width="80.8" height="20" rx="10" fill="none" stroke="#a35f00" stroke-width="1" stroke-opacity="0.8"/>
+<text x="1205.2" y="493.0" class="s" font-size="12" font-weight="600" fill="#a35f00" text-anchor="middle">95 / 0 / 5</text>
+<rect x="1064" y="508" width="238" height="44" rx="7" fill="#ffffff" stroke="#a35f00" stroke-width="1.25"/>
+<text x="1076.0" y="527.0" class="m" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">X402Settler</text>
+<text x="1076.0" y="543.5" class="s" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">EIP-3009, settled per call</text>
+<rect x="1064" y="561" width="238" height="44" rx="7" fill="#ffffff" stroke="#a35f00" stroke-width="1.25"/>
+<text x="1076.0" y="580.0" class="m" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">SessionPay</text>
+<text x="1076.0" y="596.5" class="s" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">EIP-3009 deposit, EIP-712 receipts</text>
+<rect x="1064" y="614" width="238" height="44" rx="7" fill="#ffffff" stroke="#a35f00" stroke-width="1.25"/>
+<text x="1076.0" y="633.0" class="m" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">SealedBounty</text>
+<text x="1076.0" y="649.5" class="s" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">open-level pools, refute</text>
+<rect x="1064" y="667" width="238" height="44" rx="7" fill="#ffffff" stroke="#a35f00" stroke-width="1.25"/>
+<text x="1076.0" y="686.0" class="m" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">SealedBountyVerified</text>
+<text x="1076.0" y="702.5" class="s" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">verified-level pools</text>
+<rect x="1064" y="720" width="238" height="44" rx="7" fill="#ffffff" stroke="#a35f00" stroke-width="1.25"/>
+<text x="1076.0" y="739.0" class="m" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">DemoVault</text>
+<text x="1076.0" y="755.5" class="s" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">demo target, flawed on purpose</text>
+<rect x="1318" y="468" width="252" height="160" rx="12" fill="#eef7f0" stroke="#1a7f37" stroke-width="1.5"/>
+<rect x="1328" y="477" width="108.5" height="24" rx="6" fill="#ffffff" stroke="#1a7f37" stroke-width="1"/>
+<text x="1338.0" y="493.5" class="s" font-size="12.5" font-weight="650" fill="#1f2328" text-anchor="start" letter-spacing="0.6">REPUTATION</text>
+<rect x="1326" y="508" width="232" height="44" rx="7" fill="#ffffff" stroke="#1a7f37" stroke-width="1.25"/>
+<text x="1338.0" y="527.0" class="m" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">VerdictLog</text>
+<text x="1338.0" y="543.5" class="s" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">verdicts: 100 or 0</text>
+<rect x="1326" y="570" width="232" height="44" rx="7" fill="#ffffff" stroke="#8c959f" stroke-width="1.25" stroke-dasharray="5 4"/>
+<text x="1338.0" y="589.0" class="s" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">ERC-8004 validation</text>
+<text x="1338.0" y="605.5" class="s" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">registry on Arc</text>
+<rect x="1318" y="636" width="252" height="110" rx="12" fill="#fdf0ef" stroke="#cf222e" stroke-width="1.5"/>
+<rect x="1328" y="645" width="64.2" height="24" rx="6" fill="#ffffff" stroke="#cf222e" stroke-width="1"/>
+<text x="1338.0" y="661.5" class="s" font-size="12.5" font-weight="650" fill="#1f2328" text-anchor="start" letter-spacing="0.6">BONDS</text>
+<rect x="1326" y="676" width="232" height="58" rx="7" fill="#ffffff" stroke="#cf222e" stroke-width="1.25"/>
+<text x="1338.0" y="695.0" class="m" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">OperatorBond</text>
+<text x="1338.0" y="711.5" class="s" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">exposure caps per product</text>
+<text x="1338.0" y="726.0" class="s" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">slash: ½ reporter, ½ victim</text>
+<rect x="1326" y="754" width="232" height="32" rx="7" fill="#ffffff" stroke="#8c959f" stroke-width="1.25" stroke-dasharray="5 4"/>
+<text x="1338.0" y="775.0" class="s" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">USDC (native): gas and money</text>
+<path d="M128,190 L306,190" stroke="#5a6a81" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-slate)"/>
+<path d="M342,190 L476,190" stroke="#6e7781" stroke-width="1.25" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-grey)"/>
+<path d="M494,172 L494.0,104.0 Q494,96 502.0,96.0 L1482.0,96.0 Q1490,96 1490.0,104.0 L1490,112" stroke="#6e7781" stroke-width="1.25" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-grey)"/>
+<path d="M128,338 L306,338" stroke="#5a6a81" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-slate)"/>
+<path d="M342,338 L476,338" stroke="#2563eb" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-blue)"/>
+<path d="M512,338 L688,338" stroke="#9a32b8" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-purple)" marker-start="url(#m-purple)"/>
+<path d="M128,440 L306,440" stroke="#5a6a81" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-slate)"/>
+<path d="M342,430 L688,430" stroke="#9a32b8" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-purple)"/>
+<path d="M688,450 L342,450" stroke="#9a32b8" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-purple)"/>
+<path d="M128,620 L688,620" stroke="#9a32b8" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-purple)"/>
+<path d="M902,262 L902,246" stroke="#087a79" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-teal)"/>
+<path d="M1000,172 L1028.0,172.0 Q1036,172 1036.0,180.0 L1036.0,206.0 Q1036,214 1044.0,214.0 L1064,214" stroke="#087a79" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 5" marker-end="url(#m-teal)"/>
+<path d="M1000,192 L1018.0,192.0 Q1026,192 1026.0,200.0 L1026.0,366.0 Q1026,374 1034.0,374.0 L1064,374" stroke="#087a79" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 5" marker-end="url(#m-teal)"/>
+<path d="M1000,212 L1007.0,212.0 Q1014,212 1014.0,219.0 L1014.0,522.0 Q1014,530 1022.0,530.0 L1064,530" stroke="#a35f00" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 5" marker-end="url(#m-amber)"/>
+<path d="M882,620 L1028.0,620.0 Q1036,620 1036.0,628.0 L1036.0,628.0 Q1036,636 1044.0,636.0 L1064,636" stroke="#cf222e" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 5" marker-end="url(#m-red)"/>
+<path d="M840,338 L916,338" stroke="#6e7781" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-grey)"/>
+<path d="M886,440 L916,440" stroke="#6e7781" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-grey)"/>
+<path d="M878,530 L916,530" stroke="#6e7781" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-grey)"/>
+<path d="M1120,236 L1120,247" stroke="#087a79" stroke-width="1.25" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-teal)"/>
+<path d="M1302,270 L1322,270" stroke="#087a79" stroke-width="1.25" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-teal)"/>
+<path d="M1302,214 L1322,214" stroke="#087a79" stroke-width="1.25" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-teal)"/>
+<path d="M1302,426 L1322,426" stroke="#087a79" stroke-width="1.25" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-teal)"/>
+<path d="M1302,583 L1309.0,583.0 Q1314,583 1314.0,578.0 L1314.0,535.0 Q1314,530 1319.0,530.0 L1325,530" stroke="#1a7f37" stroke-width="1.25" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-green)"/>
+<path d="M1444,552 L1444,568" stroke="#1a7f37" stroke-width="1.25" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-green)"/>
+<path d="M1302,636 L1309.0,636.0 Q1314,636 1314.0,641.0 L1314.0,693.0 Q1314,698 1319.0,698.0 L1325,698" stroke="#cf222e" stroke-width="1.25" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-red)"/>
+<path d="M1444,812 L1444,788" stroke="#a35f00" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 5" marker-end="url(#m-amber)"/>
+<rect x="170.4" y="180.5" width="103.3" height="19" rx="4" fill="#ffffff"/>
+<text x="222.0" y="194.7" class="s" font-size="13" font-weight="600" fill="#5a6a81" text-anchor="middle">find, prepare</text>
+<rect x="385.4" y="180.5" width="47.1" height="19" rx="4" fill="#ffffff"/>
+<text x="409.0" y="194.7" class="s" font-size="13" font-weight="600" fill="#6e7781" text-anchor="middle">reads</text>
+<rect x="702.7" y="86.5" width="194.5" height="19" rx="4" fill="#ffffff"/>
+<text x="800.0" y="100.7" class="s" font-size="13" font-weight="600" fill="#6e7781" text-anchor="middle">reads Arc: keys and events</text>
+<rect x="191.4" y="328.5" width="61.1" height="19" rx="4" fill="#ffffff"/>
+<text x="222.0" y="342.7" class="s" font-size="13" font-weight="600" fill="#5a6a81" text-anchor="middle">browser</text>
+<rect x="198.4" y="430.5" width="47.1" height="19" rx="4" fill="#ffffff"/>
+<text x="222.0" y="444.7" class="s" font-size="13" font-weight="600" fill="#5a6a81" text-anchor="middle">calls</text>
+<rect x="374.2" y="420.5" width="187.5" height="19" rx="4" fill="#ffffff"/>
+<text x="468.0" y="434.7" class="s" font-size="13" font-weight="600" fill="#9a32b8" text-anchor="middle">sealed request + EIP-3009</text>
+<rect x="381.3" y="440.5" width="173.5" height="19" rx="4" fill="#ffffff"/>
+<text x="468.0" y="454.7" class="s" font-size="13" font-weight="600" fill="#9a32b8" text-anchor="middle">answer + signed receipt</text>
+<rect x="364.9" y="610.5" width="110.3" height="19" rx="4" fill="#ffffff"/>
+<text x="420.0" y="624.7" class="s" font-size="13" font-weight="600" fill="#9a32b8" text-anchor="middle">sealed exploit</text>
+<rect x="910.8" y="245.0" width="70.3" height="18" rx="4" fill="#ffffff"/>
+<text x="946.0" y="258.3" class="s" font-size="12" font-weight="600" fill="#087a79" text-anchor="middle">TDX quote</text>
+<rect x="923.3" y="611.0" width="57.4" height="18" rx="4" fill="#ffffff"/>
+<text x="952.0" y="624.3" class="s" font-size="12" font-weight="600" fill="#cf222e" text-anchor="middle">refutes</text>
+<rect x="1295.2" y="793.5" width="141.6" height="18" rx="4" fill="#ffffff"/>
+<text x="1366.0" y="806.8" class="s" font-size="12" font-weight="600" fill="#a35f00" text-anchor="middle">CCTP V2: burn → mint</text>
+<circle cx="628" cy="430" r="12" fill="#9a32b8" stroke="#ffffff" stroke-width="2"/>
+<text x="628.0" y="435.0" class="s" font-size="14" font-weight="800" fill="#ffffff" text-anchor="middle">2</text>
+<circle cx="649" cy="450" r="12" fill="#9a32b8" stroke="#ffffff" stroke-width="2"/>
+<text x="649.0" y="455.0" class="s" font-size="14" font-weight="800" fill="#ffffff" text-anchor="middle">3</text>
+<circle cx="1014" cy="172" r="12" fill="#087a79" stroke="#ffffff" stroke-width="2"/>
+<text x="1014.0" y="177.0" class="s" font-size="14" font-weight="800" fill="#ffffff" text-anchor="middle">1</text>
+<circle cx="1014" cy="470" r="12" fill="#a35f00" stroke="#ffffff" stroke-width="2"/>
+<text x="1014.0" y="475.0" class="s" font-size="14" font-weight="800" fill="#ffffff" text-anchor="middle">3</text>
+<circle cx="904" cy="620" r="12" fill="#cf222e" stroke="#ffffff" stroke-width="2"/>
+<text x="904.0" y="625.0" class="s" font-size="14" font-weight="800" fill="#ffffff" text-anchor="middle">4</text>
+<path d="M28,830 L62,830" stroke="#57606a" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-white)"/>
+<text x="70.0" y="834.0" class="s" font-size="13" font-weight="400" fill="#59636e" text-anchor="start">off-chain call (HTTPS, HPKE)</text>
+<path d="M292.56,830 L326.56,830" stroke="#57606a" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 5" marker-end="url(#m-white)"/>
+<text x="334.6" y="834.0" class="s" font-size="13" font-weight="400" fill="#59636e" text-anchor="start">transaction on Arc</text>
+<path d="M486.92,830 L520.9200000000001,830" stroke="#6e7781" stroke-width="1.25" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#m-grey)"/>
+<text x="528.9" y="834.0" class="s" font-size="13" font-weight="400" fill="#59636e" text-anchor="start">thin: a read, or a call between contracts</text>
+<circle cx="852.74" cy="830" r="12" fill="#6e7781" stroke="#ffffff" stroke-width="2"/>
+<text x="852.7" y="835.0" class="s" font-size="14" font-weight="800" fill="#ffffff" text-anchor="middle">1</text>
+<text x="870.7" y="834.0" class="s" font-size="13" font-weight="400" fill="#59636e" text-anchor="start">to</text>
+<circle cx="896.74" cy="830" r="12" fill="#6e7781" stroke="#ffffff" stroke-width="2"/>
+<text x="896.7" y="835.0" class="s" font-size="14" font-weight="800" fill="#ffffff" text-anchor="middle">4</text>
+<text x="914.7" y="834.0" class="s" font-size="13" font-weight="400" fill="#59636e" text-anchor="start">steps, listed under the image</text>
+<rect x="28" y="856" width="14" height="14" rx="3" fill="#5a6a81"/>
+<text x="50.0" y="868.0" class="s" font-size="13" font-weight="400" fill="#59636e" text-anchor="start">who pays</text>
+<rect x="132.16" y="856" width="14" height="14" rx="3" fill="#2563eb"/>
+<text x="154.2" y="868.0" class="s" font-size="13" font-weight="400" fill="#59636e" text-anchor="start">ArcHive off-chain</text>
+<rect x="299.5" y="856" width="14" height="14" rx="3" fill="#087a79"/>
+<text x="321.5" y="868.0" class="s" font-size="13" font-weight="400" fill="#59636e" text-anchor="start">machines, admission</text>
+<rect x="480.88" y="856" width="14" height="14" rx="3" fill="#9a32b8"/>
+<text x="502.9" y="868.0" class="s" font-size="13" font-weight="400" fill="#59636e" text-anchor="start">sealed request</text>
+<rect x="627.16" y="856" width="14" height="14" rx="3" fill="#a35f00"/>
+<text x="649.2" y="868.0" class="s" font-size="13" font-weight="400" fill="#59636e" text-anchor="start">USDC</text>
+<rect x="703.24" y="856" width="14" height="14" rx="3" fill="#1a7f37"/>
+<text x="725.2" y="868.0" class="s" font-size="13" font-weight="400" fill="#59636e" text-anchor="start">Arc, verdicts</text>
+<rect x="842.5" y="856" width="14" height="14" rx="3" fill="#cf222e"/>
+<text x="864.5" y="868.0" class="s" font-size="13" font-weight="400" fill="#59636e" text-anchor="start">slash</text>
+<rect x="925.6" y="855" width="28" height="16" rx="4" fill="none" stroke="#59636e" stroke-width="1.25"/>
+<text x="961.6" y="868.0" class="s" font-size="13" font-weight="400" fill="#59636e" text-anchor="start">ours</text>
+<rect x="1009.6800000000001" y="855" width="28" height="16" rx="4" fill="none" stroke="#8c959f" stroke-width="1.25" stroke-dasharray="4 3"/>
+<text x="1045.7" y="868.0" class="s" font-size="13" font-weight="400" fill="#59636e" text-anchor="start">third-party</text>
+<rect x="1258" y="812" width="322" height="72" rx="10" fill="#f6f8fa" stroke="#8c959f" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="1272.0" y="836.0" class="s" font-size="14" font-weight="600" fill="#1f2328" text-anchor="start">Ethereum Sepolia · Base Sepolia</text>
+<text x="1272.0" y="854.0" class="s" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">Circle's CCTP V2 from the Bridge page:</text>
+<text x="1272.0" y="870.0" class="s" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">burn there, mint USDC on Arc</text>
+</svg>

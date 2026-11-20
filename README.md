@@ -129,26 +129,26 @@ proven on-chain seizes all of it. The rules and their figures are in
 
 ## Architecture
 
-```
- Buyer (person, app, AI agent)          Operator's Intel TDX machine            Author
-   1. reads the enclave's key on Arc      runs the product's allowed image        publishes a product:
-   2. seals the request (HPKE) ------->   in a sealed enclave                     price, shares, allowed images
-   <------ answer + signed receipt -----  3. answers, or replays the exploit
-                                             on a fork of Arc, and signs
- ================================= Arc (contracts, USDC) =================================
-  EnclaveRegistry -> TdxAttestationModule -> Automata DCAP       admit: Intel signature, boot-log replay,
-  MachineRegistry + ProofOfCloudAuditor + PolicyEnclaves         allowed image, fresh quote, bond; chip level
-  SessionPay | X402Settler | SealedBounty | SealedBountyVerified   pay only on an admitted enclave's signature
-  ProductRegistry (prices, shares)   OperatorBond (bonds, slashing)   VerdictLog -> ERC-8004 validation registry
-```
+<a href="docs/img/architecture-light.svg">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/img/architecture-dark.svg">
+    <img alt="ArcHive architecture: who pays, ArcHive's off-chain services, the operator's registrars and the enclaves on Phala, the contracts on Arc testnet, steps 1 to 4" src="docs/img/architecture-light.svg">
+  </picture>
+</a>
 
-1. **Arc admits the machine** (above). The operator's registrar keeps the admission fresh.
-2. **The buyer seals the request** with the enclave's key, read on Arc. Our servers only relay ciphertext.
-3. **The enclave signs its work**: a receipt for an answer, or a claim for a replayed exploit, with a key born inside it.
-4. **Arc pays on the signature.** The settlement contract checks that an admitted enclave signed, reads the price and
-   the shares, and splits the USDC in the same transaction.
-5. **Arc records the verdict** in the ERC-8004 validation registry on Arc.
-6. **A proven lie costs the bond.**
+1. **Arc admits the machine.** The enclave gives a fresh TDX quote to its operator's registrar, which calls
+   `EnclaveRegistry`. Arc checks Intel's signature through `TdxAttestationModule` and Automata's DCAP verifier, replays
+   the boot log in SHA-384, and checks the image against `ProductRegistry`. For the verified level, the registrar also
+   binds the chip in `MachineRegistry`. The registrar keeps the admission fresh.
+2. **An agent pays per call.** It finds an enclave and its price with the MCP tools. Through the SDK, it reads the
+   enclave's key on Arc and sends a request sealed to that key (HPKE), with one EIP-3009 authorization, through our
+   relay. Our servers only relay ciphertext.
+3. **The enclave answers with a signed receipt, and the operator settles.** The registrar settles on `X402Settler` (or
+   `SessionPay`), which checks that an admitted enclave signed, reads the price and the shares, and splits the USDC
+   95/0/5 in the same transaction. Verdicts (100 or 0) go through `VerdictLog` into the ERC-8004 validation registry on
+   Arc.
+4. **A lie costs the bond.** Other bounty enclaves replay the claim on an `arc-anvil` fork of Arc and sign a
+   refutation. `SealedBounty` then slashes the liar's bond in `OperatorBond`: half to the reporter, half to the victim.
 
 Off-chain pieces:
 
