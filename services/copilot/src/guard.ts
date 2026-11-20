@@ -13,18 +13,18 @@ import { T, type Lang } from "./i18n";
 export interface ChatBounds {
   /** Corps HTTP, en octets. */
   maxBodyBytes: number;
-  /** Messages gardés (les plus récents). */
+  /** Messages kept (the most recent). */
   maxMessages: number;
-  /** Caractères par message (au-delà : tronqué, et le modèle le sait). */
+  /** Characters per message (beyond that: truncated, and the model knows it). */
   maxCharsPerMessage: number;
-  /** Caractères de tout l'historique gardé. */
+  /** Characters of the whole kept history. */
   maxCharsTotal: number;
 }
 export const DEFAULT_BOUNDS: ChatBounds = { maxBodyBytes: 64 * 1024, maxMessages: 20, maxCharsPerMessage: 4_000, maxCharsTotal: 16_000 };
 
-// ---------------------------------------------------------------- corps de requête borné
+// ---------------------------------------------------------------- bounded request body
 
-/** Lit le corps d'une requête sans jamais dépasser `max` octets (Content-Length annoncé, puis compté au fil de l'eau). */
+/** Reads a request body without ever exceeding `max` bytes (the announced Content-Length, then counted as it streams). */
 export async function readBodyCapped(req: Request, max: number): Promise<{ ok: true; text: string } | { ok: false; status: 400 | 413 }> {
   const cl = req.headers.get("content-length");
   if (cl !== null) {
@@ -54,15 +54,15 @@ export type ParsedChat =
 
 const TRUNC = (n: number) => `\n[… message tronqué : ${n.toLocaleString("fr-FR")} caractères au plus]`;
 
-/** Valide la conversation envoyée par le client.
- *  Refusé (400) : autre rôle que user/assistant (system, developer, tool…), contenu non textuel, pas de message, dernier
- *  message qui ne vient pas de l'utilisateur ou vide. Borné sans refus : seuls les maxMessages derniers messages sont
- *  gardés, chacun tronqué à maxCharsPerMessage, puis les plus anciens tombent jusqu'à maxCharsTotal. TOUTE la
- *  conversation reçue passe par le filtre de secrets AVANT d'être tronquée (une clé coupée en deux par la troncature
- *  serait sinon à moitié envoyée au modèle) : scrubConversation, en MODE ALERTE pour tous les messages dès qu'un message
- *  de l'utilisateur parle de clé privée, de phrase de récupération ou de clé étendue (mentionsSecret ; aucune valeur de
- *  64 hex ni clé base58, phrase reconnue dès 8 mots ou coupée entre plusieurs messages ; `alert` le dit). Seuls role et
- *  content sont recopiés. `lang` : langue des messages d'erreur (défaut : français). */
+/** Validates the conversation sent by the client.
+ *  Refused (400): a role other than user/assistant (system, developer, tool…), non-text content, no message, or a last
+ *  message that is empty or not from the user. Bounded without refusal: only the last maxMessages messages are kept,
+ *  each truncated to maxCharsPerMessage, then the oldest drop until maxCharsTotal. The WHOLE conversation received goes
+ *  through the secrets filter BEFORE it is truncated (otherwise a key cut in two by the truncation would be half sent to
+ *  the model): scrubConversation, in ALERT MODE for every message as soon as a user message mentions a private key, a
+ *  recovery phrase or an extended key (mentionsSecret; no 64-hex value or base58 key, a phrase recognized from 8 words
+ *  or split across several messages; `alert` says so). Only role and content are copied. `lang`: the language of the
+ *  error messages (default: French). */
 export function parseChatRequest(body: unknown, b: ChatBounds = DEFAULT_BOUNDS, lang: Lang = "fr"): ParsedChat {
   const E = T(lang).chat;
   if (!body || typeof body !== "object" || Array.isArray(body)) return { ok: false, error: E.notObject };
@@ -77,8 +77,8 @@ export function parseChatRequest(body: unknown, b: ChatBounds = DEFAULT_BOUNDS, 
   if (last.role !== "user") return { ok: false, error: E.lastNotUser };
   if (!last.content.trim()) return { ok: false, error: E.empty };
 
-  // le filtre voit toute la conversation reçue (une mention de clé privée dans un message ancien met aussi les suivants
-  // en alerte), et seulement role et content
+  // the filter sees the whole conversation received (a private-key mention in an old message also puts the later ones
+  // on alert), and only role and content
   const clean = scrubConversation((raw as ClientMessage[]).map((m) => ({ role: m.role, content: m.content })));
   let truncated = 0;
   let kept: ClientMessage[] = clean.messages.slice(-b.maxMessages)
@@ -98,7 +98,7 @@ export function parseChatRequest(body: unknown, b: ChatBounds = DEFAULT_BOUNDS, 
   return { ok: true, messages, user, dropped, truncated, alert: clean.alert };
 }
 
-// ---------------------------------------------------------------- débit
+// ---------------------------------------------------------------- rate limit
 
 const MINUTE = 60_000;
 const DAY = 86_400_000;
@@ -106,15 +106,15 @@ const DAY = 86_400_000;
 export interface RateOptions {
   perMinute: number;
   perDay: number;
-  /** Plafond global quotidien de requêtes envoyées au modèle (0 = aucun). */
+  /** Daily global cap on requests sent to the model (0 = none). */
   globalPerDay: number;
-  /** Clés suivies au plus (mémoire bornée). */
+  /** Maximum keys tracked (bounded memory). */
   maxKeys?: number;
   now?: () => number;
 }
 export type RateVerdict = { ok: true } | { ok: false; retryAfterSec: number; scope: "minute" | "jour" | "global" };
 
-/** Fenêtre glissante d'une minute (les instants des dernières requêtes) et fenêtre fixe de 24 h, par clé (IP). */
+/** A sliding one-minute window (the times of the latest requests) and a fixed 24 h window, per key (IP). */
 export class RateLimiter {
   private per = new Map<string, { hits: number[]; dayStart: number; dayCount: number }>();
   private glob = { dayStart: 0, count: 0 };
@@ -122,7 +122,7 @@ export class RateLimiter {
   constructor(private o: RateOptions) {}
   private now() { return (this.o.now ?? Date.now)(); }
 
-  /** Compte une requête de cette clé si elle passe ; sinon dit quand réessayer. */
+  /** Counts a request from this key if it passes; otherwise says when to retry. */
   hit(key: string): RateVerdict {
     const now = this.now();
     if (++this.n % 500 === 0 || this.per.size > (this.o.maxKeys ?? 20_000)) this.sweep(now);
@@ -137,7 +137,7 @@ export class RateLimiter {
     return { ok: true };
   }
 
-  /** Plafond global : une requête de plus envoyée au modèle aujourd'hui ? */
+  /** Global cap: one more request sent to the model today? */
   hitGlobal(): RateVerdict {
     if (!this.o.globalPerDay) return { ok: true };
     const now = this.now();
@@ -152,7 +152,7 @@ export class RateLimiter {
   private sweep(now: number) {
     for (const [k, e] of this.per) if (now - e.dayStart >= DAY || (e.dayCount === 0 && e.hits.length === 0)) this.per.delete(k);
     const max = this.o.maxKeys ?? 20_000;
-    for (const k of this.per.keys()) { if (this.per.size <= max) break; this.per.delete(k); } // les plus anciennes d'abord
+    for (const k of this.per.keys()) { if (this.per.size <= max) break; this.per.delete(k); } // the oldest first
   }
 }
 
@@ -166,7 +166,7 @@ function stripPort(s: string): string {
   return p ? p[1]! : s;
 }
 
-/** Clé de débit : une IPv4, ou le /64 d'une IPv6 (un abonné en a des milliards). */
+/** The rate key: an IPv4, or the /64 of an IPv6 (one subscriber has billions of them). */
 export function bucketOf(ip: string): string {
   const a = unmap(ip);
   if (isIP(a) === 6) {
@@ -176,15 +176,14 @@ export function bucketOf(ip: string): string {
   return a;
 }
 
-/** IP du client, lue dans X-Forwarded-For si on le croit, sinon l'adresse du pair.
- *  - `trustForwarded` absent (copilote du VPS) : X-Forwarded-For n'est cru que si la connexion vient d'un proxy local
- *    (pair privé ou de boucle), et c'est son DERNIER maillon qui compte (posé par Caddy, qui remplace celui du client) ;
- *    exposé directement, le service prend l'adresse du pair ;
- *  - `trustForwarded` donné (copilote en enclave : le pair est TOUJOURS la passerelle Phala, privée, que la requête
- *    vienne du mandataire du site ou de n'importe qui) : cru seulement si true, c'est-à-dire si la requête porte le
- *    jeton du mandataire (app.ts, proxyToken) ; c'est alors son PREMIER maillon qui compte : Caddy l'a posé (il remplace
- *    toute valeur venue du client), et un intermédiaire placé après lui (nginx, passerelle Phala) ne peut qu'ajouter
- *    sa propre adresse à la fin. */
+/** The client's IP, read from X-Forwarded-For when it is trusted, otherwise the peer's address.
+ *  - `trustForwarded` absent (the server's copilot): X-Forwarded-For is trusted only when the connection comes from a
+ *    local proxy (a private or loopback peer), and its LAST hop counts (set by Caddy, which replaces the client's);
+ *    exposed directly, the service takes the peer's address;
+ *  - `trustForwarded` given (copilot in an enclave: the peer is ALWAYS Phala's private gateway, whether the request
+ *    comes from the site's proxy or from anyone): trusted only when true, that is when the request carries the proxy
+ *    token (app.ts, proxyToken). Its FIRST hop then counts: Caddy set it (it replaces any value from the client), and an
+ *    intermediary after it (nginx, Phala's gateway) can only append its own address. */
 export function clientIp(c: Context, trustForwarded?: boolean): string {
   let peer: string | undefined;
   try { peer = getConnInfo(c).remote.address; } catch { peer = undefined; }
@@ -198,16 +197,16 @@ export function clientIp(c: Context, trustForwarded?: boolean): string {
   return peer ? unmap(peer) : "inconnue";
 }
 
-// ---------------------------------------------------------------- jeton du mandataire (copilote en enclave)
+// ---------------------------------------------------------------- the proxy token (copilot in an enclave)
 
-/** En-tête que le mandataire du site (nginx, proxy_set_header) pose sur chaque requête vers le copilote en enclave. */
+/** The header the site's proxy (nginx, proxy_set_header) sets on every request to the copilot in an enclave. */
 export const PROXY_TOKEN_HEADER = "x-archive-proxy-token";
 
 const sha256 = (s: string) => createHash("sha256").update(s, "utf8").digest();
 
-/** Vérificateur du jeton du mandataire, en temps constant : on compare les empreintes SHA-256 (même longueur, quelle que
- *  soit celle du jeton reçu) avec timingSafeEqual ; ni la valeur ni la longueur du jeton attendu ne fuient par le temps
- *  de réponse. Le jeton n'est jamais journalisé. */
+/** Checks the proxy token in constant time: it compares SHA-256 digests (same length, whatever the length of the token
+ *  received) with timingSafeEqual, so neither the value nor the length of the expected token leaks through the response
+ *  time. The token is never logged. */
 export function proxyTokenChecker(expected: string): (given: string | null | undefined) => boolean {
   if (!expected) throw new Error("jeton du mandataire vide");
   const want = sha256(expected);
@@ -218,7 +217,7 @@ export function proxyTokenChecker(expected: string): (given: string | null | und
 
 export const DEFAULT_ORIGINS = ["https://archive.62-171-153-35.sslip.io"];
 
-/** ALLOWED_ORIGINS : liste séparée par des virgules (« * » = toutes, à n'utiliser qu'en développement). */
+/** ALLOWED_ORIGINS: a comma-separated list ("*" = all, for development only). */
 export function parseOrigins(env: string | undefined): string[] {
   const list = (env ?? "").split(",").map((s) => s.trim().replace(/\/+$/, "").toLowerCase()).filter(Boolean);
   return list.length ? list : DEFAULT_ORIGINS;

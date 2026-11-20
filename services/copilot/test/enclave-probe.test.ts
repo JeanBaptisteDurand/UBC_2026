@@ -54,18 +54,18 @@ test("redirect: refused, and the target is never contacted (the reviewer's relay
     reply(200, JSON.stringify(KEYS), { "content-type": "application/json" })(req, res);
   };
   seen.length = 0;
-  await assert.rejects(fetchEnclaveJson(base, "/attest", { operator: "0xabc" }, dev), /redirection refusée/);
+  await assert.rejects(fetchEnclaveJson(base, "/attest", { operator: "0xabc" }, dev), /redirect refused/);
   assert.deepEqual(seen, ["POST /attest"]);
   // même chose pour le /pubkeys lu par le SDK
   handler = (req, res) => { res.writeHead(301, { location: `${base}/secret-after-redirect` }); res.end(); };
   seen.length = 0;
-  await assert.rejects(fetchEnclavePubkeys(base, 1n, { fetch: guardedFetch(dev) }), (e: any) => e instanceof EnclaveKeyMismatchError && /redirection refusée/.test(e.message));
+  await assert.rejects(fetchEnclavePubkeys(base, 1n, { fetch: guardedFetch(dev) }), (e: any) => e instanceof EnclaveKeyMismatchError && /redirect refused/.test(e.message));
   assert.deepEqual(seen, ["GET /pubkeys"]);
 });
 
 test("a 200 answer that is not JSON: refused without copying anything; JSON: returned", async () => {
   handler = reply(200, BODY);
-  await assert.rejects(fetchEnclaveJson(base, "/attest", {}, dev), (e: any) => /réponse non JSON/.test(e.message) && !e.message.includes("PAGE-DU-SERVEUR"));
+  await assert.rejects(fetchEnclaveJson(base, "/attest", {}, dev), (e: any) => /response not JSON/.test(e.message) && !e.message.includes("PAGE-DU-SERVEUR"));
   await assert.rejects(fetchEnclavePubkeys(base, 1n, { fetch: guardedFetch(dev) }), (e: any) => !e.message.includes("PAGE-DU-SERVEUR") && !e.message.includes("<html"));
   handler = reply(200, JSON.stringify(KEYS), { "content-type": "application/json" });
   assert.deepEqual(await fetchEnclaveJson(base, "/attest", {}, dev), KEYS);
@@ -98,11 +98,11 @@ test("free path, a route other than /attest or /pubkeys: refused BEFORE any conn
 test("public mode (copilot, MCP by default): http, non-standard port and private network refused before any connection", async () => {
   const pub = enclavePolicyOf({});
   seen.length = 0;
-  await assert.rejects(fetchEnclaveJson(base, "/attest", {}, pub), /https seulement/);
-  await assert.rejects(fetchEnclaveJson("https://127.0.0.1", "/attest", {}, pub), /adresse privée ou réservée/);
-  await assert.rejects(fetchEnclaveJson("https://localhost", "/attest", {}, pub), /réseau privé/);
-  await assert.rejects(fetchEnclaveJson("https://abc.example:8443", "/attest", {}, pub), /port 443 seulement/);
-  await assert.rejects(guardedFetch(pub)(`${base}/pubkeys`), /https seulement/);
+  await assert.rejects(fetchEnclaveJson(base, "/attest", {}, pub), /https only/);
+  await assert.rejects(fetchEnclaveJson("https://127.0.0.1", "/attest", {}, pub), /private or reserved address/);
+  await assert.rejects(fetchEnclaveJson("https://localhost", "/attest", {}, pub), /private network/);
+  await assert.rejects(fetchEnclaveJson("https://abc.example:8443", "/attest", {}, pub), /port 443 only/);
+  await assert.rejects(guardedFetch(pub)(`${base}/pubkeys`), /https only/);
   assert.deepEqual(seen, []);
 });
 

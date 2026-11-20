@@ -23,11 +23,11 @@ export class ListUnavailableError extends Error {
 export const isListUnavailable = (e: unknown): e is ListUnavailableError => e instanceof ListUnavailableError;
 
 export interface ApiOptions {
-  /** Base de l'API (défaut : env ARCHIVE_API, sinon l'API publique). */
+  /** Base of the API (default: env ARCHIVE_API, otherwise the public API). */
   base?: string;
   /** fetch (tests). */
   fetch?: typeof fetch;
-  /** Délai par appel, en ms (défaut : 8 000). */
+  /** Timeout per call, in ms (default: 8,000). */
   timeoutMs?: number;
 }
 
@@ -44,7 +44,7 @@ async function readCapped(res: Response, max: number): Promise<string> {
     const { done, value } = await reader.read();
     if (done) break;
     n += value.byteLength;
-    if (n > max) { await reader.cancel().catch(() => {}); throw new Error(`réponse trop grande (plus de ${max} octets)`); }
+    if (n > max) { await reader.cancel().catch(() => {}); throw new Error(`response too large (over ${max} bytes)`); }
     chunks.push(value);
   }
   return Buffer.concat(chunks).toString("utf8");
@@ -71,23 +71,23 @@ async function getJson(list: string, path: string, o: ApiOptions): Promise<unkno
   try { return JSON.parse(text); } catch { throw new ListUnavailableError(list, "réponse non JSON de l'API ArcHive"); }
 }
 
-// ---------------------------------------------------------------- cache (succès seulement)
+// ---------------------------------------------------------------- cache (successes only)
 
 const cache = new Map<string, { t: number; v: Promise<unknown> }>();
-/** Entrées gardées au plus (les sessions sont lues par adresse : sans borne, la mémoire grandirait à chaque adresse). */
+/** Maximum entries kept (sessions are read per address: without a bound, memory would grow with every address). */
 const MAX_ENTRIES = 512;
 function cached<T>(key: string, fn: () => Promise<T>): Promise<T> {
   const now = Date.now();
   const hit = cache.get(key);
   if (hit && now - hit.t < LIST_TTL_MS) return hit.v as Promise<T>;
   if (cache.size >= MAX_ENTRIES) {
-    for (const [k, e] of cache) if (now - e.t >= LIST_TTL_MS) cache.delete(k); // périmées d'abord
-    for (const k of cache.keys()) { if (cache.size < MAX_ENTRIES) break; cache.delete(k); } // puis les plus anciennes
+    for (const [k, e] of cache) if (now - e.t >= LIST_TTL_MS) cache.delete(k); // expired ones first
+    for (const k of cache.keys()) { if (cache.size < MAX_ENTRIES) break; cache.delete(k); } // then the oldest
   }
   const v = fn();
-  cache.delete(key); // réinsérée en fin : l'ordre de la Map reste celui des lectures
+  cache.delete(key); // put back at the end: the Map's order stays the order of reads
   cache.set(key, { t: now, v });
-  v.catch(() => { if (cache.get(key)?.v === v) cache.delete(key); }); // un échec n'est jamais gardé
+  v.catch(() => { if (cache.get(key)?.v === v) cache.delete(key); }); // a failure is never kept
   return v;
 }
 /** Vide le cache (tests). */
@@ -113,7 +113,7 @@ const asObj = (x: unknown, what: string): Record<string, any> =>
   x && typeof x === "object" && !Array.isArray(x) ? (x as Record<string, any>) : fail(`${what} : objet attendu`);
 const STATES: ProductState[] = ["None", "Proposed", "Active", "Retired"];
 
-/** Toute la liste, ou rien : une ligne illisible rend la liste indisponible. */
+/** The whole list, or nothing: one unreadable row makes the list unavailable. */
 async function listOf<T>(list: string, path: string, o: ApiOptions, row: (x: unknown, i: number) => T): Promise<T[]> {
   const j = await getJson(list, path, o);
   if (!Array.isArray(j)) throw new ListUnavailableError(list, "réponse inattendue de l'API ArcHive (tableau attendu)");
@@ -185,24 +185,24 @@ function eventRow(x: unknown, i: number): ApiEvent {
 
 const key = (o: ApiOptions, path: string) => `${archiveBase(o.base)}${path}`;
 
-/** La ruche : toutes les enclaves inscrites, avec leur état au bloc de tête de l'API. */
+/** The hive: every registered enclave, with its state at the API's head block. */
 export const apiEnclaves = (o: ApiOptions = {}) => cached(key(o, "/enclaves"), () => listOf("enclaves", "/enclaves", o, enclaveRow));
-/** Toutes les primes scellées. */
+/** Every sealed bounty. */
 export const apiBounties = (o: ApiOptions = {}) => cached(key(o, "/bounties"), () => listOf("primes", "/bounties", o, bountyRow));
-/** Tous les produits (tous états). */
+/** Every product (all states). */
 export const apiProducts = (o: ApiOptions = {}) => cached(key(o, "/products"), () => listOf("produits", "/products", o, productRow));
 /** Les sessions ouvertes par un compte. */
 export function apiSessions(owner: Address, o: ApiOptions = {}): Promise<ApiSession[]> {
   const path = `/sessions/${owner.toLowerCase()}`;
   return cached(key(o, path), () => listOf("sessions", path, o, sessionRow));
 }
-/** L'activité on-chain récente (du plus récent au plus ancien), 1 à 100 événements. */
+/** The recent on-chain activity (newest first), 1 to 100 events. */
 export function apiActivity(limit: number, o: ApiOptions = {}): Promise<ApiEvent[]> {
   const n = Math.min(100, Math.max(1, Math.floor(Number.isFinite(limit) ? limit : 10)));
   const path = `/activity?limit=${n}`;
   return cached(key(o, path), async () => (await listOf("activité", path, o, eventRow)).slice(0, n));
 }
-/** Les compteurs du réseau (/stats). */
+/** The network's counters (/stats). */
 export function apiStats(o: ApiOptions = {}): Promise<Record<string, unknown>> {
   return cached(key(o, "/stats"), async () => {
     const j = await getJson("compteurs du réseau", "/stats", o);
@@ -211,8 +211,8 @@ export function apiStats(o: ApiOptions = {}): Promise<Record<string, unknown>> {
   });
 }
 
-/** 19/11 : les niveaux d'opérateur (/levels : niveau de chaque enclave active, Prime du niveau vérifié autorisée ou non),
- *  pour la ligne LIVE STATUS du site (site-live.ts) ; objet brut, lu prudemment par son seul lecteur. */
+/** The operator levels (/levels: the level of each active enclave, and whether the verified-level bounty is authorized),
+ *  for the site's LIVE STATUS line (site-live.ts); a raw object, read with care by its only reader. */
 export function apiLevels(o: ApiOptions = {}): Promise<Record<string, any>> {
   return cached(key(o, "/levels"), async () => {
     const j = await getJson("niveaux", "/levels", o);
@@ -222,7 +222,7 @@ export function apiLevels(o: ApiOptions = {}): Promise<Record<string, any>> {
 }
 
 export interface IndexStatus { lastBlock: number; head: number | null; lagBlocks: number | null; lastError: string | null }
-/** État de l'index de l'API (jusqu'à quel bloc il est complet) ; null s'il n'est pas lisible (jamais d'exception). */
+/** The state of the API's index (up to which block it is complete); null when unreadable (never an exception). */
 export function apiIndexStatus(o: ApiOptions = {}): Promise<IndexStatus | null> {
   return cached(key(o, "/index"), async () => {
     const j = asObj(await getJson("index", "/index", o), "index");
@@ -232,7 +232,7 @@ export function apiIndexStatus(o: ApiOptions = {}): Promise<IndexStatus | null> 
   }).catch(() => null);
 }
 
-/** Ce qu'on dit de la fraîcheur d'une liste : complète jusqu'au bloc N de l'index (et un avertissement s'il traîne). */
+/** What is said about a list's freshness: complete up to block N of the index (and a warning when it lags). */
 export async function freshness(o: ApiOptions = {}): Promise<Record<string, unknown>> {
   const s = await apiIndexStatus(o);
   const source = `index d'événements de l'API ArcHive (${archiveBase(o.base)})`;

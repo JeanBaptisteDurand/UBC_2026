@@ -35,10 +35,10 @@ export { scrubSecrets };
 export { ListUnavailableError, isListUnavailable } from "./archive-api";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
-/** EIP-2935 : l'historique des hashes de bloc couvre 8 191 blocs (README « Constantes Arc », VERIFIED). */
+/** EIP-2935: the block hash history covers 8,191 blocks (README "Arc constants", VERIFIED). */
 const HISTORY_WINDOW = 8191n;
 
-/** Constantes et getters publics des contrats, absents de l'ABI du SDK. */
+/** Constants and public getters of the contracts that the SDK's ABI does not include. */
 const extraAbi = parseAbi([
   "function UNBOND_DELAY() view returns (uint64)",
   "function WINDOW() view returns (uint64)",
@@ -62,38 +62,38 @@ const extraAbi = parseAbi([
 ]);
 
 export interface ActionCtx {
-  /** Wallet connecté (copilote) : adresse par défaut de « from » / opérateur. */
+  /** The connected wallet (copilot): the default "from" / operator address. */
   user?: Address;
-  /** Développement local seulement : URL privées (localhost, 10.x…), http et tout port pour /attest et /pubkeys
-   *  (COPILOT_ALLOW_PRIVATE_URLS=1, MCP_ALLOW_PRIVATE_URLS=1). Sinon : https, port 443, adresse publique. */
+  /** Local development only: private URLs (localhost, 10.x…), http and any port for /attest and /pubkeys
+   *  (COPILOT_ALLOW_PRIVATE_URLS=1, MCP_ALLOW_PRIVATE_URLS=1). Otherwise: https, port 443, a public address. */
   allowPrivateUrls?: boolean;
-  /** Préfixes de passerelle permis devant /attest et /pubkeys (défaut : /enclave/inference, /enclave/bounty). */
+  /** Gateway prefixes allowed before /attest and /pubkeys (default: /enclave/inference, /enclave/bounty). */
   enclavePathPrefixes?: readonly string[];
-  /** URL de passerelle d'enclave par défaut pour les exemples de code. */
+  /** The default enclave gateway URL for the code examples. */
   enclaveUrl?: string;
-  /** Renvoyer la calldata complète de registerEnclave (gros quote) : oui en MCP, non dans le chat. */
+  /** Return registerEnclave's full calldata (a large quote): yes over MCP, no in the chat. */
   includeCalldata?: boolean;
-  /** Base de l'API HTTP ArcHive (listes de l'index, machines des opérateurs). Défaut : env ARCHIVE_API, sinon le VPS. */
+  /** Base of the ArcHive HTTP API (index lists, operators' machines). Default: env ARCHIVE_API, otherwise the server's. */
   apiBase?: string;
 }
 
 // ---------------------------------------------------------------- cache et lectures
 
 const cache = new Map<string, { t: number; ttl: number; v: Promise<unknown> }>();
-/** Entrées gardées au plus : certaines clés viennent de l'utilisateur (un produit par id), la mémoire reste bornée. */
+/** Maximum entries kept: some keys come from the user (one product per id), so memory stays bounded. */
 const MAX_CACHE = 1_024;
 function cached<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
   const now = Date.now();
   const hit = cache.get(key);
   if (hit && now - hit.t < ttlMs) return hit.v as Promise<T>;
   if (cache.size >= MAX_CACHE) {
-    for (const [k, e] of cache) if (now - e.t >= e.ttl) cache.delete(k); // périmées d'abord
-    for (const k of cache.keys()) { if (cache.size < MAX_CACHE) break; cache.delete(k); } // puis les plus anciennes
+    for (const [k, e] of cache) if (now - e.t >= e.ttl) cache.delete(k); // expired ones first
+    for (const k of cache.keys()) { if (cache.size < MAX_CACHE) break; cache.delete(k); } // then the oldest
   }
   const v = fn();
   cache.delete(key);
   cache.set(key, { t: now, ttl: ttlMs, v });
-  v.catch(() => { if (cache.get(key)?.v === v) cache.delete(key); }); // un échec n'est jamais gardé
+  v.catch(() => { if (cache.get(key)?.v === v) cache.delete(key); }); // a failure is never kept
   return v;
 }
 const ck = (arc: ArcClient, s: string) => `${arc.d.chainId}:${arc.d.productRegistry}:${s}`;
@@ -101,25 +101,25 @@ const ck = (arc: ArcClient, s: string) => `${arc.d.chainId}:${arc.d.productRegis
 function read<T>(arc: ArcClient, address: Address, abi: unknown, functionName: string, args: unknown[] = []): Promise<T> {
   return (arc.pub as any).readContract({ address, abi, functionName, args }) as Promise<T>;
 }
-/** Constante immuable d'un contrat : lue une fois par processus. */
+/** An immutable contract constant: read once per process. */
 function constant<T>(arc: ArcClient, address: Address, fn: string): Promise<T> {
   return cached(ck(arc, `const:${address}:${fn}`), Number.POSITIVE_INFINITY, () => read<T>(arc, address, extraAbi, fn));
 }
-/** Dernier bloc (numéro + horodatage de la chaîne) : la référence de « maintenant ». */
+/** The latest block (number + chain timestamp): the reference for "now". */
 export function headBlock(arc: ArcClient): Promise<{ number: bigint; timestamp: bigint }> {
   return cached(ck(arc, "head"), 4_000, async () => {
     const b = await arc.pub.getBlock();
     return { number: b.number as bigint, timestamp: b.timestamp as bigint };
   });
 }
-/** Les listes viennent de l'index de l'API ArcHive (cache de 15 s des seules réponses complètes, délai de 8 s) ; jamais
- *  de l'explorateur. API muette ou réponse illisible : ListUnavailableError (« liste momentanément indisponible »).
- *  `arc` reste en paramètre (mêmes appels qu'avant) ; `cx.apiBase` choisit l'API. */
+/** The lists come from the ArcHive API's index (a 15 s cache of complete answers only, an 8 s timeout), never from the
+ *  explorer. A silent API or an unreadable answer: ListUnavailableError ("liste momentanément indisponible", list
+ *  temporarily unavailable). `arc` stays a parameter (the same calls as before); `cx.apiBase` picks the API. */
 export const productsCached = (_arc: ArcClient, cx: ActionCtx = {}): Promise<ProductView[]> => apiProducts({ base: cx.apiBase });
 export const enclavesCached = (_arc: ArcClient, cx: ActionCtx = {}): Promise<EnclaveView[]> => apiEnclaves({ base: cx.apiBase });
 export const bountiesCached = (_arc: ArcClient, cx: ActionCtx = {}): Promise<BountyRow[]> => apiBounties({ base: cx.apiBase });
 
-/** Une liste, ou la raison exacte de son absence (pour les outils dont la liste n'est qu'un complément). */
+/** A list, or the exact reason it is missing (for the tools whose list is only a complement). */
 async function listOrReason<T>(p: Promise<T>): Promise<{ ok: true; v: T } | { ok: false; indisponible: string }> {
   try { return { ok: true, v: await p }; } catch (e) {
     if (isListUnavailable(e)) return { ok: false, indisponible: e.message };
@@ -140,7 +140,7 @@ function liteOf(p: ProductView): ProductLite {
     minBond: p.minBond, exposureCap: p.exposureCap, settlement: p.settlement, param: p.param, state: p.state,
   };
 }
-/** Un produit en UNE lecture (getProduct, sans manifestURI). */
+/** A product in ONE read (getProduct, without manifestURI). */
 export function productLite(arc: ArcClient, id: bigint): Promise<ProductLite> {
   return cached(ck(arc, `product:${id}`), 15_000, async () => {
     const p = await read<any>(arc, arc.d.productRegistry, productRegistryAbi, "getProduct", [id]);
@@ -163,10 +163,10 @@ export function railOf(arc: ArcClient, settlement: string): string {
   return "contrat de règlement inconnu";
 }
 
-/** 18/11 : le contrat de Prime scellée qui règle ce produit : SealedBounty (niveau ouvert, produit 2) ou, sur la pile des
- *  niveaux, SealedBountyVerified (niveau vérifié, produit 7 : même code, branché sur PolicyEnclaves) ; undefined pour tout
- *  autre règlement (dont l'ancienne Prime vérifiée du produit 6, neutralisée le 11/11). createBounty refuse un produit
- *  réglé par un autre contrat (WrongSettlement) : la prime se prépare donc toujours sur CE contrat. */
+/** The Sealed Bounty contract that settles this product: SealedBounty (open level, product 2) or, on the stack with
+ *  levels, SealedBountyVerified (verified level, product 7: the same code, plugged into PolicyEnclaves); undefined for any
+ *  other settlement (including product 6's former verified bounty, neutralized on 11 Nov 2026). createBounty refuses a
+ *  product settled by another contract (WrongSettlement), so the bounty is always prepared on THIS contract. */
 export function bountyContractOf(arc: ArcClient, settlement: string): { address: Address; verified: boolean } | undefined {
   const s = settlement.toLowerCase();
   if (s === arc.d.sealedBounty.toLowerCase()) return { address: arc.d.sealedBounty, verified: false };
@@ -174,7 +174,7 @@ export function bountyContractOf(arc: ArcClient, settlement: string): { address:
   return undefined;
 }
 
-// ---------------------------------------------------------------- formats et entrées
+// ---------------------------------------------------------------- formats and inputs
 
 export const usdc = (v: bigint) => `${formatUnits(v, 6)} USDC`;
 const fmtAmount = (v: bigint, decimals: number, label: string) => `${formatUnits(v, decimals)} ${label}`;
@@ -224,7 +224,7 @@ function intStr(x: unknown, label: string): string {
 }
 const short = (h: string, n = 18) => (h.length > n * 2 ? `${h.slice(0, n)}…${h.slice(-8)}` : h);
 
-/** JSON à clés triées (empreinte stable d'un manifeste). */
+/** JSON with sorted keys (a manifest's stable fingerprint). */
 function stableStringify(v: unknown): string {
   if (v === null || typeof v !== "object") return JSON.stringify(v);
   if (Array.isArray(v)) return "[" + v.map(stableStringify).join(",") + "]";
@@ -234,7 +234,7 @@ function stableStringify(v: unknown): string {
 
 // ---------------------------------------------------------------- URL d'enclave (/attest, /pubkeys)
 
-/** Lit le corps d'une réponse HTTP, borné à `max` octets. */
+/** Reads the body of an HTTP response, bounded to `max` bytes. */
 async function readBodyCapped(res: Response, max = 4_000_000): Promise<string> {
   const reader = res.body?.getReader();
   const chunks: Uint8Array[] = [];
@@ -244,7 +244,7 @@ async function readBodyCapped(res: Response, max = 4_000_000): Promise<string> {
       const { done, value } = await reader.read();
       if (done) break;
       n += value.byteLength;
-      if (n > max) { await reader.cancel(); throw new Error(`réponse trop grande (plus de ${Math.round(max / 1e6)} Mo)`); }
+      if (n > max) { await reader.cancel(); throw new Error(`response too large (over ${Math.round(max / 1e6)} MB)`); }
       chunks.push(value);
     }
   }
@@ -254,31 +254,31 @@ async function readBodyCapped(res: Response, max = 4_000_000): Promise<string> {
   return new TextDecoder().decode(all);
 }
 
-/** Taille maximale d'une réponse de passerelle d'enclave (un quote TDX et son journal d'événements font quelques Ko). */
+/** Maximum size of an enclave gateway response (a TDX quote and its event log take a few KB). */
 const ENCLAVE_MAX_BYTES = 1_000_000;
 const ENCLAVE_TIMEOUT_MS = 15_000;
 
-/** La politique d'URL d'enclave d'un contexte (copilote ou MCP). */
+/** The enclave URL policy of a context (copilot or MCP). */
 export const enclavePolicyOf = (cx: ActionCtx): EnclavePolicy => ({ allowPrivate: !!cx.allowPrivateUrls, prefixes: cx.enclavePathPrefixes });
 
-/** Options réseau des sondes (tests : résolveur, requêteur et adresses permises simulés). */
+/** Network options of the probes (tests: a simulated resolver, requester and allowed addresses). */
 export type ProbeNet = Pick<GuardOptions, "resolve" | "isAllowed" | "timeoutMs"> & { request?: Requester };
 
-/** Erreur d'une sonde, sans rien de ce que l'hôte a renvoyé : nos propres messages (URL refusée, redirection refusée,
- *  délai, taille), sinon le code de l'erreur réseau. */
+/** A probe's error, with nothing the host sent back: our own messages (URL refused, redirect refused, timeout, size),
+ *  otherwise the network error's code. */
 function probeError(u: URL, e: any): Error {
   if (e instanceof BlockedUrlError) return e;
-  if (e?.name === "AbortError" || e?.name === "TimeoutError") return new Error(`délai dépassé (15 s) en appelant ${u.origin}${u.pathname}`);
+  if (e?.name === "AbortError" || e?.name === "TimeoutError") return new Error(`timed out (15 s) calling ${u.origin}${u.pathname}`);
   const msg = String(e?.message ?? "");
-  if (/^(délai dépassé|réponse trop grande|réponse interrompue)/.test(msg)) return new Error(msg.slice(0, 200));
+  if (/^(timed out|response too large|response interrupted)/.test(msg)) return new Error(msg.slice(0, 200));
   const code = String(e?.code ?? e?.cause?.code ?? e?.name ?? "erreur réseau").replace(/[^A-Za-z0-9_]/g, "").slice(0, 40) || "erreur réseau";
   return new Error(`${u.origin}${u.pathname} injoignable (${code})`);
 }
 
-/** Lit le JSON d'une route d'enclave (jamais de clé envoyée) : https, port 443, chemin fixe ; hôte résolu UNE fois,
- *  adresse publique exigée, connexion à cette adresse (pas de rebinding DNS), aucune redirection, délai, taille bornée
- *  (net-guard.ts). Réponse non 2xx : seul le statut est rendu, le corps n'est jamais lu. allowPrivate (développement
- *  local) : réseau privé, http et tout port permis, avec les mêmes autres gardes. Exporté pour les tests. */
+/** Reads the JSON of an enclave route (never sends a key): https, port 443, a fixed path; the host resolved ONCE, a
+ *  public address required, the connection made to that address (no DNS rebinding), no redirect, a timeout, a bounded
+ *  size (net-guard.ts). A non-2xx response: only the status is returned, the body is never read. allowPrivate (local
+ *  development): private network, http and any port allowed, with the same other guards. Exported for the tests. */
 export async function fetchEnclaveJson(base: string, route: EnclaveRoute, body: unknown | undefined, policy: EnclavePolicy, net: ProbeNet = {}): Promise<any> {
   const u = enclaveEndpoint(base, route, policy);
   const headers: Record<string, string> = { accept: "application/json" };
@@ -289,14 +289,14 @@ export async function fetchEnclaveJson(base: string, route: EnclaveRoute, body: 
   try {
     res = await safeFetch(u, init, { timeoutMs: ENCLAVE_TIMEOUT_MS, maxBytes: ENCLAVE_MAX_BYTES, allowPrivate: !!policy.allowPrivate, discardErrorBody: true, ...net });
     if (!res.ok) throw new BlockedUrlError(`${route} de ${u.host} a répondu HTTP ${res.status} (corps non lu)`);
-    text = await readBodyCapped(res, ENCLAVE_MAX_BYTES); // le délai couvre aussi la lecture du corps
+    text = await readBodyCapped(res, ENCLAVE_MAX_BYTES); // the timeout also covers reading the body
   } catch (e) {
     throw probeError(u, e);
   }
-  try { return JSON.parse(text); } catch { throw new Error(`${route} de ${u.host} : réponse non JSON`); }
+  try { return JSON.parse(text); } catch { throw new Error(`${route} from ${u.host}: response not JSON`); }
 }
 
-/** En-têtes d'un RequestInit (objet, tableau ou Headers) en objet simple. */
+/** The headers of a RequestInit (object, array or Headers) as a plain object. */
 function headersRecord(h: unknown): Record<string, string> | undefined {
   if (!h) return undefined;
   const out: Record<string, string> = {};
@@ -304,9 +304,9 @@ function headersRecord(h: unknown): Record<string, string> | undefined {
   return out;
 }
 
-/** fetch pour le SDK (verifyEnclaveKeys → GET …/pubkeys) avec les mêmes gardes que fetchEnclaveJson : seule une URL de
- *  route d'enclave passe ; réponse non 2xx rendue SANS corps ; réponse 2xx rendue seulement si c'est du JSON (sinon
- *  « réponse non JSON », sans rien recopier). Exporté pour les tests. */
+/** A fetch for the SDK (verifyEnclaveKeys → GET …/pubkeys) with the same guards as fetchEnclaveJson: only an enclave
+ *  route URL passes; a non-2xx response is returned WITHOUT a body; a 2xx response is returned only when it is JSON
+ *  (otherwise "response not JSON", with nothing copied). Exported for the tests. */
 export function guardedFetch(policy: EnclavePolicy, net: ProbeNet = {}): typeof fetch {
   return (async (input: any, init?: any) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : String(input?.url ?? input);
@@ -323,22 +323,22 @@ export function guardedFetch(policy: EnclavePolicy, net: ProbeNet = {}): typeof 
     } catch (e) {
       throw probeError(u, e);
     }
-    try { JSON.parse(text); } catch { throw new Error(`${u.pathname} : réponse non JSON`); }
+    try { JSON.parse(text); } catch { throw new Error(`${u.pathname}: response not JSON`); }
     return new Response(text, { status: res.status, headers: { "content-type": "application/json" } });
   }) as typeof fetch;
 }
 
-/** Durée approximative d'un nombre de blocs (BLOCK_TIME_MS du registre). */
+/** The approximate duration of a number of blocks (the registry's BLOCK_TIME_MS). */
 async function blocksDuree(arc: ArcClient, blocks: bigint): Promise<string> {
   const ms = await constant<bigint>(arc, arc.d.enclaveRegistry, "BLOCK_TIME_MS");
   return `${blocks} blocs ≈ ${duree((blocks * ms) / 1000n)}`;
 }
 
-// ---------------------------------------------------------------- autorisation EIP-3009 (données à signer)
+// ---------------------------------------------------------------- EIP-3009 authorization (data to sign)
 
 function eip3009(arc: ArcClient, from: Address | undefined, to: Address, value: bigint, now: bigint) {
-  const validBefore = now + 3600n; // une heure pour signer et envoyer (comme le SDK)
-  const nonce = freshNonce(); // un nonce n'est pas un secret : le wallet le signe
+  const validBefore = now + 3600n; // one hour to sign and send (like the SDK)
+  const nonce = freshNonce(); // a nonce is not a secret: the wallet signs it
   return {
     typedData: {
       domain: usdcDomain(arc.d.usdc, arc.d.chainId),
@@ -359,9 +359,9 @@ const tcbView = (code: number) => ({
   accepte: code === 0 ? "oui" : code === 1 ? "oui si tous les avis Intel sont tolérés par le produit" : "non (politique P2 : on échoue fermé)",
 });
 
-// ================================================================ ÉTATS (lecture)
+// ================================================================ STATE (reads)
 
-/** enclaves.status — une enclave par son signataire, et la caution de son opérateur. */
+/** enclaves.status — one enclave by its signer, and its operator's bond. */
 export async function enclaveStatus(arc: ArcClient, signerIn: unknown) {
   const signer = addr(signerIn, "signataire de l'enclave");
   const e = await read<any>(arc, arc.d.enclaveRegistry, enclaveRegistryAbi, "enclaveOf", [signer]);
@@ -437,7 +437,7 @@ export async function enclaveStatus(arc: ArcClient, signerIn: unknown) {
   };
 }
 
-/** session.status — une session SessionPay par son id. */
+/** session.status — one SessionPay session by its id. */
 export async function sessionStatus(arc: ArcClient, sessionIdIn: unknown) {
   const sid = parseId(sessionIdIn, "sessionId");
   const s = await read<any>(arc, arc.d.sessionPay, sessionPayAbi, "getSession", [sid]);
@@ -484,7 +484,7 @@ export async function sessionStatus(arc: ArcClient, sessionIdIn: unknown) {
   };
 }
 
-/** bounty.list — les primes (et le détail d'une prime avec ses paliers). */
+/** bounty.list — the bounties (and one bounty's detail with its tiers). */
 export async function bountyList(arc: ArcClient, q: { onlyOpen?: unknown; bountyId?: unknown } = {}, cx: ActionCtx = {}) {
   const bs = await bountiesCached(arc, cx);
   const h = await headBlock(arc);
@@ -546,7 +546,7 @@ export async function bountyList(arc: ArcClient, q: { onlyOpen?: unknown; bounty
 
 const isoOrNull = (ts: bigint) => (ts > 0n ? iso(ts) : null);
 
-/** enclaves.list — la ruche : toutes les enclaves inscrites, actives ou non au bloc de tête de l'API. */
+/** enclaves.list — the hive: every registered enclave, active or not at the API's head block. */
 export async function enclavesList(_arc: ArcClient, q: { onlyActive?: unknown } = {}, cx: ActionCtx = {}) {
   const es = await enclavesCached(_arc, cx);
   const onlyActive = q.onlyActive === true || String(q.onlyActive) === "true";
@@ -562,7 +562,7 @@ export async function enclavesList(_arc: ArcClient, q: { onlyActive?: unknown } 
   };
 }
 
-/** products.list — les produits (actifs seulement par défaut : un produit retiré ne doit jamais être proposé). */
+/** products.list — the products (active ones only by default: a retired product must never be offered). */
 export async function productsList(arc: ArcClient, q: { all?: unknown } = {}, cx: ActionCtx = {}) {
   const ps = await productsCached(arc, cx);
   const all = q.all === true || String(q.all) === "true";
@@ -578,7 +578,7 @@ export async function productsList(arc: ArcClient, q: { all?: unknown } = {}, cx
   };
 }
 
-/** sessions.list — les sessions SessionPay ouvertes par un compte (défaut : le wallet connecté). */
+/** sessions.list — the SessionPay sessions opened by an account (default: the connected wallet). */
 export async function sessionsList(_arc: ArcClient, q: { owner?: unknown } = {}, cx: ActionCtx = {}) {
   const owner = optAddr(q.owner, "owner") ?? cx.user;
   if (!owner) return { disponible: false, erreur: "owner requis : l'adresse 0x… du compte (ou connectez votre wallet)." };
@@ -597,7 +597,7 @@ export async function sessionsList(_arc: ArcClient, q: { owner?: unknown } = {},
   };
 }
 
-/** activity.list — l'activité on-chain récente des contrats du réseau (du plus récent au plus ancien). */
+/** activity.list — the recent on-chain activity of the network's contracts (newest first). */
 export async function activityList(_arc: ArcClient, q: { limit?: unknown } = {}, cx: ActionCtx = {}) {
   const n = present(q.limit) ? Math.min(50, Math.max(1, Math.floor(Number(q.limit)) || 10)) : 10;
   const ev = await apiActivity(n, { base: cx.apiBase });
@@ -609,13 +609,13 @@ export async function activityList(_arc: ArcClient, q: { limit?: unknown } = {},
   };
 }
 
-// ================================================================ SESSION (préparée)
+// ================================================================ SESSION (prepared)
 
-/** session.prepare_open — ouverture de session PRÉPARÉE (choix de l'opérateur, autorisation à signer). */
+/** session.prepare_open — a PREPARED session opening (operator choice, authorization to sign). */
 export async function prepareSessionOpen(arc: ArcClient, q: any, cx: ActionCtx = {}) {
   const es = await enclavesCached(arc, cx);
-  // Produit demandé (ou aucun) sans enclave active : on bascule sur un produit d'inférence (SessionPay) ACTIF qui en a une,
-  // pour que l'utilisateur puisse vraiment signer. Le changement est dit dans la réponse (produitDemande).
+  // A requested product (or none) with no active enclave: switch to an ACTIVE inference product (SessionPay) that has
+  // one, so the user can really sign. The answer says so (produitDemande).
   const asked = q.productId !== undefined && q.productId !== null && String(q.productId) !== "" ? parseId(q.productId, "productId") : undefined;
   let pid = asked ?? 0n;
   if (asked === undefined || !es.some((e) => e.active && e.productId === asked)) {
@@ -677,7 +677,7 @@ export async function prepareSessionOpen(arc: ArcClient, q: any, cx: ActionCtx =
   };
 }
 
-// ================================================================ PRIME (préparée)
+// ================================================================ BOUNTY (prepared)
 
 function normalizeClause(c: any, i: number): Clause {
   const L = `clause ${i + 1}`;
@@ -705,15 +705,15 @@ function normalizePredicate(raw: unknown): Predicate {
   return p;
 }
 
-/** bounty.prepare_create — création de prime PRÉPARÉE, avec l'assistant de prédicat. Rien n'est envoyé. */
+/** bounty.prepare_create — a PREPARED bounty creation, with the predicate helper. Nothing is sent. */
 export async function prepareBountyCreate(arc: ArcClient, q: any, cx: ActionCtx = {}) {
   const aCompleter: string[] = [];
   const avertissements: string[] = [];
   const verifications: Array<{ ok: boolean; quoi: string }> = [];
   const infos: Record<string, unknown> = {};
 
-  // 1) le produit « Prime scellée » : sans productId, le niveau ouvert (règlement = SealedBounty) ; productId 7 (ou tout
-  //    produit réglé par SealedBountyVerified) = le niveau vérifié, préparé sur SealedBountyVerified (18/11)
+  // 1) the "Sealed Bounty" product: without productId, the open level (settlement = SealedBounty); productId 7 (or any
+  //    product settled by SealedBountyVerified) = the verified level, prepared on SealedBountyVerified
   let product: ProductLite | undefined;
   if (present(q.productId)) product = await productLite(arc, parseId(q.productId, "productId"));
   else {
@@ -724,7 +724,7 @@ export async function prepareBountyCreate(arc: ArcClient, q: any, cx: ActionCtx 
   if (!product || product.state === "None") throw new Error("Aucun produit « Prime scellée » actif trouvé (règlement SealedBounty).");
   verifications.push({ ok: product.state === "Active", quoi: `produit #${product.id} : ${product.state}${product.state === "Active" ? "" : " (createBounty reverterait : BadProduct)"}` });
   const rail = bountyContractOf(arc, product.settlement);
-  /** Le contrat de la prime : celui qui règle le produit (createBounty, autorisation EIP-3009, frais, MAX_SIGS). */
+  /** The bounty's contract: the one that settles the product (createBounty, EIP-3009 authorization, fees, MAX_SIGS). */
   const bounty: Address = rail?.address ?? arc.d.sealedBounty;
   const bountyName = rail?.verified ? "SealedBountyVerified" : "SealedBounty";
   if (!rail) {
@@ -733,8 +733,8 @@ export async function prepareBountyCreate(arc: ArcClient, q: any, cx: ActionCtx 
   }
   if (!product.deterministic) avertissements.push(`Le produit #${product.id} n'est pas déterministe : le rejeu d'un exploit doit l'être.`);
   if (rail?.verified) {
-    // niveau vérifié : la prime se crée et se finance dès maintenant, mais acceptClaim appelle OperatorBond.consumeExposure,
-    // qui n'accepte qu'un contrat de règlement AUTORISÉ (8 jours après sa proposition, puis applySettlement)
+    // verified level: the bounty can be created and funded now, but acceptClaim calls OperatorBond.consumeExposure,
+    // which accepts only an AUTHORIZED settlement contract (8 days after its proposal, then applySettlement)
     infos.niveau = "vérifié : seules comptent les enclaves dont la puce (PPID lu dans le certificat d'Intel) est déclarée par un auditeur accepté par le produit (Proof of Cloud), vérifié au règlement par PolicyEnclaves";
     const authorized = await read<boolean>(arc, arc.d.operatorBond, operatorBondAbi, "isSettlement", [bounty]);
     const applyAt = authorized ? 0n : BigInt(await read<bigint | number>(arc, arc.d.operatorBond, operatorBondAbi, "settlementApplyAt", [bounty]));
@@ -744,7 +744,7 @@ export async function prepareBountyCreate(arc: ArcClient, q: any, cx: ActionCtx 
     if (!authorized) avertissements.push(`Tant que ${bountyName} n'est pas autorisé dans OperatorBond${applyAt > 0n ? ` (possible à partir du ${iso(applyAt)}, puis applySettlement)` : ""}, la prime peut être créée et financée, mais aucune réclamation ne peut être acceptée : choisis une échéance au-delà.`);
   }
 
-  // 2) le prédicat : assistant guidé, ou prédicat complet fourni
+  // 2) the predicate: the guided helper, or a full predicate given
   const token = optAddr(q.token, "token") ?? arc.d.usdc;
   const type = String(q.clauseType ?? "ERC20_DROP").toUpperCase();
   const target = optAddr(q.target, "contrat cible (target)");
@@ -777,7 +777,7 @@ export async function prepareBountyCreate(arc: ArcClient, q: any, cx: ActionCtx 
     }
   }
 
-  // 3) les paliers (récompense en USDC ; perte minimale dans l'unité de la perte mesurée)
+  // 3) the tiers (reward in USDC; minimum loss in the unit of the measured loss)
   let tiers: Array<{ minLoss: bigint; amount: bigint }> = [];
   if (Array.isArray(q.tiers) && q.tiers.length) {
     tiers = q.tiers.map((t: any, i: number) => ({
@@ -794,7 +794,7 @@ export async function prepareBountyCreate(arc: ArcClient, q: any, cx: ActionCtx 
     throw new Error("paliers : seuils de perte ET montants strictement croissants (sinon createBounty revert BadTiers)");
   }
 
-  // 4) frais lus on-chain (sur le contrat de la prime), financement, k, plafond, échéance
+  // 4) fees read on-chain (on the bounty's contract), funding, k, cap, deadline
   const netBps = BigInt(await constant<number>(arc, bounty, "networkBountyBps"));
   const opBps = BigInt(await constant<number>(arc, bounty, "operatorBountyBps"));
   const maxSigs = await constant<bigint>(arc, bounty, "MAX_SIGS");
@@ -816,7 +816,7 @@ export async function prepareBountyCreate(arc: ArcClient, q: any, cx: ActionCtx 
   const targetToPause = optAddr(q.targetToPause, "targetToPause") ?? ZERO;
   if (targetToPause !== ZERO) infos.miseEnPause = `${targetToPause} doit exposer pause() appelable par ${bountyName} (${bounty}) ; l'appel n'est jamais bloquant.`;
 
-  // 5) la clé du protocole : PUBLIQUE seulement, générée chez lui
+  // 5) the protocol's key: PUBLIC only, generated on its side
   let protocolX25519 = "<ta clé PUBLIQUE X25519 (0x + 64 hex), générée chez toi>";
   if (present(q.protocolX25519)) {
     const s = String(q.protocolX25519).trim();
@@ -824,7 +824,7 @@ export async function prepareBountyCreate(arc: ArcClient, q: any, cx: ActionCtx 
     protocolX25519 = s.toLowerCase();
   } else aCompleter.push("protocolX25519 : ta clé PUBLIQUE X25519 (l'exploit te sera livré chiffré pour elle) ; génère la paire chez toi, voir cleDuProtocole");
 
-  // 6) le wallet du protocole, la cible, les opérateurs capables de vérifier
+  // 6) the protocol's wallet, the target, the operators able to verify
   const from = optAddr(q.from, "from") ?? cx.user;
   if (!from) aCompleter.push("from : le wallet du protocole (celui qui finance et signe)");
   else {
@@ -844,7 +844,7 @@ export async function prepareBountyCreate(arc: ArcClient, q: any, cx: ActionCtx 
   verifications.push({ ok: verifiers.size >= k, quoi: `${verifiers.size} opérateur(s) distinct(s) ont une enclave active sur le produit #${product.id} (k = ${k})` });
   if (verifiers.size === 0) avertissements.push("Aucune enclave active sur ce produit pour l'instant : la prime peut être créée, mais aucun exploit ne sera prouvé tant qu'un opérateur n'en inscrit pas une.");
 
-  // 7) les données à signer
+  // 7) the data to sign
   const ph = predicate ? predicateHash(predicate) : undefined;
   const a = eip3009(arc, from, bounty, funding, h.timestamp);
   const ready = !!predicate && tiers.length > 0 && !!rail;
@@ -900,9 +900,9 @@ export async function prepareBountyCreate(arc: ArcClient, q: any, cx: ActionCtx 
   };
 }
 
-// ================================================================ OPÉRATEUR
+// ================================================================ OPERATOR
 
-/** operator.plan — le plan pas à pas pour devenir opérateur, chiffres lus on-chain. */
+/** operator.plan — the step-by-step plan to become an operator, with the figures read on-chain. */
 export async function operatorPlan(arc: ArcClient, q: any, cx: ActionCtx = {}) {
   const operator = optAddr(q.operator, "operator") ?? cx.user;
   const unbondDelay = await constant<bigint>(arc, arc.d.operatorBond, "UNBOND_DELAY");
@@ -941,7 +941,7 @@ export async function operatorPlan(arc: ArcClient, q: any, cx: ActionCtx = {}) {
   }
   const pid = chosen ? chosen.id.toString() : "<id du produit>";
   const op = operator ?? "0x<ton adresse>";
-  // la Prime du produit choisi : SealedBounty (2, 5) ou SealedBountyVerified (7) ; l'enclave la lit dans SEALEDBOUNTY
+  // the chosen product's bounty contract: SealedBounty (2, 5) or SealedBountyVerified (7); the enclave reads it in SEALEDBOUNTY
   const bountyOf = chosen ? bountyContractOf(arc, chosen.settlement) : undefined;
   const bountyRail = !!bountyOf;
   const appCompose = [
@@ -989,7 +989,7 @@ export async function operatorPlan(arc: ArcClient, q: any, cx: ActionCtx = {}) {
   };
 }
 
-/** operator.prepare_bond — dépôt de caution PRÉPARÉ (autorisation EIP-3009, ou approve + bondFrom). */
+/** operator.prepare_bond — a PREPARED bond deposit (EIP-3009 authorization, or approve + bondFrom). */
 export async function prepareBond(arc: ArcClient, q: any, cx: ActionCtx = {}) {
   const operator = optAddr(q.operator, "operator") ?? cx.user;
   const product = present(q.productId) ? await productLite(arc, parseId(q.productId, "productId")) : undefined;
@@ -1056,10 +1056,10 @@ export async function prepareBond(arc: ArcClient, q: any, cx: ActionCtx = {}) {
   };
 }
 
-/** operator.prepare_register — inscription d'enclave PRÉPARÉE : ancrage, /attest de la VM, registerEnclave à signer. */
+/** operator.prepare_register — a PREPARED enclave registration: anchor, the VM's /attest, registerEnclave to sign. */
 export async function prepareRegister(arc: ArcClient, q: any, cx: ActionCtx = {}) {
   const pid = parseId(q.productId, "productId");
-  if (present(q.enclaveUrl)) enclaveEndpoint(String(q.enclaveUrl), "/attest", enclavePolicyOf(cx)); // URL refusée avant toute lecture
+  if (present(q.enclaveUrl)) enclaveEndpoint(String(q.enclaveUrl), "/attest", enclavePolicyOf(cx)); // URL refused before any read
   const p = await productLite(arc, pid);
   if (p.state === "None") throw new Error(`Produit #${pid} inconnu.`);
   const operator = optAddr(q.operator, "operator") ?? cx.user;
@@ -1077,7 +1077,7 @@ export async function prepareRegister(arc: ArcClient, q: any, cx: ActionCtx = {}
     verifications.push({ ok: !banned, quoi: banned ? "opérateur BANNI" : "opérateur non banni" });
   } else aCompleter.push("operator : ton adresse d'opérateur (le quote la lie, et c'est elle qui envoie la transaction)");
   const h = await headBlock(arc);
-  const anchorR = h.number - 10n; // comme le SDK : un bloc récent, dans la fenêtre EIP-2935
+  const anchorR = h.number - 10n; // like the SDK: a recent block, inside the EIP-2935 window
   const includeCalldata = q.includeCalldata === undefined ? !!cx.includeCalldata : q.includeCalldata === true || String(q.includeCalldata) === "true";
   let attestation: unknown = null;
   let transaction: unknown = null;
@@ -1090,7 +1090,7 @@ export async function prepareRegister(arc: ArcClient, q: any, cx: ActionCtx = {}
     const att = await fetchEnclaveJson(String(q.enclaveUrl), "/attest", { operator, anchorR: anchorR.toString() }, enclavePolicyOf(cx));
     const quote = hexStr(att?.quote, "/attest.quote");
     let eventLog = hexStr(att?.eventLog ?? "0x", "/attest.eventLog");
-    // une valeur de l'hôte n'est jamais recopiée dans une erreur (addr() cite la valeur reçue)
+    // a value from the host is never copied into an error (addr() quotes the value received)
     if (typeof att?.signer !== "string" || !/^0x[0-9a-fA-F]{40}$/.test(att.signer.trim())) throw new Error("/attest.signer : adresse 0x… de 40 caractères hexadécimaux attendue");
     const signer = addr(att.signer, "/attest.signer");
     const x25519 = hexStr(att?.x25519, "/attest.x25519");
@@ -1103,7 +1103,7 @@ export async function prepareRegister(arc: ArcClient, q: any, cx: ActionCtx = {}
     if (att?.mock) {
       verifications.push({ ok: false, quoi: "quote SIMULÉ (la VM n'a pas Intel TDX ou pas l'agent dstack) : la vérification DCAP d'Intel le refuserait (QuoteInvalid)" });
     } else {
-      // ce que le registre exigera, contrôlé hors chaîne avant de dépenser ≈ 5,7 M gas
+      // what the registry will require, checked off-chain before spending ≈ 5.7 M gas
       try {
         const m = parseTdxQuote(quote);
         const needSeptVe = await read<boolean>(arc, arc.d.enclaveRegistry, extraAbi, "requireSeptVeDisable");
@@ -1158,7 +1158,7 @@ export async function prepareRegister(arc: ArcClient, q: any, cx: ActionCtx = {}
 
 /** product.scaffold — squelette d'un produit tiers : conteneur + kit, app-compose, manifeste, propose → timelock → activate. */
 export async function productScaffold(arc: ArcClient, q: any) {
-  const name = String(q.name ?? "").trim() || "mon-service"; // nom provisoire : le squelette sert d'abord à montrer les étapes
+  const name = String(q.name ?? "").trim() || "mon-service"; // a provisional name: the skeleton first shows the steps
   const slug = name.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "mon-service";
   const rail = String(q.rail ?? "session").toLowerCase() === "x402" ? "x402" : "session";
   const settlement = rail === "x402" ? arc.d.x402Settler : arc.d.sessionPay;
@@ -1167,7 +1167,7 @@ export async function productScaffold(arc: ArcClient, q: any) {
   const actives = (await productsCached(arc)).filter((p) => p.state === "Active");
   const live = new Set((await enclavesCached(arc)).filter((e) => e.active).map((e) => e.productId.toString()));
   const sameRail = actives.filter((p) => p.settlement.toLowerCase() === settlement.toLowerCase());
-  // référence : un produit du même rail qui tourne vraiment (enclaves actives), sinon le premier du rail
+  // reference: a product on the same rail that really runs (active enclaves), otherwise the rail's first one
   const ref = sameRail.find((p) => live.has(p.id.toString())) ?? sameRail[0] ?? actives[0];
   const refLabel = ref ? `repris du produit #${ref.id} (lu on-chain), à ajuster` : undefined;
 
@@ -1305,9 +1305,9 @@ export async function productScaffold(arc: ArcClient, q: any) {
   };
 }
 
-// ================================================================ INFÉRENCE DE TEST (sans clé côté serveur)
+// ================================================================ TEST INFERENCE (no key on the server side)
 
-/** inference.test — vérifie l'enclave et la session on-chain, et rend le code à lancer CHEZ l'utilisateur. */
+/** inference.test — checks the enclave and the session on-chain, and returns the code to run ON the user's side. */
 export async function inferenceTest(arc: ArcClient, q: any, cx: ActionCtx = {}) {
   const prompt = present(q.prompt) ? String(q.prompt).slice(0, 500) : "Dis bonjour en une phrase.";
   const verifications: Array<{ ok: boolean; quoi: string }> = [];
@@ -1334,7 +1334,7 @@ export async function inferenceTest(arc: ArcClient, q: any, cx: ActionCtx = {}) 
   const url = present(q.enclaveUrl) ? String(q.enclaveUrl).trim() : cx.enclaveUrl;
   if (present(q.enclaveUrl)) {
     enclaveEndpoint(String(q.enclaveUrl).trim(), "/pubkeys", enclavePolicyOf(cx)); // https, port 443, chemin fixe
-    // la même vérification que le SDK fera chez l'utilisateur avant tout chiffrement (verifyEnclaveKeys)
+    // the same check the SDK will run on the user's side before any encryption (verifyEnclaveKeys)
     try {
       const k = await verifyEnclaveKeys(String(q.enclaveUrl).trim(), pid, {
         publicClient: arc.pub, deployment: arc.d, fetch: guardedFetch(enclavePolicyOf(cx)),
@@ -1392,12 +1392,12 @@ export async function inferenceTest(arc: ArcClient, q: any, cx: ActionCtx = {}) 
   };
 }
 
-// ================================================================ MACHINES DES OPÉRATEURS (API ArcHive, lecture seule)
+// ================================================================ OPERATORS' MACHINES (ArcHive API, read only)
 
 const apiBaseOf = (cx: ActionCtx) => archiveBase(cx.apiBase);
 
 type ApiResult = { ok: true; data: any } | { ok: false; status?: number; erreur: string };
-/** GET sur l'API ArcHive : jamais d'exception, une erreur claire (404, injoignable, non JSON). */
+/** GET on the ArcHive API: never an exception, a clear error (404, unreachable, not JSON). */
 async function apiGet(base: string, path: string): Promise<ApiResult> {
   const route = path.split("?")[0];
   const ctl = new AbortController();
@@ -1420,7 +1420,7 @@ async function apiGet(base: string, path: string): Promise<ApiResult> {
   }
 }
 
-/** Date de l'API (ISO, ou époque en s ou ms) → ISO + « il y a … » (horloge locale : donnée hors chaîne). */
+/** A date from the API (ISO, or epoch in s or ms) → ISO + "… ago" (local clock: off-chain data). */
 function whenFr(x: unknown): { iso: string | null; depuis: string | null } {
   if (x === undefined || x === null || x === "") return { iso: null, depuis: null };
   let ms: number;
@@ -1433,7 +1433,7 @@ function whenFr(x: unknown): { iso: string | null; depuis: string | null } {
 
 const MACHINE_ID_RE = /^[A-Za-z0-9._:-]{1,128}$/;
 
-/** La correction concrète de chaque vérification du « doctor » d'un nœud. */
+/** The concrete fix for each check of a node's "doctor". */
 const FIXES: Record<string, string> = {
   os: "Système non pris en charge : faites tourner le nœud sur une VM Linux x86_64.",
   node: "Node.js absent ou trop ancien : installez Node 22 ou plus récent (ex. nvm install 22), puis relancez le nœud.",
@@ -1461,7 +1461,7 @@ function machineRow(m: any) {
   };
 }
 
-/** machines.list — les machines (nœuds) d'un opérateur, vues par l'API ArcHive. Lecture seule. */
+/** machines.list — an operator's machines (nodes), as the ArcHive API sees them. Read only. */
 export async function machinesList(q: any, cx: ActionCtx = {}) {
   const operator = optAddr(q?.operator, "operator") ?? cx.user;
   if (!operator) return { disponible: false, erreur: "operator requis : l'adresse 0x… de l'opérateur (ou connecte ton wallet)." };
@@ -1490,7 +1490,7 @@ export async function machinesList(q: any, cx: ActionCtx = {}) {
   };
 }
 
-/** machine.diagnostics — le diagnostic complet d'une machine, résumé avec la correction de chaque échec. */
+/** machine.diagnostics — a machine's full diagnostics, summarized with the fix for each failure. */
 export async function machineDiagnostics(arc: ArcClient, q: any, cx: ActionCtx = {}) {
   const id = String(q?.machineId ?? "").trim();
   if (!MACHINE_ID_RE.test(id)) return { disponible: false, erreur: `machineId invalide : « ${id} » (lettres, chiffres, . _ : - ; 128 caractères au plus).` };
@@ -1506,7 +1506,7 @@ export async function machineDiagnostics(arc: ArcClient, q: any, cx: ActionCtx =
   const aCorriger: Array<{ id: string; verification: string; detail: string; correction: string }> = [];
   const attendus: Array<{ id: string; verification: string; pourquoi: string }> = [];
   for (const c of checks.filter((x) => !x.ok)) {
-    // échecs normaux selon le mode : démo = quote simulé ; dstack = quote par le socket ; tdx = quote direct du noyau
+    // normal failures for the mode: demo = simulated quote; dstack = quote through the socket; tdx = quote straight from the kernel
     const expected = TDX_CHECKS.has(c.id) && (
       mode === "demo"
       || (mode === "dstack" && c.id !== "dstack_socket" && isOk("dstack_socket") && !attestFailed)

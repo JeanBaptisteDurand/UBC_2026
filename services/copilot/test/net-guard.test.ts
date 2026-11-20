@@ -44,15 +44,15 @@ test("enclave URL: https only, port 443 only, fixed path (root or a known gatewa
   ];
   for (const [base, route, href] of ok) assert.equal(enclaveEndpoint(base, route).href, href, base);
   const refused: Array<[string, string, RegExp]> = [
-    ["http://abc.example", "/attest", /https seulement/],
-    ["https://abc.example:8443", "/attest", /port 443 seulement/],
-    ["https://abc.example:80", "/pubkeys", /port 443 seulement/],
-    ["https://abc.example/e404", "/attest", /chemin fixe/], // le relais du vérificateur : préfixe libre
-    ["https://abc.example/admin/secret", "/pubkeys", /chemin fixe/],
-    ["https://abc.example/enclave/inference/../../admin", "/pubkeys", /chemin fixe/],
-    ["https://abc.example/enclave%2Finference", "/pubkeys", /chemin fixe/],
-    ["https://abc.example", "/health", /\/attest ou \/pubkeys seulement/],
-    ["https://abc.example", "/v1/chat/completions", /\/attest ou \/pubkeys seulement/],
+    ["http://abc.example", "/attest", /https only/],
+    ["https://abc.example:8443", "/attest", /port 443 only/],
+    ["https://abc.example:80", "/pubkeys", /port 443 only/],
+    ["https://abc.example/e404", "/attest", /fixed path/], // the reviewer's relay: a free prefix
+    ["https://abc.example/admin/secret", "/pubkeys", /fixed path/],
+    ["https://abc.example/enclave/inference/../../admin", "/pubkeys", /fixed path/],
+    ["https://abc.example/enclave%2Finference", "/pubkeys", /fixed path/],
+    ["https://abc.example", "/health", /\/attest or \/pubkeys only/],
+    ["https://abc.example", "/v1/chat/completions", /\/attest or \/pubkeys only/],
   ];
   for (const [base, route, why] of refused) assert.throws(() => enclaveEndpoint(base, route), (e: any) => e instanceof BlockedUrlError && why.test(e.message), `${base} ${route}`);
   // préfixes réglables (ENCLAVE_PATH_PREFIXES) ; « none » = la racine seulement
@@ -64,7 +64,7 @@ test("enclave URL: https only, port 443 only, fixed path (root or a known gatewa
   const dev = { allowPrivate: true };
   assert.equal(enclaveEndpoint("http://localhost:8802", "/attest", dev).href, "http://localhost:8802/attest");
   assert.equal(enclaveEndpoint("http://192.168.1.20:8802/enclave/inference", "/pubkeys", dev).href, "http://192.168.1.20:8802/enclave/inference/pubkeys");
-  assert.throws(() => enclaveEndpoint("http://[::1]:8802/redir", "/attest", dev), /chemin fixe/);
+  assert.throws(() => enclaveEndpoint("http://[::1]:8802/redir", "/attest", dev), /fixed path/);
   assert.throws(() => enclaveEndpoint("file:///etc/passwd", "/attest", dev), BlockedUrlError);
 });
 
@@ -166,14 +166,14 @@ test("anti-rebinding: a public then a private answer → only the public one is 
 test("refused: redirect, response too large, timeout", async () => {
   const pin = { resolve: async () => [{ address: "127.0.0.1", family: 4 }], isAllowed: () => true };
   handler = (_req, res) => { res.writeHead(302, { location: "http://169.254.169.254/latest/meta-data/" }); res.end(); };
-  await assert.rejects(safeFetch(`${base}/attest`, {}, pin), /redirection refusée/);
+  await assert.rejects(safeFetch(`${base}/attest`, {}, pin), /redirect refused/);
 
   handler = (_req, res) => { res.writeHead(200); res.end("x".repeat(50_000)); };
   const big = await safeFetch(`${base}/attest`, {}, { ...pin, maxBytes: 1_000 });
-  await assert.rejects(big.text(), /trop grande/);
+  await assert.rejects(big.text(), /too large/);
 
   handler = () => { /* ne répond jamais */ };
   const t0 = Date.now();
-  await assert.rejects(safeFetch(`${base}/attest`, {}, { ...pin, timeoutMs: 300 }), /délai dépassé/);
+  await assert.rejects(safeFetch(`${base}/attest`, {}, { ...pin, timeoutMs: 300 }), /timed out/);
   assert.ok(Date.now() - t0 < 3_000);
 });

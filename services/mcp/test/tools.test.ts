@@ -124,9 +124,9 @@ test("malicious enclave URL: no redirect followed, fixed path, error body never 
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify({ signer: "0x1111111111111111111111111111111111111111", x25519: `0x${"11".repeat(32)}` }));
     };
-    // 1) by default: http, private address and localhost refused before any connection (the copilot's messages are French)
+    // 1) by default: http, private address and localhost refused before any connection (the copilot's guard messages)
     const def = createMcpContext({ ARCHIVE_API: api.base } as NodeJS.ProcessEnv).actx;
-    for (const [url, why] of [[local, /https seulement/], [`https://127.0.0.1:443`, /adresse privée ou réservée/], ["https://localhost", /réseau privé/]] as const) {
+    for (const [url, why] of [[local, /https only/], [`https://127.0.0.1:443`, /private or reserved address/], ["https://localhost", /private network/]] as const) {
       const r = await prep(def, url);
       assert.equal(r.isError, true, url);
       assert.match(r.content[0]!.text, why, url);
@@ -136,13 +136,13 @@ test("malicious enclave URL: no redirect followed, fixed path, error body never 
     const dev = createMcpContext({ ARCHIVE_API: api.base, MCP_ALLOW_PRIVATE_URLS: "1" } as NodeJS.ProcessEnv).actx;
     const r = await prep(dev, local);
     assert.equal(r.isError, true);
-    assert.match(r.content[0]!.text, /redirection refusée/);
-    assert.ok(!r.content[0]!.text.includes("0x1111111111111111111111111111111111111111"), "rien de la cible ne revient");
+    assert.match(r.content[0]!.text, /redirect refused/);
+    assert.ok(!r.content[0]!.text.includes("0x1111111111111111111111111111111111111111"), "nothing from the target comes back");
     assert.deepEqual(hits, ["POST /attest"]);
     // 3) free path (the reviewer's "http://[::1]:P/redir"): refused before any connection
     const free = await prep(dev, `http://[::1]:${port}/redir`);
     assert.equal(free.isError, true);
-    assert.match(free.content[0]!.text, /chemin fixe/);
+    assert.match(free.content[0]!.text, /fixed path/);
     assert.deepEqual(hits, ["POST /attest"]);
     // 4) error response: only the status reaches the agent
     handler = (_req, res) => { res.writeHead(404, { "content-type": "text/html" }); res.end("<html>INTERNAL-PAGE of the router</html>"); };
