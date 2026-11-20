@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLive } from '../data/live'
 import { num, short } from '../data/fmt'
-import { t, useLang, setLang, getLang, type TKey } from '../i18n'
+import { t, useLang, getLang, type TKey } from '../i18n'
 import { link, networkFor } from '../links'
 import { world, setLock, useLock, useWallVersion, useLoupe } from '../world'
 import { G, SLOTS, NSLOTS, slotLabel, productLabel, priceText, reasonText, stateText, colX, type Sled } from '../data/wall'
@@ -70,9 +70,8 @@ export function Header({ loaded }: { loaded: number | (() => number) }) {
         <a className="logo" href={link.home} aria-label="ArcHive"><Logo /></a>
         <nav className="hd-nav" aria-label={t('nav.main')}>{nav}</nav>
         <div className="hd-side">
-          {/* the bridge, at the right next to the language and the wallet (hidden under 1100 px: it is in the menu) */}
+          {/* the bridge, at the right next to the wallet (hidden under 1100 px: it is in the menu) */}
           <div className="hd-nav hd-br"><BridgeNav /></div>
-          <button className="lang" onClick={() => setLang(lang === 'fr' ? 'en' : 'fr')} lang={lang === 'fr' ? 'en' : 'fr'} aria-label={t('lang.to')}>{lang === 'fr' ? 'EN' : 'FR'}</button>
           {/* the visitor's wallet, as on the app pages */}
           <HeaderWallet />
           <MenuButton open={open} set={setOpen} />

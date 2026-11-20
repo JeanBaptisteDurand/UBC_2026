@@ -85,7 +85,7 @@ function closeOutcome(logs: readonly Log[]): { outcome: 'written' | 'not_applica
 export async function closeSession(id: bigint): Promise<{ tx: Hex; outcome: string; reason?: string }> {
   const a = arc()
   const c = await a.sessionClosability(id)
-  if (!c.closableNow) throw new UserFacing(x('s.tooEarly', { when: new Date(Number(c.atTime) * 1000).toLocaleString() }), 'other')
+  if (!c.closableNow) throw new UserFacing(x('s.tooEarly', { when: new Date(Number(c.atTime) * 1000).toLocaleString('en-US') }), 'other')
   const h = await a.closeSession(id)
   const rcpt = await waitOk(h)
   return { tx: h, ...closeOutcome(rcpt.logs) }

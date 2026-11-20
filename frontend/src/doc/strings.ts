@@ -1,5 +1,5 @@
-// Doc page strings (EN, FR). The chapters themselves come from content.ts (the technology chapters); here only what the
-// doc page adds around them, and the sentences whose numbers are read live.
+// Doc page strings, in English (the site is English only). The chapters themselves come from content.ts (the
+// technology chapters); here only what the doc page adds around them, and the sentences whose numbers are read live.
 import { useLang } from '../i18n'
 
 const EN = {
@@ -49,51 +49,9 @@ const EN = {
   'doc.p7.none': 'No bounty is open on it right now.',
 }
 type K = keyof typeof EN
-const FR: Record<K, string> = {
-  'doc.title': 'ArcHive. Doc',
-  'doc.sec': 'Doc',
-  'doc.skip': 'Aller aux chapitres',
-  'doc.h.a': 'Arc est ', 'doc.h.b': 'le notaire', 'doc.h.c': '.',
-  'doc.index': 'Chapitres',
-  'doc.open': 'Ouvrir',
-  'doc.back': 'Retour au début',
-  'doc.close': 'Fermer',
-  'doc.prev': 'Chapitre précédent',
-  'doc.next': 'Chapitre suivant',
-  'doc.of': '{a} sur {b}',
-  'doc.start': 'Commencer la lecture',
-  'doc.verdict': '13 de nos contrats en service sur Arc testnet, 51 déployés avec le vérificateur d’Intel jusqu’à la pile en service, plus les 14 de la pile suivante (v3). {e} enclaves admises à ce jour, {v} verdicts écrits.',
-  'doc.verdict.r': '13 de nos contrats en service sur Arc testnet, 51 déployés avec le vérificateur d’Intel jusqu’à la pile en service, plus les 14 de la pile suivante (v3).',
-  'doc.readAt': 'Arc testnet, lu au bloc {b}',
-  'doc.reading': 'Lecture d’Arc testnet',
-  'doc.st.off': 'Aucune enclave en marche pour le moment (0 sur {n}). Tout ce qui est sur Arc reste lisible, et chaque preuve de cette page est une vraie transaction passée.',
-  'doc.st.on': '{a} enclaves sur {n} en marche en ce moment. Chaque preuve de cette page est une vraie transaction passée.',
-  'doc.n.products': 'produits publiés',
-  'doc.n.enclaves': 'enclaves admises, {a} en marche',
-  'doc.n.settled': 'réglés pour du calcul',
-  'doc.n.x402': 'appels x402 payés',
-  'doc.n.sessions': 'sessions prépayées',
-  'doc.n.session1': 'session prépayée',
-  'doc.n.verdicts': 'verdicts ERC-8004',
-  'doc.n.bounty': 'payés sur un exploit prouvé',
-  'doc.n.seized': 'saisis à un opérateur menteur, 10 nov.',
-  'doc.n.down': 'Les compteurs en direct ne peuvent pas être lus pour le moment.',
-  'doc.code.b': 'Lire chaque adresse sur Arc maintenant',
-  'doc.code.doing': 'Lecture {a} sur {b}',
-  'doc.code.done': '{a} adresses sur {b} portent du code sur Arc, lu au bloc {k}.',
-  'doc.code.err': 'Arc n’a pas pu être lu. Réessayez.',
-  'doc.code.bytes': '{n} octets',
-  'doc.code.none': 'aucun code',
-  'doc.poc.on': 'La puce de notre machine ({chip}…) est déclarée sur Arc par l’alliance Proof of Cloud : renouvelée le {a}, valable jusqu’au {b}. Une machine en marche la renouvelle chaque semaine.',
-  'doc.poc.off': 'La puce de notre machine ({chip}…) a été déclarée sur Arc par l’alliance Proof of Cloud jusqu’au {b} : une machine en marche la renouvelle chaque semaine, et aucune ne l’a fait depuis.',
-  'doc.p7.on': 'Le produit 7 est autorisé à payer sur Arc depuis le 18 novembre à 23:00 UTC, après le délai de sécurité de 8 jours.',
-  'doc.p7.wait': 'Le produit 7 pourra payer une fois son contrat de règlement autorisé sur Arc, après le délai de sécurité de 8 jours.',
-  'doc.p7.open': 'Une prime de démo de {a} est ouverte jusqu’au {t}.',
-  'doc.p7.none': 'Aucune prime n’y est ouverte en ce moment.',
-}
 
 export function useDt() {
   const lang = useLang()
-  const S = lang === 'fr' ? FR : EN
+  const S: Record<K, string> = EN
   return { lang, d: (k: K, v?: Record<string, string | number>) => S[k].replace(/\{(\w+)\}/g, (_, x) => String(v?.[x] ?? '')) }
 }

@@ -1,10 +1,10 @@
 // Frame of the app pages: the landing's two-row header, without the scene. The first row holds the logo, the menu
-// (current page marked) and the language; the second, the live reading of Arc testnet. The bottom rule is first the
+// (current page marked) and the wallet; the second, the live reading of Arc testnet. The bottom rule is first the
 // loading bar (the API, then the Arc block), then the page scroll progress.
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useLive, blockTime, ago } from '../data/live'
 import { num, usdc } from '../data/fmt'
-import { t, useLang, setLang, type TKey } from '../i18n'
+import { t, useLang, type TKey } from '../i18n'
 import { link } from '../links'
 import { onTick } from '../clock'
 import { Logo } from '../ui/Logo'
@@ -61,9 +61,8 @@ export function AppHeader({ page, section, sectionText, replay, wallet }: { page
         <a className="logo" href={link.home} aria-label="ArcHive"><Logo /></a>
         <nav className="hd-nav" aria-label={t('nav.main')}>{nav}</nav>
         <div className="hd-side">
-          {/* the bridge, at the right next to the language and the wallet (hidden under 1100 px: it is in the menu) */}
+          {/* the bridge, at the right next to the wallet (hidden under 1100 px: it is in the menu) */}
           <div className="hd-nav hd-br"><BridgeNav current={page === 'bridge'} /></div>
-          <button className="lang" onClick={() => setLang(lang === 'fr' ? 'en' : 'fr')} lang={lang === 'fr' ? 'en' : 'fr'} aria-label={t('lang.to')}>{lang === 'fr' ? 'EN' : 'FR'}</button>
           {walletEl}
           <MenuButton open={open} set={setOpen} />
         </div>
