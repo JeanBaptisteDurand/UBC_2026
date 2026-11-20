@@ -69,16 +69,18 @@ SOURCE_DATE_EPOCH=1794960000 docker buildx build --platform linux/amd64 -f encla
 ```bash
 # from the repository root
 (cd contracts && forge install foundry-rs/forge-std@v1.17.0 OpenZeppelin/openzeppelin-contracts@v5.1.0 --no-git && forge build)
-(cd packages/sdk && npm ci)                        # the tests import the SDK's sources
+(cd packages/sdk && npm ci)                             # the tests import the SDK's sources
 (cd enclave && npm ci --legacy-peer-deps && npm test)   # vitest run
 ```
 
 The on-chain demo test reads the compiled contracts from `contracts/out`, so the contracts are built first.
 
-On 20 Nov 2026: 25 test files, 261 tests passed and 10 skipped. The skipped tests run the same replay cases with the
-arc-anvil engine. They run only when `ARC_ANVIL_BIN` points to an arc-anvil binary. Plain anvil (`ANVIL_BIN`, or
-`~/.foundry/bin/anvil`) runs the rest. The integration suites start real anvil forks and HTTP servers, so
-`vitest.config.ts` retries a failed test twice; a real bug fails all three runs.
+On 20 Nov 2026 the suite has 25 test files and 271 tests. Ten of them run the same replay cases with the arc-anvil
+engine; they run only when `ARC_ANVIL_BIN` points to an arc-anvil binary. Plain anvil (`ANVIL_BIN`, or
+`~/.foundry/bin/anvil`) runs the other 261. On the shared build server (Node 22, anvil 1.5.1), 260 of them passed. The
+heaviest replay test (proof e7, which reads 6,000 cold storage slots through the relay) timed out there with "replay
+transaction never mined". The integration suites start real anvil forks and HTTP servers, so `vitest.config.ts`
+retries a failed test twice; a real bug fails all three runs.
 
 ## Scripts
 
@@ -94,3 +96,4 @@ arc-anvil engine. They run only when `ARC_ANVIL_BIN` points to an arc-anvil bina
 
 - **Reproducible image builds from a tagged context.** Each image will be built from a tagged commit of this
   repository, so that anyone can rebuild the digest that a measured compose file pins.
+- **Proof e7 on a shared server.** The heaviest replay test will get the time it needs to pass on a busy build server.
