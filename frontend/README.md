@@ -1,8 +1,8 @@
 # ArcHive frontend
 
-The marketplace site, served at https://arc-hive.xyz. It is built with Vite, React 19 and three.js. It reads its data
-live from Arc testnet and from the ArcHive API (`/api`). No key or secret goes through the front end: every action that
-moves USDC is signed by the visitor's own wallet.
+This is the ArcHive marketplace site, served at https://arc-hive.xyz. It is built with Vite, React 19 and three.js. It
+reads its data live from Arc testnet and from the ArcHive API (`/api`). No key or secret goes through the front end:
+every action that moves USDC is signed by the visitor's own wallet.
 
 ## Run
 
