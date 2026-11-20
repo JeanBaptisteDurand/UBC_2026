@@ -1,11 +1,10 @@
-// Page changes (design/MOTION.md, M1 and M9; owner, 19/11: « je veux que tu laisses le header avec la barre de
-// chargement en permanence… la barre de chargement qui affiche l'état de chargement de la page, qui ensuite affichera
-// la position du scroll, pour toutes les pages »).
-// A click on a link to another page does not leave at once (ui/veil.ts): the veil comes down over the content, under
-// the header (which stays), the header's bar becomes the loading bar and starts filling, then the browser loads the next page while the
-// old one stays on screen, header and bar still running. The next page picks the bar up where it was (sessionStorage)
-// and fills it as it loads; when the page says it is ready (window.__frontReady, set by every page once its data and
-// its scene are there) the bar is full and becomes the scroll position.
+// Page changes (MOTION.md, M1 and M9): on every page the header and its bar stay on screen. The bar shows the page's
+// loading state first, then the scroll position.
+// A click on a link to another page does not leave at once (ui/veil.ts). The veil comes down over the content, under
+// the header, which stays, and the header's bar becomes the loading bar and starts filling. The browser then loads the
+// next page while the old one stays on screen, header and bar still running. The next page picks the bar up where it
+// was (sessionStorage) and fills it as it loads. When the page says it is ready (window.__frontReady, set by every
+// page once its data and its scene are there), the bar is full and becomes the scroll position.
 const KEY = 'archive-nav'
 type W = Window & { __frontReady?: boolean }
 

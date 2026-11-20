@@ -67,7 +67,7 @@ export function FIG_MAT(arc: THREE.ShaderMaterial): THREE.Material {
     .replace('gl_FragColor = vec4(c * a, a);', `float lf = abs(dot(fN, normalize(vec3(-0.45, 0.8, 0.4))));
         c += uCore * 0.22 * lf * lf; a = min(1.0, a * 1.25 + 0.12 * lf);
         gl_FragColor = vec4(c * a, a);`)
-  if (!fs.includes('fN = normalize') || !fs.includes('lf * lf')) console.warn('FIG_MAT : le nuanceur du A a changé, facettes non appliquées')
+  if (!fs.includes('fN = normalize') || !fs.includes('lf * lf')) console.warn('FIG_MAT: the A shader changed, facets not applied')
   m.fragmentShader = fs
   m.customProgramCacheKey = () => 'fig-holo'
   return m

@@ -1374,7 +1374,7 @@ export async function mountFilm(canvas: HTMLCanvasElement, onFirst: () => void) 
     setInterval(() => {
       let mv = 0, sh = 0
       for (let j = Math.max(from, log.n - LOGN); j < log.n; j++) { const q = j & (LOGN - 1); if (log.mv[q]) { mv++; if (log.d[q] === 2) sh++ } }
-      el.textContent = `jeu ${SET} · chargées ${film.loaded}/${film.total} · secours en mouvement ${mv ? Math.round(100 * sh / mv) : 0} % (${sh}/${mv}) · niveau ${film.level}`
+      el.textContent = `set ${SET} · loaded ${film.loaded}/${film.total} · fallback frames in motion ${mv ? Math.round(100 * sh / mv) : 0}% (${sh}/${mv}) · level ${film.level}`
     }, 400)
     addEventListener('keydown', (e) => { if (e.key === 'r') from = log.n })
   }
