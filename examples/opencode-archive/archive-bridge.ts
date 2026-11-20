@@ -2,7 +2,7 @@
  * archive-bridge.ts: OpenCode on ArcHive's private AI (local, 127.0.0.1 only). Started by ./opencode-archive.
  *
  * A local OpenAI-compatible endpoint (GET /v1/models, POST /v1/chat/completions, GET /health) that sends each chat
- * completion to ArcHive's pay-per-call inference product (product 3, v2.1 stack, Arc testnet) with the SDK's x402 client
+ * completion to ArcHive's pay-per-call inference product (product 3, Arc testnet) with the SDK's x402 client
  * (createX402Client): the enclave key is checked on Arc, the request is sealed to it (HPKE), ONE EIP-3009 authorization of
  * the exact on-chain price (0.01 USDC) is signed for THIS request, and the answer is returned only if the enclave's EIP-712
  * receipt verifies. The operator's registrar then settles the call on Arc (X402Settler, event CallSettled): the bridge
@@ -17,6 +17,15 @@
  *
  * Logs: settlement status only (call number, timing, sizes, amount, receipt nonce, enclave, settlement tx). Never the
  * prompt, never the answer, never a key. The payer key is read from PAYER_KEY_FILE inside this process only.
+ * PAYER=circle: the payer is a Circle developer-controlled wallet (EOA) instead of a local key: Circle signs each EIP-3009
+ * authorization in its MPC (circle-signer.ts; files CIRCLE_ENV, CIRCLE_ENTITY_FILE, CIRCLE_WALLET_FILE). PAYER=key (default).
+ *
+ * Stack: DEPLOYMENTS_FILE, a deployments.*.testnet.json of the repository (./opencode-archive passes
+ * deployments.v3.testnet.json, the live v3 stack), gives every contract address; without it, the SDK's built-in `testnet`
+ * (the v2.1 stack) is used. ENCLAVE_URL must be an enclave registered on that stack, or the bridge stops at start-up.
+ *
+ * Any client: the endpoint is plain OpenAI chat completions, so any harness with a custom base URL can use it (README.md).
+ *
  * Safety: 127.0.0.1 only; MAX_CALLS paid calls per run; MAX_AMOUNT per call (USDC base units); testnet only.
  * MOCK=1: no payment, no enclave: canned answers (one tool call, then text) to test a client's request shapes for free.
  */
@@ -28,8 +37,9 @@ import { serve } from "@hono/node-server";
 import { createPublicClient, createWalletClient, fallback, http, parseAbiItem, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import {
-  arcTestnet, createX402Client, testnet, X402CallError, X402ChallengeError, X402PaidCallError,
+  arcTestnet, createX402Client, deploymentFromJson, testnet, X402CallError, X402ChallengeError, X402PaidCallError,
 } from "@arcvault/sdk";
+import { circleAccount } from "./circle-signer";
 
 const env = process.env;
 const MOCK = env.MOCK === "1";
@@ -45,16 +55,29 @@ const CAPTURE = env.CAPTURE_FILE ?? ""; // MOCK only: write the last request bod
 const MAX_PLAIN = Number(env.MAX_PLAIN_BYTES ?? "31500"); // the enclave refuses > 32768 bytes in clear (before payment)
 const MAX_OUT = 1024; // the enclave's MAX_OUTPUT_TOKENS
 const RPCS = (env.RPC_URLS ?? "https://rpc.testnet.arc.io,https://rpc.testnet.arc.network").split(",").map((s) => s.trim()).filter(Boolean);
+// the stack's addresses: a deployment file of the repository (v3 from ./opencode-archive), else the SDK's `testnet` (v2.1)
+const DEPLOYMENTS_FILE = env.DEPLOYMENTS_FILE ?? "";
+const depFile = DEPLOYMENTS_FILE ? JSON.parse(readFileSync(DEPLOYMENTS_FILE, "utf8")) : null;
+const deployment = depFile ? deploymentFromJson(depFile) : testnet;
+const STACK = depFile ? `v${String(depFile.version ?? "?")}` : "v2.1 (SDK default)";
 if (!MOCK && !ENCLAVE) { console.error("ENCLAVE_URL required"); process.exit(1); }
-if (!MOCK && !env.PAYER_KEY_FILE) { console.error("PAYER_KEY_FILE required"); process.exit(1); }
+const PAYER = env.PAYER === "circle" ? "circle" : "key";
+if (!MOCK && PAYER === "key" && !env.PAYER_KEY_FILE) { console.error("PAYER_KEY_FILE required (or PAYER=circle)"); process.exit(1); }
 mkdirSync(dirname(LOG), { recursive: true });
 
-const chain = { ...arcTestnet, id: testnet.chainId };
+const chain = { ...arcTestnet, id: deployment.chainId };
 const transport = fallback(RPCS.map((u) => http(u, { retryCount: 3, retryDelay: 800, timeout: 20_000 })));
 const pub = createPublicClient({ chain, transport });
-const account = MOCK ? null : privateKeyToAccount(JSON.parse(readFileSync(env.PAYER_KEY_FILE as string, "utf8")).privateKey as Hex);
+// PAYER=circle: a Circle wallet that signs only ReceiveWithAuthorization of USDC to the stack's X402Settler, <= MAX_AMOUNT
+const circle = MOCK || PAYER !== "circle" ? null : await circleAccount({
+  envFile: env.CIRCLE_ENV ?? `${env.HOME}/.config/archive-circle/circle.env`,
+  entityFile: env.CIRCLE_ENTITY_FILE ?? `${env.HOME}/.config/archive-circle/entity.env`,
+  walletFile: env.CIRCLE_WALLET_FILE ?? `${env.HOME}/.config/archive-circle/wallet.json`,
+  allow: { chainId: deployment.chainId, usdc: deployment.usdc, to: deployment.x402Settler, maxValue: MAX_AMOUNT },
+});
+const account = MOCK ? null : circle ? circle.account : privateKeyToAccount(JSON.parse(readFileSync(env.PAYER_KEY_FILE as string, "utf8")).privateKey as Hex);
 const ai = MOCK || !account ? null : createX402Client({
-  enclaveUrl: ENCLAVE, productId: PRODUCT_ID, deployment: testnet, maxAmount: MAX_AMOUNT,
+  enclaveUrl: ENCLAVE, productId: PRODUCT_ID, deployment, maxAmount: MAX_AMOUNT,
   walletClient: createWalletClient({ account, chain, transport }) as any, publicClient: pub as any,
 });
 
@@ -207,7 +230,7 @@ async function watchSettlements() {
     const latest = await pub.getBlockNumber();
     let from = latest;
     for (const p of pending.values()) if (p.fromBlock < from) from = p.fromBlock;
-    const logs = await pub.getLogs({ address: testnet.x402Settler, event: CALL_SETTLED, args: { productId: PRODUCT_ID, payer: account.address }, fromBlock: from, toBlock: latest });
+    const logs = await pub.getLogs({ address: deployment.x402Settler, event: CALL_SETTLED, args: { productId: PRODUCT_ID, payer: account.address }, fromBlock: from, toBlock: latest });
     for (const l of logs) {
       const n = String((l as any).args?.nonce ?? "").toLowerCase();
       const p = pending.get(n);
@@ -264,7 +287,7 @@ async function paidCreate(call: number, messages: Msg[], opts: object) {
 let paidCalls = 0;
 const failures = new Map<string, number>(); // request hash -> failed paid attempts (a client retrying the same request)
 const app = new Hono();
-app.get("/health", (c) => c.json({ ok: true, mock: MOCK, payer: account?.address ?? null, product: PRODUCT_ID.toString(), enclave: ENCLAVE || null, model: MODEL_ID, tools: TOOLS, paidCalls, maxCalls: MAX_CALLS, settlementsPending: pending.size }));
+app.get("/health", (c) => c.json({ ok: true, mock: MOCK, stack: STACK, enclaveRegistry: deployment.enclaveRegistry, payer: account?.address ?? null, payerMode: PAYER, product: PRODUCT_ID.toString(), enclave: ENCLAVE || null, model: MODEL_ID, tools: TOOLS, paidCalls, maxCalls: MAX_CALLS, settlementsPending: pending.size }));
 app.get("/v1/models", (c) => c.json({ object: "list", data: [{ id: MODEL_ID, object: "model", owned_by: "archive-x402" }] }));
 app.post("/v1/chat/completions", async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as any;
@@ -374,8 +397,8 @@ app.post("/v1/chat/completions", async (c) => {
 if (ai && account) {
   const keys = await ai.verifiedKeys();
   const p = await ai.product();
-  say(`ArcHive bridge: payer ${account.address} | product #${p.id} | ${Number(p.pricePerCall) / 1e6} USDC per call | settlement ${p.settlement}`);
-  say(`enclave key verified on Arc: ${keys.signer} (operator ${keys.operator}) at ${ENCLAVE}`);
+  say(`ArcHive bridge: stack ${STACK} | payer ${account.address}${circle ? " (Circle developer-controlled wallet, EOA: Circle signs each authorization)" : ""} | product #${p.id} | ${Number(p.pricePerCall) / 1e6} USDC per call | settlement ${p.settlement}`);
+  say(`enclave key verified on Arc (EnclaveRegistry ${deployment.enclaveRegistry}): ${keys.signer} (operator ${keys.operator}) at ${ENCLAVE}`);
 } else {
   say("ArcHive bridge in MOCK mode: no enclave, no payment");
 }

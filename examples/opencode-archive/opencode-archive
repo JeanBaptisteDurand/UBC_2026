@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# opencode-archive: OpenCode (the open-source coding agent) on ArcHive's private AI, product 3 on Arc testnet.
+# opencode-archive: OpenCode (the open-source coding agent) on ArcHive's private AI, product 3 of the v3 stack on Arc
+# testnet. The bridge alone (start) also serves any OpenAI-compatible tool on http://127.0.0.1:8789/v1 (README.md).
+# ./opencode-arc is the same command under a shorter name (a symlink to this script).
 # Each model request is sealed (HPKE) to the product 3 enclave, whose Intel TDX key is checked on Arc, and paid
 # 0.01 test USDC per call by x402 (one EIP-3009 authorization per request); the operator settles it on Arc
 # (X402Settler, event CallSettled). Your usual OpenCode setup is untouched: this one reads ./opencode.json only
 # and keeps its own data under $ARCHIVE_HOME.
 #
 #   ./opencode-archive [opencode args]   start the local bridge if needed, then OpenCode on archive/gpt-oss-120b
-#   ./opencode-archive start             start the bridge only (in the background)
+#   ./opencode-archive start             start the bridge only (in the background), for any OpenAI-compatible tool
 #   ./opencode-archive log               follow the bridge: each paid call, its receipt, its settlement tx on Arc
 #   ./opencode-archive status            is the bridge up (payer, enclave, paid calls)
 #   ./opencode-archive stop              stop the bridge (this also resets its cap of paid calls per run)
@@ -14,8 +16,12 @@
 #
 # Required: ARCHIVE_PAYER_KEY_FILE, a JSON file {"privateKey": "0x..."} of your own TEST wallet holding test USDC on
 # Arc testnet. Only the bridge process reads it; OpenCode and its tools never get the variable.
-# Optional: ARCHIVE_ENCLAVE_URL, ARCHIVE_BRIDGE_PORT (8789), ARCHIVE_MAX_CALLS (30), ARCHIVE_TOOLS (emulate | off),
-# ARCHIVE_RPC_URLS, ARCHIVE_HOME (~/.local/state/opencode-archive).
+# Or ARCHIVE_PAYER=circle: pay from a Circle developer-controlled wallet (an EOA on ARC-TESTNET; Circle holds its key)
+# with no private key on this machine: ARCHIVE_CIRCLE_ENV (CIRCLE_API_KEY), ARCHIVE_CIRCLE_ENTITY_FILE (CIRCLE_ENTITY_SECRET)
+# and ARCHIVE_CIRCLE_WALLET_FILE (walletId, address); the last two default to entity.env and wallet.json next to the first.
+# Optional: ARCHIVE_DEPLOYMENTS (the stack's deployment file, ../../deployments.v3.testnet.json), ARCHIVE_ENCLAVE_URL
+# (an enclave of product 3 on that stack), ARCHIVE_BRIDGE_PORT (8789), ARCHIVE_MAX_CALLS (30), ARCHIVE_TOOLS
+# (emulate | off), ARCHIVE_RPC_URLS, ARCHIVE_HOME (~/.local/state/opencode-archive).
 set -euo pipefail
 
 SELF="${BASH_SOURCE[0]}"
@@ -29,21 +35,39 @@ LOGDIR="$STATE/logs"
 PIDFILE="$STATE/bridge.pid"
 export ARCHIVE_BRIDGE_PORT="${ARCHIVE_BRIDGE_PORT:-8789}"   # read by opencode.json ({env:ARCHIVE_BRIDGE_PORT})
 PORT="$ARCHIVE_BRIDGE_PORT"
-# product 3's enclave (the live endpoint is also listed by https://arc-hive.xyz/api/enclaves)
-ENCLAVE_URL="${ARCHIVE_ENCLAVE_URL:-https://54623c0974ceed19ccbcf121548937016f8cbab8-8804.dstack-pha1-prod9.phala.network}"
+# the stack (every contract address) and product 3's enclave on it (the live endpoint is also listed by
+# https://arc-hive.xyz/api/enclaves)
+DEPLOYMENTS="${ARCHIVE_DEPLOYMENTS:-$HERE/../../deployments.v3.testnet.json}"
+ENCLAVE_URL="${ARCHIVE_ENCLAVE_URL:-https://4154a371e71148f176d316306c16d24f8dcdbd30-8804.dstack-pha1-prod9.phala.network}"
 mkdir -p "$LOGDIR"
+# the payer: a local test key (default) or a Circle developer-controlled wallet (ARCHIVE_PAYER=circle, see README.md)
+PAYER="${ARCHIVE_PAYER:-key}"
+CIRCLE_ENV="${ARCHIVE_CIRCLE_ENV:-$HOME/.config/archive-circle/circle.env}"
+CIRCLE_ENTITY_FILE="${ARCHIVE_CIRCLE_ENTITY_FILE:-$(dirname "$CIRCLE_ENV")/entity.env}"
+CIRCLE_WALLET_FILE="${ARCHIVE_CIRCLE_WALLET_FILE:-$(dirname "$CIRCLE_ENV")/wallet.json}"
+if [ "$PAYER" = circle ]; then PAYER_KEY=""; else PAYER_KEY="${ARCHIVE_PAYER_KEY_FILE:-}"; fi
 
 health() { curl -s -m 3 "http://127.0.0.1:$PORT/health" 2>/dev/null; }
 up() { health | grep -q '"ok":true'; }
 
 # the bridge's settings go to the bridge process only
-BRIDGE=(env ENCLAVE_URL="$ENCLAVE_URL" PAYER_KEY_FILE="${ARCHIVE_PAYER_KEY_FILE:-}" PRODUCT_ID=3 PORT="$PORT"
-  MAX_AMOUNT=10000 MAX_CALLS="${ARCHIVE_MAX_CALLS:-30}" TOOLS="${ARCHIVE_TOOLS:-emulate}" LOG_FILE="$LOGDIR/calls.jsonl"
+BRIDGE=(env DEPLOYMENTS_FILE="$DEPLOYMENTS" ENCLAVE_URL="$ENCLAVE_URL" PAYER_KEY_FILE="$PAYER_KEY"
+  PAYER="$PAYER" CIRCLE_ENV="$CIRCLE_ENV" CIRCLE_ENTITY_FILE="$CIRCLE_ENTITY_FILE" CIRCLE_WALLET_FILE="$CIRCLE_WALLET_FILE"
+  PRODUCT_ID=3 PORT="$PORT" MAX_AMOUNT=10000 MAX_CALLS="${ARCHIVE_MAX_CALLS:-30}" TOOLS="${ARCHIVE_TOOLS:-emulate}"
+  LOG_FILE="$LOGDIR/calls.jsonl"
   RPC_URLS="${ARCHIVE_RPC_URLS:-https://rpc.testnet.arc.io,https://rpc.testnet.arc.network}"
   "$HERE/node_modules/.bin/tsx" "$HERE/archive-bridge.ts")
 check_setup() {
-  [ -n "${ARCHIVE_PAYER_KEY_FILE:-}" ] && [ -f "$ARCHIVE_PAYER_KEY_FILE" ] || {
-    echo "opencode-archive: set ARCHIVE_PAYER_KEY_FILE to a JSON file {\"privateKey\": \"0x...\"} of a test wallet" >&2; exit 1; }
+  if [ "$PAYER" = circle ]; then
+    for f in "$CIRCLE_ENV" "$CIRCLE_ENTITY_FILE" "$CIRCLE_WALLET_FILE"; do
+      [ -f "$f" ] || { echo "opencode-archive: ARCHIVE_PAYER=circle, but $f is missing (README.md: Pay from a Circle wallet)" >&2; exit 1; }
+    done
+  else
+    [ -n "${ARCHIVE_PAYER_KEY_FILE:-}" ] && [ -f "$ARCHIVE_PAYER_KEY_FILE" ] || {
+      echo "opencode-archive: set ARCHIVE_PAYER_KEY_FILE to a JSON file {\"privateKey\": \"0x...\"} of a test wallet (or ARCHIVE_PAYER=circle)" >&2; exit 1; }
+  fi
+  [ -f "$DEPLOYMENTS" ] || {
+    echo "opencode-archive: deployment file not found: $DEPLOYMENTS (set ARCHIVE_DEPLOYMENTS)" >&2; exit 1; }
   [ -x "$HERE/node_modules/.bin/tsx" ] || {
     echo "opencode-archive: run npm ci in packages/sdk, then in $HERE (see README.md)" >&2; exit 1; }
 }
@@ -83,9 +107,12 @@ esac
 
 start_bridge
 # OpenCode and the tools it runs (bash included) never see the payer's key file path or the bridge's settings
-unset ARCHIVE_PAYER_KEY_FILE ARCHIVE_ENCLAVE_URL ARCHIVE_MAX_CALLS ARCHIVE_TOOLS ARCHIVE_RPC_URLS
+unset ARCHIVE_PAYER_KEY_FILE ARCHIVE_DEPLOYMENTS ARCHIVE_ENCLAVE_URL ARCHIVE_MAX_CALLS ARCHIVE_TOOLS ARCHIVE_RPC_URLS
+unset ARCHIVE_PAYER ARCHIVE_CIRCLE_ENV ARCHIVE_CIRCLE_ENTITY_FILE ARCHIVE_CIRCLE_WALLET_FILE
 export OPENCODE_CONFIG="$HERE/opencode.json"
 export XDG_DATA_HOME="$STATE/data"            # its own sessions and logs: never shares (or locks) your usual OpenCode data
+export XDG_CONFIG_HOME="$STATE/config-home"   # your usual ~/.config/opencode (other providers, default agent) is not read:
+mkdir -p "$XDG_CONFIG_HOME"                    # without this, OpenCode could start on your own default agent and model
 export OPENCODE_DISABLE_PROJECT_CONFIG=1      # a project's opencode.json cannot switch the model away from ArcHive
 export OPENCODE_DISABLE_CLAUDE_CODE=1         # no instruction files or skills of other agents in the prompt: requests stay small,
 export OPENCODE_DISABLE_EXTERNAL_SKILLS=1     # and those files stay on your machine

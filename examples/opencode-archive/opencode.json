@@ -50,7 +50,9 @@
         "skill": false,
         "question": false,
         "lsp": false
-      }
+      },
+      "model": "archive/gpt-oss-120b"
     }
-  }
+  },
+  "default_agent": "build"
 }
