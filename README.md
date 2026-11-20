@@ -256,7 +256,11 @@ AskHive runs in its own Intel TDX enclave, registered on Arc as **product 4** (f
 - **If a check fails**, the panel says so and uses the copilot on the site's server. A sealed conversation is never
   resent in clear.
 - **The model** (`gpt-oss-120b`) runs at RedPill, behind an attested gateway that the enclave verifies before any call
-  (Intel quote, production OS, pinned TLS, signed receipts). It does not run inside ArcHive's enclave.
+  (Intel quote, production OS, pinned TLS, signed receipts). It does not run inside ArcHive's enclave. The private AI
+  enclaves (products 1 and 3) run the same check (`MODEL_ATTESTATION=aci` in their measured compose), and its status is
+  public: [`/enclave/copilot-site/model-attestation`](https://arc-hive.xyz/enclave/copilot-site/model-attestation),
+  [`/enclave/inference/model-attestation`](https://arc-hive.xyz/enclave/inference/model-attestation) and
+  [`/enclave/x402/model-attestation`](https://arc-hive.xyz/enclave/x402/model-attestation) answer `"verified": true`.
 - **What the operator cannot change.** The compose ([`enclave/phala/copilot-site-v22.yml`](enclave/phala/copilot-site-v22.yml),
   the docker-compose that Arc's image fingerprint covers through its compose-hash, checked against the admission
   event in [`enclave/phala/README.md`](enclave/phala/README.md)) pins the image by its digest, which covers the code
@@ -281,6 +285,8 @@ claude mcp add --transport http archive https://arc-hive.xyz/mcp
 ```
 
 Any other MCP client: `{ "mcpServers": { "archive": { "url": "https://arc-hive.xyz/mcp" } } }`.
+It is listed in the official MCP Registry as `xyz.arc-hive/archive`, and [`arc-hive.xyz/llms.txt`](https://arc-hive.xyz/llms.txt)
+sums up the API, the prices and how payments are guarded for any AI agent.
 The server holds no key and has no tool that sends a transaction. It reads the network and **prepares** operations
 that the user signs in their own wallet. Its 16 tools:
 
@@ -506,7 +512,7 @@ payment and ERC-8004 verdict. Read it with `curl -s https://arc-hive.xyz/api/pro
 **Live stack, v2.1 (13 contracts in service).** Every address and deployment transaction is in
 [`deployments.v21.testnet.json`](deployments.v21.testnet.json), and Intel's verifier is in
 [`deployments.dcap.testnet.json`](deployments.dcap.testnet.json).
-Their source is verified on the explorer: Ed25519Verifier is a full match, and the 12 others are
+Their source is verified on Arc's explorer (Blockscout): Ed25519Verifier is a full match, and the 12 others are
 partial matches (the published source compiles to the exact bytecode on Arc; only the metadata hash differs, because
 the comments changed after deployment). The explorer shows the original comments, in French; the code is the one in
 [`contracts/src`](contracts/src/).
