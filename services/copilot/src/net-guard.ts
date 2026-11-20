@@ -132,7 +132,7 @@ export async function resolvePinned(hostname: string, o: GuardOptions = {}): Pro
 /** An http(s) URL without credentials; throws BlockedUrlError otherwise. */
 export function checkUrl(raw: string | URL): URL {
   let u: URL;
-  try { u = new URL(String(raw)); } catch { throw new BlockedUrlError(`URL invalide : ${String(raw).slice(0, 120)}`); }
+  try { u = new URL(String(raw)); } catch { throw new BlockedUrlError(`invalid URL: ${String(raw).slice(0, 120)}`); }
   if (u.protocol !== "https:" && u.protocol !== "http:") throw new BlockedUrlError("URL refused: http(s) only");
   if (u.username || u.password) throw new BlockedUrlError("URL refused: no credentials in the URL");
   return u;

@@ -208,7 +208,7 @@ const sha256 = (s: string) => createHash("sha256").update(s, "utf8").digest();
  *  received) with timingSafeEqual, so neither the value nor the length of the expected token leaks through the response
  *  time. The token is never logged. */
 export function proxyTokenChecker(expected: string): (given: string | null | undefined) => boolean {
-  if (!expected) throw new Error("jeton du mandataire vide");
+  if (!expected) throw new Error("empty proxy token");
   const want = sha256(expected);
   return (given) => typeof given === "string" && timingSafeEqual(sha256(given), want);
 }

@@ -194,32 +194,32 @@ export function duree(sec: bigint | number): string {
 const relatif = (target: bigint, now: bigint) => (target >= now ? `dans ${duree(target - now)}` : `il y a ${duree(now - target)}`);
 
 const present = (x: unknown) => x !== undefined && x !== null && String(x).trim() !== "";
-export function addr(x: unknown, label = "adresse"): Address {
+export function addr(x: unknown, label = "address"): Address {
   const s = String(x ?? "").trim();
-  if (!/^0x[0-9a-fA-F]{40}$/.test(s)) throw new Error(`${label} invalide : « ${s} » (attendu 0x suivi de 40 caractères hexadécimaux)`);
+  if (!/^0x[0-9a-fA-F]{40}$/.test(s)) throw new Error(`invalid ${label}: "${s}" (expected 0x followed by 40 hexadecimal characters)`);
   return getAddress(s.toLowerCase());
 }
 const optAddr = (x: unknown, label: string) => (present(x) ? addr(x, label) : undefined);
 export function parseId(x: unknown, label: string): bigint {
   const s = String(x ?? "").trim().replace(/^#/, "");
-  if (!/^\d+$/.test(s)) throw new Error(`${label} invalide : « ${String(x ?? "")} » (entier attendu)`);
+  if (!/^\d+$/.test(s)) throw new Error(`invalid ${label}: "${String(x ?? "")}" (an integer expected)`);
   return BigInt(s);
 }
 export function parseAmount(x: unknown, decimals: number, label: string): bigint {
   const s = String(x ?? "").trim().replace(/\s*(usdc|eurc)$/i, "").replace(/\s/g, "").replace(",", ".");
-  if (!/^\d+(\.\d+)?$/.test(s)) throw new Error(`${label} invalide : « ${String(x ?? "")} » (attendu un nombre, ex. 5 ou 0.25)`);
-  if ((s.split(".")[1] ?? "").length > decimals) throw new Error(`${label} : ${decimals} décimales au plus`);
+  if (!/^\d+(\.\d+)?$/.test(s)) throw new Error(`invalid ${label}: "${String(x ?? "")}" (a number expected, e.g. 5 or 0.25)`);
+  if ((s.split(".")[1] ?? "").length > decimals) throw new Error(`${label}: ${decimals} decimals at most`);
   return parseUnits(s, decimals);
 }
-export const parseUsdc = (x: unknown, label = "montant") => parseAmount(x, 6, label);
+export const parseUsdc = (x: unknown, label = "amount") => parseAmount(x, 6, label);
 function hexStr(x: unknown, label: string): Hex {
   const s = String(x ?? "").trim();
-  if (!/^0x([0-9a-fA-F]{2})*$/.test(s)) throw new Error(`${label} : hexadécimal 0x… attendu`);
+  if (!/^0x([0-9a-fA-F]{2})*$/.test(s)) throw new Error(`${label}: 0x… hexadecimal expected`);
   return s.toLowerCase() as Hex;
 }
 function intStr(x: unknown, label: string): string {
   const s = String(x ?? "").trim();
-  if (!/^\d+$/.test(s)) throw new Error(`${label} : entier en unités de base attendu (ex. "1000000" = 1 USDC)`);
+  if (!/^\d+$/.test(s)) throw new Error(`${label}: an integer in base units expected (e.g. "1000000" = 1 USDC)`);
   return BigInt(s).toString();
 }
 const short = (h: string, n = 18) => (h.length > n * 2 ? `${h.slice(0, n)}…${h.slice(-8)}` : h);
@@ -288,7 +288,7 @@ export async function fetchEnclaveJson(base: string, route: EnclaveRoute, body: 
   let text: string;
   try {
     res = await safeFetch(u, init, { timeoutMs: ENCLAVE_TIMEOUT_MS, maxBytes: ENCLAVE_MAX_BYTES, allowPrivate: !!policy.allowPrivate, discardErrorBody: true, ...net });
-    if (!res.ok) throw new BlockedUrlError(`${route} de ${u.host} a répondu HTTP ${res.status} (corps non lu)`);
+    if (!res.ok) throw new BlockedUrlError(`${route} from ${u.host} answered HTTP ${res.status} (body not read)`);
     text = await readBodyCapped(res, ENCLAVE_MAX_BYTES); // the timeout also covers reading the body
   } catch (e) {
     throw probeError(u, e);
@@ -626,7 +626,7 @@ export async function prepareSessionOpen(arc: ArcClient, q: any, cx: ActionCtx =
     if (pid === 0n && asked !== undefined) pid = asked;
   }
   const p = await productLite(arc, pid);
-  if (p.state === "None") throw new Error(`Produit #${pid} inconnu.`);
+  if (p.state === "None") throw new Error(`Unknown product #${pid}.`);
   const deposit = parseUsdc(q.deposit, "deposit");
   const user = optAddr(q.user, "user") ?? cx.user;
   const actives = es.filter((e) => e.active && e.productId === pid);
@@ -687,16 +687,16 @@ function normalizeClause(c: any, i: number): Clause {
     case "ATTACKER_PROFIT": return { type: "ATTACKER_PROFIT", token: addr(c.token, `${L}.token`), min: intStr(c.min, `${L}.min`) };
     case "VIEW_CHANGED": {
       const op = String(c.op ?? "");
-      if (!["eq", "neq", "gt", "lt"].includes(op)) throw new Error(`${L}.op : eq, neq, gt ou lt`);
+      if (!["eq", "neq", "gt", "lt"].includes(op)) throw new Error(`${L}.op: eq, neq, gt or lt`);
       return { type: "VIEW_CHANGED", target: addr(c.target, `${L}.target`), call: hexStr(c.call, `${L}.call`), op: op as "eq", value: intStr(c.value, `${L}.value`) };
     }
     case "INVARIANT_BROKEN": return { type: "INVARIANT_BROKEN", target: addr(c.target, `${L}.target`), call: hexStr(c.call, `${L}.call`) };
-    default: throw new Error(`${L} : type inconnu « ${c?.type} » (ERC20_DROP, NATIVE_DROP, ATTACKER_PROFIT, VIEW_CHANGED, INVARIANT_BROKEN)`);
+    default: throw new Error(`${L}: unknown type "${c?.type}" (ERC20_DROP, NATIVE_DROP, ATTACKER_PROFIT, VIEW_CHANGED, INVARIANT_BROKEN)`);
   }
 }
 function normalizePredicate(raw: unknown): Predicate {
   const o = typeof raw === "string" ? JSON.parse(raw) : raw;
-  if (!o || typeof o !== "object") throw new Error("predicate : objet JSON { combine, clauses } attendu");
+  if (!o || typeof o !== "object") throw new Error("predicate: a JSON object { combine, clauses } expected");
   const p = {
     combine: String((o as any).combine ?? "OR").toUpperCase(),
     clauses: (Array.isArray((o as any).clauses) ? (o as any).clauses : []).map(normalizeClause),
@@ -721,7 +721,7 @@ export async function prepareBountyCreate(arc: ArcClient, q: any, cx: ActionCtx 
     const best = cands.find((p) => p.deterministic) ?? cands[0];
     if (best) product = liteOf(best);
   }
-  if (!product || product.state === "None") throw new Error("Aucun produit « Prime scellée » actif trouvé (règlement SealedBounty).");
+  if (!product || product.state === "None") throw new Error("No active Sealed Bounty product found (SealedBounty settlement).");
   verifications.push({ ok: product.state === "Active", quoi: `produit #${product.id} : ${product.state}${product.state === "Active" ? "" : " (createBounty reverterait : BadProduct)"}` });
   const rail = bountyContractOf(arc, product.settlement);
   /** The bounty's contract: the one that settles the product (createBounty, EIP-3009 authorization, fees, MAX_SIGS). */
@@ -756,7 +756,7 @@ export async function prepareBountyCreate(arc: ArcClient, q: any, cx: ActionCtx 
     if (predicate.clauses.every((c) => c.type === "NATIVE_DROP")) { lossDecimals = 18; lossLabel = "USDC natif (gas, 18 décimales)"; }
   } else {
     if (!["ERC20_DROP", "NATIVE_DROP", "ATTACKER_PROFIT"].includes(type)) {
-      throw new Error(`clauseType « ${type} » : l'assistant guide ERC20_DROP, NATIVE_DROP et ATTACKER_PROFIT ; pour VIEW_CHANGED ou INVARIANT_BROKEN, passe le prédicat complet (predicate).`);
+      throw new Error(`clauseType "${type}": the helper guides ERC20_DROP, NATIVE_DROP and ATTACKER_PROFIT; for VIEW_CHANGED or INVARIANT_BROKEN, pass the full predicate (predicate).`);
     }
     if (type === "NATIVE_DROP") { lossDecimals = 18; lossLabel = "USDC natif (gas, 18 décimales)"; }
     else if (token.toLowerCase() !== arc.d.usdc.toLowerCase()) {
@@ -788,10 +788,10 @@ export async function prepareBountyCreate(arc: ArcClient, q: any, cx: ActionCtx 
     const minLoss = present(q.minDrop) ? parseAmount(q.minDrop, lossDecimals, "minDrop") : 0n;
     tiers = [{ minLoss, amount: parseUsdc(q.reward, "reward") }];
   } else aCompleter.push("reward : la récompense du chasseur en USDC (ou tiers : [{ minLoss, amount }] pour plusieurs paliers)");
-  if (tiers.length > 8) throw new Error("8 paliers au plus");
-  if (tiers.some((t) => t.amount === 0n)) throw new Error("chaque palier doit payer plus de 0 USDC");
+  if (tiers.length > 8) throw new Error("8 tiers at most");
+  if (tiers.some((t) => t.amount === 0n)) throw new Error("each tier must pay more than 0 USDC");
   if (tiers.some((t, i) => i > 0 && (t.minLoss <= tiers[i - 1]!.minLoss || t.amount <= tiers[i - 1]!.amount))) {
-    throw new Error("paliers : seuils de perte ET montants strictement croissants (sinon createBounty revert BadTiers)");
+    throw new Error("tiers: loss thresholds AND amounts strictly increasing (otherwise createBounty reverts with BadTiers)");
   }
 
   // 4) fees read on-chain (on the bounty's contract), funding, k, cap, deadline
@@ -806,12 +806,12 @@ export async function prepareBountyCreate(arc: ArcClient, q: any, cx: ActionCtx 
   const funding = present(q.funding) ? parseUsdc(q.funding, "funding") : maxTotal;
   if (tiers.length && funding < maxTotal) avertissements.push(`Le financement (${usdc(funding)}) ne couvre pas un paiement du plus haut palier (${usdc(maxTotal)} frais compris) : la réclamation reverterait (PoolTooSmall). fund() permet d'ajouter des fonds.`);
   const k = present(q.k) ? Number(q.k) : 1;
-  if (!Number.isInteger(k) || k < 1 || BigInt(k) > maxSigs) throw new Error(`k doit être un entier de 1 à ${maxSigs} (MAX_SIGS lu on-chain)`);
+  if (!Number.isInteger(k) || k < 1 || BigInt(k) > maxSigs) throw new Error(`k must be an integer from 1 to ${maxSigs} (MAX_SIGS read on-chain)`);
   const maxAmount = tiers.reduce((m, t) => (t.amount > m ? t.amount : m), 0n);
   const singleCap = present(q.singleCap) ? parseUsdc(q.singleCap, "singleCap") : (k > 1 ? 0n : maxAmount);
   const h = await headBlock(arc);
   const days = present(q.deadlineDays) ? Number(q.deadlineDays) : 7;
-  if (!(days > 0 && days <= 365)) throw new Error("deadlineDays : entre 1 et 365 jours");
+  if (!(days > 0 && days <= 365)) throw new Error("deadlineDays: between 1 and 365 days");
   const deadline = h.timestamp + BigInt(Math.round(days * 86_400));
   const targetToPause = optAddr(q.targetToPause, "targetToPause") ?? ZERO;
   if (targetToPause !== ZERO) infos.miseEnPause = `${targetToPause} doit exposer pause() appelable par ${bountyName} (${bounty}) ; l'appel n'est jamais bloquant.`;
@@ -820,7 +820,7 @@ export async function prepareBountyCreate(arc: ArcClient, q: any, cx: ActionCtx 
   let protocolX25519 = "<ta clé PUBLIQUE X25519 (0x + 64 hex), générée chez toi>";
   if (present(q.protocolX25519)) {
     const s = String(q.protocolX25519).trim();
-    if (!/^0x[0-9a-fA-F]{64}$/.test(s)) throw new Error("protocolX25519 : clé PUBLIQUE X25519 de 32 octets attendue (0x + 64 hex) ; ne donne jamais la clé privée");
+    if (!/^0x[0-9a-fA-F]{64}$/.test(s)) throw new Error("protocolX25519: a 32-byte PUBLIC X25519 key expected (0x + 64 hex); never give the private key");
     protocolX25519 = s.toLowerCase();
   } else aCompleter.push("protocolX25519 : ta clé PUBLIQUE X25519 (l'exploit te sera livré chiffré pour elle) ; génère la paire chez toi, voir cleDuProtocole");
 
@@ -993,7 +993,7 @@ export async function operatorPlan(arc: ArcClient, q: any, cx: ActionCtx = {}) {
 export async function prepareBond(arc: ArcClient, q: any, cx: ActionCtx = {}) {
   const operator = optAddr(q.operator, "operator") ?? cx.user;
   const product = present(q.productId) ? await productLite(arc, parseId(q.productId, "productId")) : undefined;
-  if (product && product.state === "None") throw new Error(`Produit #${product.id} inconnu.`);
+  if (product && product.state === "None") throw new Error(`Unknown product #${product.id}.`);
   let bond = 0n, avail = 0n, banned = false, bal: bigint | undefined;
   if (operator) {
     bond = await arc.bondOf(operator);
@@ -1020,7 +1020,7 @@ export async function prepareBond(arc: ArcClient, q: any, cx: ActionCtx = {}) {
       cautionsMinimales: ps.map((p) => ({ produit: p.id.toString(), rail: railOf(arc, p.settlement), cautionMinimale: usdc(p.minBond) })),
     };
   }
-  if (amount === 0n) throw new Error("amount doit être supérieur à 0");
+  if (amount === 0n) throw new Error("amount must be greater than 0");
   const h = await headBlock(arc);
   const a = eip3009(arc, operator, arc.d.operatorBond, amount, h.timestamp);
   const verifications: Array<{ ok: boolean; quoi: string }> = [];
@@ -1061,7 +1061,7 @@ export async function prepareRegister(arc: ArcClient, q: any, cx: ActionCtx = {}
   const pid = parseId(q.productId, "productId");
   if (present(q.enclaveUrl)) enclaveEndpoint(String(q.enclaveUrl), "/attest", enclavePolicyOf(cx)); // URL refused before any read
   const p = await productLite(arc, pid);
-  if (p.state === "None") throw new Error(`Produit #${pid} inconnu.`);
+  if (p.state === "None") throw new Error(`Unknown product #${pid}.`);
   const operator = optAddr(q.operator, "operator") ?? cx.user;
   const aCompleter: string[] = [];
   const avertissements: string[] = [];
@@ -1091,10 +1091,10 @@ export async function prepareRegister(arc: ArcClient, q: any, cx: ActionCtx = {}
     const quote = hexStr(att?.quote, "/attest.quote");
     let eventLog = hexStr(att?.eventLog ?? "0x", "/attest.eventLog");
     // a value from the host is never copied into an error (addr() quotes the value received)
-    if (typeof att?.signer !== "string" || !/^0x[0-9a-fA-F]{40}$/.test(att.signer.trim())) throw new Error("/attest.signer : adresse 0x… de 40 caractères hexadécimaux attendue");
+    if (typeof att?.signer !== "string" || !/^0x[0-9a-fA-F]{40}$/.test(att.signer.trim())) throw new Error("/attest.signer: a 0x… address of 40 hexadecimal characters expected");
     const signer = addr(att.signer, "/attest.signer");
     const x25519 = hexStr(att?.x25519, "/attest.x25519");
-    if (size(x25519) !== 32) throw new Error("/attest.x25519 : 32 octets attendus");
+    if (size(x25519) !== 32) throw new Error("/attest.x25519: 32 bytes expected");
     const quoteHash = keccak256(quote);
     const seen = await read<boolean>(arc, arc.d.enclaveRegistry, extraAbi, "quoteSeen", [quoteHash]);
     verifications.push({ ok: !seen, quoi: seen ? "ce quote a DÉJÀ servi (revert QuoteReused) : redemande /attest" : "quote jamais vu" });
@@ -1176,21 +1176,21 @@ export async function productScaffold(arc: ArcClient, q: any) {
   let bps: { bpsOperator: number; bpsAuthor: number; bpsNetwork: number };
   let bpsOrigine: string;
   if (given.length) {
-    if (given.length < 3) throw new Error("Donne les trois parts bpsOperator, bpsAuthor et bpsNetwork (points de base, somme = 10 000)");
+    if (given.length < 3) throw new Error("Give the three shares bpsOperator, bpsAuthor and bpsNetwork (basis points, sum = 10,000)");
     bps = { bpsOperator: Number(q.bpsOperator), bpsAuthor: Number(q.bpsAuthor), bpsNetwork: Number(q.bpsNetwork) };
-    if (Object.values(bps).some((v) => !Number.isInteger(v) || v < 0 || v > 10_000)) throw new Error("chaque part est un entier de 0 à 10 000 points de base");
+    if (Object.values(bps).some((v) => !Number.isInteger(v) || v < 0 || v > 10_000)) throw new Error("each share is an integer from 0 to 10,000 basis points");
     const sum = bps.bpsOperator + bps.bpsAuthor + bps.bpsNetwork;
-    if (sum !== 10_000) throw new Error(`les parts font ${sum} points de base au lieu de 10 000 : propose() reverterait (BadShares)`);
-    if (bps.bpsAuthor > 3_000) throw new Error("bpsAuthor : 3 000 au plus (30 %) : propose() reverterait (AuthorShareTooHigh)");
-    if (bps.bpsNetwork < 500) throw new Error("bpsNetwork : 500 au moins (5 %) : propose() reverterait (NetworkShareTooLow)");
+    if (sum !== 10_000) throw new Error(`the shares add up to ${sum} basis points instead of 10,000: propose() would revert (BadShares)`);
+    if (bps.bpsAuthor > 3_000) throw new Error("bpsAuthor: 3,000 at most (30%): propose() would revert (AuthorShareTooHigh)");
+    if (bps.bpsNetwork < 500) throw new Error("bpsNetwork: 500 at least (5%): propose() would revert (NetworkShareTooLow)");
     bpsOrigine = "fournies";
   } else if (ref) {
     bps = { bpsOperator: ref.bpsOperator, bpsAuthor: ref.bpsAuthor, bpsNetwork: ref.bpsNetwork };
     bpsOrigine = refLabel!;
-  } else throw new Error("Aucun produit de référence : donne bpsOperator, bpsAuthor et bpsNetwork (somme = 10 000)");
+  } else throw new Error("No reference product: give bpsOperator, bpsAuthor and bpsNetwork (sum = 10,000)");
 
   const price = present(q.price) ? parseUsdc(q.price, "price") : ref?.price;
-  if (price === undefined) throw new Error("price : le prix par unité en USDC est requis");
+  if (price === undefined) throw new Error("price: the price per unit in USDC is required");
   if (price === 0n) avertissements.push("Prix nul : le service est gratuit (utile pour un service gardé pour soi).");
   const minBond = present(q.minBond) ? parseUsdc(q.minBond, "minBond") : ref?.minBond ?? 0n;
   const exposureCap = present(q.exposureCap) ? parseUsdc(q.exposureCap, "exposureCap") : ref?.exposureCap ?? 0n;
@@ -1326,7 +1326,7 @@ export async function inferenceTest(arc: ArcClient, q: any, cx: ActionCtx = {}) 
     const withEnclave = es.find((e) => e.active);
     pid = withEnclave?.productId;
   }
-  if (pid === undefined) throw new Error("Aucune enclave active : impossible de proposer un test.");
+  if (pid === undefined) throw new Error("No active enclave: no test can be offered.");
   const p = await productLite(arc, pid);
   const actives = es.filter((e) => e.active && e.productId === pid);
   verifications.push({ ok: actives.length > 0, quoi: `${actives.length} enclave(s) active(s) sur le produit #${pid}` });
@@ -1364,7 +1364,7 @@ export async function inferenceTest(arc: ArcClient, q: any, cx: ActionCtx = {}) 
     "});",
     `const { text, receipt, verified } = await ai.chat.completions.create({ messages: [{ role: "user", content: ${promptJs} }] });`,
     "console.log(text);",
-    'console.log("reçu vérifié on-chain :", verified, "| unités cumulées :", receipt.cumulativeUnits.toString());',
+    'console.log("receipt verified on-chain:", verified, "| cumulative units:", receipt.cumulativeUnits.toString());',
   ].join("\n");
   const proxy = [
     `arcvault proxy --key "$ARC_AEK" --enclave ${enclaveUrl}`,

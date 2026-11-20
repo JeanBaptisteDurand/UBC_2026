@@ -1,5 +1,5 @@
-/** guard.test.ts — validation de la conversation, corps borné, débit par IP, origines (audit du 7/11, n° 4).
- *  Lancer : cd services/copilot && npx tsx --test test/guard.test.ts */
+/** guard.test.ts — conversation validation, bounded body, per-IP rate limit, origins.
+ *  Run: cd services/copilot && npx tsx --test test/guard.test.ts */
 import test from "node:test";
 import assert from "node:assert/strict";
 import { parseChatRequest, readBodyCapped, RateLimiter, bucketOf, clientIp, parseOrigins, originAllowed, proxyTokenChecker, DEFAULT_BOUNDS, DEFAULT_ORIGINS } from "../src/guard";
@@ -61,13 +61,13 @@ test("limits: 20 messages, 4,000 characters each, 16,000 in total", () => {
   assert.ok(t.ok);
   const total = t.messages.reduce((s, m) => s + m.content.length, 0);
   assert.ok(total <= DEFAULT_BOUNDS.maxCharsTotal, `total ${total}`);
-  assert.equal(t.messages.at(-1)!.role, "user"); // les plus ANCIENS tombent
+  assert.equal(t.messages.at(-1)!.role, "user"); // the OLDEST drop
 });
 
 test("the filter runs BEFORE truncation: a key cut by the limit is not sent half-way", () => {
   const hex = "cd".repeat(32);
-  // la clé (caractères 3 909 à 3 973) chevauche le point de coupe (≈ 3 950 : 4 000 moins la marque de troncature) ;
-  // tronquer d'abord laisserait passer ~40 caractères hexadécimaux, que le filtre ne reconnaîtrait plus
+  // the key (characters 3,909 to 3,973) overlaps the cut point (≈ 3,950: 4,000 minus the truncation mark); truncating
+  // first would let ~40 hexadecimal characters through, which the filter would no longer recognize
   const content = `${"x".repeat(3_890)} ma clé privée : 0x${hex} ${"y".repeat(500)}`;
   const r = parseChatRequest({ messages: [u(content)] });
   assert.ok(r.ok);
@@ -102,7 +102,7 @@ test("per-IP rate: 20 per minute (sliding window), 300 per day, global cap", () 
   now += 61_000;
   assert.ok(rl.hit("1.2.3.4").ok, "la fenêtre d'une minute a glissé");
 
-  // 300 par jour : 15 minutes à 20 requêtes
+  // 300 per day: 15 minutes at 20 requests
   const day = new RateLimiter({ perMinute: 20, perDay: 300, globalPerDay: 0, now: () => now });
   let ok = 0;
   for (let m = 0; m < 16; m++) { for (let i = 0; i < 20; i++) if (day.hit("9.9.9.9").ok) ok++; now += 61_000; }
@@ -155,26 +155,26 @@ test("origins: default = the site only; ALLOWED_ORIGINS as a list; never \"*\" b
   assert.ok(!originAllowed("https://a.example.evil.com", list));
 });
 
-// ---------------------------------------------------------------- restes relevés par le vérificateur le 9/11
+// ---------------------------------------------------------------- cases found in review
 
 test("ALERT mode for the whole conversation: the mention in message 1, the bare key in message 3; a phrase split 6 + 6 across two messages", () => {
   const KEY = "4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318";
   const W = english.slice(100, 112);
-  // preuve du vérificateur : la valeur arrive dans le message SUIVANT celui qui parle de clé privée
+  // the reviewer's case: the value arrives in the message AFTER the one that mentions a private key
   const c1 = parseChatRequest({ messages: [u("voici ma clé privée metamask, dans le message suivant"), a("ok"), u(`0x${KEY}`)] });
   assert.ok(c1.ok && c1.alert);
   assert.equal(c1.messages[2]!.content, MASK_CAUTION);
-  // phrase coupée en deux messages, chacun avec du texte autour
+  // a phrase split across two messages, each with text around it
   const c2 = parseChatRequest({ messages: [u(`ma phrase de récupération, début : ${W.slice(0, 6).join(" ")}`), a("ok"), u(`et la fin : ${W.slice(6).join(" ")}`)] });
   assert.ok(c2.ok && c2.alert);
   assert.equal(c2.messages[0]!.content, `ma phrase de récupération, début : ${MASK_PHRASE}`);
   assert.equal(c2.messages[2]!.content, `et la fin : ${MASK_PHRASE}`);
-  // la mention est dans un message ancien, retiré par la borne de 20 messages : l'alerte vaut quand même (9/11 au soir :
-  // une formulation précise, « seed » seul ne met plus en alerte)
+  // the mention is in an old message, dropped by the 20-message bound: the alert still holds (a precise wording; "seed"
+  // alone no longer triggers the alert)
   const old = parseChatRequest({ messages: [u("ma seed phrase est dans un message plus bas"), ...Array.from({ length: 20 }, (_, i) => (i % 2 ? u(`q${i}`) : a(`r${i}`))), u(`0x${KEY}`)] });
   assert.ok(old.ok && old.alert && old.messages.length === 20);
   assert.equal(old.messages.at(-1)!.content, MASK_CAUTION);
-  // sans mention de l'utilisateur (le modèle, lui, met en garde) : pas d'alerte, un hash de transaction reste lisible
+  // without a mention from the user (the model, for its part, warns): no alert, a transaction hash stays readable
   const calm = parseChatRequest({ messages: [u("bonjour"), a("Ne partagez jamais votre clé privée ni votre phrase de récupération."), u(`statut de la transaction 0x${KEY} ?`)] });
   assert.ok(calm.ok && !calm.alert);
   assert.equal(calm.messages[2]!.content, `statut de la transaction 0x${KEY} ?`);
@@ -185,9 +185,9 @@ test("client IP in the enclave: X-Forwarded-For trusted only with the proxy's to
     env: peer === undefined ? undefined : { incoming: { socket: { remoteAddress: peer, remotePort: 1, remoteFamily: "IPv4" } } },
     req: { header: (n: string) => (n.toLowerCase() === "x-forwarded-for" ? xff : undefined) },
   }) as any;
-  // le pair est la passerelle Phala (privée) pour TOUT le monde : seul le jeton dit que la requête vient du site
+  // the peer is Phala's (private) gateway for EVERYONE: only the token says the request comes from the site
   assert.equal(clientIp(ctx("10.0.3.7", "198.51.100.23"), true), "198.51.100.23");
-  // avec le jeton, le PREMIER maillon (posé par Caddy) : un intermédiaire après lui ne peut qu'ajouter le sien à la fin
+  // with the token, the FIRST hop (set by Caddy) counts: an intermediary after it can only append its own at the end
   assert.equal(clientIp(ctx("10.0.3.7", "198.51.100.23, 62.171.153.35"), true), "198.51.100.23");
   assert.equal(clientIp(ctx("10.0.3.7", "[2001:db8::1]:443, 62.171.153.35"), true), "2001:db8::1");
   assert.equal(clientIp(ctx("10.0.3.7", "198.51.100.23"), false), "10.0.3.7", "sans le jeton : X-Forwarded-For ignoré");
@@ -199,5 +199,5 @@ test("proxy token compared in constant time (SHA-256 digests); empty refused", (
   const ok = proxyTokenChecker("t".repeat(64));
   assert.equal(ok("t".repeat(64)), true);
   for (const bad of ["t".repeat(63), "t".repeat(65), `${"t".repeat(63)}u`, "", undefined, null]) assert.equal(ok(bad as any), false, String(bad));
-  assert.throws(() => proxyTokenChecker(""), /vide/);
+  assert.throws(() => proxyTokenChecker(""), /empty proxy token/);
 });
