@@ -309,11 +309,11 @@ Both run from this repository with `npm ci` in each folder.
 
 ### Claude Code on ArcHive's private inference
 
-ArcHive's private inference can serve Claude Code's chat, text only. An Anthropic-compatible gateway (LiteLLM) and an
-x402 client pay the product 3 enclave 0.01 USDC per call, and each answer comes back only once its signed receipt checks
-against the enclave's key on Arc. We tested this path on 19 Nov 2026 by replaying requests in Claude Code's format: the
-`claude` CLI itself was not run, Claude Code's tools (files, commands) do not go through, and the model is
-`gpt-oss-120b`, not Claude. The operator settled the three calls on Arc between 20:22 and 20:23 UTC:
+On 19 Nov 2026 we sent requests in Claude Code's format through a LiteLLM gateway and our test bridge, an x402 client
+that pays the product 3 enclave 0.01 USDC per call and returns an answer only once its signed receipt checks against
+the enclave's key on Arc. The `claude` CLI itself was not run, Claude Code's tools (files, commands) do not go through,
+only text does, and the model is `gpt-oss-120b`, not Claude. The operator settled the three calls on Arc on 19 Nov,
+between 20:22 and 20:23 UTC:
 [`0x3c98a1fa…1ae8`](https://explorer.testnet.arc.io/tx/0x3c98a1fafa893722b9bffd84a1287ef28a446c361c822e4e2071f714bba31ae8),
 [`0xec0bd6b0…68e3`](https://explorer.testnet.arc.io/tx/0xec0bd6b04fdaa3cc4966a604e8967f0e73b5ca91423d9921edb3d05c574168e3),
 [`0xe7a0e00f…f52b`](https://explorer.testnet.arc.io/tx/0xe7a0e00fe514f10d602b1495d2d84a5e9f5b4c67e1fb5ba33cf7e190d8a1f52b).
