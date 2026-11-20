@@ -542,7 +542,7 @@ contract SealedBounty is EIP712, UsdcPayer {
             ClaimRecord({acceptedAt: uint64(block.timestamp), refuted: false, opsHash: keccak256(abi.encode(ops))});
 
         // exposure split over the distinct operators: amount / nOps each, bounded by OperatorBond
-        // (half of the free bond AND the product's exposure cap, per operator, over a rolling 24 hours)
+        // (half of the available bond AND the product's exposure cap, per operator, over a rolling 24 hours)
         uint256 cap = products.getProduct(bnty.productId).exposureCap;
         uint256 per = po.amount / nOps;
         for (uint256 i = 0; i < nOps; i++) {

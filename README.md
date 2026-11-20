@@ -258,8 +258,9 @@ AskHive runs in its own Intel TDX enclave, registered on Arc as **product 4** (f
 - **The model** (`gpt-oss-120b`) runs at RedPill, behind an attested gateway that the enclave verifies before any call
   (Intel quote, production OS, pinned TLS, signed receipts). It does not run inside ArcHive's enclave.
 - **What the operator cannot change.** The compose ([`enclave/phala/copilot-site-v22.yml`](enclave/phala/copilot-site-v22.yml),
-  the file measured on Arc, byte for byte) pins the image by its digest, which covers the code and the prompt. It
-  writes the model, its URL and the limits in clear. All of it is part of the image fingerprint Arc allows for product 4.
+  the docker-compose that Arc's image fingerprint covers through its compose-hash, checked against the admission
+  event in [`enclave/phala/README.md`](enclave/phala/README.md)) pins the image by its digest, which covers the code
+  and the prompt. It writes the model, its URL and the limits in clear. All of it is part of the image fingerprint Arc allows for product 4.
 
 | Proof (Arc testnet, 19 Nov 2026, UTC) | Transaction |
 |---|---|
@@ -290,7 +291,8 @@ that the user signs in their own wallet. Its 16 tools:
 | `arc_machines_list`, `arc_machine_diagnostics` (an operator's machines) | `arc_operator_plan`, `arc_product_scaffold`: become an operator, publish a service |
 
 The same server runs locally over stdio from this repository:
-`cd packages/sdk && npm ci && cd ../../services/mcp && npm ci && npm start` (`ARCHIVE_API` sets the read API).
+`cd packages/sdk && npm ci && cd ../../services/copilot && npm ci && cd ../mcp && npm ci && npm start --silent` (the MCP
+server imports the copilot's shared code, so the copilot is installed too; `ARCHIVE_API` sets the read API).
 
 ### The SDK and the `arcvault` CLI
 
@@ -625,6 +627,9 @@ git sparse-checkout set --no-cone '/*' '!/frontend/public/film/' && git checkout
 curl -fsSL https://arc-hive.xyz/install.sh | sh
 archive-node doctor && archive-node pair && archive-node up --product 1 --tunnel
 ```
+
+On every push, [CI](.github/workflows/ci.yml) builds and tests the contracts, the SDK, the enclave kit, the read API,
+the copilot, the MCP server, the operator agent and the registrar, and type-checks the CLI, the site and the console.
 
 Server deployment: [`deploy/README.md`](deploy/README.md). Intel's verifier on Arc: [`dcap-integration/`](dcap-integration/).
 

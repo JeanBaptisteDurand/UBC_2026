@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 /// @title IOperatorBond — the bond that BOUNDS the outflow of a forged enclave
 /// @notice What the bond does, and what it does not do (after an adversarial review):
-///         - it bounds what an enclave can make others pay on its word alone: half of the free bond over a ROLLING
+///         - it bounds what an enclave can make others pay on its word alone: half of the available bond (the bond less any pending withdrawal) over a ROLLING
 ///           24 hours, all products together, and the `exposureCap` of each product;
 ///         - it is slashed in full for a fault PROVEN on chain: equivocation (SessionPay, SealedBounty) or a bounty
 ///           claim refuted by a counter-replay from other enclaves (SealedBounty.refute);
@@ -38,7 +38,7 @@ interface IOperatorBond {
     function totalExposureOf(address operator) external view returns (uint256);
 
     /// @dev Called only by the authorized settlement contracts (SessionPay, SealedBounty).
-    ///      Reverts above half of the free bond over a rolling 24 hours, ALL PRODUCTS TOGETHER, AND above `cap`, the
+    ///      Reverts above half of the available bond (bond - pendingUnbond) over a rolling 24 hours, ALL PRODUCTS TOGETHER, AND above `cap`, the
     ///      product's exposure cap (`Product.exposureCap`) for this (operator, product) pair over the same window.
     ///      `cap` = 0: no cap on top of the bond rule.
     function consumeExposure(address operator, uint256 productId, uint256 amount, uint256 cap) external;

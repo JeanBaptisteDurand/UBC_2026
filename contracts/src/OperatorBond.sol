@@ -8,7 +8,7 @@ import {UsdcPayer} from "./lib/UsdcPayer.sol";
 /// @title OperatorBond — v2
 /// @notice An operator's USDC bond. What it guarantees, exactly:
 ///         - it BOUNDS THE OUTFLOW: on the word of an operator's enclaves, the authorized settlement contracts
-///           (SessionPay, SealedBounty) never release more than half of its free bond over ANY 24-hour period, all
+///           (SessionPay, SealedBounty) never release more than half of its available bond (the bond less any pending withdrawal) over ANY 24-hour period, all
 ///           products together, nor more than the `exposureCap` of each product (three 12-hour buckets: an exposure
 ///           counts for between 24 and 36 hours);
 ///         - it is SLASHED in full for a fault PROVEN on chain: equivocation (SessionPay, SealedBounty) or a bounty
@@ -254,7 +254,7 @@ contract OperatorBond is IOperatorBond, UsdcPayer {
         if (amount > type(uint64).max) revert TooMuchExposure();
         uint64 e = uint64(block.timestamp / BUCKET);
 
-        // never more than half of the free bond over a rolling 24 hours, all products together
+        // never more than half of the available bond (bond - pendingUnbond) over a rolling 24 hours, all products together
         Ring memory g = _roll(_opExposure[operator], e);
         if (_sum(g) + amount > availableBond(operator) / 2) revert TooMuchExposure();
 
