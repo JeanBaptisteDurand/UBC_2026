@@ -61,7 +61,7 @@ tests. The sources exactly as deployed, with their original French comments, are
 | `MachineRegistry` | The two operator levels: *open* (attestation and bond) and *verified* (the machine's chip is declared by an accepted verifier). Binds each enclave to its machine and holds each product's level policy. |
 | `ProofOfCloudAuditor` | A trustless verifier: checks on chain the EdDSA token co-signed by the Proof of Cloud alliance's trust servers for a given quote, then declares the chip in `MachineRegistry` in its own name. A product that accepts this verifier trusts the alliance, not ArcHive and not whoever submits the token. |
 | `Ed25519Verifier` | A standalone Ed25519 (RFC 8032) verifier built on Smooth CryptoLib, compiled without `via_ir`; `ProofOfCloudAuditor` calls it. |
-| `PolicyEnclaves` | The `EnclaveRegistry` seen through each product's level policy. The settlement contract of product 7 (`SealedBountyVerified`, the same `SealedBounty` code) reads enclaves through it. |
+| `PolicyEnclaves` | The `EnclaveRegistry` seen through each product's level policy. The settlement contract of product 5 (`SealedBountyVerified`, the same `SealedBounty` code) reads enclaves through it. |
 
 ### Building blocks
 

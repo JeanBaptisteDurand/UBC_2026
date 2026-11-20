@@ -133,7 +133,7 @@ read in 3.5 s at most; past that, a fallback line sends the model to `enclaves_l
 
 - the active enclaves per product (`/api/enclaves`), and how many are at the verified level (`/api/levels`);
 - the products with no active enclave;
-- whether product 7's settlement is authorized;
+- whether product 5's settlement is authorized;
 - the open bounties of both levels (`SealedBounty` from `/api/bounties`, `SealedBountyVerified` read on Arc).
 
 AskHive never states from memory what runs.

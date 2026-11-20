@@ -166,7 +166,7 @@ services:
     tmpfs: ["/tmp:size=16m"]
     security_opt: ["no-new-privileges:true"]
     cap_drop: ["ALL"]
-  # Sealed Bounty AT THE VERIFIED LEVEL (product 7): renews through DCAP, binds the enclave to its machine after each
+  # Sealed Bounty AT THE VERIFIED LEVEL (product 5): renews through DCAP, binds the enclave to its machine after each
   # renewal, and asks the Proof of Cloud alliance for a new token before the current one expires (verified level)
   registrar-bounty-verified:
     image: node:22-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d

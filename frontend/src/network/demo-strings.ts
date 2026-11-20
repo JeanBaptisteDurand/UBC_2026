@@ -67,7 +67,7 @@ export const CONTRACTS: Contract[] = [
       { sig: 'acceptClaim(Claim, sigs[])', who: { en: 'anyone', fr: 'n’importe qui' }, does: { en: 'Block hash via EIP-2935, k distinct operators, each signer active.', fr: 'Hash du bloc via EIP-2935, k opérateurs distincts, chaque signataire actif.' }, emits: ['ClaimAccepted'], checks: ['NoValidSigner'] },
       { sig: 'deliver / refute', who: { en: 'anyone / ≥ 2 other operators within 3 days', fr: 'n’importe qui / ≥ 2 autres opérateurs sous 3 jours' }, does: { en: 'Pays (verdict 100) or slashes the liars (verdict 0).', fr: 'Paie (verdict 100) ou saisit les menteurs (verdict 0).' }, emits: ['BountyPaid', 'ClaimRefuted'] },
     ] },
-  // the verified operator level (contracts/src/levels, with the forged-PPID fix of 10/11; on v3 deployed with the core on 19/11,
+  // the verified operator level (contracts/src/levels, with the forged-PPID fix of 15/11; on v3 deployed with the core on 19/11,
   // product #5)
   { id: 'machines', name: 'MachineRegistry', addr: '0xC64e9556AA896b2E8c0bE0fdf3dC7b2c0be24b86',
     role: { en: 'The two operator levels. Open: an enclave Arc has checked, with a bond. Verified: its machine, the chip that Intel’s PCK certificate names (PPID), is also declared in a known datacenter by an auditor the product accepts. Each product’s author sets the minimum level and the auditors.', fr: 'Les deux niveaux d’opérateur. Ouvert : une enclave vérifiée par Arc, avec une caution. Vérifié : sa machine, la puce que nomme le certificat PCK d’Intel (PPID), est en plus déclarée en datacenter connu par un vérificateur que le produit accepte. L’auteur de chaque produit fixe le niveau minimum et les vérificateurs.' },

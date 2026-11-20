@@ -113,7 +113,7 @@ export const RAIL_NAME: Record<string, string> = {
   [C21.X402Settler.toLowerCase()]: 'X402Settler',
   [C21.SealedBounty.toLowerCase()]: 'SealedBounty',
   [C21.SealedBountyVerified.toLowerCase()]: 'SealedBountyVerified',
-  [C21.SealedBountyVerifiedOld.toLowerCase()]: 'SealedBountyVerified (11/11)',
+  [C21.SealedBountyVerifiedOld.toLowerCase()]: 'SealedBountyVerified (16/11)',
 }
 /** a product's type line (catalog, service page): its settlement rail, and its role if any */
 export const railKey = (p: Product): TKey => {

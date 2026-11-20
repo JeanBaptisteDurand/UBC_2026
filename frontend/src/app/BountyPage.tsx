@@ -124,7 +124,7 @@ export function BountyPage({ embed = false }: { embed?: boolean } = {}) {
                   : rows.length === 0 ? <tr><td colSpan={6} className="muted">{x('b.none')}</td></tr>
                     : rows.map((b) => {
                       const expired = b.deadline < now
-                      // the refutation of 10/11 is bounty 2 of the v2.1 open level (product 5 of v2.1): refutationOfBounty
+                      // the refutation of 15/11 is bounty 2 of the v2.1 open level (product 5 of v2.1): refutationOfBounty
                       // compares the contract, so no v3 bounty takes it. The verified level numbers its bounties from 1 too
                       const refuted = level === 'open' && refutationOfBounty(b.id)?.productId === String(b.productId)
                       return (

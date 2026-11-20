@@ -1,4 +1,4 @@
-# 11/11 : MODEL_ATTESTATION=aci : la passerelle du modèle (RedPill) est VÉRIFIÉE par l'enclave avant tout appel (quote Intel,
+# 16/11 : MODEL_ATTESTATION=aci : la passerelle du modèle (RedPill) est VÉRIFIÉE par l'enclave avant tout appel (quote Intel,
 # image système de production, TLS épinglé, reçus exigés ; GET /model-attestation).
 # Copilote attesté d'ArcHive, pile v2.1 (Arc testnet, produit 4) : le copilote du site (base de connaissances + outils
 # qui lisent Arc et PRÉPARENT des actions que l'utilisateur signe ; il ne détient aucune clé) dans SA PROPRE VM Intel TDX

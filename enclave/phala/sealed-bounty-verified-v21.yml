@@ -1,8 +1,8 @@
-# Prime scellée AU NIVEAU VÉRIFIÉ, pile v2.1 CORRIGÉE (Arc testnet, PRODUIT 7, 11/11/2026) : la même Prime (rejeu RÉEL par
+# Prime scellée AU NIVEAU VÉRIFIÉ, pile v2.1 CORRIGÉE (Arc testnet, PRODUIT 7, 16/11/2026) : la même Prime (rejeu RÉEL par
 # arc-anvil dans une VM Intel TDX de PRODUCTION dstack-0.5.12), réglée par la Prime branchée sur le NOUVEAU PolicyEnclaves
 # (une enclave ne compte que si sa MACHINE est déclarée par un vérificateur accepté : l'alliance Proof of Cloud), sur la pile
 # redéployée après la revue de sécurité (PckChip corrigé : MachineRegistry 0xd671…, SealedBountyVerified 0x36a8…).
-# 11/11 : les PREUVES D'ÉTAT sont désactivées tant que notre nœud d'Arc n'a pas de disque assez grand (STATE_PROOF_RPC_URL
+# 16/11 : les PREUVES D'ÉTAT sont désactivées tant que notre nœud d'Arc n'a pas de disque assez grand (STATE_PROOF_RPC_URL
 # retiré ; le rejeu passe par FORK_RPC_URL, comme le produit 2). À RÉACTIVER en remettant STATE_PROOF_RPC_URL = un RPC qui
 # sert eth_getProof en historique (notre nœud, ou QuickNode/Chainstack). Tout est mesuré ; seuls OPERATOR_ALLOWLIST et les
 # identifiants du registre d'images sont des variables chiffrées.

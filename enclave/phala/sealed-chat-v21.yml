@@ -1,4 +1,4 @@
-# 11/11 : MODEL_ATTESTATION=aci : l'enclave VÉRIFIE la passerelle du modèle (RedPill, Attested Confidential Inference :
+# 16/11 : MODEL_ATTESTATION=aci : l'enclave VÉRIFIE la passerelle du modèle (RedPill, Attested Confidential Inference :
 # quote Intel, clés liées, compose mesuré, image système de production MODEL_GATEWAY_OS_IMAGES), appelle le modèle en TLS
 # épinglé sur la clé attestée et exige un reçu citant un service amont vérifié (src/services/model-attestation.ts).
 # Inférence privée, pile v2.1 (Arc testnet) : produit 1 (sessions prépayées, SessionPay) et produit 3 (paiement à

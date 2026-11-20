@@ -26,7 +26,7 @@ Two parts of this page have their own pages: [how an AI agent pays](agent-paymen
 - *Open*: anyone with a bond and an allowed image.
 - *Verified*: in addition, the Proof of Cloud alliance declares the machine's chip in an inspected datacenter. Arc
   reads the chip ID (PPID) from Intel's certificate inside the quote and verifies the alliance's Ed25519 signature.
-  Product 7 requires this level.
+  Product 5 requires this level.
 
 **Bonds and slashing** (`OperatorBond`): every admitted enclave is backed by its operator's USDC bond, and a fault
 proven on-chain seizes all of it. The rules and their figures are in
