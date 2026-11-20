@@ -1,10 +1,10 @@
 /** enclave-site.test.ts — the SITE copilot (AskHive) in its enclave (enclave-site.ts) with the REAL enclave kit (keys in
  *  memory, a SIMULATED quote since there is no TDX here), the REAL site surface (copilotFromEnv with COPILOT_SURFACE=site
  *  and the MEASURED variables of the compose enclave/phala/copilot-site-v22.yml: prompt, tools, validation of the
- *  interface tools, the site's docs_search, limits), a SCRIPTED model, and the client as the panel writes it
- *  (frontend/src/copilot/enclave/client.ts): the site's request (messages, lang, user, page) sealed with HPKE, the reply
- *  opened with THIS request's secret, then its signature checked the way the panel does it (an independent copy of its
- *  computation, not the enclave's code). No network call, no real model.
+ *  interface tools, the site's docs_search, limits), a SCRIPTED model, and a client written like the site's panel: the
+ *  site's request (messages, lang, user, page) sealed with HPKE, the reply opened with THIS request's secret, then its
+ *  signature checked by an independent copy of the computation (not the enclave's code). No network call, no real
+ *  model.
  *  Covers: the server's loop replayed in the enclave (interface tools returned to the browser, prepare tool in
  *  `actions`, docs_search cited); the proxy sees only ciphertext; a valid signature, bound to the question and the body
  *  (changed body, other question, other key → refused); sealed refusals signed too; clear mode without a signature;
@@ -160,7 +160,7 @@ function harness(o: { mock?: boolean; turn?: Turn; facts?: Partial<EnclaveFacts>
 }
 type H = ReturnType<typeof harness>;
 
-/** The panel's client: the site's request sealed to the enclave's key, the reply opened with THIS secret. */
+/** A client like the site's panel: the request sealed to the enclave's key, the reply opened with THIS secret. */
 async function sealedAsk(h: Pick<H, "kit" | "app">, body: Record<string, unknown>) {
   const info = exchangeInfo(COPILOT_SEALED_TAG, CHAIN, REG, PRODUCT, h.kit.keys.signer);
   const sx = await sealExchange(toBytes(h.kit.keys.x25519PublicKey), COPILOT_SEALED_TAG, info, stringToBytes(JSON.stringify(body)));
@@ -175,8 +175,8 @@ async function sealedAsk(h: Pick<H, "kit" | "app">, body: Record<string, unknown
   return { res, wire, wireOut, j, inner, enc: sx.enc, ciphertext: sx.ciphertext };
 }
 
-/** A reply's proof, computed as the panel does (frontend/src/copilot/enclave/client.ts, proofOf), copied here without
- *  taking anything from the enclave's code: if either one changes, this cross test breaks. */
+/** A reply's proof, computed the way a client would, without taking anything from the enclave's code: if the enclave's
+ *  format changes, this cross test breaks. */
 async function panelProof(signer: Address, enc: Uint8Array, reqCt: Uint8Array, inner: any): Promise<{ kind: "signed" | "sealed"; bad?: true; digest?: Hex }> {
   const REPLY_TAG = "ARC-COPILOT-SITE-REPLY-v1";
   const request = keccak256(concat([enc, reqCt]));
@@ -223,7 +223,7 @@ test("site in the enclave: the same loop as the server (interface tools returned
   assert.ok(body.citations.length > 0 && body.citations.every((c: string) => kbSources.has(c)), JSON.stringify(body.citations));
   // the interface tools never run on the enclave side: only docs_search and the prepare card went through executeTool
   assert.deepEqual(h.executed, ["docs_search", "operator_prepare_bond"]);
-  // the signature: the one the panel verifies, by the enclave's key
+  // the signature: the one a client verifies, by the enclave's key
   assert.equal(r.inner.sig.v, SITE_REPLY_TAG);
   assert.equal(r.inner.sig.signer, h.kit.keys.signer);
   const proof = await panelProof(h.kit.keys.signer, r.enc, r.ciphertext, r.inner);
@@ -263,7 +263,7 @@ test("site in the enclave: the prompt is the site's, with the page on screen, th
   assert.ok(!names.some((n: string) => /^(send|pay|transfer|sign)/.test(n)), "no tool that spends or signs");
 });
 
-test("signature bound to the question AND the body: changed body, other question, other key → refused (the panel then says \"sealed\", never \"signed\")", async () => {
+test("signature bound to the question AND the body: changed body, other question, other key → refused (a client then sees it as sealed, never signed)", async () => {
   const h = harness({ turn: () => ({ content: "The bond is 1 USDC." }) });
   const a = await sealedAsk(h, ask("What is the bond for product 1?"));
   const b = await sealedAsk(h, ask("Something else entirely, please?"));
@@ -365,7 +365,7 @@ test("enclave note: in TDX it states the enclave, the key, Arc and the signature
     assert.match(t, /Asked whether this chat runs in an enclave, or where you run: answer from these lines, never from docs_search/);
   }
   assert.match(aci, /yes, this conversation is sealed to the enclave of product #4/);
-  assert.match(aci, /checks your signature under each answer/);
+  assert.match(aci, /each answer carries your signature, which any client can check against that key/);
   assert.match(aci, /behind an attested gateway this enclave verified, and that gateway and the model read the conversation to answer/);
   assert.match(tdx({ sealed: true }), /the model runs at its provider, which receives the conversation in clear\.$/);
   assert.match(tdx({ sealed: false }), /but this conversation arrived in clear, so the web server relaying it can read it/);

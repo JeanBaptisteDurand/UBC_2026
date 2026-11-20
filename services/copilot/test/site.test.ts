@@ -627,9 +627,9 @@ test("site prompt: the FACTS sheet, the visitor signs with their wallet, no inve
   }
 });
 
-test("the site's FACTS = the checked sheet (frontend/src/products/faits.json): 13 contracts in service, 51 deployed, 7 products", () => {
+test("the site's FACTS match the former front's facts sheet (frontend/src/products/faits.json) when it is present: 13 contracts in service, 51 deployed, 7 products", () => {
   const f = fileURLToPath(new URL("../../../frontend/src/products/faits.json", import.meta.url));
-  if (!existsSync(f)) return; // the facts sheet lives in the front: absent from a copilot-only deployment
+  if (!existsSync(f)) return; // the sheet belonged to the former front: absent from this repository and from a copilot-only deployment
   const facts = JSON.parse(readFileSync(f, "utf8"));
   assert.match(facts.contractCount, /= 51 contracts deployed/);
   assert.match(facts.contractCount, /In service today: 13 contracts of our own code \(7 core: ProductRegistry, OperatorBond, EnclaveRegistry, VerdictLog, SealedBounty, SessionPay, X402Settler; TdxAttestationModule; 5 for the operator levels/);

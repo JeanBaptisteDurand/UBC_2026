@@ -14,7 +14,7 @@
  *  2. A GUARD (siteEnclaveSystem): the prompt the enclave serves contains no server sentence ("you run on the site's
  *     server", SITE_WHERE_NOTE…); otherwise the enclave refuses to start (fail closed, never two truths).
  *  3. EVERY SEALED REPLY IS SIGNED (signingSealedChannel) by the enclave's secp256k1 key, the one Arc holds for
- *     product 4, in the format the panel checks (frontend/src/copilot/enclave/client.ts, REPLY_TAG):
+ *     product 4, in a format any client can check (verifySiteReply below):
  *       inside the ciphertext: { status, body, sig: { v: SITE_REPLY_TAG, signer, requestHash, bodyHash, digest, signature } }
  *       requestHash = keccak256(enc ‖ ciphertext) of the sealed question, as received;
  *       bodyHash    = keccak256(utf8(JSON.stringify(body))) (the client recomputes it on the opened JSON: JSON.stringify
@@ -23,7 +23,8 @@
  *                     uint256 productId, address signer, bytes32 requestHash, bytes32 bodyHash));
  *       signature   = an EIP-191 signature of the digest's 32 bytes (personal_sign of { raw: digest }), 65 bytes.
  *     The seal proves the reply to that client only; the signature makes it verifiable by anyone (a judge included)
- *     with the key registered on Arc (EnclaveRegistry.enclaveOf). The status is not signed (it stays inside the seal). */
+ *     with the key registered on Arc (EnclaveRegistry.enclaveOf). The status is not signed (it stays inside the seal).
+ *     The site's panel relies on the seal; checking the signature in the panel too is a next step. */
 import { type Address, type Hex, concat, encodeAbiParameters, getAddress, keccak256, recoverMessageAddress, stringToBytes } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { COPILOT_SEALED_TAG } from "@arcvault/sdk";
@@ -34,7 +35,7 @@ import * as site from "./site";
 
 // ---------------------------------------------------------------- 3. the signature of every sealed reply
 
-/** The signature tag of a site reply (the same value as the panel's REPLY_TAG). */
+/** The signature tag of a site reply. */
 export const SITE_REPLY_TAG = "ARC-COPILOT-SITE-REPLY-v1";
 
 /** What the enclave adds inside the ciphertext of every reply: what is needed to verify it without trusting anything
@@ -74,8 +75,8 @@ export function siteReplyDigest(c: SiteReplyContext & { requestHash: Hex; bodyHa
 const isObj = (x: unknown): x is Record<string, unknown> => !!x && typeof x === "object" && !Array.isArray(x);
 
 /** The sealed conversation (like enclave-app.ts's copilotSealedChannel), each reply of which is also SIGNED by the
- *  enclave's key. A reply that is not { status, body } would go out sealed without a signature (the panel then says
- *  "sealed", never "signed"); app.ts produces none. */
+ *  enclave's key. A reply that is not { status, body } would go out sealed without a signature (a client then sees it
+ *  as sealed, never signed); app.ts produces none. */
 export function signingSealedChannel(kit: EnclaveKit, log: (line: string) => void = (l) => console.error(l)): SealedChannel {
   const account = privateKeyToAccount(kit.keys.signerPrivateKey);
   const { chainId, registry, productId } = kit.binding;
@@ -104,7 +105,7 @@ export function signingSealedChannel(kit: EnclaveKit, log: (line: string) => voi
   };
 }
 
-/** Verifies the signature of an opened reply, as the panel does (the reference for the tests and any client): the
+/** Verifies the signature of an opened reply (the reference for the tests and for any client): the
  *  digest is recomputed from the question this client SEALED (enc, ciphertext) and the opened body, then the signature
  *  must recover the key Arc holds. Never throws. */
 export async function verifySiteReply(
@@ -148,7 +149,7 @@ export function siteEnclaveNote(f: EnclaveFacts & { signs: boolean }): (x: { sea
       : "This conversation arrived IN CLEAR (compatibility mode): the web server relaying it can read it.";
     if (f.mock) return [where, channel, model].join(" ");
     const ask = sealed
-      ? `Asked whether this chat runs in an enclave, or where you run: answer from these lines, never from docs_search, in three or four sentences: yes, this conversation is sealed to the enclave of product #4 (Intel TDX); why trust it: the site's panel checks on Arc that your key is registered for product #4 (Arc itself verified its Intel quote, DCAP, for an image the product's author allowed) before sealing to it${f.signs ? ", and checks your signature under each answer (the chip 'Signed by the enclave')" : ""}; then one sentence on who else reads it: ${others}.`
+      ? `Asked whether this chat runs in an enclave, or where you run: answer from these lines, never from docs_search, in three or four sentences: yes, this conversation is sealed to the enclave of product #4 (Intel TDX); why trust it: the site's panel checks on Arc that your key is registered for product #4 (Arc itself verified its Intel quote, DCAP, for an image the product's author allowed) before sealing to it${f.signs ? ", and each answer carries your signature, which any client can check against that key" : ""}; then one sentence on who else reads it: ${others}.`
       : `Asked whether this chat runs in an enclave, or where you run: answer from these lines, never from docs_search: this program runs in the enclave of product #4 (Intel TDX), but this conversation arrived in clear, so the web server relaying it can read it; then one sentence on who else reads it: ${others}.`;
     return [where, channel, model, ask].join(" ");
   };
