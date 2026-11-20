@@ -854,8 +854,11 @@ const early = (() => {
   // kept with their arrival time (the rate is measured on it)
   e.w.onmessage = (m) => { e.q.push([performance.now(), m]) }
   e.w.onerror = () => { e.failed = true }
-  // ?prog=1 starts with the light pack (lite.bin), the motion pack follows it
-  void meta.then((buf) => { if (buf && e.w) { const fp = fingerprint(new Uint8Array(buf)); e.w.postMessage({ type: 'pack', url: `${ROOT}${set}/${PROG ? 'lite.bin' : PACK}?v=${fp.toString(36)}`, n: man.n, fp }) } })
+  // ?prog=1 starts with the light pack (lite.bin) at once, without waiting for meta.bin (its version): the worker skips
+  // the fingerprint check (fp 0) and mountProg checks it on the pack's header (a pack made for another capture is
+  // fetched again, versioned); the motion pack follows it
+  if (PROG) e.w.postMessage({ type: 'pack', url: `${ROOT}${set}/lite.bin`, n: man.n, fp: 0 })
+  else void meta.then((buf) => { if (buf && e.w) { const fp = fingerprint(new Uint8Array(buf)); e.w.postMessage({ type: 'pack', url: `${ROOT}${set}/${PACK}?v=${fp.toString(36)}`, n: man.n, fp }) } })
   return e
 })()
 const M = {
@@ -1353,7 +1356,7 @@ async function mountMotion(man: Manifest, fp: number, metaBytes: number, onFirst
 // rest, once its one-in-2 layer is in and its frames at the position are decoded: the light frame on screen
 // cross-fades into it (250 ms). A thin line at the bottom of the film shows the full version loading; a return visit,
 // whose packs come from the Cache API, never shows it.
-type PackMsg = { type: 'head'; w: number; h: number; count: number; total: number; gateAt: number; ks: Int32Array<ArrayBuffer>; ends: Int32Array<ArrayBuffer> } | { type: 'prog'; got: number } | { type: 'done'; cached: boolean } | { type: 'bmp'; k: number; bmp: ImageBitmap } | { type: 'fail'; why: string }
+type PackMsg = { type: 'head'; w: number; h: number; count: number; total: number; gateAt: number; ks: Int32Array<ArrayBuffer>; ends: Int32Array<ArrayBuffer>; fp?: number } | { type: 'prog'; got: number } | { type: 'done'; cached: boolean } | { type: 'bmp'; k: number; bmp: ImageBitmap } | { type: 'fail'; why: string }
 type Pk = {
   w0: Worker | null; w: number; h: number; count: number; total: number; gateAt: number; got: number
   ks: Int32Array; ends: Int32Array; pj: number; present: Uint8Array; head: boolean; done: boolean; cached: boolean; fail: string
@@ -1394,8 +1397,21 @@ function rateP(now: number) {
   PG.rT = now; PG.rG = got
   film.rate = Math.round(PG.rate * 8 / 1e4) / 100
 }
+/** The light pack again, versioned (?v=), in a new worker: the one started before meta.bin was made for another
+ *  capture (a stale cache) */
+function relite() {
+  const w = PL.w0
+  if (w) { w.onmessage = null; w.onerror = null; w.terminate() }
+  PL.w0 = null; PL.head = false; PL.got = 0; PL.pj = 0; PL.count = 0; PL.present.fill(0)
+  try { PL.w0 = new Worker(new URL('./pack.worker.ts', import.meta.url), { type: 'module' }) } catch { pkMsg(PL, { type: 'fail', why: 'worker' }, performance.now()); return }
+  PL.w0.onmessage = (e: MessageEvent<PackMsg>) => pkMsg(PL, e.data, performance.now())
+  PL.w0.onerror = () => pkMsg(PL, { type: 'fail', why: 'worker' }, performance.now())
+  PL.t0 = performance.now()
+  PL.w0.postMessage({ type: 'pack', url: `${PG.base}lite.bin${VQ}`, n: film.man!.n, fp: PG.fp })
+}
 function pkMsg(P: Pk, d: PackMsg, at: number) {
   if (d.type === 'head') {
+    if (P === PL && d.fp !== undefined && d.fp !== PG.fp) { relite(); return }
     P.w = d.w; P.h = d.h; P.count = d.count; P.total = d.total; P.gateAt = d.gateAt; P.ks = d.ks; P.ends = d.ends; P.head = true; P.tHead = at
     pkArrive(P)
     if (P === act && !mShown) sizeCv(P)
@@ -1580,8 +1596,8 @@ function firstP(now: number) {
   }
   if (!PG.firstCalled && ((PG.tTrip && PG.tRing) || now - PG.t0 > 2500 || PL.done || !!PL.fail)) { PG.firstCalled = true; PG.onFirst?.() }
 }
-/** The thin line at the bottom of the film: the bytes of both packs, shown after 700 ms if they are not in yet, gone
- *  once the motion pack is in */
+/** The thin line at the bottom of the film: the bytes of both packs, once a second, shown after 700 ms if they are not
+ *  in yet, gone once the motion pack is in */
 function hintP(now: number) {
   const el = PG.hint; if (!el || PG.hintGone) return
   const full = PV.done || !!PV.fail || (PG.sharpOk && !PV.w0)
@@ -1593,7 +1609,7 @@ function hintP(now: number) {
     return
   }
   if (!PG.hintOn && now - PG.t0 > 700) { el.classList.add('on'); PG.hintOn = true }
-  if (PG.hintOn && now - PG.hintAt > 200) {
+  if (PG.hintOn && now - PG.hintAt > 1000) {
     PG.hintAt = now
     const lt = PL.total || 2.2e6, vt = PV.total || lt * 4.7
     fill.style.transform = `scaleX(${Math.min(1, (PL.got + PV.got) / (lt + vt)).toFixed(4)})`
@@ -1726,9 +1742,10 @@ async function mountProg(man: Manifest, fp: number, onFirst: () => void): Promis
     PL.w0.onerror = () => pkMsg(PL, { type: 'fail', why: 'worker' }, performance.now())
     if (early?.w === PL.w0) {
       PL.t0 = early.t0
-      for (const [at, e] of early.q) pkMsg(PL, e.data as PackMsg, at)
+      // what the worker said so far, in order (a stale pack's header hands over to a new worker: the rest is its)
+      for (const [at, e] of early.q) { if (PL.w0 !== early.w) break; pkMsg(PL, e.data as PackMsg, at) }
       early.q.length = 0
-      if (early.failed) pkMsg(PL, { type: 'fail', why: 'worker' }, performance.now())
+      if (early.failed && PL.w0 === early.w) pkMsg(PL, { type: 'fail', why: 'worker' }, performance.now())
     } else {
       PL.t0 = PG.t0
       PL.w0.postMessage({ type: 'pack', url: `${PG.base}lite.bin${VQ}`, n, fp })
