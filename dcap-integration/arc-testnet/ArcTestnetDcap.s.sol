@@ -260,7 +260,7 @@ contract ArcTestnetDcap is P256Configuration {
         bytes32 salt = keccak256(abi.encodePacked(saltTag, ":", name));
         addr = vm.computeCreate2Address(salt, keccak256(initCode), CREATE2_FACTORY);
         if (addr.code.length > 0) {
-            console2.log(string.concat("[deja] ", name), addr);
+            console2.log(string.concat("[exists] ", name), addr);
             return addr;
         }
         vm.broadcast(owner);

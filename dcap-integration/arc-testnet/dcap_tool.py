@@ -152,7 +152,7 @@ def cmd_record(a):
         "source": {
             "automataDcapAttestation": "vendor/automata-dcap-attestation @ " + a["dcap_commit"],
             "automataOnChainPccs": "evm/lib/automata-on-chain-pccs @ " + a["pccs_commit"],
-            "compiler": "solc 0.8.27, via-IR, optimizer 200, evm paris (foundry.toml d'Automata)",
+            "compiler": "solc 0.8.27, via-IR, optimizer 200, evm paris (Automata's foundry.toml)",
             "planScript": "dcap-integration/arc-testnet/ArcTestnetDcap.s.sol",
             "create2Factory": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
             "saltTag": a["salt_tag"],

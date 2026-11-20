@@ -212,6 +212,6 @@ case "${1:-}" in
   measure) cmd_measure; cmd_record ;;
   record) cmd_record ;;
   refresh) cmd_refresh ;;
-  add-eval) cmd_add_eval "${2:?numero evaluation TCB}" ;;
+  add-eval) cmd_add_eval "${2:?TCB evaluation number}" ;;
   *) sed -n '2,20p' "$0"; exit 1 ;;
 esac
