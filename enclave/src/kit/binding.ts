@@ -1,14 +1,14 @@
 /**
- * binding.ts — les calculs qui LIENT l'enclave à la chaîne.
+ * binding.ts — the computations that BIND the enclave to the chain.
  *
- * Ces fonctions doivent produire exactement les mêmes octets que les contrats :
+ * These functions must produce exactly the same bytes as the contracts:
  *  - REPORTDATA[0:32] = keccak256(abi.encode("ARC-ENCLAVE-v1", chainId, registry, productId,
  *                                            operator, signer, x25519))   (EnclaveRegistry P6)
- *  - REPORTDATA[32:64] = hash du bloc d'ancrage R                          (EnclaveRegistry P7)
+ *  - REPORTDATA[32:64] = hash of the anchor block R                        (EnclaveRegistry P7)
  *  - workloadId = keccak256(MRTD ‖ RTMR0..3 ‖ MRCONFIGID ‖ XFAM ‖ TDATTRIBUTES)  (P5)
  *
- * Toute divergence ici = l'attestation est rejetée on-chain. C'est le point d'intégration
- * le plus sensible ; il est verrouillé par des tests croisés avec `cast` (voir test/binding.test.ts).
+ * Any divergence here means the attestation is rejected on-chain. This is the most sensitive integration point;
+ * tests cross-checked with `cast` lock it (see test/kit.test.ts).
  */
 import {
   keccak256,
@@ -30,7 +30,7 @@ export interface ReportDataBinding {
   x25519: Hex; // 32 octets
 }
 
-/** REPORTDATA[0:32] — lie la chaîne, le registre, le produit, l'opérateur et les deux clés. */
+/** REPORTDATA[0:32]: binds the chain, the registry, the product, the operator and the two keys. */
 export function computeReportData0(b: ReportDataBinding): Hex {
   return keccak256(
     encodeAbiParameters(
@@ -48,7 +48,7 @@ export function computeReportData0(b: ReportDataBinding): Hex {
   );
 }
 
-/** REPORTDATA complet (64 octets) = rd0 ‖ hash du bloc d'ancrage. */
+/** The full REPORTDATA (64 bytes) = rd0 ‖ hash of the anchor block. */
 export function buildReportData(b: ReportDataBinding, anchorBlockHash: Hex): Hex {
   return concat([computeReportData0(b), anchorBlockHash]);
 }
@@ -64,7 +64,7 @@ export interface Measurements {
   tdAttributes: Hex; // 8 octets
 }
 
-/** workloadId — l'empreinte de l'image, identique au calcul de EnclaveRegistry._workloadId. */
+/** workloadId: the image fingerprint, identical to EnclaveRegistry._workloadId. */
 export function computeWorkloadId(m: Measurements): Hex {
   return keccak256(
     encodePacked(

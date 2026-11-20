@@ -1,10 +1,9 @@
 /**
- * rpc-quorum.ts — mandataire de LECTURE SEULE à quorum.
+ * rpc-quorum.ts — a READ-ONLY proxy with a quorum.
  *
- * L'enclave ne doit jamais faire confiance à un seul RPC. Chaque lecture est faite chez N
- * fournisseurs AU MÊME BLOC ; les réponses doivent être identiques, sinon on refuse. Seules des
- * méthodes de lecture sont permises ; tout envoi de transaction est interdit.
- * Limite connue (à dire) : les fournisseurs voient quelles cases de stockage on lit.
+ * The enclave must never trust a single RPC. Each read goes to N providers AT THE SAME BLOCK; the answers must be
+ * identical, otherwise the read is refused. Only read methods are allowed; sending a transaction is forbidden.
+ * A known limit: the providers see which storage slots the enclave reads.
  */
 import { createPublicClient, http, type PublicClient, type Hex, type Transport } from "viem";
 
@@ -24,46 +23,46 @@ export class QuorumError extends Error {}
 export class RpcQuorum {
   private clients: PublicClient[];
 
-  /** `providers` : URL HTTP des fournisseurs (ou transports viem déjà construits, pour les tests). */
+  /** `providers`: HTTP URLs of the providers (or viem transports already built, for tests). */
   constructor(providers: Array<string | Transport>) {
-    if (providers.length === 0) throw new Error("au moins un fournisseur RPC");
+    if (providers.length === 0) throw new Error("at least one RPC provider");
     this.clients = providers.map((p) => createPublicClient({ transport: typeof p === "string" ? http(p) : p }));
   }
 
-  /** Nombre de fournisseurs (le quorum exige l'unanimité). */
+  /** Number of providers (the quorum requires unanimity). */
   get size(): number {
     return this.clients.length;
   }
 
-  /** Lecture brute chez tous les fournisseurs ; exige des réponses identiques. */
+  /** Raw read on every provider; requires identical answers. */
   async read<T>(fn: (c: PublicClient) => Promise<T>): Promise<T> {
     const results = await Promise.all(this.clients.map(fn));
     const first = JSON.stringify(results[0], bigintReplacer);
     for (let i = 1; i < results.length; i++) {
       if (JSON.stringify(results[i], bigintReplacer) !== first) {
-        throw new QuorumError("désaccord entre fournisseurs RPC");
+        throw new QuorumError("RPC providers disagree");
       }
     }
     return results[0] as T;
   }
 
   /**
-   * Le bloc commun : la plus petite tête vue chez les fournisseurs (Arc est final au bloc, donc ce
-   * bloc existe et ne change plus chez aucun d'eux).
+   * The common block: the lowest head seen across the providers (Arc is final at each block, so this block exists and
+   * no longer changes on any of them).
    */
   async commonHead(): Promise<bigint> {
     const heads = await Promise.all(this.clients.map((c) => c.getBlockNumber({ cacheTime: 0 })));
     return heads.reduce((a, b) => (b < a ? b : a));
   }
 
-  /** Lecture chez tous les fournisseurs AU MÊME BLOC (la tête commune) ; réponses identiques exigées. */
+  /** A read on every provider AT THE SAME BLOCK (the common head); identical answers required. */
   async readAtCommonHead<T>(fn: (c: PublicClient, blockNumber: bigint) => Promise<T>): Promise<T> {
     const blockNumber = await this.commonHead();
     return this.read((c) => fn(c, blockNumber));
   }
 
-  /** Hash d'un bloc, vérifié en quorum (seul le hash est comparé : les fournisseurs n'exposent pas
-   *  tous les mêmes champs annexes d'un bloc). */
+  /** The hash of a block, checked through the quorum (only the hash is compared: the providers do not all expose the
+   *  same extra fields of a block). */
   async blockHash(blockNumber: bigint): Promise<Hex> {
     return this.read(async (c) => (await c.getBlock({ blockNumber, includeTransactions: false })).hash as Hex);
   }

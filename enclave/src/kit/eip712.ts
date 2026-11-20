@@ -1,6 +1,6 @@
 /**
- * eip712.ts — le reçu (SessionPay) et la réclamation (SealedBounty), signés par l'enclave.
- * Domaine identique aux contrats : name "ArcEnclaveNetwork", version "1".
+ * eip712.ts — the receipt (SessionPay) and the claim (SealedBounty), signed by the enclave.
+ * The domain is identical to the contracts': name "ArcEnclaveNetwork", version "1".
  */
 import {
   type Address,
@@ -77,7 +77,7 @@ export interface Claim {
   deadline: bigint;
 }
 
-/** Signe un reçu avec la clé secp256k1 de l'enclave. Rend une signature 65 octets (r‖s‖v). */
+/** Signs a receipt with the enclave's secp256k1 key. Returns a 65-byte signature (r‖s‖v). */
 export async function signReceipt(privateKey: Hex, dom: DomainParams, receipt: Receipt): Promise<Hex> {
   const account = privateKeyToAccount(privateKey);
   return account.signTypedData({
@@ -118,7 +118,7 @@ export async function recoverClaimSigner(dom: DomainParams, claim: Claim, signat
   });
 }
 
-// --- CallReceipt : la preuve d'un appel pour le rail x402 (X402Settler) ---
+// --- CallReceipt: the proof of one call for the x402 rail (X402Settler) ---
 
 export const callReceiptTypes = {
   CallReceipt: [
@@ -139,7 +139,7 @@ export interface CallReceipt {
   responseHash: Hex;
   units: bigint;
   anchorBlock: bigint;
-  nonce: Hex; // = le nonce de l'autorisation EIP-3009 du payeur
+  nonce: Hex; // = the nonce of the payer's EIP-3009 authorization
 }
 
 export async function signCallReceipt(privateKey: Hex, dom: DomainParams, cr: CallReceipt): Promise<Hex> {

@@ -1,10 +1,10 @@
 /**
- * hpke.ts — chiffrement HPKE (RFC 9180) : DHKEM(X25519, HKDF-SHA256), HKDF-SHA256, ChaCha20-Poly1305.
- * Sert à chiffrer les requêtes/réponses d'inférence vers les clés d'enclave, et le bundle d'exploit.
+ * hpke.ts — HPKE encryption (RFC 9180): DHKEM(X25519, HKDF-SHA256), HKDF-SHA256, ChaCha20-Poly1305.
+ * It encrypts inference requests and replies to the enclave keys, and the exploit bundle.
  *
- * Note (O3) : la « Prime scellée » veut un cP reproductible par deux enclaves (même chiffré pour
- * le protocole). HPKE est randomisé (clé éphémère) : le chiffré déterministe, dérivé de l'aléa r, est dans
- * kit/deterministic-seal.ts (DeterministicProtocolCipher de services/bounty.ts), pas dans ce module de base.
+ * Note (O3): the Sealed Bounty needs a cP that two enclaves can reproduce (the same ciphertext for the protocol).
+ * HPKE is randomized (ephemeral key): the deterministic ciphertext, derived from the randomness r, lives in
+ * kit/deterministic-seal.ts (DeterministicProtocolCipher in services/bounty.ts), not in this base module.
  */
 import { CipherSuite, DhkemX25519HkdfSha256, HkdfSha256 } from "@hpke/core";
 import { Chacha20Poly1305 } from "@hpke/chacha20poly1305";
@@ -26,7 +26,7 @@ function ab(u8: Uint8Array): ArrayBuffer {
   return u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength) as ArrayBuffer;
 }
 
-/** Chiffre `plaintext` vers la clé publique X25519 brute du destinataire. */
+/** Encrypts `plaintext` to the recipient's raw X25519 public key. */
 export async function seal(recipientPublicRaw: Uint8Array, plaintext: Uint8Array, aad?: Uint8Array): Promise<Sealed> {
   const s = suite();
   const pk = await s.kem.importKey("raw", ab(recipientPublicRaw), true);
@@ -35,7 +35,7 @@ export async function seal(recipientPublicRaw: Uint8Array, plaintext: Uint8Array
   return { enc: new Uint8Array(sender.enc), ciphertext: new Uint8Array(ct) };
 }
 
-/** Déchiffre avec la clé privée X25519 brute du destinataire. */
+/** Decrypts with the recipient's raw X25519 private key. */
 export async function open(
   recipientPrivateRaw: Uint8Array,
   enc: Uint8Array,

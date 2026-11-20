@@ -1,7 +1,7 @@
 /**
- * dstack.ts — client de l'agent invité dstack (Phala) pour obtenir un VRAI quote TDX dans la VM.
- * Hors VM (pas de socket dstack), createDstackClient rend null et le kit retombe sur le quote mock.
- * Import dynamique : le kit tourne même sans la lib (dev local).
+ * dstack.ts — client of the dstack guest agent (Phala), to obtain a REAL TDX quote inside the VM.
+ * Outside a VM (no dstack socket), createDstackClient returns null and the kit falls back to the mock quote.
+ * Dynamic import: the kit runs even without the library (local development).
  */
 import { toBytes, type Hex } from "viem";
 import type { DstackClient } from "./quote";
@@ -13,7 +13,7 @@ function asBytes(x: unknown): Uint8Array {
   return new Uint8Array();
 }
 
-/** Rend un client dstack si on est dans une VM TDX avec l'agent invité, sinon null. */
+/** Returns a dstack client inside a TDX VM with the guest agent, otherwise null. */
 export async function createDstackClient(): Promise<DstackClient | null> {
   try {
     const mod: any = await import("@phala/dstack-sdk");
@@ -22,7 +22,7 @@ export async function createDstackClient(): Promise<DstackClient | null> {
     const client = new Ctor();
     return {
       async getQuote(reportData: Uint8Array) {
-        // l'API expose getQuote (dstack) ou tdxQuote (tappd) selon la version
+        // the API exposes getQuote (dstack) or tdxQuote (tappd), depending on the version
         const call = client.getQuote ?? client.tdxQuote;
         const r = await call.call(client, reportData);
         return { quote: asBytes(r.quote ?? r), eventLog: asBytes(r.event_log ?? r.eventLog ?? "0x") };

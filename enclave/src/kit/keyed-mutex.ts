@@ -1,22 +1,22 @@
 /**
- * keyed-mutex.ts — verrou exclusif par clé (file d'attente FIFO), sans dépendance.
+ * keyed-mutex.ts — an exclusive lock per key (FIFO queue), with no dependency.
  *
- * Sert à rendre atomique, par session, la réservation de `seq` et du cumul (O2, v2) : deux requêtes
- * concurrentes sur la même session passent l'une après l'autre, dans l'ordre d'arrivée ; deux sessions
- * différentes restent en parallèle. La file d'une clé est effacée dès qu'elle se vide.
+ * It makes the reservation of `seq` and of the running total atomic per session (O2, v2): two concurrent requests on
+ * the same session go one after the other, in order of arrival; two different sessions stay in parallel. The queue of
+ * a key is erased as soon as it empties.
  */
 export class KeyedMutex {
   private tails = new Map<string, Promise<void>>();
 
-  /** Exécute `fn` seul pour cette clé ; les appels suivants sur la même clé attendent leur tour. */
+  /** Runs `fn` alone for this key; the following calls on the same key wait their turn. */
   async run<T>(key: string, fn: () => Promise<T>): Promise<T> {
-    // Tout ce qui suit jusqu'au premier `await` est synchrone : l'ordre de la file = l'ordre des appels.
+    // Everything up to the first `await` is synchronous: the order of the queue = the order of the calls.
     const previous = this.tails.get(key) ?? Promise.resolve();
     let release!: () => void;
     const mine = new Promise<void>((resolve) => {
       release = resolve;
     });
-    const tail = previous.then(() => mine); // ne rejette jamais
+    const tail = previous.then(() => mine); // never rejects
     this.tails.set(key, tail);
     try {
       await previous;
@@ -27,7 +27,7 @@ export class KeyedMutex {
     }
   }
 
-  /** Nombre de clés dont la file n'est pas vide (diagnostic, tests). */
+  /** Number of keys whose queue is not empty (diagnostics, tests). */
   get pending(): number {
     return this.tails.size;
   }

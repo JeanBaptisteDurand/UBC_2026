@@ -1,18 +1,17 @@
 /**
- * hpke-exchange.ts — une requête chiffrée vers l'enclave et SA réponse, scellée pour le seul client qui l'a envoyée
- * (côté enclave). Sert à la conversation chiffrée du copilote attesté (services/copilot/src/enclave-app.ts).
+ * hpke-exchange.ts — a request encrypted to the enclave and ITS reply, sealed for the one client that sent it (enclave
+ * side). It carries the encrypted conversation of the attested copilot (services/copilot/src/enclave-app.ts).
  *
- * Construit sur HPKE (RFC 9180, même suite que hpke.ts : DHKEM(X25519, HKDF-SHA256), HKDF-SHA256, ChaCha20-Poly1305),
- * comme l'encapsulation des réponses d'Oblivious HTTP (RFC 9458 §4.4) :
- *  - requête : HPKE en mode de base vers la clé X25519 de l'enclave, avec info = exchangeInfo(étiquette, chaîne,
- *    registre, produit, signataire) : un chiffré préparé pour une AUTRE enclave, un autre produit ou un autre registre ne
- *    s'ouvre pas ici ;
- *  - réponse : secret = Export(« <étiquette> response », 32) du contexte HPKE de la requête ; nonce de réponse aléatoire
- *    de 32 octets ; prk = HKDF-Extract(sel = enc ‖ nonce, secret) ; clé = HKDF-Expand(prk, "key", 32) ;
- *    nonce AEAD = HKDF-Expand(prk, "nonce", 12) ; chiffré = ChaCha20-Poly1305(clé, nonce AEAD, réponse).
- *    Seuls le client (qui a créé le contexte) et l'enclave (clé privée X25519, en mémoire) connaissent ce secret : un
- *    mandataire ne peut ni lire la réponse, ni en fabriquer une, ni rejouer celle d'une autre requête.
- * Le même protocole côté client : packages/sdk/src/sealed-exchange.ts (test croisé : enclave/test/copilot-exchange.test.ts).
+ * Built on HPKE (RFC 9180, the same suite as hpke.ts: DHKEM(X25519, HKDF-SHA256), HKDF-SHA256, ChaCha20-Poly1305), like
+ * the response encapsulation of Oblivious HTTP (RFC 9458 §4.4):
+ *  - request: HPKE in base mode to the enclave's X25519 key, with info = exchangeInfo(label, chain, registry, product,
+ *    signer): a ciphertext prepared for ANOTHER enclave, another product or another registry does not open here;
+ *  - reply: secret = Export("<label> response", 32) of the request's HPKE context; a random reply nonce of 32 bytes;
+ *    prk = HKDF-Extract(salt = enc ‖ nonce, secret); key = HKDF-Expand(prk, "key", 32);
+ *    AEAD nonce = HKDF-Expand(prk, "nonce", 12); ciphertext = ChaCha20-Poly1305(key, AEAD nonce, reply).
+ *    Only the client (which created the context) and the enclave (X25519 private key, in memory) know this secret: a
+ *    proxy can neither read the reply, nor forge one, nor replay the reply to another request.
+ * The same protocol on the client side: packages/sdk/src/sealed-exchange.ts (cross-test: enclave/test/copilot-exchange.test.ts).
  */
 import { CipherSuite, DhkemX25519HkdfSha256, HkdfSha256 } from "@hpke/core";
 import { Chacha20Poly1305 } from "@hpke/chacha20poly1305";
@@ -21,7 +20,7 @@ import { sha256 } from "@noble/hashes/sha256";
 import { chacha20poly1305 } from "@noble/ciphers/chacha";
 import { type Address, encodeAbiParameters, keccak256, toBytes } from "viem";
 
-/** Longueur du nonce de réponse (max(Nn, Nk) de ChaCha20-Poly1305, comme RFC 9458). */
+/** Length of the reply nonce (max(Nn, Nk) of ChaCha20-Poly1305, as in RFC 9458). */
 export const EXCHANGE_RESPONSE_NONCE_BYTES = 32;
 
 const utf8 = (s: string) => new TextEncoder().encode(s);
@@ -34,7 +33,7 @@ function ab(u8: Uint8Array): ArrayBuffer {
   return u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength) as ArrayBuffer;
 }
 
-/** info HPKE d'un échange = keccak256(abi.encode(étiquette, chainId, registre, produit, signataire)) : 32 octets. */
+/** HPKE info of an exchange = keccak256(abi.encode(label, chainId, registry, product, signer)): 32 bytes. */
 export function exchangeInfo(tag: string, chainId: bigint | number, registry: Address, productId: bigint, signer: Address): Uint8Array {
   return toBytes(
     keccak256(
@@ -46,7 +45,7 @@ export function exchangeInfo(tag: string, chainId: bigint | number, registry: Ad
   );
 }
 
-/** Clé et nonce AEAD de la réponse (RFC 9458 §4.4, avec SHA-256 et ChaCha20-Poly1305). */
+/** Key and AEAD nonce of the reply (RFC 9458 §4.4, with SHA-256 and ChaCha20-Poly1305). */
 export function exchangeResponseKeys(secret: Uint8Array, enc: Uint8Array, responseNonce: Uint8Array): { key: Uint8Array; nonce: Uint8Array } {
   const salt = new Uint8Array(enc.length + responseNonce.length);
   salt.set(enc, 0);
@@ -56,13 +55,13 @@ export function exchangeResponseKeys(secret: Uint8Array, enc: Uint8Array, respon
 }
 
 export interface OpenedExchange {
-  /** La requête en clair. */
+  /** The request in clear. */
   plaintext: Uint8Array;
-  /** Scelle la réponse à CETTE requête : seul son client peut l'ouvrir (et vérifier qu'elle vient de cette enclave). */
+  /** Seals the reply to THIS request: only its client can open it (and check that it comes from this enclave). */
   sealResponse(plaintext: Uint8Array): Promise<{ nonce: Uint8Array; ciphertext: Uint8Array }>;
 }
 
-/** Ouvre une requête scellée (lève si elle n'est pas pour cette clé, cette info ou si elle a été modifiée). */
+/** Opens a sealed request (throws if it is not for this key or this info, or if it was modified). */
 export async function openExchange(
   recipientPrivateRaw: Uint8Array,
   tag: string,

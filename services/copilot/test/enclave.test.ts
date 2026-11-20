@@ -339,7 +339,7 @@ test("enclave configuration: required, consistent with the deployments file, fai
     [{ REGISTRY: "0x1111111111111111111111111111111111111111" }, /is not the EnclaveRegistry/], [{ CHAIN_ID: "5042" }, /is not the chain/],
     [{ OPENAI_BASE_URL: undefined }, /OPENAI_BASE_URL required/], [{ OPENAI_BASE_URL: "http://api.redpill.ai/v1" }, /OPENAI_BASE_URL required, over https/],
     [{ COPILOT_MODEL: " " }, /COPILOT_MODEL required/], [{ COPILOT_ALLOW_PRIVATE_URLS: "1" }, /refused in an enclave/],
-    [{ ALLOWED_ORIGINS: `${SITE},*` }, /ALLOWED_ORIGINS=\* refused/], [{ OPERATOR_ALLOWLIST: "0xpasbon" }, /OPERATOR_ALLOWLIST : adresse invalide/],
+    [{ ALLOWED_ORIGINS: `${SITE},*` }, /ALLOWED_ORIGINS=\* refused/], [{ OPERATOR_ALLOWLIST: "0xpasbon" }, /OPERATOR_ALLOWLIST: invalid address/],
     [{ PORT: "99999" }, /invalid PORT/],
     // 9/11 : DEBUG, quelle qu'en soit la valeur (openai@4 journaliserait la clé du modèle et la conversation)
     [{ DEBUG: "true" }, /DEBUG refused in an enclave/], [{ DEBUG: "0" }, /DEBUG refused in an enclave/], [{ DEBUG: " " }, /DEBUG refused/],

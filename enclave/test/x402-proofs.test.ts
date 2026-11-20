@@ -701,7 +701,7 @@ describe("x402 — lecture groupée du lecteur à quorum (pendingState)", () => 
     // un fournisseur qui ment sur un solde : la lecture échoue (rien n'est retiré ni sorti de la file sur sa foi)
     const liar = { balances: new Map([[L(p1), 7_000_000n], [L(p2), 0n]]), used: state.used };
     const bad = createQuorumX402Reader(new RpcQuorum([provider(120n, state, []), provider(120n, liar, [])]), async () => A);
-    await expect(bad.pendingState!({ payers: [p1], auths: [] })).rejects.toThrow(/désaccord/);
+    await expect(bad.pendingState!({ payers: [p1], auths: [] })).rejects.toThrow(/disagree/);
   });
 });
 

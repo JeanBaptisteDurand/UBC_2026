@@ -55,7 +55,7 @@ describe("OPERATOR_ALLOWLIST", () => {
 
     const refused = await attest(app, OTHER);
     expect(refused.status).toBe(403);
-    expect(((await refused.json()) as { error: string }).error).toContain("non autorisé");
+    expect(((await refused.json()) as { error: string }).error).toContain("not authorized");
 
     const res = await attest(app, OP.toLowerCase()); // case does not matter
     expect(res.status).toBe(200);
@@ -78,7 +78,7 @@ describe("OPERATOR_ALLOWLIST", () => {
     });
     expect(warnings.some((w) => w.includes("OPERATOR_ALLOWLIST=*"))).toBe(true); // at start-up
     expect((await attest(app, OTHER)).status).toBe(200);
-    expect(warnings.some((w) => w.includes("mode développement") && w.includes(OTHER))).toBe(true); // on every /attest
+    expect(warnings.some((w) => w.includes("development mode") && w.includes(OTHER))).toBe(true); // on every /attest
   });
 
   it("reading the variable (fails closed): unset or empty => nobody; * => development; invalid address => stop", async () => {
@@ -185,6 +185,6 @@ describe("key already registered on-chain for another operator", () => {
     const warnings: string[] = [];
     const app = createAttestServer(mockKit(), { operatorAllowlist: [OP], warn: (m) => warnings.push(m) });
     expect((await attest(app, OP)).status).toBe(200);
-    expect(warnings.some((w) => w.includes("sans RPC"))).toBe(true);
+    expect(warnings.some((w) => w.includes("without RPC"))).toBe(true);
   });
 });

@@ -1,13 +1,12 @@
 /**
- * deterministic-seal.ts — scellé HPKE-like DÉTERMINISTE pour la Prime scellée (cP reproductible).
+ * deterministic-seal.ts — a DETERMINISTIC HPKE-like seal for the Sealed Bounty (reproducible cP).
  *
- * Problème : deux enclaves honnêtes doivent produire le MÊME chiffré vers le protocole (cP) pour
- * qu'elles signent le même hash. HPKE standard est randomisé. Ici la clé éphémère est DÉRIVÉE de
- * l'aléa `r` du chasseur (présent dans le bundle), donc le chiffré est identique à (r, message,
- * clé du protocole) donnés. Le protocole déchiffre sans connaître `r` : tout vient de la clé
- * éphémère publique collée en tête (comme une sealed box).
+ * The problem: two honest enclaves must produce the SAME ciphertext to the protocol (cP) so that they sign the same
+ * hash. Standard HPKE is randomized. Here the ephemeral key is DERIVED from the hunter's randomness `r` (present in the
+ * bundle), so the ciphertext is identical for a given (r, message, protocol key). The protocol decrypts without knowing
+ * `r`: everything comes from the public ephemeral key placed at the head (like a sealed box).
  *
- * Construction : X25519 + HKDF-SHA256 + ChaCha20-Poly1305. cP = ephPub(32) ‖ ciphertext.
+ * Construction: X25519 + HKDF-SHA256 + ChaCha20-Poly1305. cP = ephPub(32) ‖ ciphertext.
  */
 import { x25519 } from "@noble/curves/ed25519";
 import { hkdf } from "@noble/hashes/hkdf";
@@ -21,7 +20,7 @@ const INFO_KEY = utf8("arc-sealed-key-v1");
 const INFO_NONCE = utf8("arc-sealed-nonce-v1");
 const INFO_EPH = utf8("arc-sealed-eph-v1");
 
-/** Chiffre `plaintext` vers `recipientPublicRaw`, de façon reproductible à partir de `seedR`. */
+/** Encrypts `plaintext` to `recipientPublicRaw`, reproducibly from `seedR`. */
 export function deterministicSeal(recipientPublicRaw: Uint8Array, plaintext: Uint8Array, seedR: Uint8Array): Hex {
   const ephPriv = hkdf(sha256, seedR, new Uint8Array(), INFO_EPH, 32);
   const ephPub = x25519.getPublicKey(ephPriv);
@@ -32,7 +31,7 @@ export function deterministicSeal(recipientPublicRaw: Uint8Array, plaintext: Uin
   return toHex(concatBytes(ephPub, ct));
 }
 
-/** Déchiffre côté protocole, avec sa clé privée seulement (pas besoin de `seedR`). */
+/** Decrypts on the protocol's side, with its private key only (no need for `seedR`). */
 export function deterministicOpen(recipientPrivateRaw: Uint8Array, sealed: Hex): Uint8Array {
   const bytes = toBytes(sealed);
   const ephPub = bytes.slice(0, 32);
