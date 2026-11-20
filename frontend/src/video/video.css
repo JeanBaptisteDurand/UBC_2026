@@ -89,6 +89,13 @@ html.film-lock { overflow: hidden; scrollbar-gutter: stable; }
 #film-gate-panel .fg-go[hidden] { display: none; }
 @media (prefers-reduced-motion: reduce) { #film-gate, #film-gate-panel, #film-gate-panel .fg-fill { transition: none; } }
 
+/* ?prog=1 (film.ts): a thin line at the bottom of the film while its full version loads, under the page, the header and
+   AskHive (it sits in the film's own layer); no text */
+.stage .film-hint { position: absolute; left: 0; right: 0; bottom: env(safe-area-inset-bottom, 0px); height: 2px; pointer-events: none; opacity: 0; transition: opacity 400ms ease; }
+.stage .film-hint.on { opacity: 1; }
+.stage .film-hint > i { position: absolute; inset: 0; display: block; background: rgb(var(--ink-c) / 0.38); transform-origin: 0 50%; transform: scaleX(0); transition: transform 250ms linear; }
+@media (prefers-reduced-motion: reduce) { .stage .film-hint, .stage .film-hint > i { transition: none; } }
+
 /* ?rb=0 (film.ts): the reading blur under the text columns (styles.css) as a still shade, same mask, no backdrop-filter:
    nothing to re-blur on each moving frame of the film */
 @media (min-width: 761px) {

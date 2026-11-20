@@ -830,6 +830,11 @@ function downTier() {
 if (Q.get('rb') === '0') document.documentElement.classList.add('rb-off')
 const GATE_DEFAULT = false
 export const GATE = Q.get('gate') === '1' || (GATE_DEFAULT && Q.get('gate') !== '0' && !FIREFOX && !CONN?.saveData)
+/** ?prog=1: the progressive film, nothing blocks (section "Progressive film" below); not with ?gate=1 */
+export const PROG = !GATE && Q.get('prog') === '1'
+// the first frame (the poster) shows as soon as this module runs: the page-transition veil (ui/veil.ts) waits for
+// nothing on the progressive film
+if (PROG) { const h = document.documentElement; if (!h.classList.contains('veil-off')) { h.classList.remove('veil-on'); h.classList.add('veil-off') } }
 /** The motion pack, next to the set's frames (Retina uses the desktop one); ?pack= overrides. motion.bin (10.3 MB
  *  desktop, 10.5 MB phone, 960x600 and 390x844): the gate opens at the end of its one-in-2 layer (5.2 MB), the odd
  *  frames keep streaming in the worker. Measured 20/11 at 3.5 Mbit/s: gate 15 s, 0% of moving refreshes more than 1
@@ -839,7 +844,7 @@ const PACK = /^[\w.-]+$/.test(Q.get('pack') ?? '') ? Q.get('pack')! : 'motion.bi
  *  first render; mountMotion takes the worker over and replays what it said meanwhile (about a second earlier at the
  *  gate) */
 const early = (() => {
-  if (!GATE || REDUCED || CONN?.saveData) return null
+  if ((!GATE && !PROG) || REDUCED || CONN?.saveData) return null
   const man = (window as W).__FILM_MAN?.[SET]
   if (!man) return null
   const set = man.ysFrom ?? SET
@@ -849,7 +854,8 @@ const early = (() => {
   // kept with their arrival time (the rate is measured on it)
   e.w.onmessage = (m) => { e.q.push([performance.now(), m]) }
   e.w.onerror = () => { e.failed = true }
-  void meta.then((buf) => { if (buf && e.w) { const fp = fingerprint(new Uint8Array(buf)); e.w.postMessage({ type: 'pack', url: `${ROOT}${set}/${PACK}?v=${fp.toString(36)}`, n: man.n, fp }) } })
+  // ?prog=1 starts with the light pack (lite.bin), the motion pack follows it
+  void meta.then((buf) => { if (buf && e.w) { const fp = fingerprint(new Uint8Array(buf)); e.w.postMessage({ type: 'pack', url: `${ROOT}${set}/${PROG ? 'lite.bin' : PACK}?v=${fp.toString(36)}`, n: man.n, fp }) } })
   return e
 })()
 const M = {
@@ -1026,10 +1032,12 @@ function showSharp(on: boolean, fade: boolean) {
 }
 function sharpTick(rest: boolean, now: number, onFirstDraw: () => void) {
   // nothing sharp before the pack has reached its gate point (it gives the rate the sharp set is chosen on, and the
-  // link is the pack's until then), except on the way in without the motion film
-  if (!cvS || !gS || (!M.tPack && M.gate !== 'stops')) return
+  // link is the pack's until then), except on the way in without the motion film; ?prog=1: nothing fetched before the
+  // light pack is in, the sharp frames already there (the poster) shown at rest
+  const fetchOk = PROG ? PG.sharpOk : !!M.tPack || M.gate === 'stops'
+  if (!cvS || !gS || (!fetchOk && !(PROG && sharpC.size))) return
   const k = rest ? (restK >= 0 ? restK : Math.round(film.pos)) : landingK(now)
-  if (k >= 0) { sharpWant = k; sharpGet(k, true) }
+  if (k >= 0) { sharpWant = k; if (fetchOk) sharpGet(k, true) }
   if (rest && k >= 0 && (sharpK !== k || !sharpOn)) {
     if (sharpK === k) showSharp(true, !REDUCED)
     else {
@@ -1064,7 +1072,8 @@ function sharpTick(rest: boolean, now: number, onFirstDraw: () => void) {
     }
   }
   // once the pack is in: the stops' sharp frames (desktop, the stop trips land there), then 2 frames around the rest
-  if ((M.done || M.gate === 'stops') && sFetch.size < sInflight()) {
+  // (?prog=1: once the motion pack is in)
+  if ((PROG ? PG.stopsOk : M.done || M.gate === 'stops') && sFetch.size < sInflight()) {
     // with the top (Home) and the end of the page (End lands at Lenis's limit, 76 px below the last stop)
     const lim = getLenis()?.limit ?? -1
     if (stopKsOf !== stopF || lim !== stopKsLim) {
@@ -1331,6 +1340,418 @@ async function mountMotion(man: Manifest, fp: number, metaBytes: number, onFirst
   return false
 }
 
+// ---- Progressive film (?prog=1) ----
+// Nothing blocks: the first frame (the poster, sharp) is on screen as soon as the page script runs, and the scroll is
+// free from the start. The film's levels load and decode in the background, each pack in its own worker
+// (pack.worker.ts), in this order: the light pack (lite.bin, 2.2 MB: one frame in 2 at a third of the size, ordered one
+// in 8, in 4, then in 2, so its first layer covers the start of the film within a few hundred KB; used as it arrives),
+// then the motion pack (motion.bin, 10.3 MB: every frame at half size), then the sharp frames (at rest and at the end
+// of a stop trip once the light pack is in; the stops' and the neighbours of a rest once the motion pack is in). While
+// moving, the motion canvas draws the active level only, from decoded frames: the two around the position, blended (at
+// most 8 apart in the light level, 4 in the motion one), otherwise the nearest one, otherwise the image holds; never a
+// fetch, never an empty canvas (the poster stays under it until its first frame). The motion level takes over at a
+// rest, once its one-in-2 layer is in and its frames at the position are decoded: the light frame on screen
+// cross-fades into it (250 ms). A thin line at the bottom of the film shows the full version loading; a return visit,
+// whose packs come from the Cache API, never shows it.
+type PackMsg = { type: 'head'; w: number; h: number; count: number; total: number; gateAt: number; ks: Int32Array<ArrayBuffer>; ends: Int32Array<ArrayBuffer> } | { type: 'prog'; got: number } | { type: 'done'; cached: boolean } | { type: 'bmp'; k: number; bmp: ImageBitmap } | { type: 'fail'; why: string }
+type Pk = {
+  w0: Worker | null; w: number; h: number; count: number; total: number; gateAt: number; got: number
+  ks: Int32Array; ends: Int32Array; pj: number; present: Uint8Array; head: boolean; done: boolean; cached: boolean; fail: string
+  bm: Map<number, ImageBitmap>; bytes: number; budget: number; gen: number; sig: number; wantSet: Set<number>; wantList: number[]
+  stamp: Uint32Array; sv: number; keep: [number, number]; gap: number; t0: number; tHead: number; tGate: number; tDone: number
+}
+const mkPk = (budget: number, gap: number): Pk => ({ w0: null, w: 0, h: 0, count: 0, total: 0, gateAt: 0, got: 0, ks: new Int32Array(0), ends: new Int32Array(0), pj: 0, present: new Uint8Array(0), head: false, done: false, cached: false, fail: '', bm: new Map(), bytes: 0, budget, gen: 0, sig: 0, wantSet: new Set(), wantList: [], stamp: new Uint32Array(0), sv: 1, keep: [-1, -1], gap, t0: 0, tHead: 0, tGate: 0, tDone: 0 })
+/** The light level (lite.bin) and the motion level (motion.bin); gap: how far apart two frames may be blended */
+const PL = mkPk(LIGHT ? 40e6 : 80e6, 8), PV = mkPk(LIGHT ? 80e6 : 160e6, 4)
+/** The level drawn while moving */
+let act = PL
+const PG = {
+  sharpOk: false, stopsOk: false, fp: 0, base: '',
+  t0: 0, tTrip: 0, tRing: 0, tSwitch: 0, xf0: 0, dirty: true,
+  rate: 0, rT: 0, rG: 0, rT0: 0, rG0: 0, firstCalled: false, resolve: null as ((ok: boolean) => void) | null, onFirst: null as (() => void) | null,
+  hint: null as HTMLDivElement | null, hintFill: null as HTMLElement | null, hintOn: false, hintAt: 0, hintGone: false,
+  dP: null as Pk | null, dK: -2, dB: -2, dA: -1, sMaxIn: 0, black: 0, poster: null as HTMLImageElement | null,
+}
+type Pick = { k: number; b: number; a: number; pos: number }
+const PK1: Pick = { k: -1, b: -1, a: 0, pos: 0 }, PK2: Pick = { k: -1, b: -1, a: 0, pos: 0 }
+const posterOk = () => !!PG.poster && PG.poster.complete && PG.poster.naturalWidth > 0
+function pkArrive(P: Pk) {
+  while (P.pj < P.count && P.ends[P.pj] <= P.got) { P.present[P.ks[P.pj]] = 1; P.pj++ }
+  if (!P.tGate && P.head && P.got >= P.gateAt) P.tGate = performance.now()
+}
+/** The download rate over both packs (they stream one after the other): it chooses the sharp set (Retina or not) and
+ *  how many sharp requests run at once */
+function rateP(now: number) {
+  const got = PL.got + PV.got
+  // the first 128 KB carry the request's round trip and the slow start
+  if (got < 131072) return
+  if (!PG.rT0) { PG.rT0 = now; PG.rG0 = got }
+  if (!PG.rT) { PG.rT = now; PG.rG = got; return }
+  const dt = (now - PG.rT) / 1000
+  if (dt < 0.25) return
+  const inst = (got - PG.rG) / dt
+  PG.rate = PG.rate ? PG.rate + (inst - PG.rate) * (1 - Math.exp(-dt / 1.5)) : inst
+  PG.rT = now; PG.rG = got
+  film.rate = Math.round(PG.rate * 8 / 1e4) / 100
+}
+function pkMsg(P: Pk, d: PackMsg, at: number) {
+  if (d.type === 'head') {
+    P.w = d.w; P.h = d.h; P.count = d.count; P.total = d.total; P.gateAt = d.gateAt; P.ks = d.ks; P.ends = d.ends; P.head = true; P.tHead = at
+    pkArrive(P)
+    if (P === act && !mShown) sizeCv(P)
+    if (P === PL) { PG.resolve?.(true); PG.resolve = null }
+  } else if (d.type === 'prog') { P.got = d.got; rateP(at); pkArrive(P) }
+  else if (d.type === 'done') {
+    P.done = true; P.cached = d.cached; P.tDone = at; pkArrive(P)
+    // a pack read from a cache gives no rate: the last one measured on this browser
+    if (d.cached || at - P.tHead < 300) { if (!film.rate) try { film.rate = Number(localStorage.getItem('film-rate')) || 0 } catch { /* none */ } }
+    else {
+      if (!PG.rate && PG.rT0 && at - PG.rT0 > 50) { PG.rate = (PL.got + PV.got - PG.rG0) / ((at - PG.rT0) / 1000); film.rate = Math.round(PG.rate * 8 / 1e4) / 100 }
+      try { localStorage.setItem('film-rate', String(film.rate)) } catch { /* private window */ }
+    }
+    if (P === PL) liteIn(); else PG.stopsOk = true
+  } else if (d.type === 'bmp') pkGot(P, d.k, d.bmp)
+  else if (d.type === 'fail') {
+    if (P.fail) return
+    P.fail = d.why || 'pack'
+    // the light pack unusable before its header: today's film (mountProg); later, what has arrived stays in use
+    if (P === PL) { if (!PL.head) { PG.resolve?.(false); PG.resolve = null } else liteIn() }
+    else PG.stopsOk = true
+  }
+}
+/** The light pack is in: the sharp set is chosen on its rate, sharp frames may be fetched, the motion pack starts */
+function liteIn() {
+  if (PG.sharpOk) return
+  PG.sharpOk = true
+  decideSharpSet()
+  startMotion()
+}
+function startMotion() {
+  if (PV.w0 || !film.man) return
+  try { PV.w0 = new Worker(new URL('./pack.worker.ts', import.meta.url), { type: 'module' }) } catch { PG.stopsOk = true; return }
+  PV.w0.onmessage = (e: MessageEvent<PackMsg>) => pkMsg(PV, e.data, performance.now())
+  PV.w0.onerror = () => { if (!PV.fail) { PV.fail = 'worker'; PG.stopsOk = true } }
+  PV.t0 = performance.now()
+  PV.w0.postMessage({ type: 'pack', url: `${PG.base}motion.bin${VQ}`, n: film.man.n, fp: PG.fp })
+}
+function sizeCv(P: Pk) {
+  if (!P.w || (cv.width === P.w && cv.height === P.h)) return
+  cv.width = P.w; cv.height = P.h; g.imageSmoothingQuality = 'low'; PG.dirty = true
+}
+function pkDrop(P: Pk, k: number) {
+  const b = P.bm.get(k); if (!b) return
+  P.bytes -= b.width * b.height * 4; b.close(); P.bm.delete(k); film.bytes = PL.bytes + PV.bytes
+}
+/** Over the budget: what is not wanted goes first, farthest first (behind counts as farther), then the end of the
+ *  list; never the frames on screen */
+function pkEvict(P: Pk) {
+  if (P.bytes <= P.budget) return
+  const p = film.pos, out: number[] = [], cand: number[] = []
+  const kept = (k: number) => k === P.keep[0] || k === P.keep[1]
+  for (const k of P.bm.keys()) if (!P.wantSet.has(k) && !kept(k)) cand.push(k)
+  cand.sort((x, y) => score(y, p) - score(x, p))
+  for (const k of cand) { if (P.bytes <= P.budget) break; pkDrop(P, k); out.push(k) }
+  for (let i = P.wantList.length - 1; i >= 0 && P.bytes > P.budget; i--) { const k = P.wantList[i]; if (!kept(k) && P.bm.has(k)) { pkDrop(P, k); out.push(k) } }
+  if (out.length) P.w0?.postMessage({ type: 'evict', ks: out })
+}
+function pkGot(P: Pk, k: number, bmp: ImageBitmap) {
+  if (P.bm.has(k) || !P.w0) { bmp.close(); return }
+  P.bm.set(k, bmp); P.bytes += bmp.width * bmp.height * 4; film.bytes = PL.bytes + PV.bytes
+  if (!P.wantSet.has(k) && P.bytes > P.budget) { pkDrop(P, k); P.w0.postMessage({ type: 'evict', ks: [k] }); return }
+  pkEvict(P)
+}
+function pkSend(P: Pk, list: number[]) {
+  let h = list.length
+  for (const k of list) h = (Math.imul(h, 31) + k) | 0
+  if (h === P.sig && list.length === P.wantList.length) return
+  P.sig = h; P.wantList = list; P.wantSet = new Set(list)
+  P.w0?.postMessage({ type: 'want', gen: ++P.gen, ks: list })
+}
+/** What each level decodes, in order. The active level: the frames around the position, then moving, the path over
+ *  the next 0.8 s coarse to fine (one in 8, in 4, in 2, then every frame: a blend across the whole path first) and 16
+ *  behind; at rest, the ring around the position, then the way to the next stop and to the previous one, coarse to
+ *  fine. The motion level before it takes over: the frames at the rest position once its one-in-2 layer is in. The
+ *  light level after: nothing. Bounded by each level's memory budget. */
+function wantsP() {
+  const m = film.man!, n = m.n
+  const nf = predict(48)
+  const travel = nf > 0 && Math.abs(fut[nf] - fut[0]) > 0.5
+  const k0 = Math.min(n - 1, Math.max(0, Math.floor(film.pos)))
+  let path: number[] | null = null
+  for (const P of [PL, PV]) {
+    if (!P.head || !P.w0) continue
+    const prep = P === PV && act === PL && P.tGate > 0 && !travel
+    if (P !== act && !prep) { if (P.wantList.length) pkSend(P, []); continue }
+    const maxF = Math.max(8, Math.floor(P.budget / (P.w * P.h * 4)) - 2)
+    P.sv++
+    const list: number[] = [], st = P.stamp, sv = P.sv, pr = P.present
+    const add = (k: number) => { if (k >= 0 && k < n && pr[k] && st[k] !== sv && list.length < maxF) { st[k] = sv; list.push(k) } }
+    // the nearest frames of the pack on either side of the position
+    for (let a = k0; a >= 0 && k0 - a <= 16; a--) if (pr[a]) { add(a); break }
+    for (let b = k0 + 1; b < n && b - k0 <= 16; b++) if (pr[b]) { add(b); break }
+    if (prep) for (let i = 1; i <= 8; i++) { add(k0 + i); add(k0 + 1 - i) }
+    else if (travel) {
+      if (!path) {
+        path = []
+        let last = k0
+        for (let i = 1; i <= nf; i++) {
+          const f = Math.min(n - 1, Math.max(0, Math.floor(fut[i])))
+          if (f > last) for (let k = last + 1; k <= Math.min(n - 1, f + 1); k++) path.push(k)
+          else if (f < last) for (let k = last - 1; k >= f; k--) path.push(k)
+          last = f
+        }
+      }
+      for (const s of [8, 4, 2, 1]) for (const k of path) if (k % s === 0) add(k)
+      for (let i = 1; i <= 16; i++) add(k0 - i * dir)
+    } else {
+      const R = P === PL ? 32 : 16
+      for (let i = 1; i <= R; i++) { add(k0 + i * dir); add(k0 + 1 - i * dir) }
+      const p = film.pos
+      const up = stopF.find((x) => x > p + 1), dn = [...stopF].reverse().find((x) => x < p - 1)
+      for (const s of dir >= 0 ? [up, dn] : [dn, up]) {
+        if (s === undefined) continue
+        const sg = s > p ? 1 : -1, end = sg > 0 ? Math.min(n - 1, Math.ceil(s) + 1) : Math.max(0, Math.floor(s) - 1)
+        for (const c of [8, 4, 2, 1]) for (let k = k0; sg > 0 ? k <= end : k >= end; k += sg) if (k % c === 0) add(k)
+      }
+    }
+    pkSend(P, list)
+  }
+}
+/** The decoded frame(s) of level P for position p: the two on either side (at most P.gap apart), blended at the
+ *  fraction; otherwise the nearest one within P.gap (ahead first); otherwise none */
+function pickIn(P: Pk, p: number, o: Pick): boolean {
+  if (!P.bm.size) return false
+  const n = film.man!.n, f = Math.min(n - 1, Math.max(0, Math.floor(p))), gap = P.gap
+  let a = -1, b = -1
+  for (let k = f; k >= Math.max(0, f - gap); k--) if (P.bm.has(k)) { a = k; break }
+  for (let k = f + 1; k <= Math.min(n - 1, f + gap); k++) if (P.bm.has(k)) { b = k; break }
+  o.b = -1; o.a = 0
+  if (a >= 0 && p - a < 1 / 128) { o.k = a; o.pos = a; return true }
+  if (b >= 0 && b - p < 1 / 128) { o.k = b; o.pos = b; return true }
+  if (a >= 0 && b >= 0 && b - a <= gap) {
+    const al = Math.round(((p - a) / (b - a)) * 64) / 64
+    o.k = a; if (al > 0) { o.b = b; o.a = al }
+    o.pos = a + al * (b - a); return true
+  }
+  const t = Math.round(p)
+  for (let d = 0; d <= gap; d++) {
+    const x = t + d * dir, y = t - d * dir
+    if (P.bm.has(x)) { o.k = x; o.pos = x; return true }
+    if (d && P.bm.has(y)) { o.k = y; o.pos = y; return true }
+  }
+  return false
+}
+function drawPick(P: Pk, o: Pick, alpha: number) {
+  const A = P.bm.get(o.k); if (!A) return
+  g.globalAlpha = alpha
+  if (A.width === cv.width) g.drawImage(A, 0, 0); else g.drawImage(A, 0, 0, cv.width, cv.height)
+  const B = o.b >= 0 ? P.bm.get(o.b) : undefined
+  if (B) { g.globalAlpha = alpha * o.a; if (B.width === cv.width) g.drawImage(B, 0, 0); else g.drawImage(B, 0, 0, cv.width, cv.height) }
+  g.globalAlpha = 1
+  P.keep[0] = o.k; P.keep[1] = o.b
+}
+/** The motion level takes over at a rest, once its one-in-2 layer is in and its frames at the position are decoded;
+ *  the light frame on screen then cross-fades into it, unless the sharp layer covers it */
+function levelsP(now: number, rest: boolean) {
+  if (act === PL && PV.tGate > 0 && rest && pickIn(PV, dpos, PK1)) {
+    act = PV; PG.tSwitch = now
+    PG.xf0 = mShown && !sharpOn && !REDUCED ? now : 0
+    sizeCv(PV); PG.dirty = true
+    PL.budget = LIGHT ? 6e6 : 12e6
+  }
+  if (act === PV && !PG.xf0 && PL.bytes > PL.budget) pkEvict(PL)
+}
+/** "Motion available": the light frames from the top to past the first stop have arrived (one in 8 at least) and the
+ *  first frames wanted at the position are decoded; the landing's first-frame callback (AskHive mounts after it) waits
+ *  for that, at most 2.5 s, so that nothing else takes the link from the first frames */
+function firstP(now: number) {
+  if (!PG.tTrip && PL.head) {
+    const s = stopF.find((x) => x > 1) ?? 120
+    const end = Math.min(film.man!.n - 1, Math.ceil(s) + 8)
+    let ok = true
+    for (let k = 0; k <= end; k += 8) if (!PL.present[k] && !PV.present[k]) { ok = false; break }
+    if (ok) PG.tTrip = now
+  }
+  if (PG.tTrip && !PG.tRing) {
+    const L = act.wantList, m = Math.min(8, L.length)
+    let i = 0
+    for (; i < m; i++) if (!act.bm.has(L[i])) break
+    if (m && i >= m) PG.tRing = now
+  }
+  if (!PG.firstCalled && ((PG.tTrip && PG.tRing) || now - PG.t0 > 2500 || PL.done || !!PL.fail)) { PG.firstCalled = true; PG.onFirst?.() }
+}
+/** The thin line at the bottom of the film: the bytes of both packs, shown after 700 ms if they are not in yet, gone
+ *  once the motion pack is in */
+function hintP(now: number) {
+  const el = PG.hint; if (!el || PG.hintGone) return
+  const full = PV.done || !!PV.fail || (PG.sharpOk && !PV.w0)
+  const fill = PG.hintFill!
+  if (full) {
+    PG.hintGone = true
+    if (PG.hintOn) { fill.style.transform = 'scaleX(1)'; el.classList.remove('on'); PG.hintOn = false; setTimeout(() => el.remove(), 600) } else el.remove()
+    PG.hint = null
+    return
+  }
+  if (!PG.hintOn && now - PG.t0 > 700) { el.classList.add('on'); PG.hintOn = true }
+  if (PG.hintOn && now - PG.hintAt > 200) {
+    PG.hintAt = now
+    const lt = PL.total || 2.2e6, vt = PV.total || lt * 4.7
+    fill.style.transform = `scaleX(${Math.min(1, (PL.got + PV.got) / (lt + vt)).toFixed(4)})`
+  }
+}
+const noop = () => {}
+function tickP(dt: number) {
+  if (!film.man) return
+  tickN++
+  const now = performance.now()
+  stopsCheck()
+  if (SY.length < 2 && UNI > 0 && (++segTry & 31) === 1) segs()
+  const p = posAt(scrollY(), world.protoQ)
+  if (p - lastPos > 0.5) { dir = 1; lastPos = p } else if (lastPos - p > 0.5) { dir = -1; lastPos = p }
+  const changed = p !== film.pos, dp = Math.abs(p - film.pos)
+  if (dt > 0) vel = vel * 0.6 + 0.4 * (p - film.pos) / Math.max(1 / 240, dt)
+  film.pos = p
+  // displayed position: the target; at rest, a glide to the nearest whole frame
+  if (dp > 0.02 || Math.abs(dpos - p) > 1.5) dpos = p
+  else {
+    if (restK < 0 || Math.abs(p - restK) > 0.6) restK = Math.round(p)
+    const r = restK; dpos += (r - dpos) * (1 - Math.exp(-Math.max(dt, 1 / 240) / 0.05)); if (Math.abs(r - dpos) < 1 / 64) dpos = r
+  }
+  if (dp > 0.02) restK = -1
+  const moved = dp > 0.02 || !!step.trip
+  if (moved) restAt = now
+  if (tripWas && !step.trip) tripEnd = now
+  tripWas = !!step.trip
+  const rest = !moved && (now - restAt >= 150 || (tripEnd > 0 && now - tripEnd < 400))
+  // the sharp layer goes the moment the image moves, in the same refresh as the motion draw; so does a cross-fade
+  if (moved && sharpOn) showSharp(false, false)
+  if (moved) PG.xf0 = 0
+  levelsP(now, rest)
+  wantsP()
+  const wantZ = world.svc.open ? 1 : 0
+  const z0 = zoom
+  zoom = REDUCED ? wantZ : Math.min(1, Math.max(0, zoom + (wantZ ? dt : -dt) / 0.9))
+  world.svc.u = zoom
+  if (zoom > 0 && world.svc.slot >= 0 && z0 === 0) { const r = world.rects.get(world.svc.slot); if (r) { zx = r.x + r.w / 2; zy = r.y + r.h / 2 } }
+  if (!world.svc.open && zoom === 0) world.svc.slot = -1
+  let geoMoved = false
+  if (zoom !== z0) { applyZoom(); geoMoved = true }
+  let ms = 0, pos = NaN, kind = 0
+  // the active level, otherwise the other one (a jump where the active one has nothing decoded yet)
+  let P: Pk | null = pickIn(act, dpos, PK1) ? act : null
+  if (!P) { const o = act === PL ? PV : PL; if (pickIn(o, dpos, PK1)) P = o }
+  // at the top, at rest, the poster (the sharp first frame) stays until the motion canvas has a reason to show
+  const poster = !mShown && posterOk() && (!P || (rest && Math.round(dpos) === 0))
+  if (P && !poster) {
+    const fade = PG.xf0 > 0 && P === PV && pickIn(PL, dpos, PK2)
+    const u = fade ? Math.min(1, (now - PG.xf0) / 250) : 1
+    if (PG.dirty || fade || P !== PG.dP || PK1.k !== PG.dK || PK1.b !== PG.dB || PK1.a !== PG.dA) {
+      const t0 = performance.now()
+      if (fade) drawPick(PL, PK2, 1)
+      drawPick(P, PK1, u)
+      if (CAL) bands(g, cv.width, cv.height, Math.round(PK1.pos))
+      ms = performance.now() - t0
+      PG.dirty = false; PG.dP = P; PG.dK = PK1.k; PG.dB = PK1.b; PG.dA = PK1.a; film.drawn++
+      if (!mShown) { mShown = true; cv.style.opacity = '1'; const ps = document.getElementById('poster'); if (ps) ps.style.visibility = 'hidden' }
+    }
+    if (!fade || u >= 1) PG.xf0 = 0
+    pos = PK1.pos; kind = P === PV ? 1 : 3
+  } else if (!mShown) { pos = 0; kind = 4 }
+  else pos = lastMetaPos
+  // the metadata of the drawn position (every frame has its own in meta.bin, even those not in the packs)
+  if (!Number.isNaN(pos) && pos !== lastMetaPos) {
+    const a = Math.floor(pos), f = pos - a
+    metaAt(a, f > 0 ? Math.min(film.man.n - 1, a + 1) : -1, f)
+    film.shown = Math.round(pos); film.def = 0
+    lastMetaPos = pos; geoMoved = true
+  }
+  if (geoMoved) { film.geo++; publish() }
+  if (!Number.isNaN(pos) && pos !== lastDrawnPos) { lastDrawnPos = pos; heldFrom = p }
+  const held = changed && !Number.isNaN(heldFrom) && Math.abs(p - heldFrom) >= 0.5 ? 1 : 0
+  sharpTick(rest, now, noop)
+  if (sFetch.size > PG.sMaxIn) PG.sMaxIn = sFetch.size
+  // nothing in the film area (no poster, no motion frame, no sharp frame): counted, never expected
+  const black = !mShown && !sharpOn && !posterOk()
+  if (black) PG.black++
+  const q = log.n & (LOGN - 1)
+  log.t[q] = now; log.p[q] = p; log.s[q] = film.shown; log.d[q] = 0; log.ms[q] = ms; log.mv[q] = changed || moved ? 1 : 0; log.tk[q] = tick.prev
+  // kind: 1 motion level, 2 sharp frame at rest, 3 light level, 4 the poster, 5 nothing on screen
+  log.pos[q] = Number.isNaN(pos) ? -1 : pos; log.kind[q] = black ? 5 : sharpOn ? 2 : kind; log.held[q] = held; log.n++
+  firstP(now)
+  hintP(now)
+  film.version++
+  hooks.forEach((f) => f())
+}
+const pkInfo = (P: Pk) => ({ head: P.head, got: P.got, total: P.total, gateAt: P.gateAt, arrived: P.pj, count: P.count, done: P.done, cached: P.cached, fail: P.fail, bm: P.bm.size, bytes: P.bytes, want: P.wantList.length, t0: P.t0, tHead: P.tHead, tGate: P.tGate, tDone: P.tDone, w: P.w, h: P.h })
+/** The progressive film: false when the light pack cannot be used (today's film then runs) */
+async function mountProg(man: Manifest, fp: number, onFirst: () => void): Promise<boolean> {
+  const n = man.n, set0 = SET, man0 = film.man
+  PG.t0 = performance.now(); PG.fp = fp; PG.base = `${ROOT}${man.ysFrom ?? SET}/`
+  for (const P of [PL, PV]) { P.present = new Uint8Array(n); P.stamp = new Uint32Array(n) }
+  cvS = document.createElement('canvas'); cvS.className = 'film film-sharp'
+  cv.after(cvS)
+  cvS.width = man.w; cvS.height = man.h
+  gS = cvS.getContext('2d', { alpha: false })
+  g = cv.getContext('2d', { alpha: false, desynchronized: false })!; g.imageSmoothingQuality = 'low'
+  sharpMax = SET === 'retina' ? 4 : 6
+  try {
+    sw = new Worker(new URL('./decode.worker.ts', import.meta.url), { type: 'module' })
+    sw.onmessage = (e: MessageEvent<{ id: number; bmp?: ImageBitmap }>) => sharpDone(e.data.id, e.data.bmp ?? null)
+  } catch { sw = null }
+  world.pick = pick
+  place()
+  addEventListener('resize', place)
+  const ro = new ResizeObserver(() => measure()); ro.observe(document.body)
+  const wake = () => { if (document.visibilityState === 'visible') PG.dirty = true }
+  document.addEventListener('visibilitychange', wake); addEventListener('pageshow', wake)
+  film.pos = posAt(scrollY(), world.protoQ); lastPos = film.pos; dpos = film.pos
+  // the frame on screen is the poster (frame 0): the layer is set on it, and the page is ready
+  metaAt(0); film.shown = 0; film.def = 0; lastMetaPos = 0; lastDrawnPos = 0; heldFrom = film.pos; film.geo++; publish()
+  film.ready = true; world.sceneReady = true; film.loaded = Math.min(n, 40)
+  PG.onFirst = onFirst
+  WG.__filmGate = 'open'
+  ;(window as unknown as { __filmP: unknown }).__filmP = () => ({ act: act === PV ? 'motion' : 'lite', t0: PG.t0, lite: pkInfo(PL), motion: pkInfo(PV), tTrip: PG.tTrip, tRing: PG.tRing, tSwitch: PG.tSwitch, first: PG.firstCalled, sharpOk: PG.sharpOk, stopsOk: PG.stopsOk, sharpN: sharpC.size, sharpK, sharpOn, sMaxIn: PG.sMaxIn, black: PG.black, rate: film.rate, set: SET, hintOn: PG.hintOn, hintGone: PG.hintGone, shown: mShown, bytes: film.bytes })
+  // the poster, decoded once more as the sharp frame 0 of the sharp layer (shown at rest at the top)
+  const img = document.querySelector<HTMLImageElement>('#poster img'); PG.poster = img
+  if (img) img.decode().then(() => createImageBitmap(img)).then((b) => { if (cvS && !sharpC.has(0)) { sharpC.set(0, b); film.sharpN = sharpC.size } else b.close() }).catch(noop)
+  // the line at the bottom of the film (hintP)
+  const stage = cv.parentElement
+  if (stage) { const el = document.createElement('div'); el.className = 'film-hint'; el.appendChild(document.createElement('i')); stage.appendChild(el); PG.hint = el; PG.hintFill = el.firstElementChild as HTMLElement }
+  // the light pack: started with meta.bin as soon as this module ran (early), otherwise now
+  if (early?.w) PL.w0 = early.w
+  else try { PL.w0 = new Worker(new URL('./pack.worker.ts', import.meta.url), { type: 'module' }) } catch { PL.w0 = null }
+  let off: (() => void) | null = null
+  if (PL.w0) {
+    PL.w0.onmessage = (e: MessageEvent<PackMsg>) => pkMsg(PL, e.data, performance.now())
+    PL.w0.onerror = () => pkMsg(PL, { type: 'fail', why: 'worker' }, performance.now())
+    if (early?.w === PL.w0) {
+      PL.t0 = early.t0
+      for (const [at, e] of early.q) pkMsg(PL, e.data as PackMsg, at)
+      early.q.length = 0
+      if (early.failed) pkMsg(PL, { type: 'fail', why: 'worker' }, performance.now())
+    } else {
+      PL.t0 = PG.t0
+      PL.w0.postMessage({ type: 'pack', url: `${PG.base}lite.bin${VQ}`, n, fp })
+    }
+    off = onTick((_t, dt) => tickP(dt))
+    if (PL.head || (!PL.fail && await new Promise<boolean>((r) => { PG.resolve = r }))) return true
+  }
+  // today's film, before anything of the light pack was drawn
+  off?.(); ro.disconnect(); document.removeEventListener('visibilitychange', wake); removeEventListener('pageshow', wake); removeEventListener('resize', place)
+  for (const P of [PL, PV]) { P.w0?.terminate(); P.w0 = null; for (const b of P.bm.values()) b.close(); P.bm.clear(); P.bytes = 0 }
+  sw?.terminate(); sw = null
+  for (const b of sharpC.values()) b.close()
+  sharpC.clear(); blobs.length = 0
+  cvS?.remove(); cvS = null; gS = null
+  PG.hint?.remove(); PG.hint = null
+  SET = set0; film.set = SET; BASE = `${ROOT}${SET}/`; film.man = man0
+  cv.style.opacity = '0'; film.ready = false; film.shown = -1; film.loaded = 0; film.bytes = 0; mShown = false
+  const ps = document.getElementById('poster'); if (ps) ps.style.visibility = ''
+  WG.__filmGate = 'fallback'
+  console.warn(`film: light pack unavailable (${PL.fail || 'worker'}), today's film`)
+  return false
+}
+
 export async function mountFilm(canvas: HTMLCanvasElement, onFirst: () => void) {
   cv = canvas; cv.style.opacity = '0'
   const all = (window as W).__FILM_MAN
@@ -1349,6 +1770,9 @@ export async function mountFilm(canvas: HTMLCanvasElement, onFirst: () => void) 
   film.by = new Uint8Array(meta, man.n * man.nf * 4, man.n * man.ns * 2)
   // ?gate=1: the motion level behind a loading gate; today's film below when its pack cannot be used
   if (GATE && await mountMotion(man, fp, meta.byteLength, onFirst)) return
+  // ?prog=1: the progressive film; reduced motion or a data saver: the sharp frame at each rest, as with ?gate=1
+  if (PROG && (REDUCED || CONN?.saveData)) { PG.sharpOk = true; PG.stopsOk = true; if (await mountMotion(man, fp, meta.byteLength, onFirst)) return }
+  else if (PROG && await mountProg(man, fp, onFirst)) return
   state = new Uint8Array(man.n); stamp = new Uint32Array(man.n); bmLite = new Uint8Array(man.n)
   // the light pass, before any sharp frame (Retina uses the desktop file, like its positions)
   if (LITE_ON) void loadLite(`${ROOT}${man.ysFrom ?? SET}/lite.bin${VQ}`, man.n, fp)
