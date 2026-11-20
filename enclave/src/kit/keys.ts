@@ -11,7 +11,7 @@ export interface EnclaveKeys {
   signerPrivateKey: Hex; // secret, in memory
   signer: Address; // public
   x25519PrivateKey: Uint8Array; // secret, in memory
-  x25519PublicKey: Hex; // public (32 octets)
+  x25519PublicKey: Hex; // public (32 bytes)
 }
 
 export function generateEnclaveKeys(): EnclaveKeys {

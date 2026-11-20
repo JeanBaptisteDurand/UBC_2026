@@ -1,31 +1,31 @@
 /**
- * x402-ack.ts — le signalement « appels réglés » (POST /x402/settled), RÉSERVÉ À L'OPÉRATEUR (correctif du 9/11).
+ * x402-ack.ts — the "calls settled" report (POST /x402/settled), RESTRICTED TO THE OPERATOR (fix of 9 Nov).
  *
- * Avant : la route était publique, sans dédoublonnage ; les clés (payeur, nonce) sont publiques (GET /x402/pending) et
- * chaque item déclenchait une lecture on-chain (quorum : chez CHAQUE fournisseur) : 200 copies d'une clé = 200 lectures
- * pour une requête de 26 Ko (preuve 4 du vérificateur). Désormais :
- *  - le corps est SIGNÉ en EIP-712 par une adresse d'OPERATOR_ALLOWLIST (le registrar signe avec la clé de l'opérateur
- *    qu'il tient déjà) ; une signature absente ou invalide : 401 ; un signataire hors liste : 403 ; rien n'est lu ;
- *  - il est lié à CETTE enclave (adresse de l'enclave, produit, chaîne, X402Settler dans le domaine) : il ne se rejoue
- *    pas ailleurs ;
- *  - il est HORODATÉ (issuedAt, à ±ACK_MAX_AGE près) et À USAGE UNIQUE (ackNonce gardé jusqu'à la fin de sa fenêtre) :
- *    un corps capturé ne se rejoue pas (409) ;
- *  - il est borné en taille (200 items, 64 Kio) et en débit (jetons : requêtes signées, puis lectures on-chain) ;
- *  - ses items sont dédoublonnés ; une clé n'est lue on-chain qu'UNE fois, et seulement si elle est en attente ici.
- * 9/11 au soir (preuves B et F du vérificateur) : chaque item dit aussi COMMENT l'autorisation a été consommée —
- * `settled` = true : réglée par X402Settler (le registrar le sait par le reçu de SA transaction, ou par l'événement
- * CallSettled) ; false : consommée autrement (annulée par le payeur, cancelAuthorization). La chaîne ne distingue pas
- * les deux (authorizationState = vrai dans les deux cas) : seul true rend le payeur « connu ». Le type EIP-712 change
- * (domaine en version 2) : un registrar d'avant ce correctif est refusé (signature d'un autre message).
- * Le SDK (packages/sdk/src/x402.ts, createX402SettlementQueue) construit exactement les mêmes octets : le test croisé
- * enclave/test/x402-e2e.test.ts le vérifie (la file du registrar vide celle de l'enclave).
+ * Before, the route was public and without deduplication; the keys (payer, nonce) are public (GET /x402/pending), and
+ * each item triggered an on-chain read (quorum: on EACH provider): 200 copies of one key = 200 reads for a 26 KB
+ * request (the verifier's proof 4). Now:
+ *  - the body is SIGNED with EIP-712 by an address of OPERATOR_ALLOWLIST (the registrar signs with the operator key it
+ *    already holds); a missing or invalid signature: 401; a signer outside the list: 403; nothing is read;
+ *  - it is bound to THIS enclave (the enclave's address, the product, the chain, X402Settler in the domain): it cannot
+ *    be replayed elsewhere;
+ *  - it is TIMESTAMPED (issuedAt, within ±ACK_MAX_AGE) and SINGLE-USE (the ackNonce is kept until the end of its
+ *    window): a captured body cannot be replayed (409);
+ *  - it is bounded in size (200 items, 64 KiB) and in rate (tokens: signed requests, then on-chain reads);
+ *  - its items are deduplicated; a key is read on-chain only ONCE, and only if it is pending here.
+ * Evening of 9 Nov (the verifier's proofs B and F): each item also says HOW the authorization was consumed.
+ * `settled` = true: settled by X402Settler (the registrar knows it from the receipt of ITS transaction, or from the
+ * CallSettled event); false: consumed another way (cancelled by the payer, cancelAuthorization). The chain does not
+ * tell the two apart (authorizationState = true in both cases): only true makes the payer "known". The EIP-712 type
+ * changed (domain version 2): a registrar from before this fix is refused (a signature of another message).
+ * The SDK (packages/sdk/src/x402.ts, createX402SettlementQueue) builds exactly the same bytes: the cross-test
+ * enclave/test/x402-e2e.test.ts checks it (the registrar's queue empties the enclave's).
  */
 import { type Address, type Hex, getAddress, isAddress, recoverTypedDataAddress } from "viem";
 
-/** Au plus ce nombre d'items par signalement (au-delà : plusieurs signalements). */
+/** At most this number of items per report (beyond: several reports). */
 export const X402_ACK_MAX_ITEMS = 200;
 
-/** Domaine EIP-712 du signalement : distinct de celui des reçus (même chaîne, même X402Settler). */
+/** The EIP-712 domain of the report: distinct from the receipts' (same chain, same X402Settler). */
 export const X402_ACK_DOMAIN_NAME = "ArcEnclaveNetwork x402 ack";
 export const X402_ACK_DOMAIN_VERSION = "2";
 
@@ -51,7 +51,7 @@ export function x402AckDomain(chainId: number, settler: Address) {
 export interface X402AckItem {
   payer: Address;
   nonce: Hex;
-  /** true : réglée par X402Settler (transaction de l'opérateur, ou événement CallSettled) ; false : consommée autrement. */
+  /** true: settled by X402Settler (the operator's transaction, or the CallSettled event); false: consumed another way. */
   settled: boolean;
 }
 
@@ -59,12 +59,12 @@ export interface X402AckItem {
 export interface X402AckBody {
   enclave: Address;
   productId: bigint;
-  /** Secondes Unix (horloge de l'opérateur). */
+  /** Unix seconds (the operator's clock). */
   issuedAt: bigint;
-  /** 32 octets aléatoires : usage unique. */
+  /** 32 random bytes: single use. */
   ackNonce: Hex;
   items: X402AckItem[];
-  /** Signature EIP-712 (65 octets) de l'opérateur. */
+  /** The operator's EIP-712 signature (65 bytes). */
   signature: Hex;
 }
 
@@ -79,21 +79,21 @@ const HEX32 = /^0x[0-9a-fA-F]{64}$/;
 const SIG65 = /^0x[0-9a-fA-F]{130}$/;
 
 /**
- * Lit le corps sans rien lui faire confiance (formes et tailles) ; lève X402AckFormatError. Les items doivent tous être
- * bien formés : ce sont exactement eux que couvre la signature.
+ * Reads the body without trusting any of it (shapes and sizes); throws X402AckFormatError. Every item must be well
+ * formed: they are exactly what the signature covers.
  */
 export function parseAckBody(x: unknown): X402AckBody {
   const bad = (m: string) => new X402AckFormatError(m);
   const b = x as Record<string, unknown> | null;
-  if (!b || typeof b !== "object" || Array.isArray(b)) throw bad("objet JSON attendu");
+  if (!b || typeof b !== "object" || Array.isArray(b)) throw bad("JSON object expected");
   if (!Array.isArray(b.items) || b.items.length === 0 || b.items.length > X402_ACK_MAX_ITEMS) {
-    throw bad(`items : de 1 à ${X402_ACK_MAX_ITEMS} { payer, nonce, settled }`);
+    throw bad(`items: from 1 to ${X402_ACK_MAX_ITEMS} { payer, nonce, settled }`);
   }
-  if (typeof b.enclave !== "string" || !isAddress(b.enclave, { strict: false })) throw bad("enclave : adresse attendue");
-  if (typeof b.productId !== "string" || !/^[0-9]{1,78}$/.test(b.productId)) throw bad("productId : entier décimal (chaîne) attendu");
+  if (typeof b.enclave !== "string" || !isAddress(b.enclave, { strict: false })) throw bad("enclave: address expected");
+  if (typeof b.productId !== "string" || !/^[0-9]{1,78}$/.test(b.productId)) throw bad("productId: decimal integer (string) expected");
   if (typeof b.issuedAt !== "number" || !Number.isSafeInteger(b.issuedAt) || b.issuedAt < 0) throw bad("issuedAt : secondes Unix attendues");
-  if (typeof b.ackNonce !== "string" || !HEX32.test(b.ackNonce)) throw bad("ackNonce : 32 octets hexadécimaux attendus");
-  if (typeof b.signature !== "string" || !SIG65.test(b.signature)) throw bad("signature : 65 octets hexadécimaux attendus");
+  if (typeof b.ackNonce !== "string" || !HEX32.test(b.ackNonce)) throw bad("ackNonce: 32 hexadecimal bytes expected");
+  if (typeof b.signature !== "string" || !SIG65.test(b.signature)) throw bad("signature: 65 hexadecimal bytes expected");
   const items: X402AckItem[] = [];
   for (const it of b.items) {
     const payer = (it as { payer?: unknown })?.payer;
@@ -103,7 +103,7 @@ export function parseAckBody(x: unknown): X402AckBody {
       typeof payer !== "string" || !isAddress(payer, { strict: false }) || typeof nonce !== "string" || !HEX32.test(nonce) ||
       typeof settled !== "boolean"
     ) {
-      throw bad("chaque item : { payer: adresse, nonce: 32 octets, settled: booléen }");
+      throw bad("each item: { payer: address, nonce: 32 bytes, settled: boolean }");
     }
     items.push({ payer: getAddress(payer.toLowerCase()), nonce: nonce.toLowerCase() as Hex, settled });
   }
@@ -117,7 +117,7 @@ export function parseAckBody(x: unknown): X402AckBody {
   };
 }
 
-/** Le signataire du signalement (null si la signature est illisible). */
+/** The report's signer (null if the signature is unreadable). */
 export async function recoverAckSigner(chainId: number, settler: Address, a: X402AckBody): Promise<Address | null> {
   try {
     return await recoverTypedDataAddress({
@@ -132,7 +132,7 @@ export async function recoverAckSigner(chainId: number, settler: Address, a: X40
   }
 }
 
-/** Seau à jetons (débit borné), horloge injectable (ms). */
+/** A token bucket (bounded rate), with an injectable clock (ms). */
 export class TokenBucket {
   private tokens: number;
   private at: number;
@@ -160,7 +160,7 @@ export class TokenBucket {
     return Math.floor(this.tokens);
   }
 
-  /** Prend `n` jetons s'ils sont là (sinon rien) ; rend vrai si pris. */
+  /** Takes `n` tokens if they are there (otherwise nothing); returns true if taken. */
   take(n = 1): boolean {
     this.refill();
     if (this.tokens < n) return false;
@@ -169,7 +169,7 @@ export class TokenBucket {
   }
 }
 
-/** Les ackNonce déjà vus, gardés jusqu'à la fin de leur fenêtre de fraîcheur (au-delà, issuedAt les refuse seul). */
+/** The ackNonce values already seen, kept until the end of their freshness window (beyond it, issuedAt alone refuses them). */
 export class AckReplayGuard {
   private seen = new Map<string, bigint>();
 
@@ -179,13 +179,13 @@ export class AckReplayGuard {
     for (const [k, until] of this.seen) if (until < now) this.seen.delete(k);
   }
 
-  /** Déjà vu (et encore dans sa fenêtre) ? */
+  /** Already seen (and still inside its window)? */
   has(nonce: Hex, now: bigint): boolean {
     const until = this.seen.get(nonce.toLowerCase());
     return until !== undefined && until >= now;
   }
 
-  /** Réserve ce nonce jusqu'à `until` ; faux s'il est déjà pris, ou si la mémoire est pleine (on échoue fermé). */
+  /** Reserves this nonce until `until`; false if it is already taken, or if the memory is full (it fails closed). */
   claim(nonce: Hex, until: bigint, now: bigint): boolean {
     if (this.has(nonce, now)) return false;
     if (this.seen.size >= this.maxEntries) this.purge(now);

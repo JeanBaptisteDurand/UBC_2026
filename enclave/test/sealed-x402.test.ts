@@ -363,7 +363,7 @@ describe("x402 — paiement valide", () => {
     model.fail = true;
     const bad = await post(app, q.envelope, xp);
     expect(bad.status).toBe(502);
-    expect((await json(bad)).error).toContain("rien n'est facturé");
+    expect((await json(bad)).error).toContain("nothing is billed");
     expect(gw.pending().total).toBe(0);
     expect(gw.stats().inFlight).toBe(0);
     model.fail = false;
@@ -508,7 +508,7 @@ describe("x402 — montant faux et autres paiements invalides refusés", () => {
   it("le facilitateur v1 exige lui aussi le montant EXACT", async () => {
     const r = requirement();
     const p = decodeXPayment(await pay(("0x" + "7d".repeat(32)) as Hex, { value: PRICE + 1n }));
-    expect(await facilitatorVerify(p, r, CHAIN, NOW)).toEqual({ ok: false, reason: "montant" });
+    expect(await facilitatorVerify(p, r, CHAIN, NOW)).toEqual({ ok: false, reason: "amount" });
   });
 });
 
@@ -695,7 +695,7 @@ describe("x402 — configuration, modèle amont et ABI", () => {
       fetch: (async () => new Response(JSON.stringify({ error: `Invalid API key ${KEY}` }), { status: 401 })) as typeof fetch,
     });
     const err = (await m.complete({ messages: [{ role: "user", content: "a" }], maxTokens: 5 }, new AbortController().signal).catch((e) => e)) as Error;
-    expect(err.message).toBe("modèle amont : HTTP 401");
+    expect(err.message).toBe("upstream model: HTTP 401");
     expect(err.message).not.toContain(KEY);
   });
 

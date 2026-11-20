@@ -1,13 +1,13 @@
 /**
- * sealed-x402/chain.ts — ce que l'enclave du produit x402 lit de la chaîne, par le mandataire à QUORUM du kit (chaque
- * lecture chez tous les fournisseurs RPC, au même bloc, réponses identiques exigées ; jamais de transaction).
+ * sealed-x402/chain.ts — what the x402 product's enclave reads from the chain, through the kit's QUORUM proxy (each read
+ * on every RPC provider, at one block, identical answers required; never a transaction).
  *
- * Adresses : seules X402SETTLER et REGISTRY viennent de l'environnement (mesurées dans le compose). Le registre des
- * produits, la caution et l'USDC sont LUS dans X402Settler (immutables du contrat) : l'enclave vérifie que ce règlement
- * s'appuie bien sur le registre auquel elle s'atteste (X402Settler.enclaves() == REGISTRY) et sur l'USDC annoncé.
+ * Addresses: only X402SETTLER and REGISTRY come from the environment (measured in the compose file). The product
+ * registry, the bond and USDC are READ from X402Settler (the contract's immutables): the enclave checks that this
+ * settlement relies on the registry it attests to (X402Settler.enclaves() == REGISTRY) and on the announced USDC.
  *
- * Les fragments d'ABI ci-dessous recopient packages/sdk/src/abis.ts (généré depuis contracts/out) : un test les compare
- * (test/sealed-x402.test.ts). L'image de l'enclave ne contient que enclave/ : pas d'import du SDK ici.
+ * The ABI fragments below copy packages/sdk/src/abis.ts (generated from contracts/out): a test compares them
+ * (test/sealed-x402.test.ts). The enclave's image contains only enclave/: no SDK import here.
  */
 import { type Address, type Hex, type PublicClient, getAddress, parseAbi, zeroAddress } from "viem";
 import type { RpcQuorum } from "../../src/kit/rpc-quorum";
@@ -37,7 +37,7 @@ export const OPERATOR_BOND_READ_ABI = parseAbi([
   "function banned(address) view returns (bool)",
 ]);
 
-/** USDC d'Arc : ERC-20 + EIP-3009 (FiatToken). */
+/** Arc's USDC: ERC-20 + EIP-3009 (FiatToken). */
 export const USDC_READ_ABI = parseAbi([
   "function balanceOf(address account) view returns (uint256)",
   "function authorizationState(address authorizer, bytes32 nonce) view returns (bool)",
@@ -53,7 +53,7 @@ export interface X402Addresses {
 
 const L = (x: string) => x.toLowerCase();
 
-/** Lit dans X402Settler les adresses dont il dépend, et refuse un règlement branché ailleurs que sur NOTRE registre. */
+/** Reads from X402Settler the addresses it depends on, and refuses a settlement wired to anything but OUR registry. */
 export async function resolveX402Addresses(
   rpc: RpcQuorum,
   settler: Address,
@@ -67,18 +67,18 @@ export async function resolveX402Addresses(
       ),
     ),
   );
-  if (!products || !enclaves || !bond || !usdc) throw new Error("X402Settler : lecture incomplète");
+  if (!products || !enclaves || !bond || !usdc) throw new Error("X402Settler: incomplete read");
   if (L(enclaves) !== L(registry)) {
-    throw new Error(`X402Settler ${settler} s'appuie sur le registre ${enclaves}, cette enclave s'atteste auprès de ${registry} : configuration incohérente`);
+    throw new Error(`X402Settler ${settler} relies on registry ${enclaves}; this enclave attests to ${registry}: inconsistent configuration`);
   }
   if (usdcExpected && L(usdc) !== L(usdcExpected)) {
-    throw new Error(`X402Settler encaisse l'USDC ${usdc}, l'environnement annonce ${usdcExpected} : configuration incohérente`);
+    throw new Error(`X402Settler collects USDC ${usdc}; the environment announces ${usdcExpected}: inconsistent configuration`);
   }
   return { settler, registry, products: getAddress(products), bond: getAddress(bond), usdc: getAddress(usdc) };
 }
 
-/** Exposition encore permise (règle d'OperatorBond.consumeExposure) : ½ caution disponible − exposition totale sur 24 h,
- *  et le plafond du produit − l'exposition sur ce produit (si plafond). 0 si l'opérateur est radié. */
+/** The exposure still allowed (OperatorBond.consumeExposure's rule): ½ of the available bond − the total exposure over
+ *  24 h, and the product's cap − the exposure on this product (if capped). 0 if the operator is struck off. */
 export function exposureCapacity(i: { availableBond: bigint; totalExposure: bigint; productExposure: bigint; cap: bigint; banned: boolean }): bigint {
   if (i.banned) return 0n;
   const half = i.availableBond / 2n;
@@ -91,8 +91,8 @@ export function exposureCapacity(i: { availableBond: bigint; totalExposure: bigi
 }
 
 /**
- * Le lecteur on-chain de la passerelle x402. `addresses` est résolu à la demande (et gardé une fois lu) : une panne RPC
- * au démarrage ne fait pas redémarrer l'enclave (ce qui changerait ses clés et obligerait à la réinscrire).
+ * The x402 gateway's on-chain reader. `addresses` is resolved on demand (and kept once read): an RPC outage at start-up
+ * does not make the enclave restart (which would change its keys and require registering it again).
  */
 export function createQuorumX402Reader(rpc: RpcQuorum, addresses: () => Promise<X402Addresses>): X402ChainReader {
   type Pub = PublicClient;
@@ -164,7 +164,7 @@ export function createQuorumX402Reader(rpc: RpcQuorum, addresses: () => Promise<
       );
     },
 
-    /** Rapprochement et signalements : soldes et états d'autorisation, par lots, AU MÊME BLOC chez tous les fournisseurs. */
+    /** Reconciliation and reports: balances and authorization states, in batches, AT ONE BLOCK on every provider. */
     async pendingState({ payers, auths }): Promise<X402PendingSnapshot> {
       const A = await addresses();
       const block = await rpc.commonHead();
@@ -186,7 +186,7 @@ export function createQuorumX402Reader(rpc: RpcQuorum, addresses: () => Promise<
   };
 }
 
-/** Lectures par lots de READ_BATCH (en parallèle dans un lot, lots l'un après l'autre) : borne la charge par fournisseur. */
+/** Reads in batches of READ_BATCH (parallel within a batch, batches one after the other): bounds the load per provider. */
 const READ_BATCH = 16;
 async function inBatches<T, R>(xs: readonly T[], f: (x: T) => Promise<R>): Promise<R[]> {
   const out: R[] = [];

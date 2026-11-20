@@ -1,24 +1,24 @@
 /**
- * sealed-x402/config.ts — la configuration de l'enclave « inférence payée à l'appel », lue dans l'environnement et
- * VALIDÉE au démarrage : une valeur absente ou invalide arrête l'enclave AVANT la naissance de ses clés.
+ * sealed-x402/config.ts — the configuration of the "inference paid per call" enclave, read from the environment and
+ * VALIDATED at start-up: a missing or invalid value stops the enclave BEFORE its keys are created.
  *
- * Aucune adresse de contrat n'a de valeur par défaut : elles viennent du compose (pile choisie, v2.1).
+ * No contract address has a default value: they come from the compose file (the chosen stack, v2.1).
  *
- * À écrire EN CLAIR dans le compose (mesuré : compose-hash → empreinte d'image autorisée par l'auteur du produit) :
+ * To write IN CLEAR in the compose file (measured: compose hash → the image fingerprint the product's author allows):
  *   PRODUCT_ID, CHAIN_ID, REGISTRY, X402SETTLER, USDC, RPC_URL / RPC_URLS, REDPILL_BASE_URL, REDPILL_MODEL,
  *   X402_NETWORK, USDC_NAME, USDC_VERSION, AUTH_VALIDITY_SECONDS, MIN_SETTLE_WINDOW_SECONDS, MAX_REQUEST_BYTES,
  *   MAX_OUTPUT_TOKENS, MAX_PENDING_PER_PAYER, MAX_STORED_CALLS, MAX_UNSETTLED_PER_WINDOW, UNSETTLED_WINDOW_SECONDS,
  *   MODEL_TIMEOUT_MS, CHECK_PAYER_BALANCE, PAYMENT_READS_PER_MINUTE, PAYMENT_READS_PER_MINUTE_PER_IP, PORT.
- *   (Le prix est fixe par appel et le plafond de jetons de sortie en fait partie : un opérateur ne doit pas pouvoir le
- *   changer sans changer l'empreinte de l'image.)
- *   9/11 : AUTH_VALIDITY_SECONDS vaut 900 par défaut (au lieu de 3 600) : un appel impayable (solde vidé après le
- *   service) ne compte plus qu'un quart d'heure au plus ; MIN_SETTLE_WINDOW_SECONDS (600) reste compatible. Borne globale :
- *   au plus MAX_UNSETTLED_PER_WINDOW (300) appels servis et non réglés sur UNSETTLED_WINDOW_SECONDS (600 s).
- *   9/11 au soir : AUTH_VALIDITY_SECONDS est la validité MAXIMALE acceptée (le 402 en annonce 60 s de moins, pour les
- *   horloges des clients) ; MAX_PENDING_PER_PAYER vaut 3 par défaut (au lieu de 20 ; une valeur écrite dans le compose
- *   l'emporte : y mettre 3) ; PAYMENT_READS_PER_MINUTE (120) et PAYMENT_READS_PER_MINUTE_PER_IP (60) bornent les lectures
- *   on-chain des requêtes payées (voir src/services/x402-gateway.ts).
- * Variables CHIFFRÉES (non mesurées) : REDPILL_API_KEY, OPERATOR_ALLOWLIST (aussi : les seuls signataires acceptés de
+ *   (The price is fixed per call and the output-token cap is part of it: an operator must not be able to change it
+ *   without changing the image fingerprint.)
+ *   9 Nov: AUTH_VALIDITY_SECONDS is 900 by default (instead of 3,600): an unpayable call (balance emptied after the
+ *   service) now counts for a quarter of an hour at most; MIN_SETTLE_WINDOW_SECONDS (600) stays compatible. Global
+ *   bound: at most MAX_UNSETTLED_PER_WINDOW (300) served and unsettled calls over UNSETTLED_WINDOW_SECONDS (600 s).
+ *   Evening of 9 Nov: AUTH_VALIDITY_SECONDS is the MAXIMUM accepted validity (the 402 announces 60 s less, for the
+ *   clients' clocks); MAX_PENDING_PER_PAYER is 3 by default (instead of 20; a value written in the compose file wins:
+ *   write 3 there); PAYMENT_READS_PER_MINUTE (120) and PAYMENT_READS_PER_MINUTE_PER_IP (60) bound the on-chain reads
+ *   of paid requests (see src/services/x402-gateway.ts).
+ * ENCRYPTED variables (not measured): REDPILL_API_KEY, OPERATOR_ALLOWLIST (also: the only accepted signers of
  *   POST /x402/settled).
  */
 import { type Address, getAddress, isAddress, zeroAddress } from "viem";
@@ -49,7 +49,7 @@ export interface SealedX402Config {
   checkBalance: boolean;
   paymentReadsPerMinute: number;
   paymentReadsPerMinutePerIp: number;
-  /** null = mode développement explicite (`*`) ; [] = personne (variable absente : on échoue fermé). */
+  /** null = explicit development mode (`*`); [] = nobody (variable absent: it fails closed). */
   operatorAllowlist: Address[] | null;
 }
 
@@ -59,16 +59,16 @@ function int(env: Env, name: string, dflt: number, min = 1, max = Number.MAX_SAF
   const raw = env[name];
   if (raw === undefined || raw.trim() === "") return dflt;
   const t = raw.trim();
-  if (!/^[0-9]+$/.test(t)) throw new Error(`${name} doit être un entier (reçu « ${raw} »)`);
+  if (!/^[0-9]+$/.test(t)) throw new Error(`${name} must be an integer (got "${raw}")`);
   const v = Number(t);
-  if (!Number.isSafeInteger(v) || v < min || v > max) throw new Error(`${name} doit être entre ${min} et ${max} (reçu « ${raw} »)`);
+  if (!Number.isSafeInteger(v) || v < min || v > max) throw new Error(`${name} must be between ${min} and ${max} (got "${raw}")`);
   return v;
 }
 
 function address(env: Env, name: string): Address {
   const raw = env[name]?.trim();
-  if (!raw) throw new Error(`${name} requis (adresse du contrat de la pile déployée, écrite en clair dans le compose)`);
-  if (!isAddress(raw, { strict: false }) || raw.toLowerCase() === zeroAddress) throw new Error(`${name} : adresse invalide « ${raw} »`);
+  if (!raw) throw new Error(`${name} required (the contract address of the deployed stack, written in clear in the compose file)`);
+  if (!isAddress(raw, { strict: false }) || raw.toLowerCase() === zeroAddress) throw new Error(`${name}: invalid address "${raw}"`);
   return getAddress(raw.toLowerCase());
 }
 
@@ -76,18 +76,18 @@ export function readSealedX402Config(env: Env): SealedX402Config {
   const chainId = int(env, "CHAIN_ID", 5042002);
   const pidRaw = env.PRODUCT_ID?.trim();
   if (!pidRaw || !/^[0-9]{1,78}$/.test(pidRaw) || BigInt(pidRaw) === 0n) {
-    throw new Error("PRODUCT_ID requis : l'identifiant on-chain du produit x402 (réglé par X402Settler), lié dans le REPORTDATA");
+    throw new Error("PRODUCT_ID required: the on-chain id of the x402 product (settled by X402Settler), bound in the REPORTDATA");
   }
   const rpc = env.RPC_URL?.trim() || "https://rpc.testnet.arc.io";
   const rpcUrls = (env.RPC_URLS ?? rpc).split(",").map((s) => s.trim()).filter(Boolean);
-  if (rpcUrls.length === 0) throw new Error("RPC_URLS : au moins un fournisseur");
+  if (rpcUrls.length === 0) throw new Error("RPC_URLS: at least one provider");
   const authValiditySeconds = int(env, "AUTH_VALIDITY_SECONDS", 900, 60, 86_400);
   const minSettleWindowSeconds = int(env, "MIN_SETTLE_WINDOW_SECONDS", 600, 30, 86_400);
   if (authValiditySeconds < minSettleWindowSeconds + 120) {
-    throw new Error("AUTH_VALIDITY_SECONDS doit dépasser MIN_SETTLE_WINDOW_SECONDS d'au moins 120 s");
+    throw new Error("AUTH_VALIDITY_SECONDS must exceed MIN_SETTLE_WINDOW_SECONDS by at least 120 s");
   }
   const checkRaw = (env.CHECK_PAYER_BALANCE ?? "1").trim();
-  if (checkRaw !== "0" && checkRaw !== "1") throw new Error(`CHECK_PAYER_BALANCE : 0 ou 1 (reçu « ${env.CHECK_PAYER_BALANCE} »)`);
+  if (checkRaw !== "0" && checkRaw !== "1") throw new Error(`CHECK_PAYER_BALANCE: 0 or 1 (got "${env.CHECK_PAYER_BALANCE}")`);
   const apiKey = env.REDPILL_API_KEY?.trim();
   return {
     port: int(env, "PORT", 8804, 1, 65_535),

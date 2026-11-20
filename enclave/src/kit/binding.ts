@@ -27,7 +27,7 @@ export interface ReportDataBinding {
   productId: bigint;
   operator: Address;
   signer: Address;
-  x25519: Hex; // 32 octets
+  x25519: Hex; // 32 bytes
 }
 
 /** REPORTDATA[0:32]: binds the chain, the registry, the product, the operator and the two keys. */
@@ -54,14 +54,14 @@ export function buildReportData(b: ReportDataBinding, anchorBlockHash: Hex): Hex
 }
 
 export interface Measurements {
-  mrtd: Hex; // 48 octets
+  mrtd: Hex; // 48 bytes
   rtmr0: Hex;
   rtmr1: Hex;
   rtmr2: Hex;
   rtmr3: Hex;
   mrConfigId: Hex;
-  xfam: Hex; // 8 octets
-  tdAttributes: Hex; // 8 octets
+  xfam: Hex; // 8 bytes
+  tdAttributes: Hex; // 8 bytes
 }
 
 /** workloadId: the image fingerprint, identical to EnclaveRegistry._workloadId. */

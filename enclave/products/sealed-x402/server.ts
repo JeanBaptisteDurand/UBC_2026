@@ -1,10 +1,10 @@
 /**
- * sealed-x402/server.ts — Produit « inférence payée à l'appel » (x402, schéma « exact »), en service HTTP (voir ./app.ts).
- * MÊME IMAGE que sealed-chat (enclave/Dockerfile construit aussi dist/sealed-x402.mjs), autre commande :
+ * sealed-x402/server.ts — the "inference paid per call" product (x402, "exact" scheme), as an HTTP service (see ./app.ts).
+ * The SAME IMAGE as sealed-chat (enclave/Dockerfile also builds dist/sealed-x402.mjs), another command:
  *   node dist/sealed-x402.mjs
- * Ses clés naissent en mémoire comme celles de sealed-chat ; elle s'inscrit pour SON produit (PRODUCT_ID, réglé par
- * X402Settler) : même VM, même empreinte d'image, autre clé, autre produit.
- * Configuration (mesurée ou chiffrée) : voir ./config.ts.
+ * Its keys are created in memory like sealed-chat's; it registers for ITS product (PRODUCT_ID, settled by
+ * X402Settler): the same VM, the same image fingerprint, another key, another product.
+ * Configuration (measured or encrypted): see ./config.ts.
  */
 import { AttestedModel, composeHashesFromEnv, modelAttestationBody, osImagesFromEnv } from "../../src/services/model-attestation";
 import { serve } from "@hono/node-server";
@@ -19,15 +19,15 @@ import { readSealedX402Config } from "./config";
 import { createMockModel, createRedpillModel, MOCK_MODEL_ID } from "./model";
 
 async function main() {
-  // Configuration lue et validée AVANT la naissance des clés : une valeur invalide arrête l'enclave.
+  // Configuration read and validated BEFORE the keys are created: an invalid value stops the enclave.
   const cfg = readSealedX402Config(process.env);
   const rpc = new RpcQuorum(cfg.rpcUrls);
   const dstack = await createDstackClient();
   const kit = new EnclaveKit({ productId: cfg.productId, chainId: cfg.chainId, registry: cfg.registry, rpc, dstack: dstack ?? undefined });
-  console.log(dstack ? "quote: dstack TDX réel" : "quote: mock (hors VM TDX)");
+  console.log(dstack ? "quote: real dstack TDX" : "quote: mock (outside a TDX VM)");
 
-  // Adresses lues dans X402Settler à la demande, gardées une fois lues (une panne RPC au démarrage ne fait pas redémarrer
-  // l'enclave : un redémarrage changerait ses clés et obligerait à la réinscrire).
+  // Addresses read from X402Settler on demand, kept once read (an RPC outage at start-up does not make the enclave
+  // restart: a restart would change its keys and require registering it again).
   let resolved: Promise<X402Addresses> | undefined;
   const addresses = () =>
     (resolved ??= resolveX402Addresses(rpc, cfg.settler, cfg.registry, cfg.usdc).catch((e) => {
@@ -35,18 +35,18 @@ async function main() {
       throw e;
     }));
 
-  // L'empreinte du modèle est CALCULÉE à partir du modèle réellement appelé ; le produit l'épingle (param) et la
-  // passerelle refuse de servir si elles diffèrent. Sans clé amont : modèle factice, d'empreinte différente.
+  // The model's fingerprint is COMPUTED from the model really called; the product pins it (param) and the gateway
+  // refuses to serve if they differ. Without an upstream key: a fake model, with a different fingerprint.
   const modelId = cfg.redpill.apiKey ? cfg.redpill.model : MOCK_MODEL_ID;
   const modelHash = keccak256(toBytes(modelId));
-  // 11/11 : MODEL_ATTESTATION=aci (mesurée) : passerelle du modèle VÉRIFIÉE, TLS épinglé, reçus exigés (model-attestation.ts)
+  // 11 Nov: MODEL_ATTESTATION=aci (measured): the model gateway is VERIFIED, TLS pinned, receipts required (model-attestation.ts)
   const modelAttestation = process.env.MODEL_ATTESTATION?.trim() || "none";
   let attested: AttestedModel | undefined;
   if (modelAttestation === "aci") {
     if (!cfg.redpill.apiKey) throw new Error("MODEL_ATTESTATION=aci exige REDPILL_API_KEY");
     attested = await AttestedModel.open({ baseUrl: cfg.redpill.baseUrl, osImages: osImagesFromEnv(process.env.MODEL_GATEWAY_OS_IMAGES), composeHashes: composeHashesFromEnv(process.env.MODEL_GATEWAY_COMPOSE_HASHES), log: (m) => console.log(m) });
   } else if (modelAttestation !== "none") {
-    throw new Error("MODEL_ATTESTATION : « aci » ou « none »");
+    throw new Error("MODEL_ATTESTATION: \"aci\" or \"none\"");
   }
   const model = cfg.redpill.apiKey
     ? createRedpillModel({ baseUrl: cfg.redpill.baseUrl, model: cfg.redpill.model, apiKey: cfg.redpill.apiKey, ...(attested ? { fetch: attested.fetch } : {}) })
@@ -87,17 +87,17 @@ async function main() {
   setInterval(() => gateway.prune(), 60_000).unref();
 
   console.log(
-    `sealed-x402 (x402 exact) sur http://localhost:${cfg.port}  signer=${kit.keys.signer}  produit=${cfg.productId}  ` +
-      `X402Settler=${cfg.settler}  modèle=${modelId}  modelHash=${modelHash}  MAX_OUTPUT_TOKENS=${cfg.maxOutputTokens}  quorum=${cfg.rpcUrls.length} RPC  ` +
-      `autorisations ≤ ${cfg.authValiditySeconds} s  borne ${cfg.maxUnsettledPerWindow} non réglés / ${cfg.unsettledWindowSeconds} s  ` +
-      `${cfg.maxPendingPerPayer} en attente par payeur  lectures payées ${cfg.paymentReadsPerMinute}/min (${cfg.paymentReadsPerMinutePerIp}/min par IP vue)`,
+    `sealed-x402 (x402 exact) on http://localhost:${cfg.port}  signer=${kit.keys.signer}  product=${cfg.productId}  ` +
+      `X402Settler=${cfg.settler}  model=${modelId}  modelHash=${modelHash}  MAX_OUTPUT_TOKENS=${cfg.maxOutputTokens}  quorum=${cfg.rpcUrls.length} RPC  ` +
+      `authorizations ≤ ${cfg.authValiditySeconds} s  bound ${cfg.maxUnsettledPerWindow} unsettled / ${cfg.unsettledWindowSeconds} s  ` +
+      `${cfg.maxPendingPerPayer} pending per payer  paid reads ${cfg.paymentReadsPerMinute}/min (${cfg.paymentReadsPerMinutePerIp}/min per seen IP)`,
   );
   addresses()
-    .then((A) => console.log(`X402Settler → registre des produits ${A.products}, caution ${A.bond}, USDC ${A.usdc} (registre ${A.registry} vérifié)`))
-    .catch((e) => console.warn(`⚠️ adresses de X402Settler pas encore lues (${(e as Error).message}) : 503 jusqu'à la prochaine lecture réussie`));
+    .then((A) => console.log(`X402Settler → product registry ${A.products}, bond ${A.bond}, USDC ${A.usdc} (registry ${A.registry} checked)`))
+    .catch((e) => console.warn(`⚠️ X402Settler addresses not read yet (${(e as Error).message}): 503 until the next successful read`));
 }
 
 main().catch((e) => {
-  console.error(`sealed-x402 : démarrage refusé : ${(e as Error)?.message ?? e}`);
+  console.error(`sealed-x402: start-up refused: ${(e as Error)?.message ?? e}`);
   process.exit(1);
 });

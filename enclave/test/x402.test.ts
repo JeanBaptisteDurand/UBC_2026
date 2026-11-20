@@ -92,7 +92,7 @@ describe("x402 (HTTP layer)", () => {
     const stricter = { ...r, maxAmountRequired: "2000000" };
     const v = await facilitatorVerify(payload, stricter, CHAIN, 1_000_000_000n);
     expect(v.ok).toBe(false);
-    expect(v.reason).toBe("montant");
+    expect(v.reason).toBe("amount");
   });
 
   it("signer != from => refused", async () => {

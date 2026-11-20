@@ -1,10 +1,10 @@
 /**
- * sealed-x402/model.ts — le modèle appelé par l'enclave : RedPill (compatible OpenAI, inférence confidentielle en TEE)
- * si une clé est fournie, sinon un modèle factice local (développement : son empreinte, keccak256("mock-echo-model"),
- * n'est celle d'aucun produit réel, donc l'enclave refuse alors tout appel payé sur la vraie chaîne).
+ * sealed-x402/model.ts — the model the enclave calls: RedPill (OpenAI-compatible, confidential inference in a TEE) if a
+ * key is given, otherwise a local fake model (development: its fingerprint, keccak256("mock-echo-model"), is no real
+ * product's, so the enclave then refuses every paid call on the real chain).
  *
- * Les erreurs de l'amont ne remontent JAMAIS son corps (un fournisseur peut y recopier la clé, et les journaux d'une CVM
- * peuvent être publics) : seulement le code HTTP.
+ * Upstream errors NEVER surface its body (a provider can copy the key into it, and a CVM's logs can be public): only
+ * the HTTP code.
  */
 import type { ChatModel, ChatModelRequest, ChatModelResult } from "../../src/services/x402-gateway";
 
@@ -28,11 +28,11 @@ export function createRedpillModel(o: { baseUrl: string; model: string; apiKey: 
         signal,
       });
       if (!res.ok) {
-        await res.body?.cancel().catch(() => {}); // corps jamais lu ni journalisé
-        throw new Error(`modèle amont : HTTP ${res.status}`);
+        await res.body?.cancel().catch(() => {}); // the body is never read nor logged
+        throw new Error(`upstream model: HTTP ${res.status}`);
       }
       const j = (await res.json().catch(() => null)) as any;
-      if (!j) throw new Error("modèle amont : réponse illisible");
+      if (!j) throw new Error("upstream model: unreadable answer");
       const text = j.choices?.[0]?.message?.content;
       const u = j.usage ?? {};
       return {
@@ -44,12 +44,12 @@ export function createRedpillModel(o: { baseUrl: string; model: string; apiKey: 
   };
 }
 
-/** Modèle factice (développement hors VM, sans clé amont). */
+/** A fake model (development outside a VM, without an upstream key). */
 export function createMockModel(): ChatModel {
   return {
     async complete(r: ChatModelRequest): Promise<ChatModelResult> {
       const last = [...r.messages].reverse().find((m) => m.role === "user")?.content ?? "";
-      const text = `Réponse attestée (démo, enclave x402) — invite reçue : « ${last.slice(0, 120)} »`;
+      const text = `Attested answer (demo, x402 enclave): prompt received: "${last.slice(0, 120)}"`;
       const inBytes = r.messages.reduce((s, m) => s + new TextEncoder().encode(m.content).length, 0);
       return { text, tokensIn: Math.max(1, Math.ceil(inBytes / 4)), tokensOut: Math.ceil(text.length / 4) };
     },
