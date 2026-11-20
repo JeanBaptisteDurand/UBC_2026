@@ -34,8 +34,8 @@ cd evm && forge build
 ## On Arc testnet (7 Nov 2026, folder `arc-testnet/`)
 
 - **A real quote from a Phala TDX VM.** It is the quote of ArcHive's inference enclave at Phala (FMSPC
-  `20A06F000000`, DEBUG = 0). Its REPORTDATA carries ArcHive's binding: policy P6 binds the chain, the registry, the
-  product, the operator and the enclave keys; policy P7 adds the hash of a recent Arc block, checked through EIP-2935.
+  `20A06F000000`, DEBUG = 0). Its REPORTDATA carries ArcHive's binding. Policy P6 binds the chain, the registry, the
+  product, the operator and the enclave keys. Policy P7 adds the hash of a recent Arc block, checked through EIP-2935.
 - **Automata's whole PCCS stack on Arc testnet**, Intel's collateral included, and that quote verified in one
   transaction:
   [`0x142ed00e…80ce97`](https://explorer.testnet.arc.io/tx/0x142ed00ed8d2ec103f8c6af5d893d250d57f10d818b29b3df8b653e06080ce97)
