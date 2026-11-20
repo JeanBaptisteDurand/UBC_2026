@@ -1,14 +1,14 @@
 /**
  * rpc-relay.ts — a STRICT JSON-RPC RELAY between the replay engine (anvil / arc-anvil) and the fork's RPC (FORK_RPC_URL).
  *
- * Why (adversarial review of 9 Nov, proof verif-failclosed/e1-blockhash-null): the engine takes some INVALID answers of
+ * Why (adversarial review of 14 Nov, proof verif-failclosed/e1-blockhash-null): the engine takes some INVALID answers of
  * the fork's RPC for values, without an error. `null` for a recent block (the normal answer of a node that does not have
  * that block yet) becomes BLOCKHASH = keccak256(""); "0x" or a JSON number for a storage slot becomes 0 or 5. The
  * replay then returned false measurements, and the enclave signed them (a false claim, or a refutation of a true
  * claim). So the engine no longer talks to the fork's RPC: it talks to this relay (127.0.0.1, an ephemeral port, one
  * relay per replay and per start-up check), which forwards each request and CHECKS the shape of each result before
  * returning it:
- *  - allowed methods: those that anvil 1.5.1 and arc-anvil v0.8.0-4 use to fork (recorded on 9 Nov); any other method
+ *  - allowed methods: those that anvil 1.5.1 and arc-anvil v0.8.0-4 use to fork (recorded on 14 Nov); any other method
  *    is refused;
  *  - state read AT BLOCK N ONLY (block tag = N in hexadecimal): never "latest", never another block;
  *  - eth_getStorageAt: exactly 32 bytes; quantities (balance, nonce, block number, chainId, gas price) in canonical
@@ -29,9 +29,9 @@
  * fails closed), or it retries (rate limit, 429, 503: checked, it finds the right value again), and the retried answer
  * is checked like the others. Each attempt counts in the budget.
  *
- * v2.1 quater (adversarial verification, evening of 9 Nov, proofs verif-relay r1-B, r1-E, r1-G, r2, r3-1a), a LYING RPC:
+ * v2.1 quater (adversarial verification, evening of 14 Nov, proofs verif-relay r1-B, r1-E, r1-G, r2, r3-1a), a LYING RPC:
  *  - HEADER BOUND TO ITS HASH ("arc" policy, the DEFAULT): the 21 Arc header fields (London → Prague) are REQUIRED and
- *    keccak256(RLP(header)) must give back `hash` (CHECKED on 9 Nov on real Arc testnet blocks and on anvil 1.5.1).
+ *    keccak256(RLP(header)) must give back `hash` (CHECKED on 14 Nov on real Arc testnet blocks and on anvil 1.5.1).
  *    With the anchor (the hash of block N verified through the quorum or on-chain) and the chain of parentHash values,
  *    each header served to the engine is the real chain's: the timestamp, base fee, PREVRANDAO (mixHash), miner,
  *    gasLimit and excessBlobGas of block N, and BLOCKHASH(N − k). A header with the right hash but changed content: a
@@ -47,7 +47,7 @@
  * an RPC that lies about the state with well-formed, constant answers is then not detected. A block's transaction list
  * is not recomputed against transactionsRoot (the engine does not execute them).
  *
- * 10 Nov 2026, STATE PROOFS (stateProofs option): each state read at block N (balance, nonce, code, storage slot,
+ * 15 Nov 2026, STATE PROOFS (stateProofs option): each state read at block N (balance, nonce, code, storage slot,
  * eth_getAccountInfo) is requested as eth_getProof (EIP-1186) from the proof RPC and CHECKED against the stateRoot of
  * header N (itself bound to the anchor): the relay returns the PROVEN values to the engine, and the code only if it
  * gives back the proven code hash. A false proof: a "state_proof" violation (nothing is signed); an unavailable proof
@@ -81,7 +81,7 @@ export type RelayViolationKind =
   | "envelope" // an invalid JSON-RPC envelope from the fork's RPC: version, id of another request, result AND error
   | "header" // v2.1 quater: a header whose content does not give back the hash (keccak256(RLP(header)) ≠ hash)
   | "inconsistent" // v2.1 quater: the same read (state at block N, block ≤ N, chainId) returned with two different values
-  | "state_proof" // 10 Nov: a state proof (eth_getProof) that does not verify against the stateRoot of the anchored header N
+  | "state_proof" // 15 Nov: a state proof (eth_getProof) that does not verify against the stateRoot of the anchored header N
   | "internal"; // an unexpected exception in the relay (fail closed)
 
 /** An answer of the fork's RPC refused by the relay (remembered). FIXED message (never a copied value or parameter). */
@@ -136,7 +136,7 @@ export type HeaderPolicy = "arc" | "shape";
 
 type FieldKind = "b32" | "addr" | "bloom" | "qty" | "bytes" | "nonce8";
 /** The 21 Arc header fields, in protocol order (London → Prague): the order of the RLP behind the block hash (recorded
- *  on 9 Nov: Arc testnet's RPC always returns them; so does anvil 1.5.1). */
+ *  on 14 Nov: Arc testnet's RPC always returns them; so does anvil 1.5.1). */
 const HEADER_FIELDS: ReadonlyArray<readonly [string, FieldKind]> = [
   ["parentHash", "b32"], ["sha3Uncles", "b32"], ["miner", "addr"], ["stateRoot", "b32"], ["transactionsRoot", "b32"],
   ["receiptsRoot", "b32"], ["logsBloom", "bloom"], ["difficulty", "qty"], ["number", "qty"], ["gasLimit", "qty"],
@@ -176,7 +176,7 @@ function rlpQuantity(q: string): Hex {
 
 /**
  * v2.1 quater: keccak256(RLP(header)): the 21 Arc header fields in protocol order (HEADER_FIELDS), quantities as minimal
- * integers, the other fields as raw bytes. This is the block hash (CHECKED on 9 Nov on real Arc testnet blocks and on
+ * integers, the other fields as raw bytes. This is the block hash (CHECKED on 14 Nov on real Arc testnet blocks and on
  * anvil 1.5.1). The block must have the shape of the "arc" policy (checkBlockShape).
  */
 export function blockHeaderHash(b: Record<string, unknown>): Hex {
@@ -271,10 +271,10 @@ export interface StrictRelayOptions {
   headerPolicy?: HeaderPolicy;
   /** v2.1 quater: the maximum size of an answer of the fork's RPC, in bytes (default MAX_RESPONSE_BYTES). */
   maxResponseBytes?: number;
-  /** 10 Nov: STATE PROOFS. When present, each state read at block N is proven (eth_getProof checked against the stateRoot
+  /** 15 Nov: STATE PROOFS. When present, each state read at block N is proven (eth_getProof checked against the stateRoot
    *  of the anchored header N); `upstream` = the proof RPC (default: the fork's RPC). Requires the "arc" header policy. */
   stateProofs?: { upstream?: string };
-  /** 11 Nov: the replay's expected chainId. When present, the relay REQUIRES `eth_chainId` of the fork's RPC to be exactly
+  /** 16 Nov: the replay's expected chainId. When present, the relay REQUIRES `eth_chainId` of the fork's RPC to be exactly
    *  this value (otherwise a "chain" violation, nothing is signed); without it, a lying RPC would set the replay's CHAINID. */
   expectedChainId?: number;
 }
@@ -318,7 +318,7 @@ class Relay implements StrictRelay {
   private lowest: bigint;
   /** Headers already read and checked (by the engine or by the relay). */
   private headers = new Map<bigint, Promise<{ hash: string; parentHash: string; stateRoot: string }>>();
-  /** 10 Nov: accounts, slots and codes PROVEN at block N (key: lower-case address; address:slot on 32 bytes). */
+  /** 15 Nov: accounts, slots and codes PROVEN at block N (key: lower-case address; address:slot on 32 bytes). */
   private provedAccounts = new Map<string, Promise<ProvedAccount>>();
   private provedSlots = new Map<string, Promise<bigint>>();
   private provedCodes = new Map<string, Promise<Hex>>();
@@ -575,7 +575,7 @@ class Relay implements StrictRelay {
         }
         this.atN(method, params[2]);
         if (this.o.stateProofs) {
-          // 10 Nov: the value returned to the engine is the one the trie PROVES at block N (not the one an RPC announces)
+          // 15 Nov: the value returned to the engine is the one the trie PROVES at block N (not the one an RPC announces)
           const v = await this.provedSlot(method, params[0], params[1]);
           const r = `0x${v.toString(16).padStart(64, "0")}`;
           this.same(method, `storage:${params[0].toLowerCase()}:${BigInt(params[1]).toString(16)}`, r);
@@ -706,7 +706,7 @@ class Relay implements StrictRelay {
     if (!this.headers.has(b.number)) this.headers.set(b.number, Promise.resolve({ hash: b.hash, parentHash: b.parentHash, stateRoot: b.stateRoot }));
   }
 
-  // ---------- 10 Nov: state proofs ----------
+  // ---------- 15 Nov: state proofs ----------
 
   /** The stateRoot of header N, after checking that header N is the anchor's (header bound to its hash: "arc" policy). */
   private stateRootN(): Promise<Hex> {

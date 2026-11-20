@@ -12,7 +12,7 @@
  *   { status: "refused", code, reason }; 400 for a malformed request; 503 if the on-chain read or the replay failed
  *   (nothing signed).
  *
- * v2.1 bis (adversarial review of 9 Nov):
+ * v2.1 bis (adversarial review of 14 Nov):
  *  - FIXED error answers: never the message of an exception (viem, a parser, the node: they copy bytes of the exploit);
  *  - a bounded body (MAX_BODY_BYTES: 413) on /bounty/submit and /v1/refute;
  *  - /v1/refute: a limited rate (a global token bucket: 429), the cheap read of claimRecords first (chainRefuteReader
@@ -21,7 +21,7 @@
  *    error (-32603, which viem also files as ContractFunctionRevertedError) used to truncate the tiers silently (a
  *    false tier signed): it now propagates (503).
  *
- * v2.1 ter (adversarial verification of 9 Nov, proofs verif-failclosed e4 D1, D2, e7):
+ * v2.1 ter (adversarial verification of 14 Nov, proofs verif-failclosed e4 D1, D2, e7):
  *  - /v1/refute: the bucket's token is taken AFTER the body's shape is validated and after the cheap read of
  *    claimRecords (claim accepted, not refuted, inside the window), and only if no result is cached or in progress for
  *    this claim (RefutationService.refute, `admit`): empty bodies or invented claims no longer empty the bucket.

@@ -74,11 +74,11 @@ const REDPILL_MODEL = process.env.REDPILL_MODEL ?? "openai/gpt-oss-120b";
 // opening: an operator who changes the model can no longer produce a payable receipt. Write REDPILL_MODEL and
 // REDPILL_BASE_URL IN CLEAR in the compose file (measured in the workloadId); only the key is secret.
 // Without an upstream key: a local fake model (development), with a different fingerprint that every real session refuses.
-// 9 Nov: a RedPill error surfaces only its status (model.ts): its body, which can copy the key, is never read nor
+// 14 Nov: a RedPill error surfaces only its status (model.ts): its body, which can copy the key, is never read nor
 // logged; app.ts then answers with a generic message and a code (upstream_model).
 const MODEL_ID = REDPILL_KEY ? REDPILL_MODEL : MOCK_MODEL_ID;
 const MODEL_HASH = keccak256(toBytes(MODEL_ID)) as Hex;
-// 11 Nov: MODEL_ATTESTATION=aci (measured): RedPill's gateway is VERIFIED before any call (Intel quote, bound keys,
+// 16 Nov: MODEL_ATTESTATION=aci (measured): RedPill's gateway is VERIFIED before any call (Intel quote, bound keys,
 // measured compose, production OS image), each call goes over TLS pinned to its attested key, and each answer requires
 // a receipt that names a verified upstream service (src/services/model-attestation.ts). If this fails at start-up, the
 // enclave refuses to start.

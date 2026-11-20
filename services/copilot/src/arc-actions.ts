@@ -165,7 +165,7 @@ export function railOf(arc: ArcClient, settlement: string): string {
 
 /** The Sealed Bounty contract that settles this product: SealedBounty (open level, product 2) or, on the stack with
  *  levels, SealedBountyVerified (verified level, product 5 on v3, 7 on v2.1: the same code, plugged into PolicyEnclaves); undefined for any
- *  other settlement (including product 6's former verified bounty, neutralized on 11 Nov 2026). createBounty refuses a
+ *  other settlement (including product 6's former verified bounty, neutralized on 16 Nov 2026). createBounty refuses a
  *  product settled by another contract (WrongSettlement), so the bounty is always prepared on THIS contract. */
 export function bountyContractOf(arc: ArcClient, settlement: string): { address: Address; verified: boolean } | undefined {
   const s = settlement.toLowerCase();

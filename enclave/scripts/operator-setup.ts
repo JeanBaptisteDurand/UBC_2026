@@ -1,5 +1,5 @@
 /**
- * operator-setup.ts — separates the roles (from the 7 Nov 2026 security review): the operator that runs the enclaves
+ * operator-setup.ts — separates the roles (from the 13 Nov 2026 security review): the operator that runs the enclaves
  * and the registrar is a different key from the deployer, which owns the contracts.
  *  1) creates the operator key (.secrets/operator.json, never printed) if it does not exist;
  *  2) the deployer sends it enough to pay for gas and the bond;

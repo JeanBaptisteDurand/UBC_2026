@@ -1,5 +1,5 @@
 /**
- * Sealed Bounty v2.1 bis: FAIL CLOSED (adversarial review of 9 Nov: cases t2, t2b, jit, t4).
+ * Sealed Bounty v2.1 bis: FAIL CLOSED (adversarial review of 14 Nov: cases t2, t2b, jit, t4).
  * The golden rule: the enclave NEVER signs (neither a claim nor a refutation) a result that depends on a network, RPC,
  * timing or environment error; only DETERMINISTIC rules, written down and tested, give a "proven fault".
  *  1. replay (anvil-fork.ts): a predicate read refused by the fork's RPC is never worth 0 or "invariant not held"
@@ -417,7 +417,7 @@ describe("2 — predicate: iterative bounds and shape (rules P1–P4)", () => {
   });
 
   it("valid predicates keep EXACTLY their predicateHash from before the rules (unchanged canonical JSON)", () => {
-    // the v0 implementation (before 9 Nov), copied here as it was; the note below is deliberately non-ASCII
+    // the v0 implementation (before 14 Nov), copied here as it was; the note below is deliberately non-ASCII
     const v0 = (v: any): string => (v === null || typeof v !== "object" ? JSON.stringify(v) : Array.isArray(v) ? "[" + v.map(v0).join(",") + "]" : "{" + Object.keys(v).sort().map((k) => JSON.stringify(k) + ":" + v0(v[k])).join(",") + "}");
     const corpus: Predicate[] = [
       erc20Pred,

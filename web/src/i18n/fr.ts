@@ -255,7 +255,7 @@ export const fr: Dict = {
   "api.malformed.uri": "ligne « URI: {uri} » attendue",
   "api.malformed.version": "ligne « Version: 1 » attendue",
   "api.malformed.nonce": "ligne « Nonce: <nonce de GET /auth/nonce> » attendue",
-  "api.malformed.time": "ligne « {line}: <date RFC 3339> » attendue (par exemple 2026-11-07T18:00:00.000Z)",
+  "api.malformed.time": "ligne « {line}: <date RFC 3339> » attendue (par exemple 2026-11-13T18:00:00.000Z)",
   "api.malformed.expiry_window": "« Expiration Time » doit suivre « Issued At » de {min} minutes au plus",
   "api.malformed.other": "le format EIP-4361 du site est attendu : rechargez la page et signez à nouveau",
   "api.wrong_site": "message signé pour un autre site (« {site} ») : ArcHive n'accepte que {expected}. Ne signez de message ArcHive que sur ce site.",

@@ -1,5 +1,5 @@
 /**
- * Sealed Bounty v2.1 ter: denial of service and unsorted exceptions (adversarial verification of 9 Nov: cases D1–D4,
+ * Sealed Bounty v2.1 ter: denial of service and unsorted exceptions (adversarial verification of 14 Nov: cases D1–D4,
  * amplification, environment exceptions).
  *  2. /v1/refute: the bucket's token is taken AFTER the body's shape and claimRecords (a live claim); invalid bodies have
  *     their own limit per seen IP, which never starves valid requests (proof D1);

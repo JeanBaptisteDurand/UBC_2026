@@ -1,5 +1,5 @@
 /**
- * sealed-chat — upstream model errors and internal errors (a reviewer's finding of 9 Nov 2026): server.ts used to throw
+ * sealed-chat — upstream model errors and internal errors (a reviewer's finding of 14 Nov 2026): server.ts used to throw
  * `redpill ${status}: ${body}` and Hono's default handler logged that error, so a provider that echoes the received key
  * in its 401 error could get it into the CVM's logs.
  * Now: the upstream error's body is never read (model.ts); the app answers a generic message with a code (onError); the

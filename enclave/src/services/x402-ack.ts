@@ -1,5 +1,5 @@
 /**
- * x402-ack.ts — the "calls settled" report (POST /x402/settled), RESTRICTED TO THE OPERATOR (fix of 9 Nov).
+ * x402-ack.ts — the "calls settled" report (POST /x402/settled), RESTRICTED TO THE OPERATOR (fix of 14 Nov).
  *
  * Before, the route was public and without deduplication; the keys (payer, nonce) are public (GET /x402/pending), and
  * each item triggered an on-chain read (quorum: on EACH provider): 200 copies of one key = 200 reads for a 26 KB
@@ -12,7 +12,7 @@
  *    window): a captured body cannot be replayed (409);
  *  - it is bounded in size (200 items, 64 KiB) and in rate (tokens: signed requests, then on-chain reads);
  *  - its items are deduplicated; a key is read on-chain only ONCE, and only if it is pending here.
- * Evening of 9 Nov (the verifier's proofs B and F): each item also says HOW the authorization was consumed.
+ * Evening of 14 Nov (the verifier's proofs B and F): each item also says HOW the authorization was consumed.
  * `settled` = true: settled by X402Settler (the registrar knows it from the receipt of ITS transaction, or from the
  * CallSettled event); false: consumed another way (cancelled by the payer, cancelAuthorization). The chain does not
  * tell the two apart (authorizationState = true in both cases): only true makes the payer "known". The EIP-712 type

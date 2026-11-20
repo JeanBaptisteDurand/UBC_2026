@@ -262,7 +262,7 @@ export const en = {
   "api.malformed.uri": "line “URI: {uri}” expected",
   "api.malformed.version": "line “Version: 1” expected",
   "api.malformed.nonce": "line “Nonce: <nonce from GET /auth/nonce>” expected",
-  "api.malformed.time": "line “{line}: <RFC 3339 date>” expected (for example 2026-11-07T18:00:00.000Z)",
+  "api.malformed.time": "line “{line}: <RFC 3339 date>” expected (for example 2026-11-13T18:00:00.000Z)",
   "api.malformed.expiry_window": "“Expiration Time” must come at most {min} minutes after “Issued At”",
   "api.malformed.other": "the site's EIP-4361 format is expected: reload the page and sign again",
   "api.wrong_site": "message signed for another site (“{site}”): ArcHive only accepts {expected}. Only sign ArcHive messages on this site.",

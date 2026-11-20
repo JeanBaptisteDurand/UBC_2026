@@ -34,7 +34,7 @@ import {X402Settler} from "../src/X402Settler.sol";
 ///   GRACE_BLOCKS         settlement delay after a window ends, in blocks (default 170,000 ≈ 24 h)
 ///   BLOCK_TIME_MS        estimated block time, for the indicative expiresAt timestamp (default 508)
 ///
-///   Block time measured on 2026-11-07 (cast block, timestamp differences): Arc mainnet 508.1 ms per block over
+///   Block time measured on 2026-11-13 (cast block, timestamp differences): Arc mainnet 508.1 ms per block over
 ///   1,000,000 blocks, 506.7–509.6 ms over each 172,800-block window of the previous 89 days; so
 ///   24 h ≈ 170,000 blocks (23.9–24.1 h).
 ///

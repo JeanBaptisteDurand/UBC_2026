@@ -1,5 +1,5 @@
 /**
- * model-attestation.ts — the enclave VERIFIES the model provider instead of trusting it (11 Nov 2026).
+ * model-attestation.ts — the enclave VERIFIES the model provider instead of trusting it (16 Nov 2026).
  *
  * Before, the enclave forwarded the decrypted request over HTTPS to RedPill, and the README said so: the provider reads
  * the request, and ArcHive does not verify its attestation. Now (MODEL_ATTESTATION=aci, a MEASURED variable of the
@@ -18,7 +18,7 @@
 import { createHash } from "node:crypto";
 import { connectAci, type AciConnection } from "@phala/aci-verifier/runtime";
 
-/** The production OS image dstack-0.5.12 (VERIFIED on 10 Nov 2026: our VMs and RedPill's gateway). */
+/** The production OS image dstack-0.5.12 (VERIFIED on 15 Nov 2026: our VMs and RedPill's gateway). */
 export const DSTACK_PROD_OS_0_5_12 = "8db40cb23008d6213668b5816702d100b37b859a8a5bfd18d938ae3a1b3715bd";
 
 /**
@@ -26,7 +26,7 @@ export const DSTACK_PROD_OS_0_5_12 = "8db40cb23008d6213668b5816702d100b37b859a8a
  * RedPill's gateway emits today (VERIFIED: it reproduces the 10 digests of the real report). `DstackEventLog.sol` ALSO
  * handles a V2 variant (RFC 8785 canonical JSON) not emitted here; if RedPill moved to it, `boundEventPayload` would
  * refuse (fail CLOSED, never a false positive), and support would be added then.
- * HARDENING (adversarial review of 11 Nov): Phala's verifier folds RTMR3 from the `digest` of each event (bound to the
+ * HARDENING (adversarial review of 16 Nov): Phala's verifier folds RTMR3 from the `digest` of each event (bound to the
  * quote), but it does NOT redo this computation; one could therefore keep the digest and rewrite the name and the
  * payload. So the code binds name + payload to the digest and, on top of that, REDOES the log → quote fold itself (see `foldImr3`).
  */
@@ -71,7 +71,7 @@ export function quoteRtmr3Of(report: unknown): string | null {
   return b.subarray(520, 568).toString("hex");
 }
 
-/** DEFENSE IN DEPTH (review of 11 Nov): the code does NOT trust Phala's verifier to bind the log to the quote; it REDOES
+/** DEFENSE IN DEPTH (review of 16 Nov): the code does NOT trust Phala's verifier to bind the log to the quote; it REDOES
  *  the fold. RTMR3 starts from 48 zero bytes; at each imr=3 event, RTMR3 = SHA384(RTMR3 ‖ digest). The result must equal
  *  the quote's RTMR3. So payload → digest (boundEventPayload) → RTMR3 (here) → quote: OUR code verifies the whole chain,
  *  independently of the library's verdict. */

@@ -1,5 +1,5 @@
 /**
- * retire-v2.ts — retires the v2 stack (deployments.v2.testnet.json) after the switch to v2.1 (9 Nov 2026):
+ * retire-v2.ts — retires the v2 stack (deployments.v2.testnet.json) after the switch to v2.1 (14 Nov 2026):
  *  1) the operator retires its v2 enclaves that are still registered (nothing anchors to them any more; the bond they
  *     reserved is released; receipts anchored earlier stay payable during the grace period);
  *  2) the products' author retires their fingerprints (no other instance of those images can register);
@@ -33,7 +33,7 @@ async function send(acct: typeof operator, address: Address, a: Abi, fn: string,
   }
 }
 
-// the v2 enclaves of operator 0x344f… (registered on 7–8 Nov) and their full fingerprints (the instance's RTMR3)
+// the v2 enclaves of operator 0x344f… (registered on 13–14 Nov) and their full fingerprints (the instance's RTMR3)
 const V2 = [
   { signer: "0x6AFc62deC6C33DdFff75f95cBf1b8D9d18296DA6" as Address, product: 1n, workload: "0x9b21399b827e42da3a6753340f938b946bf635d7e96496896dbe9753e67e5d06" as Hex },
   { signer: "0x951cC6556a47acD0B3c9bD6F126B4952AEf48f00" as Address, product: 2n, workload: "0xf9c1e729864ffc4bd9734d7aa8dd6290fbe93651d73536a53ff1d5a58ecdc0e1" as Hex },

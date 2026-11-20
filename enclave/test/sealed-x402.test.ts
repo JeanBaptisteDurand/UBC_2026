@@ -258,7 +258,7 @@ describe("x402: a 402 without payment", () => {
       maxAmountRequired: "10000",
       payTo: SETTLER,
       asset: USDC,
-      // 9 Nov: 900 s at most (instead of 3,600); in the evening: 60 s less announced, for the clients' clocks
+      // 14 Nov: 900 s at most (instead of 3,600); in the evening: 60 s less announced, for the clients' clocks
       maxTimeoutSeconds: 840,
       extra: { name: "USDC", version: "2", productId: "3", unitsPerCall: "1", enclave: kit.keys.signer },
     });

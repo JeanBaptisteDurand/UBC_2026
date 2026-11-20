@@ -28,11 +28,11 @@
  *
  * An accepted limit (deferred settlement): between the answer and the settlement, a payer can empty their balance or
  * cancel their authorization (cancelAuthorization); the call is then lost for the operator. MAX_PENDING_PER_PAYER bounds
- * only what ONE account gets this way per round; new accounts cost nothing (the verifier's proof 5, 9 Nov). Mitigations:
+ * only what ONE account gets this way per round; new accounts cost nothing (the verifier's proof 5, 14 Nov). Mitigations:
  *  - short authorizations: the 402 announces AUTH_VALIDITY_SECONDS − 60 s (840 s by default, 60 s of client clock skew
  *    tolerated) and the enclave refuses any deadline beyond now + AUTH_VALIDITY_SECONDS (900 s): an unpayable call lives
- *    no longer than 900 s (evening of 9 Nov: no more "+ 300 s"); the registrar runs every 10 s;
- *  - at most MAX_PENDING_PER_PAYER unsettled calls per payer: 3 by default (evening of 9 Nov, instead of 20: filling the
+ *    no longer than 900 s (evening of 14 Nov: no more "+ 300 s"); the registrar runs every 10 s;
+ *  - at most MAX_PENDING_PER_PAYER unsettled calls per payer: 3 by default (evening of 14 Nov, instead of 20: filling the
  *    global bound then takes ≈ 100 funded accounts instead of 15);
  *  - RECONCILIATION: before refusing for lack of room (bond, queue, window, a payer's limit or balance), the enclave
  *    reads again, in batches, at one block and with a short cache, the balance and the authorization state of the payers
@@ -41,7 +41,7 @@
  *    funds the account again). Unpayable calls therefore no longer block the bond for honest payers. The
  *    reconciliation's reads draw from a global budget (1,200 per minute by default): a refusal cannot be used to
  *    multiply RPC reads;
- *  - THE OPERATOR'S QUEUE (evening of 9 Nov, proofs C and C2): GET /x402/pending first reads again the BALANCES of the
+ *  - THE OPERATOR'S QUEUE (evening of 14 Nov, proofs C and C2): GET /x402/pending first reads again the BALANCES of the
  *    pending payers (refreshCoverage: one read per payer, in the same budget, at most once per reconcileCacheMs) and
  *    lists the COVERED calls first, the "not covered" ones after; it is read in pages (offset): unpayable calls with a
  *    short deadline no longer pass ahead of an honest payer's call. A known limit: the route is public and the balance
@@ -51,10 +51,10 @@
  *    UNSETTLED_WINDOW_SECONDS (300 over 600 s by default); beyond it, 503 for payers without a recent settlement. A call
  *    leaves it only when the operator reports it SETTLED through X402Settler (a signed report, checked again on-chain):
  *    a cancelled call (cancelAuthorization) or one consumed another way stays counted until the end of the window
- *    (evening of 9 Nov, proof B: the bound is hard). A payer with a call SETTLED through X402Settler less than 24 h ago
+ *    (evening of 14 Nov, proof B: the bound is hard). A payer with a call SETTLED through X402Settler less than 24 h ago
  *    (and no "not covered" or cancelled call since) is not subject to it; a cancelled authorization, or one only seen
  *    consumed by the reconciliation, never makes a payer "known" (proofs B and F);
- *  - RATE (evening of 9 Nov, proofs A and D): each paid request that reaches the paymentState read (≈ 12 RPC requests
+ *  - RATE (evening of 14 Nov, proofs A and D): each paid request that reaches the paymentState read (≈ 12 RPC requests
  *    per provider) draws from a GLOBAL token bucket (PAYMENT_READS_PER_MINUTE, 120 by default, burst of 30); empty: 503
  *    busy, without a read. "Known" payers have their own bucket, at the same rate (a flood of new keys does not block
  *    them); a "known" payer whose read shows a balance that no longer covers the call (or code) loses that status: they
@@ -581,7 +581,7 @@ export class X402Gateway {
     this.newPayerReads = new TokenBucket(Math.max(10, Math.ceil(pm / 4)), pm / 60);
     this.knownPayerReads = new TokenBucket(Math.max(10, Math.ceil(pm / 4)), pm / 60);
     this.ipReads = new KeyedBuckets(Math.max(5, Math.ceil(ip / 3)), ip / 60, MAX_IP_BUCKETS);
-    // evening of 9 Nov (K2): each "known" payer also has its own small bucket (burst 3, ≈ 1/6 of the global rate): a
+    // evening of 14 Nov (K2): each "known" payer also has its own small bucket (burst 3, ≈ 1/6 of the global rate): a
     // concurrent burst from ONE known payer no longer empties the bucket shared by the other known payers
     this.knownPerPayerReads = new KeyedBuckets(3, Math.max(1, pm / 6) / 60, MAX_IP_BUCKETS);
   }
@@ -762,7 +762,7 @@ export class X402Gateway {
     const now = this.now();
     const v = await verifyExactPayment(payment, req, this.cfg.chainId, now, {
       minRemainingSeconds: BigInt(this.limits.minSettleWindowSeconds),
-      // at most AUTH_VALIDITY_SECONDS (evening of 9 Nov: no more "+ 300 s"); the 402 announces 60 s less (clocks)
+      // at most AUTH_VALIDITY_SECONDS (evening of 14 Nov: no more "+ 300 s"); the 402 announces 60 s less (clocks)
       maxValiditySeconds: BigInt(this.limits.authValiditySeconds),
     });
     if (!v.ok) throw new X402Error(402, v.code, v.reason, [req]);
@@ -786,7 +786,7 @@ export class X402Gateway {
     // read); a request signed by a new key, even without any USDC, no longer multiplies the reads (proof D)
     this.takePaymentRead(payer, clientIp);
 
-    // evening of 9 Nov (K1): any refusal that FOLLOWS the on-chain read (an authorization already consumed or
+    // evening of 14 Nov (K1): any refusal that FOLLOWS the on-chain read (an authorization already consumed or
     // cancelled, a wrong amount, a contract payer, the balance, the room…) removes the "known" status: replaying a
     // cancelled authorization, or sending wrong amounts, can no longer empty the known payers' bucket. An outage of OUR
     // read (chain_unavailable) does not penalize the payer.
@@ -830,7 +830,7 @@ export class X402Gateway {
         await (refusal.scope === "all" ? this.reconcileAll() : this.reconcilePayer(payer));
         refusal = this.admission(payer, amount, ps, req);
         if (refusal) {
-          // evening of 9 Nov: a "known" payer whose balance no longer covers anything loses that status; otherwise, having
+          // evening of 14 Nov: a "known" payer whose balance no longer covers anything loses that status; otherwise, having
           // paid once, they could empty their balance and then drain the known payers' bucket with signed requests (the others: 503)
           if (refusal.error.code === "insufficient_funds") this.trusted.delete(L(payer));
           throw refusal.error;
@@ -1374,7 +1374,7 @@ export class X402Gateway {
    * Takes out of the queue the calls that the chain says are consumed (USDC.authorizationState): nothing is taken on
    * trust. The items are deduplicated; only the keys pending HERE are read, each one once (a batched read at one block,
    * shared with a concurrent report). `readBudget`: beyond it, the keys stay "pending" (not read).
-   * `settled` (the operator's report, evening of 9 Nov): true = settled by X402Settler (the payer becomes "known"),
+   * `settled` (the operator's report, evening of 14 Nov): true = settled by X402Settler (the payer becomes "known"),
    * false = consumed another way, cancelled by the payer (they are not "known", or no longer); absent: neither.
    * Returns what left, what stayed, what is unknown.
    */

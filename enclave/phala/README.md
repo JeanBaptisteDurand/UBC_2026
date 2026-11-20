@@ -88,7 +88,7 @@ image dstack-0.5.12; the logs are not public.
 It runs on the level stack redeployed after the security review (`MachineRegistry 0xd671…`,
 `SealedBountyVerified 0x36a8…`). State proofs are off in this deployment: the replay forks Arc through
 `FORK_RPC_URL`, as product 2 does. State proofs need an RPC that serves historical `eth_getProof`. No public Arc RPC
-did when we measured it on 12 Nov 2026. Setting `STATE_PROOF_RPC_URL` turns them on.
+did when we measured it on 17 Nov 2026. Setting `STATE_PROOF_RPC_URL` turns them on.
 
 **`refute-demo-liar-v21.yml` (product 5).** The Sealed Bounty image with a deliberate fault written in clear, so the
 fault is measured: `DEMO_FAULT=inflate-loss` makes the enclave sign its claims with a doubled loss. The same image

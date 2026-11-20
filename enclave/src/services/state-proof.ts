@@ -1,7 +1,7 @@
 /**
  * state-proof.ts — verification of STATE PROOFS (eth_getProof, EIP-1186) against the stateRoot of a block header.
  *
- * Why (10 Nov 2026): the Sealed Bounty's strict relay already bound each HEADER served to the replay engine to the
+ * Why (15 Nov 2026): the Sealed Bounty's strict relay already bound each HEADER served to the replay engine to the
  * anchor (keccak256(RLP(header)) = hash, the chain of parentHash values up to block N anchored on-chain), but not the
  * STATE read at block N (balances, nonces, code, storage slots): a lying RPC, constant and well-formed, could change the
  * fork's state without being caught. With one Merkle-Patricia proof per read, checked here against the stateRoot of
@@ -11,7 +11,7 @@
  * keccak256(slot on 32 bytes); an account's leaf is RLP([nonce, balance, storageRoot, codeHash]), a slot's leaf is
  * RLP(value without leading zeros). A proof is the list of the path's RLP nodes, from the root to the leaf (or to the
  * point where the path stops: a proof of ABSENCE). A node whose encoding is under 32 bytes is INLINED in its parent (no
- * hash); otherwise the parent carries keccak256(node). CHECKED on 10 Nov on real Arc testnet proofs
+ * hash); otherwise the parent carries keccak256(node). CHECKED on 15 Nov on real Arc testnet proofs
  * (test/fixtures/arc-testnet-state-proofs.json: the proofs' balances = eth_getBalance at the same block).
  */
 import { fromRlp, keccak256, type Hex } from "viem";

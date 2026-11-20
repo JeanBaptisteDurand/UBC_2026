@@ -9,7 +9,7 @@
  * v2: /attest no longer binds the enclave to any address (otherwise a third party could get a quote in ITS name for
  * someone else's enclave, register it first and collect the work):
  *  1. OPERATOR_ALLOWLIST (comma-separated addresses): any other address is refused (403).
- *     v2 bis (adversarial review of 7 Nov): it fails CLOSED. Unset or empty, nobody is authorized (before, a variable
+ *     v2 bis (adversarial review of 13 Nov): it fails CLOSED. Unset or empty, nobody is authorized (before, a variable
  *     forgotten in the compose file opened /attest to anyone). Development mode (any address, with a warning) is
  *     requested explicitly: OPERATOR_ALLOWLIST=*.
  *  2. If this enclave's key is already registered on-chain (EnclaveRegistry.enclaveOf(signer).operator ≠ 0, read

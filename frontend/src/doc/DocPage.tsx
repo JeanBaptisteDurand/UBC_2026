@@ -55,7 +55,7 @@ function Intro({ onStart }: { onStart: () => void }) {
   )
 }
 
-/** chapter 10, "On Arc now": the network's counters from /api/stats (the seizure is the 10 Nov refutation, recorded) */
+/** chapter 10, "On Arc now": the network's counters from /api/stats (the seizure is the 15 Nov refutation, recorded) */
 function LiveNumbers() {
   const { d, lang } = useDt()
   const s = useLive((x) => x.stats)

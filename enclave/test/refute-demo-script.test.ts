@@ -25,7 +25,7 @@ const load = (liar = pinned(text(COMPOSE_FILES.liar)), honest = pinned(text(COMP
 });
 
 describe("refute-demo.ts — the demo's compose files and manifest", () => {
-  it("the repository's compose files: pinned to the image played on 10 Nov 2026 (product 2's); an unpinned template is refused", () => {
+  it("the repository's compose files: pinned to the image played on 15 Nov 2026 (product 2's); an unpinned template is refused", () => {
     const p2 = parseCompose("sealed-bounty-v21.yml", text("sealed-bounty-v21.yml")).services["sealed-bounty"]!;
     expect(checkComposes(load(text(COMPOSE_FILES.liar), text(COMPOSE_FILES.honest)), stack)).toBe(p2.image);
     const tpl = (t: string) => t.replaceAll(DIGEST, "__BOUNTY_IMAGE__");

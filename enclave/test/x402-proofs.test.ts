@@ -1,5 +1,5 @@
 /**
- * The skeptical verifier's proofs (9 Nov) on the x402 rail, TURNED AROUND: each proven flaw becomes here a test of good
+ * The skeptical verifier's proofs (14 Nov) on the x402 rail, TURNED AROUND: each proven flaw becomes here a test of good
  * behavior. The same harness as x402-e2e (an emulated chain, the REAL SDK client, the enclave's REAL application, the
  * registrar's REAL settlement queue).
  *  1. a fake "price changed" 402 after the service → the client sends the IDENTICAL request again (resumption), one
@@ -333,7 +333,7 @@ describe("x402: a proxy after the paid send (proofs 1 and 2, turned around)", ()
       return res;
     }) as typeof fetch;
     const ai = createX402Client({ enclaveUrl: URL0, productId: PRODUCT, walletClient: wallet, publicClient: fakePub(w), deployment: D, fetch: relay, paidRetryDelaysMs: FAST });
-    // evening of 9 Nov (proof E3): a price raised above the call's cap (the price read at its start) is NOT signed on its own
+    // evening of 14 Nov (proof E3): a price raised above the call's cap (the price read at its start) is NOT signed on its own
     const err = await ai.chat.completions.create({ messages: [{ role: "user", content: "price" }] }).catch((x) => x);
     expect(err).toBeInstanceOf(X402PaidCallError);
     expect(err.code).toBe("price_increased");
@@ -506,7 +506,7 @@ describe("x402: POST /x402/settled restricted to the operator (proof 4, turned a
 describe("x402: unpayable calls and the bond's capacity (proof 5, turned around)", () => {
   it("0.2 USDC rotating between 8 new accounts: 150 unpayable calls NO LONGER block the bond; the honest payer is served at once; the unpaid calls stay listed for the operator", async () => {
     const w = world();
-    // this test is about the bond: 20 pending calls per payer (3 by default since the evening of 9 Nov), an unbounded
+    // this test is about the bond: 20 pending calls per payer (3 by default since the evening of 14 Nov), an unbounded
     // rate of paid reads, balances read again at each of the operator's collections
     const e = enclaveOn(w, { maxPendingPerPayer: 20, paymentReadsPerMinute: 1_000_000, reconcileCacheMs: 0 });
     w.capacity = 1_500_000n; // ½ of a 3 USDC bond
@@ -535,7 +535,7 @@ describe("x402: unpayable calls and the bond's capacity (proof 5, turned around)
     const rep = await q.runOnce();
     expect(rep.settled).toHaveLength(0);
     expect(rep.waiting).toHaveLength(150);
-    // evening of 9 Nov: the operator's collection first reads the balances again (one per pending account, one by one
+    // evening of 14 Nov: the operator's collection first reads the balances again (one per pending account, one by one
     // here): the 150 unpaid calls are "not covered", outside the exposure, listed after the others
     expect(w.reads.payment - readsAtFetch).toBe(8);
     expect(e.gateway.stats()).toMatchObject({ pending: 150, uncovered: 150, exposure: "0" });
@@ -706,12 +706,12 @@ describe("x402: the quorum reader's batched read (pendingState)", () => {
   });
 });
 
-// ---------------------------------------------------------------- the verifier's proofs of the evening of 9 Nov, turned around
+// ---------------------------------------------------------------- the verifier's proofs of the evening of 14 Nov, turned around
 
 // A 60 s timeout per test (not the default 5 s): on a loaded machine, C2 (41 rounds) took more than 5 s; a test abandoned
 // by vitest keeps running in the background, and its vi.setSystemTime moved the frozen clock of the next test (D then
 // counted tokens that had come back: 42 reads instead of 29).
-describe("x402: proofs A, B, C2, D and F of the evening of 9 Nov, turned around", () => {
+describe("x402: proofs A, B, C2, D and F of the evening of 14 Nov, turned around", () => {
   const clientOf =(w: World, e: ReturnType<typeof enclaveOn>, wallet: any, extra: Record<string, unknown> = {}, f?: typeof fetch) =>
     createX402Client({ enclaveUrl: URL0, productId: PRODUCT, walletClient: wallet, publicClient: fakePub(w), deployment: D, fetch: f ?? e.direct, paidRetryDelaysMs: [], ...extra });
   const queueOf = (w: World, e: ReturnType<typeof enclaveOn>) =>

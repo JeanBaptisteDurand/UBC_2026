@@ -5,7 +5,7 @@
  * invariant. Its canonical JSON is hashed (predicateHash) and pinned on-chain: the enclave and the protocol speak of
  * the same predicate, without ambiguity.
  *
- * v2.1 bis (adversarial review of 9 Nov): the DETERMINISTIC RULES of a predicate (validatePredicate), the same as in the
+ * v2.1 bis (adversarial review of 14 Nov): the DETERMINISTIC RULES of a predicate (validatePredicate), the same as in the
  * SDK (packages/sdk/src/predicate.ts):
  *  P1 pure JSON: strings, finite numbers, booleans, null, arrays, plain objects (nothing else);
  *  P2 bounds on the WHOLE predicate, extra fields included (they enter predicateHash): nesting ≤ MAX_DEPTH levels

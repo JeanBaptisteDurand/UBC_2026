@@ -18,7 +18,7 @@
  *    increasing: a receipt is worth at least one unit more than the previous one.
  *  - LAST RECEIPT kept in memory per session (GET /v1/session/:id/receipt): the operator settles it.
  *
- * v2 bis (adversarial review of 7 Nov):
+ * v2 bis (adversarial review of 13 Nov):
  *  - ONE SESSION, ONE ENCLAVE: SessionPay binds each session to the key of ONE enclave (chosen at opening) and pays only
  *    its receipts. BEFORE any call to the model, the gateway refuses (403) a session of another product, bound to
  *    another enclave, of an operator that is not its own (OPERATOR_ALLOWLIST), at price 0, or with another model or

@@ -13,13 +13,13 @@
    { "title": "Now explore", "body": "Click any pod to see the real machine behind it. The ticker lists each event with its transaction on Arc. Replay the history, jump to the lying pod, or open the console to use the services yourself." }
   ],
   "zones": {
-   "pad": { "title": "Landing pad", "body": "Operators land their machines here. Each one is an Intel TDX server that the operator rents out to the network. Before it can earn anything, the operator locks a USDC bond that a proven lie would cost.", "fact": "11 USDC posted as bonds since 9 Nov, 1 USDC seized (Arc testnet)" },
-   "gate": { "title": "The Arc gate", "body": "Every pod passes here before it joins the hive. Its chip signs a quote, and a contract on Arc verifies Intel's signature on it (DCAP). Debug mode, missing security updates, unknown code or an old quote are refused. Pods pass again about every 12 hours.", "fact": "About 0.17 USDC of gas per full check on Arc (README, 12 Nov)" },
+   "pad": { "title": "Landing pad", "body": "Operators land their machines here. Each one is an Intel TDX server that the operator rents out to the network. Before it can earn anything, the operator locks a USDC bond that a proven lie would cost.", "fact": "11 USDC posted as bonds since 14 Nov, 1 USDC seized (Arc testnet)" },
+   "gate": { "title": "The Arc gate", "body": "Every pod passes here before it joins the hive. Its chip signs a quote, and a contract on Arc verifies Intel's signature on it (DCAP). Debug mode, missing security updates, unknown code or an old quote are refused. Pods pass again about every 12 hours.", "fact": "About 0.17 USDC of gas per full check on Arc (README, 17 Nov)" },
    "dish": { "title": "Link to Arc", "body": "Everything that matters is written on Arc: checks, payments, bonds and verdicts. Arc adds a block about every half second, and a payment is final in the block that holds it. The board counts Arc's blocks.", "fact": "Arc testnet, chain 5042002" },
-   "hive": { "title": "The hive", "body": "Each hexagon is one pod, a sealed machine with its own key. Green pods passed the gate and can serve. Grey pods are history: their code was retired or their check expired. The red one was caught lying.", "fact": "15 pods registered since 9 Nov, 5 live on 12 Nov" },
-   "layers": { "title": "Three layers from Arc", "body": "The enclave registry lists every pod that passed the gate. The product contract fixes each service's code fingerprint, price and revenue split, and changes wait out a delay. The operator's bond makes a proven lie cost money.", "fact": "Verdicts go to Circle's ERC-8004 registry on Arc: 3 written by 12 Nov" },
-   "dock": { "title": "The client dock", "body": "Clients come here to use a service. The app checks the pod's key on Arc, seals the request to it, and a rover carries it. The signed answer comes back the same way. You pay per use in USDC, per call with x402 or from a prepaid session.", "fact": "5 paid calls and 1 session, 0.1494 USDC paid to operators by 12 Nov (team wallets, testnet prices)" },
-   "lab": { "title": "The robot notary's lab", "body": "For a Sealed Bounty, a protocol funds a pool. A hunter's exploit is replayed inside a pod on a fork of Arc, and the hunter is paid in the same flow if the loss is real. Other operators can replay a claim to refute it within 3 days.", "fact": "1 bounty paid 0.5 USDC on 9 Nov, 1 lying claim refuted on 10 Nov" }
+   "hive": { "title": "The hive", "body": "Each hexagon is one pod, a sealed machine with its own key. Green pods passed the gate and can serve. Grey pods are history: their code was retired or their check expired. The red one was caught lying.", "fact": "15 pods registered since 14 Nov, 5 live on 17 Nov" },
+   "layers": { "title": "Three layers from Arc", "body": "The enclave registry lists every pod that passed the gate. The product contract fixes each service's code fingerprint, price and revenue split, and changes wait out a delay. The operator's bond makes a proven lie cost money.", "fact": "Verdicts go to Circle's ERC-8004 registry on Arc: 3 written by 17 Nov" },
+   "dock": { "title": "The client dock", "body": "Clients come here to use a service. The app checks the pod's key on Arc, seals the request to it, and a rover carries it. The signed answer comes back the same way. You pay per use in USDC, per call with x402 or from a prepaid session.", "fact": "5 paid calls and 1 session, 0.1494 USDC paid to operators by 17 Nov (team wallets, testnet prices)" },
+   "lab": { "title": "The robot notary's lab", "body": "For a Sealed Bounty, a protocol funds a pool. A hunter's exploit is replayed inside a pod on a fork of Arc, and the hunter is paid in the same flow if the loss is real. Other operators can replay a claim to refute it within 3 days.", "fact": "1 bounty paid 0.5 USDC on 14 Nov, 1 lying claim refuted on 15 Nov" }
   },
   "legend": {
    "title": "Reading the base",
@@ -48,15 +48,15 @@
    "statuses": { "live": "Live", "session": "In a session", "checking": "Being checked", "fault": "Caught lying", "retired": "Retired", "expired": "Check expired", "empty": "Open socket" },
    "checked": "Last checked on Arc", "valid": "Check valid until", "renewals": "Checks on Arc", "fingerprint": "Code fingerprint", "machine": "Machine chip", "explorer": "See it on the Arc explorer",
    "sealed": "Nobody can look inside this pod, its owner included. Intel TDX encrypts its memory, and only its own key opens what clients send it.",
-   "liar": "On 10 Nov this demo pod signed a false claim. Two other operators replayed it, the claim was refuted and its bond seized."
+   "liar": "On 15 Nov this demo pod signed a false claim. Two other operators replayed it, the claim was refuted and its bond seized."
   },
   "products": {
    "1": { "name": "Private AI inference", "short": "AI sessions", "how": "Prepaid session in USDC, billed per unit of text (0.0001 USDC on testnet)." },
    "2": { "name": "Sealed Bounty", "short": "Bounty", "how": "Paid from the protocol's bounty pool when a replayed exploit proves a real loss." },
    "3": { "name": "Pay-per-call AI (x402)", "short": "x402 calls", "how": "One signature pays one call, 0.01 USDC on testnet, settled on Arc." },
    "4": { "name": "Attested copilot", "short": "Copilot", "how": "The console's free assistant, running in its own pod." },
-   "5": { "name": "Refutation demo bounty", "short": "Demo bounty", "how": "A test bounty used on 10 Nov to show how a lying pod is caught." },
-   "6": { "name": "Verified Sealed Bounty (retired)", "short": "Retired bounty", "how": "Replaced by product 7 on 11 Nov after a security fix." },
+   "5": { "name": "Refutation demo bounty", "short": "Demo bounty", "how": "A test bounty used on 15 Nov to show how a lying pod is caught." },
+   "6": { "name": "Verified Sealed Bounty (retired)", "short": "Retired bounty", "how": "Replaced by product 7 on 16 Nov after a security fix." },
    "7": { "name": "Sealed Bounty, verified level", "short": "Verified bounty", "how": "Only pods on a chip and datacenter verified on Arc may serve it." }
   },
   "events": {
@@ -96,26 +96,26 @@
    "policy": "A product now requires the verified level"
   },
   "acts": [
-   { "title": "Network opens", "story": "9 Nov. The contracts are wired, the operator locks an 8 USDC bond and four products go live." },
+   { "title": "Network opens", "story": "14 Nov. The contracts are wired, the operator locks an 8 USDC bond and four products go live." },
    { "title": "First paid work", "story": "Pods pass the gate, paid calls settle, a session runs and a hunter is paid 0.5 USDC for a real exploit." },
-   { "title": "A lying pod is caught", "story": "10 Nov. A demo pod files a false claim. Two honest replays refute it and its 1 USDC bond is seized." },
+   { "title": "A lying pod is caught", "story": "15 Nov. A demo pod files a false claim. Two honest replays refute it and its 1 USDC bond is seized." },
    { "title": "The verified level", "story": "New code for three products, pods checked again, and the machine's datacenter declared on Arc by Proof of Cloud." },
-   { "title": "Product 7", "story": "11 Nov. A Sealed Bounty that only verified pods may serve, with a 1 USDC pool." },
+   { "title": "Product 7", "story": "16 Nov. A Sealed Bounty that only verified pods may serve, with a 1 USDC pool." },
    { "title": "Steady state", "story": "Since then, each live pod is checked again on Arc about every 12 hours." }
   ],
   "about": {
    "title": "About the data",
    "paras": [
-    "Everything you see comes from ArcHive on Arc testnet, read from its public API and the Arc explorer on 12 Nov 2026 at 23:40 UTC.",
-    "The replay plays the 261 events recorded on Arc between 9 and 12 Nov, in order and faster than real time. Idle hours are skipped. The ticker links each event to its transaction.",
-    "The page reads the live API and shows the network as it is now. When the API cannot be reached, it shows the state of 12 Nov.",
+    "Everything you see comes from ArcHive on Arc testnet, read from its public API and the Arc explorer on 17 Nov 2026 at 23:40 UTC.",
+    "The replay plays the 261 events recorded on Arc between 14 and 17 Nov, in order and faster than real time. Idle hours are skipped. The ticker links each event to its transaction.",
+    "The page reads the live API and shows the network as it is now. When the API cannot be reached, it shows the state of 17 Nov.",
     "This is a testnet built by the ArcHive team. All operators so far, including the three demo identities of the refutation demo, are the team's, and so are the paying wallets. Prices are set high so every payment shows on the explorer.",
     "Colours show what the chain records: passed checks, sessions, refuted claims. They say nothing more about whether a machine is up.",
     "3D models: Kenney's Space Kit and Mini Characters (CC0)."
    ]
   },
   "settings": { "title": "Settings", "language": "Language", "pace": "Replay speed", "mode": "Show", "modeLive": "Live network", "modeReplay": "Replay the history", "modeHint": "Live mode reads the ArcHive API every 20 seconds.", "motion": "Motion", "motionHint": "", "follow": "Camera follows the action", "on": "On", "off": "Off", "jump": "Jump to a moment of the history" },
-  "toasts": { "replayStart": "Replaying the network's real history, faster", "replayEnd": "Replay finished. This is the latest known state.", "liveOn": "Live data on", "liveOff": "Live data off", "follow": "The camera follows the action", "followDone": "", "noLive": "Live data cannot be reached right now. Showing the state of 12 Nov." },
+  "toasts": { "replayStart": "Replaying the network's real history, faster", "replayEnd": "Replay finished. This is the latest known state.", "liveOn": "Live data on", "liveOff": "Live data off", "follow": "The camera follows the action", "followDone": "", "noLive": "Live data cannot be reached right now. Showing the state of 17 Nov." },
   "errors": { "models": "The base could not load its 3D models.", "live": "Reload the page to try again." },
   "ticker": { "title": "On Arc", "empty": "Events appear here as they happen." }
  },
@@ -133,13 +133,13 @@
    { "title": "À vous d'explorer", "body": "Cliquez sur un module pour voir la vraie machine qui se trouve derrière. Le fil liste chaque événement avec sa transaction sur Arc. Rejouez l'histoire, allez voir le module menteur, ou ouvrez la console pour utiliser les services." }
   ],
   "zones": {
-   "pad": { "title": "Piste d'atterrissage", "body": "Les opérateurs posent ici leurs machines. Chacune est un serveur Intel TDX que l'opérateur loue au réseau. Avant de gagner quoi que ce soit, l'opérateur bloque une caution en USDC, qu'un mensonge prouvé lui ferait perdre.", "fact": "11 USDC de cautions déposées depuis le 9 nov., 1 USDC saisi (Arc testnet)" },
-   "gate": { "title": "Le portique d'Arc", "body": "Chaque module passe ici avant d'entrer dans la ruche. Sa puce signe une attestation, et un contrat sur Arc vérifie la signature d'Intel (DCAP). Mode debug, mises à jour de sécurité manquantes, code inconnu ou attestation trop vieille : refusé. Les modules repassent environ toutes les 12 heures.", "fact": "Environ 0,17 USDC de gaz par vérification complète sur Arc (README, 12 nov.)" },
+   "pad": { "title": "Piste d'atterrissage", "body": "Les opérateurs posent ici leurs machines. Chacune est un serveur Intel TDX que l'opérateur loue au réseau. Avant de gagner quoi que ce soit, l'opérateur bloque une caution en USDC, qu'un mensonge prouvé lui ferait perdre.", "fact": "11 USDC de cautions déposées depuis le 14 nov., 1 USDC saisi (Arc testnet)" },
+   "gate": { "title": "Le portique d'Arc", "body": "Chaque module passe ici avant d'entrer dans la ruche. Sa puce signe une attestation, et un contrat sur Arc vérifie la signature d'Intel (DCAP). Mode debug, mises à jour de sécurité manquantes, code inconnu ou attestation trop vieille : refusé. Les modules repassent environ toutes les 12 heures.", "fact": "Environ 0,17 USDC de gaz par vérification complète sur Arc (README, 17 nov.)" },
    "dish": { "title": "Le lien avec Arc", "body": "Tout ce qui compte est écrit sur Arc : vérifications, paiements, cautions et verdicts. Arc ajoute un bloc environ toutes les demi-secondes, et un paiement est définitif dans le bloc qui le contient. Le panneau compte les blocs d'Arc.", "fact": "Arc testnet, chaîne 5042002" },
-   "hive": { "title": "La ruche", "body": "Chaque hexagone est un module, une machine scellée avec sa propre clé. Les verts ont passé le portique et peuvent servir. Les gris appartiennent à l'histoire : leur code a été retiré ou leur vérification a expiré. Le rouge a été pris à mentir.", "fact": "15 modules inscrits depuis le 9 nov., 5 en service le 12 nov." },
-   "layers": { "title": "Trois couches venues d'Arc", "body": "Le registre des enclaves liste chaque module admis. Le contrat du produit fixe l'empreinte du code, le prix et le partage des revenus de chaque service, et tout changement attend un délai. La caution de l'opérateur fait payer un mensonge prouvé.", "fact": "Les verdicts vont au registre ERC-8004 de Circle sur Arc : 3 écrits au 12 nov." },
-   "dock": { "title": "Le quai des clients", "body": "Les clients viennent ici utiliser un service. L'application vérifie la clé du module sur Arc, scelle la requête pour lui, et un rover la transporte. La réponse signée revient par le même chemin. Vous payez à l'usage en USDC, à l'appel avec x402 ou depuis une session prépayée.", "fact": "5 appels payés et 1 session, 0,1494 USDC versés aux opérateurs au 12 nov. (portefeuilles de l'équipe, prix de testnet)" },
-   "lab": { "title": "Le labo du notaire-robot", "body": "Pour une Prime scellée, un protocole finance une cagnotte. L'exploit d'un chasseur est rejoué dans un module, sur une copie d'Arc, et le chasseur est payé dans la foulée si la perte est réelle. D'autres opérateurs peuvent rejouer une réclamation pour la réfuter pendant 3 jours.", "fact": "1 prime payée 0,5 USDC le 9 nov., 1 réclamation mensongère réfutée le 10 nov." }
+   "hive": { "title": "La ruche", "body": "Chaque hexagone est un module, une machine scellée avec sa propre clé. Les verts ont passé le portique et peuvent servir. Les gris appartiennent à l'histoire : leur code a été retiré ou leur vérification a expiré. Le rouge a été pris à mentir.", "fact": "15 modules inscrits depuis le 14 nov., 5 en service le 17 nov." },
+   "layers": { "title": "Trois couches venues d'Arc", "body": "Le registre des enclaves liste chaque module admis. Le contrat du produit fixe l'empreinte du code, le prix et le partage des revenus de chaque service, et tout changement attend un délai. La caution de l'opérateur fait payer un mensonge prouvé.", "fact": "Les verdicts vont au registre ERC-8004 de Circle sur Arc : 3 écrits au 17 nov." },
+   "dock": { "title": "Le quai des clients", "body": "Les clients viennent ici utiliser un service. L'application vérifie la clé du module sur Arc, scelle la requête pour lui, et un rover la transporte. La réponse signée revient par le même chemin. Vous payez à l'usage en USDC, à l'appel avec x402 ou depuis une session prépayée.", "fact": "5 appels payés et 1 session, 0,1494 USDC versés aux opérateurs au 17 nov. (portefeuilles de l'équipe, prix de testnet)" },
+   "lab": { "title": "Le labo du notaire-robot", "body": "Pour une Prime scellée, un protocole finance une cagnotte. L'exploit d'un chasseur est rejoué dans un module, sur une copie d'Arc, et le chasseur est payé dans la foulée si la perte est réelle. D'autres opérateurs peuvent rejouer une réclamation pour la réfuter pendant 3 jours.", "fact": "1 prime payée 0,5 USDC le 14 nov., 1 réclamation mensongère réfutée le 15 nov." }
   },
   "legend": {
    "title": "Lire la base",
@@ -168,15 +168,15 @@
    "statuses": { "live": "En service", "session": "En session", "checking": "En vérification", "fault": "Pris à mentir", "retired": "Retiré", "expired": "Vérification expirée", "empty": "Emplacement libre" },
    "checked": "Dernière vérification sur Arc", "valid": "Vérification valable jusqu'au", "renewals": "Vérifications sur Arc", "fingerprint": "Empreinte du code", "machine": "Puce de la machine", "explorer": "Voir sur l'explorateur d'Arc",
    "sealed": "Personne ne peut regarder dans ce module, pas même son propriétaire. Intel TDX chiffre sa mémoire, et seule sa clé ouvre ce que les clients lui envoient.",
-   "liar": "Le 10 nov., ce module de démonstration a signé une fausse réclamation. Deux autres opérateurs l'ont rejouée, elle a été réfutée et sa caution saisie."
+   "liar": "Le 15 nov., ce module de démonstration a signé une fausse réclamation. Deux autres opérateurs l'ont rejouée, elle a été réfutée et sa caution saisie."
   },
   "products": {
    "1": { "name": "Inférence d'IA privée", "short": "Sessions IA", "how": "Session prépayée en USDC, facturée à l'unité de texte (0,0001 USDC en testnet)." },
    "2": { "name": "Prime scellée", "short": "Prime", "how": "Payée par la cagnotte du protocole quand un exploit rejoué prouve une vraie perte." },
    "3": { "name": "IA à l'appel (x402)", "short": "Appels x402", "how": "Une signature paie un appel, 0,01 USDC en testnet, réglé sur Arc." },
    "4": { "name": "Copilote attesté", "short": "Copilote", "how": "L'assistant gratuit de la console, dans son propre module." },
-   "5": { "name": "Prime de démonstration", "short": "Prime démo", "how": "Une prime de test, utilisée le 10 nov. pour montrer comment un module menteur est démasqué." },
-   "6": { "name": "Prime scellée vérifiée (retirée)", "short": "Prime retirée", "how": "Remplacée par le produit 7 le 11 nov., après un correctif de sécurité." },
+   "5": { "name": "Prime de démonstration", "short": "Prime démo", "how": "Une prime de test, utilisée le 15 nov. pour montrer comment un module menteur est démasqué." },
+   "6": { "name": "Prime scellée vérifiée (retirée)", "short": "Prime retirée", "how": "Remplacée par le produit 7 le 16 nov., après un correctif de sécurité." },
    "7": { "name": "Prime scellée, niveau vérifié", "short": "Prime vérifiée", "how": "Seuls les modules sur une puce et un datacenter vérifiés sur Arc peuvent la servir." }
   },
   "events": {
@@ -216,26 +216,26 @@
    "policy": "Un produit exige désormais le niveau vérifié"
   },
   "acts": [
-   { "title": "Ouverture du réseau", "story": "9 nov. Les contrats sont reliés, l'opérateur bloque 8 USDC de caution et quatre produits ouvrent." },
+   { "title": "Ouverture du réseau", "story": "14 nov. Les contrats sont reliés, l'opérateur bloque 8 USDC de caution et quatre produits ouvrent." },
    { "title": "Premier travail payé", "story": "Des modules passent le portique, des appels sont payés, une session tourne et un chasseur touche 0,5 USDC pour un vrai exploit." },
-   { "title": "Un module menteur démasqué", "story": "10 nov. Un module de démonstration dépose une fausse réclamation. Deux rejeux honnêtes la réfutent et sa caution de 1 USDC est saisie." },
+   { "title": "Un module menteur démasqué", "story": "15 nov. Un module de démonstration dépose une fausse réclamation. Deux rejeux honnêtes la réfutent et sa caution de 1 USDC est saisie." },
    { "title": "Le niveau vérifié", "story": "Nouveau code pour trois produits, modules revérifiés, et le datacenter de la machine déclaré sur Arc par Proof of Cloud." },
-   { "title": "Produit 7", "story": "11 nov. Une Prime scellée que seuls les modules vérifiés peuvent servir, avec une cagnotte de 1 USDC." },
+   { "title": "Produit 7", "story": "16 nov. Une Prime scellée que seuls les modules vérifiés peuvent servir, avec une cagnotte de 1 USDC." },
    { "title": "Régime de croisière", "story": "Depuis, chaque module en service est revérifié sur Arc environ toutes les 12 heures." }
   ],
   "about": {
    "title": "D'où viennent les données",
    "paras": [
-    "Tout ce que vous voyez vient d'ArcHive sur Arc testnet, lu dans son API publique et dans l'explorateur d'Arc le 12 nov. 2026 à 23 h 40 UTC.",
-    "Le rejeu joue dans l'ordre les 261 événements inscrits sur Arc du 9 au 12 nov., plus vite que le temps réel. Les heures creuses sont sautées. Le fil relie chaque événement à sa transaction.",
-    "La page lit l'API en direct et montre le réseau tel qu'il est. Si l'API ne répond pas, elle montre l'état du 12 nov.",
+    "Tout ce que vous voyez vient d'ArcHive sur Arc testnet, lu dans son API publique et dans l'explorateur d'Arc le 17 nov. 2026 à 23 h 40 UTC.",
+    "Le rejeu joue dans l'ordre les 261 événements inscrits sur Arc du 14 au 17 nov., plus vite que le temps réel. Les heures creuses sont sautées. Le fil relie chaque événement à sa transaction.",
+    "La page lit l'API en direct et montre le réseau tel qu'il est. Si l'API ne répond pas, elle montre l'état du 17 nov.",
     "C'est un testnet construit par l'équipe ArcHive. Tous les opérateurs à ce jour, y compris les trois identités de la démonstration de réfutation, appartiennent à l'équipe, tout comme les portefeuilles payeurs. Les prix sont volontairement élevés pour que chaque paiement apparaisse dans l'explorateur.",
     "Les couleurs montrent ce que la chaîne enregistre : vérifications passées, sessions, réclamations réfutées. Elles ne disent rien de plus sur la disponibilité des machines.",
     "Modèles 3D : Space Kit et Mini Characters de Kenney (CC0)."
    ]
   },
   "settings": { "title": "Réglages", "language": "Langue", "pace": "Vitesse du rejeu", "mode": "Afficher", "modeLive": "Le réseau en direct", "modeReplay": "Rejouer l'histoire", "modeHint": "Le direct lit l'API d'ArcHive toutes les 20 secondes.", "motion": "Animations", "motionHint": "", "follow": "La caméra suit l'action", "on": "Oui", "off": "Non", "jump": "Aller à un moment de l'histoire" },
-  "toasts": { "replayStart": "Rejeu de la vraie histoire du réseau, en accéléré", "replayEnd": "Rejeu terminé. Voici le dernier état connu.", "liveOn": "Données en direct activées", "liveOff": "Données en direct coupées", "follow": "La caméra suit l'action", "followDone": "", "noLive": "Le direct est injoignable pour le moment. État affiché : 12 nov." },
+  "toasts": { "replayStart": "Rejeu de la vraie histoire du réseau, en accéléré", "replayEnd": "Rejeu terminé. Voici le dernier état connu.", "liveOn": "Données en direct activées", "liveOff": "Données en direct coupées", "follow": "La caméra suit l'action", "followDone": "", "noLive": "Le direct est injoignable pour le moment. État affiché : 17 nov." },
   "errors": { "models": "La base n'a pas pu charger ses modèles 3D.", "live": "Rechargez la page pour réessayer." },
   "ticker": { "title": "Sur Arc", "empty": "Les événements s'affichent ici au fil de l'eau." }
  }

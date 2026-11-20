@@ -28,20 +28,20 @@ machine is untouched. Pinning the chip to an inspected datacenter closes that ga
 
 **Proof, on-chain:**
 
-- **`MachineRegistry` was created** on 10 Nov 2026 at 23:00 UTC, in
+- **`MachineRegistry` was created** on 15 Nov 2026 at 23:00 UTC, in
   [`0xe043c341…`](https://explorer.testnet.arc.io/tx/0xe043c341b4760b7f7fcd251f1fa7a858ae40b1bd75e0dd4c7dacc91f6f9798e4).
 - **The five live enclaves are bound to their machine**: products 1, 2, 3 and 7, and AskHive (product 4). For example:
   - product 3's enclave in [`0xf3ed752c…`](https://explorer.testnet.arc.io/tx/0xf3ed752c6df5a9cb2b5325764ce8ef72fc9526664d989d3e2e3ebf04bc866794) (19 Nov, 00:55 UTC);
   - product 7's in [`0xe6ceda4c…`](https://explorer.testnet.arc.io/tx/0xe6ceda4c5ed7240064b2ae223b7c601954e80407aa2b99c37036abe3cc6c51e8) (19 Nov, 01:02 UTC);
   - AskHive's in [`0x469706cb…`](https://explorer.testnet.arc.io/tx/0x469706cb81f090b0205c52a20f7739af3d544a8f869f2d0fd09bb8816312111c) (19 Nov, 22:38 UTC);
-  - an earlier binding, on 11 Nov at 17:34 UTC: [`0xd6928088…`](https://explorer.testnet.arc.io/tx/0xd6928088d90f8bbc2585d04564c4a574312593f3f19792a1cdbf819437bb5f4f).
+  - an earlier binding, on 16 Nov at 17:34 UTC: [`0xd6928088…`](https://explorer.testnet.arc.io/tx/0xd6928088d90f8bbc2585d04564c4a574312593f3f19792a1cdbf819437bb5f4f).
 
   All five run on the same Phala machine: PPID `62d54040cb9dfc08bb13006fa75ece56`, FMSPC `20a06f000000`, issued by
   "Intel SGX PCK Platform CA".
 - **The Proof of Cloud alliance declared that machine.** `ProofOfCloudAuditor` verified on-chain a token co-signed by
   the trust servers of Secret, Nillion and iExec, in
   [`0x3e2aa322…`](https://explorer.testnet.arc.io/tx/0x3e2aa32251a7a7cfa7ee69c3fa653cac6dd4272db2ae92d1b4ed760178fdcd35)
-  (10 Nov, 23:01 UTC, 5,163,166 gas), and again in
+  (15 Nov, 23:01 UTC, 5,163,166 gas), and again in
   [`0x38c587ae…`](https://explorer.testnet.arc.io/tx/0x38c587aefb3d325383f471be5f6f359dd40123b4c57ce259b0c0bd96987b1e83)
   (19 Nov, 00:56 UTC). The machine is declared until 26 Nov.
 - **The five enclaves are at the verified level.** Anyone can check with `arcvault operator level --signer <key>` or
@@ -49,7 +49,7 @@ machine is untouched. Pinning the chip to an inspected datacenter closes that ga
 - **Product 7, "Sealed Bounty, verified operator level"**, is the first product that *requires* the verified level:
   - its policy is level 1, with `ProofOfCloudAuditor` as the auditor: proposed in
     [`0xac310659…`](https://explorer.testnet.arc.io/tx/0xac31065911dd45ba8e1298448e48337b454f193b33d9e23993c70d4d587c3070),
-    applied in [`0x12591911…`](https://explorer.testnet.arc.io/tx/0x125919112a377807014116791c46d256e1346531b0daa87f3b0e9a96d789d079) (11 Nov, 17:33 UTC);
+    applied in [`0x12591911…`](https://explorer.testnet.arc.io/tx/0x125919112a377807014116791c46d256e1346531b0daa87f3b0e9a96d789d079) (16 Nov, 17:33 UTC);
   - its enclave runs in its own Intel TDX VM on the declared machine (Phala `prod9`). DCAP admitted it in
     [`0xf18cb68f…`](https://explorer.testnet.arc.io/tx/0xf18cb68f068e5cfaa993a67da2fd98f4c5d73123460533d0901052b06d166a2c) (19 Nov, 01:02 UTC),
     and it was bound to its machine in [`0xe6ceda4c…`](https://explorer.testnet.arc.io/tx/0xe6ceda4c5ed7240064b2ae223b7c601954e80407aa2b99c37036abe3cc6c51e8);
@@ -79,7 +79,7 @@ arcvault operator level --signer <enclave key> --product <id>
 ```
 
 - **Is your machine on the list?** The alliance only issues a token for a listed machine that has not been revoked.
-  Phala Cloud machines are on the list (verified on 10 Nov). For your own hardware, see
+  Phala Cloud machines are on the list (verified on 15 Nov). For your own hardware, see
   [proofofcloud.org](https://proofofcloud.org) and its inspection ceremonies.
 - **The registrar keeps the level for you.** Every renewal changes the quote, and a stale binding drops the enclave
   back to the open level. The registrar re-binds right after each renewal. It also requests a fresh alliance token

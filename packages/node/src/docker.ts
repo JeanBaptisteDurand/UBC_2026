@@ -184,7 +184,7 @@ export function mergeLogLines(groups: LogLine[][], max: number): LogLine[] {
   return all.slice(-max).map((x) => x.l);
 }
 
-/** "2026-11-07T01:03:50Z message", truncated for the API (500 characters at most per line) */
+/** "2026-11-13T01:03:50Z message", truncated for the API (500 characters at most per line) */
 export function formatLogLine(l: LogLine): string {
   const stamp = l.ts > 0 ? new Date(l.ts).toISOString().slice(0, 19) + "Z " : "";
   return (stamp + l.text).slice(0, 400);

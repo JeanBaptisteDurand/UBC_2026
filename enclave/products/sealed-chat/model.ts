@@ -3,7 +3,7 @@
  * confidential inference in a TEE) if a key is given, otherwise a local fake model (development: its fingerprint,
  * keccak256("mock-echo-model"), is no real product's).
  *
- * 9 Nov (verifier): an upstream error NEVER surfaces its body. A provider can copy the key it received into it
+ * 14 Nov (verifier): an upstream error NEVER surfaces its body. A provider can copy the key it received into it
  * ("Invalid API key provided: …"), and Hono's default error handler logged the thrown message (`redpill 401: <body>`)
  * into the CVM's logs, which can be public. The body is dropped without being read; only the HTTP code surfaces
  * (UpstreamModelError), and app.ts answers with a generic message and a code.

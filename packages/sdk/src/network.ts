@@ -61,7 +61,7 @@ export interface Deployment {
   };
 }
 
-/** The v2.1 stack on Arc testnet (deployments.v21.testnet.json, deployed on 2026-11-09, block 71481927): as v2 (registry
+/** The v2.1 stack on Arc testnet (deployments.v21.testnet.json, deployed on 2026-11-14, block 71481927): as v2 (registry
  *  wired to the REAL DCAP module, REQUIRE_SEPT_VE, timelock 0 on testnet), plus the IMAGE id from an on-chain replay of
  *  dstack's RTMR3 event log (stable across restarts), ERC-8004 verdicts bound to the contract and salted, and
  *  pay-per-call inference (x402, product 3). The attested copilot is product 4 (no settlement). */

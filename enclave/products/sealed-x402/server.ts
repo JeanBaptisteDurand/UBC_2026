@@ -39,7 +39,7 @@ async function main() {
   // refuses to serve if they differ. Without an upstream key: a fake model, with a different fingerprint.
   const modelId = cfg.redpill.apiKey ? cfg.redpill.model : MOCK_MODEL_ID;
   const modelHash = keccak256(toBytes(modelId));
-  // 11 Nov: MODEL_ATTESTATION=aci (measured): the model gateway is VERIFIED, TLS pinned, receipts required (model-attestation.ts)
+  // 16 Nov: MODEL_ATTESTATION=aci (measured): the model gateway is VERIFIED, TLS pinned, receipts required (model-attestation.ts)
   const modelAttestation = process.env.MODEL_ATTESTATION?.trim() || "none";
   let attested: AttestedModel | undefined;
   if (modelAttestation === "aci") {

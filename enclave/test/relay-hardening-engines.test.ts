@@ -1,6 +1,6 @@
 /**
  * Sealed Bounty v2.1 — the hardened relay with the real engines (anvil; arc-anvil if ARC_ANVIL_BIN), on a local anvil
- * base chain (never Arc). The cases from the relay review of 9 Nov 2026 (r3-1a, r2, r3-1b, poisoned parentHash), replayed
+ * base chain (never Arc). The cases from the relay review of 14 Nov 2026 (r3-1a, r2, r3-1b, poisoned parentHash), replayed
  * end to end: BountyService.submit → AnvilForkRunner → strict relay → the fork's lying RPC (a proxy) → base chain.
  *  - r3-1a: a block N with the same hash but a timestamp shifted by +1,000 s used to get a false claim signed (TIME_COIN
  *    pays if TIMESTAMP > T): now 503, nothing signed; control (headerPolicy "shape", the old contract): signed;

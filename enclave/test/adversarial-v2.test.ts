@@ -1,7 +1,7 @@
 /**
- * ADVERSARIAL review of the v2 enclave (7 Nov 2026), fixed cases (v2 bis). Each "FIXED v2" (the same convention as the
+ * ADVERSARIAL review of the v2 enclave (13 Nov 2026), fixed cases (v2 bis). Each "FIXED v2" (the same convention as the
  * contracts' `test_FIXED_*`) replays the SAME scenario and proves that it no longer passes. Mainnet parameters from
- * F-economie-mainnet-2026-11-07: UNIT_TOKENS=1000, OUT_WEIGHT=4, a price of 200 base units per unit.
+ * F-economie-mainnet-2026-11-13: UNIT_TOKENS=1000, OUT_WEIGHT=4, a price of 200 base units per unit.
  */
 import { describe, it, expect } from "vitest";
 import { type Address, type Hex, keccak256, numberToHex, toBytes, toHex } from "viem";

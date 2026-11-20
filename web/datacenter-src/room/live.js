@@ -64,7 +64,7 @@ const MINOR = ['SettlementAuthorized', 'SettlementProposed', 'CallerProposed', '
 const liveQueue = [];
 let liveBusy = false, livePolling = false, liveStats = null, bootClosed = false, liveBusySince = 0;
 /* the counters of the status bar (net) follow the API as soon as it answers, in the "now" view, whatever is playing:
-   the recorded numbers of 12 Nov never stay under a "live" badge, even while a beat keeps liveBusy set */
+   the recorded numbers of 17 Nov never stay under a "live" badge, even while a beat keeps liveBusy set */
 function applyLiveCounters(S) {
   if (!S) return;
   Object.assign(DATA.stats, S);
@@ -75,7 +75,7 @@ function applyLiveCounters(S) {
     bountyPool: Number(S.bountyPool) / 1e6, bountiesPaid: Number(S.bountiesPaid), bountyPaid: Number(S.bountyPaidUsdc) / 1e6,
   });
 }
-/* a zone's fact read live from the API (the recorded facts date from 12 Nov); empty when the page shows the recorded
+/* a zone's fact read live from the API (the recorded facts date from 17 Nov); empty when the page shows the recorded
    state, and the recorded fact is shown instead */
 function liveZoneFact(zone) {
   const S = liveStats;
@@ -241,7 +241,7 @@ async function refreshLive({ quiet = false } = {}) {
         liveQueue.push(...BEATS.filter((b) => b.idx >= first));
         toast(fresh.length === 1 ? tr('toasts.liveNew1') : tr('toasts.liveNew', { n: fresh.length }));
       } else if (director.mode === 'now' && !liveBusy) {
-        /* joined quietly (on load, or after the API came back): the ticker shows the newest events, not 12 Nov's */
+        /* joined quietly (on load, or after the API came back): the ticker shows the newest events, not 17 Nov's */
         showLatestTicks();
       }
     }

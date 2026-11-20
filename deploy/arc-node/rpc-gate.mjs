@@ -1,6 +1,6 @@
 // rpc-gate.mjs — PUBLIC GATEWAY to the optional Arc node (deploy/arc-node), no dependency (Node 22).
 //
-// Why: Arc's public RPCs serve eth_getProof only at the latest block (checked on 10 Nov 2026); the node
+// Why: Arc's public RPCs serve eth_getProof only at the latest block (checked on 15 Nov 2026); the node
 // (--rpc.eth-proof-window) serves state proofs for recent blocks, for the Sealed Bounty's replay. The node is NOT
 // trusted: the enclave checks every proof against the stateRoot of the anchored header. So the gateway protects only
 // the NODE (abuse, denial of service), not integrity: reads only (closed list of methods), never debug / trace /

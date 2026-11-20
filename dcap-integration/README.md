@@ -31,7 +31,7 @@ git submodule update --init --recursive
 cd evm && forge build
 ```
 
-## On Arc testnet (7 Nov 2026, folder `arc-testnet/`)
+## On Arc testnet (13 Nov 2026, folder `arc-testnet/`)
 
 - **A real quote from a Phala TDX VM.** It is the quote of ArcHive's inference enclave at Phala (FMSPC
   `20A06F000000`, DEBUG = 0). Its REPORTDATA carries ArcHive's binding. Policy P6 binds the chain, the registry, the
@@ -43,13 +43,13 @@ cd evm && forge build
   root. `arc-testnet/README.md` explains how to run it and keep the collateral fresh.
 - **Arc's P-256 precompile (`0x100`)** cuts the cost of the quote's five ECDSA signatures. The whole verification
   takes 5.21 M gas with the precompile, against 6.92 M with a Solidity P-256 verifier (Daimo): −25 %, measured on Arc
-  testnet on 7 Nov 2026. Arc also serves EIP-2935, which policy P7 relies on.
+  testnet on 13 Nov 2026. Arc also serves EIP-2935, which policy P7 relies on.
 
 In production, the live v2.1 stack's `EnclaveRegistry` calls this module (`0x26c1…51ca`, the one deployed in
 `arc-testnet/`) on every enclave registration. Each registration brings a fresh quote: under policy P7, the anchored
 block is less than 8,191 blocks old. One example is tx
 [`0x199c985d…5f33499`](https://explorer.testnet.arc.io/tx/0x199c985dee537cfe2948f6c721ad1bdd448d538ff08bc8e93a79036a25f33499)
-(9 Nov 2026, 6,866,126 gas, RTMR3 replay included). The v3 stack, deployed on Arc testnet, has its own
+(14 Nov 2026, 6,866,126 gas, RTMR3 replay included). The v3 stack, deployed on Arc testnet, has its own
 `TdxAttestationModule` (`0x3275…D491`, `deployments.v3.testnet.json`).
 
 `EnclaveRegistry` checks the policies (`contracts/src/EnclaveRegistry.sol`, checks P1 to P9). This folder names three

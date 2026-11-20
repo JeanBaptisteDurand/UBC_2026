@@ -5,7 +5,7 @@
  * invariant. Its canonical JSON is hashed (predicateHash) and pinned on-chain: the enclave and the protocol talk about
  * the same predicate, with no ambiguity.
  *
- * DETERMINISTIC RULES of a predicate (validatePredicate), added after the adversarial review of 2026-11-09 and the SAME
+ * DETERMINISTIC RULES of a predicate (validatePredicate), added after the adversarial review of 2026-11-14 and the SAME
  * as the enclave's (enclave/src/services/predicate.ts): a predicate the SDK refuses, no enclave will prove; refused
  * HERE, it never reaches createBounty (predicateHash throws):
  *  P1 pure JSON: strings, finite numbers, booleans, null, arrays, plain objects (nothing else);

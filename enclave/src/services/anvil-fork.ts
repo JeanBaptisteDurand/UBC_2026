@@ -14,7 +14,7 @@
  * bundle.payee (impersonated in the fork only). bundle.attackCode, if present, is deployed first from the same address
  * (contract address = getContractAddress(payee, nonce at block N)).
  *
- * v2.1 bis (adversarial review of 9 Nov): THE REPLAY FAILS CLOSED. A replay returns either MEASUREMENTS (deterministic:
+ * v2.1 bis (adversarial review of 14 Nov): THE REPLAY FAILS CLOSED. A replay returns either MEASUREMENTS (deterministic:
  * the same state at block N, the same exploit) or a typed exception, never an invented value:
  *  - ReplayRuleError: a deterministic replay rule is broken (validateBundle: number, size and format of the
  *    transactions, attack code, capital); fixed message;
@@ -24,10 +24,10 @@
  *  Only a DETERMINISTIC EVM revert (JSON-RPC error code 3 "execution reverted", EIP-1474) of a VIEW_CHANGED /
  *  INVARIANT_BROKEN clause read stays a value, under the v0 rule: view = 0, invariant not held. An exceptional EVM halt
  *  (OutOfGas, InvalidFEOpcode…) comes back from anvil with the SAME code -32603 as an outage of the fork's RPC ("failed
- *  to get storage …"): they cannot be told apart, so they fail closed (checked on anvil 1.5.1, on 9 Nov).
+ *  to get storage …"): they cannot be told apart, so they fail closed (checked on anvil 1.5.1, on 14 Nov).
  *  Balance reads (ERC-20, native) fail closed on any error, revert included (unchanged).
  *
- * v2.1 ter (adversarial verification of 9 Nov, proofs verif-failclosed e1, matrices, e7), the STRICT RELAY
+ * v2.1 ter (adversarial verification of 14 Nov, proofs verif-failclosed e1, matrices, e7), the STRICT RELAY
  * (rpc-relay.ts): the engine no longer talks to the fork's RPC but to a local relay that checks the shape of each
  * answer (a block ≤ N that is never null and is tied to the anchor, 32-byte storage, canonical quantities…), refuses
  * any other method and counts the replay's requests (BUDGET, default DEFAULT_MAX_FORK_REQUESTS). The relay remembers
@@ -38,7 +38,7 @@
  * that a block returned as null and a malformed storage answer surface as errors, and that healthy reads pass (a
  * positive check).
  *
- * v2.1 quater (relay verification, evening of 9 Nov: proofs r3-1a, r2, r1-B, r1-E, r1-G), a LYING RPC: the relay BINDS
+ * v2.1 quater (relay verification, evening of 14 Nov: proofs r3-1a, r2, r1-B, r1-E, r1-G), a LYING RPC: the relay BINDS
  * the content of each header to its hash ("arc" policy, the default: 21 Arc header fields required, keccak256(RLP) =
  * hash). With the anchor, the timestamp, the base fee, PREVRANDAO, the miner of block N and BLOCKHASH(N − k) are those
  * of the real chain (before, a block N with the right hash but a shifted timestamp got a false claim signed). The relay
@@ -135,7 +135,7 @@ export interface AnvilForkOptions {
    *  its hash). "shape": TESTS ONLY (a scripted fork RPC with synthetic blocks): the content of the headers is no
    *  longer bound to the anchor (proof r3-1a). */
   headerPolicy?: HeaderPolicy;
-  /** 10 Nov: the RPC for STATE PROOFS (eth_getProof at block N; our Arc node or any other, not trusted). When present,
+  /** 15 Nov: the RPC for STATE PROOFS (eth_getProof at block N; our Arc node or any other, not trusted). When present,
    *  each state read of the replay is proven against the stateRoot of the anchored header N (strict relay, option
    *  stateProofs); a false proof makes the replay fail (nothing is signed), and so does an unavailable proof (fail closed). */
   stateProofsUrl?: string;
@@ -222,7 +222,7 @@ export class AnvilForkRunner implements ForkRunner {
       upstream: this.o.forkUrl, blockN, anchorHash: expectedBlockHash, maxRequests: this.o.maxForkRequests, timeoutMs: RELAY_TIMEOUT_MS, failFast: true,
       headerPolicy: this.o.headerPolicy,
       ...(this.o.stateProofsUrl ? { stateProofs: { upstream: this.o.stateProofsUrl } } : {}),
-      ...(this.engine === "arc" ? { expectedChainId: 5042002 } : {}), // 11 Nov: the replay's CHAINID is pinned (Arc), not a lying RPC's
+      ...(this.engine === "arc" ? { expectedChainId: 5042002 } : {}), // 16 Nov: the replay's CHAINID is pinned (Arc), not a lying RPC's
     });
     let fork: Awaited<ReturnType<AnvilForkRunner["spawnFork"]>> | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;

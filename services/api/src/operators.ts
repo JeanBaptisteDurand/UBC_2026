@@ -540,7 +540,7 @@ const malformed = (part: string, detail: string, params: Params = {}) =>
 function timeLine(line: string, label: string): number {
   const v = line.startsWith(`${label}: `) ? line.slice(label.length + 2) : "";
   const t = RFC3339.test(v) ? Date.parse(v) : NaN;
-  if (!Number.isFinite(t)) throw malformed("time", `line "${label}: <RFC 3339 date>" expected (for example 2026-11-07T18:00:00.000Z)`, { line: label });
+  if (!Number.isFinite(t)) throw malformed("time", `line "${label}: <RFC 3339 date>" expected (for example 2026-11-13T18:00:00.000Z)`, { line: label });
   return t;
 }
 

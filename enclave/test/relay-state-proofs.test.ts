@@ -1,5 +1,5 @@
 /**
- * Strict relay + state proofs (10 Nov 2026): in front of a scripted RPC that serves a real Arc testnet block and its real
+ * Strict relay + state proofs (15 Nov 2026): in front of a scripted RPC that serves a real Arc testnet block and its real
  * proofs (test/fixtures/arc-testnet-state-proofs.json), the relay gives the engine the proven values; every lie about
  * the state (balance, nonce, slot, code, stateRoot) becomes a "state_proof" or "header" violation (nothing is signed),
  * and an unavailable proof (node outside its window) a transient failure (the replay fails closed). Control case:

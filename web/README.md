@@ -107,7 +107,7 @@ The build has three steps:
    (the room and its zones, the characters, their choreography, the live feed, the archive) and applies the room's
    patches. Each patch checks that its text is still there.
 2. `copy_room.py` writes the room's words, in English and French, over the engine's (`base-copy.json`). The words and
-   the recorded network (`hive-data.json`, the state of 12 Nov) go into the page as two JSON blocks.
+   the recorded network (`hive-data.json`, the state of 17 Nov) go into the page as two JSON blocks.
 3. `make_site.py` reshapes the page for the site's strict CSP (`script-src 'self'`). esbuild then bundles its script
    with three.js r160 into one local file, `room.js`.
 

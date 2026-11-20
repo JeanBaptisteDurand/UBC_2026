@@ -145,7 +145,7 @@ const EN = {
   'ev.prod': 'Product updated', 'ev.work': 'Image fingerprint added', 'ev.workRet': 'Image fingerprint retired', 'ev.act': 'Product activated', 'ev.prop': 'Product proposed',
   'd.use': 'Use it', 'd.use.lede': 'Use it from the Network page: it checks the enclave key on Arc, encrypts your request for the enclave alone, and you sign the payment.',
   // the service page's refuted demonstration product and free products
-  'app.st.refuteDemo': 'Bond seized', 'd.state.refuteDemo': 'Not for sale, a demonstration: its enclave was caught lying on 10 November and its operator’s whole bond was seized.', 'd.use.refuteDemo': 'Nothing to buy here: this product is the demonstration of an operator caught lying on 10 November. Its whole bond was seized, and each step is a real transaction on Arc.', 'd.use.lede.free': 'Use it from the Network page: it checks the enclave key on Arc and encrypts your request for the enclave alone.', 'd.use.proof': 'See the proof',
+  'app.st.refuteDemo': 'Bond seized', 'd.state.refuteDemo': 'Not for sale, a demonstration: its enclave was caught lying on 15 November and its operator’s whole bond was seized.', 'd.use.refuteDemo': 'Nothing to buy here: this product is the demonstration of an operator caught lying on 15 November. Its whole bond was seized, and each step is a real transaction on Arc.', 'd.use.lede.free': 'Use it from the Network page: it checks the enclave key on Arc and encrypts your request for the enclave alone.', 'd.use.proof': 'See the proof',
   'd.use.btn': 'Use this service', 'd.dev': 'From code: SDK, CLI and MCP', 'd.none': 'No product has this number.', 'd.none.hint': 'Go back to the catalog and pick a service.',
   'd.reading': 'Reading the service on Arc',
   // ---- demo ----
@@ -229,7 +229,7 @@ const EN = {
   'app.rail.bountyVerified': 'Sealed Bounty pool, verified operators', 'app.rail.refuteDemo': 'Sealed Bounty pool, refutation demo',
   'd.state.superseded': 'Superseded by product #{id}. It stays published on Arc, but it is out of service: its verified tier is switched off.',
   'd.role.refuteDemo': 'Refutation demo. One of its enclaves ran an image built to lie on purpose. Its claim on the bounty was accepted on Arc, then refuted by two honest operators: nothing was paid, the lying operator’s bond was seized and the operator banned.',
-  'd.role.superseded': 'Its settlement contract was neutralized on 10 November (UTC), when our security review hardened the chip reading, and a product’s settlement can never change: the corrected contract serves product #{id}.',
+  'd.role.superseded': 'Its settlement contract was neutralized on 15 November (UTC), when our security review hardened the chip reading, and a product’s settlement can never change: the corrected contract serves product #{id}.',
   'd.role.verified': 'Verified operator tier: its policy on Arc counts only enclaves on machines attested by the Proof of Cloud alliance. Bond seizures on this product apply from {t} UTC.',
   'd.role.open': 'Open product #{id}', 'd.manifest.superseded': 'This address now serves the manifest of product #{id}, which replaced this one.',
   'd.manifest.unread': 'Not checked here: this app keeps no copy of this manifest. Its hash is on Arc.', 'd.use.free': 'This service is free: nothing is paid.',

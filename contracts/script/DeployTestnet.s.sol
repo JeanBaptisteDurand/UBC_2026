@@ -30,7 +30,7 @@ import {DemoVault} from "../src/demo/DemoVault.sol";
 ///                        tdAttributes = 0x10000000). 0 relaxes the policy: use it only on purpose (for example with
 ///                        MOCK_ATTESTATION=1 and simulated measurements without this bit, where tdAttributes = 0)
 ///   VALIDITY_BLOCKS      170,000 (≈ 24 h)   GRACE_BLOCKS         170,000 (≈ 24 h)
-///   BLOCK_TIME_MS        509 (measured on 2026-11-07: 508.95 ms per block over 1,000,000 testnet blocks,
+///   BLOCK_TIME_MS        509 (measured on 2026-11-13: 508.95 ms per block over 1,000,000 testnet blocks,
 ///                        506.7–515.8 ms over each 172,800-block window of the previous 89 days; so
 ///                        170,000 blocks ≈ 24.0–24.4 h on testnet)
 ///

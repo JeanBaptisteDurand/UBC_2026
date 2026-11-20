@@ -110,20 +110,20 @@ test("API refusals: shown in English through their stable code; otherwise the AP
 });
 
 test("the quick tunnel address is read from cloudflared's output", () => {
-  assert.equal(parseTunnelUrl("2026-11-07T10:00:00Z INF |  https://quiet-river-1234.trycloudflare.com   |"), "https://quiet-river-1234.trycloudflare.com");
+  assert.equal(parseTunnelUrl("2026-11-13T10:00:00Z INF |  https://quiet-river-1234.trycloudflare.com   |"), "https://quiet-river-1234.trycloudflare.com");
   assert.equal(parseTunnelUrl('ERR failed to request quick Tunnel: Post "https://api.trycloudflare.com/tunnel"'), null);
   assert.equal(parseTunnelUrl("INF Starting tunnel"), null);
 });
 
 test("logs: stdout and stderr put back in order, even with chunks of different lengths", () => {
-  const so = parseLogLines("2026-11-07T01:03:50.123456789Z a\n2026-11-07T01:03:52Z c\n");
-  const se = parseLogLines("2026-11-07T01:03:50.1234Z b-before-a\n2026-11-07T01:03:51.5Z b\nnext line without a timestamp\n");
+  const so = parseLogLines("2026-11-13T01:03:50.123456789Z a\n2026-11-13T01:03:52Z c\n");
+  const se = parseLogLines("2026-11-13T01:03:50.1234Z b-before-a\n2026-11-13T01:03:51.5Z b\nnext line without a timestamp\n");
   const merged = mergeLogLines([so, se], 100).map((l) => l.text);
   assert.deepEqual(merged, ["b-before-a", "a", "b", "next line without a timestamp", "c"]);
   assert.equal(mergeLogLines([so, se], 2).length, 2);
-  assert.equal(formatLogLine(so[0]!), "2026-11-07T01:03:50Z a");
+  assert.equal(formatLogLine(so[0]!), "2026-11-13T01:03:50Z a");
   assert.ok(formatLogLine({ ts: 0, frac: 0, text: "x".repeat(1000) }).length <= 400);
-  assert.equal(parseLogLines("2026-11-07T01:03:50Z \x1b[32mgreen\x1b[0m")[0]!.text, "green");
+  assert.equal(parseLogLines("2026-11-13T01:03:50Z \x1b[32mgreen\x1b[0m")[0]!.text, "green");
 });
 
 test("docker run: the expected command", () => {

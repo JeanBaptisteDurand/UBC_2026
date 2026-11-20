@@ -33,7 +33,7 @@ contract FixedHistory {
     }
 }
 
-/// @notice The REAL quote and the REAL RTMR3 event log of our inference enclave on Phala (dstack), captured on 2026-11-07
+/// @notice The REAL quote and the REAL RTMR3 event log of our inference enclave on Phala (dstack), captured on 2026-11-13
 ///         (test/vectors/phala-dstack-attest.json: a 5,010-byte TDX v4 quote, an event log of 30 events, 10 of them in
 ///         RTMR3; test/vectors/phala-dstack-eventlog.json). Expected values computed off chain (Python hashlib +
 ///         cast keccak); the quote is bound (REPORTDATA) to the v2 stack on Arc testnet (deployments.v2.testnet.json), product 1.

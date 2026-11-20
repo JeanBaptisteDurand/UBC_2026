@@ -42,7 +42,7 @@ export function mcpDeployment(env: NodeJS.ProcessEnv = process.env): Deployment 
 
 /** The former SealedBountyVerified (product 6), superseded by 0x36a8… (product 7): it no longer settles anything. */
 const SUPERSEDED_SBV = new Set(["0x242ca1c4d0a5a6fe5a806f215ca5f127422364d2"]);
-/** v2.1's SealedBounty, whose product 5 is the refutation demo (10 Nov 2026). On v3, product 5 is the verified level. */
+/** v2.1's SealedBounty, whose product 5 is the refutation demo (15 Nov 2026). On v3, product 5 is the verified level. */
 const REFUTATION_DEMO_SB = "0x182871d34438ab37a7fd4d8689f3e0812e447a9b";
 
 /** A product's settlement label, as the agent should read it: the verified level apart from the open one (product 5 on
@@ -50,8 +50,8 @@ const REFUTATION_DEMO_SB = "0x182871d34438ab37a7fd4d8689f3e0812e447a9b";
 export function productRail(arc: ArcClient, id: string, settlement: string): string {
   const s = String(settlement).toLowerCase();
   if (arc.d.levels && s === arc.d.levels.sealedBountyVerified.toLowerCase()) return "SealedBountyVerified (Sealed Bounty, verified operator level)";
-  if (SUPERSEDED_SBV.has(s)) return "neutralized, replaced by #7 (the former SealedBountyVerified, replaced on 11 Nov 2026: it settles nothing; the verified Sealed Bounty is product 7)";
-  if (id === "5" && s === REFUTATION_DEMO_SB) return "SealedBounty (Sealed Bounty, open level): refutation demo (a lying enclave refuted, its bond slashed, 10 Nov 2026)";
+  if (SUPERSEDED_SBV.has(s)) return "neutralized, replaced by #7 (the former SealedBountyVerified, replaced on 16 Nov 2026: it settles nothing; the verified Sealed Bounty is product 7)";
+  if (id === "5" && s === REFUTATION_DEMO_SB) return "SealedBounty (Sealed Bounty, open level): refutation demo (a lying enclave refuted, its bond slashed, 15 Nov 2026)";
   if (s === arc.d.sealedBounty.toLowerCase()) return "SealedBounty (Sealed Bounty, open level)";
   // the copilot's French rail label (arc-actions.ts, railOf), in English (english.ts)
   return englishValue(railOf(arc, settlement));

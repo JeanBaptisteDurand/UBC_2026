@@ -1,5 +1,5 @@
 {
- "source": "@noble/curves ed25519 (RFC 8032), generated on 2026-11-10; RFC test 1 checked byte for byte",
+ "source": "@noble/curves ed25519 (RFC 8032), generated on 2026-11-15; RFC test 1 checked byte for byte",
  "vectors": [
   {
    "name": "rfc8032-test1",

@@ -11,10 +11,10 @@
  *   MODEL_TIMEOUT_MS, CHECK_PAYER_BALANCE, PAYMENT_READS_PER_MINUTE, PAYMENT_READS_PER_MINUTE_PER_IP, PORT.
  *   (The price is fixed per call and the output-token cap is part of it: an operator must not be able to change it
  *   without changing the image fingerprint.)
- *   9 Nov: AUTH_VALIDITY_SECONDS is 900 by default (instead of 3,600): an unpayable call (balance emptied after the
+ *   14 Nov: AUTH_VALIDITY_SECONDS is 900 by default (instead of 3,600): an unpayable call (balance emptied after the
  *   service) now counts for a quarter of an hour at most; MIN_SETTLE_WINDOW_SECONDS (600) stays compatible. Global
  *   bound: at most MAX_UNSETTLED_PER_WINDOW (300) served and unsettled calls over UNSETTLED_WINDOW_SECONDS (600 s).
- *   Evening of 9 Nov: AUTH_VALIDITY_SECONDS is the MAXIMUM accepted validity (the 402 announces 60 s less, for the
+ *   Evening of 14 Nov: AUTH_VALIDITY_SECONDS is the MAXIMUM accepted validity (the 402 announces 60 s less, for the
  *   clients' clocks); MAX_PENDING_PER_PAYER is 3 by default (instead of 20; a value written in the compose file wins:
  *   write 3 there); PAYMENT_READS_PER_MINUTE (120) and PAYMENT_READS_PER_MINUTE_PER_IP (60) bound the on-chain reads
  *   of paid requests (see src/services/x402-gateway.ts).

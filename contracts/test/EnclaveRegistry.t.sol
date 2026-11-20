@@ -532,7 +532,7 @@ contract EnclaveRegistryTest is Base {
         assertTrue(e.active);
     }
 
-    /// Arc values (measured on 2026-11-07: ≈ 508 ms per block on mainnet and testnet): 170,000 blocks ≈ 24 h.
+    /// Arc values (measured on 2026-11-13: ≈ 508 ms per block on mainnet and testnet): 170,000 blocks ≈ 24 h.
     function test_arcValuesSpan24Hours() public {
         EnclaveRegistry arc = new EnclaveRegistry(
             address(module), address(products), address(bond), true, 170_000, 170_000, 508

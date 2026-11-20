@@ -7,18 +7,18 @@
  *   GET  /v1/models            the model, the price of one call (read on-chain), the settlement
  *   GET  /x402/pending         served, unsettled calls: (receipt, signature, auth) = the arguments of X402Settler.settle;
  *                              public without risk: a settlement can pay only the enclave's operator (and the author,
- *                              the network); the published hashes are salted by the client. Evening of 9 Nov: in pages
+ *                              the network); the published hashes are salted by the client. Evening of 14 Nov: in pages
  *                              (?limit=1..500&offset=N, `total` says how many there are); the payers' balances are read
  *                              again first (at most once every 10 s, bounded budget) and the COVERED calls come first
  *                              (`covered`), the "not covered" ones after
- *   POST /x402/settled         RESTRICTED TO THE OPERATOR (9 Nov): { enclave, productId, issuedAt, ackNonce, items: [{ payer,
+ *   POST /x402/settled         RESTRICTED TO THE OPERATOR (14 Nov): { enclave, productId, issuedAt, ackNonce, items: [{ payer,
  *                              nonce, settled }], signature } signed with EIP-712 by an address of OPERATOR_ALLOWLIST,
  *                              timestamped, single-use, rate-bounded (see src/services/x402-ack.ts); items deduplicated,
  *                              at most one on-chain read per pending key; the ones the chain says are consumed leave the
  *                              queue; only those the operator says were SETTLED through X402Settler (`settled` true) make
  *                              their payer "known". Without a valid signature: 401/403, nothing is read.
  *   + /attest, /pubkeys, /health (kit, src/server/attest-server.ts)
- * The rate of paid requests (evening of 9 Nov): the IP address SEEN by the enclave (the TCP peer) is passed to the
+ * The rate of paid requests (evening of 14 Nov): the IP address SEEN by the enclave (the TCP peer) is passed to the
  * gateway for its per-IP cap; behind the Phala gateway it is the gateway's for everyone (approximate).
  */
 import { Hono, type Context } from "hono";

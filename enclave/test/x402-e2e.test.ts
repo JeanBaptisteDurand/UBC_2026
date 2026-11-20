@@ -313,7 +313,7 @@ describe("x402 end to end: SDK ↔ enclave ↔ emulated X402Settler ↔ settleme
     let signed = 0;
     const counting = { ...wallet, signTypedData: (a: any) => { signed++; return wallet.signTypedData(a); } };
     const ai = createX402Client({ enclaveUrl: URL0, productId: PRODUCT, walletClient: counting, publicClient: fakePub(w), deployment: D, fetch: f, paidRetryDelaysMs: [5, 5, 5] });
-    // evening of 9 Nov (proof E3): never more expensive than the price read at the start of the call without explicit consent
+    // evening of 14 Nov (proof E3): never more expensive than the price read at the start of the call without explicit consent
     const err = await ai.chat.completions.create({ messages: [{ role: "user", content: "a" }] }).catch((x) => x);
     expect(err).toBeInstanceOf(X402PaidCallError);
     expect(err).toMatchObject({ code: "price_increased", newPrice: 20_000n });

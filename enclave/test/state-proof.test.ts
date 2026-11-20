@@ -1,5 +1,5 @@
 /**
- * State proofs (EIP-1186) verified against the stateRoot of a real Arc testnet block (captured on 10 Nov 2026 from
+ * State proofs (EIP-1186) verified against the stateRoot of a real Arc testnet block (captured on 15 Nov 2026 from
  * rpc.blockdaemon.testnet.arc.io, test/fixtures/arc-testnet-state-proofs.json): accounts with and without code, an
  * absent account, zero and non-zero slots, the registry's code; then every way of lying that the check must refuse.
  */

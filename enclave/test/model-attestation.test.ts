@@ -1,9 +1,9 @@
 /**
- * The model provider's attestation (11 Nov 2026): on RedPill's real ACI gateway report (taken on 10 Nov 2026,
+ * The model provider's attestation (16 Nov 2026): on RedPill's real ACI gateway report (taken on 15 Nov 2026,
  * test/fixtures/redpill-aci-report.json), the OS image is read from the RTMR3 event log and must be the production one;
  * an unverified verdict, another image or an ambiguous log makes the gateway refused; the connection is verified again
  * when the identity expires; the public status says what was verified. (The real call, with pinned TLS and a receipt,
- * was tried on 10 Nov 2026 against https://tee.redpill.ai: identity verified, gpt-oss-120b answers.)
+ * was tried on 15 Nov 2026 against https://tee.redpill.ai: identity verified, gpt-oss-120b answers.)
  * Messages that the enclave code prints are matched as it prints them.
  */
 import { readFileSync } from "node:fs";

@@ -17,6 +17,6 @@ its three steps.
 | `room/` | The room's blocks: `world.js` (the room and its zones), `actors.js` (the characters), `choreo.js` (their choreography), `live.js` (the live feed), `archive.js` (Find and each rack's history), `xray.js` (an open cabinet), `hud.js` (keeps the top banner clear of the tools), `extra.js` (the camera's view of each zone) |
 | `make_room.py` | Turns the engine page into the server room: the blocks swapped in, then the room's patches |
 | `copy_room.py` | The room's words, written over the engine's |
-| `hive-data.json` | The recorded network: Arc testnet events, enclaves, products and bounties, as of 12 Nov |
+| `hive-data.json` | The recorded network: Arc testnet events, enclaves, products and bounties, as of 17 Nov |
 | `make_site.py` | Reshapes the page for the site's strict CSP, copies the model packs and writes the credits |
 | `build.sh` | Runs the three steps, checks the result and replaces the output folder |

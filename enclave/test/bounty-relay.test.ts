@@ -1,6 +1,6 @@
 /**
  * Sealed Bounty v2.1 ter: the STRICT RELAY between the replay engine and the fork's RPC (src/services/rpc-relay.ts).
- * Adversarial verification of 9 Nov (cases e1-blockhash-null, matrices, e7-amplification): the engine took INVALID
+ * Adversarial verification of 14 Nov (cases e1-blockhash-null, matrices, e7-amplification): the engine took INVALID
  * answers of the fork's RPC for values (a block returned as null → BLOCKHASH = keccak256(""), "0x" for a storage slot →
  * 0) and the enclave signed. The golden rule: an enclave NEVER signs a result that depends on an outage or an invalid
  * answer of the RPC: 503, nothing signed.
@@ -78,7 +78,7 @@ async function raw(url: string, body: unknown): Promise<any> {
 
 const h32 = (s: string) => keccak256(toBytes(s));
 const N = 100n;
-/** A well-formed block (the 21 Arc header fields, recorded on 9 Nov). v2.1 quater: the relay BINDS the header to its
+/** A well-formed block (the 21 Arc header fields, recorded on 14 Nov). v2.1 quater: the relay BINDS the header to its
  *  hash: `hash` = keccak256(RLP(header)) (blockHeaderHash), recomputed AFTER `o` (a block "from another chain" or with a
  *  wrong number keeps a hash consistent with its content); if `o` makes the header impossible to compute (a field removed), any hash. */
 function blockOf(n: bigint, parentHash: Hex, o: Record<string, unknown> = {}) {

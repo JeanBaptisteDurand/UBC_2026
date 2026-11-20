@@ -4,13 +4,13 @@
   "rpc": "https://rpc.testnet.arc.io",
   "explorer": "https://explorer.testnet.arc.io",
   "version": "2.1",
-  "deployedAt": "2026-11-09",
+  "deployedAt": "2026-11-14",
   "deployBlock": 71481927,
   "deployer": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
   "owner": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
   "treasury": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
   "status": "live: the site, the API and the enclaves use this stack; v3 (deployments.v3.testnet.json) is deployed and not yet switched on",
-  "note": "Stack v2.1, live: the site, the API and the enclaves use it. Hardened by two adversarial reviews (fixes on 9 Nov 2026). Image fingerprint from an on-chain replay of dstack's RTMR3 boot log, stable across restarts; ERC-8004 verdicts bound to the chain and the contract (salted requestHash so no one can pre-register it; VerdictSkipped event; VerdictNotApplicable for a session with no payment; a fault verdict even after close); manifestURI changeable under timelock; onlyAttested primitive (attestedOperator). The registry calls TdxAttestationModule -> Automata DCAP (deployments.dcap.testnet.json). REQUIRE_SEPT_VE = 1; product timelock = 0 on testnet. Deployment: contracts/script/DeployTestnet.s.sol, 10 transactions (deployTxs below), 15,257,922 gas, 0.3814 USDC. 234 tests at deployment; 253 in contracts/test today.",
+  "note": "Stack v2.1, live: the site, the API and the enclaves use it. Hardened by two adversarial reviews (fixes on 14 Nov 2026). Image fingerprint from an on-chain replay of dstack's RTMR3 boot log, stable across restarts; ERC-8004 verdicts bound to the chain and the contract (salted requestHash so no one can pre-register it; VerdictSkipped event; VerdictNotApplicable for a session with no payment; a fault verdict even after close); manifestURI changeable under timelock; onlyAttested primitive (attestedOperator). The registry calls TdxAttestationModule -> Automata DCAP (deployments.dcap.testnet.json). REQUIRE_SEPT_VE = 1; product timelock = 0 on testnet. Deployment: contracts/script/DeployTestnet.s.sol, 10 transactions (deployTxs below), 15,257,922 gas, 0.3814 USDC. 234 tests at deployment; 253 in contracts/test today.",
   "external": {
     "USDC": "0x3600000000000000000000000000000000000000",
     "ERC8004_Validation": "0x8004Cb1BF31DAf7788923b405b754f57acEB4272",
@@ -105,7 +105,7 @@
         "0x48608a43817c99ad4d015690752fbc9531339406b4270c3ca247009fa1bdfaba",
         "0xb1dc250ae7006b7ce4f80c1ceddfa230d0a5e8e4cc6f02c62193425b6751c6d7"
       ],
-      "superseded": "Retired on 11 Nov 2026: its settlement contract (immutable) is tied to the levels stack deployed before the PckChip hardening, and its policy names an auditor that attests nobody. Replaced by product 7."
+      "superseded": "Retired on 16 Nov 2026: its settlement contract (immutable) is tied to the levels stack deployed before the PckChip hardening, and its policy names an auditor that attests nobody. Replaced by product 7."
     },
     "7": {
       "name": "Sealed Bounty, verified operator level (corrected stack)",
@@ -145,7 +145,7 @@
       "signer": "0x5E534608bc342dA7A069B1d7636AAE5c5cA55b8A",
       "registerTx": "0xbd5cb0616dae27f9b614ffa6c6eea28423030932c017f9f910099b0129e19a75",
       "registerGas": 6849050,
-      "modelAttestation": "aci: RedPill gateway verified (Intel quote, bound keys, measured compose, production OS), pinned TLS, receipts required (11 Nov 2026)"
+      "modelAttestation": "aci: RedPill gateway verified (Intel quote, bound keys, measured compose, production OS), pinned TLS, receipts required (16 Nov 2026)"
     },
     "2": {
       "product": 2,
@@ -169,7 +169,7 @@
       "signer": "0x3672cA6FC127bA61a61Be46fE0262f4830Ca7Ff0",
       "registerTx": "0x11de93a1f95b0382384ade1e09990ebb63fc6116f6891b2bfd19a54977b8734d",
       "registerGas": 6849026,
-      "modelAttestation": "aci: RedPill gateway verified (Intel quote, bound keys, measured compose, production OS), pinned TLS, receipts required (11 Nov 2026)"
+      "modelAttestation": "aci: RedPill gateway verified (Intel quote, bound keys, measured compose, production OS), pinned TLS, receipts required (16 Nov 2026)"
     },
     "4": {
       "product": 4,
@@ -182,7 +182,7 @@
       "registerTx": "0xad8b9780689513b1f68b8aba1a99f1b3156b4038a86aff46cad5ff96e294005e",
       "registerGas": 6849050,
       "composeHash": "0x254c2e42e9bf7dcc8a55924fa9fb4ef346e9bb4837353960ca5547c05a743bb7",
-      "modelAttestation": "aci: RedPill gateway verified (11 Nov 2026)"
+      "modelAttestation": "aci: RedPill gateway verified (16 Nov 2026)"
     },
     "6": {
       "product": 6,
@@ -196,8 +196,8 @@
       "signer": "0xFD050Fc72F4ea5fEEF10D8C0882Ff1506Ae6912a",
       "registerTx": "0x524eef52938b73eefaa69074a835f1c8494a09326fb8896b66f6226c03237a54",
       "registerGas": 6849026,
-      "note": "Sealed Bounty, verified level (10 Nov 2026): settlement SealedBountyVerified, level-1 policy (ProofOfCloudAuditor); per-read state proofs through STATE_PROOF_RPC_URL once an Arc RPC serves historical eth_getProof",
-      "superseded": "Republished as product 7 on 11 Nov 2026 (signer 0xFD05 retired)"
+      "note": "Sealed Bounty, verified level (15 Nov 2026): settlement SealedBountyVerified, level-1 policy (ProofOfCloudAuditor); per-read state proofs through STATE_PROOF_RPC_URL once an Arc RPC serves historical eth_getProof",
+      "superseded": "Republished as product 7 on 16 Nov 2026 (signer 0xFD05 retired)"
     },
     "7": {
       "product": 6,
@@ -211,12 +211,12 @@
       "signer": "0x1306d239FfD65DEdbc30214E382F2B11153fb516",
       "registerTx": "0x524eef52938b73eefaa69074a835f1c8494a09326fb8896b66f6226c03237a54",
       "registerGas": 6849026,
-      "note": "Product 7 (verified level, on the corrected stack of 11 Nov 2026); the same VM as the former product 6, redeployed (SEALEDBOUNTY=0x36a8; per-read state proofs off until an Arc RPC serves historical eth_getProof)",
+      "note": "Product 7 (verified level, on the corrected stack of 16 Nov 2026); the same VM as the former product 6, redeployed (SEALEDBOUNTY=0x36a8; per-read state proofs off until an Arc RPC serves historical eth_getProof)",
       "x25519": "0x16ef4a3213c94fd1acd156542365eee24e16eb625bf463cea1e7c66838eef739",
       "productId": 7
     }
   },
-  "previous": "deployments.v2.testnet.json (stack v2 of 7 Nov 2026, retired after the switch to v2.1)",
+  "previous": "deployments.v2.testnet.json (stack v2 of 13 Nov 2026, retired after the switch to v2.1)",
   "os": {
     "name": "dstack-0.5.12 (production, no SSH)",
     "osImageHash": "0x8db40cb23008d6213668b5816702d100b37b859a8a5bfd18d938ae3a1b3715bd"
@@ -230,7 +230,7 @@
   "refuteDemo": {
     "status": "done",
     "note": "A separate, labeled demonstration of SealedBounty.refute (product 5, a deliberately lying image): enclave/scripts/refute-demo.ts. Demo operators A, B and C; never the main operator.",
-    "startedAt": "2026-11-10T00:04:44.218Z",
+    "startedAt": "2026-11-15T00:04:44.218Z",
     "transactions": [
       {
         "step": "a",
@@ -494,7 +494,7 @@
         "gasCostUsdc": "0.011103375"
       }
     ],
-    "updatedAt": "2026-11-10T00:07:44.222Z",
+    "updatedAt": "2026-11-15T00:07:44.222Z",
     "operators": {
       "A": {
         "address": "0x8eEd1D7826A79695e7889F3ff70081d535763b44",
@@ -707,11 +707,11 @@
       },
       "deployerUsdcDelta": "0.988897 (slash payouts minus the refute gas, paid in USDC on Arc)"
     },
-    "doneAt": "2026-11-10T00:07:44.222Z",
+    "doneAt": "2026-11-15T00:07:44.222Z",
     "cleanup": {
       "liarImageRetired": "0xafa3061eda65f87d02ed59a7539aefc40a4a972c030bb580333463f483f956b4",
       "vaultFundsRecovered": "0x639edc89a2172119b13562c640ad6d63155d831ffb4d54b407149e5fa3d445b3",
-      "demoVmsStopped": "2026-11-10 (archive-v21-refute-liar, archive-v21-refute-honest), once the demonstration was complete",
+      "demoVmsStopped": "2026-11-15 (archive-v21-refute-liar, archive-v21-refute-honest), once the demonstration was complete",
       "retireB": "0x14672ed55995b33993ad7cb3297ebb9154f31fff1e3b757a1bdaa27576537e14",
       "unbondB": "0x36d7388521d41b47afa075a85647a97318675483397203b4856f7feccc90ad06",
       "retireC": "0x1c484069bea5bb8e5afe6af526f451772c00f4218084dd26bcb37d71187866d5",
@@ -721,7 +721,7 @@
   },
   "history": [
     {
-      "at": "2026-11-10",
+      "at": "2026-11-15",
       "what": "product 2: image with the strict RPC relay (headers bound to their hash, fail closed) and the DEMO_FAULT demo mode off; previous enclave stopped, previous fingerprint revoked",
       "old": {
         "signer": "0xdc0DF7370b823c63FFc973722cf94Bf706359783",
@@ -737,7 +737,7 @@
       }
     },
     {
-      "at": "2026-11-10",
+      "at": "2026-11-15",
       "what": "product 4: copilot whose prompt no longer claims that only the enclave reads the conversation (the model provider reads it); previous enclave stopped, previous fingerprint revoked",
       "old": {
         "signer": "0xa5B460DbA6188246dbC94BcA8722147BBf17FB33",
@@ -753,7 +753,7 @@
       }
     },
     {
-      "date": "2026-11-11",
+      "date": "2026-11-16",
       "what": "enclave 1 replaced (model attestation)",
       "previous": {
         "signer": "0x58a192dE799834259D379a90DD02fC1C87497Be4",
@@ -763,7 +763,7 @@
       }
     },
     {
-      "date": "2026-11-11",
+      "date": "2026-11-16",
       "what": "enclave 3 replaced (model attestation)",
       "previous": {
         "signer": "0x57131D04CDC84A7e23ffBCa63A0d9C0328A979c5",
@@ -773,7 +773,7 @@
       }
     },
     {
-      "date": "2026-11-11",
+      "date": "2026-11-16",
       "what": "enclave 4 (copilot) replaced (model attestation)",
       "previous": {
         "signer": "0xC2C6Cb7C2A91ab81BB0Bc68D46A91bD54EeC8310",
@@ -783,7 +783,7 @@
       }
     },
     {
-      "date": "2026-11-11",
+      "date": "2026-11-16",
       "what": "enclave 4 (copilot) replaced (knowledge base: levels, verified model, state proofs)",
       "previous": {
         "signer": "0x78639363EAe204fFDFade7491F6d785383bE655A",
@@ -811,10 +811,10 @@
     },
     "Ed25519Verifier": "0x031579dd04398249feb67852632da4a648d4b5cf",
     "allianceKey": "0x5ea69fede5bcf71054395b273bad67f67158c242d77945d436374020ece525cb",
-    "note": "Two operator levels (10 Nov 2026): MachineRegistry (binds an enclave to its chip PPID; declarations; policies), ProofOfCloudAuditor (the Proof of Cloud alliance's EdDSA token verified on-chain), PolicyEnclaves (the registry seen through the product's policy), SealedBountyVerified (the same code as SealedBounty, wired to PolicyEnclaves; seizures and verdicts after the 8-day delay of OperatorBond and VerdictLog). 11 Nov 2026: levels stack redeployed (PckChip hardened). A product's settlement contract is immutable, so product 6 stays wired to the previous stack and is neutralized (its auditor attests nobody); the verified level is republished as product 7 on the corrected stack.",
+    "note": "Two operator levels (15 Nov 2026): MachineRegistry (binds an enclave to its chip PPID; declarations; policies), ProofOfCloudAuditor (the Proof of Cloud alliance's EdDSA token verified on-chain), PolicyEnclaves (the registry seen through the product's policy), SealedBountyVerified (the same code as SealedBounty, wired to PolicyEnclaves; seizures and verdicts after the 8-day delay of OperatorBond and VerdictLog). 16 Nov 2026: levels stack redeployed (PckChip hardened). A product's settlement contract is immutable, so product 6 stays wired to the previous stack and is neutralized (its auditor attests nobody); the verified level is republished as product 7 on the corrected stack.",
     "superseded": [
       {
-        "date": "2026-11-11",
+        "date": "2026-11-16",
         "reason": "PckChip hardened: canonical Base64 and exactly one certificate with no trailing bytes when reading the chip ID (test_chip_rejectsForgedPpid). The levels contracts are immutable, so they were redeployed.",
         "settlementApplyAt": 1795036384,
         "callerApplyAt": 1795036389,
@@ -860,7 +860,7 @@
         "PolicyEnclaves": "0x229350179bd19acba440a0f04c7af1a88678572b",
         "SealedBountyVerified": "0x242ca1c4d0a5a6fe5a806f215ca5f127422364d2",
         "product6Neutralized": {
-          "date": "2026-11-11",
+          "date": "2026-11-16",
           "what": "policyOf(6) on the previous MachineRegistry set to the auditor 0x...dEaD, which attests nobody, so meetsPolicy(6,*) = false: product 6 stays tied to the previous immutable stack and its verified level is off. The verified Sealed Bounty is product 7, on the current levels stack.",
           "proposePolicy": "0xf91db064e176beafcecfec37f578898919526daed11e1b1fb181b8da86685be3",
           "applyPolicy": "0x190d464ee073cb9582c303c291c120aa53c48f9b00b127a1487c0dd08484b4cb"

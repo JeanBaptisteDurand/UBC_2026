@@ -23,7 +23,7 @@ export const C = {
 } as const
 
 /** deployments.v21.testnet.json: the v2.1 stack, retired at the switch to v3 and kept for history (its events, its
- *  proofs and the refutation of 10 November stay readable on Arc) */
+ *  proofs and the refutation of 15 November stay readable on Arc) */
 export const C21 = {
   EnclaveRegistry: '0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d',
   ProductRegistry: '0x582a3076cf6A1347907565B57Ce9f548D33805A4',

@@ -21,7 +21,7 @@ const idAbi = [
   { type: "function", name: "setApprovalForAll", stateMutability: "nonpayable", inputs: [{ type: "address" }, { type: "bool" }], outputs: [] },
   { type: "function", name: "ownerOf", stateMutability: "view", inputs: [{ type: "uint256" }], outputs: [{ type: "address" }] },
 ] as const;
-const AGENT_ID = 897811n; // the operator's ERC-8004 identity (created on 7 Nov 2026)
+const AGENT_ID = 897811n; // the operator's ERC-8004 identity (created on 13 Nov 2026)
 const MODEL = "openai/gpt-oss-120b";
 const SITE = "https://archive.62-171-153-35.sslip.io";
 

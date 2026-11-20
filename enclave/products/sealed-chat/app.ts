@@ -2,7 +2,7 @@
  * sealed-chat/app.ts — the HTTP application of the "AI inference in an enclave" product (O2), without side effects:
  * built from the kit, the gateway and the session reader, so testable outside a VM.
  * OpenAI-compatible routes, plus the session's "last receipt" (v2) that the operator settles.
- * 9 Nov (verifier): any unexpected error gets a generic message with a code (onError): upstream_model (502: the
+ * 14 Nov (verifier): any unexpected error gets a generic message with a code (onError): upstream_model (502: the
  * upstream model failed; its body is never read, see model.ts; no receipt signed) or internal_error (500). The log
  * gets only the code and the error's name: never its message (it can carry an RPC URL with a key, or what upstream
  * returned), never the content of a request.

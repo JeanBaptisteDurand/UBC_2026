@@ -326,13 +326,13 @@ const PATCH = {
     buttons: { now: 'Skip to now' },
     settings: { follow: 'Camera follows the action', on: 'On', off: 'Off', jump: 'Jump to a moment of the history' },
     layers: { registry: 'Enclave registry', product: 'Product contract', bond: 'Operator bond (USDC)' },
-    zones: { provider: { title: 'AI model gateway', body: 'For the AI services, a pod forwards your question over HTTPS to the model provider, RedPill, whose gateway runs in its own attested enclave. The pod checks that gateway (Intel quote, production OS, pinned TLS) and refuses to call it if the check fails.', fact: 'Model: gpt-oss-120b via tee.redpill.ai (README, 12 Nov 2026)' } },
+    zones: { provider: { title: 'AI model gateway', body: 'For the AI services, a pod forwards your question over HTTPS to the model provider, RedPill, whose gateway runs in its own attested enclave. The pod checks that gateway (Intel quote, production OS, pinned TLS) and refuses to call it if the check fails.', fact: 'Model: gpt-oss-120b via tee.redpill.ai (README, 17 Nov 2026)' } },
   },
   fr: {
     buttons: { now: 'Revenir à maintenant' },
     settings: { follow: "La caméra suit l'action", on: 'Oui', off: 'Non', jump: "Aller à un moment de l'histoire" },
     layers: { registry: 'Registre des enclaves', product: 'Contrat du produit', bond: "Caution de l'opérateur (USDC)" },
-    zones: { provider: { title: "Passerelle du modèle d'IA", body: "Pour les services d'IA, un module transmet votre question en HTTPS au fournisseur du modèle, RedPill, dont la passerelle tourne dans sa propre enclave attestée. Le module vérifie cette passerelle (quote Intel, OS de production, TLS épinglé) et refuse de l'appeler si la vérification échoue.", fact: 'Modèle : gpt-oss-120b via tee.redpill.ai (README, 12 nov. 2026)' } },
+    zones: { provider: { title: "Passerelle du modèle d'IA", body: "Pour les services d'IA, un module transmet votre question en HTTPS au fournisseur du modèle, RedPill, dont la passerelle tourne dans sa propre enclave attestée. Le module vérifie cette passerelle (quote Intel, OS de production, TLS épinglé) et refuse de l'appeler si la vérification échoue.", fact: 'Modèle : gpt-oss-120b via tee.redpill.ai (README, 17 nov. 2026)' } },
   },
 };
 function deepMerge(a, b) { for (const [k, v] of Object.entries(b)) { if (v && typeof v === 'object' && !Array.isArray(v)) { a[k] = a[k] && typeof a[k] === 'object' ? a[k] : {}; deepMerge(a[k], v); } else if (a[k] == null) a[k] = v; } return a; }

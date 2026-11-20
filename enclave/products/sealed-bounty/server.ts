@@ -11,12 +11,12 @@
  * refutation is signed only if the result differs; on-chain reads at the same block through the quorum (claimRecords,
  * REFUTE_WINDOW, the bounty, this enclave's activeOperatorAt on REGISTRY).
  *
- * v2.1 bis (adversarial review of 9 Nov): the replay fails closed (never a signature on an outage of the fork's RPC). At
+ * v2.1 bis (adversarial review of 14 Nov): the replay fails closed (never a signature on an outage of the fork's RPC). At
  * start-up, an ENGINE CHECK (AnvilForkRunner.selfTest): a read refused by the fork's RPC must surface as an error,
  * otherwise the machine refuses to start. REFUTE_ACCEPTED_FROM (optional, Unix seconds, measured in the compose file):
  * claims accepted before it are not judged (an image with different replay rules may have signed them).
  *
- * v2.1 ter (adversarial verification of 9 Nov): the engine talks to the fork's RPC through a STRICT RELAY
+ * v2.1 ter (adversarial verification of 14 Nov): the engine talks to the fork's RPC through a STRICT RELAY
  * (src/services/rpc-relay.ts: the shape of each answer, a block ≤ N that is never null and is tied to the anchor, a
  * request budget per replay). The engine check also covers a block returned as null, a malformed storage slot and
  * healthy reads. The rate of /bounty/submit and /v1/refute is limited (tokens taken after the cheap checks); a bounty
@@ -75,7 +75,7 @@ function demoFaultOrExit() {
 // replay: without anvil, the machine refuses to start (it fails closed).
 const FORK_RPC = process.env.FORK_RPC_URL ?? RPC_URLS[0]!;
 const ANVIL_BIN = process.env.ANVIL_BIN ?? "anvil";
-// 10 Nov: STATE PROOFS. STATE_PROOF_RPC_URL (a MEASURED variable of the compose file): each state read of the replay is
+// 15 Nov: STATE PROOFS. STATE_PROOF_RPC_URL (a MEASURED variable of the compose file): each state read of the replay is
 // proven (eth_getProof checked against the stateRoot of the anchored header N); no RPC is then trusted for the state.
 // When absent: the earlier contract (headers tied to the anchor, state not proven), stated at start-up.
 const STATE_PROOF_RPC = process.env.STATE_PROOF_RPC_URL?.trim() || undefined;

@@ -1,5 +1,5 @@
 /**
- * levels-machines.ts — the verified level, operator side (10 Nov 2026): for each enclave of the v2.1 stack,
+ * levels-machines.ts — the verified level, operator side (15 Nov 2026): for each enclave of the v2.1 stack,
  *   1. finds the quote of its current registration (EnclaveRegistered event → registerEnclave calldata, cross-checked
  *      with Enclave.quoteHash) and binds it to its machine (MachineRegistry.bindMachine: PPID read from Intel's certificate);
  *   2. for each machine (PPID), requests a token from the Proof of Cloud alliance (its three trust servers, an EdDSA

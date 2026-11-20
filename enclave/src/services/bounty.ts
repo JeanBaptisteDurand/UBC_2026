@@ -18,7 +18,7 @@
  *    new submission returns the SAME claim (same signature) or is refused. The reservation is synchronous and happens
  *    before the signature, so it is also safe for concurrent submissions.
  *
- * v2 bis (adversarial review of 7 Nov):
+ * v2 bis (adversarial review of 13 Nov):
  *  - CANONICAL FINGERPRINT, computed HERE and not by the replay: keccak256(abi.encode(keccak256(attack code),
  *    keccak256(tx) for each tx)), over the BYTES. The same exploit written another way (upper-case hexadecimal, other
  *    JSON) has the same fingerprint: SealedBounty pays it only once (and on-chain a bounty pays only once per tier and
@@ -29,7 +29,7 @@
  *
  * v2.1: REFUTATION of an accepted claim (SealedBounty.refute); see RefutationService below.
  *
- * v2.1 bis (adversarial review of 9 Nov), the GOLDEN RULE: the enclave NEVER signs (neither a claim nor a refutation) a
+ * v2.1 bis (adversarial review of 14 Nov), the GOLDEN RULE: the enclave NEVER signs (neither a claim nor a refutation) a
  * result that depends on a network, RPC, timing or environment error. When in doubt: an exception, HTTP 503, nothing
  * signed. Only DETERMINISTIC rules, written down and tested, give a "proven fault":
  *  - predicate: PredicateError (rules P1–P4, predicate.ts);
@@ -39,7 +39,7 @@
  * environment error) propagates: 503. The returned messages (reasons, notes) are FIXED: never the message of a viem
  * error, a parser or the node (they copy bytes of the exploit).
  *
- * v2.1 ter (adversarial verification of 9 Nov, proofs verif-failclosed e4, e7, e8):
+ * v2.1 ter (adversarial verification of 14 Nov, proofs verif-failclosed e4, e7, e8):
  *  - NO catch without sorting: only identified DETERMINISTIC errors (precise classes or codes: HpkeError, SyntaxError
  *    from JSON.parse, TypeError ERR_ENCODING_INVALID_ENCODED_DATA, an invalid ChaCha20-Poly1305 tag, BigInt of a
  *    non-integer JSON value, a low-order X25519 key, a seal that is too short) become a refusal or a fault; any other
@@ -51,7 +51,7 @@
  *    inside the window), and only if no result is already cached or in progress for this claim; a full queue ("busy",
  *    "refute_busy") or an exceeded rate is never cached as a replay failure.
  *
- * v2.1 quater (refutation demo, 9 Nov): a DELIBERATE "inflate-loss" fault (BountyServiceConfig.demoFault), for the
+ * v2.1 quater (refutation demo, 14 Nov): a DELIBERATE "inflate-loss" fault (BountyServiceConfig.demoFault), for the
  * separate, labelled demo only (product 5, enclave/phala/refute-demo-liar-v21.yml: DEMO_FAULT in clear, so MEASURED in
  * the image fingerprint). The claim is signed with a DOUBLED loss; everything else is what an honest enclave signs
  * (block N, predicate, tier of the MEASURED loss, fingerprint, cPHash, deadline). It is refused for product 2 (here, in
@@ -582,7 +582,7 @@ export function isInvalidTagError(e: unknown): boolean {
 
 const P25519 = (1n << 255n) - 19n;
 /** The u coordinates (mod p) of the low-order points of Curve25519 and of its twist (order 1, 2, 4 or 8): X25519 of such
- *  a point by a clamped key (a multiple of 8) gives 0, which @noble/curves refuses. The complete list (checked on 9 Nov). */
+ *  a point by a clamped key (a multiple of 8) gives 0, which @noble/curves refuses. The complete list (checked on 14 Nov). */
 const X25519_SMALL_ORDER = new Set<bigint>([
   0n, 1n, P25519 - 1n,
   325606250916557431795983626356110631294008115727848805560023387167927233504n,
@@ -638,7 +638,7 @@ function optionalUint(x: unknown, name: string): bigint | undefined {
 // window, operators that are not those of ClaimAccepted, an enclave inactive for the bounty's product, or the operator
 // of THIS enclave among the claim's signers. The result is cached per claim: never two different refutations.
 //
-// v2.1 bis (adversarial review of 9 Nov):
+// v2.1 bis (adversarial review of 14 Nov):
 //  - DENIAL OF SERVICE: claimRecords is read ALONE first (RefuteReader.record: one read per provider, plus the head);
 //    an unknown claim, a refuted one or (with a known window) one outside the window → a stop before any other read.
 //    A failed counter-replay is cached for `failureTtlMs` (no repeated full replays); at most `maxInFlight`

@@ -1,9 +1,9 @@
 /**
  * Sealed Bounty v2.1 quater: the STRICT RELAY against a LYING fork RPC (src/services/rpc-relay.ts). The relay
- * verification of the evening of 9 Nov (cases r1-B, r1-E, r1-G; r2 and r3-1a with the real engines:
+ * verification of the evening of 14 Nov (cases r1-B, r1-E, r1-G; r2 and r3-1a with the real engines:
  * relay-hardening-engines.test.ts). The relay alone, in front of a scripted fork RPC:
  *  1. the header BOUND to its hash ("arc" policy, the default): keccak256(RLP(21 Arc header fields)) = hash, CHECKED on
- *     two consecutive real Arc testnet blocks (71,609,813 and 71,609,814, read on 9 Nov 2026 around 23:40 from
+ *     two consecutive real Arc testnet blocks (71,609,813 and 71,609,814, read on 14 Nov 2026 around 23:40 from
  *     rpc.testnet.arc.io, as hashes and as full transactions); a header with the right hash but changed content → a
  *     "header" violation; a poisoned parentHash → "header" (or "chain" if the forged block's hash is recomputed);
  *  2. the 21 Arc header fields are mandatory: a block without one of them → "shape" (lock);
@@ -22,7 +22,7 @@ import {
 } from "../src/services/rpc-relay";
 
 // =====================================================================================================================
-// REAL Arc testnet blocks (read only, 9 Nov 2026 around 23:40, rpc.testnet.arc.io: 6 requests in all)
+// REAL Arc testnet blocks (read only, 14 Nov 2026 around 23:40, rpc.testnet.arc.io: 6 requests in all)
 // =====================================================================================================================
 
 /** Arc testnet, bloc 71 609 814 (0x444add6), transactions en hashes. */
@@ -523,7 +523,7 @@ describe("4 — answers read AS A STREAM, cut beyond the bound (proof r1-E)", ()
       await new Promise((r) => setTimeout(r, 50));
       expect(up.cutEarly()).toBe(1);
       expect(up.written()).toBeLessThan(MAX_RESPONSE_BYTES + (24 << 20)); // the bound + the system's buffers
-      expect(grew).toBeLessThan(256); // measured on 9 Nov: +93 MiB (before the fix: +683 MiB for the same answer)
+      expect(grew).toBeLessThan(256); // measured on 14 Nov: +93 MiB (before the fix: +683 MiB for the same answer)
     } finally {
       clearInterval(t);
       await relay.close();

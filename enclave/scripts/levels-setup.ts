@@ -1,5 +1,5 @@
 /**
- * levels-setup.ts — sets up the two operator levels on the v2.1 stack (10 Nov 2026), without redeploying anything
+ * levels-setup.ts — sets up the two operator levels on the v2.1 stack (15 Nov 2026), without redeploying anything
  * already in place:
  *   1. MachineRegistry       : enclave → machine binding (PPID from Intel's certificate), verifiers' declarations,
  *                              each product's level policy;
@@ -112,7 +112,7 @@ async function main() {
     L.callerApplyAt = Number(await pub.readContract({ address: K.VerdictLog!, abi: verdictAbi, functionName: "callerApplyAt", args: [bounty] }).catch(() => 0n));
   }
   L.allianceKey = POC.allianceKey;
-  L.note = "Two operator levels (10 Nov 2026): MachineRegistry (enclave → PPID chip binding, declarations, policies), " +
+  L.note = "Two operator levels (15 Nov 2026): MachineRegistry (enclave → PPID chip binding, declarations, policies), " +
     "ProofOfCloudAuditor (the Proof of Cloud alliance's EdDSA token verified on-chain), PolicyEnclaves (the registry seen " +
     "through the product's policy), SealedBountyVerified (the same code as SealedBounty, wired to PolicyEnclaves; seizures " +
     "and verdicts after the 8-day delay of OperatorBond / VerdictLog).";
