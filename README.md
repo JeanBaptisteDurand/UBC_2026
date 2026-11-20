@@ -382,7 +382,7 @@ own wallet.
 6. **On a lie.** Two different signed answers to the same request (`SessionPay.reportEquivocation`), or a bounty claim
    refuted by the enclaves of at least two other operators within 3 days (`SealedBounty.refute`), seize the operator's
    whole bond and ban it, and `VerdictLog` writes 0 to the ERC-8004 validation registry on Arc. A session that was
-   served and paid closes with a verdict of 100. The refutation demo ran on Arc on 15 Nov, and sessions closed with 100
+   served and paid closes with a verdict of 100. The refutation demo ran on Arc on 15 Nov (product 5 of the previous set), and sessions closed with 100
    on 14 and 19 Nov (see [Proofs on Arc testnet](#proofs-on-arc-testnet)).
 
 Every payment in [our proofs](#proofs-on-arc-testnet) came from our own testnet wallets.
@@ -411,7 +411,7 @@ a session. An attestation proves which code ran, not that an AI answer is right,
 
 - **Buyers pay per use**, from a prepaid session (`SessionPay`) or with one authorization per call (`X402Settler`).
   Each payment is split between operator, author and network: `ProductRegistry` keeps the network at 5 % or more and
-  an author at 30 % or less, and the operator gets the rest. All seven products are ours and set no author share, so
+  an author at 30 % or less, and the operator gets the rest. All five products are ours and set no author share, so
   each one splits **95 / 0 / 5**.
 - **Protocols fund bounty pools** (`SealedBounty`, `SealedBountyVerified`). The hunter gets 100 % of the tier the
   exploit reaches. On top, and only when a claim is paid, the pool pays 10 % to the network and 5 % to the operators
@@ -451,7 +451,7 @@ a session. An attestation proves which code ran, not that an AI answer is right,
   our enclave images are not public yet, so a second operator cannot run the allowed fingerprints until we publish
   them.
 - **Admin keys.** On testnet, one key, the deployer's (kept off the server), owns `OperatorBond` and `VerdictLog` and
-  is the author of all seven products. It can propose a new settlement contract or verdict writer, which waits 8 days,
+  is the author of all five products. It can propose a new settlement contract or verdict writer, which waits 8 days,
   and remove one at once. Product changes have no timelock on testnet (`ProductRegistry.timelock` is 0). The mainnet
   plan is a 2-of-3 multisig and 48-hour timelocks.
 - **The treasury is the deployer's address on testnet**, so the network's share of every payment and the victimless
