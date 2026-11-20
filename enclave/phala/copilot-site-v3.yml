@@ -4,7 +4,7 @@
 # OS image, tdx.small, node prod9). Image r4 (enclave/Dockerfile.copilot): the copilot's knowledge for the v3 stack
 # (services/copilot/src/site.ts, tools.ts, site-live.ts: the v3 contracts, the verified bounty as product 5) and the v3
 # deployments file WITH its levels block baked in (/app/deployments/deployments.v3.testnet.json). Built on 20 Nov 2026
-# from commit 1bac5bff (git archive), with the options of enclave/Dockerfile.copilot (SOURCE_DATE_EPOCH=1794960000),
+# from commit 0c21a568 (git archive), with the options of enclave/Dockerfile.copilot (SOURCE_DATE_EPOCH=1794960000),
 # pushed as ghcr.io/jeanbaptistedurand/archive-copilot-enclave:v3-site-r4; its bundle is byte for byte the tested one.
 # Only two measured values differ from v22: REGISTRY (the v3 EnclaveRegistry 0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E,
 # which must equal the file's: services/copilot/src/enclave-config.ts) and DEPLOYMENTS (the v3 file). The question
@@ -21,7 +21,7 @@
 # (the enclave refuses to start with DEBUG).
 services:
   copilot-enclave:
-    image: ghcr.io/jeanbaptistedurand/archive-copilot-enclave@sha256:9c8762a84a1f5fc338436760ddef9ccf0e08f7ab670f6364296c67f541ef298b
+    image: ghcr.io/jeanbaptistedurand/archive-copilot-enclave@sha256:b0977de48043b59e5dbf92dc826d7cc3952be805677b3ff5fd2add2acb1a9bf0
     ports:
       - "8808:8808"
     environment:
