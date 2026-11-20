@@ -83,8 +83,8 @@ all through `errors.ts`:
 
 - `datacenter/`: the 3D server room, built from `datacenter-src/` (see below). `datacenter/CREDITS.txt` lists its
   models and their licences.
-- `manifests/`: the products' manifests, one set per deployment: v1, v2, v2.1 (in service) and v3 (deployed, not yet
-  in use). On v2.1, the keccak256 of each `*-v21.json` file equals the `manifestHash` its product stores on Arc
+- `manifests/`: the products' manifests, one set per deployment: v3 (live) and the earlier sets (v2.1, v2, v1). On
+  v2.1, the keccak256 of each `*-v21.json` file equals the `manifestHash` its product stores on Arc
   (products 1 to 5 and 7). That match lets the console show a product's image as proven. Older sets stay unchanged, so
   earlier registrations remain checkable.
 - `archive-node.mjs`: the operator agent, built from `packages/node` (`npm run build` there copies it here).
