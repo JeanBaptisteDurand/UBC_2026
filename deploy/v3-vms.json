@@ -1,0 +1,239 @@
+{
+  "note": "The v3 enclaves' VMs on Phala Cloud, created on 20 Nov 2026 between 10:33 and 10:36 UTC next to the live v2.1 VMs (which were not touched). Each VM boots the v3 compose of enclave/phala/ byte for byte; its compose-hash equals the one predicted from the live v2.1 VM's app-compose with only docker_compose_file replaced. The image fingerprints were read from each enclave's live Intel TDX quote and RTMR3 event log, computed by the SDK (packages/sdk/src/dstack-eventlog.ts) and by the v3 EnclaveRegistry itself (replayEventLog + imageIdOf, eth_call); both agree. None is allowed on a v3 product yet and no enclave is registered on v3 yet: that is the next step (proposeWorkload + applyWorkload by the products' author, then the v3 registrars). Signers and X25519 keys are born at each VM boot: they change if a VM restarts.",
+  "measuredAt": "2026-11-20T10:37:25.018Z",
+  "stack": "v3",
+  "chainId": 5042002,
+  "rpc": "https://rpc.testnet.arc.network",
+  "enclaveRegistry": "0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E",
+  "productRegistry": "0xd2e6f3fD0561C8823774A8C7054B414777E0228d",
+  "attestationModule": "0x3275fA3b519FAD912eA4a5e75Bf5078Def29D491",
+  "operator": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a",
+  "platform": {
+    "provider": "Phala Cloud (dstack)",
+    "node": "prod9",
+    "ppid": "62d54040cb9dfc08bb13006fa75ece56",
+    "instanceType": "tdx.small",
+    "diskGb": 20,
+    "pricePerHourUsd": "0.058000",
+    "os": "dstack-0.5.12",
+    "osImageHash": "0x8db40cb23008d6213668b5816702d100b37b859a8a5bfd18d938ae3a1b3715bd",
+    "devOs": false,
+    "publicLogs": false,
+    "ssh": false
+  },
+  "measurements": {
+    "mrtd": "0x7fe60787222bd394cb516abca2435f22f035ab2cc9c0a4b4b3b148e46297f3d931a237b72f359052c6e657d8c1409173",
+    "rtmr0": "0x68102e7b524af310f7b7d426ce75481e36c40f5d513a9009c046e9d37e31551f0134d954b496a3357fd61d03f07ffe96",
+    "rtmr1": "0x4ae609807c765916a31d724786ed74bcb97e168a9d937b04936aeef2015c907eba5ac352c6bcd749c246fd62ffb659ec",
+    "rtmr2": "0x764489f277a8540189761e72b4238ba36d4d647e11bd958d8ab5522af2a4867b0ff63e06b0c4967f1857236244040a5d",
+    "xfam": "0x0702000000000000",
+    "tdAttributes": "0x0000001000000000"
+  },
+  "measurementsNote": "Identical in the 5 quotes, and equal to the v2.1 VMs' (same node, size, OS image and firmware): only the compose-hash differs.",
+  "vms": {
+    "archive-v3-inference": {
+      "appId": "4154a371e71148f176d316306c16d24f8dcdbd30",
+      "vmUuid": "8a43551d-514b-4f4b-a6c4-d0e742096b2d",
+      "createdAt": "2026-11-20T10:35:01.816236Z",
+      "compose": "enclave/phala/sealed-chat-v3.yml",
+      "composeHash": "0xbd01ba13d0ba918231739a2b8bf24415dbb82a8d9e759ad9ec11b579c7fa0ccd",
+      "composeHashMatchesPrediction": true,
+      "image": [
+        "ghcr.io/jeanbaptistedurand/archive-sealed-chat@sha256:3ab9659901154934efa1be120143dbe4fb8f83bf6394af5599db49ed74bff5bd",
+        "no"
+      ],
+      "encryptedEnvNames": [
+        "REDPILL_API_KEY",
+        "OPERATOR_ALLOWLIST",
+        "DSTACK_DOCKER_REGISTRY",
+        "DSTACK_DOCKER_USERNAME",
+        "DSTACK_DOCKER_PASSWORD"
+      ],
+      "replacesV21": "54623c0974ceed19ccbcf121548937016f8cbab8",
+      "enclaves": [
+        {
+          "productId": 1,
+          "what": "sessions (SessionPay)",
+          "url": "https://4154a371e71148f176d316306c16d24f8dcdbd30-8802.dstack-pha1-prod9.phala.network",
+          "signer": "0xDBbcA6D7a8ae6eD4943650678C8751B6Eabdee7b",
+          "x25519": "0xa0cc5ed87012942b4d86f9495b7fd296a652b5e54e4fb50241d65709d027070d",
+          "imageId": "0x161c46ba0edcf061a7e2b7f05c6f5d5a1a26d8a705193a1fe8324f7f8bd2203b",
+          "health": 200,
+          "pubkeys": 200,
+          "dcapSimulated": {
+            "ok": true,
+            "tcbStatus": 0,
+            "fmspc": "0x20a06f000000"
+          },
+          "reportDataBindsV3": true,
+          "allowedOnV3Product": false
+        },
+        {
+          "productId": 3,
+          "what": "x402 pay per call (X402Settler)",
+          "url": "https://4154a371e71148f176d316306c16d24f8dcdbd30-8804.dstack-pha1-prod9.phala.network",
+          "signer": "0xd8f8b49548e0d9E268179A4E503321de61470a7a",
+          "x25519": "0x54e91f1a27f545e2f8c580641367b74cc5187feca5843c5c5a291a136a66cb60",
+          "imageId": "0x161c46ba0edcf061a7e2b7f05c6f5d5a1a26d8a705193a1fe8324f7f8bd2203b",
+          "health": 200,
+          "pubkeys": 200,
+          "dcapSimulated": {
+            "ok": true,
+            "tcbStatus": 0,
+            "fmspc": "0x20a06f000000"
+          },
+          "reportDataBindsV3": true,
+          "allowedOnV3Product": false
+        }
+      ]
+    },
+    "archive-v3-bounty": {
+      "appId": "7dea6df6009e5011d70a947b2d859b3915bb10d8",
+      "vmUuid": "c5bb743b-21a8-45c7-83c0-055b198ca426",
+      "createdAt": "2026-11-20T10:33:45.915349Z",
+      "compose": "enclave/phala/sealed-bounty-v3.yml",
+      "composeHash": "0x7abeaaeecfb384e49fe35b477135a4b5cc1c03b1ea6fd628814c7c4ccd6d858f",
+      "composeHashMatchesPrediction": true,
+      "image": [
+        "ghcr.io/jeanbaptistedurand/archive-sealed-bounty@sha256:ca06d9cc2c8f7baeb85bf15fa1592da90719b38581615109852e6fa95625ad36"
+      ],
+      "encryptedEnvNames": [
+        "DSTACK_DOCKER_USERNAME",
+        "DSTACK_DOCKER_PASSWORD",
+        "DSTACK_DOCKER_REGISTRY",
+        "OPERATOR_ALLOWLIST"
+      ],
+      "replacesV21": "86400c7d73335cf87524acf9cf6590fec3e7c271",
+      "enclaves": [
+        {
+          "productId": 2,
+          "what": "Sealed Bounty, open level (SealedBounty)",
+          "url": "https://7dea6df6009e5011d70a947b2d859b3915bb10d8-8803.dstack-pha1-prod9.phala.network",
+          "signer": "0xe1C881CA3CFfE53b37c5A49E9679623977000BB1",
+          "x25519": "0x1c8fa993dc1c2c03e0ecb9da8f496c9aa228670ccc36f2da4754c710fd153f08",
+          "imageId": "0x8a0dd41d0ccc9692467fb6c8dc38268b6c83ca9201ec39462685b750fd2ef068",
+          "health": 200,
+          "pubkeys": 200,
+          "dcapSimulated": {
+            "ok": true,
+            "tcbStatus": 0,
+            "fmspc": "0x20a06f000000"
+          },
+          "reportDataBindsV3": true,
+          "allowedOnV3Product": false
+        }
+      ]
+    },
+    "archive-v3-copilot": {
+      "appId": "3afaad7d7b5b639892a7555d5531144e3f79ee19",
+      "vmUuid": "c6733b8f-a070-4542-b8bf-5ddce8b6bbaa",
+      "createdAt": "2026-11-20T10:35:01.743728Z",
+      "compose": "enclave/phala/copilot-site-v3.yml",
+      "composeHash": "0x05e7a97778900cb76c23f660abbf9aa9b0f61e73c0b4a2ae0c68503304cb4cde",
+      "composeHashMatchesPrediction": true,
+      "image": [
+        "ghcr.io/jeanbaptistedurand/archive-copilot-enclave@sha256:b0977de48043b59e5dbf92dc826d7cc3952be805677b3ff5fd2add2acb1a9bf0"
+      ],
+      "encryptedEnvNames": [
+        "OPENAI_API_KEY",
+        "OPERATOR_ALLOWLIST",
+        "COPILOT_PROXY_TOKEN",
+        "DSTACK_DOCKER_REGISTRY",
+        "DSTACK_DOCKER_USERNAME",
+        "DSTACK_DOCKER_PASSWORD"
+      ],
+      "replacesV21": "8f4fd47e27d281343b5ef9ee8a303717d2763997",
+      "enclaves": [
+        {
+          "productId": 4,
+          "what": "AskHive, the site's assistant (image r4)",
+          "url": "https://3afaad7d7b5b639892a7555d5531144e3f79ee19-8808.dstack-pha1-prod9.phala.network",
+          "signer": "0x5524f0219BF94a0377B48b08481846989e290771",
+          "x25519": "0x56cd491d8695f02e1f1f5bdd6d3affaf6590c2590adcaffd25a9a63c4abc8c6e",
+          "imageId": "0x64ddeef6eba8bba9e7b8391615fd6a07954deaf0ab3a89401acac5b5b08841fc",
+          "health": 200,
+          "pubkeys": 200,
+          "dcapSimulated": {
+            "ok": true,
+            "tcbStatus": 0,
+            "fmspc": "0x20a06f000000"
+          },
+          "reportDataBindsV3": true,
+          "allowedOnV3Product": false
+        }
+      ]
+    },
+    "archive-v3-bounty-verified": {
+      "appId": "7bf722e97b2d1f85de1243228177e2dd5e6c6bb1",
+      "vmUuid": "b4032697-29d7-4f5c-8b2d-c25979c1685b",
+      "createdAt": "2026-11-20T10:35:01.958290Z",
+      "compose": "enclave/phala/sealed-bounty-verified-v3.yml",
+      "composeHash": "0x11f88ff91e34c44c653fc03e25d1e67990d4c8385d42f140ad573020912d5fd0",
+      "composeHashMatchesPrediction": true,
+      "image": [
+        "ghcr.io/jeanbaptistedurand/archive-sealed-bounty@sha256:f3bff732179c7f6a6d24a9de4e61b49372e4d2ff178d5aa08630efebd3142c15"
+      ],
+      "encryptedEnvNames": [
+        "OPERATOR_ALLOWLIST",
+        "DSTACK_DOCKER_REGISTRY",
+        "DSTACK_DOCKER_USERNAME",
+        "DSTACK_DOCKER_PASSWORD"
+      ],
+      "replacesV21": "bd32db73ff811e3424dad660ebcbd0c819ed3a8f",
+      "enclaves": [
+        {
+          "productId": 5,
+          "what": "Sealed Bounty, verified level (SealedBountyVerified; v2.1 product 7)",
+          "url": "https://7bf722e97b2d1f85de1243228177e2dd5e6c6bb1-8803.dstack-pha1-prod9.phala.network",
+          "signer": "0xC2B38D443f919cD594A297cB0655fbE861A159A6",
+          "x25519": "0x1ee726cf6a344730a6143d8afc972e988db9869d4951553cb6a441f0b60e5e5d",
+          "imageId": "0xadedf8e112e6ba1553c1e61dae28219a5fe90075cf04882722012dd4e29ef3a8",
+          "health": 200,
+          "pubkeys": 200,
+          "dcapSimulated": {
+            "ok": true,
+            "tcbStatus": 0,
+            "fmspc": "0x20a06f000000"
+          },
+          "reportDataBindsV3": true,
+          "allowedOnV3Product": false
+        }
+      ]
+    }
+  },
+  "toAllow": [
+    {
+      "productId": 1,
+      "imageId": "0x161c46ba0edcf061a7e2b7f05c6f5d5a1a26d8a705193a1fe8324f7f8bd2203b",
+      "vm": "archive-v3-inference"
+    },
+    {
+      "productId": 3,
+      "imageId": "0x161c46ba0edcf061a7e2b7f05c6f5d5a1a26d8a705193a1fe8324f7f8bd2203b",
+      "vm": "archive-v3-inference"
+    },
+    {
+      "productId": 2,
+      "imageId": "0x8a0dd41d0ccc9692467fb6c8dc38268b6c83ca9201ec39462685b750fd2ef068",
+      "vm": "archive-v3-bounty"
+    },
+    {
+      "productId": 4,
+      "imageId": "0x64ddeef6eba8bba9e7b8391615fd6a07954deaf0ab3a89401acac5b5b08841fc",
+      "vm": "archive-v3-copilot"
+    },
+    {
+      "productId": 5,
+      "imageId": "0xadedf8e112e6ba1553c1e61dae28219a5fe90075cf04882722012dd4e29ef3a8",
+      "vm": "archive-v3-bounty-verified"
+    }
+  ],
+  "askhiveCheck": {
+    "at": "2026-11-20T10:42:10.432Z",
+    "httpStatus": 200,
+    "sealedReply": true,
+    "innerStatus": 200,
+    "signatureRecoversEnclaveKey": true,
+    "digestBoundToV3Registry": true
+  }
+}
