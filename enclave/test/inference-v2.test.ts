@@ -67,7 +67,7 @@ class FixedLlama implements LlamaClient {
   constructor(private tokensIn: number, private tokensOut: number) {}
   async infer(prompt: string) {
     this.calls++;
-    return { text: `réponse à ${prompt}`, tokensIn: this.tokensIn, tokensOut: this.tokensOut };
+    return { text: `answer to ${prompt}`, tokensIn: this.tokensIn, tokensOut: this.tokensOut };
   }
 }
 
@@ -125,7 +125,7 @@ describe("race on seq: atomic reservation per session", () => {
     const llama: LlamaClient = {
       async infer(prompt: string) {
         await sleep(Math.floor(Math.random() * 10));
-        return { text: `réponse différente pour ${prompt}`, tokensIn: 3, tokensOut: 4 };
+        return { text: `different answer for ${prompt}`, tokensIn: 3, tokensOut: 4 };
       },
     };
     const gw = new InferenceGateway(KIT, { sessionPay: SESSIONPAY, modelHash: MODEL }, new Reader(session()), llama, blocks);
@@ -166,12 +166,12 @@ describe("race on seq: atomic reservation per session", () => {
     let n = 0;
     const llama: LlamaClient = {
       async infer() {
-        if (n++ === 0) throw new Error("panne amont");
+        if (n++ === 0) throw new Error("upstream outage");
         return { text: "ok", tokensIn: 2, tokensOut: 2 };
       },
     };
     const gw = new InferenceGateway(KIT, { sessionPay: SESSIONPAY, modelHash: MODEL }, new Reader(session()), llama, blocks);
-    await expect(gw.handle(1n, 1n, "p", {})).rejects.toThrow("panne amont");
+    await expect(gw.handle(1n, 1n, "p", {})).rejects.toThrow("upstream outage");
     expect(ok(await gw.handle(1n, 1n, "p", {})).receipt.seq).toBe(1n); // seq 1 replayed safely: nothing had been signed
   });
 
@@ -206,7 +206,7 @@ describe("v2 units: UNIT_TOKENS and OUT_WEIGHT, rounding on the running total", 
     const gw = new InferenceGateway(
       KIT, { sessionPay: SESSIONPAY, modelHash: MODEL, ...billing }, new Reader(session()), new FixedLlama(40_000, 2_000), blocks,
     );
-    const r = ok(await gw.handle(1n, 1n, "requête type", {})).receipt;
+    const r = ok(await gw.handle(1n, 1n, "sample request", {})).receipt;
     expect(r.cumulativeUnits).toBe(48n);
     expect(r.tokensIn).toBe(40_000n);
     expect(r.tokensOut).toBe(2_000n);
@@ -309,12 +309,12 @@ describe("GET /v1/session/:id/receipt (last receipt, HTTP)", () => {
 
     expect((await app.request("/v1/session/1/receipt")).status).toBe(404); // nothing issued yet
 
-    await chat(1n, "première question");
-    const { res, client } = await chat(2n, "deuxième question");
+    await chat(1n, "first question");
+    const { res, client } = await chat(2n, "second question");
     expect(res.status).toBe(200);
     const out = (await res.json()) as { enc: Hex; ciphertext: Hex; receipt: Record<string, string>; signature: Hex };
     const text = new TextDecoder().decode(await open(client.x25519PrivateKey, toBytes(out.enc), toBytes(out.ciphertext)));
-    expect(text).toBe("réponse à deuxième question");
+    expect(text).toBe("answer to second question");
 
     const last = await app.request("/v1/session/1/receipt");
     expect(last.status).toBe(200);
@@ -335,7 +335,7 @@ describe("GET /v1/session/:id/receipt (last receipt, HTTP)", () => {
     expect((await app.request("/v1/session/2/receipt")).status).toBe(404);
     expect((await app.request("/v1/session/abc/receipt")).status).toBe(400);
 
-    const replay = await chat(2n, "rejeu du seq 2");
+    const replay = await chat(2n, "replay of seq 2");
     expect(replay.res.status).toBe(409);
     expect(await replay.res.json()).toEqual({ error: "expected seq 3, got 2", expectedSeq: "3" });
   });

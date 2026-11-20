@@ -19,7 +19,7 @@ const CHAIN = 5042002;
 describe("deterministic-seal (reproducible cP)", () => {
   it("same (key, message, r) => same cP, and the protocol decrypts without r", () => {
     const proto = generateEnclaveKeys(); // serves as the protocol's X25519 key
-    const msg = new TextEncoder().encode("bundle d'exploit");
+    const msg = new TextEncoder().encode("exploit bundle");
     const r = new Uint8Array(32).fill(7);
 
     const cP1 = deterministicSeal(toBytes(proto.x25519PublicKey), msg, r);
@@ -27,7 +27,7 @@ describe("deterministic-seal (reproducible cP)", () => {
     expect(cP1).toBe(cP2); // reproducible: two enclaves sign the same hash
 
     const back = deterministicOpen(proto.x25519PrivateKey, cP1);
-    expect(new TextDecoder().decode(back)).toBe("bundle d'exploit");
+    expect(new TextDecoder().decode(back)).toBe("exploit bundle");
   });
 
   it("different r => different cP; wrong key => failure", () => {

@@ -31,7 +31,7 @@ import type { HeaderPolicy } from "../src/services/rpc-relay";
 const ANVIL = [process.env.ANVIL_BIN, join(homedir(), ".foundry", "bin", "anvil")].find(
   (p): p is string => !!p && existsSync(p) && spawnSync(p, ["--version"]).status === 0,
 );
-/** arc-anvil (Arc Foundry), facultatif : ARC_ANVIL_BIN=/chemin/vers/arc-anvil. */
+/** arc-anvil (Arc Foundry), optional: ARC_ANVIL_BIN=/path/to/arc-anvil. */
 const ARC_ANVIL = [process.env.ARC_ANVIL_BIN].find((p): p is string => !!p && existsSync(p) && spawnSync(p, ["--version"]).status === 0);
 
 const CHAIN = 5042002;
@@ -44,7 +44,7 @@ const FAKE_USDC_CODE = "0x64e8d4a51000600435310460005260206000f3" as Hex;
 const TIME_COIN = "0x0000000000000000000000000000000000071e00" as Address;
 const BASEFEE_COIN = "0x000000000000000000000000000000000000bf00" as Address;
 const BH_COIN = "0x000000000000000000000000000000000000b400" as Address;
-/** BASEFEE_COIN : vide sa caisse vers l'appelant si BASEFEE == 0. */
+/** BASEFEE_COIN: empties its till to the caller if BASEFEE == 0. */
 const BASEFEE_COIN_CODE = "0x4815600657005b600060006000600047335af100" as Hex;
 /** BH_COIN: drains its till to the caller if BLOCKHASH(number − 3) == SLOAD(0) (the transaction is mined at block N + 1:
  *  BLOCKHASH(N − 2)). */
@@ -100,8 +100,8 @@ for (const [ename, bin, engine] of engines) {
     let url = "";
     let N = 0n;
     let T = 0n;
-    /** Le faux bloc N − 2 : son hash est celui que BH_COIN attend. */
-    const FORGED = keccak256(toBytes("faux bloc N-2"));
+    /** The forged block N − 2: its hash is the one BH_COIN expects. */
+    const FORGED = keccak256(toBytes("forged block N-2"));
 
     beforeAll(async () => {
       const port = await new Promise<number>((resolve) => {
@@ -124,7 +124,7 @@ for (const [ename, bin, engine] of engines) {
       }
       await rpc(url, "evm_mine");
       T = BigInt((await rpc(url, "eth_getBlockByNumber", ["latest", false])).timestamp) + 500n;
-      /** TIME_COIN : vide sa caisse vers l'appelant si TIMESTAMP > T. */
+      /** TIME_COIN: empties its till to the caller if TIMESTAMP > T. */
       const TIME_COIN_CODE = `0x63${T.toString(16).padStart(8, "0")}4211600b57005b600060006000600047335af100` as Hex;
       await rpc(url, "anvil_setCode", [USDC, FAKE_USDC_CODE]);
       for (const [a, code] of [[TIME_COIN, TIME_COIN_CODE], [BASEFEE_COIN, BASEFEE_COIN_CODE], [BH_COIN, BH_COIN_CODE]] as const) {
@@ -155,7 +155,7 @@ for (const [ename, bin, engine] of engines) {
       const cE = await seal(toBytes(kit.keys.x25519PublicKey), utf8(JSON.stringify({ bountyId: "1", payee: HUNTER, capital: "0", predicate: p, txs, r: R, cP, blockN: N.toString() })));
       try {
         const r = await svc.submit(cE);
-        return r.status === "proven" ? "PROUVÉE, SIGNÉE" : "non prouvée";
+        return r.status === "proven" ? "PROVEN, SIGNED" : "not proven";
       } catch (e) {
         if (e instanceof ReplayUnavailableError) return `503 ${e.reason}`;
         throw e;
@@ -165,7 +165,7 @@ for (const [ename, bin, engine] of engines) {
       q?.method === "eth_getBlockByNumber" && typeof q.params?.[0] === "string" && /^0x[0-9a-fA-F]+$/.test(q.params[0]) && BigInt(q.params[0]) === n;
 
     it("r3-1a: block N with the same hash, timestamp +1,000 s (every read) → 503 \"anchor\", nothing signed; lie served to the engine only → 503 \"relay\"; control \"shape\": false claim signed", async () => {
-      expect(await claim(TIME_COIN, url)).toBe("non prouvée"); // healthy RPC: TIMESTAMP ≤ T
+      expect(await claim(TIME_COIN, url)).toBe("not proven"); // healthy RPC: TIMESTAMP ≤ T
       const shift = (real: any) => ({ ...real.result, timestamp: numberToHex(BigInt(real.result.timestamp) + 1000n) });
       const everywhere = await lyingRpc(url, (q, real) => (isBlock(q, N) && real.result ? shift(real) : undefined));
       let blockNReads = 0;
@@ -175,7 +175,7 @@ for (const [ename, bin, engine] of engines) {
         expect(await claim(TIME_COIN, engineOnly.url)).toBe("503 relay"); // the anchor (first read) was healthy
         expect(engineOnly.lies()).toBeGreaterThan(0);
         // the old contract (shape only): the engine takes the forged timestamp and the enclave signs a false claim
-        expect(await claim(TIME_COIN, everywhere.url, "shape")).toBe("PROUVÉE, SIGNÉE");
+        expect(await claim(TIME_COIN, everywhere.url, "shape")).toBe("PROVEN, SIGNED");
       } finally {
         await everywhere.close();
         await engineOnly.close();
@@ -184,7 +184,7 @@ for (const [ename, bin, engine] of engines) {
 
     it("r2 / r3-1b: block N without baseFeePerGas, without mixHash or without blob fields (invalid answers for Arc) → 503, nothing signed", async () => {
       const healthy = await claim(BASEFEE_COIN, url);
-      expect(["non prouvée", "PROUVÉE, SIGNÉE"]).toContain(healthy); // anvil (--base-fee 0) pays, arc-anvil does not: irrelevant here
+      expect(["not proven", "PROVEN, SIGNED"]).toContain(healthy); // anvil (--base-fee 0) pays, arc-anvil does not: irrelevant here
       for (const drop of [["baseFeePerGas"], ["mixHash"], ["blobGasUsed", "excessBlobGas", "parentBeaconBlockRoot"]]) {
         const proxy = await lyingRpc(url, (q, real) => {
           if (!isBlock(q, N) || !real.result) return undefined;
@@ -202,7 +202,7 @@ for (const [ename, bin, engine] of engines) {
     }, 240_000);
 
     it("poisoned parentHash: N − 1 with the right hash but a forged parentHash, N − 2 with the forged hash → BLOCKHASH(N − 2): 503, nothing signed; control \"shape\": false claim signed", async () => {
-      expect(await claim(BH_COIN, url)).toBe("non prouvée"); // healthy RPC: BLOCKHASH(N − 2) is the real hash
+      expect(await claim(BH_COIN, url)).toBe("not proven"); // healthy RPC: BLOCKHASH(N − 2) is the real hash
       const proxy = await lyingRpc(url, (q, real) => {
         if (!real.result) return undefined;
         if (isBlock(q, N - 1n)) return { ...real.result, parentHash: FORGED };
@@ -211,7 +211,7 @@ for (const [ename, bin, engine] of engines) {
       });
       try {
         expect(await claim(BH_COIN, proxy.url)).toBe("503 relay");
-        expect(await claim(BH_COIN, proxy.url, "shape")).toBe("PROUVÉE, SIGNÉE");
+        expect(await claim(BH_COIN, proxy.url, "shape")).toBe("PROVEN, SIGNED");
         expect(proxy.lies()).toBeGreaterThan(0);
       } finally {
         await proxy.close();

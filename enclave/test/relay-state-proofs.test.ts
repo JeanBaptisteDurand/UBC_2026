@@ -52,7 +52,7 @@ async function fakeRpc(lie: Lie): Promise<{ url: string; server: Server; calls: 
         const p = clone(fx.proofs.find((x) => x.address.toLowerCase() === addr.toLowerCase())!);
         const sp = slots.map((k) => {
           const s = p.storageProof.find((x) => slotKey(x.key) === slotKey(k));
-          if (!s) throw new Error(`case absente du jeu : ${k}`);
+          if (!s) throw new Error(`slot missing from the fixture: ${k}`);
           return s;
         });
         const r = { ...p, storageProof: sp };

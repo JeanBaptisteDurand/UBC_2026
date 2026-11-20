@@ -1,14 +1,15 @@
 /**
- * Prime scellée v2.1 quater — la faute VOLONTAIRE de la démonstration de la réfutation (DEMO_FAULT=inflate-loss), avec un
- * FAUX moteur de rejeu déterministe (la chaîne locale, le vrai contrat et le vrai rejeu : bounty-demo-fault-chain.test.ts) :
- *  - l'enclave fautive signe une réclamation à perte DOUBLÉE, tout le reste identique (bloc N, prédicat, palier de la perte
- *    MESURÉE, empreinte, cPHash, échéance) ; digest recalculé à la main comme SealedBounty ; sans la faute, rien ne change ;
- *  - deux enclaves honnêtes d'opérateurs distincts la réfutent (« prouvée, perte réelle ») et la réfutation passe les règles
- *    de SealedBounty.refute, recalculées ici à partir du contrat (digests, signataires, quorum, opérateurs distincts et
- *    étrangers à la réclamation, résultat différent) ; l'enclave fautive, elle, réfute honnêtement ;
- *  - /pubkeys et /health l'annoncent, et seulement elle ;
- *  - garde-fous : produit 2, PRODUCT_ID absent, OPERATOR_ALLOWLIST=* ou l'opérateur principal, valeur inconnue → refus ; le
- *    VRAI serveur (products/sealed-bounty/server.ts, lancé par tsx) refuse de démarrer avec PRODUCT_ID=2 et DEMO_FAULT.
+ * Sealed Bounty v2.1 quater: the DELIBERATE fault of the refutation demo (DEMO_FAULT=inflate-loss), with a FAKE
+ * deterministic replay engine (the local chain, the real contract and the real replay: bounty-demo-fault-chain.test.ts):
+ *  - the faulty enclave signs a claim with a DOUBLED loss and everything else identical (block N, predicate, tier of the
+ *    MEASURED loss, fingerprint, cPHash, deadline); the digest is recomputed by hand as SealedBounty does; without the
+ *    fault, nothing changes;
+ *  - two honest enclaves of distinct operators refute it ("proven, real loss") and the refutation passes the rules of
+ *    SealedBounty.refute, recomputed here from the contract (digests, signers, quorum, operators distinct and foreign
+ *    to the claim, a different result); the faulty enclave itself refutes honestly;
+ *  - /pubkeys and /health announce it, and only it;
+ *  - safeguards: product 2, an absent PRODUCT_ID, OPERATOR_ALLOWLIST=* or the main operator, an unknown value → refused;
+ *    the REAL server (products/sealed-bounty/server.ts, started by tsx) refuses to start with PRODUCT_ID=2 and DEMO_FAULT.
  */
 import { describe, it, expect } from "vitest";
 import { spawnSync } from "node:child_process";
@@ -39,7 +40,7 @@ const DEMO_PRODUCT = 5n;
 const TOKEN = "0x3600000000000000000000000000000000000000" as Address;
 const VAULT = "0x0000000000000000000000000000000000000d01" as Address;
 const HUNTER = "0x0000000000000000000000000000000000000012" as Address;
-const OP_A = getAddress("0x000000000000000000000000000000000000a001"); // l'opérateur de l'enclave menteuse
+const OP_A = getAddress("0x000000000000000000000000000000000000a001"); // the lying enclave's operator
 const OP_B = getAddress("0x000000000000000000000000000000000000b002");
 const OP_C = getAddress("0x000000000000000000000000000000000000c003");
 const OP_D = getAddress("0x000000000000000000000000000000000000d004");
@@ -47,16 +48,16 @@ const NOW = 1_000_000n;
 const WINDOW = 259_200n;
 const R = ("0x" + "31".repeat(32)) as Hex;
 const TXS = ["0xc0ffee"] as Hex[];
-const REAL_LOSS = 6_000_000n; // ce que mesure le rejeu ; palier 0 (≥ 1 USDC) — doublée, elle atteindrait le palier 1 (≥ 10 USDC)
+const REAL_LOSS = 6_000_000n; // what the replay measures; tier 0 (≥ 1 USDC); doubled, it would reach tier 1 (≥ 10 USDC)
 
 const utf8 = (s: string) => new TextEncoder().encode(s);
 const pred: Predicate = { combine: "OR", clauses: [{ type: "ERC20_DROP", token: TOKEN, holder: VAULT, min: "1000000" }] };
-const protocol = generateEnclaveKeys(); // la clé X25519 de la prime
+const protocol = generateEnclaveKeys(); // the bounty's X25519 key
 const view: BountyView = { predicateHash: predicateHash(pred), protocolX25519: protocol.x25519PublicKey, tierMinLoss: [1_000_000n, 10_000_000n], deadline: 9_000_000n };
 
 const newKit = (productId = DEMO_PRODUCT) => new EnclaveKit({ productId, chainId: CHAIN, registry: REGISTRY, mockBlockHash: true });
 
-/** Faux moteur déterministe : la perte mesurée est celle qu'on lui donne ; mêmes règles de forme que le vrai. */
+/** A fake deterministic engine: the measured loss is the one it is given; the same shape rules as the real one. */
 function fakeFork(loss: bigint) {
   const f = {
     runs: 0,
@@ -66,7 +67,7 @@ function fakeFork(loss: bigint) {
       return { ctx };
     },
     validate(b: ExploitBundle) {
-      if (!Array.isArray(b.txs) || b.txs.length < 1 || b.txs.length > 10) throw new Error("1 à 10 transactions");
+      if (!Array.isArray(b.txs) || b.txs.length < 1 || b.txs.length > 10) throw new Error("1 to 10 transactions");
     },
   };
   return f satisfies ForkRunner;
@@ -74,7 +75,7 @@ function fakeFork(loss: bigint) {
 
 const blocks = { current: async () => 2_000n, blockHash: async (n: bigint) => keccak256(numberToHex(n, { size: 32 })) };
 
-/** Une enclave Prime scellée (réclamations), menteuse ou non, et son moteur. */
+/** A Sealed Bounty enclave (claims), lying or not, and its engine. */
 function claimer(o: { demoFault?: "inflate-loss"; kit?: EnclaveKit } = {}) {
   const kit = o.kit ?? newKit();
   const fork = fakeFork(REAL_LOSS);
@@ -85,7 +86,7 @@ function claimer(o: { demoFault?: "inflate-loss"; kit?: EnclaveKit } = {}) {
   return { kit, fork, service };
 }
 
-/** Le chasseur soumet le même exploit (même r, même bloc N, même échéance) : la réclamation ne dépend que de l'enclave. */
+/** The hunter submits the same exploit (same r, same block N, same deadline): the claim depends only on the enclave. */
 async function submit(c: ReturnType<typeof claimer>) {
   const base: ExploitBundle = { bountyId: 1n, payee: HUNTER, capital: 0n, predicate: pred, txs: TXS, r: R, cP: "0x" };
   const cP = await new DeterministicProtocolCipher().recompute(base, protocol.x25519PublicKey);
@@ -96,7 +97,7 @@ async function submit(c: ReturnType<typeof claimer>) {
   return { ...res, cE };
 }
 
-/** La chaîne vue par les enclaves réfutantes : claimRecords, fenêtre, prime, opérateur actif de chaque signataire. */
+/** The chain as the refuting enclaves see it: claimRecords, window, bounty, the active operator of each signer. */
 class FakeChain implements RefuteReader {
   records = new Map<string, { acceptedAt: bigint; refuted: boolean; opsHash: Hex }>();
   active = new Map<string, Address>();
@@ -115,7 +116,7 @@ class FakeChain implements RefuteReader {
   }
 }
 
-/** Une enclave réfutante d'opérateur `op` (sa propre clé, son propre moteur, qui mesure la VRAIE perte). */
+/** A refuting enclave of operator `op` (its own key, its own engine, which measures the REAL loss). */
 function refuter(chain: FakeChain, op: Address, kit = newKit()) {
   chain.active.set(kit.keys.signer.toLowerCase(), op);
   const fork = fakeFork(REAL_LOSS);
@@ -124,7 +125,7 @@ function refuter(chain: FakeChain, op: Address, kit = newKit()) {
 
 const sharedSecretOf = (cP: Hex) => toHex(x25519.getSharedSecret(protocol.x25519PrivateKey, toBytes(cP).slice(0, 32)));
 
-/** La demande de réfutation du PROTOCOLE (cP + secret de ce seul rapport), chiffrée vers `kit` pour CETTE réclamation. */
+/** The PROTOCOL's refutation request (cP + the secret of this one report), encrypted to `kit` for THIS claim. */
 async function protocolRequest(kit: EnclaveKit, claim: Claim, operators: Address[], cP: Hex) {
   const s = await seal(
     toBytes(kit.keys.x25519PublicKey), utf8(JSON.stringify({ from: "protocol", cP, sharedSecret: sharedSecretOf(cP) })),
@@ -138,7 +139,7 @@ const refutedOf = (r: RefuteResult) => {
   return r as Extract<RefuteResult, { status: "refuted" }>;
 };
 
-// ---- le contrat, lu dans sa source : typehash, domaine, constantes ; digests et règles de refute recalculés à la main ----
+// ---- the contract, read from its source: typehash, domain, constants; digests and refute rules recomputed by hand ----
 const SOL = readFileSync(new URL("../../contracts/src/SealedBounty.sol", import.meta.url), "utf8");
 const REFUTATION_TYPE = /REFUTATION_TYPEHASH =\s*keccak256\("([^"]+)"\)/.exec(SOL)![1]!;
 const CLAIM_TYPE = /CLAIM_TYPEHASH = keccak256\(\s*"([^"]+)"\s*\)/.exec(SOL)![1]!;
@@ -174,8 +175,8 @@ function refutationDigestByHand(f: Refutation): Hex {
 }
 
 /**
- * SealedBounty.refute + _countRefuters, dans l'ordre du contrat (le nom de l'erreur qu'il lèverait, ou "ok") ; l'opérateur actif
- * d'une clé (EnclaveRegistry.activeOperatorAt au bloc courant) est donné par `activeOf`.
+ * SealedBounty.refute + _countRefuters, in the contract's order (the name of the error it would raise, or "ok"); the
+ * active operator of a key (EnclaveRegistry.activeOperatorAt at the current block) is given by `activeOf`.
  */
 async function contractRefute(a: {
   claim: Claim; ops: Address[]; record: { acceptedAt: bigint; refuted: boolean; opsHash: Hex }; now: bigint;
@@ -201,19 +202,19 @@ async function contractRefute(a: {
   return "ok";
 }
 
-/** SealedBounty._tierPayout : la réclamation est-elle payable telle quelle ? */
+/** SealedBounty._tierPayout: is the claim payable as it is? */
 function tierPayable(c: Claim): boolean {
   return c.tier < view.tierMinLoss.length && c.loss >= view.tierMinLoss[c.tier]!;
 }
 
-describe("DEMO_FAULT=inflate-loss — l'enclave fautive signe une perte doublée, le reste identique", () => {
-  it("les constantes lues dans SealedBounty.sol sont celles que la démonstration suppose", () => {
+describe("DEMO_FAULT=inflate-loss: the faulty enclave signs a doubled loss, the rest identical", () => {
+  it("the constants read from SealedBounty.sol are the ones the demo assumes", () => {
     expect(REFUTATION_TYPE).toBe("Refutation(bytes32 claimDigest,bool proven,uint256 loss,uint8 tier)");
     expect([DOMAIN_NAME, DOMAIN_VERSION, REFUTE_QUORUM, MAX_SIGS, SOL_WINDOW]).toEqual(["ArcEnclaveNetwork", "1", 2n, 5n, "3"]);
     expect(DEMO_FAULT_FORBIDDEN_PRODUCTS).toEqual([2n]);
   });
 
-  it("sans la faute : la perte mesurée ; avec : 2 × la perte mesurée, palier de la perte MESURÉE, tout le reste identique", async () => {
+  it("without the fault: the measured loss; with it: 2 × the measured loss, the tier of the MEASURED loss, everything else identical", async () => {
     const honest = await submit(claimer());
     const liar = claimer({ demoFault: "inflate-loss" });
     expect(liar.service.demoFault).toBe("inflate-loss");
@@ -222,23 +223,23 @@ describe("DEMO_FAULT=inflate-loss — l'enclave fautive signe une perte doublée
 
     expect(honest.claim.loss).toBe(REAL_LOSS);
     expect(lie.claim.loss).toBe(2n * REAL_LOSS);
-    expect(lie.claim.tier).toBe(0); // 12 USDC atteindrait le palier 1 : la faute ne touche QUE la perte
+    expect(lie.claim.tier).toBe(0); // 12 USDC would reach tier 1: the fault touches ONLY the loss
     expect({ ...lie.claim, loss: REAL_LOSS }).toEqual(honest.claim);
     expect(lie.cP).toBe(honest.cP);
-    expect(tierPayable(lie.claim)).toBe(true); // le contrat l'accepterait (loss ≥ tierMinLoss[tier])
+    expect(tierPayable(lie.claim)).toBe(true); // the contract would accept it (loss ≥ tierMinLoss[tier])
 
-    // la signature couvre la réclamation DOUBLÉE (digest recalculé comme le contrat) et vient de l'enclave fautive
+    // the signature covers the DOUBLED claim (digest recomputed as the contract does) and comes from the faulty enclave
     const digest = claimDigestByHand(lie.claim);
     expect(claimDigestOf(SEALED, lie.claim, CHAIN)).toBe(digest);
     expect((await recoverAddress({ hash: digest, signature: lie.signature })).toLowerCase()).toBe(liar.kit.keys.signer.toLowerCase());
 
-    // re-soumission : la même réclamation doublée, la même signature (mémoire anti-équivocation cohérente)
+    // resubmission: the same doubled claim, the same signature (a consistent anti-equivocation memory)
     const again = (await liar.service.submit(lie.cE)) as Extract<SubmitResult, { status: "proven" }>;
     expect(again.claim).toEqual(lie.claim);
     expect(again.signature).toBe(lie.signature);
   });
 
-  it("deux enclaves honnêtes la réfutent (« prouvée », perte réelle) : la réfutation passe les règles de SealedBounty.refute", async () => {
+  it("two honest enclaves refute it (\"proven\", real loss): the refutation passes the rules of SealedBounty.refute", async () => {
     const liar = claimer({ demoFault: "inflate-loss" });
     const lie = await submit(liar);
     const chain = new FakeChain();
@@ -255,24 +256,24 @@ describe("DEMO_FAULT=inflate-loss — l'enclave fautive signe une perte doublée
     expect(rB.replay).toMatchObject({ replayed: true, satisfied: true, loss: REAL_LOSS, tier: 0, proven: true, blockN: 1_990n });
     expect([rB.operator, rC.operator]).toEqual([OP_B, OP_C]);
 
-    // signatures recouvrées sur le digest du CONTRAT (typehash et domaine lus dans sa source)
+    // signatures recovered over the CONTRACT's digest (typehash and domain read from its source)
     const d = refutationDigestByHand(f);
     expect((await recoverAddress({ hash: d, signature: rB.signature })).toLowerCase()).toBe(B.kit.keys.signer.toLowerCase());
     expect((await recoverAddress({ hash: d, signature: rC.signature })).toLowerCase()).toBe(C.kit.keys.signer.toLowerCase());
-    // et le même digest que celui que signe l'enclave (EIP-712 de viem, domaine du kit)
+    // and the same digest as the one the enclave signs (viem's EIP-712, the kit's domain)
     const viaKit = await privateKeyToAccount(B.kit.keys.signerPrivateKey).signTypedData({
       domain: domain({ chainId: CHAIN, verifyingContract: SEALED }), types: refutationTypes, primaryType: "Refutation", message: f,
     });
     expect(viaKit).toBe(rB.signature);
 
-    // les règles de refute, dans l'ordre du contrat
+    // the refute rules, in the contract's order
     const activeOf = (s: Address) => chain.active.get(s.toLowerCase()) ?? zeroAddress;
     const record = chain.records.get(digest.toLowerCase())!;
     const base = { claim: lie.claim, ops: [OP_A], record, now: chain.now, f, activeOf };
     expect(await contractRefute({ ...base, sigs: [rB.signature, rC.signature] })).toBe("ok");
-    expect(await contractRefute({ ...base, sigs: [rB.signature] })).toBe("NeedMoreRefuters"); // un seul opérateur
-    expect(await contractRefute({ ...base, sigs: [rB.signature, rB.signature] })).toBe("NeedMoreRefuters"); // deux fois le même
-    // l'opérateur de la réclamation ne compte jamais (le contrat le refuse ; son enclave refuse même de réfuter)
+    expect(await contractRefute({ ...base, sigs: [rB.signature] })).toBe("NeedMoreRefuters"); // one single operator
+    expect(await contractRefute({ ...base, sigs: [rB.signature, rB.signature] })).toBe("NeedMoreRefuters"); // the same one twice
+    // the claim's operator never counts (the contract refuses it; its enclave even refuses to refute)
     const forgedByA = await privateKeyToAccount(liar.kit.keys.signerPrivateKey).signTypedData({
       domain: domain({ chainId: CHAIN, verifyingContract: SEALED }), types: refutationTypes, primaryType: "Refutation", message: f,
     });
@@ -280,14 +281,14 @@ describe("DEMO_FAULT=inflate-loss — l'enclave fautive signe une perte doublée
     const A = new RefutationService(liar.kit, { sealedBounty: SEALED }, chain, new DeterministicProtocolCipher(), fakeFork(REAL_LOSS));
     const selfRefute = await A.refute(await protocolRequest(liar.kit, lie.claim, [OP_A], lie.cP));
     expect(selfRefute).toMatchObject({ status: "refused", code: "claim_operator" });
-    // une « réfutation » qui redonne la réclamation n'en est pas une
+    // a "refutation" that gives back the claim is not one
     expect(await contractRefute({ ...base, f: { ...f, loss: lie.claim.loss }, sigs: [rB.signature, rC.signature] })).toBe("NotARefutation");
-    // hors fenêtre, ou déjà réfutée
+    // outside the window, or already refuted
     expect(await contractRefute({ ...base, now: NOW + WINDOW + 1n, sigs: [rB.signature, rC.signature] })).toBe("RefuteWindowOver");
     expect(await contractRefute({ ...base, record: { ...record, refuted: true }, sigs: [rB.signature, rC.signature] })).toBe("AlreadyRefuted");
   });
 
-  it("la réclamation d'une enclave honnête se CONFIRME : rien n'est signé, rien à réfuter", async () => {
+  it("the claim of an honest enclave is CONFIRMED: nothing is signed, nothing to refute", async () => {
     const honest = await submit(claimer());
     const chain = new FakeChain();
     chain.accept(honest.claim, [OP_A]);
@@ -298,10 +299,10 @@ describe("DEMO_FAULT=inflate-loss — l'enclave fautive signe une perte doublée
   });
 });
 
-describe("DEMO_FAULT — l'application HTTP l'annonce ; ses réfutations restent honnêtes", () => {
+describe("DEMO_FAULT: the HTTP application announces it; its refutations stay honest", () => {
   const attest = { operatorAllowlist: null, registeredOperator: async () => null, warn: () => {} };
 
-  it("/pubkeys et /health annoncent la faute (CORS compris) ; sans elle, les réponses du kit, inchangées", async () => {
+  it("/pubkeys and /health announce the fault (CORS included); without it, the kit's answers, unchanged", async () => {
     const liar = claimer({ demoFault: "inflate-loss" });
     const lyingApp = createSealedBountyApp({ kit: liar.kit, service: liar.service, attest });
     const h = await lyingApp.request("/health");
@@ -309,7 +310,7 @@ describe("DEMO_FAULT — l'application HTTP l'annonce ; ses réfutations restent
     const p = await lyingApp.request("/pubkeys", { headers: { origin: "https://example.org" } });
     expect(p.headers.get("access-control-allow-origin")).toBe("*");
     expect(await p.json()).toEqual({ ...liar.kit.pubkeys(), demoFault: "inflate-loss", demoFaultNote: DEMO_FAULT_NOTE["inflate-loss"] });
-    // les autres routes du kit restent servies (/attest, ici en mode développement : quote simulé)
+    // the kit's other routes stay served (/attest, here in development mode: a simulated quote)
     const at = await lyingApp.request("/attest", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ operator: OP_A, anchorR: "10" }) });
     expect(at.status).toBe(200);
     expect(((await at.json()) as any).signer).toBe(liar.kit.keys.signer);
@@ -320,9 +321,9 @@ describe("DEMO_FAULT — l'application HTTP l'annonce ; ses réfutations restent
     expect(await (await honestApp.request("/pubkeys")).json()).toEqual(honest.kit.pubkeys());
   });
 
-  it("POST /bounty/submit rend la réclamation doublée ; POST /v1/refute de la MÊME enclave fautive réfute honnêtement", async () => {
+  it("POST /bounty/submit returns the doubled claim; POST /v1/refute of the SAME faulty enclave refutes honestly", async () => {
     const chain = new FakeChain();
-    // une enclave fautive A a menti ; une AUTRE enclave fautive (opérateur D) reçoit la demande de réfutation
+    // a faulty enclave A lied; ANOTHER faulty enclave (operator D) receives the refutation request
     const A = claimer({ demoFault: "inflate-loss" });
     const lie = await submit(A);
     const digest = chain.accept(lie.claim, [OP_A]);
@@ -330,7 +331,7 @@ describe("DEMO_FAULT — l'application HTTP l'annonce ; ses réfutations restent
     const Dref = refuter(chain, OP_D, D.kit);
     const app = createSealedBountyApp({ kit: D.kit, service: D.service, refuter: Dref.service, attest });
 
-    const own = await submit({ ...D }); // elle ment sur ses propres réclamations…
+    const own = await submit({ ...D }); // it lies about its own claims…
     expect(own.claim.loss).toBe(2n * REAL_LOSS);
     const q = await protocolRequest(D.kit, lie.claim, [OP_A], lie.cP);
     const body = {
@@ -339,7 +340,7 @@ describe("DEMO_FAULT — l'application HTTP l'annonce ; ses réfutations restent
     };
     const res = await app.request("/v1/refute", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     expect(res.status).toBe(200);
-    // …mais réfute avec la perte RÉELLE (le mode ne touche jamais les réfutations)
+    // …but refutes with the REAL loss (the mode never touches refutations)
     expect(await res.json()).toMatchObject({ status: "refuted", refutation: { claimDigest: digest, proven: true, loss: REAL_LOSS.toString(), tier: 0 }, operator: OP_D });
 
     const sub = await app.request("/bounty/submit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ enc: toHex(own.cE.enc), ciphertext: toHex(own.cE.ciphertext) }) });
@@ -349,12 +350,12 @@ describe("DEMO_FAULT — l'application HTTP l'annonce ; ses réfutations restent
 
 describe("DEMO_FAULT — garde-fous", () => {
   const A_ADDR = "0x00000000000000000000000000000000000a0a0a";
-  it("parseDemoFault : absente ou vide → aucune faute ; produit 2 ou absent, valeur inconnue, « * », opérateur principal → refus", () => {
-    expect(parseDemoFault({}, 2n)).toBeUndefined(); // sans la variable, rien ne change, même pour le produit 2
+  it("parseDemoFault: absent or empty → no fault; product 2 or absent, an unknown value, \"*\", the main operator → refused", () => {
+    expect(parseDemoFault({}, 2n)).toBeUndefined(); // without the variable, nothing changes, even for product 2
     expect(parseDemoFault({ DEMO_FAULT: "" }, 5n)).toBeUndefined();
     expect(parseDemoFault({ DEMO_FAULT: "  " }, 5n)).toBeUndefined();
     expect(parseDemoFault({ DEMO_FAULT: "inflate-loss", OPERATOR_ALLOWLIST: A_ADDR }, 5n)).toBe("inflate-loss");
-    expect(parseDemoFault({ DEMO_FAULT: "inflate-loss" }, 5n)).toBe("inflate-loss"); // liste vide : personne n'atteste (fermé)
+    expect(parseDemoFault({ DEMO_FAULT: "inflate-loss" }, 5n)).toBe("inflate-loss"); // empty list: nobody attests (closed)
     expect(() => parseDemoFault({ DEMO_FAULT: "inflate-loss", OPERATOR_ALLOWLIST: A_ADDR }, 2n)).toThrow(/produit 2/);
     expect(() => parseDemoFault({ DEMO_FAULT: "inflate-loss", OPERATOR_ALLOWLIST: A_ADDR }, 0n)).toThrow(/PRODUCT_ID/);
     expect(() => parseDemoFault({ DEMO_FAULT: "zero-loss", OPERATOR_ALLOWLIST: A_ADDR }, 5n)).toThrow(/unknown/);
@@ -363,11 +364,11 @@ describe("DEMO_FAULT — garde-fous", () => {
     expect(() => parseDemoFault({ DEMO_FAULT: "inflate-loss", OPERATOR_ALLOWLIST: "0x1234" }, 5n)).toThrow(/invalid OPERATOR_ALLOWLIST/);
   });
 
-  it("BountyService refuse une faute sur le produit 2, ou inconnue", () => {
+  it("BountyService refuses a fault on product 2, or an unknown one", () => {
     expect(() => claimer({ demoFault: "inflate-loss", kit: newKit(2n) })).toThrow(/produit 2/);
     expect(() => new BountyService(newKit(), { sealedBounty: SEALED, demoFault: "nope" as any }, { getBounty: async () => view }, new DeterministicProtocolCipher(), fakeFork(0n), blocks, () => NOW))
       .toThrow(/unknown/);
-    expect(() => claimer({ kit: newKit(2n) })).not.toThrow(); // sans faute : le produit 2 tourne comme avant
+    expect(() => claimer({ kit: newKit(2n) })).not.toThrow(); // without a fault: product 2 runs as before
   });
 
   const TSX = fileURLToPath(new URL("../node_modules/.bin/tsx", import.meta.url));
@@ -385,19 +386,19 @@ describe("DEMO_FAULT — garde-fous", () => {
     });
   };
 
-  it.skipIf(!existsSync(TSX))("le VRAI serveur refuse de démarrer avec PRODUCT_ID=2 et DEMO_FAULT (avant toute autre chose)", () => {
+  it.skipIf(!existsSync(TSX))("the REAL server refuses to start with PRODUCT_ID=2 and DEMO_FAULT (before anything else)", () => {
     const r = runServer({ PRODUCT_ID: "2", DEMO_FAULT: "inflate-loss", OPERATOR_ALLOWLIST: A_ADDR });
     expect(r.status).toBe(1);
     expect(r.stderr).toMatch(/DEMO_FAULT refused for product 2.*stopping/);
-    expect(r.stderr).not.toMatch(/anvil not found/); // arrêté AVANT le contrôle du moteur
+    expect(r.stderr).not.toMatch(/anvil not found/); // stopped BEFORE the engine check
     expect(r.stdout).not.toMatch(/sealed-bounty \(O3\) sur/);
 
-    // contre-épreuve : produit 5 → la ligne de journal de la faute, puis l'arrêt vient du moteur absent (pas de la faute)
+    // counter-check: product 5 → the fault's log line, then the stop comes from the missing engine (not from the fault)
     const ok = runServer({ PRODUCT_ID: "5", DEMO_FAULT: "inflate-loss", OPERATOR_ALLOWLIST: A_ADDR });
     expect(ok.status).toBe(1);
     expect(ok.stderr).toMatch(/DEMO_FAULT=inflate-loss: deliberately faulty DEMO enclave \(product 5\)/);
     expect(ok.stderr).toMatch(/anvil not found/);
-    // sans la variable, le produit 2 démarre comme avant (ici arrêté par le moteur absent, sans un mot de la faute)
+    // without the variable, product 2 starts as before (here stopped by the missing engine, without a word about the fault)
     const prod = runServer({ PRODUCT_ID: "2", OPERATOR_ALLOWLIST: A_ADDR });
     expect(prod.stderr).toMatch(/anvil not found/);
     expect(prod.stderr).not.toMatch(/DEMO_FAULT/);
