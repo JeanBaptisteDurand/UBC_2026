@@ -205,7 +205,7 @@ export const MAX_GUIDE_STEPS = 6;
 export const MAX_GUIDE_NOTE = 120;
 export const MAX_GUIDE_TITLE = 60;
 /** The agent's install command, as the Rent page shows it (frontend/src/data/live.ts: INSTALL_URL). */
-export const INSTALL_URL = `${SITE_ORIGIN}/install.sh`;
+export const INSTALL_URL = "https://arc-hive.xyz/install.sh";
 export const INSTALL_CMD = `curl -fsSL ${INSTALL_URL} | sh`;
 /** What a guide can put in the visitor's clipboard (they will paste it into a terminal): the commands the page shows,
  *  the MCP server's address and its command for Claude Code; nothing else, never a text from the model. */

@@ -827,7 +827,7 @@ test("ui_guide: the four recipes (EN and FR) — registry anchors, notes ≤ 120
     }
   }
   // the copied command is the one the Rent page shows (frontend/src/data/live.ts)
-  assert.equal(INSTALL_CMD, "curl -fsSL https://archive.62-171-153-35.sslip.io/install.sh | sh");
+  assert.equal(INSTALL_CMD, "curl -fsSL https://arc-hive.xyz/install.sh | sh");
   const live = fileURLToPath(new URL("../../../frontend/src/data/live.ts", import.meta.url));
   if (existsSync(live)) assert.ok(readFileSync(live, "utf8").includes(`'${INSTALL_URL}'`), "INSTALL_URL du front");
   // the registry: each page's steps are anchors of that page; the steps that ask for a signature are among them
@@ -868,7 +868,7 @@ test("ui_guide: a guide written by the model — validated and normalized; never
   for (const bad of ["my code is 1234", "HIVE-7K2P", "HIVE-7K2P-QX9M; rm -rf ~", ""]) assert.match(ko(pair(bad)).error, /steps\[0\]\.text: the pairing code the machine shows, HIVE-XXXX-XXXX/, bad);
   // copy: the real install command (even copied badly, the real one is what goes out), a command of the page, the MCP
   const copy = (text: unknown, target = "install-cmd", page = "rent") => createUiSession(page).run("ui_guide", { title: "Copy", steps: [{ target, note: "Copied", action: "copy", text }] });
-  for (const t of ["curl -fsSL https://archive.62-171-153-35.sslip.io/install.sh | bash", ` curl   -fsSL ${INSTALL_URL} |  sh `, `wget -qO- ${INSTALL_URL} | sh`]) {
+  for (const t of ["curl -fsSL https://arc-hive.xyz/install.sh | bash", ` curl   -fsSL ${INSTALL_URL} |  sh `, `wget -qO- ${INSTALL_URL} | sh`]) {
     assert.equal(guideOf(copy(t)).steps[0]!.text, INSTALL_CMD, t);
   }
   for (const t of ["archive-node doctor", "archive-node pair", "archive-node up --product 3 --tunnel", `${SITE_ORIGIN}/mcp`]) assert.equal(guideOf(copy(t, "install")).steps[0]!.text, t, t);
