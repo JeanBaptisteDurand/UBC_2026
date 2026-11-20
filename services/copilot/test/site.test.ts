@@ -1402,12 +1402,19 @@ test("coding agents on product 3 (examples/opencode-archive): docs_search finds 
     ["Comment utiliser l'IA privée d'ArcHive dans OpenCode ?", "site-v5#opencode"],
     ["Can I use Aider with your private AI?", "site-v5#any-harness"],
     ["which settings for Continue or Cline, any OpenAI compatible harness?", "site-v5#any-harness"],
+    ["How do I pay the bridge from a Circle developer-controlled wallet?", "site-v5#circle-wallet"],
+    ["Peut-on payer avec un wallet Circle, sans clé privée ?", "site-v5#circle-wallet"],
+    ["What is opencode-arc?", "site-v5#opencode"],
   ] as const) assert.equal(await top(q), src, q);
   // the published example's commands, the bridge's address and model, the limits, the proofs
   const oc = SITE_PAGES_KB.find((k) => k.source === "site-v5#opencode")!.text;
-  for (const must of ["examples/opencode-archive", "https://github.com/JeanBaptisteDurand/UBC_2026", "http://127.0.0.1:8789/v1", "ARCHIVE_PAYER_KEY_FILE", "./opencode-archive run", "./opencode-archive log", "./opencode-archive stop", "cd packages/sdk && npm ci", "gpt-oss-120b", "0.01 USDC", "HPKE", "EIP-3009", "not an MCP server", "never a wallet with real funds", "30 paid calls", "1,024 output tokens", "32 KB", "0xb381773a089fb338a11081a9098174fdc4d0db14374d8a7f3ee1652f2727fa31", "v2.1"]) assert.ok(oc.includes(must), must);
+  for (const must of ["examples/opencode-archive", "https://github.com/JeanBaptisteDurand/UBC_2026", "http://127.0.0.1:8789/v1", "ARCHIVE_PAYER_KEY_FILE", "./opencode-arc run", "./opencode-arc log", "./opencode-arc stop", "./opencode-archive: either name works", "ARCHIVE_PAYER=circle", "live v3 stack", "0x547006bc63ee77542c7783df5c48dcf50cd0daa2ec2e3bdd2ad5368c5d76e8f0", "cd packages/sdk && npm ci", "gpt-oss-120b", "0.01 USDC", "HPKE", "EIP-3009", "not an MCP server", "never a wallet with real funds", "30 paid calls", "1,024 output tokens", "32 KB", "0xb381773a089fb338a11081a9098174fdc4d0db14374d8a7f3ee1652f2727fa31", "v2.1"]) assert.ok(oc.includes(must), must);
   const any = SITE_PAGES_KB.find((k) => k.source === "site-v5#any-harness")!.text;
-  for (const must of ["./opencode-archive start", "http://127.0.0.1:8789/v1", "model gpt-oss-120b", "aider --model openai/gpt-oss-120b", "OpenAI Compatible", "goose session", "Codex CLI", "were not run against the enclave", "0x877519ad25ea750bf45bcba314d77324aa6227ae690fa1c7110dece6e95eaede"]) assert.ok(any.includes(must), must);
+  for (const must of ["./opencode-archive start", "http://127.0.0.1:8789/v1", "model gpt-oss-120b", "aider --model openai/gpt-oss-120b", "OpenAI Compatible", "goose session", "Codex CLI", "were not run against the enclave", "0x877519ad25ea750bf45bcba314d77324aa6227ae690fa1c7110dece6e95eaede", "./opencode-arc start", "ARCHIVE_PAYER=circle"]) assert.ok(any.includes(must), must);
+  // paying from a Circle developer-controlled wallet: the published README's variables, the EOA limit, testnet only, the proof
+  const cw = SITE_PAGES_KB.find((k) => k.source === "site-v5#circle-wallet")!.text;
+  for (const must of ["ARCHIVE_PAYER=circle", "ARCHIVE_CIRCLE_ENV", "ARCHIVE_CIRCLE_ENTITY_FILE", "ARCHIVE_CIRCLE_WALLET_FILE", "TEST API key", "ARC-TESTNET", "accountType EOA", "ERC-1271", "ecrecover", "at most 0.01 USDC", "0xA7f3c1681782334F04B7Fd6dE4Fce3c4328f39e5", "0x1318d65c5829c9689ba7fc3c717a5bdca1b564cc8590bdc183ff1ee4f0ff7cd0"]) assert.ok(cw.includes(must), must);
+  assert.ok(!/CIRCLE_API_KEY=TEST_API_KEY:[0-9a-f]/i.test(cw) && !/[0-9a-f]{64}/i.test(cw.replace(/0x[0-9a-f]{64}/gi, "")), "no secret value");
   // the Claude Code entry and fixed answer name the published bridge, text only
   const cc = SITE_PAGES_KB.find((k) => k.source === "site-v5#claude-code")!.text;
   assert.ok(cc.includes("ARCHIVE_TOOLS=off ./opencode-archive start") && cc.includes("use_chat_completions_url_for_anthropic_messages: true") && /text only/.test(cc));
@@ -1422,4 +1429,5 @@ test("coding agents on product 3 (examples/opencode-archive): docs_search finds 
   }
   assert.equal(siteFixedAnswer("how do I bridge my USDC to Arc?", "en")?.topic, "bridge");
   assert.ok(SITE_SYSTEM.includes("CODING AGENTS") && SITE_SYSTEM.includes("http://127.0.0.1:8789/v1") && SITE_SYSTEM.includes("https://github.com/JeanBaptisteDurand/UBC_2026"));
+  assert.ok(SITE_SYSTEM.includes("opencode-arc") && SITE_SYSTEM.includes("Circle developer-controlled wallet"));
 });
