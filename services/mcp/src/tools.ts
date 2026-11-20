@@ -321,7 +321,8 @@ async function run(arc: ArcClient, actx: ActionCtx, name: string, a: any): Promi
 
 /** The output keys in English. The shared copilot code (arc-actions.ts) names them in French; values (and the
  *  keys of EIP-712 typed data, files and contract parameters, already English) are kept as they are. A key whose English
- *  name is already taken in the same object stays as it was. Known French rail labels become English too. */
+ *  name is already taken in the same object stays as it was. Known French rail labels and the list-unavailable message
+ *  become English too. */
 const KEYS_EN: Record<string, string> = {
   aBloc: "atBlock", aCompleter: "toFill", aEnvoyerAvantLeBloc: "sendBeforeBlock", aRegarder: "toCheck", accepte: "accepted",
   actifs: "activeCount", actives: "activeCount", activeMaintenant: "activeNow", adresse: "address", appelSdk: "sdkCall", apres: "after",
@@ -353,8 +354,34 @@ const KEYS_EN: Record<string, string> = {
   voieB_deuxTransactions: "pathB_twoTransactions",
 };
 const KEEP_KEYS = new Set(["types", "message", "domain", "files", "fichiers", "createBountyParams", "proposeParams", "args"]);
+
+/** The list names and reasons of the copilot's "list temporarily unavailable" message (archive-api.ts), in English.
+ *  The copilot says them in French because its prompt is French; this server says them in English. */
+const LIST_NAMES_EN: Record<string, string> = {
+  produits: "products", primes: "bounties", enclaves: "enclaves", sessions: "sessions", "activité": "activity",
+  "compteurs du réseau": "network counters", niveaux: "levels", index: "index",
+};
+const LIST_REASONS_EN: Array<[RegExp, string]> = [
+  [/l'API ArcHive n'a pas répondu en ([\d.]+) s/g, "the ArcHive API did not answer in $1 s"],
+  [/API ArcHive injoignable/g, "ArcHive API unreachable"],
+  [/l'API ArcHive a répondu HTTP (\d+)/g, "the ArcHive API answered HTTP $1"],
+  [/réponse non JSON de l'API ArcHive/g, "non-JSON response from the ArcHive API"],
+  [/réponse inattendue de l'API ArcHive \(tableau attendu\)/g, "unexpected ArcHive API response (array expected)"],
+  [/réponse illisible de l'API ArcHive/g, "unreadable ArcHive API response"],
+  [/réponse inattendue de l'API ArcHive/g, "unexpected ArcHive API response"],
+];
+export function englishText(s: string): string {
+  if (!s.includes("indisponible") && !s.includes("API ArcHive")) return s;
+  let out = s
+    .replace(/liste momentanément indisponible \(([^)]*)\) : /g, (_m, l: string) => `list temporarily unavailable (${LIST_NAMES_EN[l] ?? l}): `)
+    .replace(/liste momentanément indisponible/g, "list temporarily unavailable")
+    .replace(/\. Réessayez dans un instant ; aucune liste partielle n'est donnée à la place\./g, ". Try again in a moment; no partial list is given instead.");
+  for (const [re, en] of LIST_REASONS_EN) out = out.replace(re, en);
+  return out;
+}
+
 export function englishKeys(v: any, depth = 0): any {
-  if (typeof v === "string") return RAIL_EN[v] ?? v;
+  if (typeof v === "string") return englishText(RAIL_EN[v] ?? v);
   if (Array.isArray(v)) return v.map((x) => englishKeys(x, depth + 1));
   if (!v || typeof v !== "object" || depth > 40) return v;
   const o: any = {};
@@ -376,7 +403,7 @@ export async function callTool(arc: ArcClient, actx: ActionCtx, name: string, ar
     const text = JSON.stringify(result, (_k, v) => (typeof v === "bigint" ? v.toString() : v), 2) ?? "null";
     return { content: [{ type: "text", text: publicText(scrubSecrets(text)) }] };
   } catch (e: any) {
-    const msg = String(e?.shortMessage ?? e?.message ?? String(e)).replace(/liste momentanément indisponible/g, "list temporarily unavailable");
+    const msg = englishText(String(e?.shortMessage ?? e?.message ?? String(e)));
     return { content: [{ type: "text", text: publicText(scrubSecrets(`Error: ${msg}`)) }], isError: true };
   }
 }

@@ -60,6 +60,7 @@ test("API down: isError and \"list temporarily unavailable\", never an empty or 
     const r = await run(tool, args);
     assert.equal(r.out.isError, true, tool);
     assert.match(r.text, /list temporarily unavailable/, tool);
+    assert.doesNotMatch(r.text, /momentanément|Réessayez|API ArcHive/, tool);
   }
   assert.equal((await run("arc_sessions", {})).json.available, false, "owner required");
 });
