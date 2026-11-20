@@ -1210,7 +1210,7 @@ export async function productScaffold(arc: ArcClient, q: any) {
   };
   const manifestHash = keccak256(toBytes(stableStringify(manifest)));
   const serverTs = [
-    `/** ${slug} — service d'enclave (produit tiers) bâti sur le kit O1 d'ArcHive (dossier enclave/ du dépôt). */`,
+    `/** ${slug}: an enclave service (a third-party product) built on ArcHive's enclave kit (enclave/ in the repository). */`,
     'import { serve } from "@hono/node-server";',
     'import { EnclaveKit } from "../../src/kit/enclave-kit";',
     'import { RpcQuorum } from "../../src/kit/rpc-quorum";',
@@ -1524,7 +1524,7 @@ export async function machineDiagnostics(arc: ArcClient, q: any, cx: ActionCtx =
         correction += avail < p.minBond
           ? ` Lu on-chain : caution disponible ${usdc(avail)} pour un minimum de ${usdc(p.minBond)} (produit #${p.id}), il manque ${usdc(p.minBond - avail)}.`
           : ` Mais lu on-chain : ta caution disponible (${usdc(avail)}) couvre déjà le minimum du produit #${p.id} (${usdc(p.minBond)}) : le diagnostic date sans doute d'avant ton dépôt, relance-le.`;
-      } catch { /* la correction générique suffit */ }
+      } catch { /* the generic correction is enough */ }
     }
     aCorriger.push({ id: c.id, verification: c.label, detail: c.detail, correction });
   }

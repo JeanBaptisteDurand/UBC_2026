@@ -6,7 +6,7 @@
 
 export type Lang = "en" | "fr";
 export const LANGS: readonly Lang[] = ["en", "fr"];
-/** Sans aucun indice : l'anglais. */
+/** With no hint at all: English. */
 export const DEFAULT_LANG: Lang = "en";
 
 /** "en", "fr", "en-US", "FR_fr"… → the language; anything else → undefined. */

@@ -93,7 +93,7 @@ function cached<T>(key: string, fn: () => Promise<T>): Promise<T> {
 /** Vide le cache (tests). */
 export function clearListCache() { cache.clear(); }
 
-// ---------------------------------------------------------------- lecture stricte des lignes
+// ---------------------------------------------------------------- strict reading of the rows
 
 class Malformed extends Error {}
 const fail = (what: string): never => { throw new Malformed(what); };
