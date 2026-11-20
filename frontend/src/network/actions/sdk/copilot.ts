@@ -64,7 +64,7 @@ export interface VerifiedCopilot extends VerifiedEnclaveKeys {
 export interface AttestedCopilotClientOptions {
   /** URL of the copilot enclave (direct at Phala, or behind the site's proxy, e.g. https://…/enclave/copilot). */
   copilotUrl: string;
-  /** Le produit du copilote, inscrit sur Arc. */
+  /** The copilot's product, registered on Arc. */
   productId: bigint;
   publicClient: PublicClient;
   /** Stack to read (default: the SDK's testnet stack; or deploymentFromJson(deployments.v21.testnet.json)). */
