@@ -87,9 +87,9 @@ export const testnet: Deployment = {
   treasury: "0x5724d89D610c3017b8DC161c025248341556f6Ab",
   products: { inference: 1n, bounty: 2n, x402: 3n },
   attestation: "dcap",
-  // 2026-11-11: the levels stack was REDEPLOYED after the security review (PckChip fixed); the earlier one is retired
-  // (see deployments.v21.testnet.json → levels.superseded). The verified Bounty is PRODUCT 7 (product 6 is neutralized);
-  // it can seize bonds and write verdicts from 18 Nov 2026, 23:00 UTC.
+  // The levels stack was REDEPLOYED after the security review (PckChip fixed); the previous one is abandoned
+  // (see deployments.v21.testnet.json → levels.superseded). The verified Sealed Bounty is PRODUCT 7 (product 6 is
+  // neutralized); its seizures and verdicts are enabled from 2026-11-18 23:00 UTC.
   levels: {
     machineRegistry: "0xd671013f556b1272b25e3cc17c889d402f4dc26d",
     proofOfCloudAuditor: "0xcdc4c150344f06d506deb5500332737e8dcc8fab",
@@ -99,10 +99,10 @@ export const testnet: Deployment = {
   },
 };
 
-/** The v2 stack on Arc testnet (deployments.v2.testnet.json, deployed on 2026-11-07, block 71206317; replaced by v2.1 on
- *  2026-11-09 and kept for the record: past sessions, bounties and verdicts): the enclave registry
- *  is wired to the REAL DCAP module (each quote is verified against Intel's signature, ≈ 5.7 M gas per
- *  registration on this stack), REQUIRE_SEPT_VE on, product timelock at 0 (testnet). */
+/** v2 stack on Arc testnet (deployments.v2.testnet.json, deployed at block 71206317; superseded by v2.1 and kept for
+ *  history: past sessions, bounties and verdicts): the enclave registry is wired to the REAL DCAP module (every quote is
+ *  verified against Intel's signature, ≈ 5.7 M gas per registration), REQUIRE_SEPT_VE on, product timelock at 0
+ *  (testnet). */
 export const testnetV2: Deployment = {
   version: "v2",
   chainId: ARC_TESTNET_ID,
@@ -197,7 +197,7 @@ export function networkDomain(verifyingContract: Address, chainId: number = ARC_
   return { name: DOMAIN_NAME, version: DOMAIN_VERSION, chainId, verifyingContract };
 }
 
-/** EIP-712 domain of Arc's USDC (EIP-3009): name "USDC", version "2", checked on Arc testnet. */
+/** EIP-712 domain of Arc's USDC (EIP-3009): name "USDC", version "2". */
 export function usdcDomain(usdc: Address, chainId: number = ARC_TESTNET_ID): TypedDataDomain {
   return { name: "USDC", version: "2", chainId, verifyingContract: usdc };
 }

@@ -55,11 +55,11 @@ import { explainArcError } from "./errors";
 
 // ---------------------------------------------------------------- the protocol (identical to the enclave's)
 
-/** Units billed per call: a call costs Product.price × 1 (X402Settler: amount = units × price). */
+/** Units billed per call: one call costs Product.price × 1 (X402Settler: amount = units × price). */
 export const X402_UNITS_PER_CALL = 1n;
-/** Label of the nonce commitment. */
+/** Tag of the nonce commitment. */
 export const X402_CALL_TAG = "ARC-X402-CALL-v1";
-/** Longest validity of an authorization this client signs (s): 1 h. */
+/** Longest validity of an authorization signed by this client (s): 1 h. */
 export const X402_MAX_VALIDITY_SECONDS = 3600;
 /** x402 code of the 402 "authorization amount ≠ price" (the on-chain price may have changed). */
 export const X402_PRICE_CHANGED = "invalid_exact_evm_payload_authorization_value";
@@ -68,22 +68,20 @@ export const X402_PAID_RETRY_DELAYS_MS: readonly number[] = [300, 1000, 2500];
 /** At most this many new authorizations (on-chain price changed) for one request. */
 export const X402_MAX_REAUTHORIZATIONS = 2;
 
-/** Arc's USDC: what the x402 rail reads on top of ERC-20 (EIP-3009). */
+/** Arc's USDC: what the x402 rail reads besides ERC-20 (EIP-3009). */
 export const usdcAuthAbi = parseAbi([
   "function balanceOf(address account) view returns (uint256)",
   "function authorizationState(address authorizer, bytes32 nonce) view returns (bool)",
 ]);
 
-/** USDC (FiatToken v2.2, EIP-3009): cancelling an authorization not used yet, in two variants (v, r, s; bytes).
- *  receiveWithAuthorization (bytes form) and authorizationState are confirmed on Arc's USDC. cancelAuthorization comes
- *  from the same FiatToken v2.2 family and is not confirmed there yet, so the client tries (v, r, s), then bytes,
- *  simulating first. */
+/** USDC (FiatToken v2.2, EIP-3009): cancels an authorization not consumed yet, in two variants (v, r, s; bytes).
+ *  FiatToken v2.2 has both: the client tries (v, r, s), then bytes, simulating first. */
 export const usdcCancelAbi = parseAbi([
   "function cancelAuthorization(address authorizer, bytes32 nonce, uint8 v, bytes32 r, bytes32 s)",
   "function cancelAuthorization(address authorizer, bytes32 nonce, bytes signature)",
 ]);
 
-/** EIP-3009: the message the payer signs to cancel their authorization (the USDC's EIP-712 domain). */
+/** EIP-3009: the message the payer signs to cancel an authorization (USDC's EIP-712 domain). */
 export const cancelAuthorizationTypes = {
   CancelAuthorization: [
     { name: "authorizer", type: "address" },
@@ -96,9 +94,9 @@ export const cancelAuthorizationTypes = {
 /** At most this many items per report (the enclave refuses more). */
 export const X402_ACK_MAX_ITEMS = 200;
 
-/** The "calls used on-chain" report, signed by the operator: identical to enclave/src/services/x402-ack.ts.
- *  `settled`: true = settled by X402Settler (the receipt of the operator's transaction, or a CallSettled event);
- *  false = used otherwise (cancelled by the payer). Only true makes the payer "known" to the enclave. */
+/** The "calls consumed on-chain" report, signed by the operator: identical to enclave/src/services/x402-ack.ts.
+ *  `settled`: true = settled by X402Settler (receipt of the operator's transaction, or a CallSettled event);
+ *  false = consumed another way (cancelled by the payer). Only true makes the payer "known" to the enclave. */
 export const x402AckTypes = {
   X402Settled: [
     { name: "enclave", type: "address" },
@@ -120,7 +118,7 @@ export function x402AckDomain(settler: Address, chainId: number): TypedDataDomai
   return { name: "ArcEnclaveNetwork x402 ack", version: "2", chainId, verifyingContract: settler };
 }
 
-/** A reported call: used on-chain, and settled by X402Settler (`settled`) or not. */
+/** A reported call: consumed on-chain, and settled by X402Settler (`settled`) or not. */
 export interface X402AckItem { payer: Address; nonce: Hex; settled: boolean }
 
 export interface X402AckMessage {
@@ -139,7 +137,7 @@ export function x402AckBody(m: X402AckMessage, signature: Hex) {
   };
 }
 
-/** The X402Settler.settle event: the payer really paid this call (nonce in the data). */
+/** X402Settler.settle's event: the payer really paid for this call (the nonce is in the data). */
 export const callSettledEvent = parseAbiItem(
   "event CallSettled(uint256 indexed productId, address indexed payer, address indexed operator, uint256 amount, bytes32 nonce)",
 );
@@ -170,7 +168,7 @@ export function x402ResponseHash(requestHash: Hex, text: string): Hex {
   return keccak256(encodeAbiParameters([{ type: "bytes32" }, { type: "bytes32" }], [requestHash, keccak256(toBytes(text))]));
 }
 
-/** The receipt of a call (X402Settler.CallReceipt), signed by the enclave in X402Settler's EIP-712 domain. */
+/** A call's receipt (X402Settler.CallReceipt), signed by the enclave in X402Settler's EIP-712 domain. */
 export const callReceiptTypes = {
   CallReceipt: [
     { name: "productId", type: "uint256" }, { name: "payer", type: "address" }, { name: "requestHash", type: "bytes32" },
@@ -230,8 +228,8 @@ export function serializeCallReceipt(cr: CallReceipt): Record<string, string> {
 
 const SECP256K1_N = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n;
 
-/** ECDSA signature made canonical for the USDC (FiatToken): v = 27/28 (some wallets return 0/1), s in the lower half
- *  (otherwise the USDC refuses it). Same signer. Throws for a signature that is not a 65-byte ECDSA one. */
+/** ECDSA signature made canonical for USDC (FiatToken): v = 27/28 (some wallets return 0/1), s in the lower half
+ *  (otherwise USDC refuses it). Same signer. Throws for a signature that is not a 65-byte ECDSA one. */
 export function normalizeEcdsaSignature(sig: Hex): Hex {
   if (typeof sig !== "string" || !/^0x[0-9a-fA-F]{130}$/.test(sig)) {
     throw new Error("expected a 65-byte ECDSA signature: this rail accepts EOA payers");
@@ -248,7 +246,7 @@ export function normalizeEcdsaSignature(sig: Hex): Hex {
   return lower(`0x${r}${s.toString(16).padStart(64, "0")}${v.toString(16)}`) as Hex;
 }
 
-/** What would stop the USDC from accepting this signature (null if canonical). */
+/** What would stop USDC from accepting this signature (null if canonical). */
 export function eip3009SignatureProblem(sig: unknown): string | null {
   if (typeof sig !== "string" || !/^0x[0-9a-fA-F]{130}$/.test(sig)) return "65-byte ECDSA signature expected";
   const s = BigInt(`0x${sig.slice(66, 130)}`);
@@ -296,7 +294,7 @@ export function paymentPayloadOf(a: X402Authorization, network: string): X402Pay
 // ---------------------------------------------------------------- erreurs
 
 /** The enclave's 402 does not match the chain (payTo, asset, amount) or the client's cap: NOTHING is signed.
- *  `price`: the on-chain price ROSE since the call started (`newPrice`); calling again accepts it. */
+ *  `price`: the on-chain price ROSE since the call began (`newPrice`); calling again accepts it. */
 export class X402ChallengeError extends Error {
   constructor(
     message: string,
@@ -312,12 +310,12 @@ export class X402ChallengeError extends Error {
  *  authenticated (a proxy can write it after the enclave served the call) → X402PaidCallError. Kept for the API. */
 export class X402PaymentRefusedError extends Error {
   constructor(readonly code: string, readonly detail: string) {
-    super(`payment refused by the enclave (${code})${detail ? ` : ${detail}` : ""}`);
+    super(`payment refused by the enclave (${code})${detail ? `: ${detail}` : ""}`);
     this.name = "X402PaymentRefusedError";
   }
 }
-/** The answer does not come from the verified enclave, or not for THIS request and THIS payment: the text is not
- *  returned. After the paid send it is not thrown on its own: it becomes the `cause` of an X402PaidCallError. */
+/** The answer does not come from the verified enclave, or not for THIS request and THIS payment: the text is not returned.
+ *  After the paid send it is never thrown alone: it becomes the `cause` of an X402PaidCallError. */
 export class X402ReceiptMismatchError extends Error {
   constructor(message: string) { super(`answer refused: ${message}`); this.name = "X402ReceiptMismatchError"; }
 }
@@ -329,7 +327,7 @@ export class X402CallError extends Error {
 
 /** A PAID call (X-PAYMENT sent) left with no verified answer: everything needed to resume or cancel it. */
 export interface X402PaidRequest {
-  /** URL of the gateway used (for information: a resume goes through the client's own). */
+  /** URL of the gateway used (informative: a resume goes through the client's own). */
   enclaveUrl: string;
   productId: bigint;
   payer: Address;
@@ -337,53 +335,53 @@ export interface X402PaidRequest {
   enclave: Address;
   /** The encrypted request, as sent (its commitment is the nonce). */
   envelope: { enc: Hex; ciphertext: Hex; clientEphemeralPub: Hex };
-  /** Ephemeral X25519 private key (32 bytes): the ONLY one that opens the answer. Secret: never log it. */
+  /** Ephemeral X25519 private key (32 bytes): the ONLY key that opens the answer. Secret: never log it. */
   ephemeralPrivateKey: Hex;
   /** keccak256 of the plaintext (salted) request. */
   requestHash: Hex;
-  /** EIP-3009 nonce = a commitment to this request, SHARED by every authorization below. */
+  /** EIP-3009 nonce = commitment to this request, SHARED by every authorization below. */
   nonce: Hex;
-  /** The last authorization sent. */
+  /** The latest authorization sent. */
   authorization: X402Authorization;
-  /** Every authorization signed for this request (same nonce: at most ONE can be used on-chain). */
+  /** Every authorization signed for this request (same nonce: at most ONE can be consumed on-chain). */
   authorizations: X402Authorization[];
   /** The x402 requirements checked against the chain (network, payTo, asset, announced validity). */
   requirement: X402PaymentRequirements;
-  /** Cap on a call accepted for THIS request: above it, no authorization is signed without explicit consent
-   *  (resume(…, { maxPrice })). Default: the price read at the start of the call (that of the first authorization). */
+  /** Ceiling of one call accepted for THIS request: above it, no authorization is signed without explicit consent
+   *  (resume(…, { maxPrice })). Default: the price read when the call began (that of the 1st authorization). */
   maxPrice?: bigint;
 }
 
-/** The cap of a paid request: `maxPrice`, otherwise the amount of its first authorization (the price at the call's start). */
+/** The ceiling of a paid request: `maxPrice`, otherwise the amount of its 1st authorization (the price when the call began). */
 function priceCeilingOf(p: X402PaidRequest): bigint {
   return p.maxPrice ?? p.authorizations[0]?.value ?? p.authorization.value;
 }
 
 /**
  * An X-PAYMENT was sent and no verified answer came back (after the identical resends). The enclave MAY have served
- * this call and the operator MAY settle it: nothing allows saying that nothing is owed. `pending` (not enumerable: it
- * holds the ephemeral key) is used to resume (client.resume) or to cancel (client.cancelAuthorization). `status`,
- * `code` and `serverDetail` come from the last answer and are NOT authenticated (a proxy can write them).
+ * this call and the operator MAY settle it: nothing proves that nothing is owed. `pending` (not enumerable: it holds
+ * the ephemeral key) is used to resume (client.resume) or cancel (client.cancelAuthorization). `status`, `code` and
+ * `serverDetail` come from the last answer and are NOT authenticated (a proxy can write them).
  * Client codes: "enclave_changed" (the enclave restarted: the answer is lost, resuming is useless), "price_increased"
- * (the on-chain price rose above the call's cap: `newPrice`, to accept explicitly), "price_above_cap" (above the
- * client's cap, maxAmount).
+ * (the on-chain price rose above the call's ceiling: `newPrice`, to accept explicitly), "price_above_cap"
+ * (above the client's cap, maxAmount).
  */
 export class X402PaidCallError extends Error {
   readonly paid = true as const;
   declare readonly pending: X402PaidRequest;
   constructor(
-    /** Last HTTP status (0: no answer, a timeout or a cut connection). */
+    /** Last HTTP status (0: no answer: timeout or disconnect). */
     readonly status: number,
     /** Last code ("timeout", "network_error", "receipt_mismatch", or the server's, not authenticated). */
     readonly code: string,
     pending: X402PaidRequest,
     /** Sends of the paid request (resends included). */
     readonly attempts: number,
-    /** The server's text, NOT authenticated: never show it as a fact. */
+    /** The server's text, NOT authenticated: never display it as a fact. */
     readonly serverDetail?: string,
     cause?: unknown,
-    /** Price of a call read ON-CHAIN above the call's cap (code "price_increased"): nothing was signed at that
-     *  price. To accept it: client.resume(err.pending, { renew: true, maxPrice: err.newPrice }). */
+    /** Price of one call read ON-CHAIN above the call's ceiling (code "price_increased"): nothing was signed at this
+     *  price; to accept it: client.resume(err.pending, { renew: true, maxPrice: err.newPrice }). */
     readonly newPrice?: bigint,
   ) {
     const a = pending.authorization;
@@ -424,7 +422,7 @@ function formatUsdc(v: bigint): string {
   return `${s.slice(0, -6)},${s.slice(-6)}`.replace(/,?0+$/, "") || "0";
 }
 
-/** X402PaidRequest → JSON (integers as strings), to resume later. It holds the ephemeral key: keep it secret. */
+/** X402PaidRequest → JSON (integers as strings): to resume later (it holds the ephemeral key: keep it secret). */
 export function serializeX402PaidRequest(p: X402PaidRequest): string {
   const a = (x: X402Authorization) => ({
     from: x.from, to: x.to, value: x.value.toString(), validAfter: x.validAfter.toString(), validBefore: x.validBefore.toString(), nonce: x.nonce, signature: x.signature,
@@ -456,7 +454,7 @@ export function parseX402PaidRequest(json: string): X402PaidRequest {
   });
   if (!Array.isArray(j.authorizations) || j.authorizations.length === 0) throw new Error("authorizations: at least one");
   const r = j.requirement;
-  if (!r || typeof r !== "object" || typeof r.network !== "string") throw new Error("requirement illisible");
+  if (!r || typeof r !== "object" || typeof r.network !== "string") throw new Error("unreadable requirement");
   return {
     enclaveUrl: String(j.enclaveUrl ?? ""), productId: dec(j.productId, "productId", MAX_U256), payer: addr(j.payer, "payer"),
     enclave: addr(j.enclave, "enclave"),
@@ -468,10 +466,10 @@ export function parseX402PaidRequest(json: string): X402PaidRequest {
   };
 }
 
-// ---------------------------------------------------------------- the client
+// ---------------------------------------------------------------- le client
 
 export interface X402ClientOptions {
-  /** The gateway of the x402 product, direct or behind a proxy: its keys are verified on-chain. */
+  /** The x402 product's gateway, direct or behind a proxy: its keys are verified on-chain. */
   enclaveUrl: string;
   /** The product paid per call (settled by X402Settler). */
   productId: bigint;
@@ -482,18 +480,18 @@ export interface X402ClientOptions {
   publicClient?: PublicClient;
   deployment?: Deployment;
   fetch?: typeof fetch;
-  /** Verify the enclave's keys on-chain again at the latest after this delay (ms, default 5 min). */
+  /** Verify the enclave's keys on-chain again after this delay at the latest (ms, default 5 min). */
   reverifyMs?: number;
   /** Cap per call (USDC base units): above it, nothing is signed. */
   maxAmount?: bigint;
-  /** Wanted validity of the authorization (s); default: the one the 402 announces; always bounded to [60 s, 1 h]. */
+  /** Wanted validity of the authorization (s); default: the one the 402 announces; always kept within [60 s, 1 h]. */
   validitySeconds?: number;
-  /** If given: the product must pin this model (Product.param = keccak256 of its id). */
+  /** When given: the product must pin this model (Product.param = keccak256 of the identifier). */
   expectedModel?: string;
-  /** Timeout of an HTTP request (ms, default 180,000). */
+  /** Timeout of one HTTP request (ms, default 180,000). */
   timeoutMs?: number;
-  /** After a paid send with no verified answer: delays (ms) of the resends of the IDENTICAL request (default 300, 1,000,
-   *  2,500: three resends). [] = no resend (resume still works). */
+  /** After a paid send with no verified answer: delays (ms) of the IDENTICAL resends (default 300, 1,000, 2,500:
+   *  three resends). [] = no resend (resume stays possible). */
   paidRetryDelaysMs?: readonly number[];
 }
 
@@ -508,16 +506,16 @@ export interface X402Completion {
   signature: Hex;
   /** The enclave verified on-chain that signed. */
   signer: Address;
-  /** The enclave's active operator at the anchor block (zero address: the receipt cannot be settled). */
+  /** The enclave's active operator at the anchor block (zero address: receipt not settleable). */
   operator: Address;
-  /** What the payer authorized (USDC, 6 decimals): taken at settlement. */
+  /** What the payer authorized (USDC, 6 decimals): collected at settlement. */
   amount: bigint;
   authorization: X402Authorization;
   /** keccak256 of the plaintext request sent (salted JSON). */
   requestHash: Hex;
   /** X402Settler.settle would accept this receipt (enclave active at the anchor block). */
   settleable: boolean;
-  /** Reading the active operator failed (RPC): `settleable` is unknown (the text is verified anyway). */
+  /** Reading the active operator failed (RPC): `settleable` is unknown (the text is verified all the same). */
   settleableUnknown?: true;
   usage?: { prompt_tokens?: number; completion_tokens?: number };
   /** True if the enclave returned the answer it had already served for this request (idempotent resume). */
@@ -534,21 +532,21 @@ export class X402Client {
   constructor(private o: X402ClientOptions) {
     this.d = o.deployment ?? testnet;
     // called as a function, never as a method: in a browser, fetch called with `this` = this client throws
-    // "Illegal invocation" (Node accepts it, so the tests did not catch it; a browser check did)
+    // "Illegal invocation" (Node accepts it, so the tests could not see it; checked in a browser)
     this.f = o.fetch ?? ((input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => globalThis.fetch(input, init));
     const account = o.account ?? o.walletClient.account;
-    if (!account) throw new Error("x402 : walletClient sans compte (passer `account`)");
+    if (!account) throw new Error("x402: walletClient without an account (pass `account`)");
     this.account = account;
     this.pub = o.publicClient ?? (o.walletClient.extend(publicActions) as unknown as PublicClient);
     if (!this.d.x402Settler || lower(this.d.x402Settler) === zeroAddress) throw new Error("x402: deployment without X402Settler");
   }
 
-  /** The payer. */
+  /** Le payeur. */
   get address(): Address { return this.account.address; }
 
   private base() { return this.o.enclaveUrl.replace(/\/+$/, ""); }
 
-  /** The enclave's keys, verified on-chain for this product (checked again after `reverifyMs`). */
+  /** The enclave's keys, verified on-chain for this product (redone after `reverifyMs`). */
   async verifiedKeys(force = false): Promise<VerifiedEnclaveKeys> {
     const maxAge = this.o.reverifyMs ?? 5 * 60_000;
     if (!force && this.keys && Date.now() - this.keys.checkedAtMs < maxAge) return this.keys;
@@ -556,18 +554,18 @@ export class X402Client {
     return this.keys;
   }
 
-  /** The product, read on-chain: it must be paid per call (X402Settler), active, and have a price. */
+  /** The product, read on-chain: it must be paid per call (X402Settler), active, and priced. */
   async product(): Promise<X402ProductInfo> {
     const id = this.o.productId;
     const [p, active] = (await Promise.all([
       this.pub.readContract({ address: this.d.productRegistry, abi: productRegistryAbi, functionName: "getProduct", args: [id] }),
       this.pub.readContract({ address: this.d.productRegistry, abi: productRegistryAbi, functionName: "isActive", args: [id] }),
     ])) as [{ author: Address; price: bigint; settlement: Address; param: Hex }, boolean];
-    if (!active) throw new X402ChallengeError(`produit #${id} inactif`, "product");
+    if (!active) throw new X402ChallengeError(`product #${id} inactive`, "product");
     if (lower(p.settlement) !== lower(this.d.x402Settler)) {
       throw new X402ChallengeError(`product #${id} is not paid per call: it settles through ${p.settlement}, not through X402Settler ${this.d.x402Settler}`, "product");
     }
-    if (p.price <= 0n) throw new X402ChallengeError(`produit #${id} sans prix`, "product");
+    if (p.price <= 0n) throw new X402ChallengeError(`product #${id} has no price`, "product");
     if (this.o.expectedModel && lower(p.param) !== lower(keccak256(toBytes(this.o.expectedModel)))) {
       throw new X402ChallengeError(`product #${id} pins the model ${p.param}, not "${this.o.expectedModel}"`, "product");
     }
@@ -598,7 +596,7 @@ export class X402Client {
     const keys = await this.verifiedKeys();
     let product = await this.product();
     this.assertCap(product.pricePerCall, product.id);
-    // the cap of THIS call: the price read at the start; nothing dearer is signed without explicit consent
+    // the ceiling of THIS call: the price read at the start; nothing dearer is signed without explicit consent
     const maxPrice = product.pricePerCall;
 
     // the plaintext request, SALTED (its hash goes on-chain at settlement), encrypted to the X25519 key VERIFIED on-chain
@@ -621,9 +619,9 @@ export class X402Client {
       requirement = await this.probe(envelope, product.pricePerCall);
     } catch (e) {
       if (!(e instanceof X402ChallengeError && e.reason === "amount")) throw e;
-      // the price may have changed between our read and the 402, so we read the chain again. Unchanged: the 402 lies (a
-      // proxy inflating the price) and nothing is signed. RAISED: nothing is signed either (calling again accepts the new
-      // price). Lowered: we ask for the 402 ONCE more, checked against the new price
+      // the price may have changed between our read and the 402, so the chain is read again; unchanged, the 402 lies (a
+      // proxy that inflates the price) and nothing is signed; RISEN, nothing is signed either (calling again accepts the
+      // new price); lowered, the 402 is requested ONCE more and checked against the new price
       const fresh = await this.product();
       if (fresh.pricePerCall === product.pricePerCall) throw e;
       if (fresh.pricePerCall > maxPrice) {
@@ -638,7 +636,7 @@ export class X402Client {
       requirement = await this.probe(envelope, product.pricePerCall);
     }
 
-    // 2) the EIP-3009 authorization: exact amount, to X402Settler, nonce = a commitment to THIS request
+    // 2) the EIP-3009 authorization: exact amount, to X402Settler, nonce = commitment to THIS request
     const authorization = await this.authorize(requirement, nonce, product.pricePerCall);
     const pending: X402PaidRequest = {
       enclaveUrl: this.o.enclaveUrl, productId: product.id, payer: this.account.address, enclave: keys.signer, envelope,
@@ -650,12 +648,12 @@ export class X402Client {
       maxPrice,
     };
 
-    // 3) the paid request (identical resends, a new authorization only when the on-chain price changed, never above
-    //    the call's cap)
+    // 3) the paid request (identical resends; a new authorization only when the on-chain price changed, never above
+    //    the call's ceiling)
     return this.sendPaid(pending);
   }
 
-  /** Request WITHOUT payment: the 402 and its requirements checked against the chain (nothing is signed, nothing is owed). */
+  /** Request WITHOUT payment: the 402 and its requirements checked against the chain (nothing signed, nothing owed). */
   private async probe(envelope: X402PaidRequest["envelope"], amount: bigint): Promise<X402PaymentRequirements> {
     const res = await this.post(envelope);
     if (res.status !== 402) {
@@ -669,33 +667,33 @@ export class X402Client {
   }
 
   /**
-   * Resumes a paid call left with no verified answer (X402PaidCallError.pending, or parseX402PaidRequest): it resends the
-   * SAME request with the SAME authorization. If the enclave served it, the enclave returns the kept answer (replay),
-   * with no second call to the model and no second receipt. `renew`: first signs a fresh authorization (current on-chain
-   * price, new expiry) for the SAME nonce, useful when the old one nears its expiry: at most one of the two can be used
-   * on-chain. `maxPrice`: the cap accepted for this request (default: the call's, the price read at its start). It is the
-   * only way to accept a raised price (X402PaidCallError "price_increased", `newPrice`).
+   * Resumes a paid call left with no verified answer (X402PaidCallError.pending, or parseX402PaidRequest): sends the
+   * SAME request with the SAME authorization again; if the enclave served it, it returns the kept answer (replay), with
+   * no second model call and no second receipt. `renew`: first signs a fresh authorization (current on-chain price, new
+   * expiry) for the SAME nonce, useful when the old one nears its expiry: at most one of the two can be consumed on-chain.
+   * `maxPrice`: the ceiling accepted for this request (default: the call's, the price read when it began); it is the
+   * only way to accept a price that rose (X402PaidCallError "price_increased", `newPrice`).
    * Throws X402PaidCallError if nothing succeeds (the original `pending` object is not modified).
    */
   async resume(p: X402PaidRequest, o: { renew?: boolean; maxPrice?: bigint } = {}): Promise<X402Completion> {
-    if (!p || !Array.isArray(p.authorizations) || p.authorizations.length === 0 || !p.authorization) throw new Error("x402 : reprise sans autorisation");
+    if (!p || !Array.isArray(p.authorizations) || p.authorizations.length === 0 || !p.authorization) throw new Error("x402: resume without an authorization");
     if (lower(p.payer) !== lower(this.account.address)) throw new Error(`x402: call paid by ${p.payer}, not by this client (${this.account.address})`);
     if (p.productId !== this.o.productId) throw new Error(`x402: call for product #${p.productId}, client for product #${this.o.productId}`);
-    if (o.maxPrice !== undefined && (typeof o.maxPrice !== "bigint" || o.maxPrice <= 0n)) throw new Error("x402: maxPrice must be a positive amount (bigint)");
+    if (o.maxPrice !== undefined && (typeof o.maxPrice !== "bigint" || o.maxPrice <= 0n)) throw new Error("x402: maxPrice: a positive amount (bigint) expected");
     const ceiling = o.maxPrice ?? priceCeilingOf(p);
     const q: X402PaidRequest = { ...p, authorizations: [...p.authorizations], maxPrice: ceiling };
-    // keys read again (not the cache): the enclave may have restarted; if unreachable, resend anyway (paid-call error)
+    // keys read again (not the cache): the enclave may have restarted; unreachable, the request is resent anyway (paid call error)
     const keys = await this.verifiedKeys(true).catch(() => null);
     if (keys && lower(keys.signer) !== lower(q.enclave)) {
-      // the enclave changed its key (a restart): its in-memory queue, and the answer, are lost. The call can still be
-      // settled if the operator collected it before the restart
+      // the enclave changed its key (restart): its in-memory queue, and the answer, are lost; the call stays
+      // settleable if the operator collected it before the restart
       throw new X402PaidCallError(0, "enclave_changed", q, 0, `the URL now serves enclave ${keys.signer}, the request was encrypted for ${q.enclave}`);
     }
     if (o.renew) {
       const product = await this.product();
       this.assertCap(product.pricePerCall, product.id);
       if (product.pricePerCall > ceiling) {
-        // never dearer without explicit consent: nothing is signed. To accept it: resume(…, { renew: true, maxPrice })
+        // never dearer without explicit consent: nothing is signed; to accept: resume(…, { renew: true, maxPrice })
         throw new X402PaidCallError(0, "price_increased", q, 0, `on-chain price ${product.pricePerCall} above this call's ceiling of ${ceiling}`, undefined, product.pricePerCall);
       }
       const a = await this.authorize(q.requirement, q.nonce, product.pricePerCall);
@@ -707,8 +705,8 @@ export class X402Client {
 
   /**
    * Cancels a paid call's authorization on-chain (USDC.cancelAuthorization, EIP-3009): every authorization of the
-   * request shares this nonce, so all of them become unusable. The payer sends the transaction (gas). Throws if the
-   * authorization is already used (settled, or already cancelled). Use it only when the answer is lost: the operator
+   * request shares this nonce, so all become unusable. The payer sends the transaction (gas). Throws if the
+   * authorization is already consumed (settled, or already cancelled). Use it only when the answer is lost: the operator
    * who served the call is then not paid.
    */
   async cancelAuthorization(p: Pick<X402PaidRequest, "nonce"> & { payer?: Address }): Promise<Hex> {
@@ -750,14 +748,14 @@ export class X402Client {
 
   /**
    * The paid send and its resends. Each failure first resends the IDENTICAL request (same envelope, same authorization)
-   * after a delay. Two exceptions, believing nothing the server says:
+   * after a delay. Two exceptions, trusting nothing from the server:
    *  - a 402 "price changed" AND an on-chain price ≠ the authorized amount (after at least one identical resend): a
-   *    new authorization for the SAME nonce (at most X402_MAX_REAUTHORIZATIONS), only if that price does not exceed
-   *    the call's cap (the price read at its start, or the one accepted by resume). Above it, we stop:
-   *    X402PaidCallError "price_increased" with `newPrice`, so a proxy that hides the answer while the author raises
-   *    the price can no longer get a signature at 100 times the price;
-   *  - a 409 "nonce_reused" while several authorizations exist: the enclave served this request under another of our
-   *    authorizations (same nonce), so we resend that one (idempotent resume).
+   *    new authorization for the SAME nonce (at most X402_MAX_REAUTHORIZATIONS), only if that price stays within the
+   *    call's ceiling (the price read when it began, or the one accepted by resume); above it, the client stops:
+   *    X402PaidCallError "price_increased" with `newPrice` (a proxy that hides the answer while the author raises the
+   *    price can no longer get a ×100 authorization signed);
+   *  - a 409 "nonce_reused" while several authorizations exist: the enclave served this request under another of
+   *    our authorizations (same nonce), so that one is resent (idempotent resume).
    * If nothing succeeds: X402PaidCallError (the call MAY have been served).
    */
   private async sendPaid(p: X402PaidRequest): Promise<X402Completion> {
@@ -807,7 +805,7 @@ export class X402Client {
     throw new X402PaidCallError(last.status, last.code, p, attempts, last.detail, last.cause, last.newPrice);
   }
 
-  /** One paid send: the verified completion, or what failed (never an exception: nothing about the call is lost). */
+  /** One paid send: the verified completion, or what failed (never an exception: nothing of the call is lost). */
   private async paidAttempt(p: X402PaidRequest, auth: X402Authorization): Promise<{ completion: X402Completion } | PaidFailure> {
     const header = encodeXPaymentHeader(paymentPayloadOf(auth, p.requirement.network));
     let res: Response;
@@ -895,8 +893,8 @@ export class X402Client {
     if (cr.requestHash !== lower(x.requestHash)) throw new X402ReceiptMismatchError("the receipt does not carry the hash of the request sent");
     if (cr.responseHash !== lower(x402ResponseHash(x.requestHash, text))) throw new X402ReceiptMismatchError("the text received is not the one the enclave signed");
 
-    // can X402Settler.settle take it? (enclave active for this product at the anchor block, grace included). This read
-    // is for information: an RPC failure here does not lose a paid, verified answer
+    // settleable by X402Settler.settle? (enclave active for this product at the anchor block, grace included); an
+    // informative read: an RPC failure here does not lose a paid, verified answer
     let operator: Address = zeroAddress;
     let operatorKnown = true;
     try {
@@ -916,8 +914,7 @@ export class X402Client {
   }
 
   /** Settles the call right away (the payer pays the gas): X402Settler.settle(receipt, signature, authorization). The
-   *  contract pays the enclave's active operator, the author and the network; a second settlement is impossible (EIP-3009
-   *  nonce). */
+   *  contract pays the enclave's active operator, the author and the network; a second settlement is impossible (EIP-3009 nonce). */
   async settle(c: Pick<X402Completion, "receipt" | "signature" | "authorization">): Promise<Hex> {
     const call: PendingCall = {
       receipt: c.receipt, signature: c.signature,
@@ -929,7 +926,7 @@ export class X402Client {
     return this.o.walletClient.writeContract(request as any);
   }
 
-  /** Is this call's authorization used on-chain (settled, or cancelled)? */
+  /** Is this call's authorization consumed on-chain (settled, or cancelled)? */
   async isSettled(c: Pick<X402Completion, "receipt">): Promise<boolean> {
     return (await this.pub.readContract({
       address: this.d.usdc, abi: usdcAuthAbi, functionName: "authorizationState", args: [c.receipt.payer, c.receipt.nonce],
@@ -951,29 +948,29 @@ async function callErrorOf(res: Response): Promise<X402CallError> {
   );
 }
 
-/** A paid send that did not succeed (status 0: no answer). `code` and `detail` come from the server and are not
- *  authenticated, except "price_increased" / "price_above_cap" (from the client, with the on-chain price in `newPrice`). */
+/** A paid send that did not succeed (status 0: no answer). `code` and `detail` come from the server: not authenticated,
+ *  except "price_increased" / "price_above_cap" (set by the client, with the on-chain price in `newPrice`). */
 interface PaidFailure { status: number; code: string; detail?: string; cause?: unknown; newPrice?: bigint }
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-// ---------------------------------------------------------------- on-chain check of a call, and settlement
+// ---------------------------------------------------------------- on-chain verification of a call, and settlement
 
-/** A served call, not settled yet: the arguments of X402Settler.settle (the enclave's GET /x402/pending). */
+/** A call served and not settled yet: the arguments of X402Settler.settle (the enclave's GET /x402/pending). */
 export interface PendingCall {
   receipt: CallReceipt;
   signature: Hex;
   auth: { validAfter: bigint; validBefore: bigint; nonce: Hex; signature: Hex };
   amount?: bigint;
   servedAt?: number;
-  /** According to the enclave (its last balance reading), the payer's balance covers this call. false: "uncovered",
-   *  settled after the others and checked again in bounded numbers per pass. Absent: covered. */
+  /** According to the enclave (its latest balance reading), the payer's balance covers this call; false: "uncovered",
+   *  settled after the others and re-checked in bounded numbers per pass. Absent: covered. */
   covered?: boolean;
 }
 
 /** An entry of GET /x402/pending → PendingCall; throws if unreadable. */
 export function normalizePendingCall(j: any): PendingCall {
-  if (!j || typeof j !== "object" || !j.auth || typeof j.auth !== "object") throw new Error("appel en attente illisible");
+  if (!j || typeof j !== "object" || !j.auth || typeof j.auth !== "object") throw new Error("unreadable pending call");
   return {
     receipt: normalizeCallReceipt(j.receipt),
     signature: sig65(j.signature, "signature"),
@@ -987,7 +984,7 @@ export function normalizePendingCall(j: any): PendingCall {
   };
 }
 
-/** The arguments of X402Settler.settle(cr, enclaveSig, auth). */
+/** Les arguments de X402Settler.settle(cr, enclaveSig, auth). */
 export function settleArgs(call: PendingCall) {
   const cr = call.receipt;
   return [
@@ -998,19 +995,20 @@ export function settleArgs(call: PendingCall) {
 }
 
 export type CallCheckId = "product" | "settlement" | "amount" | "active" | "operator" | "nonce" | "authorization" | "unused" | "window" | "funds";
-export interface CallCheck { id: CallCheckId; ok: boolean; fr: string }
+/** A call check: `fr` is the French sentence (the console shows it as is), `en` the same check in English. */
+export interface CallCheck { id: CallCheckId; ok: boolean; fr: string; en: string }
 
 export interface CallVerification {
   /** Signer of the receipt (X402Settler domain). */
   signer: Address;
-  /** Active operator of this signer for the product at the anchor block (zero address if none): the one settle would pay. */
+  /** This signer's active operator for the product at the anchor block (zero address if none): the one settle would pay. */
   operator: Address;
-  /** units × the product's price: what settle would take. */
+  /** units × the product's price: what settle would collect. */
   amount: bigint;
   checks: CallCheck[];
-  /** True if X402Settler.settle would accept this call now (apart from the bond exposure, seen in the simulation). */
+  /** True if X402Settler.settle would accept this call now (bond exposure aside, seen at simulation). */
   settleable: boolean;
-  /** The authorization is already used (settled, or cancelled by the payer): nothing left to do. */
+  /** The authorization is already consumed (settled, or cancelled by the payer): nothing left to do. */
   alreadyUsed: boolean;
   /** The authorization has expired (validBefore passed). */
   expired: boolean;
@@ -1019,7 +1017,7 @@ export interface CallVerification {
   now: bigint;
 }
 
-/** Checks a call exactly as X402Settler.settle and the USDC will (reads only, at the head block). */
+/** Verifies a call exactly as X402Settler.settle and USDC will (reads only, at the head block). */
 export async function verifyCallOnChain(
   pub: PublicClient,
   call: PendingCall,
@@ -1041,7 +1039,7 @@ export async function verifyCallOnChain(
   ])) as [{ price: bigint; settlement: Address }, boolean, Address, boolean, bigint];
   const amount = cr.units * p.price;
 
-  // does the authorization pay EXACTLY this amount to X402Settler, signed by the payer, in a form the USDC accepts?
+  // does the authorization pay EXACTLY this amount to X402Settler, signed by the payer, in a form USDC accepts?
   let authOk = false;
   const problem = eip3009SignatureProblem(call.auth.signature);
   if (!problem) {
@@ -1055,22 +1053,24 @@ export async function verifyCallOnChain(
   const now = blk.timestamp;
   const opOk = lower(operator) !== zeroAddress;
   const checks: CallCheck[] = [
-    { id: "product", ok: active, fr: active ? `produit #${cr.productId} actif` : `produit #${cr.productId} inactif (BadProduct)` },
-    { id: "settlement", ok: lower(p.settlement) === lower(d.x402Settler), fr: lower(p.settlement) === lower(d.x402Settler) ? "produit réglé par X402Settler" : `produit réglé par ${p.settlement} (WrongSettlement)` },
-    { id: "amount", ok: amount > 0n, fr: amount > 0n ? `montant ${amount}` : "montant nul (ZeroAmount)" },
-    { id: "active", ok: opOk, fr: opOk ? `enclave ${signer} active au bloc d'ancrage ${cr.anchorBlock}` : `signataire ${signer} non actif pour ce produit au bloc ${cr.anchorBlock} (InactiveEnclave)` },
+    { id: "product", ok: active, fr: active ? `produit #${cr.productId} actif` : `produit #${cr.productId} inactif (BadProduct)`, en: active ? `product #${cr.productId} active` : `product #${cr.productId} inactive (BadProduct)` },
+    { id: "settlement", ok: lower(p.settlement) === lower(d.x402Settler), fr: lower(p.settlement) === lower(d.x402Settler) ? "produit réglé par X402Settler" : `produit réglé par ${p.settlement} (WrongSettlement)`, en: lower(p.settlement) === lower(d.x402Settler) ? "product settled by X402Settler" : `product settled by ${p.settlement} (WrongSettlement)` },
+    { id: "amount", ok: amount > 0n, fr: amount > 0n ? `montant ${amount}` : "montant nul (ZeroAmount)", en: amount > 0n ? `amount ${amount}` : "zero amount (ZeroAmount)" },
+    { id: "active", ok: opOk, fr: opOk ? `enclave ${signer} active au bloc d'ancrage ${cr.anchorBlock}` : `signataire ${signer} non actif pour ce produit au bloc ${cr.anchorBlock} (InactiveEnclave)`, en: opOk ? `enclave ${signer} active at anchor block ${cr.anchorBlock}` : `signer ${signer} not active for this product at block ${cr.anchorBlock} (InactiveEnclave)` },
     {
       id: "operator", ok: !o.expectedOperator || lower(operator) === lower(o.expectedOperator),
       fr: !o.expectedOperator || lower(operator) === lower(o.expectedOperator) ? "opérateur attendu" : `le règlement paierait l'opérateur ${operator}, pas ${o.expectedOperator}`,
+      en: !o.expectedOperator || lower(operator) === lower(o.expectedOperator) ? "expected operator" : `the settlement would pay operator ${operator}, not ${o.expectedOperator}`,
     },
-    { id: "nonce", ok: lower(call.auth.nonce) === lower(cr.nonce), fr: lower(call.auth.nonce) === lower(cr.nonce) ? "nonce du reçu = nonce de l'autorisation" : "nonce du reçu ≠ nonce de l'autorisation" },
-    { id: "authorization", ok: authOk, fr: authOk ? "autorisation EIP-3009 du payeur, montant exact, vers X402Settler" : (problem ?? "l'autorisation ne paie pas exactement ce montant à X402Settler (signature EIP-3009)") },
-    { id: "unused", ok: !used, fr: used ? "autorisation déjà consommée (réglée, ou annulée par le payeur)" : "autorisation jamais consommée" },
+    { id: "nonce", ok: lower(call.auth.nonce) === lower(cr.nonce), fr: lower(call.auth.nonce) === lower(cr.nonce) ? "nonce du reçu = nonce de l'autorisation" : "nonce du reçu ≠ nonce de l'autorisation", en: lower(call.auth.nonce) === lower(cr.nonce) ? "receipt nonce = authorization nonce" : "receipt nonce ≠ authorization nonce" },
+    { id: "authorization", ok: authOk, fr: authOk ? "autorisation EIP-3009 du payeur, montant exact, vers X402Settler" : (problem ?? "l'autorisation ne paie pas exactement ce montant à X402Settler (signature EIP-3009)"), en: authOk ? "the payer's EIP-3009 authorization, exact amount, to X402Settler" : (problem ?? "the authorization does not pay exactly this amount to X402Settler (EIP-3009 signature)") },
+    { id: "unused", ok: !used, fr: used ? "autorisation déjà consommée (réglée, ou annulée par le payeur)" : "autorisation jamais consommée", en: used ? "authorization already consumed (settled, or cancelled by the payer)" : "authorization never consumed" },
     {
       id: "window", ok: call.auth.validAfter < now && now < call.auth.validBefore,
       fr: call.auth.validAfter < now && now < call.auth.validBefore ? "autorisation dans sa fenêtre de validité" : "autorisation hors de sa fenêtre de validité",
+      en: call.auth.validAfter < now && now < call.auth.validBefore ? "authorization inside its validity window" : "authorization outside its validity window",
     },
-    { id: "funds", ok: balance >= amount, fr: balance >= amount ? "solde du payeur suffisant" : `solde du payeur ${balance} < ${amount}` },
+    { id: "funds", ok: balance >= amount, fr: balance >= amount ? "solde du payeur suffisant" : `solde du payeur ${balance} < ${amount}`, en: balance >= amount ? "payer's balance sufficient" : `payer's balance ${balance} < ${amount}` },
   ];
   return {
     signer, operator, amount, checks, settleable: checks.every((c) => c.ok), alreadyUsed: used, expired: call.auth.validBefore <= now,
@@ -1083,23 +1083,23 @@ export interface X402SettleResult { tx: Hex; status: "success" | "reverted" | "t
 export interface X402SettlementQueueOptions {
   publicClient: PublicClient;
   deployment?: Deployment;
-  /** The operator who settles: only the calls that pay it are settled (the contract pays the operator active at the anchor block). */
+  /** The settling operator: only the calls that pay it are settled (the contract pays the active operator at the anchor block). */
   operator: Address;
   /** Collects the served, unsettled calls (the enclave's GET /x402/pending, every page). */
   fetchPending: () => Promise<PendingCall[]>;
-  /** Reports to the enclave the calls used on-chain (POST /x402/settled, signed by the operator; the enclave checks
-   *  again on-chain), each with `settled`: SETTLED by X402Settler (our successful transaction, or this nonce's
-   *  CallSettled event) or used otherwise (cancelled by the payer; only a settlement makes the payer "known" to the
-   *  enclave). Receives each key once per pass; a failed report is sent again at the next pass. */
+  /** Reports to the enclave the calls consumed on-chain (POST /x402/settled, signed by the operator; the enclave checks
+   *  again on-chain), each with `settled`: SETTLED by X402Settler (our successful transaction, or the CallSettled event of
+   *  this nonce) or consumed another way (cancelled by the payer; only a settlement makes the payer "known" to the enclave).
+   *  Gets each key once per pass; a failed report is sent again on the next pass. */
   acknowledge?: (items: X402AckItem[]) => Promise<void>;
   /** Sends X402Settler.settle and waits for the transaction. */
   settle: (call: PendingCall) => Promise<X402SettleResult>;
-  /** No more attempts closer than this delay (s) to the authorization's expiry (default 15). */
+  /** No more attempts within this delay (s) of the authorization's expiry (default 15). */
   minRemainingSeconds?: number;
   /** After a transaction with no receipt in time: no new send during this delay (ms, default 5 min). */
   coolDownMs?: number;
-  /** "Uncovered" calls (by the enclave's last reading) checked again on-chain, at most, per pass (default 25). Covered
-   *  calls always go first; the other uncovered ones wait for the next pass, with no read. */
+  /** "Uncovered" calls (per the enclave's latest reading) re-checked on-chain at most per pass (default 25): covered
+   *  calls always go first; the other uncovered calls wait, unread, for the next pass. */
   maxUncoveredChecks?: number;
   log?: (m: string) => void;
 }
@@ -1109,14 +1109,14 @@ export interface X402SettlementReport {
   /** Calls still tracked after this pass (collected and not settled yet). */
   known: number;
   settled: Array<{ payer: Address; nonce: Hex; amount: bigint; tx: Hex; gasUsed?: bigint }>;
-  /** Already used on-chain (settled by someone else, or cancelled): reported to the enclave, nothing sent. */
+  /** Already consumed on-chain (settled by someone else, or cancelled): reported to the enclave, nothing sent. */
   alreadySettled: number;
-  /** Among them, those with no visible settlement by X402Settler (cancelled by the payer, most often): reported as
-   *  "used otherwise" (the payer does not become "known"). */
+  /** Among them, those with no visible X402Settler settlement (cancelled by the payer, most often): reported as
+   *  "consumed another way" (the payer does not become "known"). */
   consumedElsewhere: number;
   /** Expired before they could be settled (lost for the operator). */
   expired: number;
-  /** Dropped for good (they would not pay this operator, or they are inconsistent). */
+  /** Dropped for good (they would not pay this operator, or are inconsistent). */
   dropped: number;
   waiting: Array<{ payer: Address; nonce: Hex; reasons: string[] }>;
   failed: Array<{ payer: Address; nonce: Hex; error: string }>;
@@ -1133,22 +1133,22 @@ const MAX_UNACKED = 1_000;
 /**
  * The operator's settlement queue, with NO DOUBLE SETTLEMENT: one pass at a time (two simultaneous runOnce calls share
  * the same pass), a call never sent twice at the same time, and each send preceded by an on-chain check (authorization
- * already used → nothing is sent, the enclave is told). The contract forbids it anyway (single-use EIP-3009 nonce);
- * this avoids paying gas for a transaction that would fail. Collected calls are kept until settlement or expiry, so an
- * enclave restart no longer loses them.
- * COVERED calls (according to the enclave) go first, nearest expiry first. At most maxUncoveredChecks "uncovered"
- * calls are checked again per pass, so unpayable calls, even many with short expiries, no longer delay the settlement
- * of an honest payer.
+ * already consumed → nothing is sent, the enclave is told). The contract forbids it anyway (single-use EIP-3009
+ * nonce); this avoids paying gas for a transaction that would fail. Collected calls are kept until settlement or
+ * expiry, so an enclave restart does not lose them.
+ * COVERED calls (per the enclave) go first, nearest expiry first; at most maxUncoveredChecks "uncovered" calls are
+ * re-checked per pass, so unpayable calls, even many with short expiries, no longer delay an honest payer's
+ * settlement.
  */
 export class X402SettlementQueue {
   private known = new Map<string, PendingCall>();
   private inFlight = new Set<string>();
   private cooling = new Map<string, number>();
-  /** Transaction sent with no receipt (timeout): its receipt will later say whether WE settled the call. */
+  /** Transaction sent with no receipt (timeout): its receipt will tell later whether WE settled the call. */
   private sentTx = new Map<string, Hex>();
   /** Keys settled by our (successful) transactions. */
   private paidKeys = new Map<string, number>();
-  /** Failed reports, sent again at the next pass. */
+  /** Failed reports, sent again on the next pass. */
   private unacked = new Map<string, X402AckItem>();
   private running?: Promise<X402SettlementReport>;
 
@@ -1171,15 +1171,15 @@ export class X402SettlementQueue {
       r.fetched = items.length;
       for (const c of items) this.known.set(callKey(c), c);
     } catch (e) {
-      r.fetchError = (e as Error)?.message ?? String(e); // settle what is already collected anyway
+      r.fetchError = (e as Error)?.message ?? String(e); // what is already collected is settled all the same
     }
-    // each key once (no duplicates); first the reports that failed at the previous pass
+    // each key once (no duplicate); first the reports that failed on the previous pass
     const ack = new Map<string, X402AckItem>(this.unacked);
     const minLeft = BigInt(this.o.minRemainingSeconds ?? 15);
     const coolDown = this.o.coolDownMs ?? 5 * 60_000;
     const maxUncovered = this.o.maxUncoveredChecks ?? 25;
     const byDeadline = (a: PendingCall, b: PendingCall) => (a.auth.validBefore < b.auth.validBefore ? -1 : a.auth.validBefore > b.auth.validBefore ? 1 : 0);
-    // COVERED calls first (the enclave's last reading), nearest expiry first; then the others
+    // COVERED calls first (the enclave's latest reading), nearest expiry first; then the others
     const order = [...this.known.entries()].sort(([, a], [, b]) => {
       const ua = a.covered === false, ub = b.covered === false;
       return ua === ub ? byDeadline(a, b) : ua ? 1 : -1;
@@ -1191,7 +1191,7 @@ export class X402SettlementQueue {
       const id = { payer: call.receipt.payer, nonce: call.receipt.nonce };
       if (call.covered === false) {
         if (uncoveredChecks >= maxUncovered) {
-          // no read for this one in this pass: if expired (local clock), it leaves; otherwise it waits
+          // no read for this one on this pass: expired (local clock), it leaves; otherwise it waits
           if (call.auth.validBefore <= nowLocal + minLeft) {
             this.known.delete(key);
             this.cooling.delete(key);
@@ -1208,12 +1208,12 @@ export class X402SettlementQueue {
       try {
         v = await verifyCallOnChain(this.o.publicClient, call, d, { expectedOperator: this.o.operator });
       } catch (e) {
-        r.failed.push({ ...id, error: explainArcError(e) });
+        r.failed.push({ ...id, error: explainArcError(e, "en") });
         continue;
       }
       if (v.alreadyUsed) {
-        // used: by an X402Settler SETTLEMENT (ours, or someone else's), or cancelled? The enclave makes the payer
-        // "known" only in the first case
+        // consumed: by an X402Settler SETTLEMENT (ours, or someone else's), or cancelled? The enclave makes the
+        // payer "known" only in the first case
         const paid = await this.settledByX402(key, call, v.head, d);
         this.known.delete(key);
         this.cooling.delete(key);
@@ -1236,9 +1236,9 @@ export class X402SettlementQueue {
         if (failing.some((c) => PERMANENT.has(c.id))) {
           this.known.delete(key);
           r.dropped++;
-          log(`call ${key} dropped: ${failing.map((c) => c.fr).join(" ; ")}`);
+          log(`call ${key} dropped: ${failing.map((c) => c.en).join("; ")}`);
         } else {
-          r.waiting.push({ ...id, reasons: failing.map((c) => c.fr) });
+          r.waiting.push({ ...id, reasons: failing.map((c) => c.en) });
         }
         continue;
       }
@@ -1265,7 +1265,7 @@ export class X402SettlementQueue {
           r.failed.push({ ...id, error: `transaction reverted on-chain (${s.tx})` });
         }
       } catch (e) {
-        r.failed.push({ ...id, error: explainArcError(e) });
+        r.failed.push({ ...id, error: explainArcError(e, "en") });
       } finally {
         this.inFlight.delete(key);
       }
@@ -1293,10 +1293,10 @@ export class X402SettlementQueue {
   }
 
   /**
-   * Was a used authorization used by an X402Settler SETTLEMENT? Yes if OUR transaction settled it (kept in memory, or
-   * the receipt of a transaction left without an answer), or if this payer's CallSettled event, for this product,
-   * carries this nonce (from the receipt's anchor block: the payer may have settled it themselves). Otherwise
-   * (cancelled with cancelAuthorization, or unreadable): no. No trust is given on a doubt.
+   * Was a consumed authorization consumed by an X402Settler SETTLEMENT? Yes if OUR transaction settled it (kept in
+   * memory, or the receipt of a transaction left unanswered), or if this payer's CallSettled event, for this product,
+   * carries this nonce (from the receipt's anchor block: the payer may have settled it alone). Otherwise (cancelled
+   * through cancelAuthorization, or unreadable), no: a doubt earns no trust.
    */
   private async settledByX402(key: string, call: PendingCall, head: bigint, d: Deployment): Promise<boolean> {
     if (this.paidKeys.has(key)) return true;
@@ -1309,7 +1309,7 @@ export class X402SettlementQueue {
           return true;
         }
       } catch {
-        /* reçu introuvable : on regarde l'événement */
+        /* receipt not found: look at the event */
       }
     }
     try {
@@ -1325,7 +1325,7 @@ export class X402SettlementQueue {
         return true;
       }
     } catch {
-      /* lecture impossible : pas de confiance sur un doute */
+      /* unreadable: a doubt earns no trust */
     }
     return false;
   }
@@ -1336,10 +1336,10 @@ function callKey(c: PendingCall): string {
 }
 
 /** The settlement queue wired to an x402 enclave (HTTP) and to the operator's wallet (transactions). It collects the
- *  enclave's WHOLE queue, page by page (GET /x402/pending?limit&offset). The report to the enclave (POST
- *  /x402/settled) is SIGNED by the operator's key (EIP-712 x402AckTypes: the enclave read again on GET /x402/pending,
- *  the product, a timestamp, a random nonce, items with `settled`), in batches of 200. The enclave refuses any report
- *  not signed by an address of its OPERATOR_ALLOWLIST. */
+ *  enclave's WHOLE queue, page by page (GET /x402/pending?limit&offset). The report to the enclave (POST /x402/settled)
+ *  is SIGNED with the operator's key (EIP-712 x402AckTypes: enclave read back from GET /x402/pending, product,
+ *  timestamp, random nonce, items with `settled`), in batches of 200: the enclave refuses any report not signed by an
+ *  address in its OPERATOR_ALLOWLIST. */
 export function createX402SettlementQueue(o: {
   enclaveUrl: string;
   publicClient: PublicClient;
@@ -1353,7 +1353,7 @@ export function createX402SettlementQueue(o: {
   /** Calls collected at most per pass, all pages together (default 10,000). */
   maxItems?: number;
   minRemainingSeconds?: number;
-  /** "Uncovered" calls checked again at most per pass (default 25). */
+  /** "Uncovered" calls re-checked at most per pass (default 25). */
   maxUncoveredChecks?: number;
   /** Wait for a transaction's receipt (ms, default 120,000). */
   receiptTimeoutMs?: number;
@@ -1362,9 +1362,9 @@ export function createX402SettlementQueue(o: {
   const f = o.fetch ?? globalThis.fetch;
   const base = o.enclaveUrl.replace(/\/+$/, "");
   const account = o.account ?? o.walletClient.account;
-  if (!account) throw new Error("x402 : walletClient sans compte (passer `account`)");
-  // the enclave and the product to address the report to (read again at each collection: the key changes at each
-  // restart); not authenticated, but bound into the signed message: an enclave that is not this one refuses it
+  if (!account) throw new Error("x402: walletClient without an account (pass `account`)");
+  // the enclave and product the report goes to (read again at each collection: the key changes at every restart);
+  // not authenticated, but bound into the signed message: any other enclave refuses it
   let target: { enclave: Address; productId: bigint } | undefined;
   const signAck = (m: X402AckMessage): Promise<Hex> => {
     const args = { domain: x402AckDomain(d.x402Settler, d.chainId), types: x402AckTypes, primaryType: "X402Settled" as const, message: m };
@@ -1393,7 +1393,7 @@ export function createX402SettlementQueue(o: {
           j = (await res.json()) as typeof j;
         } catch (e) {
           if (offset === 0) throw e;
-          break; // a next page failed: settle what is already collected (the rest at the next pass)
+          break; // a later page failed: settle what is already collected (the rest on the next pass)
         }
         if (typeof j.enclave === "string" && isAddress(j.enclave, { strict: false }) && typeof j.productId === "string" && /^[0-9]{1,78}$/.test(j.productId)) {
           target = { enclave: getAddress(lower(j.enclave)), productId: BigInt(j.productId) };
@@ -1403,11 +1403,11 @@ export function createX402SettlementQueue(o: {
           try {
             out.push(normalizePendingCall(it));
           } catch {
-            /* entrée illisible : ignorée (rien n'est envoyé pour elle) */
+            /* unreadable entry: ignored (nothing is sent for it) */
           }
         }
         const total = typeof j.total === "number" && Number.isSafeInteger(j.total) ? j.total : 0;
-        // end: an incomplete page, the whole queue collected, the pass's limit, or an enclave that ignores `offset` (one page)
+        // end: incomplete page, whole queue collected, pass limit, or an enclave that ignores `offset` (one page)
         if (items.length < pageSize || j.offset !== offset || offset + items.length >= total || offset + items.length >= maxItems) break;
         offset += items.length;
       }

@@ -20,7 +20,7 @@ import { verifyEnclaveKeys, type VerifiedEnclaveKeys } from "./enclave-keys";
 import { readSession, type SessionInfo } from "./receipts";
 
 export interface InferenceClientOptions {
-  /** The product's gateway (O2), direct or behind a proxy: its keys are verified on-chain. */
+  /** The product's gateway, direct or behind a proxy: its keys are verified on-chain. */
   enclaveUrl: string;
   sessionId: bigint;
   /** Session key (the address is recomputed from the private key if it is missing or zero). */

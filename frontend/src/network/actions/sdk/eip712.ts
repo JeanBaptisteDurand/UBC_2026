@@ -75,7 +75,7 @@ export async function recoverRefutationSigner(sealedBounty: Address, f: Refutati
   });
 }
 
-/** A claim received as JSON (decimal strings, as the enclave O3 returns it) → SDK types. */
+/** A claim received as JSON (decimal strings, as the Sealed Bounty enclave returns it) → SDK types. */
 export function normalizeClaim(c: any): Claim {
   return {
     bountyId: BigInt(c.bountyId), payee: c.payee as Address, blockN: BigInt(c.blockN), blockHashN: c.blockHashN as Hex,
@@ -84,7 +84,7 @@ export function normalizeClaim(c: any): Claim {
   };
 }
 
-/** A receipt received as JSON (decimal strings, as the enclave O2 returns it) → SDK types. */
+/** A receipt received as JSON (decimal strings, as the inference enclave returns it) → SDK types. */
 export function normalizeReceipt(r: any): Receipt {
   return {
     productId: BigInt(r.productId), sessionId: BigInt(r.sessionId), seq: BigInt(r.seq),

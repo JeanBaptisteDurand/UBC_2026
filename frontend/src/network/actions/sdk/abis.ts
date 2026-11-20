@@ -233,7 +233,7 @@ export const sessionPayAbi = parseAbi([
   "error ZeroPrice()",
 ]);
 
-/** SealedBounty: the sealed bounty. Source: contracts/out/SealedBounty.sol/SealedBounty.json (ABI sha256 463806b344dd5d27), 38 functions, 13 events, 41 errors. */
+/** SealedBounty: the Sealed Bounty. Source: contracts/out/SealedBounty.sol/SealedBounty.json (ABI sha256 463806b344dd5d27), 38 functions, 13 events, 41 errors. */
 export const sealedBountyAbi = parseAbi([
   "struct Claim { uint256 bountyId; address payee; uint64 blockN; bytes32 blockHashN; bytes32 predicateHash; uint256 loss; uint8 tier; bytes32 fingerprint; bytes32 cPHash; uint64 deadline; }",
   "struct Auth { uint256 validAfter; uint256 validBefore; bytes32 nonce; bytes signature; }",
@@ -394,7 +394,7 @@ export const tdxAttestationModuleAbi = parseAbi([
   "function verify(bytes quote, bytes) returns (Measurements m)",
 ]);
 
-/** DemoVault: the disposable target of the sealed bounty demos. Source: contracts/out/DemoVault.sol/DemoVault.json (ABI sha256 ff227f9291afca4a), 6 functions, 3 events, 0 errors. */
+/** DemoVault: the disposable target of the Sealed Bounty demos. Source: contracts/out/DemoVault.sol/DemoVault.json (ABI sha256 ff227f9291afca4a), 6 functions, 3 events, 0 errors. */
 export const demoVaultAbi = parseAbi([
   "function deposit(uint256 amount)",
   "function migrate(address to)",

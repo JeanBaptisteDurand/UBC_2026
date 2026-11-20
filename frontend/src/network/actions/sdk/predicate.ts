@@ -1,5 +1,5 @@
 /**
- * predicate.ts — the Sealed Bounty's predicate language, v0 (O3).
+ * predicate.ts — the Sealed Bounty's predicate language, v0.
  *
  * A predicate states "what proves the exploit": a balance drop, the attacker's profit, a changed read, a broken
  * invariant. Its canonical JSON is hashed (predicateHash) and pinned on-chain: the enclave and the protocol talk about
@@ -78,7 +78,7 @@ export function checkPredicateBounds(p: unknown): void {
     } else if (typeof v === "number") {
       if (!Number.isFinite(v)) throw new PredicateError("predicate: non-finite number (NaN or infinity)", "json");
     } else if (typeof v === "boolean" || v === null) {
-      // rien
+      // nothing
     } else if (Array.isArray(v)) {
       if (depth > PREDICATE_MAX_DEPTH) throw new PredicateError(`predicate: nesting deeper than ${PREDICATE_MAX_DEPTH} levels`, "depth");
       fields += v.length;
@@ -181,7 +181,7 @@ export function predicateHash(p: Predicate): Hex {
 export interface EvalContext {
   erc20Drop(token: Address, holder: Address): bigint; // balance before − after (>= 0 on a drop)
   nativeDrop(holder: Address): bigint;
-  attackerProfit(token: Address): bigint; // final − capital, gas included
+  attackerProfit(token: Address): bigint; // final − capital, gas compris
   viewValue(target: Address, call: Hex, when: "before" | "after"): bigint;
   invariantHeld(target: Address, call: Hex, when: "before" | "after"): boolean;
 }
