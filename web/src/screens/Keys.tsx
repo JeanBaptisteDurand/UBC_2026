@@ -110,7 +110,7 @@ function SessionRow({ s, onChanged, onNewKey }: { s: Session; onChanged: () => v
     const hash = await arc.closeSession(s.id);
     setNote(msg("keys.closeConfirming"));
     const rcpt = await waitOk(arc, hash, "tx.closeSession");
-    // v2.1: closing tells what became of the ERC-8004 verdict (written, not applicable without a payment, or skipped)
+    // since v2.1: closing tells what became of the ERC-8004 verdict (written, not applicable without a payment, or skipped)
     const o = closeOutcome(rcpt.logs);
     return o.outcome === "written" ? msg("keys.closed", { tx: hash })
       : o.outcome === "not_applicable" ? msg("keys.closedNoVerdict", { tx: hash })

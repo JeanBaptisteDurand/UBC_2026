@@ -1,8 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { MessageSquareLock, Crosshair, Server, PackagePlus, ChevronRight } from "lucide-react";
-import { testnet } from "@arcvault/sdk";
+import { STACK_NAME, testnet } from "../deployment";
 import { fetchStats, fetchActivity, fetchProof, type Stats, type ActivityEvent, type Proof } from "../api";
-import { PageHeader, Section, Hex, usdc, short } from "../ui";
+import { PageHeader, Section, Hex, Badge, usdc, short } from "../ui";
 import { skipReason } from "../arc";
 import { explainError } from "../errors";
 import { fmtNum, fmtUnix, t, tx } from "../i18n";
@@ -67,7 +67,7 @@ export function ProofChain({ p }: { p: Proof | null }) {
   );
 }
 
-/** Link 6 in words: the verdict written; otherwise (v2.1 stack) why the session shown has none: closed without payment
+/** Link 6 in words: the verdict written; otherwise (since v2.1) why the session shown has none: closed without payment
  *  (not applicable), write skipped (with the reason), closed without a verdict, or still open; or a rail that writes no
  *  verdict (paid call, free), or a bounty not paid yet. */
 function verdictWhat(p: Proof | null): string {
@@ -128,7 +128,7 @@ const LABEL: Record<string, (a: Record<string, any>) => [string, ReactNode]> = {
   Credited: (a) => [t("ev.Credited"), usdc(a.amount)],
   ProductUpdateProposed: (a) => [t("ev.ProductUpdateProposed", { id: a.productId }), ""],
   WorkloadProposed: (a) => [t("ev.WorkloadProposed", { id: a.productId }), ""],
-  // pile v2.1
+  // since v2.1
   EnclaveImage: (a) => [t("ev.EnclaveImage"), tx("ev.d.image", { id: String(a.productId), img: <span className="whitespace-nowrap">{short(String(a.imageId))}</span> })],
   VerdictNotApplicable: (a) => [t("ev.VerdictNotApplicable", { id: a.sessionId }), t("ev.d.noPayment")],
   VerdictSkipped: (a) => [t("ev.VerdictSkipped"), t("ev.d.reason", { reason: skipReason(a.reason) })],
@@ -238,8 +238,10 @@ export default function Overview({ go }: { go: (r: string) => void }) {
             {(act ?? []).map((e, i) => {
               const known = Object.prototype.hasOwnProperty.call(LABEL, e.name);
               const [label, base]: [string, ReactNode] = known ? LABEL[e.name]!(e.args) : [e.name, ""];
-              // a verified-level bounty has its own numbers (product 7's contract): the detail says so
-              const lvl = e.contract === "SealedBountyVerified" ? t("ev.d.verifiedLevel") : "";
+              // an event of the previous stack (v2.1, kept readable by the API) says so; its numbers are v2.1's
+              const prev = !!e.stack && e.stack !== STACK_NAME;
+              // a verified-level bounty has its own numbers (product 5's contract; product 7's on v2.1): the detail says so
+              const lvl = e.contract === "SealedBountyVerified" ? (prev ? t("ev.d.verifiedLevelPrev", { stack: e.stack ?? "" }) : t("ev.d.verifiedLevel")) : "";
               const detail: ReactNode = lvl ? (base ? <>{base}, {lvl}</> : lvl) : base;
               const block = fmtNum(e.block);
               return (
@@ -247,7 +249,7 @@ export default function Overview({ go }: { go: (r: string) => void }) {
                   {/* the title wraps rather than being cut; the short hash stays on one line (under the title on a phone, so
                       its 44 px buttons do not squeeze the text) */}
                   <div className="min-w-0">
-                    <div className="break-words text-[13px] leading-snug">{label}</div>
+                    <div className="break-words text-[13px] leading-snug">{prev && <Badge tone="muted">{e.stack}</Badge>} {label}</div>
                     {/* a long detail (a manifest's address) wraps instead of running under the hash */}
                     <div className="text-[12px] text-muted [overflow-wrap:anywhere]">{detail ? tx("ov.activity.detailBlock", { detail, n: block }) : t("common.block", { n: block })}</div>
                   </div>

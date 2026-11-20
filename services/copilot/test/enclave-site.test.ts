@@ -19,7 +19,7 @@ import {
   type Address, type Hex, concat, encodeAbiParameters, keccak256, recoverMessageAddress, stringToBytes, toBytes, toHex, zeroAddress,
 } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
-import { COPILOT_SEALED_TAG, exchangeInfo, sealExchange, testnet } from "@arcvault/sdk";
+import { COPILOT_SEALED_TAG, deploymentFromJson, exchangeInfo, sealExchange, testnet } from "@arcvault/sdk";
 import { EnclaveKit } from "../../../enclave/src/kit/enclave-kit";
 import type { CopilotAppOptions, Llm, LlmReply, LlmRequest } from "../src/app";
 import { SITE_SYSTEM, copilotFromEnv } from "../src/copilot";
@@ -51,6 +51,8 @@ const COMPOSE_V22 = here("../../../enclave/phala/copilot-site-v22.yml");
 const COMPOSE_V21 = here("../../../enclave/phala/copilot-v21.yml");
 const VPS_COMPOSE = here("../../../deploy/docker-compose.vps.yml");
 const DEPLOYMENTS_V21 = here("../../../deployments.v21.testnet.json");
+const COMPOSE_V3 = here("../../../enclave/phala/copilot-site-v3.yml");
+const DEPLOYMENTS_V3 = here("../../../deployments.v3.testnet.json");
 /** The v21 VM's app-compose.json template, saved outside the repository (V21_APP_COMPOSE=<path>): without it, the part
  *  of the test that reads it is skipped. */
 const V21_APP_COMPOSE = process.env.V21_APP_COMPOSE ?? "";
@@ -474,6 +476,38 @@ test("compose v22: the measured site surface, the server site copilot's limits, 
   assert.equal(cfg.registry, JSON.parse(readFileSync(DEPLOYMENTS_V21, "utf8")).contracts.EnclaveRegistry);
   assert.equal(cfg.registry, testnet.enclaveRegistry, "the registry the panel binds into the exchange and the signature");
   assert.equal(cfg.model, "openai/gpt-oss-120b");
+});
+
+test("compose v3 (AskHive r4): the v22 compose on the v3 stack (registry and deployments file only), a new image, accepted by the enclave's configuration with the v3 file and its levels", () => {
+  const s = readCompose(COMPOSE_V3)["copilot-enclave"]!;
+  const env = s.measured;
+  assert.ok(new RegExp(`^ghcr\\.io/jeanbaptistedurand/archive-copilot-enclave@sha256:(?:[0-9a-f]{64}|${IMAGE_PLACEHOLDER})$`).test(s.image), s.image);
+  assert.notEqual(s.image, v22().image, "a new image: r4 carries the v3 knowledge and the v3 file");
+  assert.deepEqual(s.secret.sort(), ["COPILOT_PROXY_TOKEN", "OPENAI_API_KEY", "OPERATOR_ALLOWLIST"]);
+  assert.deepEqual(s.keys, ["image", "ports", "environment", "volumes", "restart"], "no env_file, command or entrypoint");
+  for (const k of ["DEBUG", "NODE_OPTIONS", "COPILOT_ALLOW_PRIVATE_URLS"]) assert.equal(env[k], undefined, k);
+  // only the stack changes: same surface, model, verified gateway, limits and origins as v22
+  const v22env = v22().measured;
+  assert.deepEqual(Object.keys(env), Object.keys(v22env), "same variables, same order");
+  const changed = Object.keys({ ...v22env, ...env }).filter((k) => v22env[k] !== env[k]).sort();
+  assert.deepEqual(changed, ["DEPLOYMENTS", "REGISTRY"]);
+  const d3 = JSON.parse(readFileSync(DEPLOYMENTS_V3, "utf8"));
+  assert.equal(env.DEPLOYMENTS, "/app/deployments/deployments.v3.testnet.json");
+  assert.equal(env.REGISTRY, d3.contracts.EnclaveRegistry);
+  const cfg = readCopilotEnclaveConfig(
+    { ...env, OPENAI_API_KEY: "sk-test", OPERATOR_ALLOWLIST: OP, COPILOT_PROXY_TOKEN: PROXY_TOKEN },
+    (p) => { assert.equal(p, "/app/deployments/deployments.v3.testnet.json"); return readFileSync(DEPLOYMENTS_V3, "utf8"); },
+  );
+  assert.equal(cfg.surface, "site");
+  assert.equal(cfg.productId, 4n);
+  assert.equal(cfg.registry, d3.contracts.EnclaveRegistry);
+  assert.equal(cfg.model, "openai/gpt-oss-120b");
+  // the v3 file carries its levels block: the copilot's tools see the verified level (product 5, SealedBountyVerified)
+  const dep = deploymentFromJson(d3);
+  assert.equal(dep.enclaveRegistry, d3.contracts.EnclaveRegistry);
+  assert.equal(dep.levels?.sealedBountyVerified, d3.contracts.SealedBountyVerified);
+  assert.equal(dep.levels?.machineRegistry, d3.contracts.MachineRegistry);
+  assert.equal(String(d3.products["5"]?.settlement ?? "").startsWith("SealedBountyVerified"), true, "product 5 = the verified bounty on v3");
 });
 
 test("VM fingerprint: dstack's canonical JSON, the v2.1 compose-hash found again, the v2.1 image fingerprint replayed, the prediction for v22", () => {

@@ -2,11 +2,12 @@ import { COPILOT_SITE_URL, ENCLAVE_URL } from "../config";
 import { useEffect, useRef, useState } from "react";
 import { Rotate3d } from "lucide-react";
 import {
-  type ChatMessage, type Completion, type ProductView, testnet, createInferenceClient, InferenceClient, encodeAek, maskAek,
+  type ChatMessage, type Completion, type ProductView, createInferenceClient, InferenceClient, encodeAek, maskAek,
 } from "@arcvault/sdk";
+import { testnet } from "../deployment";
 import { fetchEnclaves, fetchProducts, fetchProof, type Enclave, type Proof } from "../api";
 import { useArc } from "../useArc";
-import { DCAP, SUPERSEDED_VERIFIED_BOUNTY, bountyLevelOf, parseUsdc, useVerifiedEnclave, waitOk } from "../arc";
+import { DCAP, bountyLevelOf, parseUsdc, useVerifiedEnclave, waitOk } from "../arc";
 import { Card, Btn, Field, Badge, Mono, Stat, PageHeader, EnclaveCheckView, usdc } from "../ui";
 import { fail, isFailure, msg, show, type Msg } from "../msg";
 import { t, tx } from "../i18n";
@@ -20,15 +21,15 @@ import { ProofChain } from "./Overview";
 function priceOf(p: ProductView): string {
   const s = p.settlement.toLowerCase();
   if (/^0x0{40}$/.test(s)) return t("hive.price.free");
-  // the former product 6 (the first SealedBountyVerified, replaced by product 7) is also paid from a bounty's pool
-  if (bountyLevelOf(s) || s === SUPERSEDED_VERIFIED_BOUNTY) return t("hive.price.pool");
+  if (bountyLevelOf(s)) return t("hive.price.pool");
   if (s === testnet.x402Settler.toLowerCase()) return t("hive.price.call", { p: usdc(p.price) });
   if (s === testnet.sessionPay.toLowerCase()) return t("hive.price.unit", { p: usdc(p.price) });
   return usdc(p.price);
 }
 
-/** The refutation demo's enclave (product 5, bounty #2): its claim was refuted on Arc and its operator's bond seized
- *  (block 71620138). These events are older than the /activity window, so they are written here. */
+/** The refutation demo's enclave (v2.1 stack: product 5 there, bounty #2): its claim was refuted on Arc and its
+ *  operator's bond seized (block 71620138). These events are older than the /activity window, so they are written here;
+ *  the v3 registry does not list this enclave. */
 const REFUTED: Record<string, string> = {
   "0xedc7df91392c40c89955249006c1fa47bc34e497": "0x0ffca5433186735bf5525e525995f3589d842681da8ffcaa82acb5993025051f",
 };
@@ -178,7 +179,7 @@ function OrderPanel({ enclave, product, onClose }: { enclave: Enclave; product?:
       await waitOk(arc, r.tx, "tx.openSession");
       setSessionId(r.sessionId);
       setAek(encodeAek("arctest", r.sessionId, r.sessionKey.privateKey));
-      const client = createInferenceClient({ enclaveUrl: url, sessionId: r.sessionId, sessionKey: r.sessionKey, publicClient: arc.pub });
+      const client = createInferenceClient({ enclaveUrl: url, sessionId: r.sessionId, sessionKey: r.sessionKey, publicClient: arc.pub, deployment: arc.d });
       ic.current = client;
       const messages = testMessages();
       await test(() => client.chat.completions.create({ messages }), messages);
@@ -253,12 +254,8 @@ function OrderPanel({ enclave, product, onClose }: { enclave: Enclave; product?:
             </div>
           )}
         </>
-      ) : rail === SUPERSEDED_VERIFIED_BOUNTY ? null : (
+      ) : (
         <p className="text-[13px] text-muted">{tx("order.bounty", { link: <a href="#/primes" className="text-accent hover:underline">{t("nav.primes")}</a> })}</p>
-      )}
-      {/* the former product 6 (the first verified level, retired after a security fix): say so, and point to product 7 */}
-      {rail === SUPERSEDED_VERIFIED_BOUNTY && (
-        <p className={`${enclave.active ? "" : "mt-2 "}text-[13px] text-muted`}>{tx("order.bountyOld", { link: <a href="#/primes" className="text-accent hover:underline">{t("nav.primes")}</a> })}</p>
       )}
       {out && <p className={`mt-2 break-words font-mono text-xs ${isFailure(out) ? "text-bad" : "text-muted"}`}>{show(out)}</p>}
       <div className="mt-5 border-t border-edge pt-4">

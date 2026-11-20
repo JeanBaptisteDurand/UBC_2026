@@ -164,7 +164,7 @@ export function railOf(arc: ArcClient, settlement: string): string {
 }
 
 /** The Sealed Bounty contract that settles this product: SealedBounty (open level, product 2) or, on the stack with
- *  levels, SealedBountyVerified (verified level, product 7: the same code, plugged into PolicyEnclaves); undefined for any
+ *  levels, SealedBountyVerified (verified level, product 5 on v3, 7 on v2.1: the same code, plugged into PolicyEnclaves); undefined for any
  *  other settlement (including product 6's former verified bounty, neutralized on 11 Nov 2026). createBounty refuses a
  *  product settled by another contract (WrongSettlement), so the bounty is always prepared on THIS contract. */
 export function bountyContractOf(arc: ArcClient, settlement: string): { address: Address; verified: boolean } | undefined {
@@ -728,8 +728,8 @@ export async function prepareBountyCreate(arc: ArcClient, q: any, cx: ActionCtx 
   const bounty: Address = rail?.address ?? arc.d.sealedBounty;
   const bountyName = rail?.verified ? "SealedBountyVerified" : "SealedBounty";
   if (!rail) {
-    avertissements.push(`Le produit #${product.id} n'est réglé par aucune Prime scellée en service (${railOf(arc, product.settlement)}) : createBounty reverterait (WrongSettlement). Choisis le produit 2 (niveau ouvert) ou 7 (niveau vérifié) ; le produit 6, neutralisé le 11/11, est remplacé par le 7.`);
-    aCompleter.push("productId : un produit de Prime scellée en service (2 = niveau ouvert, 7 = niveau vérifié)");
+    avertissements.push(`Le produit #${product.id} n'est réglé par aucune Prime scellée en service (${railOf(arc, product.settlement)}) : createBounty reverterait (WrongSettlement). Choisis le produit 2 (niveau ouvert) ou 5 (niveau vérifié).`);
+    aCompleter.push("productId : un produit de Prime scellée en service (2 = niveau ouvert, 5 = niveau vérifié)");
   }
   if (!product.deterministic) avertissements.push(`Le produit #${product.id} n'est pas déterministe : le rejeu d'un exploit doit l'être.`);
   if (rail?.verified) {
@@ -941,7 +941,7 @@ export async function operatorPlan(arc: ArcClient, q: any, cx: ActionCtx = {}) {
   }
   const pid = chosen ? chosen.id.toString() : "<id du produit>";
   const op = operator ?? "0x<ton adresse>";
-  // the chosen product's bounty contract: SealedBounty (2, 5) or SealedBountyVerified (7); the enclave reads it in SEALEDBOUNTY
+  // the chosen product's bounty contract: SealedBounty (2) or SealedBountyVerified (5 on v3); the enclave reads it in SEALEDBOUNTY
   const bountyOf = chosen ? bountyContractOf(arc, chosen.settlement) : undefined;
   const bountyRail = !!bountyOf;
   const appCompose = [

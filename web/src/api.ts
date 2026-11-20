@@ -1,5 +1,5 @@
 /** api.ts — reads state through the ArcHive HTTP API, instead of bursts of RPC reads in the browser.
- *  The API reads the chain once, on the server, and caches it. This file revives the bigints of the SDK views (v2.1
+ *  The API reads the chain once, on the server, and caches it. This file revives the bigints of the SDK views (v3
  *  stack): enclave validity windows in blocks, bounty tiers already paid, and the enclave and price each session
  *  locked. */
 import type { EnclaveView, ProductView, BountyRow } from "@arcvault/sdk";
@@ -49,7 +49,7 @@ export async function fetchEnclaves(): Promise<Enclave[]> {
   }));
 }
 
-/** A bounty at one of the TWO levels: open (SealedBounty) or verified (SealedBountyVerified, product 7). Numbers exist
+/** A bounty at one of the TWO levels: open (SealedBounty) or verified (SealedBountyVerified, product 5). Numbers exist
  *  at both levels (open #2 and verified #2), so a bounty is identified by its level AND its number.
  *  `paidOut`: the USDC actually paid (the sum of BountyPaid); `paidAmount` is the on-chain field (the tier reserved or
  *  paid since arming), which stays at 0.5 after a REFUTED claim: it proves no payment. */
@@ -72,7 +72,7 @@ export async function fetchBounties(): Promise<Bounty[]> {
 }
 
 /** /stats. `settledUsdc`: everything settled (sessions + x402 calls); older API responses omit the optional fields
- *  (v2.1 stack: paid x402 calls counted apart, skipped or not-applicable verdicts). */
+ *  (since v2.1: paid x402 calls counted apart, skipped or not-applicable verdicts). */
 export interface Stats {
   enclaves: number; enclavesActive: number; products: string; productsActive?: number; sessions: number; settlements: number;
   settledUsdc: string; refundedUsdc: string; x402Calls: number; verdicts: number;
@@ -81,8 +81,10 @@ export interface Stats {
   /** bounties at both levels, the ones that can be hunted now, refuted claims, seized bonds */
   bountiesOpen?: number; claimsRefuted?: number; bondSlashedUsdc?: string;
 }
-/** An event from /activity; `label`: its English label from the API, while the site writes its own in its language. */
-export interface ActivityEvent { contract: string; name: string; args: Record<string, string | number>; block: number; tx: string; ts?: string; logIndex?: number; label?: string }
+/** An event from /activity; `label`: its English label from the API, while the site writes its own in its language.
+ *  `stack`: the stack it happened on (the API covers the live stack and v2.1's history); its args are as written on
+ *  Arc, so a v2.1 event's product numbers are v2.1's. */
+export interface ActivityEvent { contract: string; name: string; args: Record<string, string | number>; block: number; tx: string; ts?: string; logIndex?: number; label?: string; stack?: string }
 /** The outcome of the ERC-8004 verdict of the session shown by the proof chain; "no_verdict_rail": a product whose rail
  *  writes no verdict (a paid x402 call, a free product). */
 export type VerdictStatus = "written" | "not_applicable" | "skipped" | "none" | "pending" | "no_verdict_rail";

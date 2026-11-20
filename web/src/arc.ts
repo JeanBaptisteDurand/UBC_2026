@@ -1,18 +1,19 @@
-/** arc.ts — console helpers for the ArcHive v2.1 stack on Arc testnet.
- *  - The deployment's reference products: 1 is Private inference, 2 is Sealed bounty.
+/** arc.ts — console helpers for the ArcHive v3 stack on Arc testnet (deployment.ts).
+ *  - The deployment's reference products: 1 is Private inference, 2 is Sealed bounty, 3 is pay-per-call inference.
  *  - The verification label follows the deployment's attestation module ("dcap": verified by Arc) and the site's
  *    language. verifiedLabel and dcapGasLabel are functions, read at display time.
  *  - useVerifiedEnclave CHECKS an enclave's keys against the chain (verifyEnclaveKeys) before any encryption.
  *    /pubkeys goes through the site's same-origin proxy, and only the key registered on-chain counts.
  *  - waitOk waits for a transaction; trackTxs follows the transactions of a multi-step action.
  *  - closeOutcome tells what became of the ERC-8004 verdict when a session closed: written, not applicable without a
- *    payment, or skipped (v2.1 stack). It reads the events of the closing transaction. */
+ *    payment, or skipped (since v2.1). It reads the events of the closing transaction. */
 import { useEffect, useState } from "react";
 import { decodeErrorResult, parseAbi, parseEventLogs, parseUnits, type Hex, type Log, type TransactionReceipt } from "viem";
 import {
-  createArcClient, testnet, arcErrorsAbi, DCAP_REGISTER_GAS_ESTIMATE,
+  createArcClient, arcErrorsAbi, DCAP_REGISTER_GAS_ESTIMATE,
   type ArcClient, type EnclaveKeyMismatchReason, type VerifiedEnclaveKeys,
 } from "@arcvault/sdk";
+import { testnet } from "./deployment";
 import { explainError } from "./errors";
 import { fmtNum, t, type StaticKey } from "./i18n";
 import { MsgError, msg } from "./msg";
@@ -20,21 +21,18 @@ import { MsgError, msg } from "./msg";
 /** Reference products of the live stack (read on-chain): Private inference (SessionPay), Sealed bounty (SealedBounty). */
 export const INFERENCE_PRODUCT: bigint = testnet.products?.inference ?? 1n;
 export const BOUNTY_PRODUCT: bigint = testnet.products?.bounty ?? 2n;
-/** v2.1: inference paid per call (X402Settler, x402 rail), product 3. */
+/** Inference paid per call (X402Settler, x402 rail), product 3. */
 export const X402_PRODUCT: bigint = testnet.products?.x402 ?? 3n;
 
-/** The bounty at the VERIFIED level (product 7) runs the same code as SealedBounty on another contract
- *  (SealedBountyVerified): a level's client is the same client, with this contract in place of SealedBounty. */
+/** The bounty at the VERIFIED level (product 5 on v3; it was product 7 on v2.1) runs the same code as SealedBounty on
+ *  another contract (SealedBountyVerified): a level's client is the same client, with this contract in place of
+ *  SealedBounty. */
 export type BountyLevel = "open" | "verified";
 export const VERIFIED_BOUNTY: string | null = testnet.levels?.sealedBountyVerified ?? null;
 export function arcForLevel(arc: ArcClient, level: BountyLevel): ArcClient {
   if (level === "open" || !VERIFIED_BOUNTY) return arc;
   return createArcClient({ publicClient: arc.pub, walletClient: arc.wallet, account: arc.account, deployment: { ...arc.d, sealedBounty: VERIFIED_BOUNTY as Hex } });
 }
-/** The first SealedBountyVerified (deployments.v21.testnet.json, levels.superseded): the settlement contract of the
- *  former product #6, retired after a security fix and replaced by product #7. It is not a usable level (bountyLevelOf
- *  skips it, so no bounty is created there); it is only recognised as a bounty. */
-export const SUPERSEDED_VERIFIED_BOUNTY = "0x242ca1c4d0a5a6fe5a806f215ca5f127422364d2";
 /** the level of a product settled by a bounty (its settlement contract), otherwise null */
 export function bountyLevelOf(settlement: string): BountyLevel | null {
   const s = settlement.toLowerCase();

@@ -12,7 +12,8 @@
  *    the owner actions require the session or bounty to belong to this wallet (read on-chain). Nothing on USDC (no
  *    transfer, no approve), nothing to any other contract, no native value;
  *  - EIP-3009 authorizations: ReceiveWithAuthorization only, at most 2 USDC per authorization, a budget of 10 USDC per
- *    day (UTC) that also counts gas, and only toward a contract of the SDK's deployment (addresses read from `testnet`,
+ *    day (UTC) that also counts gas, and only toward a contract of the API's live stack (addresses read from its
+ *    deployment, the SDK's `testnet` by default,
  *    never written here):
  *    · SessionPay or SealedBounty (the contract collects from the caller, so from a transaction of this wallet that
  *      went through the allowlist), valid for 24 h at most;
@@ -33,7 +34,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import { join } from "node:path";
 import { createPublicClient, createWalletClient, decodeFunctionData, encodeFunctionData, http, parseAbi, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { arcTestnet, testnet, X402_MAX_VALIDITY_SECONDS } from "@arcvault/sdk";
+import { arcTestnet, testnet, X402_MAX_VALIDITY_SECONDS, type Deployment } from "@arcvault/sdk";
 import { arcHiveSignInStatement, clientIp } from "./operators";
 
 const WEI_PER_MICRO = 1_000_000_000_000n; // Arc's native gas: USDC with 18 decimals
@@ -87,7 +88,8 @@ const RWA_TYPES = {
 /** a test-mode refusal: sent back to the site as a wallet refusal (code 4001) */
 class Refus extends Error {}
 
-export function registerTestSigner(app: Hono) {
+/** `dep`: the stack whose contracts the test wallet may call (the API's live stack; the SDK's v2.1 `testnet` by default). */
+export function registerTestSigner(app: Hono, dep: Deployment = testnet) {
   const pk = process.env.TEST_SIGNER_PK as Hex | undefined;
   const token = process.env.TEST_SIGNER_TOKEN;
   if (!pk || !token || token.length < 24) {
@@ -103,15 +105,15 @@ export function registerTestSigner(app: Hono) {
   const wallet = createWalletClient({ account, chain: arcTestnet, transport });
   const pub = createPublicClient({ chain: arcTestnet, transport });
   const CHAIN_HEX = "0x" + arcTestnet.id.toString(16);
-  const USDC = testnet.usdc.toLowerCase();
-  const SESSION_PAY = testnet.sessionPay.toLowerCase();
-  const SEALED_BOUNTY = testnet.sealedBounty.toLowerCase();
+  const USDC = dep.usdc.toLowerCase();
+  const SESSION_PAY = dep.sessionPay.toLowerCase();
+  const SEALED_BOUNTY = dep.sealedBounty.toLowerCase();
   const RULES = new Map<string, { name: string; abi: readonly unknown[] }>([
     [SESSION_PAY, { name: "SessionPay", abi: sessionPayAbi }],
     [SEALED_BOUNTY, { name: "SealedBounty", abi: sealedBountyAbi }],
-    [testnet.operatorBond.toLowerCase(), { name: "OperatorBond", abi: operatorBondAbi }],
+    [dep.operatorBond.toLowerCase(), { name: "OperatorBond", abi: operatorBondAbi }],
   ]);
-  const X402_SETTLER = testnet.x402Settler.toLowerCase();
+  const X402_SETTLER = dep.x402Settler.toLowerCase();
   /** allowed recipients of an EIP-3009 authorization, with the longest validity of each (s): the contracts that
    *  collect from the CALLER (SessionPay, SealedBounty: 24 h), and X402Settler for an x402 call payment (1 h, like
    *  the SDK's x402 client). Never OperatorBond (a bond locks the money for 7 days). */
@@ -120,7 +122,7 @@ export function registerTestSigner(app: Hono) {
     [SEALED_BOUNTY, { name: "SealedBounty", maxTtl: MAX_AUTH_TTL_S }],
     [X402_SETTLER, { name: "X402Settler", maxTtl: Math.min(MAX_AUTH_TTL_S, X402_MAX_VALIDITY_SECONDS) }],
   ]);
-  const USDC_DOMAIN = { name: "USDC", version: "2", chainId: arcTestnet.id, verifyingContract: testnet.usdc } as const;
+  const USDC_DOMAIN = { name: "USDC", version: "2", chainId: arcTestnet.id, verifyingContract: dep.usdc } as const;
 
   // ---- the day's budget (UTC), in micro-USDC, kept in DATA_DIR (a restart does not reset it) ----
   const BUDGET_FILE = join(process.env.DATA_DIR ?? "./data", "test-signer-budget.json");
@@ -180,11 +182,11 @@ export function registerTestSigner(app: Hono) {
     return hex.length >= 66 ? ("0x" + hex.slice(26, 66)).toLowerCase() : "0x" + "0".repeat(40);
   }
   async function mustOwnSession(id: bigint) {
-    const owner = await ownerWord(testnet.sessionPay, encodeFunctionData({ abi: readAbi, functionName: "getSession", args: [id] }));
+    const owner = await ownerWord(dep.sessionPay, encodeFunctionData({ abi: readAbi, functionName: "getSession", args: [id] }));
     if (owner !== me) throw new Refus(`test mode: session #${id} does not belong to the test wallet`);
   }
   async function mustOwnBounty(id: bigint) {
-    const protocol = await ownerWord(testnet.sealedBounty, encodeFunctionData({ abi: readAbi, functionName: "getBounty", args: [id] }));
+    const protocol = await ownerWord(dep.sealedBounty, encodeFunctionData({ abi: readAbi, functionName: "getBounty", args: [id] }));
     if (protocol !== me) throw new Refus(`test mode: bounty #${id} does not belong to the test wallet`);
   }
 

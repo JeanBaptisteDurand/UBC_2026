@@ -1,4 +1,4 @@
-/** X402Chat.tsx — private AI PAID PER CALL (the x402 rail, product 3 of the v2.1 stack): no session, no deposit.
+/** X402Chat.tsx — private AI PAID PER CALL (the x402 rail, product 3 of the v3 stack): no session, no deposit.
  *  Each message is one call, encrypted for the enclave alone (its key checked against Arc). ONE EIP-3009 signature
  *  pays it to X402Settler, at the exact price READ ON ARC. A signature is not a transaction, so it costs no gas.
  *  The price shows BEFORE any signature, and nothing is signed above it (x402.ts: the SDK's maxAmount, and a wallet
@@ -14,7 +14,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useAccount } from "wagmi";
 import { Loader2 } from "lucide-react";
-import { testnet, type ArcClient, type ChatMessage, type X402Client, type X402Completion } from "@arcvault/sdk";
+import type { ArcClient, ChatMessage, X402Client, X402Completion } from "@arcvault/sdk";
+import { testnet } from "../deployment";
 import { useArc } from "../useArc";
 import { X402_URL } from "../config";
 import { X402_PRODUCT, useVerifiedEnclave } from "../arc";

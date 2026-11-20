@@ -1,0 +1,29 @@
+# Sealed Bounty at the VERIFIED operator level, v3 stack (Arc testnet, deployed 19 Nov 2026, PRODUCT 5; on v2.1 this
+# was product 7): the same bounty (a REAL replay by arc-anvil in an Intel TDX VM on the PRODUCTION dstack-0.5.12 OS
+# image), settled by SealedBountyVerified 0x8958EA25c9cF7bbee39B32C43187d854B5d73ee6, which reads the registry through
+# PolicyEnclaves 0x12c0C33C62666AbE0ab03B286b428C554De71BF8: an enclave counts only if its MACHINE is declared by an
+# accepted auditor (the Proof of Cloud alliance, ProofOfCloudAuditor 0xEaf8163fa5Eb2f047d4876bb3Ef2E67250360b73;
+# MachineRegistry 0xC64e9556AA896b2E8c0bE0fdf3dC7b2c0be24b86, policyOf(5) = verified). The enclave joins only the v3
+# EnclaveRegistry 0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E as product 5. The same image as v2.1's product 7
+# (sealed-bounty-verified-v21.yml); only the product id and the stack's addresses change.
+# STATE PROOFS are off (no STATE_PROOF_RPC_URL; the replay reads through FORK_RPC_URL, as product 2 does): set
+# STATE_PROOF_RPC_URL to an RPC that serves historical eth_getProof to switch them on (a new compose, a new manifest).
+# Everything is measured and matches the measuredEnv of the on-chain manifest
+# web/public/manifests/sealed-bounty-verified-v3.json; only OPERATOR_ALLOWLIST and the image registry credentials are
+# encrypted variables.
+services:
+  sealed-bounty:
+    image: ghcr.io/jeanbaptistedurand/archive-sealed-bounty@sha256:f3bff732179c7f6a6d24a9de4e61b49372e4d2ff178d5aa08630efebd3142c15
+    ports:
+      - "8803:8803"
+    environment:
+      - RPC_URL=https://rpc.testnet.arc.io
+      - FORK_RPC_URL=https://rpc.testnet.arc.io
+      - CHAIN_ID=5042002
+      - PRODUCT_ID=5
+      - REGISTRY=0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E
+      - SEALEDBOUNTY=0x8958EA25c9cF7bbee39B32C43187d854B5d73ee6
+      - OPERATOR_ALLOWLIST=${OPERATOR_ALLOWLIST}
+    volumes:
+      - /var/run/dstack.sock:/var/run/dstack.sock
+    restart: unless-stopped

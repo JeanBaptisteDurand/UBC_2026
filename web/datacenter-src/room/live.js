@@ -1,8 +1,52 @@
 /* live: the room follows Arc as it happens.
    Served over HTTP (ArcHive's own site, or any static host: the read API answers with CORS open), it reads the API on
    load and every 20 s. A new enclave key gets its rack, and each new event plays as it happens, stamped with the real
-   time of its block. Opened as a file, or when the API cannot be reached, the room shows the recorded state. */
+   time of its block. Opened as a file, or when the API cannot be reached, the room shows the recorded state.
+   Two stacks: the recorded history is the first stack (v2.1, DATA.stack), kept as it happened; the live room follows
+   the stack the API serves (DATA.live: v3). The API names it (/index: stack), else it is told apart by its index's start
+   block or its verified-level contract. Its events carry their own stack (/activity covers both: v2.1 stays readable
+   after the switch); a live-stack event's product numbers are mapped to the room's keys (the first stack's numbers:
+   v3's product 5, the verified-level bounty, is the room's 7), and the recorded racks stay as the first stack's
+   history. The API's cumulative counters add both stacks; its enclaves and levels are the live stack's. */
 const RPC = (DATA.chain && DATA.chain.rpc) || 'https://rpc.testnet.arc.io';
+const LIVE = DATA.live || {};
+const FIRST = (DATA.stack && DATA.stack.name) || 'v2.1';
+function stackOf(idx, levels) {
+  if (idx && typeof idx.stack === 'string' && idx.stack) return idx.stack;
+  const from = Number((idx || {}).fromBlock);
+  const vb = lc(levels && levels.contracts && levels.contracts.sealedBountyVerified);
+  const mine = lc((LIVE.contracts || {}).SealedBountyVerified);
+  return (LIVE.deployBlock && from >= Number(LIVE.deployBlock)) || (vb && mine && vb === mine) ? (LIVE.stack || 'v3') : FIRST;
+}
+/* true when the API follows the live stack (v3), not the first one */
+const onLive = () => !!director.liveStack && director.liveStack !== FIRST;
+/* an API product number as the room's key: a live-stack (v3) number is mapped, a first-stack one is the key already */
+const roomProduct = (id, stack) => (id == null ? null : (stack === LIVE.stack && stack !== FIRST && (LIVE.productKeys || {})[String(id)]) || String(id));
+/* the stack a rack belongs to, and its words for the rack card */
+const stackOfRack = (info) => info.stack || FIRST;
+const firstStackRack = (info) => onLive() && stackOfRack(info) !== director.liveStack;
+const stackLabel = (info) => tr(stackOfRack(info) === FIRST ? 'stacks.first' : 'stacks.live', { name: stackOfRack(info) });
+/* the status pill and the About panel: live, and on which stack */
+const liveStatus = () => (onLive() ? tr('status.liveStack', { name: director.liveStack }) : tr('status.live'));
+/* on the live stack, the recorded racks are the first stack's: history, never live (the API does not list them) */
+function settleFirstStack(list) {
+  if (!onLive()) return;
+  const seen = new Set((list || []).map((x) => lc(x.signer)));
+  for (const info of DATA.pods) {
+    if (info.stack === director.liveStack || seen.has(lc(info.id))) continue;
+    info.stack = FIRST;
+    if (info.active) { info.active = false; info.status = `first stack (${FIRST})`; }
+  }
+}
+/* the first event of the live stack opens its own act in the replay, and the first stack's racks go grey there (their
+   keys had expired by then); the counters run on, as the API adds both stacks up */
+function openLiveAct(idx, t) {
+  if (!onLive() || (DATA.acts || []).some((a) => a.live)) return;
+  DATA.acts.push({ title: tr('stacks.liveAct.title', { name: director.liveStack }), story: tr('stacks.liveAct.story', { name: director.liveStack, first: FIRST }), from: isoOf(t), first: idx, live: true });
+}
+function liveActStarts() {
+  for (const p of pods.values()) if (p.shown && firstStackRack(p.info) && p.state !== 'fault') setPodState(p, 'retired');
+}
 const KIND = {
   EnclaveRegistered: 'attest', EnclaveImage: 'attest', MachineBound: 'attest', EnclaveInvalidated: 'fault', EnclaveRetired: 'retire',
   BondReserved: 'bond', BondReleased: 'bond', ExposureConsumed: 'bond', Bonded: 'bond', UnbondRequested: 'bond', Slashed: 'fault',
@@ -41,6 +85,7 @@ function liveZoneFact(zone) {
     enclaves: n(S.enclaves), active: n(S.enclavesActive), verdicts: n(S.verdicts), calls: n(S.x402Calls), sessions: n(S.sessions),
     settled: u(S.settledUsdc), bountiesPaid: n(S.bountiesPaid), bountyPaid: u(S.bountyPaidUsdc), refuted: n(S.claimsRefuted),
     slashed: u(S.bondSlashedUsdc), bonded: u(S.bondPostedUsdc), bounties: n(S.bounties), open: n(S.bountiesOpen),
+    stack: director.liveStack || FIRST,
   }) || '';
 }
 
@@ -79,14 +124,19 @@ async function freshEvents(activity) {
     const a = {};
     for (const [k, v] of Object.entries(ev.args || {})) if (v == null || typeof v !== 'object') a[k] = v;
     const b = Number(ev.block);
-    const p = a.productId != null ? String(a.productId) : a.bountyId != null ? bountyProduct(a.bountyId) : null;
+    /* the event's own stack (the API tags each one; an older API serves one stack), then its product: from the event,
+       else (a live-stack bounty) from its contract, else from the first stack's recorded bounties */
+    const es = ev.stack || director.liveStack || FIRST;
+    const live = es === LIVE.stack && es !== FIRST;
+    const p = a.productId != null ? roomProduct(a.productId, es)
+      : a.bountyId != null ? (live ? (LIVE.bountyProductKeys || {})[ev.contract] || null : bountyProduct(a.bountyId)) : null;
     let e = a.signer || null;
     if (!e && ev.name === 'CallSettled') {
-      const q = DATA.pods.find((x) => x.active && String(x.product) === p && lc(x.operator) === lc(a.operator));
+      const q = DATA.pods.find((x) => x.active && String(x.product) === p && lc(x.operator) === lc(a.operator) && (x.stack || FIRST) === es);
       e = q ? q.id : null;
     }
     const info = e ? podInfoOf(e) : null; if (info) e = info.id;
-    return { t: times.get(b) || Math.round(ref.t + (b - ref.b) * spb), b, tx: ev.tx, li: Number(ev.logIndex), c: ev.contract, n: ev.name, k: kindOf(ev.contract, ev.name), p, e, a, live: true };
+    return { t: times.get(b) || Math.round(ref.t + (b - ref.b) * spb), b, tx: ev.tx, li: Number(ev.logIndex), c: ev.contract, n: ev.name, k: kindOf(ev.contract, ev.name), p, e, a, live: true, s: es };
   });
 }
 
@@ -99,7 +149,7 @@ function mergeEnclaves(list, levels, built, quiet) {
     let info = podInfoOf(x.signer);
     if (!info) {
       info = {
-        id: x.signer, short: short(x.signer), product: String(x.productId), operator: x.operator, active: !!x.active,
+        id: x.signer, short: short(x.signer), product: roomProduct(x.productId, director.liveStack), operator: x.operator, active: !!x.active, stack: director.liveStack || FIRST,
         status: x.active ? 'active' : 'expired (registration not renewed)', fault: [], level: L ? L.level : null, ppid: L ? L.ppid : null,
         last: reg, first: reg, expires: exp, regs: 1, workload: short(String(x.workloadId || '')), bond: null, end: null, health: null, live: true,
         /* while the page is open, a new key waits (up to a minute) for its registration to play as an arrival */
@@ -120,6 +170,7 @@ function mergeEnclaves(list, levels, built, quiet) {
 /* new events join the timeline (so a replay includes them) and update the cards they concern */
 function absorb(fresh) {
   for (const e of fresh) {
+    if (e.s && e.s !== FIRST && e.s === director.liveStack) openLiveAct(DATA.timeline.length, e.t);
     DATA.timeline.push(e); known.add(keyOf(e));
     const info = e.e ? podInfoOf(e.e) : null;
     if (!info) continue;
@@ -145,11 +196,13 @@ async function liveBoot() {
     const [idx, stats, encl, levels, act] = await Promise.all([
       getJson('index', 8000), getJson('stats', 8000), getJson('enclaves', 8000), getJson('levels', 8000).catch(() => null), getJson('activity?limit=100', 8000),
     ]);
+    director.liveStack = stackOf(idx, levels);
     if (bootClosed) {
       /* the room was built without waiting for the API: the live data joins through the regular refresh */
       director.liveOk = true; director.liveHead = Number(idx.head); director.liveAt = performance.now();
       refreshLive({ quiet: true }); return;
     }
+    settleFirstStack(encl);
     mergeEnclaves(encl, levels, false);
     /* Arc's real pace (seconds per block), measured between the last recorded event and the head now */
     const ref = DATA.timeline[DATA.timeline.length - 1];
@@ -176,6 +229,8 @@ async function refreshLive({ quiet = false } = {}) {
       getJson('index'), getJson('stats'), getJson('enclaves'), getJson('levels').catch(() => null), getJson('activity?limit=40'),
     ]);
     director.liveHead = Number(idx.head); director.liveAt = performance.now();
+    director.liveStack = stackOf(idx, levels);
+    settleFirstStack(encl);
     mergeEnclaves(encl, levels, true, quiet);
     const fresh = await freshEvents(act);
     if (fresh.length) {

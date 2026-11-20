@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { type Address, type Hex, encodeFunctionData, parseAbi, parseEventLogs, toHex, zeroAddress } from "viem";
 import {
-  testnet, predicateHash, encodeExploitTx, generateX25519, sealedBountyAbi,
+  predicateHash, encodeExploitTx, generateX25519, sealedBountyAbi,
   type Predicate, type ProvenClaim,
 } from "@arcvault/sdk";
+import { testnet } from "../deployment";
 import { useArc } from "../useArc";
 import { useAccount } from "wagmi";
 import { fetchBounties, bountyKey, type Bounty as BountyItem } from "../api";
@@ -77,7 +78,7 @@ export function ProtocolPanel({ onCreated }: { onCreated?: () => void } = {}) {
       setOut(msg("bounty.checking"));
       const p = await base.getProduct(pid);
       if (p.state !== "Active") throw new MsgError(msg("bounty.notActive", { id: pid, state: p.state }));
-      // a bounty is posted at its product's level (product 2: SealedBounty; product 7: SealedBountyVerified)
+      // a bounty is posted at its product's level (product 2: SealedBounty; product 5: SealedBountyVerified)
       const level = bountyLevelOf(p.settlement);
       if (!p.deterministic || !level) throw new MsgError(msg("bounty.notSealed", { id: pid }));
       const arc = arcForLevel(base, level);
@@ -241,7 +242,7 @@ const STEP_KEYS = ["hunt.step.key", "hunt.step.replay", "hunt.step.accepted", "h
 type StepRow = { state: StepState; detail?: Shown };
 const freshSteps = (): StepRow[] => STEP_KEYS.map(() => ({ state: "todo" as StepState }));
 
-/** The badge of a bounty's level (open: SealedBounty; verified: SealedBountyVerified, product 7) */
+/** The badge of a bounty's level (open: SealedBounty; verified: SealedBountyVerified, product 5) */
 export function BountyLevelBadge({ level }: { level: BountyLevel }) {
   return level === "verified" ? <Badge tone="good">{t("bounties.level.verified")}</Badge> : <Badge tone="muted">{t("bounties.level.open")}</Badge>;
 }

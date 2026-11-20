@@ -131,8 +131,8 @@ test("docker run: the expected command", () => {
   assert.deepEqual(a.slice(0, 12), ["run", "-d", "--init", "--name", "archive-enclave", "--restart", "unless-stopped", "-p", "8802:8802", "-e", "PRODUCT_ID=1", "--label"]);
   assert.equal(a[a.length - 1], "img@sha256:abc");
   assert.ok(!a.includes("-v"));
-  const b = runArgs({ port: 9000, product: 1, image: "img", platform: "linux/amd64", dstack: true, labels: {}, env: { REGISTRY: "0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d", OPERATOR_ALLOWLIST: "0x5724d89D610c3017b8DC161c025248341556f6Ab", REDPILL_API_KEY: "" } });
-  assert.ok(b.join(" ").includes("-e REGISTRY=0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d -e OPERATOR_ALLOWLIST=0x5724d89D610c3017b8DC161c025248341556f6Ab"));
+  const b = runArgs({ port: 9000, product: 1, image: "img", platform: "linux/amd64", dstack: true, labels: {}, env: { REGISTRY: "0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E", OPERATOR_ALLOWLIST: "0x5724d89D610c3017b8DC161c025248341556f6Ab", REDPILL_API_KEY: "" } });
+  assert.ok(b.join(" ").includes("-e REGISTRY=0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E -e OPERATOR_ALLOWLIST=0x5724d89D610c3017b8DC161c025248341556f6Ab"));
   assert.ok(b.join(" ").includes("-e REDPILL_API_KEY -v"), "a secret is inherited from the environment, never written in the command");
   assert.ok(b.join(" ").includes("-v /var/run/dstack.sock:/var/run/dstack.sock"));
   assert.ok(b.join(" ").includes("-p 9000:8802"));

@@ -1,4 +1,4 @@
-/** errors.ts — refusals explained in the site's language (English or French), for the whole site (v2.1 stack).
+/** errors.ts — refusals explained in the site's language (English or French), for the whole site (v3 stack).
  *  - Contract refusals are decoded by the SDK (arcErrorOf): every contract error of the stack, by name, even from a
  *    called contract. French shows the SDK's own sentence (explainArcError, unchanged). English shows the name, its
  *    arguments and the English table (i18n/contract-errors.en.ts), or a generic sentence with the name for an error

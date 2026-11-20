@@ -1,28 +1,26 @@
 import { useEffect, useState } from "react";
-import { testnet, type ProductView, type EnclaveView, type ProductState } from "@arcvault/sdk";
+import type { ProductView, EnclaveView, ProductState } from "@arcvault/sdk";
+import { testnet } from "../deployment";
+import { VERIFIED_BOUNTY } from "../arc";
 import { fetchProducts, fetchEnclaves } from "../api";
 import { PageHeader, Table, Td, Badge, Btn, Hex, usdc, Empty } from "../ui";
 import { t, tx, type StaticKey } from "../i18n";
 import { explainError } from "../errors";
 
-/** A product's readable name, inferred from its settlement rail (the registry stores only a manifest). */
-/** Product 5 is the refutation demo (a lying enclave caught, its bond seized; the bounty paid nothing): the same rail as
- *  product 2, and its role is not registered on-chain (deployments.v21.testnet.json). */
-const REFUTE_DEMO = 5n;
-
+/** A product's readable name, inferred from its settlement rail (the registry stores only a manifest). On v3, each rail
+ *  serves one product: 1 sessions, 2 the open-level bounty, 3 x402 calls, 4 the free copilot, 5 the verified-level
+ *  bounty (v2.1's products 5, the refutation demo, and 6, a retired verified level, have no v3 counterpart). */
 export function productName(p: ProductView): { name: string; rail: string; route: string } {
   const s = p.settlement.toLowerCase();
   if (s === testnet.sealedBounty.toLowerCase()) {
-    return { name: t(p.id === REFUTE_DEMO ? "prod.name.refuteDemo" : "prod.name.bounty"), rail: "SealedBounty", route: "primes" };
+    return { name: t("prod.name.bounty"), rail: "SealedBounty", route: "primes" };
   }
   if (s === testnet.x402Settler.toLowerCase()) return { name: t("prod.name.x402"), rail: "x402", route: "playground" };
   // no settlement contract: a free service (the attested copilot, product 4)
   if (s === "0x0000000000000000000000000000000000000000") return { name: t("prod.name.copilot"), rail: t("prod.rail.free"), route: "vue" };
   if (s === testnet.sessionPay.toLowerCase()) return { name: t("prod.name.inference"), rail: t("prod.rail.session"), route: "playground" };
-  // the two SealedBountyVerified contracts (deployments.v21.testnet.json): product 7 (verified level), and the former
-  // product 6, retired after a security fix and replaced by product 7
-  if (s === "0x36a8ddf9fcb1308b9e86425bec9b098e933c7348") return { name: t("prod.name.bountyVerified"), rail: "SealedBountyVerified", route: "primes" };
-  if (s === "0x242ca1c4d0a5a6fe5a806f215ca5f127422364d2") return { name: t("prod.name.bountyOld"), rail: "SealedBountyVerified (v1)", route: "primes" };
+  // the verified level's contract (SealedBountyVerified, product 5 on v3)
+  if (VERIFIED_BOUNTY && s === VERIFIED_BOUNTY.toLowerCase()) return { name: t("prod.name.bountyVerified"), rail: "SealedBountyVerified", route: "primes" };
   return { name: t("prod.name.other"), rail: s.slice(0, 10) + "…", route: "produits" };
 }
 

@@ -277,5 +277,22 @@ s = rep(s, "    seg(tr('settings.language'), [['en', 'English'], ['fr', 'França
 s = rep(s, "function setLang(v) { LANG = COPY[v] ? v : 'en'; store.set('lang', LANG); applyWords(); }\n", '')
 s = rep(s, "$('#btn-lang').addEventListener('click', () => setLang(LANG === 'fr' ? 'en' : 'fr'));\n", '')
 assert 'btn-lang' not in s and 'setLang' not in s, 'the room still has a language switch'
+# --- two stacks (live.js): the recorded history is the first stack (v2.1), the live room follows v3. The status pill
+# and the About panel name the live stack; a rack card says which stack the rack belongs to, and the first stack's racks
+# read "First stack" once the live stack is v3; in the replay, the live stack's act greys the first stack's racks and
+# restarts the counters, and only the act flagged steady (the first stack's renewals) is played fast.
+s = rep(s, "    : director.liveOk ? tr('status.live') : tr('status.stale', { time: fmtDate(isoToUnix(DATA.capturedAt)) });",
+        "    : director.liveOk ? liveStatus() : tr('status.stale', { time: fmtDate(isoToUnix(DATA.capturedAt)) });")
+s = rep(s, "`${director.liveOk ? tr('status.live') : tr('status.stale', { time: fmtDate(isoToUnix(DATA.capturedAt)) })} · ${tr('about.events', { n: fmtInt(DATA.timeline.length) })}`",
+        "`${director.liveOk ? liveStatus() : tr('status.stale', { time: fmtDate(isoToUnix(DATA.capturedAt)) })} · ${tr('about.events', { n: fmtInt(DATA.timeline.length) })}`")
+s = rep(s, "tr(`pod.statuses.${st === 'retired' && info.status && info.status.startsWith('expired') ? 'expired' : st}`) || st);",
+        "tr(`pod.statuses.${st === 'retired' && firstStackRack(info) ? 'firstStack' : st === 'retired' && info.status && info.status.startsWith('expired') ? 'expired' : st}`) || st);")
+s = rep(s, "    row(tr('pod.service'), productName(info.product));\n",
+        "    row(tr('pod.service'), productName(info.product));\n    row(tr('pod.stack'), stackLabel(info));\n")
+s = rep(s, "el('span', {}, `${tr(`pod.statuses.${st}`) || st} · ${short(pod.id)}`)",
+        "el('span', {}, `${tr(`pod.statuses.${st === 'retired' && firstStackRack(pod.info) ? 'firstStack' : st}`) || st} · ${short(pod.id)}`)")
+s = rep(s, "    if (a !== lastAct && a >= 0) { lastAct = a; showAct(a, b.t); if (tourStep < 0 && !SKIP) await wait(1.2); }",
+        "    if (a !== lastAct && a >= 0) { lastAct = a; if ((DATA.acts[a] || {}).live) liveActStarts(); showAct(a, b.t); if (tourStep < 0 && !SKIP) await wait(1.2); }")
+s = rep(s, "    const steady = a === (DATA.acts || []).length - 1;", "    const steady = !!((DATA.acts || [])[a] || {}).steady;")
 open(OUT, 'w', encoding='utf-8').write(s)
 print('room template', len(s))

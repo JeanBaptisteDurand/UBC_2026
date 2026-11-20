@@ -29,7 +29,7 @@ function enclave(n: number, productId: number, active: boolean) {
 }
 function product(id: number) {
   return {
-    id: String(id), author: OP, manifestHash: hex(id, 32), deterministic: id === 2 || id === 5 || id === 6 || id === 7, price: "100",
+    id: String(id), author: OP, manifestHash: hex(id, 32), deterministic: id === 2 || id === 5, price: "100",
     bpsOperator: 9500, bpsAuthor: 0, bpsNetwork: 500, minBond: "1000000", exposureCap: "1000000", settlement: addr(0x9000 + id), param: "0x",
     version: "1", activatesAt: "0", state: "Active", manifestURI: "",
   };
@@ -41,16 +41,16 @@ function bounty(id: number, productId: number, deadline: number, balance = "1000
     targetToPause: "0x250C64fcbb61Ca4B9278330ae3711DCcADD1AB09", paidAmount: "500000", lastPaidBlock: "71584411", pausedFromBlock: "0",
   };
 }
-/** The state recorded on 19 Nov 2026 at 01:55 UTC: 19 registered enclaves, 4 active (products 7, 1, 2, 3), all at the
- *  verified level; 7 products; two open-level bounties, expired. */
+/** The state recorded on 19 Nov 2026 at 01:55 UTC, with the v3 stack's numbering (the verified bounty is product 5): 19
+ *  registered enclaves, 4 active (products 5, 1, 2, 3), all at the verified level; 5 products; two open-level bounties, expired. */
 function routes(over: Record<string, Route> = {}): Record<string, Route> {
-  const active = [enclave(1, 7, true), enclave(2, 1, true), enclave(3, 2, true), enclave(4, 3, true)];
-  const old = Array.from({ length: 15 }, (_, i) => enclave(10 + i, [4, 3, 1, 7, 2, 6, 4, 1, 3, 4, 5, 5, 5, 4, 2][i]!, false));
+  const active = [enclave(1, 5, true), enclave(2, 1, true), enclave(3, 2, true), enclave(4, 3, true)];
+  const old = Array.from({ length: 15 }, (_, i) => enclave(10 + i, [4, 3, 1, 5, 2, 4, 4, 1, 3, 4, 5, 5, 5, 4, 2][i]!, false));
   return {
     "/enclaves": { body: [...active, ...old] },
-    "/products": { body: [1, 2, 3, 4, 5, 6, 7].map(product) },
+    "/products": { body: [1, 2, 3, 4, 5].map(product) },
     "/levels": { body: { enabled: true, verifiedBounty: { canSlash: true }, enclaves: active.map((e) => ({ signer: e.signer, productId: e.productId, level: "verified" })) } },
-    "/bounties": { body: [bounty(2, 5, NOW - 180_000), bounty(1, 2, NOW - 200_000, "425000")] },
+    "/bounties": { body: [bounty(2, 2, NOW - 180_000), bounty(1, 2, NOW - 200_000, "425000")] },
     "/index": { body: { lastBlock: 72945225, head: 72945225, lagBlocks: 0, lastError: null } },
     ...over,
   };
@@ -85,16 +85,16 @@ const fresh = () => { clearListCache(); clearLiveCaches(); };
 /** The address as the tool returns it (EIP-55 checksum). */
 const addrOf = (n: number) => getAddress(addr(n));
 
-test("LIVE STATUS: active enclaves per product, verified level, products with no enclave, product 7's settlement, bounties of both levels", async () => {
+test("LIVE STATUS: active enclaves per product, verified level, products with no enclave, product 5's settlement, bounties of both levels", async () => {
   fresh();
   const api = await startFakeApi(routes());
   try {
-    const line = await readLiveStatus({ base: api.base, arc: arcWith([{ productId: 7, balance: 1_000_000n, deadline: NOW - 30_000 }]), now: () => NOW * 1000 });
+    const line = await readLiveStatus({ base: api.base, arc: arcWith([{ productId: 5, balance: 1_000_000n, deadline: NOW - 30_000 }]), now: () => NOW * 1000 });
     assert.ok(line.startsWith("LIVE STATUS (read at 2026-11-19 01:55 UTC from ArcHive's index of Arc testnet; it overrides the FACTS above and your memory;"), line);
-    assert.ok(line.includes("4 of 19 registered enclaves are active: product 1 (Private AI, prepaid session), product 2 (Sealed Bounty, open level), product 3 (Private AI, pay per call (x402)), product 7 (Sealed Bounty, verified level)"), line);
+    assert.ok(line.includes("4 of 19 registered enclaves are active: product 1 (Private AI, prepaid session), product 2 (Sealed Bounty, open level), product 3 (Private AI, pay per call (x402)), product 5 (Sealed Bounty, verified level)"), line);
     assert.ok(line.includes("4 of the 4 at the verified level (chip declared by the Proof of Cloud alliance)"), line);
-    assert.ok(line.includes("no active enclave for product 4 (attested copilot), product 5 (refutation demo of 10/11), product 6 (retired, replaced by 7)"), line);
-    assert.ok(line.includes("product 7's settlement is authorized: it pays proven claims and can seize bonds"), line);
+    assert.ok(line.includes("no active enclave for product 4 (attested copilot)"), line);
+    assert.ok(line.includes("product 5's settlement is authorized: it pays proven claims and can seize bonds"), line);
     assert.ok(line.includes("no bounty is open right now (all 3 are past their deadline: 2 at the open level, 1 at the verified level): a hunt needs a new bounty first"), line);
     assert.ok(!/paused|deleted|0 of 15/.test(line), line);
     assert.ok(/^[\x20-\x7e]+$/.test(line), "ASCII seulement (budget en jetons)");
@@ -106,18 +106,18 @@ test("LIVE STATUS: a fresh verified-level bounty is counted; no active enclave i
   fresh();
   const api = await startFakeApi(routes());
   try {
-    const line = await readLiveStatus({ base: api.base, arc: arcWith([{ productId: 7, balance: 1_000_000n, deadline: NOW - 30_000 }, { productId: 7, balance: 2_000_000n, deadline: NOW + 86_400 }]), now: () => NOW * 1000 });
-    assert.ok(line.includes("bounties open now: #2 of SealedBountyVerified (product 7, 2 USDC, until 2026-11-20 01:55 UTC); every other bounty is past its deadline (2 at the open level, 2 at the verified level in all)"), line);
+    const line = await readLiveStatus({ base: api.base, arc: arcWith([{ productId: 5, balance: 1_000_000n, deadline: NOW - 30_000 }, { productId: 5, balance: 2_000_000n, deadline: NOW + 86_400 }]), now: () => NOW * 1000 });
+    assert.ok(line.includes("bounties open now: #2 of SealedBountyVerified (product 5, 2 USDC, until 2026-11-20 01:55 UTC); every other bounty is past its deadline (2 at the open level, 2 at the verified level in all)"), line);
   } finally { await api.close(); }
   fresh();
   const none = await startFakeApi(routes({
-    "/enclaves": { body: [enclave(1, 7, false), enclave(2, 1, false)] },
+    "/enclaves": { body: [enclave(1, 5, false), enclave(2, 1, false)] },
     "/levels": { body: { enabled: true, verifiedBounty: { canSlash: false }, enclaves: [] } },
   }));
   try {
     const line = await readLiveStatus({ base: none.base, now: () => NOW * 1000 });
     assert.ok(line.includes("0 of 2 registered enclaves are active: no paid use can be served right now"), line);
-    assert.ok(line.includes("product 7's settlement is not authorized yet: it cannot pay a claim"), line);
+    assert.ok(line.includes("product 5's settlement is not authorized yet: it cannot pay a claim"), line);
     assert.ok(!/bounties open now|no bounty is open/.test(line), `without an Arc client, the verified level is not read: nothing is said about open bounties (${line})`);
   } finally { await none.close(); }
 });
@@ -186,7 +186,7 @@ test("site bounty_list: the open level (API) and the verified level (SealedBount
   process.env.ARCHIVE_API = api.base;
   try {
     // bounty_list reads the real clock (no `now` here): a deadline ten years ahead keeps bounty 2 open whenever this runs
-    const arc = arcWith([{ productId: 7, balance: 1_000_000n, deadline: NOW - 30_000 }, { productId: 7, balance: 2_000_000n, deadline: NOW + 3_650 * 86_400 }]);
+    const arc = arcWith([{ productId: 5, balance: 1_000_000n, deadline: NOW - 30_000 }, { productId: 5, balance: 2_000_000n, deadline: NOW + 3_650 * 86_400 }]);
     const { result, citations } = await executeSiteTool("bounty_list", {}, { arc });
     const r = result as any;
     assert.equal(r.niveauOuvert.total, 2);
@@ -194,9 +194,9 @@ test("site bounty_list: the open level (API) and the verified level (SealedBount
     assert.equal(r.niveauVerifie.contrat, testnet.levels!.sealedBountyVerified);
     assert.equal(r.niveauVerifie.total, 2);
     assert.equal(r.niveauVerifie.ouvertes, 1);
-    assert.deepEqual(r.niveauVerifie.primes.map((b: any) => [b.id, b.produit, b.solde, b.ouverte]), [["2", "7", "2 USDC", true], ["1", "7", "1 USDC", false]]);
+    assert.deepEqual(r.niveauVerifie.primes.map((b: any) => [b.id, b.produit, b.solde, b.ouverte]), [["2", "5", "2 USDC", true], ["1", "5", "1 USDC", false]]);
     assert.ok(citations!.includes("SealedBountyVerified.getBounty"));
-    assert.equal(r.resume, "1 prime(s) ouverte(s) en ce moment (niveau ouvert : 0 sur 2 ; niveau vérifié, produit 7 : 1 sur 2).");
+    assert.equal(r.resume, "1 prime(s) ouverte(s) en ce moment (niveau ouvert : 0 sur 2 ; niveau vérifié, produit 5 : 1 sur 2).");
     const open = (await siteBountyList({ onlyOpen: true }, { arc })).result as any;
     assert.deepEqual(open.niveauVerifie.primes.map((b: any) => b.id), ["2"]);
     fresh();
@@ -205,8 +205,8 @@ test("site bounty_list: the open level (API) and the verified level (SealedBount
     assert.equal(bad.niveauOuvert.total, 2, "the open level is still given");
     assert.match(bad.resume, /lecture incomplète/);
     fresh();
-    const none = (await siteBountyList({}, { arc: arcWith([{ productId: 7, balance: 1_000_000n, deadline: NOW - 30_000 }]) })).result as any;
-    assert.match(none.resume, /^Aucune prime ouverte en ce moment \(niveau ouvert : 0 sur 2 ; niveau vérifié, produit 7 : 0 sur 1\)/);
+    const none = (await siteBountyList({}, { arc: arcWith([{ productId: 5, balance: 1_000_000n, deadline: NOW - 30_000 }]) })).result as any;
+    assert.match(none.resume, /^Aucune prime ouverte en ce moment \(niveau ouvert : 0 sur 2 ; niveau vérifié, produit 5 : 0 sur 1\)/);
   } finally {
     if (keep === undefined) delete process.env.ARCHIVE_API; else process.env.ARCHIVE_API = keep;
     await api.close();
@@ -231,7 +231,7 @@ test("site enclaves_list: one summary per product, in number order, before the r
     const r = result as any;
     assert.deepEqual(r.activesParProduit.map((x: any) => [x.produit, x.nom, x.signataires]), [
       ["1", "Private AI, prepaid session", [addrOf(0x1002)]], ["2", "Sealed Bounty, open level", [addrOf(0x1003)]],
-      ["3", "Private AI, pay per call (x402)", [addrOf(0x1004)]], ["7", "Sealed Bounty, verified level", [addrOf(0x1001)]],
+      ["3", "Private AI, pay per call (x402)", [addrOf(0x1004)]], ["5", "Sealed Bounty, verified level", [addrOf(0x1001)]],
     ]);
     assert.equal(Object.keys(r)[0], "activesParProduit");
     assert.equal(r.actives, 4);

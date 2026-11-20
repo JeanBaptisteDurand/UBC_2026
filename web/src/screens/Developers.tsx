@@ -1,4 +1,4 @@
-import { testnet } from "@arcvault/sdk";
+import { testnet } from "../deployment";
 import { API_URL, ATTESTED_COPILOT, ENCLAVE_URL, X402_URL } from "../config";
 import { DCAP, INFERENCE_PRODUCT, X402_PRODUCT } from "../arc";
 import { PageHeader, Section, Table, Td, Hex } from "../ui";
@@ -37,7 +37,7 @@ const CONTRACTS: Array<[string, string, StaticKey]> = [
   ["DemoVault", testnet.demoVault, "dev.c.vault"],
 ];
 
-/** The contracts of the two operator levels; their addresses come from GET /levels. */
+/** The contracts of the two operator levels: from the stack's record (deployment.ts), else from GET /levels. */
 const LEVEL_CONTRACTS: Array<[string, keyof NonNullable<LevelsView["contracts"]>, StaticKey]> = [
   ["MachineRegistry", "machineRegistry", "dev.c.machines"],
   ["ProofOfCloudAuditor", "proofOfCloudAuditor", "dev.c.poc"],
@@ -64,6 +64,7 @@ function Code({ children }: { children: string }) {
 export default function Developers() {
   const api = API_URL.replace(/\/$/, "");
   const levels = useLevels();
+  const levelContracts = testnet.levels ?? levels?.contracts ?? null;
   return (
     <>
       <PageHeader title={t("dev.title")} lead={t("dev.lead")} />
@@ -79,15 +80,17 @@ export default function Developers() {
       {/* grid-cols-1 (and the sections' min-w-0): on a phone, code scrolls inside its frame instead of widening the page */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Section title={t("dev.sdk.title")} lead={t("dev.sdk.lead")}>
-          <Code>{`import { createArcClient, createInferenceClient } from "@arcvault/sdk";
+          <Code>{`import { createArcClient, createInferenceClient, deploymentFromJson } from "@arcvault/sdk";
+import v3 from "./deployments.v3.testnet.json"; // the v3 stack's record (repository root)
 
-const arc = createArcClient({ publicClient, walletClient });
+const deployment = deploymentFromJson(v3);
+const arc = createArcClient({ publicClient, walletClient, deployment });
 // ${t("dev.sdk.c1")}
 // ${t("dev.sdk.c2")}
 const { sessionId, sessionKey } = await arc.openSession({
   productId: ${INFERENCE_PRODUCT}n, enclaveUrl, deposit: 2_000_000n, // 2 USDC
 });
-const ai = createInferenceClient({ enclaveUrl, sessionId, sessionKey, publicClient });
+const ai = createInferenceClient({ enclaveUrl, sessionId, sessionKey, publicClient, deployment });
 
 for (const q of questions) {
   const { text, receipt, verified } = await ai.chat.completions.create({
@@ -105,16 +108,17 @@ arcvault proxy --key aek_… --enclave <url>   # ${t("dev.cli.proxy")}
 arcvault verify <${t("dev.cli.receipt")}>${" ".repeat(Math.max(1, 27 - t("dev.cli.receipt").length))}# ${t("dev.cli.verify")}`}</Code>
         </Section>
       </div>
-      {/* the two rails of the v2.1 stack: inference paid per call (product 3) and the attested copilot (product 4); the
+      {/* the two rails of the v3 stack: inference paid per call (product 3) and the attested copilot (product 4); the
           addresses are this deployment's when they are configured (VITE_X402_URL, VITE_COPILOT_*) */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Section title={t("dev.x402.title")} lead={t("dev.x402.lead")}>
-          <Code>{`import { createX402Client, X402PaidCallError, testnet } from "@arcvault/sdk";
+          <Code>{`import { createX402Client, deploymentFromJson, X402PaidCallError } from "@arcvault/sdk";
+import v3 from "./deployments.v3.testnet.json"; // the v3 stack's record (repository root)
 
 const ai = createX402Client({
   enclaveUrl: "${X402_URL || "https://…/enclave/x402"}",
   productId: ${X402_PRODUCT}n,
-  walletClient, publicClient, deployment: testnet,
+  walletClient, publicClient, deployment: deploymentFromJson(v3),
   maxAmount: 10_000n, // ${t("dev.x402.c1")}
 });
 const { pricePerCall } = await ai.product(); // ${t("dev.x402.c2")}
@@ -129,14 +133,15 @@ try {
         </Section>
         <Section title={t("dev.cop.title")} lead={t("dev.cop.lead")}>
           <Code>{`import { createPublicClient, http } from "viem";
-import { arcTestnet, createAttestedCopilotClient, testnet } from "@arcvault/sdk";
+import { arcTestnet, createAttestedCopilotClient, deploymentFromJson } from "@arcvault/sdk";
+import v3 from "./deployments.v3.testnet.json"; // the v3 stack's record (repository root)
 
 // ${t("dev.cop.c1")}
 const publicClient = createPublicClient({ chain: arcTestnet, transport: http() });
 const copilot = createAttestedCopilotClient({
   copilotUrl: "${ATTESTED_COPILOT?.url ?? "https://archive.62-171-153-35.sslip.io/enclave/copilot-site"}",
   productId: ${ATTESTED_COPILOT?.productId ?? 4n}n,
-  publicClient, deployment: testnet,
+  publicClient, deployment: deploymentFromJson(v3),
   expectedOperator: "${ATTESTED_COPILOT?.operator ?? "0x…"}", // ${t("dev.cop.c2")}
 });
 const r = await copilot.chat({ messages: [{ role: "user", content: "${t("copilot.s2")}" }], lang: "${getLang()}" });
@@ -173,7 +178,7 @@ claude mcp add --transport http archive https://archive.62-171-153-35.sslip.io/m
       <Section title={t("dev.contracts.title")} lead={t("dev.contracts.lead")}>
         <Table stack="sm" head={[t("dev.contracts.h.contract"), t("dev.contracts.h.address"), t("dev.contracts.h.role")]}>
           {CONTRACTS.map(([n, a, r]) => <tr key={n}><Td main className="font-medium">{n}</Td><Td label={t("dev.contracts.h.address")}><Hex value={a} n={6} /></Td><Td label={t("dev.contracts.h.role")} wrap className="text-muted">{t(r)}</Td></tr>)}
-          {levels?.contracts && LEVEL_CONTRACTS.map(([n, k, r]) => <tr key={n}><Td main className="font-medium">{n}</Td><Td label={t("dev.contracts.h.address")}><Hex value={levels.contracts![k]} n={6} /></Td><Td label={t("dev.contracts.h.role")} wrap className="text-muted">{t(r)}</Td></tr>)}
+          {levelContracts && LEVEL_CONTRACTS.map(([n, k, r]) => <tr key={n}><Td main className="font-medium">{n}</Td><Td label={t("dev.contracts.h.address")}><Hex value={levelContracts[k]} n={6} /></Td><Td label={t("dev.contracts.h.role")} wrap className="text-muted">{t(r)}</Td></tr>)}
         </Table>
       </Section>
       <Section title={t("dev.enclave.title")} lead={t("dev.enclave.lead")}>

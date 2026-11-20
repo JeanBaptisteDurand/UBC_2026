@@ -21,8 +21,8 @@ var DEFAULT_IMAGE = "ghcr.io/jeanbaptistedurand/archive-sealed-chat@sha256:5699d
 var PRODUCT_TDX = 1;
 var PRODUCT_DEMO = 1;
 var CHAIN_ID = 5042002;
-var ENCLAVE_REGISTRY = "0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d";
-var SESSION_PAY = "0x8Bf8A8356f53006E9aB359AA6382f783923058a6";
+var ENCLAVE_REGISTRY = "0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E";
+var SESSION_PAY = "0x606c379cd8758E3562e7ECC9972d0feF693F0763";
 var HEARTBEAT_MS = 3e4;
 var HEARTBEAT_STARTING_MS = 5e3;
 var STARTUP_GRACE_MS = 12e4;
@@ -32,7 +32,7 @@ var DSTACK_SOCKET = "/var/run/dstack.sock";
 var TDX_DEVICES = ["/dev/tdx_guest", "/dev/tdx-guest"];
 var TSM_REPORT_DIR = "/sys/kernel/config/tsm/report";
 var LABEL_OWNER = "io.archive.owner";
-var RUN_SPEC = "3";
+var RUN_SPEC = "4";
 
 // src/errors.ts
 var CliError = class extends Error {
@@ -1167,7 +1167,7 @@ Stop it first: Ctrl+C in its terminal, or sudo systemctl stop archive-node.`);
     return new Promise(() => {
     });
   }
-  // ---------- one round: enclave, checks, status, logs, heartbeat ----------
+  // ---------- one round: enclave, diagnosis, status, logs, heartbeat ----------
   async tick() {
     let launchError = null;
     try {
@@ -1196,7 +1196,7 @@ Stop it first: Ctrl+C in its terminal, or sudo systemctl stop archive-node.`);
       "io.archive.product": String(this.p.product),
       "io.archive.port": String(this.p.port),
       "io.archive.mode": this.p.mode,
-      // the operator allowed to receive a quote: when pairing makes it known, the container is replaced
+      // the operator allowed to receive a quote: when the pairing makes it known, the container is replaced
       "io.archive.operator": this.operator ?? ""
     };
   }
@@ -1213,7 +1213,7 @@ Stop it first: Ctrl+C in its terminal, or sudo systemctl stop archive-node.`);
       ...process.env.REDPILL_API_KEY ? { REDPILL_API_KEY: "" } : {}
     };
   }
-  /** the container runs with the right configuration (otherwise it is created, restarted or replaced) */
+  /** the container runs with the right configuration (otherwise: it is created, restarted or replaced) */
   async ensureEnclave() {
     const sig = this.ac.signal;
     const ds = await dockerState(sig);
@@ -1356,7 +1356,7 @@ Stop it first: Ctrl+C in its terminal, or sudo systemctl stop archive-node.`);
         if (reg !== null && reg !== this.registered) {
           this.registered = reg;
           if (reg) this.note("ok", "Enclave registered on Arc: it can receive sessions paid in USDC.");
-          else this.note("info", `Not registered on Arc yet: on the site, Operator page, click \u201CRegister\u201D (wallet signature) \u2192 ${this.web()}/#/operateur`);
+          else this.note("info", `Not registered on Arc yet: on the site, Operator page, click \u201CRegister\u201D (wallet signature) \u2192 ${this.web()}/#/operator`);
         }
         out(dim(`${hhmmss()} \u2665 heartbeat #${this.beats} \xB7 ${STATUS_LABEL[status]}`));
       }
@@ -1383,7 +1383,7 @@ Stop it first: Ctrl+C in its terminal, or sudo systemctl stop archive-node.`);
     }
     this.note(state === "unreachable" ? "warn" : "error", message);
   }
-  /** saves machineId and operator in node.json, if the key comes from there and has not changed since */
+  /** stores machineId/operator in node.json, if the key comes from there and has not changed in between */
   persistIdentity() {
     if (!this.p.keyFromConfig) return;
     try {
@@ -1392,7 +1392,7 @@ Stop it first: Ctrl+C in its terminal, or sudo systemctl stop archive-node.`);
     } catch {
     }
   }
-  // ---------- adresse publique ----------
+  // ---------- public address ----------
   fallbackUrl() {
     return `http://${this.ip?.address ?? "127.0.0.1"}:${this.p.port}`;
   }
@@ -2177,7 +2177,7 @@ async function statusCommand(f) {
   if (!report.ok) next = "archive-node doctor, then fix the \u2717 lines";
   else if (!cfg) next = "archive-node pair";
   else if (!agentAlive || !c?.running) next = upCommand(lastMode ?? mode);
-  else if (remote?.ok && remote.machine.registered === false) next = `register the enclave from the site: ${web}/#/operateur`;
+  else if (remote?.ok && remote.machine.registered === false) next = `register the enclave from the site: ${web}/#/operator`;
   if (next) out(`${ARROW} Next step: ${bold(next)}`);
   return report.ok ? 0 : 1;
 }
@@ -2190,7 +2190,7 @@ var UP = {
   port: { type: "string" },
   image: { type: "string" },
   demo: { type: "boolean" },
-  // --key is parsed only to be refused with an explanation (the key goes through --key-file or ARCHIVE_KEY)
+  // --key is read in order to refuse it with an explanation (the key goes through --key-file or ARCHIVE_KEY)
   key: { type: "string" },
   "key-file": { type: "string" },
   "public-url": { type: "string" },
