@@ -97,7 +97,7 @@ for the enclaves that serve each product.
 - **The policy.** Debug mode off, `SEPT_VE_DISABLE`, firmware (TCB) up to date, a quote bound to a recent Arc block
   (EIP-2935, within 8,191 blocks), `REPORTDATA` binding chain, registry, product, operator and the enclave's keys,
   a quote never seen before, and enough free bond.
-- **The cost.** About 6.85 to 6.87 M gas per registration, 0.14 to 0.17 USDC, paid by the operator
+- **The cost.** 6.6 to 6.9M gas per registration, 0.14 to 0.17 USDC at 20 to 25 gwei, paid by the operator
   ([gas table](#usdc-is-the-money-and-the-gas)). The operator's registrar renews each admission before its window ends.
 
 **Operator levels** (`MachineRegistry`, `ProofOfCloudAuditor`, `PolicyEnclaves`; see [docs/OPERATORS.md](docs/OPERATORS.md)):
@@ -134,7 +134,7 @@ proven on-chain seizes all of it. The rules and their figures are in
 3. **The enclave signs its work**: a receipt for an answer, or a claim for a replayed exploit, with a key born inside it.
 4. **Arc pays on the signature.** The settlement contract checks that an admitted enclave signed, reads the price and
    the shares, and splits the USDC in the same transaction.
-5. **Arc records the verdict** in the ERC-8004 validation registry.
+5. **Arc records the verdict** in the ERC-8004 validation registry on Arc.
 6. **A proven lie costs the bond.**
 
 Off-chain pieces:
@@ -173,7 +173,7 @@ Gas is paid in USDC, so each check has a price in dollars. Measured on Arc testn
 
 | Operation | Paid by | Gas | USDC |
 |---|---|---|---|
-| Admit an enclave: DCAP, boot-log replay and policy ([`0x3ab1e3da…ae72`](https://explorer.testnet.arc.io/tx/0x3ab1e3dac834f9fb4d5a97f67f7ea5f299b9e92ea3a1a76791a86886e0a1ae72), [`0x54d7cf7e…37ef`](https://explorer.testnet.arc.io/tx/0x54d7cf7e891d489093b139d99db37620f9e422c69005eff4bf1549fb9eae37ef)) | operator | 6.85 to 6.87 M | 0.14 to 0.17 |
+| Admit an enclave: DCAP, boot-log replay and policy ([`0x3ab1e3da…ae72`](https://explorer.testnet.arc.io/tx/0x3ab1e3dac834f9fb4d5a97f67f7ea5f299b9e92ea3a1a76791a86886e0a1ae72), [`0x54d7cf7e…37ef`](https://explorer.testnet.arc.io/tx/0x54d7cf7e891d489093b139d99db37620f9e422c69005eff4bf1549fb9eae37ef)) | operator | 6.6 to 6.9M | 0.14 to 0.17 |
 | Settle one pay-per-call answer ([`0x3c98a1fa…1ae8`](https://explorer.testnet.arc.io/tx/0x3c98a1fafa893722b9bffd84a1287ef28a446c361c822e4e2071f714bba31ae8)) | operator | about 210 k | about 0.005 |
 | Open a session with an EIP-3009 deposit ([`0xdb7fc9e3…666d`](https://explorer.testnet.arc.io/tx/0xdb7fc9e3b024415599eee67746ae162f3032add224afed25ab7c09862b83666d)) | session owner | 361,373 | 0.0090 |
 | Settle a session on its last receipt ([`0x97c17946…79ee`](https://explorer.testnet.arc.io/tx/0x97c17946a14c02cdbdd1d6aafd7a405500b6bd44a5f536c77af560aa0cbc79ee)) | operator | 217,512 | 0.0054 |
@@ -344,7 +344,7 @@ AskHive only read and prepare, and a person signs what they prepare, in their ow
    sent by the operator, 0.01 USDC leaves the payer: 0.0095 to the operator, 0.0005 to the network treasury.
 6. **On a lie.** Two different signed answers to the same request (`SessionPay.reportEquivocation`), or a bounty claim
    refuted by the enclaves of at least two other operators within 3 days (`SealedBounty.refute`), seize the operator's
-   whole bond and ban it, and `VerdictLog` writes 0 to the ERC-8004 registry. A session that was served and paid closes
+   whole bond and ban it, and `VerdictLog` writes 0 to the ERC-8004 validation registry on Arc. A session that was served and paid closes
    with a verdict of 100. The refutation demo ran on Arc on 10 Nov, and sessions closed with 100 on 9 and 19 Nov
    (see [Proofs on Arc testnet](#proofs-on-arc-testnet)).
 
@@ -361,7 +361,7 @@ Every payment in [our proofs](#proofs-on-arc-testnet) came from our own testnet 
 | Admitted enclaves only | The SDK encrypts only to a key Arc registered for this product and active now. Settlement pays only a signer that was active for the product at the receipt's anchor block (for a session, the enclave locked at opening). | SDK ([`enclave-keys.ts`](packages/sdk/src/enclave-keys.ts)), contracts (`EnclaveRegistry.activeOperatorAt`) |
 | Allowed images only | Admission requires an image fingerprint the product's author allowed. Once an image is retired, anyone can invalidate its enclaves at once, with no grace period (`invalidateRetiredWorkload`). | Contract ([`EnclaveRegistry.sol`](contracts/src/EnclaveRegistry.sol), [`ProductRegistry.sol`](contracts/src/ProductRegistry.sol)) |
 | No signing tool | The MCP server holds no key, and none of its 16 tools sends a transaction. AskHive has no tool that spends. Both return operations that people sign in their own wallet. | MCP ([`services/mcp`](services/mcp/)), AskHive ([`enclave-site.ts`](services/copilot/src/enclave-site.ts)) |
-| Bond exposure | An operator's enclaves can release at most half of its bond in any 24 hours, all products together, and at most 10 USDC per product on testnet ([the rule](#economic-design-and-risk-assumptions)). | Contract ([`OperatorBond.sol`](contracts/src/OperatorBond.sol): `consumeExposure`) |
+| Bond exposure | What an operator's enclaves can release is capped, over any 24 hours, at half its bond (less any pending withdrawal) and at 10 USDC per product ([the rule](#economic-design-and-risk-assumptions)). | Contract ([`OperatorBond.sol`](contracts/src/OperatorBond.sol): `consumeExposure`) |
 | Slashing | A proven fault seizes the whole bond and bans the operator ([who receives it](#economic-design-and-risk-assumptions)). | Contract (`OperatorBond.slash`, called by `SessionPay` and `SealedBounty`) |
 
 The most a dishonest enclave can take from an agent is what the agent signed: one call's price, or what it deposited in
@@ -380,22 +380,23 @@ a session. An attestation proves which code ran, not that an AI answer is right,
   exploit reaches. On top, and only when a claim is paid, the pool pays 10 % to the network and 5 % to the operators
   whose enclaves signed the claim. On 9 Nov, a 0.5 USDC tier paid 0.5 to the hunter, 0.05 to the network and 0.025 to
   the operator ([`0xecbd089a…807e`](https://explorer.testnet.arc.io/tx/0xecbd089a092edd939ff646fae8d22c0f2616b6a92f58a49928c231c770bb807e)).
-- **Operators pay the gas** of admissions (0.14 to 0.17 USDC each) and of settlements
-  ([gas table](#usdc-is-the-money-and-the-gas)). Admission charges no fee beyond gas. At testnet prices, settling one
-  0.01 USDC call costs about 0.005 USDC of the operator's 0.0095 USDC share, while a session settles many requests on
-  one receipt.
+- **Operators pay the gas** of admissions (each 6.6 to 6.9M gas, 0.14 to 0.17 USDC at 20 to 25 gwei) and of
+  settlements ([gas table](#usdc-is-the-money-and-the-gas)). Admission charges no fee beyond gas. At testnet prices,
+  settling one 0.01 USDC call costs about 0.005 USDC of the operator's 0.0095 USDC share, while a session settles many
+  requests on one receipt.
 
 **What the operator puts at stake** (`OperatorBond`):
 
 - The operator owns its USDC bond. Each enclave reserves the product's minimum bond (1 USDC on the live products), and
   only the free rest can be withdrawn.
-- **Exposure caps.** On the word of an operator's enclaves, the settlement contracts release at most half of its bond
-  (less any pending withdrawal) in any 24 hours, all products together, and at most each product's exposure cap
-  (10 USDC on testnet). Our operator's 8 USDC bond allows 4 USDC per 24 hours.
+- **Exposure caps.** What the settlement contracts release on the word of an operator's enclaves is capped, over any
+  24 hours, at half its bond (less any pending withdrawal) and at 10 USDC per product (each product's exposure cap on
+  testnet). The half-bond cap counts all products together. Our operator's 8 USDC bond allows 4 USDC per 24 hours.
 - **Slashing.** A fault proven on-chain seizes the whole bond and bans the operator: two signed answers to one request,
   or a bounty claim refuted by the enclaves of at least two other operators within 3 days. Half goes to whoever proved
   it, half to the victim, or to the network treasury when there is no victim. It ran on Arc on 10 Nov
-  ([`0x0ffca543…051f`](https://explorer.testnet.arc.io/tx/0x0ffca5433186735bf5525e525995f3589d842681da8ffcaa82acb5993025051f)).
+  ([`0x0ffca543…051f`](https://explorer.testnet.arc.io/tx/0x0ffca5433186735bf5525e525995f3589d842681da8ffcaa82acb5993025051f));
+  in this demo, the reporter and the victim were both our own address.
 - A bond leaves 7 days after the withdrawal request and after its last exposure, so a fault can still be proven.
 - The bond bounds the outflow; it does not refund it. An inflated inference receipt cannot be proven, which is why a
   buyer only ever risks what it signed.
@@ -474,7 +475,7 @@ payment and ERC-8004 verdict. Read it with `curl -s https://arc-hive.xyz/api/pro
 | SessionPay | [`0x8Bf8A8356f53006E9aB359AA6382f783923058a6`](https://explorer.testnet.arc.io/address/0x8Bf8A8356f53006E9aB359AA6382f783923058a6) | prepaid sessions (product 1) |
 | X402Settler | [`0xccDb1a5641F2F3f2Cf2112c8E14669DBb6E11634`](https://explorer.testnet.arc.io/address/0xccDb1a5641F2F3f2Cf2112c8E14669DBb6E11634) | pay per call, x402 (product 3) |
 | SealedBounty | [`0x182871d34438aB37a7FD4d8689f3e0812E447A9b`](https://explorer.testnet.arc.io/address/0x182871d34438aB37a7FD4d8689f3e0812E447A9b) | sealed bounties and refutation (products 2 and 5) |
-| VerdictLog | [`0x2B4AB39B461Ae2bA9ADfb6bC630D34553BAb9779`](https://explorer.testnet.arc.io/address/0x2B4AB39B461Ae2bA9ADfb6bC630D34553BAb9779) | verdicts to the ERC-8004 registry on Arc |
+| VerdictLog | [`0x2B4AB39B461Ae2bA9ADfb6bC630D34553BAb9779`](https://explorer.testnet.arc.io/address/0x2B4AB39B461Ae2bA9ADfb6bC630D34553BAb9779) | verdicts to the ERC-8004 validation registry on Arc |
 | MachineRegistry | [`0xD671013f556b1272b25E3cC17C889d402f4Dc26D`](https://explorer.testnet.arc.io/address/0xD671013f556b1272b25E3cC17C889d402f4Dc26D) | chip ID (PPID) read from Intel's certificate |
 | ProofOfCloudAuditor | [`0xcdC4C150344F06d506dEB5500332737E8DCC8FaB`](https://explorer.testnet.arc.io/address/0xcdC4C150344F06d506dEB5500332737E8DCC8FaB) | verifies the Proof of Cloud alliance's token |
 | Ed25519Verifier | [`0x031579DD04398249feB67852632da4A648D4b5cf`](https://explorer.testnet.arc.io/address/0x031579DD04398249feB67852632da4A648D4b5cf) | Ed25519 (RFC 8032) for that token |
