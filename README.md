@@ -12,7 +12,7 @@ publishing services.
 
 - An app that must keep its prompts private pays **0.10 USDC per 1,000 tokens** from a prepaid session (product 1).
 - An AI agent pays **0.01 USDC per call**, with one signature and no gas (product 3, x402).
-- A protocol funds a bug bounty that pays out only for an exploit a sealed machine replayed (products 2 and 7).
+- A protocol funds a bug bounty that pays out only for an exploit a sealed machine replayed (products 2 and 5).
 - The operator whose enclave served the request earns **95 %** of each paid call or session, and the network keeps 5 %.
 
 **The problem.** An app or an AI agent that sends a private request to someone else's machine, or pays out on a
@@ -82,7 +82,7 @@ below opens on the explorer at `https://explorer.testnet.arc.io/tx/<hash>`.
 
 ## The first services on the marketplace
 
-Anyone can publish a service; these seven are ours.
+Anyone can publish a service; these five are ours.
 
 | # | Product | Who pays | Who is paid | Contract | [Status](https://arc-hive.xyz/api/products) |
 |---|---|---|---|---|---|
@@ -90,9 +90,7 @@ Anyone can publish a service; these seven are ours.
 | 2 | Sealed Bounty, open level | a protocol funds a USDC pool | the hunter gets 100 % of the tier; +10 % network and +5 % verifying operators, on top, only when paid | `SealedBounty` | running |
 | 3 | Private AI, pay per call (x402) | an agent signs one EIP-3009 authorization per call (0.01 USDC per call) and pays no gas (the operator pays the settlement gas, about 0.005 USDC at 25 gwei) | operator 95 %, network 5 % | `X402Settler` | running |
 | 4 | AskHive, the attested copilot | free | — | — | running |
-| 5 | Caught lying (refutation demo) | — | the liar's whole bond: 50 % reporter, 50 % victim (or the network treasury if there is no victim) | `SealedBounty`, `OperatorBond` | demonstrated on Arc on 15 Nov |
-| 6 | Verified bounty, first version | — | — | — | superseded by product 7 (settlement contracts are immutable by design); no enclave serves it |
-| 7 | Sealed Bounty, verified level | a protocol funds a USDC pool | as product 2; only enclaves on chips declared by the Proof of Cloud alliance count | `SealedBountyVerified` | running |
+| 5 | Sealed Bounty, verified level | a protocol funds a USDC pool | as product 2; only enclaves on chips declared by the Proof of Cloud alliance count | `SealedBountyVerified` | running |
 
 *Running* means that an enclave admitted on Arc serves the product now. Prices, shares, bonds and delays are on-chain
 parameters in `ProductRegistry` (who gets what: [Economic design](#economic-design-and-risk-assumptions)). Testnet
@@ -465,6 +463,8 @@ a session. An attestation proves which code ran, not that an AI answer is right,
 
 ## Proofs on Arc testnet
 
+These runs are on the previous set, whose bytecode is the one deployed again in v3.
+
 **20 Nov 2026 (UTC)**
 
 | What it proves | Time | Transaction |
@@ -488,7 +488,7 @@ a session. An attestation proves which code ran, not that an AI answer is right,
 | Product 7 enclave (verified bounty) admitted | 01:02 | [`0xf18cb68f…6a2c`](https://explorer.testnet.arc.io/tx/0xf18cb68f068e5cfaa993a67da2fd98f4c5d73123460533d0901052b06d166a2c) |
 | A pay-per-call answer settled by the operator: 0.01 USDC (0.0095 operator, 0.0005 network) | 02:00 | [`0xeadad0b4…fbd0`](https://explorer.testnet.arc.io/tx/0xeadad0b46d51a733997777bccfedd3f05dc69a0a942620f7458c75e35c16fbd0) |
 | Prepaid session #2 opened (0.05 USDC), locked on the product 1 enclave | 02:11 | [`0xdb7fc9e3…666d`](https://explorer.testnet.arc.io/tx/0xdb7fc9e3b024415599eee67746ae162f3032add224afed25ab7c09862b83666d) |
-| A demo bounty posted on product 7 (1 USDC pool, open until 22 Nov) | 02:16 | [`0x28d12457…daea`](https://explorer.testnet.arc.io/tx/0x28d12457644404621d37c52b4c93fab0317c8b0883adb74f347bf5e65f6edaea) |
+| A demo bounty posted on the verified bounty (1 USDC pool, open until 22 Nov) | 02:16 | [`0x28d12457…daea`](https://explorer.testnet.arc.io/tx/0x28d12457644404621d37c52b4c93fab0317c8b0883adb74f347bf5e65f6edaea) |
 | The session settled by the operator on the enclave's last cumulative receipt: 0.034 USDC | 02:20 | [`0x97c17946…79ee`](https://explorer.testnet.arc.io/tx/0x97c17946a14c02cdbdd1d6aafd7a405500b6bd44a5f536c77af560aa0cbc79ee) |
 | The session closed: 0.016 USDC refunded and ERC-8004 verdict 100, in one transaction | 03:23 | [`0x95c9f59e…b1c2`](https://explorer.testnet.arc.io/tx/0x95c9f59eee7597a532ce72162b83944e9364b1b600ff35ea6b9fd4eb2290b1c2) |
 | AskHive's enclave admitted (product 4) | 22:37 | [`0xde9628b2…0176`](https://explorer.testnet.arc.io/tx/0xde9628b23d0483bb666a0cd13c55c4f32a1204151323a80da9451b0aeb330176) |
@@ -498,40 +498,34 @@ payment and ERC-8004 verdict. Read it with `curl -s https://arc-hive.xyz/api/pro
 
 ## Contracts on Arc testnet (chainId 5042002)
 
-**Live stack, v2.1 (13 contracts in service).** Every address and deployment transaction is in
-[`deployments.v21.testnet.json`](deployments.v21.testnet.json), and Intel's verifier is in
-[`deployments.dcap.testnet.json`](deployments.dcap.testnet.json).
-Their source is verified on Arc's explorer (Blockscout): Ed25519Verifier is a full match, and the 12 others are
-partial matches (the published source compiles to the exact bytecode on Arc; only the metadata hash differs, because
-the comments changed after deployment). The explorer shows the original comments, in French; the code is the one in
-[`contracts/src`](contracts/src/).
+**Live stack, v3 (14 contracts in service).** Every address and deployment transaction is in
+[`deployments.v3.testnet.json`](deployments.v3.testnet.json): the 13 core contracts, rebuilt from
+[`contracts/src`](contracts/src), plus `DemoVault`, a bounty-demo target (`migrate` deliberately has no access control),
+and Intel's verifier in [`deployments.dcap.testnet.json`](deployments.dcap.testnet.json).
+Every settlement contract is authorized at initialization, and five products are published. The source is verified on
+Arc's explorer: Ed25519Verifier is a full match, the 12 others partial (the published source compiles to the exact
+bytecode on Arc; only the metadata hash differs, because the comments changed after deployment).
 
 | Contract | Address | Role |
 |---|---|---|
-| EnclaveRegistry | [`0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d`](https://explorer.testnet.arc.io/address/0xf627e7f40c7a0F50bA3eAFf2D459352EdB5DC59d) | admits a machine after Intel DCAP, boot-log replay and policy |
-| TdxAttestationModule | [`0x26C1803dE523aC896Ba7F1787f1401ec792951ca`](https://explorer.testnet.arc.io/address/0x26C1803dE523aC896Ba7F1787f1401ec792951ca) | calls Automata's DCAP verifier on Arc |
-| ProductRegistry | [`0x582a3076cf6A1347907565B57Ce9f548D33805A4`](https://explorer.testnet.arc.io/address/0x582a3076cf6A1347907565B57Ce9f548D33805A4) | products, prices, shares, allowed images, timelocks |
-| OperatorBond | [`0xe584F7590e4677372eE6259b967672c747eB6850`](https://explorer.testnet.arc.io/address/0xe584F7590e4677372eE6259b967672c747eB6850) | USDC bonds, exposure cap, slashing |
-| SessionPay | [`0x8Bf8A8356f53006E9aB359AA6382f783923058a6`](https://explorer.testnet.arc.io/address/0x8Bf8A8356f53006E9aB359AA6382f783923058a6) | prepaid sessions (product 1) |
-| X402Settler | [`0xccDb1a5641F2F3f2Cf2112c8E14669DBb6E11634`](https://explorer.testnet.arc.io/address/0xccDb1a5641F2F3f2Cf2112c8E14669DBb6E11634) | pay per call, x402 (product 3) |
-| SealedBounty | [`0x182871d34438aB37a7FD4d8689f3e0812E447A9b`](https://explorer.testnet.arc.io/address/0x182871d34438aB37a7FD4d8689f3e0812E447A9b) | sealed bounties and refutation (products 2 and 5) |
-| VerdictLog | [`0x2B4AB39B461Ae2bA9ADfb6bC630D34553BAb9779`](https://explorer.testnet.arc.io/address/0x2B4AB39B461Ae2bA9ADfb6bC630D34553BAb9779) | verdicts to the ERC-8004 validation registry on Arc |
-| MachineRegistry | [`0xD671013f556b1272b25E3cC17C889d402f4Dc26D`](https://explorer.testnet.arc.io/address/0xD671013f556b1272b25E3cC17C889d402f4Dc26D) | chip ID (PPID) read from Intel's certificate |
-| ProofOfCloudAuditor | [`0xcdC4C150344F06d506dEB5500332737E8DCC8FaB`](https://explorer.testnet.arc.io/address/0xcdC4C150344F06d506dEB5500332737E8DCC8FaB) | verifies the Proof of Cloud alliance's token |
-| Ed25519Verifier | [`0x031579DD04398249feB67852632da4A648D4b5cf`](https://explorer.testnet.arc.io/address/0x031579DD04398249feB67852632da4A648D4b5cf) | Ed25519 (RFC 8032) for that token |
-| PolicyEnclaves | [`0x665f4Bb3C31d23463f45e4092487F6b498490417`](https://explorer.testnet.arc.io/address/0x665f4Bb3C31d23463f45e4092487F6b498490417) | each product's required operator level |
-| SealedBountyVerified | [`0x36A8DdF9fcb1308B9e86425beC9B098e933c7348`](https://explorer.testnet.arc.io/address/0x36A8DdF9fcb1308B9e86425beC9B098e933c7348) | sealed bounty, verified operators (product 7) |
+| EnclaveRegistry | [`0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E`](https://explorer.testnet.arc.io/address/0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E) | admits a machine after Intel DCAP, boot-log replay and policy |
+| TdxAttestationModule | [`0x3275fA3b519FAD912eA4a5e75Bf5078Def29D491`](https://explorer.testnet.arc.io/address/0x3275fA3b519FAD912eA4a5e75Bf5078Def29D491) | calls Automata's DCAP verifier on Arc |
+| ProductRegistry | [`0xd2e6f3fD0561C8823774A8C7054B414777E0228d`](https://explorer.testnet.arc.io/address/0xd2e6f3fD0561C8823774A8C7054B414777E0228d) | products, prices, shares, allowed images, timelocks |
+| OperatorBond | [`0x19C3438E997c2C513aA5E7D2dDd2666532095dd4`](https://explorer.testnet.arc.io/address/0x19C3438E997c2C513aA5E7D2dDd2666532095dd4) | USDC bonds, exposure cap, slashing |
+| SessionPay | [`0x606c379cd8758E3562e7ECC9972d0feF693F0763`](https://explorer.testnet.arc.io/address/0x606c379cd8758E3562e7ECC9972d0feF693F0763) | prepaid sessions (product 1) |
+| X402Settler | [`0x89B0381B18536f680fD952a0E7D375d7a4EC3fe6`](https://explorer.testnet.arc.io/address/0x89B0381B18536f680fD952a0E7D375d7a4EC3fe6) | pay per call, x402 (product 3) |
+| SealedBounty | [`0xaA229Eda6b535DF6aEe0B4D892f39e0EC006d308`](https://explorer.testnet.arc.io/address/0xaA229Eda6b535DF6aEe0B4D892f39e0EC006d308) | sealed bounties and refutation (product 2) |
+| VerdictLog | [`0x3BEC55d2E50118ceACcD2E0045855123964D78cF`](https://explorer.testnet.arc.io/address/0x3BEC55d2E50118ceACcD2E0045855123964D78cF) | verdicts to the ERC-8004 validation registry on Arc |
+| MachineRegistry | [`0xC64e9556AA896b2E8c0bE0fdf3dC7b2c0be24b86`](https://explorer.testnet.arc.io/address/0xC64e9556AA896b2E8c0bE0fdf3dC7b2c0be24b86) | chip ID (PPID) read from Intel's certificate |
+| ProofOfCloudAuditor | [`0xEaf8163fa5Eb2f047d4876bb3Ef2E67250360b73`](https://explorer.testnet.arc.io/address/0xEaf8163fa5Eb2f047d4876bb3Ef2E67250360b73) | verifies the Proof of Cloud alliance's token |
+| Ed25519Verifier | [`0xf2c47D6eCD25290C9daa826b3D11AC43baaEcEf6`](https://explorer.testnet.arc.io/address/0xf2c47D6eCD25290C9daa826b3D11AC43baaEcEf6) | Ed25519 (RFC 8032) for that token |
+| PolicyEnclaves | [`0x12c0C33C62666AbE0ab03B286b428C554De71BF8`](https://explorer.testnet.arc.io/address/0x12c0C33C62666AbE0ab03B286b428C554De71BF8) | each product's required operator level |
+| SealedBountyVerified | [`0x8958EA25c9cF7bbee39B32C43187d854B5d73ee6`](https://explorer.testnet.arc.io/address/0x8958EA25c9cF7bbee39B32C43187d854B5d73ee6) | sealed bounty, verified operators (product 5) |
+| DemoVault | [`0xf5D51c805BFa4c1Fb3d5D3B248bEB1841DDc03b8`](https://explorer.testnet.arc.io/address/0xf5D51c805BFa4c1Fb3d5D3B248bEB1841DDc03b8) | bounty-demo target (products 2 and 5) |
 
 Used, not ours: the ERC-8004 validation registry `0x8004Cb1BF31DAf7788923b405b754f57acEB4272` and identity registry
 `0x8004A818BFB912233c491871b3d84c89A494BD9e`, as listed by Arc; Automata's DCAP entry point, deployed by us from its
 MIT code, `0x48640f7d94dE64b13c89686F3d1240A31Aeb4dc9`; USDC `0x3600000000000000000000000000000000000000`.
-
-**Next stack, v3.** Fourteen contracts were deployed on 19 Nov 2026, between 20:33 and 20:37 UTC: the 13 above, rebuilt
-from `contracts/src`, plus `DemoVault`, a target for the bounty demos (`migrate` deliberately has no access control).
-Every settlement contract is authorized at initialization, and five products are published. The stack is not switched
-on yet: the site, the API and the enclaves stay on v2.1. Addresses, transactions and the bytecode check against this
-source are in [`deployments.v3.testnet.json`](deployments.v3.testnet.json), and on the explorer, starting with the v3
-[`EnclaveRegistry`](https://explorer.testnet.arc.io/address/0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E).
 
 ## History
 
@@ -599,7 +593,7 @@ frontend/           the marketplace site (Vite, React, three.js)
 web/                the console (React, in English) and the 3D server room (web/public/datacenter)
 deploy/             server deployment (built on the server from this source)
 docs/               operator levels, the AskHive and MCP contract, the earlier sets (history.md), screenshots of the site
-deployments.*.json  every deployed address and transaction: v2, v2.1 (live), v3, Intel's DCAP verifier
+deployments.*.json  every deployed address and transaction: v3 (live), the earlier sets, Intel's DCAP verifier
 ```
 
 Package guides: [`contracts`](contracts/README.md), [`dcap-integration`](dcap-integration/README.md),
