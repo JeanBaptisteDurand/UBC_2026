@@ -1,0 +1,796 @@
+{
+  "note": "The five v3 registrars, started on 20 Nov 2026 between 11:19 and 11:23 UTC next to the five v2.1 registrars, which were not touched (same containers, same uptime, no log line during the step). Each one registered its enclave on the v3 EnclaveRegistry, the chain checking Intel's signature through DCAP, then bound it to its machine on the v3 MachineRegistry (PPID read from Intel's certificate in the quote). The first one (product 2) also submitted the Proof of Cloud alliance's token for the machine to the v3 ProofOfCloudAuditor, so product 5 meets its verified-level policy. They were started one at a time, each after the previous one's first pass and only when the operator had no pending transaction (the key is shared with the v2.1 registrars): nonces 190 to 200, no collision. Since then they renew before each window ends (4 h before) and keep the binding and the token up to date; products 1 and 3 also settle what their enclaves serve (sessions, x402 calls).",
+  "at": "2026-11-20T11:23:55.316Z",
+  "stack": "v3",
+  "chainId": 5042002,
+  "contracts": {
+    "EnclaveRegistry": "0xc854ebA7C28f4b53f50018EAcF40D617Ba76e38E",
+    "ProductRegistry": "0xd2e6f3fD0561C8823774A8C7054B414777E0228d",
+    "OperatorBond": "0x19C3438E997c2C513aA5E7D2dDd2666532095dd4",
+    "MachineRegistry": "0xC64e9556AA896b2E8c0bE0fdf3dC7b2c0be24b86",
+    "ProofOfCloudAuditor": "0xEaf8163fa5Eb2f047d4876bb3Ef2E67250360b73",
+    "PolicyEnclaves": "0x12c0C33C62666AbE0ab03B286b428C554De71BF8"
+  },
+  "operator": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a",
+  "compose": {
+    "repoFile": "deploy/docker-compose.v3-registrars.yml",
+    "serverFile": "/opt/archive/docker-compose.v3.yml",
+    "project": "archive-v3",
+    "sha256": "c2303ac11a95d655498db5172fa1ca24e98050d1b4984749cfbbedf5b626dde4"
+  },
+  "bundle": {
+    "serverFile": "/opt/archive/registrar.mjs",
+    "sha256": "e27c1e1d5aea1237b87d5089ff1683de0cffe609c0ec82a485ab7c4fe16e0964",
+    "note": "the same bundle as the five v2.1 registrars (mounted read-only by both projects); built on the server from services/registrar/src/server.ts before its log lines were translated, so it logs in French"
+  },
+  "deployments": {
+    "file": "/opt/archive/src/deployments.v3.testnet.json",
+    "mountedAt": "/app/deployments.v3.testnet.json",
+    "readOnly": true,
+    "sha256": "d80c0c7bf52dc6b70750d0d8e8284384e202e590c656707b7adca1b695e26774",
+    "levelsBlock": true
+  },
+  "settings": {
+    "envFile": "/opt/archive/registrar-v2.env (the v2.1 registrars' file; variable names ARC_PK and RENEW_BEFORE_HOURS; values not recorded)",
+    "renewBeforeHours": 4,
+    "checkMinutes": 10,
+    "x402CheckSeconds": 10,
+    "levels": "on for all five (the v3 file has a levels block; LEVELS is not set), as for the five v2.1 registrars"
+  },
+  "registrars": [
+    {
+      "productId": 1,
+      "what": "sessions (SessionPay)",
+      "service": "registrar-inference",
+      "container": "archive-v3-registrar-inference-1",
+      "startedAt": "2026-11-20T11:22:19.887724042Z",
+      "vm": "archive-v3-inference",
+      "enclaveUrl": "https://4154a371e71148f176d316306c16d24f8dcdbd30-8802.dstack-pha1-prod9.phala.network",
+      "settle": true,
+      "signer": "0xDBbcA6D7a8ae6eD4943650678C8751B6Eabdee7b",
+      "x25519": "0xa0cc5ed87012942b4d86f9495b7fd296a652b5e54e4fb50241d65709d027070d",
+      "pubkeysEqualOnChain": true,
+      "signerSameAsVmRecord": true,
+      "workloadId": "0x161c46ba0edcf061a7e2b7f05c6f5d5a1a26d8a705193a1fe8324f7f8bd2203b",
+      "registration": {
+        "hash": "0x2de231e77dcde776204eb2067a3985f532f0581d9f2abd4d0ae26cd8eab16a6a",
+        "explorer": "https://explorer.testnet.arc.io/tx/0x2de231e77dcde776204eb2067a3985f532f0581d9f2abd4d0ae26cd8eab16a6a",
+        "status": "success",
+        "from": "0x344f2d2fa5aeae78871f0b882245069f887c2e1a",
+        "to": "0xc854eba7c28f4b53f50018eacf40d617ba76e38e",
+        "contract": "EnclaveRegistry",
+        "nonce": 197,
+        "block": 73180089,
+        "time": "2026-11-20T11:22:22.000Z",
+        "gasUsed": "6849062",
+        "effectiveGasPrice": "25000000000",
+        "feeUsdc": "0.17122655",
+        "events": [
+          "AutomataDcapAttestationFee (DCAP fee, external)",
+          "EnclaveRegistry.EnclaveImage",
+          "OperatorBond.BondReserved",
+          "EnclaveRegistry.EnclaveRegistered"
+        ],
+        "sameOnBothRpcHosts": true
+      },
+      "window": {
+        "fromBlock": 73180089,
+        "untilBlock": 73350088,
+        "registeredAt": "2026-11-20T11:22:22Z",
+        "expiresAt": "2026-11-21T11:24:32Z"
+      },
+      "anchorBlock": 73180075,
+      "quoteHash": "0x1c829af09b049a26fa95575c5e6489e38b19b6329f423e2f8a391a3e1ca3118e",
+      "fmspc": "0x20a06f000000",
+      "tcbStatus": 0,
+      "machineBinding": {
+        "hash": "0xabfd374dbeefcf886c25c81459ce137927735286553688448c09ea082050432e",
+        "explorer": "https://explorer.testnet.arc.io/tx/0xabfd374dbeefcf886c25c81459ce137927735286553688448c09ea082050432e",
+        "status": "success",
+        "from": "0x344f2d2fa5aeae78871f0b882245069f887c2e1a",
+        "to": "0xc64e9556aa896b2e8c0be0fdf3dc7b2c0be24b86",
+        "contract": "MachineRegistry",
+        "nonce": 198,
+        "block": 73180098,
+        "time": "2026-11-20T11:22:27.000Z",
+        "gasUsed": "1725636",
+        "effectiveGasPrice": "25000000000",
+        "feeUsdc": "0.0431409",
+        "events": [
+          "MachineRegistry.MachineBound"
+        ],
+        "sameOnBothRpcHosts": true,
+        "ppid": "0x62d54040cb9dfc08bb13006fa75ece56",
+        "current": true,
+        "boundAt": "2026-11-20T11:22:27Z"
+      },
+      "activeOperatorAt": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a",
+      "levelOf": 0,
+      "meetsPolicy": true
+    },
+    {
+      "productId": 2,
+      "what": "Sealed Bounty, open level (SealedBounty)",
+      "service": "registrar-bounty",
+      "container": "archive-v3-registrar-bounty-1",
+      "startedAt": "2026-11-20T11:19:05.259919044Z",
+      "vm": "archive-v3-bounty",
+      "enclaveUrl": "https://7dea6df6009e5011d70a947b2d859b3915bb10d8-8803.dstack-pha1-prod9.phala.network",
+      "settle": false,
+      "signer": "0xe1C881CA3CFfE53b37c5A49E9679623977000BB1",
+      "x25519": "0x1c8fa993dc1c2c03e0ecb9da8f496c9aa228670ccc36f2da4754c710fd153f08",
+      "pubkeysEqualOnChain": true,
+      "signerSameAsVmRecord": true,
+      "workloadId": "0x8a0dd41d0ccc9692467fb6c8dc38268b6c83ca9201ec39462685b750fd2ef068",
+      "registration": {
+        "hash": "0xf7d24e863126f9124a0536cf936ade912d996f34cf5bde9c61bd63cd8c83989f",
+        "explorer": "https://explorer.testnet.arc.io/tx/0xf7d24e863126f9124a0536cf936ade912d996f34cf5bde9c61bd63cd8c83989f",
+        "status": "success",
+        "from": "0x344f2d2fa5aeae78871f0b882245069f887c2e1a",
+        "to": "0xc854eba7c28f4b53f50018eacf40d617ba76e38e",
+        "contract": "EnclaveRegistry",
+        "nonce": 190,
+        "block": 73179707,
+        "time": "2026-11-20T11:19:09.000Z",
+        "gasUsed": "6866162",
+        "effectiveGasPrice": "25000000000",
+        "feeUsdc": "0.17165405",
+        "events": [
+          "AutomataDcapAttestationFee (DCAP fee, external)",
+          "EnclaveRegistry.EnclaveImage",
+          "OperatorBond.BondReserved",
+          "EnclaveRegistry.EnclaveRegistered"
+        ],
+        "sameOnBothRpcHosts": true
+      },
+      "window": {
+        "fromBlock": 73179707,
+        "untilBlock": 73349706,
+        "registeredAt": "2026-11-20T11:19:09Z",
+        "expiresAt": "2026-11-21T11:21:19Z"
+      },
+      "anchorBlock": 73179692,
+      "quoteHash": "0x480d37403da04ad0c2cd1132fa2f6e27a8fb45e452a7c4ac7be1177a9fe61f1b",
+      "fmspc": "0x20a06f000000",
+      "tcbStatus": 0,
+      "machineBinding": {
+        "hash": "0xeb4616e6f02eca0b0c539bbf6663b32cbef514afea838c10bb6dfb5b2c9f7fc7",
+        "explorer": "https://explorer.testnet.arc.io/tx/0xeb4616e6f02eca0b0c539bbf6663b32cbef514afea838c10bb6dfb5b2c9f7fc7",
+        "status": "success",
+        "from": "0x344f2d2fa5aeae78871f0b882245069f887c2e1a",
+        "to": "0xc64e9556aa896b2e8c0be0fdf3dc7b2c0be24b86",
+        "contract": "MachineRegistry",
+        "nonce": 191,
+        "block": 73179716,
+        "time": "2026-11-20T11:19:13.000Z",
+        "gasUsed": "1725648",
+        "effectiveGasPrice": "25000000000",
+        "feeUsdc": "0.0431412",
+        "events": [
+          "MachineRegistry.MachineBound"
+        ],
+        "sameOnBothRpcHosts": true,
+        "ppid": "0x62d54040cb9dfc08bb13006fa75ece56",
+        "current": true,
+        "boundAt": "2026-11-20T11:19:13Z"
+      },
+      "activeOperatorAt": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a",
+      "levelOf": 0,
+      "meetsPolicy": true
+    },
+    {
+      "productId": 3,
+      "what": "x402 pay per call (X402Settler)",
+      "service": "registrar-x402",
+      "container": "archive-v3-registrar-x402-1",
+      "startedAt": "2026-11-20T11:23:17.114847404Z",
+      "vm": "archive-v3-inference",
+      "enclaveUrl": "https://4154a371e71148f176d316306c16d24f8dcdbd30-8804.dstack-pha1-prod9.phala.network",
+      "settle": true,
+      "signer": "0xd8f8b49548e0d9E268179A4E503321de61470a7a",
+      "x25519": "0x54e91f1a27f545e2f8c580641367b74cc5187feca5843c5c5a291a136a66cb60",
+      "pubkeysEqualOnChain": true,
+      "signerSameAsVmRecord": true,
+      "workloadId": "0x161c46ba0edcf061a7e2b7f05c6f5d5a1a26d8a705193a1fe8324f7f8bd2203b",
+      "registration": {
+        "hash": "0x0e9bf7e1752ca575ef1c6296b57f433f2900a7bef554334c55c47f53eac92111",
+        "explorer": "https://explorer.testnet.arc.io/tx/0x0e9bf7e1752ca575ef1c6296b57f433f2900a7bef554334c55c47f53eac92111",
+        "status": "success",
+        "from": "0x344f2d2fa5aeae78871f0b882245069f887c2e1a",
+        "to": "0xc854eba7c28f4b53f50018eacf40d617ba76e38e",
+        "contract": "EnclaveRegistry",
+        "nonce": 199,
+        "block": 73180203,
+        "time": "2026-11-20T11:23:20.000Z",
+        "gasUsed": "6849074",
+        "effectiveGasPrice": "25000000000",
+        "feeUsdc": "0.17122685",
+        "events": [
+          "AutomataDcapAttestationFee (DCAP fee, external)",
+          "EnclaveRegistry.EnclaveImage",
+          "OperatorBond.BondReserved",
+          "EnclaveRegistry.EnclaveRegistered"
+        ],
+        "sameOnBothRpcHosts": true
+      },
+      "window": {
+        "fromBlock": 73180203,
+        "untilBlock": 73350202,
+        "registeredAt": "2026-11-20T11:23:20Z",
+        "expiresAt": "2026-11-21T11:25:30Z"
+      },
+      "anchorBlock": 73180189,
+      "quoteHash": "0x7fd4d2c0c07f1c857a15ee2a35864ebe77b96d700ec49175c620534d2e209afc",
+      "fmspc": "0x20a06f000000",
+      "tcbStatus": 0,
+      "machineBinding": {
+        "hash": "0xf869d39ef143009f09583079b22890b6b51b7028d0cad547b21cdeaf64a7fc8d",
+        "explorer": "https://explorer.testnet.arc.io/tx/0xf869d39ef143009f09583079b22890b6b51b7028d0cad547b21cdeaf64a7fc8d",
+        "status": "success",
+        "from": "0x344f2d2fa5aeae78871f0b882245069f887c2e1a",
+        "to": "0xc64e9556aa896b2e8c0be0fdf3dc7b2c0be24b86",
+        "contract": "MachineRegistry",
+        "nonce": 200,
+        "block": 73180212,
+        "time": "2026-11-20T11:23:25.000Z",
+        "gasUsed": "1725648",
+        "effectiveGasPrice": "25000000000",
+        "feeUsdc": "0.0431412",
+        "events": [
+          "MachineRegistry.MachineBound"
+        ],
+        "sameOnBothRpcHosts": true,
+        "ppid": "0x62d54040cb9dfc08bb13006fa75ece56",
+        "current": true,
+        "boundAt": "2026-11-20T11:23:25Z"
+      },
+      "activeOperatorAt": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a",
+      "levelOf": 0,
+      "meetsPolicy": true
+    },
+    {
+      "productId": 4,
+      "what": "AskHive, the site's assistant (image r4)",
+      "service": "registrar-copilot",
+      "container": "archive-v3-registrar-copilot-1",
+      "startedAt": "2026-11-20T11:21:21.484716284Z",
+      "vm": "archive-v3-copilot",
+      "enclaveUrl": "https://3afaad7d7b5b639892a7555d5531144e3f79ee19-8808.dstack-pha1-prod9.phala.network",
+      "settle": false,
+      "signer": "0x5524f0219BF94a0377B48b08481846989e290771",
+      "x25519": "0x56cd491d8695f02e1f1f5bdd6d3affaf6590c2590adcaffd25a9a63c4abc8c6e",
+      "pubkeysEqualOnChain": true,
+      "signerSameAsVmRecord": true,
+      "workloadId": "0x64ddeef6eba8bba9e7b8391615fd6a07954deaf0ab3a89401acac5b5b08841fc",
+      "registration": {
+        "hash": "0x1de729e24812fb146ca68e57b21664dd5f6e3404312c3f6cfbfa0e8d3fb90ca5",
+        "explorer": "https://explorer.testnet.arc.io/tx/0x1de729e24812fb146ca68e57b21664dd5f6e3404312c3f6cfbfa0e8d3fb90ca5",
+        "status": "success",
+        "from": "0x344f2d2fa5aeae78871f0b882245069f887c2e1a",
+        "to": "0xc854eba7c28f4b53f50018eacf40d617ba76e38e",
+        "contract": "EnclaveRegistry",
+        "nonce": 195,
+        "block": 73179986,
+        "time": "2026-11-20T11:21:30.000Z",
+        "gasUsed": "6849074",
+        "effectiveGasPrice": "25000000000",
+        "feeUsdc": "0.17122685",
+        "events": [
+          "AutomataDcapAttestationFee (DCAP fee, external)",
+          "EnclaveRegistry.EnclaveImage",
+          "OperatorBond.BondReserved",
+          "EnclaveRegistry.EnclaveRegistered"
+        ],
+        "sameOnBothRpcHosts": true
+      },
+      "window": {
+        "fromBlock": 73179986,
+        "untilBlock": 73349985,
+        "registeredAt": "2026-11-20T11:21:30Z",
+        "expiresAt": "2026-11-21T11:23:40Z"
+      },
+      "anchorBlock": 73179970,
+      "quoteHash": "0xd4e45c0ad521d46ef7f600e4b95a16b23577297aafbfabc84d6aa5efd310658e",
+      "fmspc": "0x20a06f000000",
+      "tcbStatus": 0,
+      "machineBinding": {
+        "hash": "0xfcf65ea8d08612d4acb03eed4db547a34ba522daedebabf65d3700b0dc5863ee",
+        "explorer": "https://explorer.testnet.arc.io/tx/0xfcf65ea8d08612d4acb03eed4db547a34ba522daedebabf65d3700b0dc5863ee",
+        "status": "success",
+        "from": "0x344f2d2fa5aeae78871f0b882245069f887c2e1a",
+        "to": "0xc64e9556aa896b2e8c0be0fdf3dc7b2c0be24b86",
+        "contract": "MachineRegistry",
+        "nonce": 196,
+        "block": 73179994,
+        "time": "2026-11-20T11:21:34.000Z",
+        "gasUsed": "1725648",
+        "effectiveGasPrice": "25000000000",
+        "feeUsdc": "0.0431412",
+        "events": [
+          "MachineRegistry.MachineBound"
+        ],
+        "sameOnBothRpcHosts": true,
+        "ppid": "0x62d54040cb9dfc08bb13006fa75ece56",
+        "current": true,
+        "boundAt": "2026-11-20T11:21:34Z"
+      },
+      "activeOperatorAt": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a",
+      "levelOf": 0,
+      "meetsPolicy": true
+    },
+    {
+      "productId": 5,
+      "what": "Sealed Bounty, verified level (SealedBountyVerified; v2.1 product 7)",
+      "service": "registrar-bounty-verified",
+      "container": "archive-v3-registrar-bounty-verified-1",
+      "startedAt": "2026-11-20T11:20:21.371210224Z",
+      "vm": "archive-v3-bounty-verified",
+      "enclaveUrl": "https://7bf722e97b2d1f85de1243228177e2dd5e6c6bb1-8803.dstack-pha1-prod9.phala.network",
+      "settle": false,
+      "signer": "0xC2B38D443f919cD594A297cB0655fbE861A159A6",
+      "x25519": "0x1ee726cf6a344730a6143d8afc972e988db9869d4951553cb6a441f0b60e5e5d",
+      "pubkeysEqualOnChain": true,
+      "signerSameAsVmRecord": true,
+      "workloadId": "0xadedf8e112e6ba1553c1e61dae28219a5fe90075cf04882722012dd4e29ef3a8",
+      "registration": {
+        "hash": "0x6d7d0817a76c02db8734fba57f0a78b87d33812bc021e1790f3878c2242fa360",
+        "explorer": "https://explorer.testnet.arc.io/tx/0x6d7d0817a76c02db8734fba57f0a78b87d33812bc021e1790f3878c2242fa360",
+        "status": "success",
+        "from": "0x344f2d2fa5aeae78871f0b882245069f887c2e1a",
+        "to": "0xc854eba7c28f4b53f50018eacf40d617ba76e38e",
+        "contract": "EnclaveRegistry",
+        "nonce": 193,
+        "block": 73179857,
+        "time": "2026-11-20T11:20:25.000Z",
+        "gasUsed": "6849062",
+        "effectiveGasPrice": "25000000000",
+        "feeUsdc": "0.17122655",
+        "events": [
+          "AutomataDcapAttestationFee (DCAP fee, external)",
+          "EnclaveRegistry.EnclaveImage",
+          "OperatorBond.BondReserved",
+          "EnclaveRegistry.EnclaveRegistered"
+        ],
+        "sameOnBothRpcHosts": true
+      },
+      "window": {
+        "fromBlock": 73179857,
+        "untilBlock": 73349856,
+        "registeredAt": "2026-11-20T11:20:25Z",
+        "expiresAt": "2026-11-21T11:22:35Z"
+      },
+      "anchorBlock": 73179842,
+      "quoteHash": "0xfea165ef000e4749aff63b86ad0c6efcf2e331f03b2a1ae4bdfdf7c0d35f5ced",
+      "fmspc": "0x20a06f000000",
+      "tcbStatus": 0,
+      "machineBinding": {
+        "hash": "0xad8831913161c8ef555944b7d3009202ee60303971acb8794e44cf1fdca005f1",
+        "explorer": "https://explorer.testnet.arc.io/tx/0xad8831913161c8ef555944b7d3009202ee60303971acb8794e44cf1fdca005f1",
+        "status": "success",
+        "from": "0x344f2d2fa5aeae78871f0b882245069f887c2e1a",
+        "to": "0xc64e9556aa896b2e8c0be0fdf3dc7b2c0be24b86",
+        "contract": "MachineRegistry",
+        "nonce": 194,
+        "block": 73179866,
+        "time": "2026-11-20T11:20:29.000Z",
+        "gasUsed": "1725636",
+        "effectiveGasPrice": "25000000000",
+        "feeUsdc": "0.0431409",
+        "events": [
+          "MachineRegistry.MachineBound"
+        ],
+        "sameOnBothRpcHosts": true,
+        "ppid": "0x62d54040cb9dfc08bb13006fa75ece56",
+        "current": true,
+        "boundAt": "2026-11-20T11:20:29Z"
+      },
+      "activeOperatorAt": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a",
+      "levelOf": 1,
+      "meetsPolicy": true,
+      "verifiedBy": "0xEaf8163fa5Eb2f047d4876bb3Ef2E67250360b73",
+      "policyEnclavesActiveOperatorAt": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a"
+    }
+  ],
+  "proofOfCloud": {
+    "hash": "0xbc3c39347772a83a2259b3a4101959ce88ad1211b241fae38a965df819fa6c66",
+    "explorer": "https://explorer.testnet.arc.io/tx/0xbc3c39347772a83a2259b3a4101959ce88ad1211b241fae38a965df819fa6c66",
+    "status": "success",
+    "from": "0x344f2d2fa5aeae78871f0b882245069f887c2e1a",
+    "to": "0xeaf8163fa5eb2f047d4876bb3ef2e67250360b73",
+    "contract": "ProofOfCloudAuditor",
+    "nonce": 192,
+    "block": 73179727,
+    "time": "2026-11-20T11:19:19.000Z",
+    "gasUsed": "5164293",
+    "effectiveGasPrice": "25000000000",
+    "feeUsdc": "0.129107325",
+    "events": [
+      "MachineRegistry.MachineAttested",
+      "ProofOfCloudAuditor.ProofOfCloudToken"
+    ],
+    "sameOnBothRpcHosts": true,
+    "by": "registrar-bounty, first pass",
+    "ppid": "0x62d54040cb9dfc08bb13006fa75ece56",
+    "tokenTimestamp": "2026-11-20T11:19:17Z",
+    "machineAttestedUntil": "2026-11-27T11:19:17.000Z",
+    "revoked": false
+  },
+  "operatorAccount": {
+    "nonceBefore": 190,
+    "nonceAfter": 201,
+    "balanceBeforeUsdc": "45.185492423949089984",
+    "balanceAfterUsdc": "43.984118848949089984",
+    "feesUsdc": "1.201373575",
+    "txCount": 11,
+    "bondOnV3": {
+      "bondOf": "10",
+      "freeBond": "5",
+      "reservedTotal": "5",
+      "banned": false
+    }
+  },
+  "checks": {
+    "at": "2026-11-20T11:23:55.316Z",
+    "result": "ALL CHECKS PASS",
+    "count": 61,
+    "list": [
+      {
+        "label": "product 1: /pubkeys answers",
+        "ok": true,
+        "detail": "0xDBbcA6D7a8ae6eD4943650678C8751B6Eabdee7b"
+      },
+      {
+        "label": "product 1: activeOperatorAt(signer, 1, head) = operator",
+        "ok": true,
+        "detail": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a"
+      },
+      {
+        "label": "product 1: isActiveAt(signer, 1, head)",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "label": "product 1: enclaveOf.signer = /pubkeys signer",
+        "ok": true,
+        "detail": "0xDBbcA6D7a8ae6eD4943650678C8751B6Eabdee7b"
+      },
+      {
+        "label": "product 1: enclaveOf.x25519 = /pubkeys x25519",
+        "ok": true,
+        "detail": "0xa0cc5ed87012942b4d86f9495b7fd296a652b5e54e4fb50241d65709d027070d"
+      },
+      {
+        "label": "product 1: enclaveOf.productId = 1",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "label": "product 1: enclaveOf.operator = operator",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "label": "product 1: enclaveOf.active",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "label": "product 1: enclaveOf.workloadId = measured fingerprint",
+        "ok": true,
+        "detail": "0x161c46ba0edcf061a7e2b7f05c6f5d5a1a26d8a705193a1fe8324f7f8bd2203b"
+      },
+      {
+        "label": "product 1: window covers head",
+        "ok": true,
+        "detail": "73180089->73350088"
+      },
+      {
+        "label": "product 1: bound to machine 0x62d54040cb9dfc08bb13006fa75ece56",
+        "ok": true,
+        "detail": "0x62d54040cb9dfc08bb13006fa75ece56 current true"
+      },
+      {
+        "label": "product 2: /pubkeys answers",
+        "ok": true,
+        "detail": "0xe1C881CA3CFfE53b37c5A49E9679623977000BB1"
+      },
+      {
+        "label": "product 2: activeOperatorAt(signer, 2, head) = operator",
+        "ok": true,
+        "detail": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a"
+      },
+      {
+        "label": "product 2: isActiveAt(signer, 2, head)",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "label": "product 2: enclaveOf.signer = /pubkeys signer",
+        "ok": true,
+        "detail": "0xe1C881CA3CFfE53b37c5A49E9679623977000BB1"
+      },
+      {
+        "label": "product 2: enclaveOf.x25519 = /pubkeys x25519",
+        "ok": true,
+        "detail": "0x1c8fa993dc1c2c03e0ecb9da8f496c9aa228670ccc36f2da4754c710fd153f08"
+      },
+      {
+        "label": "product 2: enclaveOf.productId = 2",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "label": "product 2: enclaveOf.operator = operator",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "label": "product 2: enclaveOf.active",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "label": "product 2: enclaveOf.workloadId = measured fingerprint",
+        "ok": true,
+        "detail": "0x8a0dd41d0ccc9692467fb6c8dc38268b6c83ca9201ec39462685b750fd2ef068"
+      },
+      {
+        "label": "product 2: window covers head",
+        "ok": true,
+        "detail": "73179707->73349706"
+      },
+      {
+        "label": "product 2: bound to machine 0x62d54040cb9dfc08bb13006fa75ece56",
+        "ok": true,
+        "detail": "0x62d54040cb9dfc08bb13006fa75ece56 current true"
+      },
+      {
+        "label": "product 3: /pubkeys answers",
+        "ok": true,
+        "detail": "0xd8f8b49548e0d9E268179A4E503321de61470a7a"
+      },
+      {
+        "label": "product 3: activeOperatorAt(signer, 3, head) = operator",
+        "ok": true,
+        "detail": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a"
+      },
+      {
+        "label": "product 3: isActiveAt(signer, 3, head)",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "label": "product 3: enclaveOf.signer = /pubkeys signer",
+        "ok": true,
+        "detail": "0xd8f8b49548e0d9E268179A4E503321de61470a7a"
+      },
+      {
+        "label": "product 3: enclaveOf.x25519 = /pubkeys x25519",
+        "ok": true,
+        "detail": "0x54e91f1a27f545e2f8c580641367b74cc5187feca5843c5c5a291a136a66cb60"
+      },
+      {
+        "label": "product 3: enclaveOf.productId = 3",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "label": "product 3: enclaveOf.operator = operator",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "label": "product 3: enclaveOf.active",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "label": "product 3: enclaveOf.workloadId = measured fingerprint",
+        "ok": true,
+        "detail": "0x161c46ba0edcf061a7e2b7f05c6f5d5a1a26d8a705193a1fe8324f7f8bd2203b"
+      },
+      {
+        "label": "product 3: window covers head",
+        "ok": true,
+        "detail": "73180203->73350202"
+      },
+      {
+        "label": "product 3: bound to machine 0x62d54040cb9dfc08bb13006fa75ece56",
+        "ok": true,
+        "detail": "0x62d54040cb9dfc08bb13006fa75ece56 current true"
+      },
+      {
+        "label": "product 4: /pubkeys answers",
+        "ok": true,
+        "detail": "0x5524f0219BF94a0377B48b08481846989e290771"
+      },
+      {
+        "label": "product 4: activeOperatorAt(signer, 4, head) = operator",
+        "ok": true,
+        "detail": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a"
+      },
+      {
+        "label": "product 4: isActiveAt(signer, 4, head)",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "label": "product 4: enclaveOf.signer = /pubkeys signer",
+        "ok": true,
+        "detail": "0x5524f0219BF94a0377B48b08481846989e290771"
+      },
+      {
+        "label": "product 4: enclaveOf.x25519 = /pubkeys x25519",
+        "ok": true,
+        "detail": "0x56cd491d8695f02e1f1f5bdd6d3affaf6590c2590adcaffd25a9a63c4abc8c6e"
+      },
+      {
+        "label": "product 4: enclaveOf.productId = 4",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "label": "product 4: enclaveOf.operator = operator",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "label": "product 4: enclaveOf.active",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "label": "product 4: enclaveOf.workloadId = measured fingerprint",
+        "ok": true,
+        "detail": "0x64ddeef6eba8bba9e7b8391615fd6a07954deaf0ab3a89401acac5b5b08841fc"
+      },
+      {
+        "label": "product 4: window covers head",
+        "ok": true,
+        "detail": "73179986->73349985"
+      },
+      {
+        "label": "product 4: bound to machine 0x62d54040cb9dfc08bb13006fa75ece56",
+        "ok": true,
+        "detail": "0x62d54040cb9dfc08bb13006fa75ece56 current true"
+      },
+      {
+        "label": "product 5: /pubkeys answers",
+        "ok": true,
+        "detail": "0xC2B38D443f919cD594A297cB0655fbE861A159A6"
+      },
+      {
+        "label": "product 5: activeOperatorAt(signer, 5, head) = operator",
+        "ok": true,
+        "detail": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a"
+      },
+      {
+        "label": "product 5: isActiveAt(signer, 5, head)",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "label": "product 5: enclaveOf.signer = /pubkeys signer",
+        "ok": true,
+        "detail": "0xC2B38D443f919cD594A297cB0655fbE861A159A6"
+      },
+      {
+        "label": "product 5: enclaveOf.x25519 = /pubkeys x25519",
+        "ok": true,
+        "detail": "0x1ee726cf6a344730a6143d8afc972e988db9869d4951553cb6a441f0b60e5e5d"
+      },
+      {
+        "label": "product 5: enclaveOf.productId = 5",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "label": "product 5: enclaveOf.operator = operator",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "label": "product 5: enclaveOf.active",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "label": "product 5: enclaveOf.workloadId = measured fingerprint",
+        "ok": true,
+        "detail": "0xadedf8e112e6ba1553c1e61dae28219a5fe90075cf04882722012dd4e29ef3a8"
+      },
+      {
+        "label": "product 5: window covers head",
+        "ok": true,
+        "detail": "73179857->73349856"
+      },
+      {
+        "label": "product 5: bound to machine 0x62d54040cb9dfc08bb13006fa75ece56",
+        "ok": true,
+        "detail": "0x62d54040cb9dfc08bb13006fa75ece56 current true"
+      },
+      {
+        "label": "product 5: meetsPolicy (verified level)",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "label": "product 5: levelOf = 1 (verified)",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "label": "product 5: verifiedBy = v3 ProofOfCloudAuditor",
+        "ok": true,
+        "detail": "0xEaf8163fa5Eb2f047d4876bb3Ef2E67250360b73"
+      },
+      {
+        "label": "product 5: PolicyEnclaves.activeOperatorAt = operator",
+        "ok": true,
+        "detail": "0x344f2d2fA5AeAe78871F0B882245069F887c2e1a"
+      },
+      {
+        "label": "v3 machine attested by Proof of Cloud (not revoked, expires later)",
+        "ok": true,
+        "detail": "2026-11-27T11:19:17.000Z"
+      },
+      {
+        "label": "v3 bond: 5 x 1 USDC reserved, nothing banned",
+        "ok": true,
+        "detail": "{\"bondOf\":\"10\",\"freeBond\":\"5\",\"reservedTotal\":\"5\",\"banned\":false}"
+      }
+    ],
+    "receipts": "11 of 11 success, from the operator, each to the expected v3 contract, same block on both RPC hosts",
+    "quietSecondPass": {
+      "checkedAt": "2026-11-20T11:34:18Z",
+      "registrars": {
+        "registrar-inference": {
+          "status": "Up 12 minutes",
+          "logLines": 5,
+          "txLinesFirstPass": 2,
+          "txLinesNow": 2,
+          "errorLines": 0
+        },
+        "registrar-x402": {
+          "status": "Up 11 minutes",
+          "logLines": 4,
+          "txLinesFirstPass": 2,
+          "txLinesNow": 2,
+          "errorLines": 0
+        },
+        "registrar-bounty": {
+          "status": "Up 15 minutes",
+          "logLines": 5,
+          "txLinesFirstPass": 3,
+          "txLinesNow": 3,
+          "errorLines": 0
+        },
+        "registrar-copilot": {
+          "status": "Up 13 minutes",
+          "logLines": 4,
+          "txLinesFirstPass": 2,
+          "txLinesNow": 2,
+          "errorLines": 0
+        },
+        "registrar-bounty-verified": {
+          "status": "Up 14 minutes",
+          "logLines": 4,
+          "txLinesFirstPass": 2,
+          "txLinesNow": 2,
+          "errorLines": 0
+        }
+      },
+      "operatorNonceNow": 201
+    }
+  },
+  "v21": {
+    "registrars": "the five v2.1 registrar containers (project archive) kept running with the same uptime and wrote no log line from 11:15 to 11:35 UTC; none was stopped, restarted or changed",
+    "liveApiAt1124": "https://arc-hive.xyz/api/enclaves still listed the five v2.1 enclaves as active (products 1, 2, 3, 4 and 7)",
+    "liveApiAt1133": "another step had switched the live API and MCP to v3 at about 11:32 UTC (/api/health: stack v3, history v2.1); /api/enclaves then listed these five v3 enclaves as active"
+  },
+  "schedule": {
+    "v3Renewals": "around 07:15 to 07:40 UTC on 21 Nov: 4 h before the windows end (blocks 73349706 to 73350202, around 11:15 to 11:30 UTC; the registrar counts 4 h as 28,291 blocks of 509 ms, while blocks came every 0.507 to 0.511 s today), plus up to one 10-min pass",
+    "v21Renewals": "around 17:15 to 18:40 UTC on 20 Nov (the v2.1 windows end at blocks 73250258 to 73259837)",
+    "proofOfCloudRenewalFrom": "2026-11-24T11:19:17Z (3 days before the machine's attestation expires)"
+  }
+}

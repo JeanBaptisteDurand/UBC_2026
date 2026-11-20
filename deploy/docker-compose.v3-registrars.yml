@@ -1,0 +1,54 @@
+# The five registrars of the v3 stack (deployments.v3.testnet.json), started on 20 Nov 2026 next to the v2.1 ones,
+# which keep running unchanged in docker-compose.vps.yml. A separate Compose project (archive-v3): `docker compose up
+# --remove-orphans` in the main project never sees these containers, and the other way round.
+# Installed on the server as /opt/archive/docker-compose.v3.yml. Start or stop with:
+#   docker compose -f /opt/archive/docker-compose.v3.yml up -d <service>
+#   docker compose -f /opt/archive/docker-compose.v3.yml stop <service>
+# Same bundle (registrar.mjs), image, user and hardening as the v2.1 registrars; the stack is the v3 deployment file,
+# mounted read-only (DEPLOYMENTS). Its levels block turns the verified level on (machine binding and Proof of Cloud
+# token after each registration), as on v2.1. Product numbers are v3's: v2.1's product 7 (verified Sealed Bounty) is
+# v3's product 5. The enclave URLs are the v3 VMs of deploy/v3-vms.json.
+# The operator key is shared with the v2.1 registrars (same env file): each process sends one transaction at a time,
+# but two processes can race for the same nonce. A refused send is retried at the next pass (10 min; 10 s for x402).
+name: archive-v3
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "3" }
+x-registrar: &registrar
+  image: node:22-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d
+  user: "1000:1000"
+  working_dir: /app
+  volumes:
+    - "/opt/archive/registrar.mjs:/app/registrar.mjs:ro"
+    - "/opt/archive/src/deployments.v3.testnet.json:/app/deployments.v3.testnet.json:ro"
+  command: ["node", "registrar.mjs"]
+  # the OPERATOR's key only (0x344f…2e1a): the deployer key, which owns the contracts, does not live on this server
+  env_file: ["/opt/archive/registrar-v2.env"]
+  restart: unless-stopped
+  logging: *logging
+  read_only: true
+  tmpfs: ["/tmp:size=16m"]
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: ["ALL"]
+services:
+  # product 1, inference paid by session (SessionPay): renews and settles the sessions served
+  registrar-inference:
+    <<: *registrar
+    environment: ["DEPLOYMENTS=/app/deployments.v3.testnet.json", "ENCLAVE_URL=https://4154a371e71148f176d316306c16d24f8dcdbd30-8802.dstack-pha1-prod9.phala.network", "PRODUCT_ID=1", "SETTLE=1"]
+  # product 3, inference paid per call (x402): renews and settles the calls served (every 10 s)
+  registrar-x402:
+    <<: *registrar
+    environment: ["DEPLOYMENTS=/app/deployments.v3.testnet.json", "ENCLAVE_URL=https://4154a371e71148f176d316306c16d24f8dcdbd30-8804.dstack-pha1-prod9.phala.network", "PRODUCT_ID=3", "SETTLE=1"]
+  # product 2, Sealed Bounty at the open level: renews only (bounties are paid in the acceptClaim → deliver flow)
+  registrar-bounty:
+    <<: *registrar
+    environment: ["DEPLOYMENTS=/app/deployments.v3.testnet.json", "ENCLAVE_URL=https://7dea6df6009e5011d70a947b2d859b3915bb10d8-8803.dstack-pha1-prod9.phala.network", "PRODUCT_ID=2", "SETTLE=0"]
+  # product 4, AskHive (the site's attested assistant, image r4): renews only (free service)
+  registrar-copilot:
+    <<: *registrar
+    environment: ["DEPLOYMENTS=/app/deployments.v3.testnet.json", "ENCLAVE_URL=https://3afaad7d7b5b639892a7555d5531144e3f79ee19-8808.dstack-pha1-prod9.phala.network", "PRODUCT_ID=4", "SETTLE=0"]
+  # product 5, Sealed Bounty at the VERIFIED level (SealedBountyVerified): renews, binds the enclave to its machine after
+  # each registration, and asks the Proof of Cloud alliance for a new token before the machine's attestation expires
+  registrar-bounty-verified:
+    <<: *registrar
+    environment: ["DEPLOYMENTS=/app/deployments.v3.testnet.json", "ENCLAVE_URL=https://7bf722e97b2d1f85de1243228177e2dd5e6c6bb1-8803.dstack-pha1-prod9.phala.network", "PRODUCT_ID=5", "SETTLE=0"]
