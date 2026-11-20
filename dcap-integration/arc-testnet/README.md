@@ -59,8 +59,8 @@ cd dcap-integration/arc-testnet
 ```
 
 - Requirements: Foundry (forge, cast), python3, and Automata's repository cloned into
-  `vendor/automata-dcap-attestation` at the deployed commit, with its submodules
-  (`git clone https://github.com/automata-network/automata-dcap-attestation vendor/automata-dcap-attestation`, then
+  `vendor/automata-dcap-attestation` (at the repository root) at the deployed commit, with its submodules (from the
+  root: `git clone https://github.com/automata-network/automata-dcap-attestation vendor/automata-dcap-attestation`, then
   `git checkout 59b1f34fff72a76638ca5e303747f3584e3fe435` and `git submodule update --init --recursive` in it; see
   `../README.md`). The key is read from the file named by `KEY_FILE`, never printed.
 - Why a plan, then one transaction at a time: `forge script --broadcast` fixes every nonce in advance. Here the plan
