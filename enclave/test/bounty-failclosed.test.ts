@@ -316,11 +316,11 @@ describe.skipIf(!ANVIL)(`1 — le rejeu échoue fermé (anvil réel : ${ANVIL ??
     expect(await r.selfTest()).toMatchObject({
       revertCode: 3,
       checks: [
-        "lecture directe : erreur", "stockage mal formé : erreur (relais)", "bloc rendu null : erreur (relais)",
-        "contrôle positif : BLOCKHASH et solde identiques au RPC du fork", "exécution (eth_call) : erreur", "transaction : jamais minée",
+        "direct read: error", "malformed storage: error (relay)", "null block: error (relay)",
+        "positive check: BLOCKHASH and balance identical to the fork's RPC", "execution (eth_call): error", "transaction: never mined",
       ],
     });
-    await expect(r.selfTest({ simulateSwallow: true })).rejects.toThrow(/avale les pannes/);
+    await expect(r.selfTest({ simulateSwallow: true })).rejects.toThrow(/swallows the fork RPC's failures/);
   }, 120_000);
 });
 
@@ -699,7 +699,7 @@ describe("4 — fuites : notes de rejeu et réponses HTTP à message fixe", () =
     const text = await res.text();
     const j = JSON.parse(text);
     expect(j.status).toBe("refuted");
-    expect(j.replay.note).toBe(`${FAULT.replayRules} (transaction qui n'est pas abi.encode(address to, uint256 value, bytes data))`);
+    expect(j.replay.note).toBe(`${FAULT.replayRules} (transaction that is not abi.encode(address to, uint256 value, bytes data))`);
     expect(text.toLowerCase()).not.toContain("c0ffee");
     expect(text).not.toMatch(/viem|Data size/);
   });

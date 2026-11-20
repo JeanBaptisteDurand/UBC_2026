@@ -595,8 +595,8 @@ for (const [ename, bin, engine] of engines) {
       const r = runner(url);
       const st = await r.selfTest();
       expect(st.checks).toEqual([
-        "lecture directe : erreur", "stockage mal formé : erreur (relais)", "bloc rendu null : erreur (relais)",
-        "contrôle positif : BLOCKHASH et solde identiques au RPC du fork", "exécution (eth_call) : erreur", "transaction : jamais minée",
+        "direct read: error", "malformed storage: error (relay)", "null block: error (relay)",
+        "positive check: BLOCKHASH and balance identical to the fork's RPC", "execution (eth_call): error", "transaction: never mined",
       ]);
       expect(st.revertCode).toBe(3);
       // sans les contrôles du relais, le moteur avale les deux réponses invalides : le contrôle le voit et refuse de démarrer
@@ -604,8 +604,8 @@ for (const [ename, bin, engine] of engines) {
       expect(lax).toBeInstanceOf(Error);
       expect((lax as Error).message).toMatch(/MAL FORMÉE/);
       expect((lax as Error).message).toMatch(/NULL/);
-      expect((lax as Error).message).toMatch(/refus de démarrer/);
-      await expect(r.selfTest({ simulateSwallow: true })).rejects.toThrow(/avale les pannes/);
+      expect((lax as Error).message).toMatch(/refusing to start/);
+      await expect(r.selfTest({ simulateSwallow: true })).rejects.toThrow(/swallows the fork RPC's failures/);
     }, 240_000);
   });
 }
@@ -656,7 +656,7 @@ createServer((rq, rs) => {
       const err = await liar.run({ blockN: N, bundle, expectedBlockHash: hashOf(N) }).catch((e) => e);
       expect(err).toBeInstanceOf(ReplayUnavailableError);
       expect(err.reason).toBe("anchor");
-      expect(err.message).toMatch(/moteur n'a pas chargé le bloc N/);
+      expect(err.message).toMatch(/engine did not load the claim's block N/);
       // et un RPC du fork qui ne sert pas l'ancre est arrêté AVANT de lancer le moteur
       const before = up.calls.length;
       const wrong = new AnvilForkRunner({ forkUrl: up.url, anvilBin: "/nonexistent/anvil", engine: "anvil", log: () => {} });

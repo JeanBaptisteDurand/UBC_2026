@@ -221,16 +221,16 @@ for (const [ename, bin, engine] of engines) {
     it("start-up check (\"arc\" policy, the default): healthy chain → the 6 checks; an RPC whose headers do not reproduce their hash → refuses to start, reason \"header\"", async () => {
       const st = await runner(url).selfTest();
       expect(st.checks).toEqual([
-        "lecture directe : erreur", "stockage mal formé : erreur (relais)", "bloc rendu null : erreur (relais)",
-        "contrôle positif : BLOCKHASH et solde identiques au RPC du fork", "exécution (eth_call) : erreur", "transaction : jamais minée",
+        "direct read: error", "malformed storage: error (relay)", "null block: error (relay)",
+        "positive check: BLOCKHASH and balance identical to the fork's RPC", "execution (eth_call): error", "transaction: never mined",
       ]);
       expect(st.revertCode).toBe(3);
       const proxy = await lyingRpc(url, (q, real) => (q?.method === "eth_getBlockByNumber" && real.result ? { ...real.result, timestamp: numberToHex(BigInt(real.result.timestamp) + 1n) } : undefined));
       try {
         const err = await runner(proxy.url).selfTest().catch((e) => e as Error);
         expect(err).toBeInstanceOf(Error);
-        expect(err.message).toMatch(/refusé par le relais strict \(header/);
-        expect(err.message).toMatch(/refus de démarrer/);
+        expect(err.message).toMatch(/refused by the strict relay \(header/);
+        expect(err.message).toMatch(/refusing to start/);
       } finally {
         await proxy.close();
       }

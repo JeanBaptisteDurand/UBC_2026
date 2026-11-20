@@ -359,7 +359,7 @@ describe("DEMO_FAULT — garde-fous", () => {
     expect(() => parseDemoFault({ DEMO_FAULT: "inflate-loss", OPERATOR_ALLOWLIST: A_ADDR }, 0n)).toThrow(/PRODUCT_ID/);
     expect(() => parseDemoFault({ DEMO_FAULT: "zero-loss", OPERATOR_ALLOWLIST: A_ADDR }, 5n)).toThrow(/unknown/);
     expect(() => parseDemoFault({ DEMO_FAULT: "inflate-loss", OPERATOR_ALLOWLIST: "*" }, 5n)).toThrow(/OPERATOR_ALLOWLIST=\*/);
-    expect(() => parseDemoFault({ DEMO_FAULT: "inflate-loss", OPERATOR_ALLOWLIST: `${A_ADDR},${PROTECTED_OPERATORS[0]!.toLowerCase()}` }, 5n)).toThrow(/opérateur principal/);
+    expect(() => parseDemoFault({ DEMO_FAULT: "inflate-loss", OPERATOR_ALLOWLIST: `${A_ADDR},${PROTECTED_OPERATORS[0]!.toLowerCase()}` }, 5n)).toThrow(/main operator/);
     expect(() => parseDemoFault({ DEMO_FAULT: "inflate-loss", OPERATOR_ALLOWLIST: "0x1234" }, 5n)).toThrow(/invalid OPERATOR_ALLOWLIST/);
   });
 
