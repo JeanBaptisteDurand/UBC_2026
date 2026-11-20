@@ -319,7 +319,7 @@ test("the model key never leaves, even sealed; an invalid wallet is not passed o
 
 test("enclave configuration: required, consistent with the deployments file, fails closed", () => {
   // a fixed fixture: the v2 stack's deployments file, whose registry address is asserted below (the parsing is the same for v2.1)
-  const v2 = readFileSync(new URL("../../../deployments.v2.testnet.json", import.meta.url), "utf8");
+  const v2 = readFileSync(new URL("../../../docs/history/deployments.v2.testnet.json", import.meta.url), "utf8");
   const read = () => v2;
   const base = {
     PRODUCT_ID: "4", DEPLOYMENTS: "/app/deployments/deployments.v2.testnet.json", OPENAI_BASE_URL: "https://api.redpill.ai/v1",
