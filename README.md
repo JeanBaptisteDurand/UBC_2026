@@ -1,5 +1,7 @@
 # ArcHive
 
+[![CI](https://github.com/JeanBaptisteDurand/UBC_2026/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/JeanBaptisteDurand/UBC_2026/actions/workflows/ci.yml)
+
 **Sealed machines, open market.** ArcHive is a marketplace of services that run inside Intel TDX enclaves. Before any
 result counts, a contract on **Arc** checks Intel's signature on the machine and the exact image it runs. Every use is
 **paid in USDC** against a receipt the enclave signed, and a machine caught lying loses its operator's USDC bond.
