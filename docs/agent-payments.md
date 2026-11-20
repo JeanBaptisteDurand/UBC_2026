@@ -42,8 +42,8 @@ own wallet.
 6. **On a lie.** Two different signed answers to the same request (`SessionPay.reportEquivocation`), or a bounty claim
    refuted by the enclaves of at least two other operators within 3 days (`SealedBounty.refute`), seize the operator's
    whole bond and ban it, and `VerdictLog` writes 0 to the ERC-8004 validation registry on Arc. A session that was
-   served and paid closes with a verdict of 100. The refutation demo ran on Arc on 15 Nov (product 5 of the previous set), and sessions closed with 100
-   on 14 and 19 Nov (see [the previous set's proofs](../docs/history.md#proofs-the-previous-set)).
+   served and paid closes with a verdict of 100. The refutation demo ran on Arc (product 5 of the previous set), and sessions closed with a verdict of 100
+   (see [the previous set's proofs](../docs/history.md#proofs-the-previous-set)).
 
 Every payment in [the proofs](../docs/history.md#proofs-the-previous-set) came from our own testnet wallets.
 [`packages/sdk/scripts/x402-call.ts`](../packages/sdk/scripts/x402-call.ts) is a buyer that runs this loop with the SDK.
