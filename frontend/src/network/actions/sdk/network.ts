@@ -89,7 +89,8 @@ export const testnet: Deployment = {
   attestation: "dcap",
   // The levels stack was REDEPLOYED after the security review (PckChip fixed); the previous one is abandoned
   // (see deployments.v21.testnet.json → levels.superseded). The verified Sealed Bounty is PRODUCT 7 (product 6 is
-  // neutralized); its seizures and verdicts are enabled from 2026-11-18 23:00 UTC.
+  // neutralized). Past its 8-day delay, it can slash bonds since 2026-11-18 23:59 UTC and write verdicts since
+  // 2026-11-19 00:15 UTC.
   levels: {
     machineRegistry: "0xd671013f556b1272b25e3cc17c889d402f4dc26d",
     proofOfCloudAuditor: "0xcdc4c150344f06d506deb5500332737e8dcc8fab",
