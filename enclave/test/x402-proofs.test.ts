@@ -1,13 +1,14 @@
 /**
- * Les preuves du vérificateur sceptique (9/11) sur le rail x402, RETOURNÉES : chaque faille prouvée devient ici un test
- * de bon comportement. Même harnais que x402-e2e (chaîne émulée, VRAI client SDK, VRAIE application de l'enclave, VRAIE
- * file de règlement du registrar).
- *  1. faux 402 « prix changé » après le service → le client renvoie la requête IDENTIQUE (reprise), une seule autorisation ;
- *  2. 502 d'un mandataire après le service → renvois à l'identique, puis X402PaidCallError (jamais « rien n'est dû »),
- *     qui porte de quoi reprendre (resume) ;
- *  3. (nouveau) vrai changement de prix on-chain → nouvelle autorisation pour le MÊME nonce : au plus un règlement ;
- *  4. POST /x402/settled réservé à l'opérateur (signé, horodaté, non rejouable, borné) et dédoublonné ;
- *  5. des appels impayables ne bloquent plus la caution (rapprochement), borne globale par fenêtre.
+ * The skeptical verifier's proofs (9 Nov) on the x402 rail, TURNED AROUND: each proven flaw becomes here a test of good
+ * behavior. The same harness as x402-e2e (an emulated chain, the REAL SDK client, the enclave's REAL application, the
+ * registrar's REAL settlement queue).
+ *  1. a fake "price changed" 402 after the service → the client sends the IDENTICAL request again (resumption), one
+ *     single authorization;
+ *  2. a proxy's 502 after the service → identical resends, then X402PaidCallError (never "nothing is owed"), which
+ *     carries what is needed to resume (resume);
+ *  3. (new) a real on-chain price change → a new authorization for the SAME nonce: at most one settlement;
+ *  4. POST /x402/settled restricted to the operator (signed, timestamped, not replayable, bounded) and deduplicated;
+ *  5. unpayable calls no longer block the bond (reconciliation), a global bound per window.
  */
 import { describe, it, expect, vi, afterEach } from "vitest";
 import {
@@ -54,13 +55,13 @@ const D: Deployment = { ...testnet, products: { inference: 1n, bounty: 2n, x402:
 const OPERATOR = privateKeyToAccount(generatePrivateKey());
 const AUTHOR = "0x00000000000000000000000000000000000000a7" as Address;
 const L = (x: string) => x.toLowerCase();
-const FAST = [2, 2, 2] as const; // délais des renvois à l'identique dans ces tests (ms)
+const FAST = [2, 2, 2] as const; // delays of the identical resends in these tests (ms)
 
 afterEach(() => {
   vi.useRealTimers();
 });
 
-// ---------------------------------------------------------------- la chaîne émulée
+// ---------------------------------------------------------------- the emulated chain
 
 interface World {
   head: bigint;
@@ -70,9 +71,9 @@ interface World {
   used: Set<string>;
   balances: Map<string, bigint>;
   settlements: Array<{ nonce: Hex; amount: bigint; operator: Address; tx: Hex }>;
-  /** capacité d'exposition de l'opérateur lue on-chain ; null = non lue */
+  /** the operator's exposure capacity read on-chain; null = not read */
   capacity: bigint | null;
-  /** lectures faites par l'enclave : paymentState, authorizationUsed, lectures groupées */
+  /** reads made by the enclave: paymentState, authorizationUsed, batched reads */
   reads: { payment: number; auth: number; batch: number };
 }
 function world(): World {
@@ -139,7 +140,7 @@ function fakePub(w: World): any {
         case "isActive": return w.product.active;
         case "authorizationState": return w.used.has(`${L(x[0])}:${L(x[1])}`);
         case "balanceOf": return w.balances.get(L(x[0])) ?? 0n;
-        default: throw new Error(`lecture non émulée : ${a.functionName}`);
+        default: throw new Error(`read not emulated: ${a.functionName}`);
       }
     },
     async simulateContract(a: any) {
@@ -153,7 +154,7 @@ function fakePub(w: World): any {
 function operatorWallet(w: World): any {
   return { account: OPERATOR, async writeContract(req: any) { await emulateSettle(w, req.args); return w.settlements[w.settlements.length - 1]!.tx; } };
 }
-/** Le portefeuille du payeur ; compte les signatures (autorisations EIP-3009). */
+/** The payer's wallet; counts the signatures (EIP-3009 authorizations). */
 function payerWallet(pk: Hex = generatePrivateKey()) {
   const account = privateKeyToAccount(pk);
   let signed = 0;
@@ -190,7 +191,7 @@ function enclaveOn(w: World, over: Partial<X402GatewayConfig> = {}, o: { batched
     kit,
     { chainId: CHAIN, settler: D.x402Settler, usdc: D.usdc, network: "arc-testnet", usdcName: "USDC", usdcVersion: "2", modelHash: MODEL, operators: [OPERATOR.address], statusCacheMs: 0, log: () => {}, ...over },
     reader,
-    { async complete(r) { calls++; return { text: `écho : ${r.messages.at(-1)!.content}`, tokensIn: 3, tokensOut: 4 }; } },
+    { async complete(r) { calls++; return { text: `echo: ${r.messages.at(-1)!.content}`, tokensIn: 3, tokensOut: 4 }; } },
   );
   const app = createSealedX402App({ kit, gateway, attest: { operatorAllowlist: [OPERATOR.address], registeredOperator: async () => null, warn: () => {} }, log: () => {} });
   w.enclaves.set(L(kit.keys.signer), { productId: PRODUCT, operator: OPERATOR.address, x25519: L(kit.keys.x25519PublicKey) as Hex, active: true });
@@ -204,10 +205,10 @@ function enclaveOn(w: World, over: Partial<X402GatewayConfig> = {}, o: { batched
 const isPaid = (init?: any) => new Headers(init?.headers).has("x-payment");
 const authValueOf = (init?: any) => BigInt(JSON.parse(atob(new Headers(init?.headers).get("x-payment")!)).payload.authorization.value);
 const fake402 = () =>
-  new Response(JSON.stringify({ x402Version: 1, error: X402_PRICE_CHANGED, detail: "prix changé", accepts: [] }), { status: 402, headers: { "content-type": "application/json" } });
+  new Response(JSON.stringify({ x402Version: 1, error: X402_PRICE_CHANGED, detail: "price changed", accepts: [] }), { status: 402, headers: { "content-type": "application/json" } });
 
-/** Un signalement « appels réglés » signé (par l'opérateur par défaut), horodaté maintenant ; chaque item « réglé par
- *  X402Settler » (settled: true) sauf s'il dit le contraire. */
+/** A signed "calls settled" report (by the operator by default), timestamped now; each item "settled by X402Settler"
+ *  (settled: true) unless it says otherwise. */
 async function signedAck(
   e: ReturnType<typeof enclaveOn>,
   raw: Array<{ payer: Address; nonce: Hex; settled?: boolean }>,
@@ -226,10 +227,10 @@ async function signedAck(
   return { body, send: () => e.app.request("/x402/settled", { method: "POST", headers: { "content-type": "application/json" }, body }) };
 }
 
-// ---------------------------------------------------------------- preuves 1, 2 (et 3) : le client face à un mandataire
+// ---------------------------------------------------------------- proofs 1, 2 (and 3): the client facing a proxy
 
-describe("x402 — un mandataire après l'envoi payé (preuves 1 et 2, retournées)", () => {
-  it("preuve 1 : faux 402 « prix changé » après le service → le client renvoie la requête IDENTIQUE et reçoit la réponse gardée ; UNE autorisation, UN appel, UN règlement", async () => {
+describe("x402: a proxy after the paid send (proofs 1 and 2, turned around)", () => {
+  it("proof 1: a fake \"price changed\" 402 after the service → the client sends the IDENTICAL request again and receives the kept answer; ONE authorization, ONE call, ONE settlement", async () => {
     const w = world();
     const e = enclaveOn(w);
     const wallet = payerWallet();
@@ -240,25 +241,25 @@ describe("x402 — un mandataire après l'envoi payé (preuves 1 et 2, retourné
       const res = await e.direct(url, init);
       if (isPaid(init) && faked === 0 && res.status === 200) {
         faked++;
-        return fake402(); // le mandataire GARDE la vraie réponse et renvoie un faux 402
+        return fake402(); // the proxy KEEPS the real answer and sends back a fake 402
       }
       return res;
     }) as typeof fetch;
     const ai = createX402Client({ enclaveUrl: URL0, productId: PRODUCT, walletClient: wallet, publicClient: fakePub(w), deployment: D, fetch: relay, paidRetryDelaysMs: FAST });
-    const r = await ai.chat.completions.create({ messages: [{ role: "user", content: "une seule question" }] });
-    expect(r.text).toBe("écho : une seule question");
-    expect(r.replay).toBe(true); // la réponse gardée par l'enclave
-    expect(wallet.signed()).toBe(1); // jamais de 2e autorisation sur la foi d'un 402 non authentifié
+    const r = await ai.chat.completions.create({ messages: [{ role: "user", content: "one single question" }] });
+    expect(r.text).toBe("echo: one single question");
+    expect(r.replay).toBe(true); // the answer kept by the enclave
+    expect(wallet.signed()).toBe(1); // never a second authorization on the strength of an unauthenticated 402
     expect(e.calls()).toBe(1);
     expect((await (await e.app.request("/x402/pending")).json()).total).toBe(1);
     const q = createX402SettlementQueue({ enclaveUrl: URL0, publicClient: fakePub(w), walletClient: operatorWallet(w), deployment: D, fetch: e.direct });
     const rep = await q.runOnce();
     expect(rep.settled).toHaveLength(1);
-    expect(w.balances.get(payer)).toBe(1_000_000n - PRICE); // débité UNE fois
-    expect((await (await e.app.request("/x402/pending")).json()).total).toBe(0); // signalement signé accepté
+    expect(w.balances.get(payer)).toBe(1_000_000n - PRICE); // debited ONCE
+    expect((await (await e.app.request("/x402/pending")).json()).total).toBe(0); // signed report accepted
   });
 
-  it("402 « prix changé » répété mais prix on-chain INCHANGÉ → jamais de 2e autorisation ; X402PaidCallError après les renvois", async () => {
+  it("a repeated \"price changed\" 402 but an UNCHANGED on-chain price → never a second authorization; X402PaidCallError after the resends", async () => {
     const w = world();
     const e = enclaveOn(w);
     const wallet = payerWallet();
@@ -276,7 +277,7 @@ describe("x402 — un mandataire après l'envoi payé (preuves 1 et 2, retourné
     expect(e.calls()).toBe(1);
   });
 
-  it("preuve 2 : 502 après le service → renvois à l'identique, puis X402PaidCallError SANS « rien n'est dû », avec enveloppe, clé éphémère et autorisation ; la reprise (même sérialisée) rend la réponse, réglée UNE fois", async () => {
+  it("proof 2: a 502 after the service → identical resends, then X402PaidCallError WITHOUT \"nothing is owed\", with the envelope, the ephemeral key and the authorization; the resumption (even serialized) returns the answer, settled ONCE", async () => {
     const w = world();
     const e = enclaveOn(w);
     const wallet = payerWallet();
@@ -290,7 +291,7 @@ describe("x402 — un mandataire après l'envoi payé (preuves 1 et 2, retourné
     const ai = createX402Client({ enclaveUrl: URL0, productId: PRODUCT, walletClient: wallet, publicClient: fakePub(w), deployment: D, fetch: relay, paidRetryDelaysMs: FAST });
     const err = await ai.chat.completions.create({ messages: [{ role: "user", content: "q" }] }).catch((x) => x);
     expect(err).toBeInstanceOf(X402PaidCallError);
-    expect(err).not.toBeInstanceOf(X402CallError); // X402CallError = avant tout paiement, rien n'est dû
+    expect(err).not.toBeInstanceOf(X402CallError); // X402CallError = before any payment, nothing is owed
     expect(String(err.message)).not.toContain("nothing is owed");
     expect(String(err.message)).toMatch(/operator MAY settle it/);
     expect(err).toMatchObject({ status: 502, code: "http_502", attempts: 1 + FAST.length, paid: true });
@@ -299,21 +300,21 @@ describe("x402 — un mandataire après l'envoi payé (preuves 1 et 2, retourné
     expect(p.ephemeralPrivateKey).toMatch(/^0x[0-9a-f]{64}$/);
     expect(p.authorization).toMatchObject({ from: wallet.account.address, to: D.x402Settler, value: PRICE, nonce: p.nonce });
     expect(p.authorizations).toHaveLength(1);
-    expect(Object.keys(err)).not.toContain("pending"); // la clé éphémère ne part pas dans un console.log(err)
-    expect(e.calls()).toBe(1); // les renvois sont des reprises : un seul appel au modèle
-    // reprise plus tard, par un chemin sain (ex. l'URL Phala directe), après sérialisation
+    expect(Object.keys(err)).not.toContain("pending"); // the ephemeral key does not leave in a console.log(err)
+    expect(e.calls()).toBe(1); // the resends are resumptions: one single call to the model
+    // resumption later, through a healthy path (e.g. the direct Phala URL), after serialization
     const saved = serializeX402PaidRequest(p);
     const ai2 = createX402Client({ enclaveUrl: URL0, productId: PRODUCT, walletClient: wallet, publicClient: fakePub(w), deployment: D, fetch: e.direct });
     const r = await ai2.resume(parseX402PaidRequest(saved));
     expect(r.replay).toBe(true);
-    expect(r.text).toBe("écho : q");
+    expect(r.text).toBe("echo: q");
     expect(e.calls()).toBe(1);
     const q = createX402SettlementQueue({ enclaveUrl: URL0, publicClient: fakePub(w), walletClient: operatorWallet(w), deployment: D, fetch: e.direct });
     expect((await q.runOnce()).settled).toHaveLength(1);
     expect(w.balances.get(payer)).toBe(1_000_000n - PRICE);
   });
 
-  it("faux 402 ET vrai changement de prix on-chain (à la hausse) → rien de plus cher n'est signé seul (price_increased, newPrice) ; accepté explicitement : nouvelle autorisation pour la MÊME requête (même nonce) ; l'enclave dit 409 (servie sous la 1re) ; le client renvoie la 1re ; au plus UN règlement", async () => {
+  it("a fake 402 AND a real on-chain price change (upward) → nothing more expensive is signed on its own (price_increased, newPrice); accepted explicitly: a new authorization for the SAME request (same nonce); the enclave says 409 (served under the first); the client resends the first; at most ONE settlement", async () => {
     const w = world();
     const e = enclaveOn(w);
     const wallet = payerWallet();
@@ -326,31 +327,31 @@ describe("x402 — un mandataire après l'envoi payé (preuves 1 et 2, retourné
       if (isPaid(init)) statuses.push(res.status);
       if (isPaid(init) && res.status === 200 && faked < 2) {
         faked++;
-        if (faked === 1) w.product = { ...w.product, price: 2n * PRICE }; // l'auteur change le prix au même moment
+        if (faked === 1) w.product = { ...w.product, price: 2n * PRICE }; // the author changes the price at the same moment
         return fake402();
       }
       return res;
     }) as typeof fetch;
     const ai = createX402Client({ enclaveUrl: URL0, productId: PRODUCT, walletClient: wallet, publicClient: fakePub(w), deployment: D, fetch: relay, paidRetryDelaysMs: FAST });
-    // 9/11 au soir (preuve E3) : le prix monté au-delà du plafond de l'appel (le prix lu à son début) n'est PAS signé seul
-    const err = await ai.chat.completions.create({ messages: [{ role: "user", content: "prix" }] }).catch((x) => x);
+    // evening of 9 Nov (proof E3): a price raised above the call's cap (the price read at its start) is NOT signed on its own
+    const err = await ai.chat.completions.create({ messages: [{ role: "user", content: "price" }] }).catch((x) => x);
     expect(err).toBeInstanceOf(X402PaidCallError);
     expect(err.code).toBe("price_increased");
     expect(err.newPrice).toBe(2n * PRICE);
     expect(err.message).toContain("maxPrice: err.newPrice");
     expect(wallet.signed()).toBe(1);
     expect(err.pending.authorizations).toHaveLength(1);
-    expect(statuses).toEqual([200, 200]); // servi, reprise (réponses cachées par le mandataire)
-    // le payeur ACCEPTE le nouveau prix : une 2e autorisation, même nonce ; l'enclave l'a servie sous la 1re (409) et la rend
+    expect(statuses).toEqual([200, 200]); // served, resumption (answers hidden by the proxy)
+    // the payer ACCEPTS the new price: a second authorization, same nonce; the enclave served it under the first (409) and returns it
     const r = await ai.resume(err.pending, { renew: true, maxPrice: err.newPrice });
-    expect(r.text).toBe("écho : prix");
+    expect(r.text).toBe("echo: price");
     expect(r.replay).toBe(true);
-    expect(r.authorization.value).toBe(PRICE); // la réponse servie sous la 1re autorisation
-    expect(wallet.signed()).toBe(2); // la 2e : prix CONFIRMÉ on-chain ET accepté, même nonce
-    expect(statuses).toEqual([200, 200, 409, 200]); // servi, reprise, 409 (2e autorisation refusée : déjà servie), reprise
+    expect(r.authorization.value).toBe(PRICE); // the answer served under the first authorization
+    expect(wallet.signed()).toBe(2); // the second: price CONFIRMED on-chain AND accepted, same nonce
+    expect(statuses).toEqual([200, 200, 409, 200]); // served, resumption, 409 (second authorization refused: already served), resumption
     expect(e.calls()).toBe(1);
-    // au plus UN règlement : au nouveau prix, la 1re autorisation ne se règle pas ; revenu au prix d'origine, elle se règle
-    // une fois, et la 2e (même nonce EIP-3009) est alors inutilisable
+    // at most ONE settlement: at the new price, the first authorization does not settle; back at the original price, it
+    // settles once, and the second (same EIP-3009 nonce) is then unusable
     const q = createX402SettlementQueue({ enclaveUrl: URL0, publicClient: fakePub(w), walletClient: operatorWallet(w), deployment: D, fetch: e.direct });
     expect((await q.runOnce()).settled).toHaveLength(0);
     w.product = { ...w.product, price: PRICE };
@@ -359,8 +360,8 @@ describe("x402 — un mandataire après l'envoi payé (preuves 1 et 2, retourné
   });
 });
 
-describe("x402 — reprise d'un appel payé (resume)", () => {
-  it("l'envoi payé n'atteint jamais l'enclave (coupure) : X402PaidCallError ; 7 min plus tard l'autorisation n'a plus la fenêtre de règlement ; resume({ renew }) en signe une fraîche pour le MÊME nonce, servie et réglée UNE fois", async () => {
+describe("x402: resuming a paid call (resume)", () => {
+  it("the paid send never reaches the enclave (a cut): X402PaidCallError; 7 min later the authorization no longer has the settlement window; resume({ renew }) signs a fresh one for the SAME nonce, served and settled ONCE", async () => {
     const t0 = Date.now();
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(t0);
@@ -370,7 +371,7 @@ describe("x402 — reprise d'un appel payé (resume)", () => {
     const payer = L(wallet.account.address);
     w.balances.set(payer, 1_000_000n);
     const cut = (async (url: any, init?: any) => {
-      if (isPaid(init)) throw new TypeError("fetch failed"); // la connexion tombe avant l'enclave
+      if (isPaid(init)) throw new TypeError("fetch failed"); // the connection drops before the enclave
       return e.direct(url, init);
     }) as typeof fetch;
     const ai = createX402Client({ enclaveUrl: URL0, productId: PRODUCT, walletClient: wallet, publicClient: fakePub(w), deployment: D, fetch: cut, paidRetryDelaysMs: FAST });
@@ -378,31 +379,31 @@ describe("x402 — reprise d'un appel payé (resume)", () => {
     expect(err).toBeInstanceOf(X402PaidCallError);
     expect(err).toMatchObject({ status: 0, code: "network_error", attempts: 1 + FAST.length });
     expect(e.calls()).toBe(0);
-    vi.setSystemTime(t0 + 420_000); // 7 min : l'autorisation (900 s) n'a plus les 600 s qu'exige le règlement
+    vi.setSystemTime(t0 + 420_000); // 7 min: the authorization (900 s) no longer has the 600 s the settlement requires
     const ai2 = createX402Client({ enclaveUrl: URL0, productId: PRODUCT, walletClient: wallet, publicClient: fakePub(w), deployment: D, fetch: e.direct, paidRetryDelaysMs: FAST });
     const stale = await ai2.resume(err.pending).catch((x) => x);
     expect(stale).toBeInstanceOf(X402PaidCallError);
     expect(stale.code).toBe("invalid_exact_evm_payload_authorization_valid_before");
-    expect(wallet.signed()).toBe(1); // jamais de nouvelle autorisation sans qu'on la demande (ni prix changé on-chain)
+    expect(wallet.signed()).toBe(1); // never a new authorization unless asked (nor an on-chain price change)
     const r = await ai2.resume(err.pending, { renew: true });
-    expect(r.text).toBe("écho : r");
+    expect(r.text).toBe("echo: r");
     expect(r.replay).toBe(false);
     expect(r.authorization.nonce).toBe(err.pending.nonce);
     expect(r.authorization.signature).not.toBe(err.pending.authorization.signature);
     expect(wallet.signed()).toBe(2);
-    expect(err.pending.authorizations).toHaveLength(1); // l'objet d'origine n'est pas modifié
+    expect(err.pending.authorizations).toHaveLength(1); // the original object is not modified
     const q = createX402SettlementQueue({ enclaveUrl: URL0, publicClient: fakePub(w), walletClient: operatorWallet(w), deployment: D, fetch: e.direct });
     expect((await q.runOnce()).settled).toHaveLength(1);
     expect(w.balances.get(payer)).toBe(1_000_000n - PRICE);
-    // reprendre avec un autre compte, ou pour un autre produit : refusé avant tout envoi
+    // resuming with another account, or for another product: refused before anything is sent
     const intruder = createX402Client({ enclaveUrl: URL0, productId: PRODUCT, walletClient: payerWallet(), publicClient: fakePub(w), deployment: D, fetch: e.direct });
     await expect(intruder.resume(err.pending)).rejects.toThrow("not by this client");
   });
 });
 
-// ---------------------------------------------------------------- preuve 4 : POST /x402/settled
+// ---------------------------------------------------------------- proof 4: POST /x402/settled
 
-describe("x402 — POST /x402/settled réservé à l'opérateur (preuve 4, retournée)", () => {
+describe("x402: POST /x402/settled restricted to the operator (proof 4, turned around)", () => {
   async function served(w: World, e: ReturnType<typeof enclaveOn>) {
     const wallet = payerWallet();
     w.balances.set(L(wallet.account.address), 1_000_000n);
@@ -412,7 +413,7 @@ describe("x402 — POST /x402/settled réservé à l'opérateur (preuve 4, retou
     return { payer: p.items[0].receipt.payer as Address, nonce: p.items[0].receipt.nonce as Hex };
   }
 
-  it("non signé : 401 ; signé par un tiers : 403 ; aucune lecture on-chain dans les deux cas", async () => {
+  it("unsigned: 401; signed by a third party: 403; no on-chain read in either case", async () => {
     const w = world();
     const e = enclaveOn(w);
     const it0 = await served(w, e);
@@ -428,7 +429,7 @@ describe("x402 — POST /x402/settled réservé à l'opérateur (preuve 4, retou
     expect((await (await e.app.request("/x402/pending")).json()).total).toBe(1);
   });
 
-  it("signé par l'opérateur : 200 copies d'une clé = UNE lecture ; rejoué : 409 ; périmé, daté du futur, autre enclave : 401 ; corps trop long : 413", async () => {
+  it("signed by the operator: 200 copies of a key = ONE read; replayed: 409; stale, future-dated, another enclave: 401; a body too long: 413", async () => {
     const w = world();
     const e = enclaveOn(w);
     const it0 = await served(w, e);
@@ -437,7 +438,7 @@ describe("x402 — POST /x402/settled réservé à l'opérateur (preuve 4, retou
     const r = await a.send();
     expect(r.status).toBe(200);
     expect(await r.json()).toEqual({ settled: [], pending: [`${L(it0.payer)}:${L(it0.nonce)}`], unknown: [] });
-    expect(w.reads.auth - before).toBe(1); // dédoublonné : une lecture pour la clé
+    expect(w.reads.auth - before).toBe(1); // deduplicated: one read for the key
     const replay = await e.app.request("/x402/settled", { method: "POST", headers: { "content-type": "application/json" }, body: a.body });
     expect(replay.status).toBe(409);
     const now = BigInt(Math.floor(Date.now() / 1000));
@@ -451,34 +452,34 @@ describe("x402 — POST /x402/settled réservé à l'opérateur (preuve 4, retou
       expect((await res.json()).code).toBe(code);
     }
     expect(w.reads.auth - before).toBe(1);
-    // l'appel réglé on-chain : signalé, il sort de la file
+    // the call settled on-chain: reported, it leaves the queue
     w.used.add(`${L(it0.payer)}:${L(it0.nonce)}`);
     expect((await (await (await signedAck(e, [it0, it0])).send()).json()).settled).toEqual([`${L(it0.payer)}:${L(it0.nonce)}`]);
     expect((await (await e.app.request("/x402/pending")).json()).total).toBe(0);
-    expect(w.reads.auth - before).toBe(2); // une lecture de plus : celle du signalement qui l'a sorti
-    // corps de plus de 64 Kio : 413 sur l'en-tête Content-Length ; sans lui (flux), la lecture s'arrête à 64 Kio : refusé
+    expect(w.reads.auth - before).toBe(2); // one more read: that of the report that removed it
+    // a body over 64 KiB: 413 on the Content-Length header; without it (a stream), the read stops at 64 KiB: refused
     const huge = JSON.stringify({ items: Array(800).fill(it0), pad: "x".repeat(70_000) });
     const big = await e.app.request("/x402/settled", { method: "POST", headers: { "content-type": "application/json", "content-length": String(huge.length) }, body: huge });
     expect(big.status).toBe(413);
     const chunked = await e.app.request("/x402/settled", { method: "POST", headers: { "content-type": "application/json" }, body: huge });
     expect(chunked.status).toBe(400);
-    expect(w.reads.auth - before).toBe(2); // aucune lecture pour les corps trop longs
+    expect(w.reads.auth - before).toBe(2); // no read for bodies that are too long
   });
 
-  it("débit borné : au-delà des signalements permis par minute, 429 (sans lecture) ; lecture groupée au même bloc quand le lecteur sait le faire", async () => {
+  it("bounded rate: beyond the reports allowed per minute, 429 (without a read); a batched read at one block when the reader can do it", async () => {
     const w = world();
     const e = enclaveOn(w, { ackRequestsPerMinute: 5 }, { batched: true });
     const it0 = await served(w, e);
-    const batchBefore = w.reads.batch; // (le relevé GET /x402/pending relit les soldes : une lecture groupée)
+    const batchBefore = w.reads.batch; // (the GET /x402/pending collection reads the balances again: one batched read)
     const statuses: number[] = [];
     for (let i = 0; i < 7; i++) statuses.push((await (await signedAck(e, [it0, it0, it0])).send()).status);
     expect(statuses.filter((s) => s === 200)).toHaveLength(5);
     expect(statuses.slice(5)).toEqual([429, 429]);
-    expect(w.reads.batch - batchBefore).toBe(5); // une lecture groupée par signalement accepté, aucune pour les refusés
+    expect(w.reads.batch - batchBefore).toBe(5); // one batched read per accepted report, none for the refused ones
     expect(w.reads.auth).toBe(0);
   });
 
-  it("la file du registrar signe ses signalements : signés d'une clé hors OPERATOR_ALLOWLIST, refusés (403, journalisé) et la file de l'enclave reste ; signés par l'opérateur, acceptés", async () => {
+  it("the registrar's queue signs its reports: signed by a key outside OPERATOR_ALLOWLIST, refused (403, logged) and the enclave's queue stays; signed by the operator, accepted", async () => {
     const w = world();
     const e = enclaveOn(w, { operators: [OPERATOR.address] });
     const pw = payerWallet();
@@ -486,7 +487,7 @@ describe("x402 — POST /x402/settled réservé à l'opérateur (preuve 4, retou
     const wallet = { ...pw, writeContract: async (req: any) => { await emulateSettle(w, req.args); return w.settlements.at(-1)!.tx; } };
     const ai = createX402Client({ enclaveUrl: URL0, productId: PRODUCT, walletClient: wallet, publicClient: fakePub(w), deployment: D, fetch: e.direct });
     const r = await ai.chat.completions.create({ messages: [{ role: "user", content: "x" }] });
-    await ai.settle(r); // le payeur règle lui-même : l'appel est consommé on-chain, il reste à le signaler à l'enclave
+    await ai.settle(r); // the payer settles it themselves: the call is consumed on-chain, it remains to report it to the enclave
     const other = privateKeyToAccount(generatePrivateKey());
     const logs: string[] = [];
     const q = createX402SettlementQueue({ enclaveUrl: URL0, publicClient: fakePub(w), deployment: D, fetch: e.direct, log: (m) => logs.push(m), walletClient: { account: other } as any });
@@ -500,13 +501,13 @@ describe("x402 — POST /x402/settled réservé à l'opérateur (preuve 4, retou
   });
 });
 
-// ---------------------------------------------------------------- preuve 5 : capacité de caution, borne globale
+// ---------------------------------------------------------------- proof 5: bond capacity, global bound
 
-describe("x402 — appels impayables et capacité de la caution (preuve 5, retournée)", () => {
-  it("0,2 USDC qui tourne entre 8 comptes neufs : 150 appels impayables NE bloquent PLUS la caution ; le payeur honnête est servi tout de suite ; les impayés restent listés pour l'opérateur", async () => {
+describe("x402: unpayable calls and the bond's capacity (proof 5, turned around)", () => {
+  it("0.2 USDC rotating between 8 new accounts: 150 unpayable calls NO LONGER block the bond; the honest payer is served at once; the unpaid calls stay listed for the operator", async () => {
     const w = world();
-    // ce test porte sur la caution : 20 appels en attente par payeur (3 par défaut depuis le 9/11 au soir), débit des
-    // lectures payées non borné, soldes relus à chaque relevé de l'opérateur
+    // this test is about the bond: 20 pending calls per payer (3 by default since the evening of 9 Nov), an unbounded
+    // rate of paid reads, balances read again at each of the operator's collections
     const e = enclaveOn(w, { maxPendingPerPayer: 20, paymentReadsPerMinute: 1_000_000, reconcileCacheMs: 0 });
     w.capacity = 1_500_000n; // ½ caution de 3 USDC
     const SEED = 200_000n;
@@ -528,44 +529,44 @@ describe("x402 — appels impayables et capacité de la caution (preuve 5, retou
     }
     w.balances.set(holder!, 0n);
     expect(served).toBe(150);
-    expect(e.gateway.stats().exposure).toBe((150n * PRICE).toString()); // la caution est pleine (1,5 USDC)
+    expect(e.gateway.stats().exposure).toBe((150n * PRICE).toString()); // the bond is full (1.5 USDC)
     const q = createX402SettlementQueue({ enclaveUrl: URL0, publicClient: fakePub(w), walletClient: operatorWallet(w), deployment: D, fetch: e.direct });
     const readsAtFetch = w.reads.payment;
     const rep = await q.runOnce();
     expect(rep.settled).toHaveLength(0);
     expect(rep.waiting).toHaveLength(150);
-    // 9/11 au soir : le relevé de l'opérateur relit d'abord les soldes (un par compte en attente, lecture une à une ici) :
-    // les 150 impayés sont « non couverts », hors exposition, listés après les autres
+    // evening of 9 Nov: the operator's collection first reads the balances again (one per pending account, one by one
+    // here): the 150 unpaid calls are "not covered", outside the exposure, listed after the others
     expect(w.reads.payment - readsAtFetch).toBe(8);
     expect(e.gateway.stats()).toMatchObject({ pending: 150, uncovered: 150, exposure: "0" });
-    // le payeur honnête : servi TOUT DE SUITE, sans autre lecture que son paiement
+    // the honest payer: served AT ONCE, with no read other than their payment
     const honest = payerWallet();
     w.balances.set(L(honest.account.address), 5_000_000n);
     const readsBefore = w.reads.payment;
     const ai2 = createX402Client({ enclaveUrl: URL0, productId: PRODUCT, walletClient: honest, publicClient: fakePub(w), deployment: D, fetch: e.direct });
-    const ok = await ai2.chat.completions.create({ messages: [{ role: "user", content: "honnête" }] });
-    expect(ok.text).toBe("écho : honnête");
+    const ok = await ai2.chat.completions.create({ messages: [{ role: "user", content: "honest" }] });
+    expect(ok.text).toBe("echo: honest");
     expect(w.reads.payment - readsBefore).toBe(1);
     expect(e.gateway.stats()).toMatchObject({ pending: 151, uncovered: 150, exposure: PRICE.toString() });
-    // les impayés restent listés : l'opérateur les réglera si leur payeur se renfloue avant l'échéance
+    // the unpaid calls stay listed: the operator will settle them if their payer funds the account before the deadline
     expect((await (await e.app.request("/x402/pending?limit=500")).json()).total).toBe(151);
-    // un 2e payeur honnête : servi sans nouveau rapprochement (l'exposition est juste)
+    // a second honest payer: served without a new reconciliation (the exposure is right)
     const honest2 = payerWallet();
     w.balances.set(L(honest2.account.address), 5_000_000n);
     const before2 = w.reads.payment;
     await createX402Client({ enclaveUrl: URL0, productId: PRODUCT, walletClient: honest2, publicClient: fakePub(w), deployment: D, fetch: e.direct }).chat.completions.create({ messages: [{ role: "user", content: "h2" }] });
     expect(w.reads.payment - before2).toBe(1);
     const rep2 = await q.runOnce();
-    expect(rep2.settled).toHaveLength(2); // les deux honnêtes
-    // un compte vidé qui se renfloue avant l'échéance : ses appels, restés listés, sont réglés par l'opérateur et sortent
-    // de la file de l'enclave (signalement signé)
+    expect(rep2.settled).toHaveLength(2); // the two honest ones
+    // an emptied account that is funded again before the deadline: its calls, still listed, are settled by the
+    // operator and leave the enclave's queue (a signed report)
     w.balances.set(accounts[0]!, SEED);
     const rep3 = await q.runOnce();
     expect(rep3.settled).toHaveLength(20);
     expect(e.gateway.stats()).toMatchObject({ pending: 130, uncovered: 130, exposure: "0" });
   }, 60_000);
 
-  it("le 402 annonce 840 s (AUTH_VALIDITY_SECONDS − 60 s d'horloge) et l'enclave refuse toute échéance au-delà de 900 s : un impayé ne vit pas plus d'un quart d'heure ; 3 appels en attente par payeur", async () => {
+  it("the 402 announces 840 s (AUTH_VALIDITY_SECONDS − 60 s of clock) and the enclave refuses any deadline beyond 900 s: an unpaid call lives no longer than a quarter of an hour; 3 pending calls per payer", async () => {
     const w = world();
     const e = enclaveOn(w);
     const res = await e.app.request("/v1/chat/completions", { method: "POST" });
@@ -574,11 +575,11 @@ describe("x402 — appels impayables et capacité de la caution (preuve 5, retou
       authValiditySeconds: 900, announcedValiditySeconds: 840, minSettleWindowSeconds: 600, maxUnsettledPerWindow: 300, unsettledWindowSeconds: 600,
       maxPendingPerPayer: 3, paymentReadsPerMinute: 120, paymentReadsPerMinutePerIp: 60,
     });
-    // le client qui signe 900 s (horloge en avance de 60 s : 840 annoncées + 60) passe ; 1 000 s : refusé (plus de « + 300 s »)
+    // the client that signs 900 s (a clock 60 s ahead: 840 announced + 60) passes; 1,000 s: refused (no more "+ 300 s")
     const wallet = payerWallet();
     w.balances.set(L(wallet.account.address), 1_000_000n);
     const ok = createX402Client({ enclaveUrl: URL0, productId: PRODUCT, walletClient: wallet, publicClient: fakePub(w), deployment: D, fetch: e.direct, validitySeconds: 900, paidRetryDelaysMs: [] });
-    expect((await ok.chat.completions.create({ messages: [{ role: "user", content: "900" }] })).text).toBe("écho : 900");
+    expect((await ok.chat.completions.create({ messages: [{ role: "user", content: "900" }] })).text).toBe("echo: 900");
     const tooLong = createX402Client({ enclaveUrl: URL0, productId: PRODUCT, walletClient: wallet, publicClient: fakePub(w), deployment: D, fetch: e.direct, validitySeconds: 1_000, paidRetryDelaysMs: [] });
     const err = await tooLong.chat.completions.create({ messages: [{ role: "user", content: "1000" }] }).catch((x) => x);
     expect(err).toBeInstanceOf(X402PaidCallError);
@@ -586,7 +587,7 @@ describe("x402 — appels impayables et capacité de la caution (preuve 5, retou
     expect(e.calls()).toBe(1);
   });
 
-  it("borne globale : au-delà de MAX_UNSETTLED_PER_WINDOW appels non réglés sur la fenêtre, 503 pour un payeur inconnu ; un payeur dont un appel est réglé reste servi ; la fenêtre glisse", async () => {
+  it("global bound: beyond MAX_UNSETTLED_PER_WINDOW unsettled calls over the window, 503 for an unknown payer; a payer with a settled call stays served; the window slides", async () => {
     const t0 = Date.now();
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(t0);
@@ -594,32 +595,32 @@ describe("x402 — appels impayables et capacité de la caution (preuve 5, retou
     const e = enclaveOn(w, { maxUnsettledPerWindow: 5, unsettledWindowSeconds: 600, maxPendingPerPayer: 5 });
     const client = (wallet: any) =>
       createX402Client({ enclaveUrl: URL0, productId: PRODUCT, walletClient: wallet, publicClient: fakePub(w), deployment: D, fetch: e.direct, paidRetryDelaysMs: [] });
-    // un payeur connu : un appel servi puis réglé (signalement signé de l'opérateur)
+    // a known payer: one call served then settled (the operator's signed report)
     const known = payerWallet();
     w.balances.set(L(known.account.address), 1_000_000n);
     await client(known).chat.completions.create({ messages: [{ role: "user", content: "k1" }] });
     const q = createX402SettlementQueue({ enclaveUrl: URL0, publicClient: fakePub(w), walletClient: operatorWallet(w), deployment: D, fetch: e.direct });
     expect((await q.runOnce()).settled).toHaveLength(1);
-    // un compte qui se fait servir 5 appels puis vide son solde
+    // an account that gets 5 calls served and then empties its balance
     const drained = payerWallet();
     w.balances.set(L(drained.account.address), 5n * PRICE);
     for (let i = 0; i < 5; i++) await client(drained).chat.completions.create({ messages: [{ role: "user", content: `d${i}` }] });
     w.balances.set(L(drained.account.address), 0n);
-    // un payeur inconnu, approvisionné : la fenêtre est pleine d'impayés → 503 unsettled_backlog (rien n'est servi)
+    // an unknown, funded payer: the window is full of unpaid calls → 503 unsettled_backlog (nothing is served)
     const fresh = payerWallet();
     w.balances.set(L(fresh.account.address), 1_000_000n);
     const err = await client(fresh).chat.completions.create({ messages: [{ role: "user", content: "f1" }] }).catch((x) => x);
     expect(err).toBeInstanceOf(X402PaidCallError);
     expect(err.code).toBe("unsettled_backlog");
     expect(e.calls()).toBe(6);
-    // le payeur connu n'est pas bloqué par les impayés des autres
-    expect((await client(known).chat.completions.create({ messages: [{ role: "user", content: "k2" }] })).text).toBe("écho : k2");
-    // la fenêtre glisse : 10 min plus tard, le payeur inconnu est servi
+    // the known payer is not blocked by the others' unpaid calls
+    expect((await client(known).chat.completions.create({ messages: [{ role: "user", content: "k2" }] })).text).toBe("echo: k2");
+    // the window slides: 10 min later, the unknown payer is served
     vi.setSystemTime(t0 + 601_000);
-    expect((await client(fresh).chat.completions.create({ messages: [{ role: "user", content: "f2" }] })).text).toBe("écho : f2");
+    expect((await client(fresh).chat.completions.create({ messages: [{ role: "user", content: "f2" }] })).text).toBe("echo: f2");
   });
 
-  it("appels réglés on-chain mais pas encore signalés : la limite par payeur (429) se libère d'elle-même (rapprochement du seul payeur)", async () => {
+  it("calls settled on-chain but not reported yet: the per-payer limit (429) frees itself (a reconciliation of that payer alone)", async () => {
     const w = world();
     const e = enclaveOn(w, { maxPendingPerPayer: 2 });
     const wallet = payerWallet();
@@ -628,37 +629,37 @@ describe("x402 — appels impayables et capacité de la caution (preuve 5, retou
     const ai = createX402Client({ enclaveUrl: URL0, productId: PRODUCT, walletClient: wallet, publicClient: fakePub(w), deployment: D, fetch: e.direct, paidRetryDelaysMs: [] });
     await ai.chat.completions.create({ messages: [{ role: "user", content: "1" }] });
     await ai.chat.completions.create({ messages: [{ role: "user", content: "2" }] });
-    // l'opérateur règle les deux (ou le payeur lui-même) ; aucun signalement n'arrive à l'enclave
+    // the operator settles both (or the payer does); no report reaches the enclave
     const p = await (await e.app.request("/x402/pending")).json();
     for (const it of p.items) w.used.add(`${L(it.receipt.payer)}:${L(it.receipt.nonce)}`);
     const r = await ai.chat.completions.create({ messages: [{ role: "user", content: "3" }] });
-    expect(r.text).toBe("écho : 3");
+    expect(r.text).toBe("echo: 3");
     expect(e.gateway.stats()).toMatchObject({ pending: 1 });
   });
 });
 
-describe("x402 — un refus ne multiplie pas les lectures RPC", () => {
-  it("les rapprochements puisent dans un budget global de lectures (reconcileReadsPerMinute) : épuisé, le refus tient sans lecture", async () => {
+describe("x402: a refusal does not multiply RPC reads", () => {
+  it("reconciliations draw from a global read budget (reconcileReadsPerMinute): once exhausted, the refusal stands without a read", async () => {
     const w = world();
     const e = enclaveOn(w, { maxPendingPerPayer: 1, payerReconcileCacheMs: 0, reconcileMaxReads: 2, reconcileReadsPerMinute: 1 });
     const wallet = payerWallet();
     w.balances.set(L(wallet.account.address), 1_000_000n);
     const ai = createX402Client({ enclaveUrl: URL0, productId: PRODUCT, walletClient: wallet, publicClient: fakePub(w), deployment: D, fetch: e.direct, paidRetryDelaysMs: [] });
-    await ai.chat.completions.create({ messages: [{ role: "user", content: "1" }] }); // un appel en attente : la limite (1) est atteinte
+    await ai.chat.completions.create({ messages: [{ role: "user", content: "1" }] }); // one pending call: the limit (1) is reached
     const before = w.reads.payment + w.reads.auth;
     for (let i = 0; i < 8; i++) {
       const err = await ai.chat.completions.create({ messages: [{ role: "user", content: `x${i}` }] }).catch((x) => x);
       expect(err.code).toBe("payer_pending_limit");
     }
-    // budget initial = 2 × reconcileMaxReads = 4 lectures (une par rapprochement ici), puis plus aucune
+    // initial budget = 2 × reconcileMaxReads = 4 reads (one per reconciliation here), then none
     expect(w.reads.payment + w.reads.auth - before).toBe(4);
     expect(e.calls()).toBe(1);
   });
 });
 
-// ---------------------------------------------------------------- le lecteur on-chain de production (quorum)
+// ---------------------------------------------------------------- the production on-chain reader (quorum)
 
-describe("x402 — lecture groupée du lecteur à quorum (pendingState)", () => {
+describe("x402: the quorum reader's batched read (pendingState)", () => {
   const USDC = "0x3600000000000000000000000000000000000000" as Address;
   const A = {
     settler: D.x402Settler, registry: D.enclaveRegistry, products: D.productRegistry, bond: D.operatorBond, usdc: USDC,
@@ -671,19 +672,19 @@ describe("x402 — lecture groupée du lecteur à quorum (pendingState)", () => 
         if (method === "eth_call") {
           const [call, block] = params as [{ to: string; data: Hex }, string];
           blocks.push(block);
-          if (L(call.to) !== L(USDC)) throw new Error("appel inattendu");
+          if (L(call.to) !== L(USDC)) throw new Error("unexpected call");
           const { functionName, args } = decodeFunctionData({ abi: USDC_READ_ABI, data: call.data });
           if (functionName === "balanceOf") {
             return encodeFunctionResult({ abi: USDC_READ_ABI, functionName, result: state.balances.get(L(args[0] as string)) ?? 0n });
           }
           return encodeFunctionResult({ abi: USDC_READ_ABI, functionName, result: state.used.has(`${L(args[0] as string)}:${L(args[1] as string)}`) });
         }
-        throw new Error(`méthode non permise : ${method}`);
+        throw new Error(`method not allowed: ${method}`);
       },
     });
   }
 
-  it("soldes et autorisations lus chez TOUS les fournisseurs, au MÊME bloc (la tête commune) ; un désaccord fait échouer la lecture", async () => {
+  it("balances and authorizations read on ALL the providers, at the SAME block (the common head); a disagreement makes the read fail", async () => {
     const p1 = privateKeyToAccount(generatePrivateKey()).address;
     const p2 = privateKeyToAccount(generatePrivateKey()).address;
     const n1 = keccak256(toBytes("n1"));
@@ -696,21 +697,21 @@ describe("x402 — lecture groupée du lecteur à quorum (pendingState)", () => 
     expect(s.block).toBe(118n);
     expect(s.balances).toEqual(new Map([[L(p1), 7n], [L(p2), 0n]]));
     expect(s.used).toEqual(new Map([[`${L(p1)}:${L(n1)}`, false], [`${L(p1)}:${L(n2)}`, true]]));
-    expect(blocks).toHaveLength(8); // 2 soldes + 2 autorisations, chez chacun des 2 fournisseurs
+    expect(blocks).toHaveLength(8); // 2 balances + 2 authorizations, on each of the 2 providers
     expect(new Set(blocks)).toEqual(new Set([toHex(118n)]));
-    // un fournisseur qui ment sur un solde : la lecture échoue (rien n'est retiré ni sorti de la file sur sa foi)
+    // a provider that lies about a balance: the read fails (nothing is removed or taken out of the queue on its word)
     const liar = { balances: new Map([[L(p1), 7_000_000n], [L(p2), 0n]]), used: state.used };
     const bad = createQuorumX402Reader(new RpcQuorum([provider(120n, state, []), provider(120n, liar, [])]), async () => A);
     await expect(bad.pendingState!({ payers: [p1], auths: [] })).rejects.toThrow(/disagree/);
   });
 });
 
-// ---------------------------------------------------------------- preuves du vérificateur du 9/11 au soir, retournées
+// ---------------------------------------------------------------- the verifier's proofs of the evening of 9 Nov, turned around
 
-// Délai de 60 s par test (et non les 5 s par défaut) : sur une machine chargée, C2 (41 tours) dépassait 5 s ; un test
-// abandonné par vitest continue en arrière-plan et ses vi.setSystemTime déplaçaient l'horloge figée du test suivant (D
-// comptait alors des jetons revenus : 42 lectures au lieu de 29).
-describe("x402 — preuves A, B, C2, D et F du 9/11 au soir, retournées", () => {
+// A 60 s timeout per test (not the default 5 s): on a loaded machine, C2 (41 rounds) took more than 5 s; a test abandoned
+// by vitest keeps running in the background, and its vi.setSystemTime moved the frozen clock of the next test (D then
+// counted tokens that had come back: 42 reads instead of 29).
+describe("x402: proofs A, B, C2, D and F of the evening of 9 Nov, turned around", () => {
   const clientOf =(w: World, e: ReturnType<typeof enclaveOn>, wallet: any, extra: Record<string, unknown> = {}, f?: typeof fetch) =>
     createX402Client({ enclaveUrl: URL0, productId: PRODUCT, walletClient: wallet, publicClient: fakePub(w), deployment: D, fetch: f ?? e.direct, paidRetryDelaysMs: [], ...extra });
   const queueOf = (w: World, e: ReturnType<typeof enclaveOn>) =>
@@ -722,7 +723,7 @@ describe("x402 — preuves A, B, C2, D et F du 9/11 au soir, retournées", () =>
       return { ok: false, code: x?.code };
     }
   }
-  /** L'attaquant : un compte neuf reçoit `seed`, fait `k` appels EN PARALLÈLE, puis vide son solde. */
+  /** The attacker: a new account receives `seed`, makes `k` calls IN PARALLEL, then empties its balance. */
   async function drainedBatch(w: World, e: ReturnType<typeof enclaveOn>, k: number, seed: bigint, extra: Record<string, unknown> = {}) {
     const wallet = payerWallet();
     const me = L(wallet.account.address);
@@ -732,7 +733,7 @@ describe("x402 — preuves A, B, C2, D et F du 9/11 au soir, retournées", () =>
     w.balances.set(me, 0n);
     return { served: rs.filter((r) => r.ok).length, codes: rs.filter((r) => !r.ok).map((r) => r.code) };
   }
-  /** Le même client, vu par l'enclave depuis l'adresse IP `ip` (pair TCP du serveur Node). */
+  /** The same client, as the enclave sees it from IP address `ip` (the Node server's TCP peer). */
   const fromIp = (e: ReturnType<typeof enclaveOn>, ip: string) =>
     (async (url: any, init?: any) => {
       const u = new URL(String(url));
@@ -740,9 +741,9 @@ describe("x402 — preuves A, B, C2, D et F du 9/11 au soir, retournées", () =>
       return e.app.request(path, { method: init?.method ?? "GET", headers: new Headers(init?.headers), body: init?.body }, { incoming: { socket: { remoteAddress: ip } } });
     }) as typeof fetch;
 
-  it("A : 3 appels en attente au plus par payeur (défaut) : 15 comptes neufs vidés n'obtiennent plus 300 impayés mais 45 ; un nouveau payeur reste servi", async () => {
+  it("A: at most 3 pending calls per payer (default): 15 emptied new accounts no longer get 300 unpaid calls but 45; a new payer stays served", async () => {
     const w = world();
-    const e = enclaveOn(w, { paymentReadsPerMinute: 1_000_000 }); // seul le défaut MAX_PENDING_PER_PAYER joue ici
+    const e = enclaveOn(w, { paymentReadsPerMinute: 1_000_000 }); // only the default MAX_PENDING_PER_PAYER plays here
     w.capacity = 100_000_000n;
     let served = 0;
     const codes = new Set<string | undefined>();
@@ -751,14 +752,14 @@ describe("x402 — preuves A, B, C2, D et F du 9/11 au soir, retournées", () =>
       served += b.served;
       b.codes.forEach((c) => codes.add(c));
     }
-    expect(served).toBe(45); // avant : 300 (20 par compte)
+    expect(served).toBe(45); // before: 300 (20 per account)
     expect([...codes]).toEqual(["payer_pending_limit"]);
     const judge = payerWallet();
     w.balances.set(L(judge.account.address), 5_000_000n);
-    expect((await tryCall(clientOf(w, e, judge), "le juge")).ok).toBe(true);
+    expect((await tryCall(clientOf(w, e, judge), "the judge")).ok).toBe(true);
   }, 60_000);
 
-  it("B / F : une autorisation ANNULÉE ne rend jamais un payeur « connu » et reste comptée dans la borne ; un règlement X402Settler signalé par l'opérateur, si", async () => {
+  it("B / F: a CANCELLED authorization never makes a payer \"known\" and stays counted in the bound; an X402Settler settlement reported by the operator does", async () => {
     const w = world();
     const e = enclaveOn(w, { maxUnsettledPerWindow: 4, maxPendingPerPayer: 20, paymentReadsPerMinute: 1_000_000 });
     const q = queueOf(w, e);
@@ -770,15 +771,15 @@ describe("x402 — preuves A, B, C2, D et F du 9/11 au soir, retournées", () =>
     expect((await tryCall(clientOf(w, e, insider), "i1")).ok).toBe(true);
     const pend = await (await e.app.request("/x402/pending")).json();
     const mine = pend.items.find((it: any) => L(it.receipt.payer) === L(insider.account.address));
-    w.used.add(`${L(mine.receipt.payer)}:${L(mine.receipt.nonce)}`); // USDC.cancelAuthorization : l'appel est gratuit
+    w.used.add(`${L(mine.receipt.payer)}:${L(mine.receipt.nonce)}`); // USDC.cancelAuthorization: the call is free
     const rep = await q.runOnce();
-    expect(rep.settled.map((s) => L(s.payer))).toEqual([L(honest.account.address)]); // réglé par NOTRE transaction
-    expect(rep).toMatchObject({ alreadySettled: 1, consumedElsewhere: 1 }); // l'annulé : « consommé autrement »
+    expect(rep.settled.map((s) => L(s.payer))).toEqual([L(honest.account.address)]); // settled by OUR transaction
+    expect(rep).toMatchObject({ alreadySettled: 1, consumedElsewhere: 1 }); // the cancelled one: "consumed elsewhere"
     expect((await (await e.app.request("/x402/pending")).json()).total).toBe(0);
-    // 3 impayés de plus : avec l'annulé, la borne (4) est pleine
+    // 3 more unpaid calls: with the cancelled one, the bound (4) is full
     expect((await drainedBatch(w, e, 3, 3n * PRICE)).served).toBe(3);
-    expect(e.gateway.stats().unsettledInWindow).toBe(4); // l'annulé reste compté : la borne est dure
-    // l'annuleur n'est pas « connu » : refusé ; un nouveau payeur aussi ; le payeur RÉGLÉ passe
+    expect(e.gateway.stats().unsettledInWindow).toBe(4); // the cancelled one stays counted: the bound is hard
+    // the canceller is not "known": refused; a new payer too; the SETTLED payer passes
     expect((await tryCall(clientOf(w, e, insider), "i2")).code).toBe("unsettled_backlog");
     const fresh = payerWallet();
     w.balances.set(L(fresh.account.address), 1_000_000n);
@@ -786,7 +787,7 @@ describe("x402 — preuves A, B, C2, D et F du 9/11 au soir, retournées", () =>
     expect((await tryCall(clientOf(w, e, honest), "h2")).ok).toBe(true);
   }, 60_000);
 
-  it("B : une autorisation vue consommée par le seul RAPPROCHEMENT de l'enclave ne rend pas son payeur « connu » (annulée ou réglée, la chaîne ne le dit pas)", async () => {
+  it("B: an authorization seen consumed only by the enclave's RECONCILIATION does not make its payer \"known\" (cancelled or settled, the chain does not say)", async () => {
     const w = world();
     const e = enclaveOn(w, { maxPendingPerPayer: 1, maxUnsettledPerWindow: 2, payerReconcileCacheMs: 0, paymentReadsPerMinute: 1_000_000 });
     const insider = payerWallet();
@@ -797,14 +798,14 @@ describe("x402 — preuves A, B, C2, D et F du 9/11 au soir, retournées", () =>
     };
     expect((await tryCall(ai, "1")).ok).toBe(true);
     await cancelAll();
-    expect((await tryCall(ai, "2")).ok).toBe(true); // la limite par payeur s'est libérée (rapprochement du payeur)
+    expect((await tryCall(ai, "2")).ok).toBe(true); // the per-payer limit freed itself (reconciliation of the payer)
     await cancelAll();
-    // deux appels annulés dans la fenêtre : la borne (2) est pleine, et le rapprochement n'a rendu personne « connu »
+    // two cancelled calls in the window: the bound (2) is full, and the reconciliation made nobody "known"
     expect((await tryCall(ai, "3")).code).toBe("unsettled_backlog");
     expect(e.calls()).toBe(2);
   }, 60_000);
 
-  it("C2 : sous un flot continu d'impayés à échéance courte (sous la borne), l'appel d'un payeur honnête est réglé au premier passage du registrar", async () => {
+  it("C2: under a continuous flow of unpaid calls with a short deadline (below the bound), an honest payer's call is settled at the registrar's first pass", async () => {
     const t0 = Date.now();
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(t0);
@@ -819,47 +820,47 @@ describe("x402 — preuves A, B, C2, D et F du 9/11 au soir, retournées", () =>
       vi.setSystemTime(t0 + s * 1000);
       attackerServed += (await drainedBatch(w, e, 5, 50_000n, { validitySeconds: 605 })).served;
       if (s === 200) {
-        expect((await tryCall(clientOf(w, e, honest), "honnête")).ok).toBe(true);
+        expect((await tryCall(clientOf(w, e, honest), "honest")).ok).toBe(true);
         honestAt = s;
       }
       const rep = await q.runOnce();
       if (honestAt >= 0 && settledAt < 0 && rep.settled.some((x) => L(x.payer) === L(honest.account.address))) settledAt = s;
     }
     expect(attackerServed).toBeGreaterThan(100);
-    expect(settledAt).toBe(honestAt); // avant : 490 s plus tard (preuve C2)
-    // les impayés sont listés APRÈS les appels couverts
+    expect(settledAt).toBe(honestAt); // before: 490 s later (proof C2)
+    // the unpaid calls are listed AFTER the covered calls
     const p = await (await e.app.request("/x402/pending?limit=500")).json();
     expect(p.items.every((it: any) => it.covered === false)).toBe(true);
   }, 60_000);
 
-  it("D : un flot d'appels « payés » par une clé sans USDC ne multiplie plus les lectures paymentState (seau global : 503 busy) ; un payeur connu reste servi", async () => {
+  it("D: a flow of calls \"paid\" by a key without USDC no longer multiplies the paymentState reads (global bucket: 503 busy); a known payer stays served", async () => {
     const t0 = Date.now();
-    vi.useFakeTimers({ toFake: ["Date"] }); // horloge figée : aucun jeton ne revient pendant le flot
+    vi.useFakeTimers({ toFake: ["Date"] }); // a frozen clock: no token comes back during the flow
     vi.setSystemTime(t0);
     const w = world();
-    const e = enclaveOn(w); // 120 lectures par minute par défaut, rafale de 30
+    const e = enclaveOn(w); // 120 reads per minute by default, burst of 30
     const q = queueOf(w, e);
     const known = payerWallet();
     w.balances.set(L(known.account.address), 1_000_000n);
     expect((await tryCall(clientOf(w, e, known), "k1")).ok).toBe(true);
-    expect((await q.runOnce()).settled).toHaveLength(1); // réglé par X402Settler : « connu »
+    expect((await q.runOnce()).settled).toHaveLength(1); // settled by X402Settler: "known"
     const before = w.reads.payment;
-    const broke = clientOf(w, e, payerWallet()); // aucune transaction, aucun USDC : seulement des signatures
+    const broke = clientOf(w, e, payerWallet()); // no transaction, no USDC: only signatures
     const codes: Array<string | undefined> = [];
     for (let i = 0; i < 200; i++) codes.push((await tryCall(broke, `x${i}`)).code);
-    expect(w.reads.payment - before).toBe(29); // la rafale (30), moins la lecture du payeur connu ; avant : 200
+    expect(w.reads.payment - before).toBe(29); // the burst (30), minus the known payer's read; before: 200
     expect(new Set(codes)).toEqual(new Set(["insufficient_funds", "busy"]));
     expect(e.calls()).toBe(1);
-    // le payeur connu a son propre seau : servi pendant le flot
+    // the known payer has their own bucket: served during the flow
     expect((await tryCall(clientOf(w, e, known), "k2")).ok).toBe(true);
-    // le seau se remplit avec le temps (2 lectures par seconde)
+    // the bucket refills over time (2 reads per second)
     vi.setSystemTime(t0 + 10_000);
-    expect((await tryCall(broke, "plus tard")).code).toBe("insufficient_funds");
+    expect((await tryCall(broke, "later")).code).toBe("insufficient_funds");
   }, 60_000);
 
-  it("D : un payeur « connu » qui vide son solde perd ce statut à sa 1re requête refusée : son flot ne vide pas le seau des payeurs connus", async () => {
+  it("D: a \"known\" payer who empties their balance loses that status at their first refused request: their flow does not empty the known payers' bucket", async () => {
     const t0 = Date.now();
-    vi.useFakeTimers({ toFake: ["Date"] }); // horloge figée : aucun jeton ne revient pendant le flot
+    vi.useFakeTimers({ toFake: ["Date"] }); // a frozen clock: no token comes back during the flow
     vi.setSystemTime(t0);
     const w = world();
     const e = enclaveOn(w); // seaux de 30 lectures (nouveaux payeurs, payeurs connus)
@@ -867,20 +868,20 @@ describe("x402 — preuves A, B, C2, D et F du 9/11 au soir, retournées", () =>
     const [rogue, honest] = [payerWallet(), payerWallet()];
     for (const x of [rogue, honest]) {
       w.balances.set(L(x.account.address), 1_000_000n);
-      expect((await tryCall(clientOf(w, e, x), "payé")).ok).toBe(true);
+      expect((await tryCall(clientOf(w, e, x), "paid")).ok).toBe(true);
     }
-    expect((await q.runOnce()).settled).toHaveLength(2); // réglés par X402Settler : tous deux « connus »
-    w.balances.set(L(rogue.account.address), 0n); // il vide son solde, puis inonde de requêtes signées (gratuites)
+    expect((await q.runOnce()).settled).toHaveLength(2); // settled by X402Settler: both "known"
+    w.balances.set(L(rogue.account.address), 0n); // they empty their balance, then flood with signed (free) requests
     const before = w.reads.payment;
     const codes = new Set<string | undefined>();
     for (let i = 0; i < 60; i++) codes.add((await tryCall(clientOf(w, e, rogue), `r${i}`)).code);
     expect(codes).toEqual(new Set(["insufficient_funds", "busy"]));
-    expect(w.reads.payment - before).toBe(29); // 1 dans le seau des connus, puis 28 dans celui des nouveaux (30 − 2 pris)
-    // le payeur connu honnête puise encore dans SON seau : servi
-    expect((await tryCall(clientOf(w, e, honest), "toujours servi")).ok).toBe(true);
+    expect(w.reads.payment - before).toBe(29); // 1 in the known payers' bucket, then 28 in the new payers' (30 − 2 taken)
+    // the honest known payer still draws from THEIR bucket: served
+    expect((await tryCall(clientOf(w, e, honest), "still served")).ok).toBe(true);
   }, 60_000);
 
-  it("D : plafond par adresse IP VUE par l'enclave (pair TCP), pour les nouveaux payeurs : 429 au-delà ; une autre adresse, ou un payeur connu, passe", async () => {
+  it("D: a cap per IP address SEEN by the enclave (TCP peer), for new payers: 429 beyond it; another address, or a known payer, passes", async () => {
     const t0 = Date.now();
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(t0);
@@ -894,7 +895,7 @@ describe("x402 — preuves A, B, C2, D et F du 9/11 au soir, retournées", () =>
     const broke = clientOf(w, e, payerWallet(), {}, fromIp(e, "203.0.113.7"));
     const codes: Array<string | undefined> = [];
     for (let i = 0; i < 8; i++) codes.push((await tryCall(broke, `x${i}`)).code);
-    expect(codes).toEqual([...Array(4).fill("insufficient_funds"), ...Array(4).fill("rate_limited")]); // 5 jetons, dont 1 pris par le payeur connu
+    expect(codes).toEqual([...Array(4).fill("insufficient_funds"), ...Array(4).fill("rate_limited")]); // 5 tokens, 1 of them taken by the known payer
     expect((await tryCall(clientOf(w, e, payerWallet(), {}, fromIp(e, "::ffff:198.51.100.4")), "autre")).code).toBe("insufficient_funds");
     expect((await tryCall(clientOf(w, e, known, {}, fromIp(e, "203.0.113.7")), "k2")).ok).toBe(true);
   }, 60_000);
