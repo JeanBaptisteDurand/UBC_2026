@@ -2,8 +2,8 @@
 
 Each file here is the app-compose of one ArcHive enclave on Phala Cloud (dstack, Intel TDX). dstack measures the whole
 file, comments included, into the compose hash. The image fingerprint that a product's author allows on Arc is derived
-from that hash. These files therefore stay exactly as deployed, with their original comments, written in French. This
-page describes them in English.
+from that hash. These files therefore stay exactly as deployed, with their original comments. Most of those comments
+are in French; the two refutation-demo files are in English. This page describes every file in English.
 
 What every file has in common:
 
