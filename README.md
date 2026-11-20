@@ -510,19 +510,36 @@ source are in [`deployments.v3.testnet.json`](deployments.v3.testnet.json), and 
 Most of ArcHive's back end existed before the hackathon week. The week went into the marketplace site, AskHive and the
 live network.
 
+The commit dates in this repository are not the dates the code was written: the pre-existing core came in through bulk
+commits, most of them dated 16 Nov, and several commit times were set by hand. GitHub's activity log shows when each
+commit was pushed, and the dates that matter are on-chain: every contract deployment and enclave admission listed below
+links to its transaction.
+
 **Before 13 Nov 2026** (the dates come from the deployment records and Arc's explorer):
 
-- **Contracts** (`contracts/`): stack v2 deployed on Arc testnet on 7 Nov, v2.1 (the live stack) on 9 Nov, and the
-  operator-level contracts on 10 Nov.
-- **Intel DCAP on Arc** (`dcap-integration/`): Automata's verifier deployed on 7 Nov with Intel's collateral,
-  refreshed on 9 Nov.
+- **Contracts** (`contracts/`): stack v2 deployed on Arc testnet on 7 Nov (its `EnclaveRegistry`:
+  [`0x36ac21e4…d493`](https://explorer.testnet.arc.io/tx/0x36ac21e47bf96affcdfa496780f27ef8204eb770d7cab859fe367ed89873d493)),
+  v2.1 (the live stack) on 9 Nov (its `EnclaveRegistry`:
+  [`0x90a27bc3…c9be`](https://explorer.testnet.arc.io/tx/0x90a27bc3c78834c8a7c2400367dae863bdfea0d0974799b1262735a0ac10c9be);
+  the others in [`deployments.v21.testnet.json`](deployments.v21.testnet.json) and
+  [`deployments.dcap.testnet.json`](deployments.dcap.testnet.json)), and the operator-level contracts
+  on 10 Nov (`MachineRegistry`:
+  [`0xe043c341…98e4`](https://explorer.testnet.arc.io/tx/0xe043c341b4760b7f7fcd251f1fa7a858ae40b1bd75e0dd4c7dacc91f6f9798e4)).
+- **Intel DCAP on Arc** (`dcap-integration/`): Automata's verifier deployed on 7 Nov with Intel's collateral
+  ([`0x83c00a69…9ec6`](https://explorer.testnet.arc.io/tx/0x83c00a69d5f7ec6cb233ba3e649893a333e4e3728dcc9705b79172af2d069ec6),
+  the first of its transactions in [`deployments.dcap.testnet.json`](deployments.dcap.testnet.json)), refreshed on 9 Nov.
 - **Enclave kit and products** (`enclave/`): private AI (prepaid sessions and pay per call), the sealed bounty with its
   `arc-anvil` replay, the refutation demo and the verified bounty. Enclaves were first admitted through Intel DCAP on
-  7 Nov, and the first runs on v2.1 date from 9 to 11 Nov.
+  7 Nov
+  ([`0x6f3ed6e8…c545`](https://explorer.testnet.arc.io/tx/0x6f3ed6e8f43168d894edea23201e0293c9eacee4589b221babfff70592dcc545)),
+  and the first runs on v2.1 date from 9 to 11 Nov (first admission:
+  [`0x199c985d…3499`](https://explorer.testnet.arc.io/tx/0x199c985dee537cfe2948f6c721ad1bdd448d538ff08bc8e93a79036a25f33499)).
 - **SDK, `arcvault` CLI and operator agent** (`packages/`).
 - **Read API and registrar** (`services/api`, `services/registrar`).
 - **Console** (`web/`), served at the server's address.
-- **First copilot** (`services/copilot`): the console's assistant, which also ran in its own enclave as product 4.
+- **First copilot** (`services/copilot`): the console's assistant, which also ran in its own enclave, admitted as
+  product 4 on 9 Nov
+  ([`0x98296275…186b`](https://explorer.testnet.arc.io/tx/0x98296275e1c74b78a3c9ed8b8113eb2f69580e14029fb1f2f414676b4664186b)).
 - **MCP server** (`services/mcp`) over stdio, with the same 16 tools.
 
 **From 13 to 20 Nov 2026** (in this repository's commits and on the live site):
@@ -530,21 +547,27 @@ live network.
 - **The marketplace site** (`frontend/`): the home page and its film, the services rack with a page per service, the
   Network page (use, rent and publish, with a 3D demo), the Doc with its Tokenomics chapter, My space, and the Bridge
   page for CCTP transfers to Arc.
-- **AskHive** (`frontend/src/copilot/`, `services/copilot`): the copilot's site surface, which opens pages, highlights,
-  plays the 3D demo, guides a task and prepares operations to sign. Its own enclave build signs every reply, and Arc
-  admitted it as product 4 on 19 Nov.
-- **The MCP server over HTTP**, online at `/mcp` for AI agents.
+- **AskHive** (`frontend/src/copilot/`, `services/copilot`): the copilot's site surface, with its own enclave build
+  admitted as product 4 on 19 Nov
+  ([`0xde9628b2…0176`](https://explorer.testnet.arc.io/tx/0xde9628b23d0483bb666a0cd13c55c4f32a1204151323a80da9451b0aeb330176)).
+  It opens pages, highlights, plays the 3D demo, guides a task and prepares operations to sign, and its enclave signs
+  every reply.
+- **The MCP server's HTTP endpoint**, online at `/mcp` for AI agents (its stdio version existed before).
 - **The 3D server room** (`web/public/datacenter`): sketched on 12 Nov, built on 13 and 14 Nov, online since 15 Nov.
 - **Console updates**: prices with their unit, the exposure and slashing rules, and a link to the 3D room.
 - **Product 7 switched on**: past its 8-day delay, its settlement contract was authorized to slash bonds (18 Nov,
   23:59 UTC) and to write verdicts (19 Nov, 00:15 UTC).
-- **The network relaunched on 19 Nov**: five enclaves admitted on Arc (products 1, 2, 3 and 7 from 00:55 UTC, AskHive
-  at 22:37 UTC).
-- **Stack v3 deployed on 19 Nov**: 14 contracts, not switched on yet.
+- **The network relaunched on 19 Nov**: five enclaves admitted on Arc, products 3, 2, 1 and 7 from 00:55 UTC
+  ([`0x54d7cf7e…37ef`](https://explorer.testnet.arc.io/tx/0x54d7cf7e891d489093b139d99db37620f9e422c69005eff4bf1549fb9eae37ef),
+  [`0x351edb8c…0357`](https://explorer.testnet.arc.io/tx/0x351edb8ca280a7a0dca7ffbd562afeb9215522df250d28288c28fdc4802f0357),
+  [`0x3ab1e3da…ae72`](https://explorer.testnet.arc.io/tx/0x3ab1e3dac834f9fb4d5a97f67f7ea5f299b9e92ea3a1a76791a86886e0a1ae72),
+  [`0xf18cb68f…6a2c`](https://explorer.testnet.arc.io/tx/0xf18cb68f068e5cfaa993a67da2fd98f4c5d73123460533d0901052b06d166a2c)),
+  and AskHive at 22:37 UTC
+  ([`0xde9628b2…0176`](https://explorer.testnet.arc.io/tx/0xde9628b23d0483bb666a0cd13c55c4f32a1204151323a80da9451b0aeb330176)).
+- **Stack v3 deployed on 19 Nov**: 14 contracts, not switched on yet (its `EnclaveRegistry`:
+  [`0xdf5d2ad6…9049`](https://explorer.testnet.arc.io/tx/0xdf5d2ad6529eb2bfdbc0f4dfda4368822cbe03eb7ee7b3087f145065f5679049);
+  every other one in [`deployments.v3.testnet.json`](deployments.v3.testnet.json)).
 - **Claude Code's request format on ArcHive's private inference**, tested on 19 Nov (three paid calls).
-
-The commit dates in this repository are not the dates the code was written. The code from before 13 Nov came in
-through bulk commits, most of them dated 16 Nov, and Arc's explorer dates each deployment.
 
 ## Run it
 
