@@ -170,7 +170,8 @@ Everything below was read or measured on Arc testnet. Our contract addresses are
 ### Arc checks the machine
 
 - **Intel DCAP, verified on-chain.** We deployed Automata's DCAP verifier (MIT, commit `59b1f34`) on Arc testnet with
-  Intel's collateral on 13 Nov, and refreshed the collateral on 14 Nov. Every admission goes through `EnclaveRegistry`,
+  Intel's collateral on 7 Nov, and refreshed the collateral on 9 Nov: it is the one piece already on Arc before the week,
+  and v3's `TdxAttestationModule` calls the same instance, nothing was redeployed. Every admission goes through `EnclaveRegistry`,
   then `TdxAttestationModule`, then Automata's entry point `0x4864…4dc9` (see [`dcap-integration/`](dcap-integration/)).
 - **The boot log, replayed on-chain.** Arc has no SHA-384 precompile, so `EnclaveRegistry` replays the VM's RTMR3 log
   with SHA-384 written for the EVM ([`Sha384.sol`](contracts/src/lib/Sha384.sol)). It admits only an image fingerprint
@@ -441,7 +442,7 @@ a session. An attestation proves which code ran, not that an AI answer is right,
 **Risk assumptions**
 
 - **Trust in Intel TDX**: Intel's hardware and signing keys, Automata's DCAP contracts and Intel's collateral
-  (refreshed monthly; the next update is due on 14 Dec 2026). An attestation proves which code ran, not that an AI
+  (refreshed monthly; the next update is due on 9 Dec 2026). An attestation proves which code ran, not that an AI
   answer is right, so only provable faults are slashed. Bounty replays are deterministic, so other operators can check
   them.
 - **Trust in Proof of Cloud**, at the verified level: the alliance declares that the chip sits in an inspected

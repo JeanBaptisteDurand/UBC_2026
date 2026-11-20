@@ -3,8 +3,8 @@
   "chainId": 5042002,
   "rpc": "https://arc-testnet.drpc.org",
   "explorer": "https://explorer.testnet.arc.io",
-  "deployedAt": "2026-11-13",
-  "updatedAt": "2026-11-14",
+  "deployedAt": "2026-11-07",
+  "updatedAt": "2026-11-09",
   "deployer": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
   "owner": "0x5724d89D610c3017b8DC161c025248341556f6Ab",
   "note": "Automata's DCAP stack (MIT, contracts unchanged), deployed with CREATE2 (factory 0x4e59…) by dcap-integration/arc-testnet/run.sh. P-256 uses Arc's precompile at 0x100. Verified end to end on a real TDX v4 quote from our Phala enclave, with Intel's collateral.",
@@ -42,19 +42,19 @@
     "standardTcbEvaluationDataNumber": 20,
     "earlyTcbEvaluationDataNumber": 22,
     "tcbInfo": {
-      "issueDate": "2026-11-14T19:38:54Z",
-      "nextUpdate": "2026-12-14T19:38:54Z",
+      "issueDate": "2026-11-09T19:38:54Z",
+      "nextUpdate": "2026-12-09T19:38:54Z",
       "url": "https://api.trustedservices.intel.com/tdx/certification/v4/tcb?fmspc=20A06F000000&tcbEvaluationDataNumber=20"
     },
     "qeIdentity": {
-      "issueDate": "2026-11-14T19:31:58Z",
-      "nextUpdate": "2026-12-14T19:31:58Z",
+      "issueDate": "2026-11-09T19:31:58Z",
+      "nextUpdate": "2026-12-09T19:31:58Z",
       "url": "https://api.trustedservices.intel.com/tdx/certification/v4/qe/identity?tcbEvaluationDataNumber=20"
     },
     "tcbEval": {
-      "nextUpdate": "2026-12-14T19:20:00Z"
+      "nextUpdate": "2026-12-09T19:20:00Z"
     },
-    "fetchedAtUtc": "2026-11-14T20:26:15Z",
+    "fetchedAtUtc": "2026-11-09T20:26:15Z",
     "sha256": {
       "quote.hex": "c1a6fb164ce7b712504bbac0cfe98ea50498c5391056385d050535474f4720e8",
       "root_ca.der": "44a0196b2b99f889b8e149e95b807a350e7424964399e885a7cbb8ccfab674d3",
@@ -725,7 +725,7 @@
     },
     {
       "i": 0,
-      "label": "refresh-20261114T2028",
+      "label": "refresh-20261109T2028",
       "type": "CALL",
       "contract": "?",
       "address": "0x1560a33d3db033eff9a4971a36ca6ef0909b1905",
@@ -740,7 +740,7 @@
     },
     {
       "i": 1,
-      "label": "refresh-20261114T2028",
+      "label": "refresh-20261109T2028",
       "type": "CALL",
       "contract": "?",
       "address": "0x62663ea282cd7753e61fcd64cc2dde291eba663a",
@@ -755,7 +755,7 @@
     },
     {
       "i": 2,
-      "label": "refresh-20261114T2028",
+      "label": "refresh-20261109T2028",
       "type": "CALL",
       "contract": "?",
       "address": "0xf84eff4790c24544410c8e97c8dc445fefcc0fcf",
@@ -770,7 +770,7 @@
     },
     {
       "i": 3,
-      "label": "refresh-20261114T2028",
+      "label": "refresh-20261109T2028",
       "type": "CALL",
       "contract": "?",
       "address": "0x83413486f2711b39dafc1c31e621866e4ab05567",
