@@ -1,36 +1,38 @@
-/** server.ts — Registrar (v2 / v2.1 stack): keeps ONE enclave registered by renewing its registration before its validity
- *  window ends (counted in BLOCKS by the v2 registry: VALIDITY_BLOCKS ≈ 24 h).
- *  Loop: reads the enclave's current signer (it changes at every restart: the keys live in memory), then the on-chain state
- *  (activeOperatorAt at the head block, end of the window); when needed, SDK registerEnclave: /attest → off-chain quote
- *  check (real quote, no DEBUG, SEPT_VE_DISABLE, allowed image, REPORTDATA binding) → registerEnclave, where the chain
- *  verifies Intel's signature through DCAP. Renewed with no gap, the window is extended (receipts already issued stay settleable).
- *  After an enclave restart, the previous key (served before by THIS URL) is retired: it will sign nothing more, and its
- *  bond reserve is released (otherwise every restart would lock the minimum bond of a dead key).
+/** server.ts — the Registrar (v2 and v2.1 stacks). It keeps ONE enclave registered and gets its operator paid.
+ *
+ *  Registration. The v2 registry counts an enclave's validity window in BLOCKS (VALIDITY_BLOCKS ≈ 24 h). Each pass
+ *  reads the enclave's current signer, which changes at every restart because the keys live in memory. It then reads
+ *  the on-chain state: activeOperatorAt at the head block, and the end of the window. When needed, it calls the SDK's
+ *  registerEnclave: /attest, an off-chain quote check (a real quote, no DEBUG, SEPT_VE_DISABLE, an allowed image, the
+ *  REPORTDATA binding), then registerEnclave, where the chain verifies Intel's signature through DCAP. A renewal with no
+ *  gap extends the window, so receipts already issued stay settleable.
+ *  After a restart, the previous key (served before by THIS URL) is retired. It signs nothing more, and its bond
+ *  reserve is released; otherwise every restart would lock the minimum bond of a dead key.
  *  The registrar NEVER allows an image: the product's author does. The operator signs (ARC_PK).
  *
- *  v2.1:
- *  - the stack is chosen by DEPLOYMENTS (path to a deployments.*.json file, e.g. deployments.v21.testnet.json); without
- *    it, the SDK's default stack (`testnet`, v2.1). No contract address is hard-coded here.
- *  - settlement follows the settlement contract of the product served (read on-chain): SessionPay → sessions (the last
- *    receipt of each session); X402Settler → pay per call: every X402_CHECK_SECONDS (10 s by default, because payer
- *    authorizations are valid for 15 min), the calls served but not yet settled are fetched (GET /x402/pending) and
- *    settled (X402Settler.settle), with NO DOUBLE SETTLEMENT and no duplicate (ONE queue, the SDK's X402SettlementQueue:
- *    one pass at a time — the next waits for the previous one to finish —, each call tracked once by (payer, nonce), an
- *    on-chain check before each send, single-use EIP-3009 nonce), then reported to the enclave by POST /x402/settled,
- *    SIGNED with the operator's key (EIP-712; the enclave refuses any signer outside its OPERATOR_ALLOWLIST and checks
- *    again on-chain), each key once. Fetched calls are kept here until they are settled: an enclave restart does not
- *    lose them.
- *  - the whole queue is fetched, page by page (not only the first 200 calls); calls that their payer's balance covers
- *    are settled first, and at most 25 "uncovered" calls are re-checked per pass (X402_UNCOVERED_CHECKS); each reported
- *    call says whether it was SETTLED by X402Settler (receipt of OUR transaction, or a CallSettled event) or consumed
- *    another way (cancelled): only a settlement makes the payer "known" to the enclave; a failed report is sent again on
- *    the next pass.
- *  - Verified level (when the deployment has a levels section; LEVELS=0 turns it off): after each registration, the
- *    enclave is BOUND to its machine (MachineRegistry.bindMachine, with the transaction's quote: the PPID is read from
- *    Intel's certificate) — a renewal changes the quote, and a stale binding takes the enclave back to the open level; on
- *    every pass, a missing or stale binding is redone (the quote is found again in the events); and when the Proof of
- *    Cloud alliance's attestation of the machine expires in less than LEVELS_POC_RENEW_DAYS (3) days, a new token is
- *    requested from the alliance, checked, then submitted to ProofOfCloudAuditor (which checks it again on-chain). */
+ *  Stack. DEPLOYMENTS selects it (a path to a deployments.*.json file, e.g. deployments.v21.testnet.json); without it,
+ *  the SDK's default stack (`testnet`, v2.1) applies. No contract address is hard-coded here.
+ *
+ *  Settlement follows the settlement contract of the product served, read on-chain:
+ *  - SessionPay: the latest receipt of each session is settled.
+ *  - X402Settler (pay per call): every X402_CHECK_SECONDS (10 s by default, because payer authorizations are valid
+ *    for 15 min), the calls served but not settled yet are fetched (GET /x402/pending) and settled
+ *    (X402Settler.settle). There is NO DOUBLE SETTLEMENT and no duplicate: ONE queue (the SDK's
+ *    X402SettlementQueue) runs one pass at a time, tracks each call once by (payer, nonce), checks on-chain before each
+ *    send, and relies on the single-use EIP-3009 nonce. Settled calls are reported to the enclave by POST /x402/settled,
+ *    SIGNED with the operator's key (EIP-712); the enclave refuses any signer outside its OPERATOR_ALLOWLIST and checks
+ *    again on-chain. Fetched calls are kept here until they are settled, so an enclave restart does not lose them.
+ *  - The whole queue is fetched, page by page. Calls that their payer's balance covers are settled first, and at most
+ *    25 "uncovered" calls are re-checked per pass (X402_UNCOVERED_CHECKS). Each report says whether X402Settler SETTLED
+ *    the call (the receipt of OUR transaction, or a CallSettled event) or whether it was consumed another way
+ *    (cancelled). Only a settlement makes the payer "known" to the enclave. A failed report is sent again on the next pass.
+ *
+ *  Verified level (when the deployment has a levels section; LEVELS=0 turns it off). After each registration, the
+ *  enclave is BOUND to its machine (MachineRegistry.bindMachine, with the transaction's quote: the PPID is read from
+ *  Intel's certificate). A renewal changes the quote, and a stale binding takes the enclave back to the open level, so
+ *  every pass redoes a missing or stale binding (the quote is found again in the events). When the Proof of Cloud
+ *  alliance's attestation of the machine expires in less than LEVELS_POC_RENEW_DAYS (3) days, a new token is requested
+ *  from the alliance, checked, then submitted to ProofOfCloudAuditor, which checks it again on-chain. */
 import { readFileSync } from "node:fs";
 import { createPublicClient, createWalletClient, defineChain, http, parseAbiItem, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
