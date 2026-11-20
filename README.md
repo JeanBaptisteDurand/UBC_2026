@@ -298,10 +298,11 @@ Both run from this repository with `npm ci` in each folder.
 
 ### Claude Code on ArcHive's private inference
 
-Claude Code's chat can run on ArcHive's private inference. An Anthropic-compatible gateway (LiteLLM) and an x402
-client pay the product 3 enclave 0.01 USDC per call. Each answer comes back once its signed receipt checks against the
-enclave's key on Arc. We tested it on 19 Nov 2026 with text requests (the model is `gpt-oss-120b`), and the operator
-settled the three calls on Arc between 20:22 and 20:23 UTC:
+ArcHive's private inference can serve Claude Code's chat, text only. An Anthropic-compatible gateway (LiteLLM) and an
+x402 client pay the product 3 enclave 0.01 USDC per call, and each answer comes back only once its signed receipt checks
+against the enclave's key on Arc. We tested this path on 19 Nov 2026 by replaying requests in Claude Code's format: the
+`claude` CLI itself was not run, Claude Code's tools (files, commands) do not go through, and the model is
+`gpt-oss-120b`, not Claude. The operator settled the three calls on Arc between 20:22 and 20:23 UTC:
 [`0x3c98a1fa…1ae8`](https://explorer.testnet.arc.io/tx/0x3c98a1fafa893722b9bffd84a1287ef28a446c361c822e4e2071f714bba31ae8),
 [`0xec0bd6b0…68e3`](https://explorer.testnet.arc.io/tx/0xec0bd6b04fdaa3cc4966a604e8967f0e73b5ca91423d9921edb3d05c574168e3),
 [`0xe7a0e00f…f52b`](https://explorer.testnet.arc.io/tx/0xe7a0e00fe514f10d602b1495d2d84a5e9f5b4c67e1fb5ba33cf7e190d8a1f52b).
@@ -473,7 +474,7 @@ live network.
 - **The network relaunched on 19 Nov**: five enclaves admitted on Arc (products 1, 2, 3 and 7 from 00:55 UTC, AskHive
   at 22:37 UTC).
 - **Stack v3 deployed on 19 Nov**: 14 contracts, not switched on yet.
-- **Claude Code on ArcHive's private inference**, tested on 19 Nov.
+- **Claude Code's request format on ArcHive's private inference**, tested on 19 Nov (three paid calls).
 
 The commit dates in this repository are not the dates the code was written. The code from before 13 Nov came in
 through bulk commits, most of them dated 16 Nov, and Arc's explorer dates each deployment.
