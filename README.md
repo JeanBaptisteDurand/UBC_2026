@@ -84,8 +84,8 @@ for the enclaves that serve each product.
 **Admission** (`EnclaveRegistry`, `TdxAttestationModule`):
 
 - **Intel's signature.** The enclave registers with a fresh TDX quote. The registry verifies it through Automata's
-  DCAP verifier, which we deployed on Arc with Intel's collateral. Arc's P-256 precompile makes it affordable:
-  5.21 M gas instead of 6.92 M with a Solidity P-256 verifier (−25 %, measured on Arc testnet).
+  DCAP verifier, which we deployed on Arc with Intel's collateral. Arc's P-256 precompile cuts the cost of that check
+  by a quarter ([measured](#arc-checks-the-machine)).
 - **The image fingerprint.** The registry replays the VM's RTMR3 boot log in Solidity (SHA-384 written for the EVM,
   about 55 k gas per 128-byte block) and requires it to match the quote. It then admits the enclave on
   `keccak256(MRTD ‖ RTMR0 ‖ RTMR1 ‖ RTMR2 ‖ compose-hash ‖ os-image-hash ‖ XFAM ‖ TDATTRIBUTES)`: the compose that
@@ -93,8 +93,8 @@ for the enclaves that serve each product.
 - **The policy.** Debug mode off, `SEPT_VE_DISABLE`, firmware (TCB) up to date, a quote bound to a recent Arc block
   (EIP-2935, within 8,191 blocks), `REPORTDATA` binding chain, registry, product, operator and the enclave's keys,
   a quote never seen before, and enough free bond.
-- **The cost.** About 6.85 to 6.87 M gas per registration, 0.15 to 0.17 USDC at 21.5 to 25 gwei (measured on Arc
-  testnet). The operator's registrar renews each admission before its window ends.
+- **The cost.** About 6.85 to 6.87 M gas per registration, 0.14 to 0.17 USDC, paid by the operator
+  ([gas table](#usdc-is-the-money-and-the-gas)). The operator's registrar renews each admission before its window ends.
 
 **Operator levels** (`MachineRegistry`, `ProofOfCloudAuditor`, `PolicyEnclaves`; see [docs/OPERATORS.md](docs/OPERATORS.md)):
 
@@ -113,7 +113,7 @@ for the enclaves that serve each product.
   victim).
 - A bond leaves 7 days after the request and after its last exposure.
 
-**Verdicts** (`VerdictLog`): written to Circle's ERC-8004 validation registry under the operator's agent identity
+**Verdicts** (`VerdictLog`): written to the ERC-8004 validation registry on Arc, under the operator's agent identity
 (agent 897812). A session or a bounty that is verified and paid scores 100; a proven fault scores 0.
 
 ## Architecture
@@ -128,7 +128,7 @@ for the enclaves that serve each product.
   EnclaveRegistry -> TdxAttestationModule -> Automata DCAP       admit: Intel signature, boot-log replay,
   MachineRegistry + ProofOfCloudAuditor + PolicyEnclaves         allowed image, fresh quote, bond; chip level
   SessionPay | X402Settler | SealedBounty | SealedBountyVerified   pay only on an admitted enclave's signature
-  ProductRegistry (prices, shares)   OperatorBond (bonds, slashing)   VerdictLog -> Circle's ERC-8004 registry
+  ProductRegistry (prices, shares)   OperatorBond (bonds, slashing)   VerdictLog -> ERC-8004 registry on Arc
 ```
 
 1. **Arc admits the machine** (above). The operator's registrar keeps the admission fresh.
@@ -136,7 +136,7 @@ for the enclaves that serve each product.
 3. **The enclave signs its work**: a receipt for an answer, or a claim for a replayed exploit, with a key born inside it.
 4. **Arc pays on the signature.** The settlement contract checks that an admitted enclave signed, reads the price and
    the shares, and splits the USDC in the same transaction.
-5. **Arc writes the verdict** to Circle's ERC-8004 registry.
+5. **Arc writes the verdict** to the ERC-8004 registry on Arc.
 6. **A proven lie costs the bond.**
 
 Off-chain pieces:
@@ -144,20 +144,88 @@ Off-chain pieces:
 - The read API (`services/api`) keeps its own index of contract events.
 - One registrar per enclave (`services/registrar`) renews admissions and settles served sessions and paid calls.
 - The copilot (`services/copilot`) runs on the server and, as AskHive, in its own enclave.
-- The MCP server (`services/mcp`) exposes the same read and prepare tools to any agent.
+- The MCP server (`services/mcp`) gives any agent read tools, and prepare tools for bonds, registrations, bounties and
+  products.
 - The bounty enclave reaches Arc only through a strict relay. The relay re-hashes every block header, and the enclave
   signs nothing that depends on an RPC error.
 
-**What else Arc brings:**
+## How ArcHive uses Arc
 
-- USDC is the money and the gas, so every check has a dollar price.
-- EIP-3009 lets a buyer pay with one signature: no approve, and no gas for the buyer. The operator pays the
-  settlement, about 0.005 USDC.
-- Arc Foundry's `arc-anvil` forks Arc with its own precompiles, native USDC included, to replay an exploit exactly.
-- EIP-2935 block history lets a contract refuse stale quotes and claims.
-- Circle's CCTP V2 brings USDC to Arc from Ethereum Sepolia or Base Sepolia on the Bridge page. The user's wallet
-  signs the burn on the source chain and the mint on Arc, with Circle's attestation in between. A standard transfer
-  pays Circle no fee.
+Everything below was read or measured on Arc testnet. Our contract addresses are in
+[Contracts on Arc testnet](#contracts-on-arc-testnet-chainid-5042002).
+
+### Arc checks the machine
+
+- **Intel DCAP, verified on-chain.** We deployed Automata's DCAP verifier (MIT, commit `59b1f34`) on Arc testnet with
+  Intel's collateral on 7 Nov, and refreshed the collateral on 9 Nov. Every admission goes through `EnclaveRegistry`,
+  then `TdxAttestationModule`, then Automata's entry point `0x4864…4dc9` (see [`dcap-integration/`](dcap-integration/)).
+- **The boot log, replayed on-chain.** Arc has no SHA-384 precompile, so `EnclaveRegistry` replays the VM's RTMR3 log
+  with SHA-384 written for the EVM ([`Sha384.sol`](contracts/src/lib/Sha384.sol)). It admits only an image fingerprint
+  the product allows.
+- **Arc's P-256 precompile (`0x100`).** Automata's quote verifier on Arc calls it for the quote's five ECDSA
+  signatures. A full quote check is estimated at 5,208,699 gas, against 6,915,287 with a Solidity P-256 verifier:
+  24.7 % less ([how it was measured](dcap-integration/arc-testnet/README.md)).
+- **EIP-2935 block history.** A quote must carry the hash of one of the last 8,191 Arc blocks (about 69 minutes at
+  0.51 s per block), read from the history contract `0x0000F908…2935` ([`History.sol`](contracts/src/lib/History.sol)).
+  Bounty claims are anchored the same way, so stale quotes and claims are refused.
+
+### USDC is the money and the gas
+
+Gas is paid in USDC, so each check has a price in dollars. Measured on Arc testnet, at 20 to 25 gwei:
+
+| Operation | Paid by | Gas | USDC |
+|---|---|---|---|
+| Admit an enclave: DCAP, boot-log replay and policy ([`0x3ab1e3da…ae72`](https://explorer.testnet.arc.io/tx/0x3ab1e3dac834f9fb4d5a97f67f7ea5f299b9e92ea3a1a76791a86886e0a1ae72), [`0x54d7cf7e…37ef`](https://explorer.testnet.arc.io/tx/0x54d7cf7e891d489093b139d99db37620f9e422c69005eff4bf1549fb9eae37ef)) | operator | 6.85 to 6.87 M | 0.14 to 0.17 |
+| Settle one pay-per-call answer ([`0x3c98a1fa…1ae8`](https://explorer.testnet.arc.io/tx/0x3c98a1fafa893722b9bffd84a1287ef28a446c361c822e4e2071f714bba31ae8)) | operator | about 210 k | about 0.005 |
+| Open a session with an EIP-3009 deposit ([`0xdb7fc9e3…666d`](https://explorer.testnet.arc.io/tx/0xdb7fc9e3b024415599eee67746ae162f3032add224afed25ab7c09862b83666d)) | session owner | 361,373 | 0.0090 |
+| Settle a session on its last receipt ([`0x97c17946…79ee`](https://explorer.testnet.arc.io/tx/0x97c17946a14c02cdbdd1d6aafd7a405500b6bd44a5f536c77af560aa0cbc79ee)) | operator | 217,512 | 0.0054 |
+| Close a session: refund and ERC-8004 verdict ([`0x95c9f59e…b1c2`](https://explorer.testnet.arc.io/tx/0x95c9f59eee7597a532ce72162b83944e9364b1b600ff35ea6b9fd4eb2290b1c2)) | session owner | 358,323 | 0.0090 |
+
+- **One signature per payment (EIP-3009).** `SessionPay` (deposits), `X402Settler` (one authorization per call) and
+  `SealedBounty` (bounty pools) collect USDC only with `receiveWithAuthorization`: no approval is left behind, and the
+  payer of a call pays no gas. `OperatorBond` takes a bond the same way, or by approve and `bondFrom`. Each settlement
+  splits the payment in the same transaction (shares in [The seven products](#the-seven-products)).
+
+### Standards we use
+
+- [EIP-3009](https://eips.ethereum.org/EIPS/eip-3009): one-signature USDC payments, as above.
+- [EIP-712](https://eips.ethereum.org/EIPS/eip-712): typed signatures for the USDC authorizations, the enclaves'
+  receipts (`CallReceipt` in `X402Settler`, `Receipt` in `SessionPay`) and the bounty claims and refutations.
+- [EIP-2935](https://eips.ethereum.org/EIPS/eip-2935): recent block hashes, to refuse stale quotes and claims.
+- [ERC-8004](https://eips.ethereum.org/EIPS/eip-8004): the identity and validation registries on Arc, for verdicts.
+- The P-256 precompile ([RIP-7212](https://github.com/ethereum/RIPs/blob/master/RIPS/rip-7212.md),
+  [EIP-7951](https://eips.ethereum.org/EIPS/eip-7951)): the ECDSA signatures inside every Intel quote.
+- [x402](https://github.com/coinbase/x402), the `exact` scheme over EIP-3009, with our own settlement: `payTo` is the
+  `X402Settler` contract, because USDC must move in the same call that checks the enclave's signed receipt for that
+  request. The request is also sealed to the enclave's key, so a standard x402 client cannot pay product 3 yet:
+  callers use our SDK.
+
+### Circle tools: what we use and why not the others
+
+We use four:
+
+- **USDC on Arc**, as money and gas, with EIP-3009 (above).
+- **CCTP V2.** The [Bridge page](https://arc-hive.xyz/bridge.html) is wired to Circle's `TokenMessengerV2`
+  (`0x8FE6…2DAA`), `MessageTransmitterV2` (`0xE737…E275`) and attestation API, from Ethereum Sepolia (CCTP domain 0)
+  and Base Sepolia (domain 6) to Arc (domain 26). The user's wallet signs the burn on the source chain and the mint on
+  Arc. The page sends only standard transfers (`maxFee` 0, finality threshold 2000), which Circle does not charge, so
+  the whole amount burned is minted on Arc ([`cctp.ts`](frontend/src/bridge/cctp.ts)). No transfer has gone through
+  it yet.
+- **The ERC-8004 registries on Arc.** `VerdictLog` writes each verdict to the validation registry
+  (`0x8004Cb1B…4272`), under the operator's identity in the identity registry (`0x8004A818…BD9e`; agent 897812 for our
+  operator): 100 for a session or a bounty that was verified and paid, 0 for a proven fault. Both are in
+  [Arc's contract addresses](https://docs.arc.io/arc/references/contract-addresses).
+- **Arc Foundry's `arc-anvil`.** The bounty image installs it (`v0.8.0-4`, pinned by sha256 in
+  [`Dockerfile.bounty`](enclave/Dockerfile.bounty)). It forks Arc with Arc's precompiles, native USDC included, so the
+  enclave replays an exploit against the same precompiles Arc runs.
+
+We left the others out on purpose. **Gateway, Nanopayments and Circle's x402 facilitator** settle a transfer to an
+address, in batches or through Circle, while `X402Settler` pays only against the receipt of a machine Arc admitted and
+splits the payment in that same transaction. **Circle Paymaster** is not deployed on Arc (no code at its v0.7 and v0.8
+addresses on 20 Nov), and Arc does not need it: gas is already USDC, and our buyers pay none. **Circle Wallets and
+Agent Wallets** are not wired in: buyers sign with their own wallet, and the enclave accepts only plain accounts (EOAs)
+as payers, since it does not check ERC-1271 signatures yet. Gateway and its Nanopayments come next, for sub-cent calls
+(see [What's next](#whats-next)).
 
 ## AskHive: the site's assistant, in its own enclave
 
@@ -261,7 +329,7 @@ settled the three calls on Arc between 20:22 and 20:23 UTC:
 | What it proves | Time | Transaction |
 |---|---|---|
 | Inference enclave admitted through on-chain DCAP and RTMR3 replay (6,866,126 gas) | 9 Nov 18:57 | [`0x199c985d…3499`](https://explorer.testnet.arc.io/tx/0x199c985dee537cfe2948f6c721ad1bdd448d538ff08bc8e93a79036a25f33499) |
-| An exploit replayed inside TDX with Circle's `arc-anvil` (6.3 s): claim accepted, target paused | 9 Nov 19:04 | [`0xfe46faea…a5d8`](https://explorer.testnet.arc.io/tx/0xfe46faea86254ae63eedfb3c859d928b1d08a9352b851c6b88ab262bcb7ea5d8) |
+| An exploit replayed inside TDX with Arc Foundry's `arc-anvil` (6.3 s): claim accepted, target paused | 9 Nov 19:04 | [`0xfe46faea…a5d8`](https://explorer.testnet.arc.io/tx/0xfe46faea86254ae63eedfb3c859d928b1d08a9352b851c6b88ab262bcb7ea5d8) |
 | Payout, sealed report and ERC-8004 verdict in one transaction: 0.5 USDC hunter, 0.05 network, 0.025 operator | 9 Nov 19:04 | [`0xecbd089a…807e`](https://explorer.testnet.arc.io/tx/0xecbd089a092edd939ff646fae8d22c0f2616b6a92f58a49928c231c770bb807e) |
 | A prepaid session settled by the operator, without the client: 0.0994 USDC | 9 Nov 19:12 | [`0x9430e16a…1bb4`](https://explorer.testnet.arc.io/tx/0x9430e16a5cff9bd099c0a7a5f2b11dc87e4c11ad6444a0cd9c87f71ee72f1bb4) |
 | A pay-per-call answer from the browser, settled about 20 s later | 9 Nov 19:25 | [`0xa41f1276…15d9`](https://explorer.testnet.arc.io/tx/0xa41f1276a9f0b0af98d1991ae1ab06e5f1afb3d9bed71bca486ccea7255c15d9) |
@@ -289,16 +357,16 @@ payment and ERC-8004 verdict. Read it with `curl -s https://arc-hive.xyz/api/pro
 | SessionPay | [`0x8Bf8A8356f53006E9aB359AA6382f783923058a6`](https://explorer.testnet.arc.io/address/0x8Bf8A8356f53006E9aB359AA6382f783923058a6) | prepaid sessions (product 1) |
 | X402Settler | [`0xccDb1a5641F2F3f2Cf2112c8E14669DBb6E11634`](https://explorer.testnet.arc.io/address/0xccDb1a5641F2F3f2Cf2112c8E14669DBb6E11634) | pay per call, x402 (product 3) |
 | SealedBounty | [`0x182871d34438aB37a7FD4d8689f3e0812E447A9b`](https://explorer.testnet.arc.io/address/0x182871d34438aB37a7FD4d8689f3e0812E447A9b) | sealed bounties and refutation (products 2 and 5) |
-| VerdictLog | [`0x2B4AB39B461Ae2bA9ADfb6bC630D34553BAb9779`](https://explorer.testnet.arc.io/address/0x2B4AB39B461Ae2bA9ADfb6bC630D34553BAb9779) | verdicts to Circle's ERC-8004 registry |
+| VerdictLog | [`0x2B4AB39B461Ae2bA9ADfb6bC630D34553BAb9779`](https://explorer.testnet.arc.io/address/0x2B4AB39B461Ae2bA9ADfb6bC630D34553BAb9779) | verdicts to the ERC-8004 registry on Arc |
 | MachineRegistry | [`0xD671013f556b1272b25E3cC17C889d402f4Dc26D`](https://explorer.testnet.arc.io/address/0xD671013f556b1272b25E3cC17C889d402f4Dc26D) | chip ID (PPID) read from Intel's certificate |
 | ProofOfCloudAuditor | [`0xcdC4C150344F06d506dEB5500332737E8DCC8FaB`](https://explorer.testnet.arc.io/address/0xcdC4C150344F06d506dEB5500332737E8DCC8FaB) | verifies the Proof of Cloud alliance's token |
 | Ed25519Verifier | [`0x031579DD04398249feB67852632da4A648D4b5cf`](https://explorer.testnet.arc.io/address/0x031579DD04398249feB67852632da4A648D4b5cf) | Ed25519 (RFC 8032) for that token |
 | PolicyEnclaves | [`0x665f4Bb3C31d23463f45e4092487F6b498490417`](https://explorer.testnet.arc.io/address/0x665f4Bb3C31d23463f45e4092487F6b498490417) | each product's required operator level |
 | SealedBountyVerified | [`0x36A8DdF9fcb1308B9e86425beC9B098e933c7348`](https://explorer.testnet.arc.io/address/0x36A8DdF9fcb1308B9e86425beC9B098e933c7348) | sealed bounty, verified operators (product 7) |
 
-Used, not ours: Circle's ERC-8004 validation registry `0x8004Cb1BF31DAf7788923b405b754f57acEB4272` and identity
-registry `0x8004A818BFB912233c491871b3d84c89A494BD9e`; Automata's DCAP entry point, deployed by us from its MIT code,
-`0x48640f7d94dE64b13c89686F3d1240A31Aeb4dc9`; USDC `0x3600000000000000000000000000000000000000`.
+Used, not ours: the ERC-8004 validation registry `0x8004Cb1BF31DAf7788923b405b754f57acEB4272` and identity registry
+`0x8004A818BFB912233c491871b3d84c89A494BD9e`, as listed by Arc; Automata's DCAP entry point, deployed by us from its
+MIT code, `0x48640f7d94dE64b13c89686F3d1240A31Aeb4dc9`; USDC `0x3600000000000000000000000000000000000000`.
 
 **Next stack, v3.** Fourteen contracts were deployed on 19 Nov 2026, between 20:33 and 20:37 UTC: the 13 above, rebuilt
 from `contracts/src`, plus `DemoVault`, a target for the bounty demos (`migrate` deliberately has no access control).
