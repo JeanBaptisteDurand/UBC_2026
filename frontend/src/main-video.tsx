@@ -31,7 +31,7 @@ Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 1500))]).th
   const root = createRoot(document.getElementById('root')!)
   startTransition(() => root.render(<App />))
 })
-// The site copilot (src/copilot) mounts once the landing is ready (first film draw) and the browser is idle: nothing
+// AskHive (src/copilot) mounts once the landing is ready (first film draw) and the browser is idle: nothing
 // more to load or render before the first screen
 // (?gate=1: right away, behind the film's loading gate, which waits for it, so that no first gesture lands on it)
 {

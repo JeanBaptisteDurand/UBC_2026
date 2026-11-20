@@ -30,8 +30,8 @@ export const API_DIRECT = pick('VITE_API_URL') ?? `${ROOT}/api`
 export const CONSOLE = pick('VITE_CONSOLE_URL') ?? `${ROOT}/console`
 /** Server copilot (POST /chat), unencrypted: the console one ("console" surface) */
 export const COPILOT = pick('VITE_COPILOT_URL') ?? `${ROOT}/copilot`
-/** The site copilot (same program, "site" surface): it drives the pages and prepares what the visitor signs; the
- *  copilot panel calls it */
+/** The ArcHive server copilot for the site (same program, "site" surface). AskHive answers through it when its enclave
+ *  cannot be used. It drives the pages and prepares what the visitor signs. */
 export const COPILOT_SITE = pick('VITE_COPILOT_SITE_URL') ?? `${ROOT}/copilot-site`
 /** MCP server (Streamable HTTP): a full URL, to paste into an agent configuration */
 export const MCP = pick('VITE_MCP_URL') ?? `${API_ORIGIN}/mcp`
@@ -56,7 +56,7 @@ export const ENCLAVE = {
   get bountyVerified() { return pick('VITE_ENCLAVE_BOUNTY_VERIFIED') ?? `${encBase()}/bounty-verified` },
   /** Attested copilot (product 4): the proxy token is set by the API's nginx, so calls must go through it */
   get copilot() { return pick('VITE_ENCLAVE_COPILOT') ?? `${encBase()}/copilot` },
-  /** AskHive, the site copilot in its enclave (product 4, "site" surface): sealed conversation, key checked on Arc.
+  /** AskHive in its enclave (product 4, "site" surface): sealed conversation, key checked on Arc.
    *  Always the API origin's path (its nginx sets the proxy token), never the dev relay */
   get copilotSite() { return pick('VITE_ENCLAVE_COPILOT_SITE') ?? `${ROOT}/enclave/copilot-site` },
 }
