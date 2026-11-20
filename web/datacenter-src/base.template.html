@@ -1,0 +1,1771 @@
+<title>ArcHive Base</title>
+<meta name="description" content="A live 3D base built from Kenney's Space Kit: every pod is a real ArcHive enclave on Arc testnet. Replay the network's real history, then explore its state.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chivo:wght@400;500;700;800;900&family=Chivo+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  /* Layout: a full-screen 3D base in space; glass HUD at the edges (brand and tour top left, tools top right, act and stepper top centre, ticker bottom left, status bottom centre, panels on the right, tour card bottom centre). One deliberate dark "space" look. */
+  --space: #0A0F1F;
+  --space-2: #151C38;
+  --glass: rgba(16, 21, 41, .84);
+  --glass-strong: rgba(14, 18, 36, .94);
+  --line: rgba(190, 200, 255, .14);
+  --text: #EEF1FB;
+  --muted: #A6AED0;
+  --accent: #5B8CFF;
+  --kit: #FFA034;
+  --good: #34D399;
+  --session: #5B8CFF;
+  --warn: #FBBF24;
+  --bad: #F87171;
+  --retired: #7B8194;
+  --font: "Chivo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Chivo Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; overflow: hidden; }
+body {
+  background-color: var(--space);
+  background-image: radial-gradient(120% 90% at 58% 42%, var(--space-2) 0%, var(--space) 62%);
+  color: var(--text); font-family: var(--font); font-size: 15px; line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+#stars, #stage { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+#stars { z-index: 0; pointer-events: none; }
+#stage { z-index: 1; touch-action: none; cursor: default; }
+#stage.hot { cursor: pointer; }
+.labels { position: fixed !important; inset: 0; pointer-events: none; z-index: 2; }
+button { font: inherit; color: inherit; }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.glass {
+  background: var(--glass); border: 1px solid var(--line); border-radius: 16px;
+  -webkit-backdrop-filter: blur(12px) saturate(1.2); backdrop-filter: blur(12px) saturate(1.2);
+  box-shadow: 0 14px 40px -18px rgba(0, 0, 0, .7);
+}
+
+/* top left: brand and tour */
+.topleft {
+  position: fixed; z-index: 6; top: calc(env(safe-area-inset-top, 0px) + 14px); left: max(16px, env(safe-area-inset-left, 0px));
+  display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
+}
+.brand { display: flex; align-items: center; gap: 11px; padding: 9px 15px 9px 11px; }
+.brand svg { width: 30px; height: 30px; flex: none; }
+.brand b { display: block; font-size: 17px; font-weight: 900; letter-spacing: -.02em; line-height: 1.1; }
+.brand span { display: block; font-size: 12px; color: var(--muted); line-height: 1.25; }
+.btn-tour {
+  display: inline-flex; align-items: center; gap: 8px; border: 0; cursor: pointer; border-radius: 999px; padding: 8px 15px;
+  background: linear-gradient(180deg, #FFB65A, #F38E1F); color: #1B1206; font-weight: 800; font-size: 14px;
+  box-shadow: 0 8px 24px -10px rgba(255, 160, 52, .8);
+}
+.btn-tour svg { width: 16px; height: 16px; }
+
+/* top right: tools */
+.tools {
+  position: fixed; z-index: 6; top: calc(env(safe-area-inset-top, 0px) + 14px); right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; max-width: 56vw;
+}
+.ibtn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-width: 42px; height: 42px; padding: 0 12px;
+  border-radius: 13px; border: 1px solid var(--line); background: var(--glass); cursor: pointer; font-weight: 700; font-size: 13.5px;
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); text-decoration: none;
+}
+.ibtn svg { width: 18px; height: 18px; flex: none; }
+.ibtn:hover { border-color: rgba(190, 200, 255, .32); }
+.ibtn.primary { background: var(--accent); border-color: transparent; color: #0A0F1F; }
+.ibtn[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+
+/* top centre: act banner, replay clock, journey stepper */
+.topcenter {
+  position: fixed; z-index: 5; top: calc(env(safe-area-inset-top, 0px) + 16px); left: 50%; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; max-width: min(560px, 46vw);
+}
+.act { padding: 8px 16px 9px; text-align: center; opacity: 0; transform: translateY(-6px); transition: opacity .4s, transform .4s; }
+.act.on { opacity: 1; transform: none; }
+.act small { display: block; font-family: var(--mono); font-size: 11.5px; color: var(--kit); }
+.act b { display: block; font-size: 15.5px; font-weight: 800; }
+.act span { display: block; font-size: 12.5px; color: var(--muted); }
+.stepper { display: flex; align-items: center; gap: 4px; padding: 5px; pointer-events: auto; }
+.stepper button {
+  border: 0; background: none; cursor: pointer; border-radius: 10px; padding: 6px 10px; font-size: 12.5px; font-weight: 700; color: var(--muted);
+}
+.stepper button.on { background: rgba(91, 140, 255, .22); color: var(--text); }
+.stepper i { color: rgba(190, 200, 255, .35); font-style: normal; font-size: 12px; }
+
+/* bottom left: ticker */
+.ticker {
+  position: fixed; z-index: 5; left: max(16px, env(safe-area-inset-left, 0px)); bottom: calc(env(safe-area-inset-bottom, 0px) + 74px);
+  width: min(380px, 40vw); padding: 10px 12px 8px; display: flex; flex-direction: column; gap: 2px;
+}
+.ticker h3 { margin: 0 0 4px; font-size: 11.5px; font-weight: 700; color: var(--muted); letter-spacing: .04em; display: flex; justify-content: space-between; gap: 8px; }
+.ticker h3 em { font-style: normal; font-family: var(--mono); color: var(--kit); font-weight: 500; letter-spacing: 0; }
+.tick { display: grid; grid-template-columns: 10px 1fr; gap: 8px; align-items: baseline; padding: 4px 4px; border-radius: 8px; font-size: 13px; line-height: 1.35; animation: tickin .35s ease; }
+.tick button { all: unset; cursor: pointer; }
+.tick button:hover b { text-decoration: underline; }
+.tick i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; transform: translateY(-1px); }
+.tick b { font-weight: 500; }
+.tick small { display: block; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.tick a { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+@keyframes tickin { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* bottom centre: status pill */
+.status {
+  position: fixed; z-index: 5; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  display: flex; align-items: center; gap: 0; padding: 6px 8px; border-radius: 999px; max-width: calc(100vw - 32px);
+  font-size: 13px; font-weight: 600; white-space: nowrap; overflow-x: auto; scrollbar-width: none;
+}
+.status::-webkit-scrollbar { display: none; }
+.status > span { display: inline-flex; align-items: center; gap: 7px; padding: 4px 12px; border-right: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.status > span:last-child { border-right: 0; }
+.status svg { width: 15px; height: 15px; opacity: .8; }
+.mode { font-family: var(--mono); font-size: 12px; font-weight: 500; }
+.mode i { width: 8px; height: 8px; border-radius: 50%; background: var(--kit); display: inline-block; }
+.mode.live i { background: var(--good); box-shadow: 0 0 0 3px rgba(52, 211, 153, .2); }
+
+/* right panel */
+.panel {
+  position: fixed; z-index: 7; top: calc(env(safe-area-inset-top, 0px) + 70px); right: max(16px, env(safe-area-inset-right, 0px));
+  width: min(360px, calc(100vw - 32px)); max-height: calc(100vh - 170px); overflow: auto; padding: 18px 18px 16px;
+  transform: translateX(16px); opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s;
+}
+.panel.on { transform: none; opacity: 1; pointer-events: auto; }
+.panel header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+.panel h2 { margin: 0; font-size: 19px; font-weight: 800; letter-spacing: -.01em; line-height: 1.2; }
+.panel .x { border: 0; background: rgba(190, 200, 255, .1); width: 30px; height: 30px; border-radius: 9px; cursor: pointer; flex: none; }
+.panel p { margin: 0 0 10px; color: var(--text); font-size: 14px; }
+.panel .muted { color: var(--muted); }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 8px 0 12px; font-size: 13px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; min-width: 0; overflow-wrap: anywhere; }
+.kv code { font-family: var(--mono); font-size: 12px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+.panel .fact { font-family: var(--mono); font-size: 12px; color: var(--kit); background: rgba(255, 160, 52, .09); border-radius: 10px; padding: 8px 10px; }
+.legend-list { list-style: none; margin: 4px 0 12px; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.legend-list li { display: grid; grid-template-columns: 16px 1fr; gap: 10px; font-size: 13.5px; }
+.legend-list i { width: 14px; height: 14px; border-radius: 4px; transform: translateY(3px); }
+.legend-list b { display: block; }
+.legend-list span { color: var(--muted); font-size: 12.5px; }
+.panel ul.notes { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; font-size: 13.5px; }
+.field label { color: var(--muted); font-size: 12.5px; }
+.seg { display: inline-flex; gap: 4px; padding: 3px; border-radius: 11px; background: rgba(190, 200, 255, .08); flex-wrap: wrap; }
+.seg button { border: 0; background: none; border-radius: 9px; padding: 6px 11px; cursor: pointer; font-size: 13px; font-weight: 700; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: #0A0F1F; }
+.seg button:disabled { opacity: .45; cursor: not-allowed; }
+.field small { color: var(--muted); font-size: 12px; }
+.panel .link { display: inline-flex; margin-top: 4px; font-weight: 700; font-size: 13.5px; color: var(--accent); text-decoration: none; }
+
+/* tour card */
+.tour {
+  position: fixed; z-index: 8; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 84px); transform: translate(-50%, 12px);
+  width: min(500px, calc(100vw - 32px)); padding: 18px 20px 16px; opacity: 0; pointer-events: none; transition: opacity .3s, transform .3s;
+  background: var(--glass-strong);
+}
+.tour.on { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+.tour .ico { width: 34px; height: 34px; border-radius: 10px; background: rgba(255, 160, 52, .16); display: grid; place-items: center; margin-bottom: 10px; }
+.tour .ico svg { width: 20px; height: 20px; color: var(--kit); }
+.tour h2 { margin: 0 0 6px; font-size: 20px; font-weight: 800; letter-spacing: -.01em; line-height: 1.2; text-wrap: balance; }
+.tour p { margin: 0; color: var(--text); font-size: 15px; line-height: 1.55; }
+.tour footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 16px; }
+.dots { display: flex; gap: 6px; }
+.dots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(190, 200, 255, .25); }
+.dots i.on { background: var(--kit); width: 18px; border-radius: 4px; }
+.tour .actions { display: flex; gap: 8px; }
+.tbtn { border: 0; border-radius: 11px; padding: 9px 15px; cursor: pointer; font-weight: 800; font-size: 14px; background: rgba(190, 200, 255, .1); }
+.tbtn.next { background: linear-gradient(180deg, #FFB65A, #F38E1F); color: #1B1206; }
+.dim { position: fixed; inset: 0; z-index: 3; background: rgba(6, 9, 20, .22); opacity: 0; pointer-events: none; transition: opacity .3s; }
+.dim.on { opacity: 1; }
+
+/* tooltip, toast, bubbles, 3D labels */
+.tooltip {
+  position: fixed; z-index: 9; pointer-events: none; padding: 9px 11px; border-radius: 12px; font-size: 12.5px; max-width: 250px;
+  background: var(--glass-strong); border: 1px solid var(--line); opacity: 0; transition: opacity .15s;
+}
+.tooltip.on { opacity: 1; }
+.tooltip b { display: block; font-size: 13px; }
+.tooltip span { color: var(--muted); }
+.toast {
+  position: fixed; z-index: 9; bottom: calc(env(safe-area-inset-bottom, 0px) + 70px); left: 50%; transform: translate(-50%, 8px);
+  padding: 10px 16px; border-radius: 12px; font-size: 13.5px; font-weight: 600; opacity: 0; pointer-events: none; transition: opacity .3s, transform .3s;
+  background: var(--glass-strong); border: 1px solid var(--line); max-width: calc(100vw - 32px); text-align: center;
+}
+.toast.on { opacity: 1; transform: translate(-50%, 0); }
+.zlabel {
+  font-size: 11.5px; font-weight: 800; letter-spacing: .02em; color: #F6F2EC; padding: 3px 8px; border-radius: 8px;
+  background: rgba(10, 15, 31, .62); border: 1px solid rgba(255, 255, 255, .12); white-space: nowrap; transition: opacity .3s;
+}
+.zlabel.off { opacity: 0; }
+.badge3d {
+  font: 800 12px/1 var(--font); padding: 5px 8px; border-radius: 9px; white-space: nowrap; color: #0A0F1F;
+  box-shadow: 0 6px 16px -8px rgba(0, 0, 0, .6); animation: rise 2.6s ease forwards;
+}
+@keyframes rise { 0% { opacity: 0; transform: translateY(8px) scale(.9); } 12% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-18px); } }
+.bubble {
+  font: 700 12px/1.25 var(--font); background: #FFFFFF; color: #14182B; padding: 6px 9px; border-radius: 11px; white-space: nowrap;
+  box-shadow: 0 8px 18px -10px rgba(0, 0, 0, .7); opacity: 0; transform: translateY(5px); transition: opacity .25s, transform .25s; position: relative;
+}
+.bubble::after { content: ""; position: absolute; left: 50%; bottom: -5px; width: 9px; height: 9px; background: #FFF; transform: translateX(-50%) rotate(45deg); border-radius: 2px; }
+.bubble.on { opacity: 1; transform: none; }
+.layerlabel { font: 800 12.5px/1.2 var(--font); color: #DDE6FF; padding: 4px 9px; border-radius: 9px; background: rgba(40, 70, 170, .55); border: 1px solid rgba(160, 190, 255, .4); white-space: nowrap; transition: opacity .3s; }
+
+#loader { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: var(--space); transition: opacity .6s, visibility .6s; }
+#loader.done { opacity: 0; visibility: hidden; }
+#loader .box { width: min(320px, 80vw); }
+#loader p { margin: 0 0 12px; font-weight: 800; font-size: 15px; }
+#loader .track { height: 4px; border-radius: 4px; background: rgba(190, 200, 255, .15); overflow: hidden; }
+#loader .fillbar { height: 100%; width: 0; background: var(--kit); transition: width .2s; }
+#loader small { display: block; margin-top: 10px; color: var(--muted); font-size: 12.5px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@media (max-width: 1100px) {
+  .topcenter { display: none; }
+  .ticker { width: min(330px, 46vw); }
+}
+@media (max-width: 760px) {
+  .brand span { display: none; }
+  .brand { padding: 7px 12px 7px 9px; }
+  .brand b { font-size: 15px; }
+  .ibtn .txt { display: none; }
+  .ibtn { min-width: 38px; height: 38px; padding: 0 9px; }
+  .tools { max-width: 60vw; gap: 6px; }
+  .status { font-size: 11.5px; border-radius: 16px; flex-wrap: wrap; justify-content: center; white-space: normal; padding: 4px 6px; }
+  .status > span { padding: 3px 8px; border-right: 0; }
+  .status .opt { display: none; }
+  .ticker { left: 12px; right: 12px; width: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 108px); padding: 8px 10px 6px; }
+  .toast { top: calc(env(safe-area-inset-top, 0px) + 118px); bottom: auto; transform: translate(-50%, -8px); }
+  .ticker .tick:nth-of-type(n+3) { display: none; }
+  .tour { bottom: calc(env(safe-area-inset-bottom, 0px) + 96px); padding: 15px 16px 14px; }
+  .tour h2 { font-size: 18px; }
+  .tour p { font-size: 14.5px; }
+  .panel { top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); max-height: 62vh; left: 12px; right: 12px; width: auto; }
+  .zlabel { font-size: 10.5px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .act, .panel, .tour, .tooltip, .toast, .bubble, .zlabel, .layerlabel, #loader, .dim { transition: none; }
+  .tick, .badge3d { animation: none; }
+}
+</style>
+
+<canvas id="stars" aria-hidden="true"></canvas>
+<canvas id="stage" aria-label="3D base: hexagonal pods are real ArcHive enclaves on Arc testnet"></canvas>
+<div class="dim" id="dim"></div>
+
+<div class="topleft">
+  <div class="brand glass" aria-label="ArcHive Base">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2.5 27.7 9.25v13.5L16 29.5 4.3 22.75V9.25z" fill="#16204a" stroke="#5B8CFF" stroke-width="2"/><path d="M9.5 20.5c1.2-5 4-7.5 6.5-7.5s5.3 2.5 6.5 7.5" fill="none" stroke="#FFA034" stroke-width="2.4" stroke-linecap="round"/><circle cx="16" cy="13" r="2.2" fill="#FFA034"/></svg>
+    <div><b data-t="brand.name">ArcHive</b><span data-t="brand.tagline"></span></div>
+  </div>
+  <button class="btn-tour" id="btn-tour" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z" fill="currentColor"/></svg><span data-t="buttons.tour">Tour</span></button>
+</div>
+
+<nav class="tools" aria-label="Tools">
+  <button class="ibtn" id="btn-replay" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.6"/><path d="M4 4v4h4"/></svg><span class="txt" data-t="buttons.replay">Replay</span></button>
+  <button class="ibtn" id="btn-legend" type="button" aria-label="Legend"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3 20 7.5v9L12 21l-8-4.5v-9z"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/></svg><span class="txt" data-t="buttons.legend">Legend</span></button>
+  <button class="ibtn" id="btn-about" type="button" aria-label="About the data"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg></button>
+  <button class="ibtn" id="btn-settings" type="button" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button>
+  <button class="ibtn" id="btn-lang" type="button" aria-label="Language">FR</button>
+  <a class="ibtn primary" id="btn-console" href="https://archive.62-171-153-35.sslip.io" target="_blank" rel="noopener"><span class="txt" data-t="buttons.console">Open the console</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5H5V6h5"/></svg></a>
+</nav>
+
+<div class="topcenter">
+  <div class="act glass" id="act" aria-live="polite"><small id="act-clock"></small><b id="act-title"></b><span id="act-story"></span></div>
+  <div class="stepper glass" id="stepper" hidden></div>
+</div>
+
+<section class="ticker glass" id="ticker" aria-label="Events">
+  <h3><span data-t="ticker.title">On Arc</span><em id="ticker-clock"></em></h3>
+  <div id="ticks"></div>
+</section>
+
+<div class="status glass" id="status" role="status" aria-live="off">
+  <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16v10H4z"/><path d="M8 11h8"/></svg><b id="st-block"></b></span>
+  <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3 20 7.5v9L12 21l-8-4.5v-9z"/></svg><b id="st-pods"></b></span>
+  <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.5 10.5c0-1.2 1.1-2 2.5-2s2.5.6 2.5 1.7c0 2.6-5 1.4-5 4 0 1.1 1.1 1.8 2.5 1.8s2.5-.8 2.5-2"/></svg><b id="st-paid"></b></span>
+  <span class="opt"><b id="st-calls"></b></span>
+  <span class="opt"><b id="st-bounties"></b></span>
+  <span class="mode" id="st-mode"><i></i><b id="st-mode-text"></b></span>
+</div>
+
+<aside class="panel glass" id="panel" aria-live="polite"></aside>
+
+<section class="tour" id="tour" role="dialog" aria-modal="false" aria-labelledby="tour-title">
+  <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3 20 7.5v9L12 21l-8-4.5v-9z"/><path d="M12 8v4l3 2"/></svg></div>
+  <h2 id="tour-title"></h2>
+  <p id="tour-body"></p>
+  <footer><div class="dots" id="tour-dots"></div><div class="actions"><button class="tbtn" id="tour-skip" type="button"></button><button class="tbtn" id="tour-back" type="button"></button><button class="tbtn next" id="tour-next" type="button"></button></div></footer>
+</section>
+
+<div class="tooltip" id="tooltip"></div>
+<div class="toast" id="toast" role="status"></div>
+<div id="loader" role="status" aria-live="polite"><div class="box"><p id="load-text">Landing on the base</p><div class="track"><div class="fillbar" id="load-bar"></div></div><small id="load-sub">Loading 3D models</small></div></div>
+
+<script type="application/json" id="base-data">/*__DATA__*/</script>
+<script type="application/json" id="base-copy">/*__COPY__*/</script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+/* =================================================================== 0. data, words, helpers */
+const DATA = JSON.parse(document.getElementById('base-data').textContent);
+const COPY = JSON.parse(document.getElementById('base-copy').textContent);
+/* words the scene needs beyond the copy file */
+const PATCH = {
+  en: {
+    buttons: { now: 'Skip to now' },
+    settings: { follow: 'Camera follows the action', on: 'On', off: 'Off', jump: 'Jump to a moment of the history' },
+    layers: { registry: 'Enclave registry', product: 'Product contract', bond: 'Operator bond (USDC)' },
+    zones: { provider: { title: 'AI model gateway', body: 'For the AI services, a pod forwards your question over HTTPS to the model provider, RedPill, whose gateway runs in its own attested enclave. The pod checks that gateway (Intel quote, production OS, pinned TLS) and refuses to call it if the check fails.', fact: 'Model: gpt-oss-120b via tee.redpill.ai (README, 12 Nov 2026)' } },
+  },
+  fr: {
+    buttons: { now: 'Revenir à maintenant' },
+    settings: { follow: "La caméra suit l'action", on: 'Oui', off: 'Non', jump: "Aller à un moment de l'histoire" },
+    layers: { registry: 'Registre des enclaves', product: 'Contrat du produit', bond: "Caution de l'opérateur (USDC)" },
+    zones: { provider: { title: "Passerelle du modèle d'IA", body: "Pour les services d'IA, un module transmet votre question en HTTPS au fournisseur du modèle, RedPill, dont la passerelle tourne dans sa propre enclave attestée. Le module vérifie cette passerelle (quote Intel, OS de production, TLS épinglé) et refuse de l'appeler si la vérification échoue.", fact: 'Modèle : gpt-oss-120b via tee.redpill.ai (README, 12 nov. 2026)' } },
+  },
+};
+function deepMerge(a, b) { for (const [k, v] of Object.entries(b)) { if (v && typeof v === 'object' && !Array.isArray(v)) { a[k] = a[k] && typeof a[k] === 'object' ? a[k] : {}; deepMerge(a[k], v); } else if (a[k] == null) a[k] = v; } return a; }
+for (const l of Object.keys(PATCH)) COPY[l] = deepMerge(COPY[l] || {}, PATCH[l]);
+const $ = (s) => document.querySelector(s);
+const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const API = 'https://archive.62-171-153-35.sslip.io/api';
+const EXPLORER = (DATA.chain && DATA.chain.explorer) || 'https://explorer.testnet.arc.io';
+const store = {
+  get(k) { try { return localStorage.getItem('archive-base.' + k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem('archive-base.' + k, v); } catch { /* storage may be blocked */ } },
+};
+let LANG = store.get('lang') || ((navigator.language || 'en').toLowerCase().startsWith('fr') ? 'fr' : 'en');
+if (!COPY[LANG]) LANG = 'en';
+const dig = (obj, path) => path.split('.').reduce((o, k) => (o == null ? o : o[k]), obj);
+function tr(path, vars) {
+  let v = dig(COPY[LANG], path);
+  if (v == null) v = dig(COPY.en, path);
+  if (v == null) return '';
+  if (typeof v !== 'string') return v;
+  return vars ? v.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? vars[k] : m)) : v;
+}
+const loc = () => (LANG === 'fr' ? 'fr-FR' : 'en-US');
+const fmtInt = (n) => Number(n).toLocaleString(loc());
+const fmtUsdc = (n) => Number(n).toLocaleString(loc(), { maximumFractionDigits: 4 });
+const fmtDate = (unix) => {
+  const d = new Date(unix * 1000);
+  return d.toLocaleString(loc(), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + ' UTC';
+};
+const fmtDay = (unix) => new Date(unix * 1000).toLocaleDateString(loc(), { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+const isoToUnix = (iso) => (iso ? Math.floor(Date.parse(iso) / 1000) : null);
+const short = (a) => (a && a.length > 14 ? a.slice(0, 6) + '…' + a.slice(-4) : a || '');
+const clamp01 = (v) => Math.min(1, Math.max(0, v));
+const easeOut = (k) => 1 - Math.pow(1 - k, 3);
+const easeInOut = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
+const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+const rand = (() => { let s = 1234567; return () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; }; })();
+const STATE_HEX = { live: '#34D399', session: '#5B8CFF', checking: '#FBBF24', fault: '#F87171', retired: '#7B8194', empty: '#3A4160' };
+const PRODUCT_HEX = { 1: '#A78BFA', 2: '#FFA034', 3: '#38BDF8', 4: '#F472B6', 5: '#94A3B8', 6: '#FCD34D', 7: '#FBBF24' };
+
+/* =================================================================== 1. renderer, camera, light */
+const canvas = $('#stage');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+renderer.setClearColor(0x000000, 0);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.NoToneMapping;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 400);
+const css = new CSS2DRenderer();
+css.domElement.className = 'labels';
+document.body.appendChild(css.domElement);
+const AZ = THREE.MathUtils.degToRad(-32), EL = THREE.MathUtils.degToRad(34);
+const DIR = V3(Math.sin(AZ) * Math.cos(EL), Math.sin(EL), Math.cos(AZ) * Math.cos(EL));
+const hemi = new THREE.HemisphereLight(0xf4f1ff, 0x4a3a52, 1.35);
+const sun = new THREE.DirectionalLight(0xfff0dc, 2.1);
+sun.position.set(-9, 18, 10);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12, near: 1, far: 60 });
+sun.shadow.camera.updateProjectionMatrix();
+sun.shadow.bias = -0.0005;
+sun.shadow.normalBias = 0.03;
+const rim = new THREE.DirectionalLight(0x9fb4ff, 0.6);
+rim.position.set(10, 6, -10);
+scene.add(hemi, sun, sun.target, rim);
+
+/* =================================================================== 2. models */
+const G = {};
+const loader = new GLTFLoader();
+async function loadPacks() {
+  const bar = $('#load-bar');
+  const packs = [['space', 'm/space.json', ''], ['chars', 'm/chars.json', 'm/chars/']];
+  let done = 0;
+  await Promise.all(packs.map(async ([, url, path]) => {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`${url} answered ${res.status}`);
+    const pack = await res.json();
+    await Promise.all(Object.entries(pack).map(async ([name, b64]) => {
+      try {
+        const bin = Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0));
+        G[name] = await loader.parseAsync(bin.buffer, path);
+      } catch (e) { console.warn('model failed', name, e); }
+    }));
+    done += 1;
+    bar.style.width = `${Math.round((done / packs.length) * 100)}%`;
+  }));
+  for (const g of Object.values(G)) {
+    g.scene.traverse((o) => {
+      if (!o.isMesh) return;
+      o.castShadow = true;
+      o.receiveShadow = true;
+      for (const m of [].concat(o.material)) { m.metalness = 0; if (m.roughness == null || m.roughness < 0.6) m.roughness = 0.9; }
+    });
+  }
+}
+const has = (n) => !!G[n];
+/** Clone a model, centre its footprint, stand it on y = 0. Outer group = placement, inner = scale. */
+function place(name, x, z, { rot = 0, s = 1, y = 0, parent = scene, shadow = true, clone = true } = {}) {
+  if (!G[name]) return null;
+  const c = clone ? G[name].scene.clone(true) : G[name].scene;
+  c.position.set(0, 0, 0);
+  c.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(c);
+  const ctr = box.getCenter(new THREE.Vector3());
+  c.position.set(-ctr.x, -box.min.y, -ctr.z);
+  const inner = new THREE.Group(); inner.add(c); inner.scale.setScalar(s);
+  const g = new THREE.Group(); g.add(inner); g.position.set(x, y, z); g.rotation.y = rot;
+  g.userData.size = box.getSize(new THREE.Vector3()).multiplyScalar(s);
+  if (!shadow) g.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+  parent.add(g);
+  return g;
+}
+/** Give one clone its own copies of the named materials (state colours per pod). */
+function ownMaterials(root, names) {
+  const map = {};
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    const mats = [].concat(o.material).map((m) => {
+      if (!names.includes(m.name)) return m;
+      if (!map[m.name]) map[m.name] = m.clone();
+      return map[m.name];
+    });
+    o.material = Array.isArray(o.material) ? mats : mats[0];
+  });
+  return map;
+}
+
+/* =================================================================== 3. time, waits, tweens */
+let simT = 0, PACE = Number(store.get('pace')) || 1.5;
+let SKIP = false;                        // fast-forward to a chosen act
+let BOOST = 1;                           // quick pass over long runs of identical renewals
+const speed = () => PACE * (SKIP ? 80 : BOOST);
+const timers = [];
+const wait = (s) => new Promise((r) => timers.push({ t: simT + s / speed(), r }));
+const tweens = [];
+const tween = (dur, fn, ease = easeInOut) => new Promise((r) => tweens.push({ t: 0, dur: Math.max(0.001, dur / speed()), fn, ease, r }));
+function runClock(dt) {
+  simT += dt;
+  for (let i = timers.length - 1; i >= 0; i--) if (timers[i].t <= simT) { const { r } = timers[i]; timers.splice(i, 1); r(); }
+  for (let i = tweens.length - 1; i >= 0; i--) {
+    const tw = tweens[i]; tw.t += dt;
+    const k = Math.min(1, tw.t / tw.dur); tw.fn(tw.ease(k));
+    if (k >= 1) { tweens.splice(i, 1); tw.r(); }
+  }
+}
+
+/* =================================================================== 4. the island and the zones */
+const Z = {
+  hive: V3(0.7, 0, -0.6), gate: V3(-4.7, 0, 1.25), pad: V3(-5.7, 0, 3.9), dish: V3(-5.6, 0, -3.8),
+  lab: V3(6.3, 0, -3.4), dock: V3(6.0, 0, 3.8), author: V3(-1.2, 0, -4.75), provider: V3(10.2, 2.6, -8.6),
+};
+const LABP = { robot: V3(4.5, 0, -2.7), screen: V3(4.3, 0, -1.8), engine: V3(7.45, 0, -1.35), vault: V3(4.75, 0, -4.7) };
+function roundedRect(w, d, r) {
+  const s = new THREE.Shape(), x0 = -w / 2, z0 = -d / 2;
+  s.moveTo(x0 + r, z0); s.lineTo(x0 + w - r, z0); s.quadraticCurveTo(x0 + w, z0, x0 + w, z0 + r);
+  s.lineTo(x0 + w, z0 + d - r); s.quadraticCurveTo(x0 + w, z0 + d, x0 + w - r, z0 + d);
+  s.lineTo(x0 + r, z0 + d); s.quadraticCurveTo(x0, z0 + d, x0, z0 + d - r);
+  s.lineTo(x0, z0 + r); s.quadraticCurveTo(x0, z0, x0 + r, z0);
+  return s;
+}
+function slab(w, d, r, depth, color, y) {
+  const geo = new THREE.ExtrudeGeometry(roundedRect(w, d, r), { depth, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.06, bevelSegments: 1, curveSegments: 6 });
+  geo.rotateX(Math.PI / 2);
+  const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color, roughness: 0.95, metalness: 0, flatShading: true }));
+  m.position.y = y - 0.06; m.receiveShadow = true; m.castShadow = false;
+  scene.add(m);
+  return m;
+}
+function buildIsland() {
+  slab(16, 12, 1.8, 0.55, '#E88463', 0);
+  slab(15.2, 11.2, 1.6, 0.9, '#B25F43', -0.55);
+  slab(13.4, 9.6, 1.5, 1.0, '#9A5038', -1.45);
+  slab(10.8, 7.4, 1.3, 1.0, '#84432F', -2.45);
+  slab(7.4, 4.8, 1.0, 1.1, '#6E3826', -3.45);
+  /* road from the dock to the hive */
+  if (has('terrain_roadStraight')) for (let i = 0; i < 4; i++) place('terrain_roadStraight', 3.25 + i, 2.25, { rot: Math.PI / 2, y: 0.005, shadow: false });
+  /* decoration, kept out of the zones */
+  const keep = [[Z.hive, 3.9], [Z.gate, 2.1], [Z.pad, 2.2], [Z.dish, 1.9], [Z.lab, 2.6], [Z.dock, 2.0], [Z.author, 1.4], [V3(4.8, 0, 2.25), 1.6], [LABP.vault, 0.9], [LABP.engine, 0.9], [V3(-3.4, 0, -5.25), 1.5], [V3(7.35, 0, 5.1), 1.4], [V3(-3.85, 0, 4.85), 0.9], [V3(7.75, 0, 2.3), 0.8], [V3(4.2, 0, 4.95), 0.8]];
+  const props = ['crater', 'craterLarge', 'rocks_smallA', 'rocks_smallB', 'rock', 'rock_crystals', 'rock_crystalsLargeA', 'meteor_half', 'rock_largeB'].filter(has);
+  let placed = 0;
+  for (let i = 0; i < 160 && placed < 22; i++) {
+    const x = -7.2 + rand() * 14.4, z = -5.2 + rand() * 10.4;
+    const p = V3(x, 0, z);
+    if (keep.some(([c, r]) => p.distanceTo(c) < r)) continue;
+    const name = props[Math.floor(rand() * props.length)];
+    place(name, x, z, { rot: rand() * 6.28, s: name.startsWith('crater') ? 0.9 : 0.55 + rand() * 0.35 });
+    placed += 1;
+  }
+  /* floating debris under and beside the island */
+  for (const [x, y, z, s] of [[-10, -1.5, 2, 0.6], [9.6, -0.6, -3, 0.45], [-8.6, -3.2, -5, 0.8], [10.8, -2.8, 4.6, 0.5]]) {
+    const m = place(has('meteor_detailed') ? 'meteor_detailed' : 'meteor', x, z, { y, s, rot: rand() * 6 });
+    if (m) floaters.push({ o: m, y, ph: rand() * 6 });
+  }
+}
+const floaters = [];
+
+/* zone labels anchored in 3D */
+const zoneLabels = [];
+function zoneLabel(key, pos) {
+  const el = document.createElement('div');
+  el.className = 'zlabel';
+  el.dataset.zone = key;
+  const o = new CSS2DObject(el);
+  o.position.copy(pos);
+  scene.add(o);
+  zoneLabels.push({ key, el });
+}
+
+/* LED billboards drawn on canvas */
+function ledBoard(w, h, draw) {
+  const c = document.createElement('canvas'); c.width = 512; c.height = Math.round(512 * h / w);
+  const g = c.getContext('2d');
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  const grp = new THREE.Group();
+  const frame = new THREE.Mesh(new RoundedBoxGeometry(w + 0.16, h + 0.16, 0.12, 2, 0.05), new THREE.MeshStandardMaterial({ color: '#2b3040', roughness: 0.8 }));
+  frame.castShadow = true;
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex }));
+  face.position.z = 0.065;
+  const legL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.9, 0.08), new THREE.MeshStandardMaterial({ color: '#acb5c5' }));
+  legL.position.set(-w / 2 + 0.2, -h / 2 - 0.45, 0); legL.castShadow = true;
+  const legR = legL.clone(); legR.position.x = w / 2 - 0.2;
+  grp.add(frame, face, legL, legR);
+  let key = '';
+  grp.userData.set = (k, ...args) => { if (k === key) return; key = k; g.clearRect(0, 0, c.width, c.height); draw(g, c.width, c.height, ...args); tex.needsUpdate = true; };
+  scene.add(grp);
+  return grp;
+}
+function drawLed(g, w, h, title, value, sub) {
+  g.fillStyle = '#12141c'; g.fillRect(0, 0, w, h);
+  g.shadowColor = '#ffac33'; g.shadowBlur = 14; g.fillStyle = '#ffb347';
+  g.font = '700 30px "Chivo Mono", monospace'; g.fillText(title, 24, 46);
+  g.font = '700 64px "Chivo Mono", monospace'; g.fillText(value, 24, 118);
+  if (sub) { g.shadowBlur = 0; g.fillStyle = '#c9a26a'; g.font = '500 24px "Chivo Mono", monospace'; g.fillText(sub, 24, h - 22); }
+}
+let boardBlock, boardPaid;
+
+/* =================================================================== 5. pods (one per enclave key) */
+const R_POD = 0.46;                 // scale of hangar_roundGlass
+const PITCH_X = 1.24, PITCH_Z = 1.43;
+const sockets = [];
+(function makeSockets() {
+  const cells = [];
+  for (let q = -2; q <= 2; q++) for (let r = -2; r <= 2; r++) { if (Math.abs(q + r) > 2) continue; cells.push([q, r]); }
+  cells.sort((a, b) => {
+    const da = Math.max(Math.abs(a[0]), Math.abs(a[1]), Math.abs(a[0] + a[1])), db = Math.max(Math.abs(b[0]), Math.abs(b[1]), Math.abs(b[0] + b[1]));
+    if (da !== db) return da - db;
+    return Math.atan2(a[1] + a[0] / 2, a[0]) - Math.atan2(b[1] + b[0] / 2, b[0]);
+  });
+  for (const [q, r] of cells) sockets.push({ q, r, pos: V3(Z.hive.x + PITCH_X * q, 0, Z.hive.z + PITCH_Z * (r + q / 2)), pod: null });
+})();
+const pods = new Map();      // id -> pod
+const hitPods = [];
+function hexBase(radius, height, color) {
+  const geo = new THREE.CylinderGeometry(radius, radius * 1.04, height, 6, 1);
+  geo.rotateY(Math.PI / 6);
+  const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color, roughness: 0.85 }));
+  m.receiveShadow = true;
+  return m;
+}
+function buildSockets() {
+  for (const s of sockets) {
+    const base = hexBase(0.79, 0.08, '#C9CFDC');
+    base.position.copy(s.pos).setY(0.04);
+    scene.add(base);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.52, 0.62, 6, 1), new THREE.MeshBasicMaterial({ color: '#8790B3', transparent: true, opacity: 0.9 }));
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.copy(s.pos).setY(0.085);
+    scene.add(ring);
+    s.ring = ring;
+  }
+}
+function makePod(info) {
+  const grp = new THREE.Group();
+  const model = place('hangar_roundGlass', 0, 0, { s: R_POD, parent: grp }) || place('hangar_roundA', 0, 0, { s: R_POD, parent: grp });
+  const mats = model ? ownMaterials(model, ['metalRed', 'dark']) : {};
+  /* glow ring around the base and a small beacon */
+  const glow = new THREE.Mesh(new THREE.RingGeometry(0.74, 0.86, 6, 1), new THREE.MeshBasicMaterial({ color: STATE_HEX.live, transparent: true, opacity: 0.85, depthWrite: false }));
+  glow.rotation.x = -Math.PI / 2; glow.position.y = 0.02;
+  const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.075, 14, 10), new THREE.MeshBasicMaterial({ color: STATE_HEX.live }));
+  beacon.position.y = 0.86;
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.22, 6), new THREE.MeshStandardMaterial({ color: '#acb5c5' }));
+  mast.position.y = 0.74;
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.02, 6), new THREE.MeshBasicMaterial({ color: PRODUCT_HEX[info.product] || '#94A3B8' }));
+  cap.rotation.y = Math.PI / 6; cap.position.y = 0.655;
+  const hit = new THREE.Mesh(new THREE.CylinderGeometry(0.66, 0.66, 1.05, 6), new THREE.MeshBasicMaterial({ visible: false }));
+  hit.position.y = 0.5;
+  grp.add(glow, mast, beacon, cap, hit);
+  scene.add(grp);
+  const pod = { id: info.id, info, grp, model, mats, glow, beacon, cap, hit, state: 'retired', socket: null, verified: false, shown: false, flash: 0 };
+  hit.userData.pod = pod;
+  hitPods.push(hit);
+  grp.visible = false;
+  return pod;
+}
+const SC = {};
+for (const [k, v] of Object.entries(STATE_HEX)) SC[k] = new THREE.Color(v);
+const DOME = { live: new THREE.Color('#3b4252'), retired: new THREE.Color('#8a8f9c'), fault: new THREE.Color('#5a2a2a') };
+function setPodState(pod, state) {
+  pod.state = state;
+  const c = SC[state] || SC.retired;
+  const lit = state !== 'retired';
+  pod.glow.material.color.copy(c);
+  pod.glow.material.opacity = lit ? 0.9 : 0.35;
+  pod.beacon.material.color.copy(c);
+  pod.beacon.visible = lit;
+  if (pod.mats.metalRed) {
+    pod.mats.metalRed.color.copy(lit ? c : new THREE.Color('#5a5f6e'));
+    pod.mats.metalRed.emissive = (pod.mats.metalRed.emissive || new THREE.Color()).copy(c).multiplyScalar(lit ? 0.55 : 0);
+  }
+  if (pod.mats.dark) {
+    pod.mats.dark.color.copy(state === 'retired' ? DOME.retired : state === 'fault' ? DOME.fault : DOME.live);
+    pod.mats.dark.emissive = (pod.mats.dark.emissive || new THREE.Color()).copy(c).multiplyScalar(state === 'live' || state === 'session' ? 0.08 : state === 'fault' ? 0.25 : 0);
+  }
+  pod.cap.material.color.set(lit ? (PRODUCT_HEX[pod.info.product] || '#94A3B8') : '#6b7080');
+}
+function seatPod(pod, socket) {
+  pod.socket = socket; socket.pod = pod;
+  pod.grp.position.copy(socket.pos).setY(0.08);
+  pod.grp.visible = true; pod.shown = true;
+  socket.ring.visible = false;
+}
+function unseatAll() {
+  for (const p of pods.values()) { p.grp.visible = false; p.shown = false; if (p.socket) { p.socket.ring.visible = true; p.socket.pod = null; } p.socket = null; }
+}
+/* the final socket of each key: live keys in the centre, history around, open sockets at the edge */
+function socketPlan() {
+  const list = DATA.pods.slice();
+  const liveFirst = list.filter((p) => p.active).sort((a, b) => Number(a.product) - Number(b.product));
+  const rest = list.filter((p) => !p.active).sort((a, b) => Date.parse(a.first) - Date.parse(b.first));
+  const plan = new Map();
+  [...liveFirst, ...rest].forEach((p, i) => plan.set(p.id, sockets[i]));
+  return plan;
+}
+let PLAN;
+
+/* =================================================================== 6. the Arc layers over the hive */
+const layers = [];
+function buildLayers() {
+  const names = ['registry', 'product', 'bond'];
+  names.forEach((key, i) => {
+    const shape = new THREE.Shape();
+    const R = 3.95 - i * 0.18;
+    for (let k = 0; k < 6; k++) { const a = (Math.PI / 3) * k; const x = Math.cos(a) * R, z = Math.sin(a) * R; if (k) shape.lineTo(x, z); else shape.moveTo(x, z); }
+    shape.closePath();
+    const geo = new THREE.ShapeGeometry(shape); geo.rotateX(Math.PI / 2);
+    const sheet = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: '#5B8CFF', transparent: true, opacity: 0.0, depthWrite: false, side: THREE.DoubleSide }));
+    sheet.renderOrder = 10 + i;
+    const pts = shape.getPoints().map((p) => V3(p.x, 0, p.y));
+    const edge = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: '#9DB7FF', transparent: true, opacity: 0.0 }));
+    edge.renderOrder = 20 + i;
+    const g = new THREE.Group(); g.add(sheet, edge);
+    const y = 1.55 + i * 0.42;
+    g.position.set(Z.hive.x, y, Z.hive.z);
+    scene.add(g);
+    const lab = document.createElement('div'); lab.className = 'layerlabel'; lab.style.opacity = '0';
+    const lo = new CSS2DObject(lab); lo.position.set(-R * 0.95, 0, 0.2); g.add(lo);
+    layers.push({ key, g, sheet, edge, y, lab, show: 0, pulse: 0, target: 0.1 });
+  });
+}
+function pulseLayer(key) { const L = layers.find((l) => l.key === key); if (L) L.pulse = 1; }
+let layersDescend = 0; // 0..1, the tour's descent from the sky
+function updateLayers(dt) {
+  for (const [i, L] of layers.entries()) {
+    L.pulse = Math.max(0, L.pulse - dt * 0.7);
+    const k = easeOut(clamp01((layersDescend - i * 0.15) / 0.7));
+    const tour = tourStep === 4;
+    L.g.position.y = THREE.MathUtils.lerp(L.y + 9 + i * 1.5, L.y, tour ? k : 1);
+    const base = tour ? 0.2 * k : 0.035;
+    L.sheet.material.opacity = base + 0.22 * L.pulse;
+    L.edge.material.opacity = (tour ? 0.95 * k : 0.28) + 0.6 * L.pulse;
+    L.lab.style.opacity = tour ? String(k) : String(Math.min(1, L.pulse * 1.6));
+  }
+}
+
+/* =================================================================== 7. effects */
+const fx = [];
+function ringPulse(pos, color, { r0 = 0.3, r1 = 2.4, dur = 1.1, y = 0.12 } = {}) {
+  const m = new THREE.Mesh(new THREE.RingGeometry(0.9, 1, 48), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide }));
+  m.rotation.x = -Math.PI / 2; m.position.copy(pos).setY(y); scene.add(m);
+  return tween(dur, (k) => { const r = r0 + (r1 - r0) * k; m.scale.setScalar(r); m.material.opacity = 0.9 * (1 - k); }, easeOut).then(() => { scene.remove(m); m.geometry.dispose(); m.material.dispose(); });
+}
+function skyBeam(pos, color, dur = 1.2) {
+  const geo = new THREE.CylinderGeometry(0.05, 0.05, 1, 8, 1, true); geo.translate(0, 0.5, 0);
+  const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85, depthWrite: false }));
+  m.position.copy(pos); scene.add(m);
+  return tween(dur, (k) => { m.scale.set(1, 1 + 14 * k, 1); m.material.opacity = 0.85 * (1 - k); }, easeOut).then(() => { scene.remove(m); geo.dispose(); m.material.dispose(); });
+}
+const capsuleGeo = new THREE.CylinderGeometry(0.11, 0.11, 0.16, 6);
+function capsule(color) {
+  const m = new THREE.Mesh(capsuleGeo, new THREE.MeshStandardMaterial({ color, emissive: new THREE.Color(color).multiplyScalar(0.6), roughness: 0.4 }));
+  m.castShadow = true; scene.add(m); return m;
+}
+function arcPath(a, b, h) { const mid = a.clone().lerp(b, 0.5); mid.y += h; return new THREE.QuadraticBezierCurve3(a.clone(), mid, b.clone()); }
+function flyAlong(obj, curve, dur, ease = easeInOut) { return tween(dur, (k) => obj.position.copy(curve.getPoint(k)), ease); }
+const coinGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.035, 18);
+const coinMat = new THREE.MeshStandardMaterial({ color: '#3d7bd6', emissive: new THREE.Color('#1d4fa3').multiplyScalar(0.5), roughness: 0.35 });
+const coinRim = new THREE.MeshStandardMaterial({ color: '#eaf1ff', roughness: 0.4 });
+function coinFly(from, to, n = 3, h = 1.6) {
+  const jobs = [];
+  for (let i = 0; i < n; i++) {
+    const c = new THREE.Mesh(coinGeo, [coinRim, coinMat, coinMat]); c.castShadow = true; c.position.copy(from); scene.add(c);
+    jobs.push(wait(i * 0.12).then(() => tween(0.9, (k) => { c.position.copy(arcPath(from, to, h).getPoint(k)); c.rotation.x = k * 8; }, easeInOut)).then(() => { scene.remove(c); }));
+  }
+  return Promise.all(jobs);
+}
+function badge(pos, text, color, follow) {
+  const el = document.createElement('div'); el.className = 'badge3d'; el.textContent = text; el.style.background = color;
+  const o = new CSS2DObject(el); o.center.set(0.5, 1); o.position.copy(pos);
+  (follow || scene).add(o);
+  wait(2.7).then(() => { o.removeFromParent(); });
+}
+let confettiMesh = null; const confetti = [];
+function buildConfetti() {
+  confettiMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.08, 0.12), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }), 120);
+  confettiMesh.frustumCulled = false; confettiMesh.count = 0; scene.add(confettiMesh);
+  const cols = ['#FFA034', '#34D399', '#5B8CFF', '#F472B6', '#FCD34D', '#FFFFFF'];
+  for (let i = 0; i < 120; i++) confettiMesh.setColorAt(i, new THREE.Color(cols[i % cols.length]));
+}
+function burst(pos) {
+  if (REDUCE) return;
+  for (let i = 0; i < 60; i++) confetti.push({ p: pos.clone().add(V3(0, 0.6, 0)), v: V3((rand() - 0.5) * 3, 3 + rand() * 2.5, (rand() - 0.5) * 3), r: rand() * 6, life: 1.6 + rand() * 0.6 });
+  while (confetti.length > 120) confetti.shift();
+}
+const m4 = new THREE.Matrix4(), q4 = new THREE.Quaternion(), e4 = new THREE.Euler(), s4 = V3(1, 1, 1);
+function updateConfetti(dt) {
+  if (!confettiMesh) return;
+  let n = 0;
+  for (let i = confetti.length - 1; i >= 0; i--) {
+    const c = confetti[i]; c.life -= dt; if (c.life <= 0) { confetti.splice(i, 1); continue; }
+    c.v.y -= 9 * dt; c.v.multiplyScalar(0.985); c.p.addScaledVector(c.v, dt); c.r += dt * 8;
+    e4.set(c.r, c.r * 0.7, 0); q4.setFromEuler(e4); m4.compose(c.p, q4, s4); confettiMesh.setMatrixAt(n++, m4);
+  }
+  confettiMesh.count = n; confettiMesh.instanceMatrix.needsUpdate = true;
+}
+
+/* =================================================================== 8. characters */
+const agents = [];
+class Agent {
+  constructor(name, x, z, heading = 0) {
+    const g = G[name];
+    this.ok = !!g;
+    this.group = new THREE.Group(); this.group.userData.agent = true; scene.add(this.group);
+    this.pos = new THREE.Vector2(x, z); this.heading = heading; this.want = heading; this.path = null; this.speed = 0.95; this.walked = 0;
+    if (!g) return;
+    this.root = SkeletonUtils.clone(g.scene);
+    this.root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
+    this.group.add(this.root);
+    this.mixer = new THREE.AnimationMixer(this.root);
+    this.acts = {};
+    for (const n of ['idle', 'walk', 'interact-right', 'interact-left', 'emote-yes', 'emote-no', 'pick-up', 'sit']) {
+      const clip = THREE.AnimationClip.findByName(g.animations, n);
+      if (!clip) continue;
+      const a = this.mixer.clipAction(clip);
+      if (n === 'pick-up' || n.startsWith('emote')) { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; }
+      this.acts[n] = a;
+    }
+    this.base = null; this.setBase('idle', 0); this.sync(); agents.push(this);
+  }
+  setBase(key, fade = 0.22) {
+    if (!this.ok) return;
+    const next = this.acts[key]; if (!next || next === this.base) return;
+    next.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).fadeIn(fade).play();
+    if (this.base) this.base.fadeOut(fade);
+    this.base = next;
+  }
+  walk(points) {
+    this.cancel(); this.path = points.map((p) => new THREE.Vector2(p[0], p[1])); this.seg = 0; this.walked = 0; this.setBase('walk');
+    return new Promise((r) => { this.done = r; });
+  }
+  cancel() { if (this.done) { const r = this.done; this.done = null; r(false); } this.path = null; }
+  place(x, z, h) { this.cancel(); this.pos.set(x, z); this.heading = this.want = h; this.setBase('idle', 0); this.sync(); }
+  face(a) { this.want = a; }
+  faceTo(x, z) { this.want = Math.atan2(x - this.pos.x, z - this.pos.y); }
+  update(dt) {
+    if (!this.ok) return;
+    if (this.path) {
+      let step = this.speed * dt * speed();
+      while (step > 1e-6 && this.path) {
+        const tgt = this.path[this.seg]; const d = tgt.clone().sub(this.pos); const L = d.length();
+        if (L < 1e-4) { this.seg += 1; if (this.seg >= this.path.length) { this.path = null; this.setBase('idle'); const r = this.done; this.done = null; if (r) r(true); } continue; }
+        const mv = Math.min(step, L); d.divideScalar(L); this.pos.addScaledVector(d, mv); this.walked += mv; step -= mv; this.want = Math.atan2(d.x, d.y);
+      }
+    }
+    let diff = this.want - this.heading; diff = Math.atan2(Math.sin(diff), Math.cos(diff)); this.heading += diff * (1 - Math.exp(-dt * 10));
+    this.mixer.update(dt * Math.min(PACE, 2)); this.sync();
+  }
+  sync() { this.group.position.set(this.pos.x, 0, this.pos.y); this.group.rotation.y = this.heading; }
+}
+function bubbleFor(agent) {
+  const el = document.createElement('div'); el.className = 'bubble';
+  const o = new CSS2DObject(el); o.center.set(0.5, 1); o.position.set(0, 1.0, 0); agent.group.add(o);
+  let id = 0;
+  agent.say = (text, sec = 2.4) => { el.textContent = text; el.classList.add('on'); const my = ++id; wait(sec).then(() => { if (my === id) el.classList.remove('on'); }); };
+  agent.hush = () => { id += 1; el.classList.remove('on'); };
+}
+let crew, client, robot, hunter, author;
+
+/* vehicles */
+let cargo, rovers = [], speeder, flyers = [];
+const cargoHome = () => V3(Z.pad.x, 0.12, Z.pad.z);
+function headingTo(a, b) { return Math.atan2(b.x - a.x, b.z - a.z) + Math.PI; } // Space Kit vehicles face -z
+
+/* =================================================================== 9. world build */
+let gateGlow, scanLight, labGlow, labScreen, vault, vaultStack, escrow, bondVault, bondStack, providerBeamMat;
+function buildWorld() {
+  buildIsland();
+  buildSockets();
+  buildLayers();
+  buildConfetti();
+  /* landing pad, cargo craft, crew, bond vault */
+  place('platform_large', Z.pad.x, Z.pad.z, { s: 1.25 });
+  cargo = place('craft_cargoA', Z.pad.x, Z.pad.z, { s: 0.75, y: 0.12, rot: Math.PI * 0.75 });
+  for (const [x, z] of [[-7.4, 2.5], [-7.5, 5.1]]) place('barrels', x, z, { s: 0.85, rot: rand() * 3 });
+  bondVault = new THREE.Group();
+  const vb = new THREE.Mesh(new RoundedBoxGeometry(0.9, 0.42, 0.7, 2, 0.06), new THREE.MeshStandardMaterial({ color: '#d7dee8', roughness: 0.8 }));
+  vb.position.y = 0.21; vb.castShadow = true;
+  const vl = new THREE.Mesh(new RoundedBoxGeometry(0.94, 0.08, 0.74, 2, 0.03), new THREE.MeshStandardMaterial({ color: '#ffa034', roughness: 0.7 }));
+  vl.position.y = 0.44;
+  bondStack = new THREE.Group(); bondStack.position.y = 0.48;
+  bondVault.add(vb, vl, bondStack); bondVault.position.set(-3.85, 0, 4.85); scene.add(bondVault);
+  /* the gate, its scanner and the uplink */
+  const gate = place('gate_complex', Z.gate.x, Z.gate.z, { s: 2.4 });
+  if (gate) gateGlow = ownMaterials(gate, ['metalRed']).metalRed;
+  place('turret_single', Z.gate.x - 1.9, Z.gate.z + 0.1, { s: 0.9, rot: Math.PI / 2 });
+  place('machine_wirelessCable', Z.gate.x - 1.7, Z.gate.z - 1.9, { s: 1 });
+  scanLight = new THREE.Mesh(new THREE.CircleGeometry(0.62, 6), new THREE.MeshBasicMaterial({ color: '#FBBF24', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
+  scanLight.position.set(Z.gate.x, 1.3, Z.gate.z); scene.add(scanLight);
+  /* the dish to Arc, on its rock, with the block board */
+  place('rock_largeA', Z.dish.x, Z.dish.z, { s: 2.4 });
+  const dish = place('satelliteDish_large', Z.dish.x, Z.dish.z, { s: 2.0, y: 1.15, rot: 0.95 });
+  dishObj = dish;
+  boardBlock = ledBoard(2.6, 1.1, (g, w, h, n) => drawLed(g, w, h, tr('status.block', { n: '' }).trim().toUpperCase(), n, 'ARC TESTNET'));
+  boardBlock.position.set(-3.4, 1.45, -5.25); boardBlock.rotation.y = -0.32;
+  /* the product author's desk */
+  place('desk_computer', Z.author.x, Z.author.z, { s: 1.1, rot: Math.PI });
+  /* the replay lab, robot notary, engine, screen and bounty vault */
+  place('hangar_largeB', Z.lab.x, Z.lab.z, { s: 0.9, rot: Math.PI / 2 });
+  place('machine_barrelLarge', LABP.engine.x, LABP.engine.z, { s: 1.1 });
+  place('desk_computerScreen', LABP.screen.x, LABP.screen.z, { s: 1.3, rot: Math.PI });
+  labGlow = new THREE.Mesh(new THREE.SphereGeometry(0.45, 16, 12), new THREE.MeshBasicMaterial({ color: '#8DB0FF', transparent: true, opacity: 0, depthWrite: false }));
+  labGlow.position.copy(LABP.engine).setY(0.7); scene.add(labGlow);
+  vault = new THREE.Group();
+  const vbox = new THREE.Mesh(new RoundedBoxGeometry(0.8, 0.5, 0.6, 2, 0.06), new THREE.MeshStandardMaterial({ color: '#464c57', roughness: 0.7 }));
+  vbox.position.y = 0.25; vbox.castShadow = true;
+  const vband = new THREE.Mesh(new RoundedBoxGeometry(0.84, 0.08, 0.64, 2, 0.03), new THREE.MeshStandardMaterial({ color: '#ffa034' }));
+  vband.position.y = 0.36;
+  vaultStack = new THREE.Group(); vaultStack.position.y = 0.52;
+  vault.add(vbox, vband, vaultStack); vault.position.copy(LABP.vault); scene.add(vault);
+  /* the dock, the client's craft, terminal, escrow and rovers */
+  place('platform_large', Z.dock.x, Z.dock.z, { s: 1.1 });
+  speeder = place('craft_speederA', Z.dock.x + 0.1, Z.dock.z + 0.1, { s: 0.55, y: 0.11, rot: -Math.PI * 0.8 });
+  place('desk_computerScreen', 4.2, 4.95, { s: 1.15, rot: Math.PI });
+  escrow = new THREE.Group();
+  const eb = new THREE.Mesh(new RoundedBoxGeometry(0.62, 0.36, 0.5, 2, 0.05), new THREE.MeshStandardMaterial({ color: '#5B8CFF', roughness: 0.6 }));
+  eb.position.y = 0.18; eb.castShadow = true; escrow.add(eb);
+  escrow.userData.stack = new THREE.Group(); escrow.userData.stack.position.y = 0.38; escrow.add(escrow.userData.stack);
+  escrow.position.set(7.75, 0, 2.3); scene.add(escrow);
+  for (const [x, z] of [[7.0, 2.25], [7.0, 1.75]]) { const r = place('rover', x, z, { s: 1.6, rot: Math.PI / 2 }); if (r) { r.userData.home = V3(x, 0, z); rovers.push(r); } }
+  boardPaid = ledBoard(2.6, 1.1, (g, w, h, v) => drawLed(g, w, h, 'PAID TO OPERATORS', v, 'USDC · ARC TESTNET'));
+  boardPaid.position.set(7.35, 1.45, 5.15); boardPaid.rotation.y = -0.55;
+  /* the off-island model gateway (the AI model runs there, in its own attested enclave) */
+  const prov = new THREE.Group(); prov.position.copy(Z.provider); scene.add(prov);
+  const pr = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.1, 0.7, 7), new THREE.MeshStandardMaterial({ color: '#b25f43', flatShading: true, roughness: 0.95 }));
+  pr.position.y = -0.35; pr.receiveShadow = true; prov.add(pr);
+  place('hangar_roundA', 0, 0, { s: 0.42, parent: prov });
+  place('satelliteDish', 0.9, 0.5, { s: 1.4, parent: prov, rot: 2.4 });
+  providerObj = prov;
+  floaters.push({ o: prov, y: Z.provider.y, ph: 1.3 });
+  /* sky traffic (scenery) */
+  for (const [name, r, h, sp, ph] of [['craft_racer', 13, 5.5, 0.11, 0], ['craft_speederB', 16, 7.5, -0.08, 2.1], ['craft_miner', 18, 4.2, 0.06, 4.2]]) {
+    const o = place(name, 0, 0, { s: 0.5 }); if (o) flyers.push({ o, r, h, sp, ph });
+  }
+  /* zone labels */
+  zoneLabel('pad', V3(Z.pad.x, 1.2, Z.pad.z + 1.2));
+  zoneLabel('gate', V3(Z.gate.x, 2.9, Z.gate.z));
+  zoneLabel('dish', V3(Z.dish.x, 3.3, Z.dish.z));
+  zoneLabel('hive', V3(Z.hive.x, 1.15, Z.hive.z + 3.5));
+  zoneLabel('dock', V3(Z.dock.x, 1.1, Z.dock.z + 1.3));
+  zoneLabel('lab', V3(Z.lab.x, 1.75, Z.lab.z));
+  zoneLabel('provider', V3(Z.provider.x, Z.provider.y + 1.9, Z.provider.z));
+  /* characters */
+  crew = new Agent('character-worker', -4.3, 3.25, -0.6);
+  client = new Agent('character-male-d', 4.75, 3.65, Math.PI * 0.5);
+  robot = new Agent('character-robot', LABP.robot.x, LABP.robot.z, Math.PI * 0.15);
+  hunter = new Agent('character-female-e', 3.3, 4.75, Math.PI);
+  author = new Agent('character-male-a', Z.author.x, Z.author.z + 0.75, Math.PI);
+  for (const a of [crew, client, robot, hunter, author]) bubbleFor(a);
+  if (author.ok) author.setBase('interact-right');
+  /* pods */
+  PLAN = socketPlan();
+  for (const info of DATA.pods) pods.set(info.id, makePod(info));
+  /* hit boxes for the zones */
+  for (const [key, c, w, d] of [['pad', Z.pad, 3.2, 3.2], ['gate', Z.gate, 3.6, 2.4], ['dish', Z.dish, 3, 3], ['lab', Z.lab, 3.6, 3.8], ['dock', Z.dock, 3.6, 3.4], ['author', Z.author, 1.8, 1.6], ['provider', Z.provider, 4, 4]]) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, 2.6, d), new THREE.MeshBasicMaterial({ visible: false }));
+    m.position.copy(c).setY(c.y + 1.1); m.userData.zone = key; scene.add(m); hitZones.push(m);
+  }
+  const hz = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 4.2, 3.4, 6), new THREE.MeshBasicMaterial({ visible: false }));
+  hz.position.copy(Z.hive).setY(1.7); hz.userData.zone = 'layers'; layerHit = hz; scene.add(hz);
+}
+let dishObj, providerObj, layerHit;
+const hitZones = [];
+
+/* stacks of coins in vaults */
+function setStack(group, n, max = 12) {
+  while (group.children.length > Math.min(n, max)) group.remove(group.children[group.children.length - 1]);
+  while (group.children.length < Math.min(n, max)) {
+    const i = group.children.length;
+    const c = new THREE.Mesh(coinGeo, [coinRim, coinMat, coinMat]);
+    c.position.set(((i % 3) - 1) * 0.22, Math.floor(i / 3) * 0.04, ((i % 2) - 0.5) * 0.12); c.castShadow = true;
+    group.add(c);
+  }
+}
+
+/* =================================================================== 10. the network's state, rebuilt from events */
+const net = {};
+function resetNet() {
+  Object.assign(net, { block: 0, t: 0, paid: 0, sessionPaid: 0, refunded: 0, calls: 0, callsUsdc: 0, sessions: 0, verdicts: 0, bountyPool: 0, bountiesPaid: 0, bountyPaid: 0, bondPosted: 0, bondSlashed: 0, bounties: new Map(), openSessions: new Map(), products: new Set() });
+}
+resetNet();
+function liveCount() { let n = 0; for (const p of pods.values()) if (p.shown && (p.state === 'live' || p.state === 'session')) n += 1; return n; }
+function shownCount() { let n = 0; for (const p of pods.values()) if (p.shown) n += 1; return n; }
+/* the state at capture time, read directly from the data */
+function applySnapshotState() {
+  unseatAll();
+  for (const info of DATA.pods) {
+    const pod = pods.get(info.id); const s = PLAN.get(info.id);
+    if (!pod || !s) continue;
+    seatPod(pod, s);
+    const fault = (info.fault || []).length > 0;
+    setPodState(pod, info.active ? 'live' : fault ? 'fault' : 'retired');
+    pod.verified = info.level === 'verified';
+  }
+  const S = DATA.stats;
+  Object.assign(net, {
+    block: Number(S.head || DATA.chain.headBlock), t: isoToUnix(DATA.capturedAt),
+    paid: Number(S.settledUsdc) / 1e6, sessionPaid: Number(S.sessionSettledUsdc) / 1e6, refunded: Number(S.refundedUsdc) / 1e6,
+    calls: Number(S.x402Calls), callsUsdc: Number(S.x402SettledUsdc) / 1e6, sessions: Number(S.sessions), verdicts: Number(S.verdicts),
+    bountyPool: Number(S.bountyPool) / 1e6, bountiesPaid: Number(S.bountiesPaid), bountyPaid: Number(S.bountyPaidUsdc) / 1e6,
+  });
+  setStack(vaultStack, Math.round(net.bountyPool * 4));
+  setStack(bondStack, 8);
+  setStack(escrow.userData.stack, 0);
+  refreshHud();
+}
+
+/* =================================================================== 11. beats: what each real event looks like */
+const EV_COLOR = { attest: '#34D399', pay: '#5B8CFF', session: '#5B8CFF', bounty: '#FFA034', fault: '#F87171', retire: '#7B8194', product: '#A78BFA', bond: '#FBBF24', level: '#FCD34D', verdict: '#34D399', admin: '#7B8194' };
+const PRIORITY = ['ClaimRefuted', 'BountyPaid', 'ClaimAccepted', 'ExploitDelivered', 'SessionOpened', 'Settled', 'SessionClosed', 'CallSettled', 'EnclaveRegistered', 'EnclaveRetired', 'EnclaveInvalidated', 'Slashed', 'Bonded', 'BountyCreated', 'Recorded', 'ProofOfCloudToken', 'MachineAttested', 'ProductProposed', 'ProductActivated', 'WorkloadRetired', 'WorkloadAdded', 'WorkloadProposed', 'ProductUpdated', 'ProductUpdateProposed', 'ManifestURIUpdated', 'ManifestURIUpdateProposed', 'PolicyApplied', 'PolicyProposed', 'UnbondRequested', 'BondReserved', 'BondReleased', 'MachineBound', 'EnclaveImage', 'ExposureConsumed', 'AgentIdSet', 'SettlementProposed', 'SettlementAuthorized', 'CallerProposed', 'CallerAuthorized'];
+function buildBeats() {
+  const tl = DATA.timeline;
+  const beats = [];
+  let cur = null;
+  tl.forEach((e, i) => {
+    if (!cur || cur.tx !== e.tx) { cur = { tx: e.tx, t: e.t, b: e.b, evs: [], idx: i }; beats.push(cur); }
+    cur.evs.push(e);
+  });
+  for (const b of beats) {
+    b.evs.sort((x, y) => PRIORITY.indexOf(x.n) - PRIORITY.indexOf(y.n));
+    b.main = b.evs[0];
+    b.pod = (b.evs.find((e) => e.e) || {}).e || (b.evs.find((e) => e.a && e.a.signer) || {}).a?.signer || null;
+  }
+  return beats;
+}
+let BEATS = [];
+function actOf(idx) { const acts = DATA.acts || []; let a = -1; acts.forEach((x, i) => { if (x.first != null && idx >= x.first) a = i; }); return a; }
+const sumAmount = (b, name, key) => b.evs.filter((e) => e.n === name).reduce((s, e) => s + Number((e.a || {})[key] || 0) / 1e6, 0);
+
+function caption(key, vars) { return tr('events.' + key, vars) || key; }
+function productName(id) { return tr(`products.${id}.name`) || `#${id}`; }
+async function playBeat(b, opts = {}) {
+  const m = b.main; const pod = b.pod ? pods.get(b.pod) : null;
+  const P = (b.evs.find((e) => e.p) || {}).p;
+  const vars = { pod: pod ? short(pod.id) : (b.pod ? short(b.pod) : ''), product: P ? productName(P) : '', n: '', amount: '' };
+  net.t = b.t; net.block = Math.max(net.block, b.b);
+  const fast = !!opts.fast;
+  const go = (k) => (opts.camera !== false ? follow(k, pod) : null);
+  switch (m.n) {
+    case 'EnclaveRegistered': {
+      const fresh = pod && !pod.shown;
+      if (fresh) { go('pad'); pushTick('attest', caption('register', vars), b); await arrive(pod, fast); }
+      else if (pod) { pushTick('attest', caption('renew', vars), b); await renew(pod, fast); }
+      if (b.evs.some((e) => e.n === 'MachineBound') && pod) { pod.verified = true; }
+      pulseLayer('registry');
+      break;
+    }
+    case 'EnclaveInvalidated': case 'EnclaveRetired': {
+      if (pod && pod.shown) {
+        const reason = (m.a || {}).reason;
+        pushTick('retire', caption(m.n === 'EnclaveRetired' ? 'retired' : 'invalidated', { ...vars, reason }), b);
+        if (pod.state !== 'fault') setPodState(pod, 'retired');
+        ringPulse(pod.grp.position, STATE_HEX.retired, { r1: 1.4, dur: 0.9 });
+      }
+      pulseLayer('registry');
+      await wait(fast ? 0.35 : 1.0);
+      break;
+    }
+    case 'CallSettled': {
+      const amount = sumAmount(b, 'CallSettled', 'amount');
+      net.calls += b.evs.filter((e) => e.n === 'CallSettled').length; net.callsUsdc += amount; net.paid += amount;
+      go('dock');
+      pushTick('pay', caption('call_settled', { ...vars, amount: fmtUsdc(amount) }), b);
+      await serve(pod, { amount, ai: true, fast });
+      break;
+    }
+    case 'SessionOpened': {
+      net.sessions += 1; const dep = Number((m.a || {}).deposit || 0) / 1e6;
+      go('dock'); pushTick('session', caption('session_opened', { ...vars, amount: fmtUsdc(dep) }), b);
+      if (client.ok) { client.setBase('interact-right'); }
+      await coinFly(V3(Z.dock.x - 1.2, 0.5, Z.dock.z - 0.2), escrow.position.clone().setY(0.5), 4);
+      setStack(escrow.userData.stack, 8);
+      const target = pod || [...pods.values()].find((p) => p.shown && p.info.product === String(m.p || P) && p.state === 'live');
+      if (target) { setPodState(target, 'session'); net.openSessions.set((m.a || {}).sessionId, target); }
+      client.setBase('idle');
+      break;
+    }
+    case 'Settled': {
+      const amount = sumAmount(b, 'Settled', 'paidDelta'); net.paid += amount; net.sessionPaid += amount;
+      const sp = net.openSessions.get((m.a || {}).sessionId) || pod;
+      go('dock'); pushTick('pay', caption('settled', { ...vars, amount: fmtUsdc(amount) }), b);
+      if (sp) await serve(sp, { amount: 0, ai: true, fast, rounds: 2 });
+      await coinFly(escrow.position.clone().setY(0.5), V3(Z.pad.x, 0.6, Z.pad.z), 3, 2.6);
+      break;
+    }
+    case 'SessionClosed': {
+      const refund = Number((m.a || {}).refund || 0) / 1e6; net.refunded += refund;
+      const sp = net.openSessions.get((m.a || {}).sessionId);
+      pushTick('session', caption('session_closed', { ...vars, amount: fmtUsdc(refund) }), b);
+      await coinFly(escrow.position.clone().setY(0.5), V3(Z.dock.x - 1.2, 0.5, Z.dock.z - 0.2), 3);
+      setStack(escrow.userData.stack, 0);
+      if (sp) { if (sp.state === 'session') setPodState(sp, 'live'); net.openSessions.delete((m.a || {}).sessionId); }
+      const verdict = b.evs.find((e) => e.n === 'Recorded');
+      if (verdict && sp) { net.verdicts += 1; badge(V3(0, 1.25, 0), `ERC-8004 · ${verdict.a.response}`, Number(verdict.a.response) >= 50 ? STATE_HEX.live : STATE_HEX.fault, sp.grp); }
+      break;
+    }
+    case 'BountyCreated': {
+      const f = Number((m.a || {}).funding || 0) / 1e6; net.bountyPool += f;
+      net.bounties.set((m.a || {}).bountyId, { product: P, pool: f });
+      go('lab'); pushTick('bounty', caption('bounty_created', { ...vars, amount: fmtUsdc(f) }), b);
+      await coinFly(V3(Z.dock.x - 1, 0.5, Z.dock.z - 1), vault.position.clone().setY(0.6), 4, 2.2);
+      setStack(vaultStack, Math.round(net.bountyPool * 4));
+      break;
+    }
+    case 'ClaimAccepted': {
+      go('lab'); pushTick('bounty', caption('claim_accepted', vars), b);
+      await replayAtLab(pod, fast);
+      break;
+    }
+    case 'BountyPaid': case 'ExploitDelivered': {
+      const amount = sumAmount(b, 'BountyPaid', 'amount');
+      if (amount) { net.bountiesPaid += 1; net.bountyPaid += amount; net.bountyPool = Math.max(0, net.bountyPool - amount * 1.15); }
+      go('lab');
+      if (b.evs.some((e) => e.n === 'ExploitDelivered')) pushTick('bounty', caption('exploit_delivered', vars), b);
+      if (amount) {
+        pushTick('bounty', caption('bounty_paid', { ...vars, amount: fmtUsdc(amount) }), b);
+        robot.setBase('emote-yes'); robot.say(tr('events.bounty_paid', { ...vars, amount: fmtUsdc(amount) }).split('.')[0]);
+        await coinFly(vault.position.clone().setY(0.6), V3(hunter.pos.x, 0.8, hunter.pos.y), 4);
+        setStack(vaultStack, Math.round(net.bountyPool * 4));
+        burst(vault.position.clone());
+        if (hunter.ok) hunter.walk([[4.9, -0.9], [4.6, 1.6], [3.3, 4.75]]).then((ok) => { if (ok) hunter.face(Math.PI); });
+      }
+      const verdict = b.evs.find((e) => e.n === 'Recorded');
+      if (verdict && pod) { net.verdicts += 1; badge(V3(0, 1.25, 0), `ERC-8004 · ${verdict.a.response}`, STATE_HEX.live, pod.grp); }
+      await wait(fast ? 0.3 : 1.2); robot.setBase('idle');
+      break;
+    }
+    case 'ClaimRefuted': {
+      go('lab'); pushTick('fault', caption('claim_refuted', vars), b);
+      await refute(pod, b, fast);
+      if (hunter.ok && hunter.pos.y < 0) hunter.walk([[4.9, -0.9], [4.6, 1.6], [3.3, 4.75]]).then((ok) => { if (ok) hunter.face(Math.PI); });
+      break;
+    }
+    case 'Bonded': {
+      const amount = sumAmount(b, 'Bonded', 'amount'); net.bondPosted += amount;
+      pushTick('bond', caption('bond_posted', { ...vars, amount: fmtUsdc(amount) }), b);
+      pulseLayer('bond');
+      await coinFly(V3(Z.pad.x, 0.8, Z.pad.z), bondVault.position.clone().setY(0.6), Math.min(5, Math.max(2, Math.round(amount))), 1.8);
+      setStack(bondStack, Math.min(12, Math.round(net.bondPosted - net.bondSlashed)));
+      break;
+    }
+    case 'Slashed': {
+      const amount = sumAmount(b, 'Slashed', 'amount'); net.bondSlashed += amount;
+      pushTick('fault', caption('slashed', { ...vars, amount: fmtUsdc(amount) }), b); pulseLayer('bond');
+      await wait(fast ? 0.3 : 0.8);
+      break;
+    }
+    case 'Recorded': {
+      net.verdicts += b.evs.filter((e) => e.n === 'Recorded').length;
+      const ok = Number((m.a || {}).response) >= 50;
+      pushTick('verdict', caption(ok ? 'verdict_ok' : 'verdict_bad', { ...vars, verdict: (m.a || {}).response }), b);
+      if (pod && pod.shown) badge(V3(0, 1.25, 0), `ERC-8004 · ${(m.a || {}).response}`, ok ? STATE_HEX.live : STATE_HEX.fault, pod.grp);
+      skyBeam(dishObj ? dishObj.position.clone().setY(2.6) : Z.dish.clone(), ok ? STATE_HEX.live : STATE_HEX.fault, 1);
+      await wait(fast ? 0.3 : 1.0);
+      break;
+    }
+    case 'ProofOfCloudToken': case 'MachineAttested': case 'PolicyApplied': case 'PolicyProposed': {
+      pushTick('level', caption(m.n === 'ProofOfCloudToken' ? 'poc_token' : m.n === 'MachineAttested' ? 'machine_bound' : 'policy', vars), b);
+      pulseLayer('product');
+      for (const p of pods.values()) if (p.shown && p.state === 'live') ringPulse(p.grp.position, '#FCD34D', { r1: 1.2, dur: 0.8 });
+      await wait(fast ? 0.3 : 1.2);
+      break;
+    }
+    case 'ProductProposed': case 'ProductActivated': case 'WorkloadRetired': case 'WorkloadAdded': case 'WorkloadProposed': case 'ProductUpdated': case 'ProductUpdateProposed': case 'ManifestURIUpdated': case 'ManifestURIUpdateProposed': {
+      const key = { ProductProposed: 'product_proposed', ProductActivated: 'product_activated', WorkloadRetired: 'image_retired', WorkloadAdded: 'image_allowed', WorkloadProposed: 'image_proposed', ProductUpdated: 'product_update', ProductUpdateProposed: 'product_update', ManifestURIUpdated: 'manifest_update', ManifestURIUpdateProposed: 'manifest_update' }[m.n];
+      pushTick('product', caption(key, vars), b); pulseLayer('product');
+      if (author.ok) { author.setBase('interact-left'); wait(1.2).then(() => author.setBase('interact-right')); }
+      await wait(fast ? 0.25 : 0.9);
+      break;
+    }
+    default: {
+      const key = { BondReserved: 'bond_reserved', BondReleased: 'bond_released', UnbondRequested: 'unbond', MachineBound: 'machine_bound', ExposureConsumed: 'exposure', EnclaveImage: 'image' }[m.n] || 'admin';
+      if (key === 'bond_reserved' || key === 'bond_released' || key === 'unbond') pulseLayer('bond');
+      if (key === 'unbond') pushTick('bond', caption(key, vars), b);
+      await wait(fast ? 0.12 : 0.35);
+    }
+  }
+  refreshHud();
+}
+
+/* the choreography of each kind of beat */
+async function arrive(pod, fast) {
+  const s = PLAN.get(pod.id);
+  if (!s) return;
+  setPodState(pod, 'checking');
+  /* the cargo craft brings the pod down onto the pad */
+  const carried = pod.grp; carried.visible = true; pod.shown = true;
+  const top = V3(Z.pad.x, 7, Z.pad.z - 1), land = cargoHome().add(V3(0.75, 0, -0.85));
+  if (cargo && !fast) {
+    cargo.position.copy(top);
+    carried.position.copy(top).add(V3(0, -0.55, 0));
+    await tween(1.4, (k) => { cargo.position.lerpVectors(top, land, k); carried.position.copy(cargo.position).add(V3(0, -0.5 + 0.5 * k, 0)); }, easeOut);
+  }
+  carried.position.copy(land).setY(0.08);
+  crew.say(tr('pod.statuses.checking') || '…', 1.6);
+  /* through the gate: amber scan, then a pulse to the dish, then green */
+  const g0 = V3(Z.gate.x, 0.95, Z.gate.z + 1.4), g1 = V3(Z.gate.x, 0.95, Z.gate.z - 1.0);
+  await tween(fast ? 0.35 : 0.9, (k) => carried.position.lerpVectors(land, g0, k));
+  scanOn('#FBBF24');
+  await tween(fast ? 0.35 : 1.0, (k) => carried.position.lerpVectors(g0, g1, k));
+  const dishTop = dishObj ? dishObj.position.clone().setY(2.7) : Z.dish.clone().setY(2.7);
+  const sig = capsule('#FBBF24'); sig.position.copy(g1).setY(1.6);
+  await flyAlong(sig, arcPath(sig.position, dishTop, 1.2), fast ? 0.3 : 0.8);
+  scene.remove(sig);
+  skyBeam(dishTop.clone().setY(1.2), '#9DB7FF', 1.1);
+  scanOn('#34D399');
+  setPodState(pod, 'live');
+  if (gateGlow) { gateGlow.emissive.set('#34D399').multiplyScalar(0.6); wait(1.2).then(() => gateGlow.emissive.setScalar(0)); }
+  /* to its socket */
+  const dest = s.pos.clone().setY(0.08);
+  await flyAlong(carried, arcPath(g1, dest, 1.6), fast ? 0.45 : 1.2);
+  seatPod(pod, s);
+  ringPulse(dest, STATE_HEX.live, { r1: 1.6, dur: 0.9 });
+  if (!fast) burst(dest);
+}
+function scanOn(color) {
+  if (!scanLight) return;
+  scanLight.material.color.set(color);
+  tween(1.0, (k) => { scanLight.material.opacity = 0.55 * Math.sin(k * Math.PI); }, (k) => k);
+}
+async function renew(pod, fast) {
+  const prev = pod.state;
+  setPodState(pod, 'checking');
+  const q = capsule('#FBBF24'); q.position.copy(pod.grp.position).setY(0.9);
+  const dishTop = dishObj ? dishObj.position.clone().setY(2.7) : Z.dish.clone().setY(2.7);
+  await flyAlong(q, arcPath(q.position, dishTop, 1.6), fast ? 0.35 : 1.0);
+  scene.remove(q);
+  skyBeam(dishTop.clone().setY(1.2), '#9DB7FF', 0.8);
+  setPodState(pod, prev === 'session' ? 'session' : prev === 'fault' ? 'fault' : 'live');
+  ringPulse(pod.grp.position, STATE_HEX.live, { r1: 1.2, dur: 0.7 });
+  await wait(fast ? 0.1 : 0.4);
+}
+async function serve(pod, { amount = 0, ai = false, fast = false, rounds = 1 } = {}) {
+  const rover = rovers[0];
+  for (let r = 0; r < rounds; r++) {
+    client.setBase('interact-right');
+    const cap = capsule('#5B8CFF');
+    const start = rover ? rover.position.clone() : V3(Z.dock.x - 1, 0, Z.dock.z - 1.4);
+    const edge = V3(3.05, 0, 2.25);
+    if (rover) await driveRover(rover, [start, V3(4.6, 0, 2.25), edge], cap, fast);
+    else { cap.position.copy(start).setY(0.7); await flyAlong(cap, arcPath(cap.position, edge.clone().setY(0.7), 1.2), fast ? 0.4 : 1.2); }
+    /* the capsule enters the pod, which serves it (AI products ask the model gateway, off the island) */
+    if (pod) {
+      await flyAlong(cap, arcPath(cap.position, pod.grp.position.clone().setY(0.55), 1.4), fast ? 0.3 : 0.75);
+      scene.remove(cap);
+      const prev = pod.state;
+      pod.flash = 1;
+      if (ai && providerObj && ['1', '3', '4'].includes(pod.info.product)) {
+        const a = capsule('#C4B5FD'); a.position.copy(pod.grp.position).setY(0.9);
+        await flyAlong(a, arcPath(a.position, Z.provider.clone().setY(Z.provider.y + 0.5), 3), fast ? 0.35 : 0.9);
+        await flyAlong(a, arcPath(a.position, pod.grp.position.clone().setY(0.9), 3), fast ? 0.35 : 0.9);
+        scene.remove(a);
+      } else await wait(fast ? 0.2 : 0.6);
+      if (pod.state === 'checking') setPodState(pod, prev);
+    } else scene.remove(cap);
+    /* the signed answer comes back; the payment goes to the operator */
+    const back = capsule('#34D399'); back.position.copy(pod ? pod.grp.position.clone().setY(0.6) : Z.hive.clone());
+    if (rover) {
+      await flyAlong(back, arcPath(back.position, rover.position.clone().setY(0.72), 1.4), fast ? 0.3 : 0.7);
+      await driveRover(rover, [rover.position.clone(), V3(4.6, 0, 2.25), rover.userData.home.clone()], back, fast);
+    }
+    else await flyAlong(back, arcPath(back.position, V3(Z.dock.x - 1, 0.7, Z.dock.z - 1), 1.2), fast ? 0.4 : 1.0);
+    scene.remove(back);
+    client.setBase('idle');
+    if (amount) { await coinFly(V3(Z.dock.x - 1.2, 0.5, Z.dock.z - 0.4), V3(Z.pad.x, 0.6, Z.pad.z), 2, 2.4); }
+  }
+}
+async function driveRover(rover, pts, cargoObj, fast) {
+  const curve = new THREE.CatmullRomCurve3(pts.map((p) => p.clone().setY(0)), false, 'centripetal');
+  const len = curve.getLength();
+  await tween(Math.max(fast ? 0.4 : 0.9, len / (fast ? 4 : 1.9)), (k) => {
+    const p = curve.getPointAt(k); const t = curve.getTangentAt(Math.min(0.999, k));
+    rover.position.copy(p); rover.rotation.y = Math.atan2(t.x, t.z) + Math.PI;
+    if (cargoObj) cargoObj.position.copy(p).setY(0.72 + Math.sin(k * 30) * 0.01);
+  });
+}
+async function replayAtLab(pod, fast) {
+  /* the hunter brings a sealed exploit; the robot replays it on a fork of Arc */
+  if (hunter.ok) await Promise.race([hunter.walk([[4.6, 1.6], [4.9, -0.9], [5.25, -1.55]]), wait(fast ? 0.6 : 4.5)]);
+  const ex = capsule('#F87171'); ex.position.set(hunter.pos.x, 0.7, hunter.pos.y);
+  await flyAlong(ex, arcPath(ex.position, LABP.engine.clone().setY(0.9), 0.8), fast ? 0.3 : 0.8);
+  scene.remove(ex);
+  robot.setBase('interact-right');
+  tween(0.5, (k) => { labGlow.material.opacity = 0.75 * k; });
+  if (pod) { pod.flash = 1; }
+  await wait(fast ? 0.5 : 2.0);
+  tween(0.6, (k) => { labGlow.material.opacity = 0.75 * (1 - k); });
+  robot.setBase('idle');
+}
+async function refute(liar, b, fast) {
+  /* two other operators replay the same claim and prove it wrong; the liar's bond is seized */
+  const honest = [...pods.values()].filter((p) => p.shown && p.info.product === (liar ? liar.info.product : '5') && p !== liar).slice(0, 2);
+  for (const h of honest) {
+    const c = capsule('#9DB7FF'); c.position.copy(h.grp.position).setY(0.8);
+    flyAlong(c, arcPath(c.position, LABP.engine.clone().setY(1.0), 1.6), fast ? 0.4 : 1.1).then(() => scene.remove(c));
+  }
+  tween(0.5, (k) => { labGlow.material.opacity = 0.8 * k; });
+  await wait(fast ? 0.5 : 1.4);
+  robot.setBase('emote-no'); robot.say(tr('events.claim_refuted', { pod: liar ? short(liar.id) : '' }).split('.')[0], 2.4);
+  tween(0.6, (k) => { labGlow.material.opacity = 0.8 * (1 - k); });
+  if (liar) {
+    setPodState(liar, 'fault');
+    ringPulse(liar.grp.position, STATE_HEX.fault, { r1: 2.2, dur: 1.2 });
+    badge(V3(0, 1.25, 0), 'ERC-8004 · 0', STATE_HEX.fault, liar.grp);
+    await coinFly(bondVault.position.clone().setY(0.6), V3(Z.dock.x - 1, 0.6, Z.dock.z - 1), 2, 2.4);
+  }
+  await wait(fast ? 0.3 : 1.0); robot.setBase('idle');
+}
+
+/* =================================================================== 12. the director: replay, then the state now */
+const director = { mode: 'idle', i: 0, tok: 0, liveOk: false, liveAt: 0 };
+function follow(zone, pod) {
+  if (!director.follow || tourStep >= 0 || SKIP || store.get('follow') === '0') return;
+  const key = pod && zone === 'hive' ? pod.id : zone;
+  if (key === lastFocusKey) return;
+  if (simT - lastFocusAt < 2.2) { const k = key; wait(2.2).then(() => { if (director.follow && lastFocusKey !== k && simT - lastFocusAt >= 2.2) focus(zone, pod); }); return; }
+  focus(pod && zone === 'hive' ? 'pod' : zone, pod);
+}
+async function startReplay(fromAct = 0) {
+  const tok = ++director.tok;
+  director.mode = 'replay'; director.follow = true;
+  updateReplayButton();
+  if (!panelState || panelState.kind !== 'settings') closePanel();
+  toast(tr('toasts.replayStart'));
+  resetNet(); unseatAll();
+  for (const p of pods.values()) { p.verified = false; setPodState(p, 'retired'); }
+  setStack(vaultStack, 0); setStack(bondStack, 0); setStack(escrow.userData.stack, 0);
+  clearTicks();
+  const acts = DATA.acts || [];
+  const skipTo = fromAct > 0 && acts[fromAct] && acts[fromAct].first != null ? acts[fromAct].first : -1;
+  SKIP = skipTo > 0;
+  let lastAct = -2;
+  for (let i = 0; i < BEATS.length; i++) {
+    if (tok !== director.tok) { SKIP = false; return; }
+    director.i = i;
+    const b = BEATS[i];
+    if (SKIP && b.idx >= skipTo) { SKIP = false; if (tourStep < 0) focus('overview'); }
+    const a = actOf(b.idx);
+    if (a !== lastAct && a >= 0) { lastAct = a; showAct(a, b.t); if (tourStep < 0 && !SKIP) await wait(1.2); }
+    if (tok !== director.tok) { SKIP = false; return; }
+    setClock(b.t);
+    const steady = a === (DATA.acts || []).length - 1;
+    if (steady) { director.steady = (director.steady || 0) + 1; BOOST = director.steady > 3 ? 8 : 1; } else { director.steady = 0; BOOST = 1; }
+    const minor =['admin', 'bond_reserved'].includes(b.main.n) || ['SettlementAuthorized', 'SettlementProposed', 'CallerProposed', 'CallerAuthorized', 'AgentIdSet', 'ExposureConsumed', 'BondReserved', 'BondReleased', 'MachineBound', 'EnclaveImage'].includes(b.main.n);
+    await playBeat(b, { fast: steady || minor, quiet: false, camera: !minor });
+    if (tok !== director.tok) return;
+    await wait(steady ? 0.15 : minor ? 0.1 : 0.55);
+  }
+  if (tok !== director.tok) return;
+  endReplay(true);
+}
+function endReplay(natural) {
+  director.tok += 1; director.mode = 'now'; director.follow = false; SKIP = false; BOOST = 1; director.steady = 0;
+  const tok = director.tok;
+  hideAct();
+  const settle = () => {
+    if (director.mode !== 'now' || tok !== director.tok) return;
+    applySnapshotState();
+    setClock(isoToUnix(DATA.capturedAt));
+    showLatestTicks();
+    if (director.liveOk) refreshLive();
+  };
+  settle();
+  /* a beat that was mid-animation may still finish: settle the state again once it has */
+  wait(2.5).then(settle); wait(7).then(settle);
+  updateReplayButton();
+  if (natural) toast(tr('toasts.replayEnd'));
+  if (tourStep < 0) focus('overview');
+}
+/* the ticker of the "now" view: the four most recent real events */
+function showLatestTicks() {
+  clearTicks();
+  const recent = BEATS.slice(-4);
+  for (const b of recent) {
+    const pod = b.pod ? pods.get(b.pod) : null; const m = b.main;
+    const key = m.n === 'EnclaveRegistered' ? 'renew' : m.n === 'MachineBound' ? 'machine_bound' : m.n === 'EnclaveImage' ? 'image' : null;
+    if (key) pushTick('attest', caption(key, { pod: pod ? short(pod.id) : short(b.pod || ''), product: '' }), b);
+  }
+}
+/* live: works when the page is served from a site that may call the read API (CORS is open) */
+async function probeLive() {
+  /* opened as a file, there is no API to call: show the recorded state */
+  if (location.protocol === 'file:') { director.liveOk = false; refreshHud(); return; }
+  try {
+    const r = await fetch(`${API}/index`, { signal: AbortSignal.timeout(4000), cache: 'no-store' });
+    if (!r.ok) throw new Error(String(r.status));
+    const j = await r.json();
+    director.liveOk = true; director.liveHead = Number(j.head); director.liveAt = performance.now();
+  } catch { director.liveOk = false; }
+  refreshHud();
+}
+async function refreshLive() {
+  if (!director.liveOk) return;
+  try {
+    const [idx, stats, encl] = await Promise.all(['index', 'stats', 'enclaves'].map((p) => fetch(`${API}/${p}`, { signal: AbortSignal.timeout(5000), cache: 'no-store' }).then((r) => (r.ok ? r.json() : Promise.reject(r.status)))));
+    director.liveHead = Number(idx.head); director.liveAt = performance.now();
+    if (director.mode === 'now') {
+      Object.assign(net, { paid: Number(stats.settledUsdc) / 1e6, calls: Number(stats.x402Calls), sessions: Number(stats.sessions), verdicts: Number(stats.verdicts), bountyPool: Number(stats.bountyPool) / 1e6, bountiesPaid: Number(stats.bountiesPaid) });
+      for (const e of encl) { const p = pods.get(e.signer); if (p && p.shown && p.state !== 'fault') setPodState(p, e.active ? (p.state === 'session' ? 'session' : 'live') : 'retired'); }
+      director.liveStamp = Date.now();
+    }
+  } catch { /* keep the last good state */ }
+  refreshHud();
+}
+
+/* =================================================================== 13. camera: presets, glide, parallax */
+const view = { target: V3(0, 0, 0), zoom: 1, wantTarget: V3(0, 0, 0), wantZoom: 1, baseHalf: 10, par: new THREE.Vector2(), wantPar: new THREE.Vector2() };
+const PRESET = {
+  overview: { t: V3(0.4, 0, 0.1), z: 1 },
+  pad: { t: V3(-5.3, 0.3, 3.6), z: 1.65 },
+  gate: { t: V3(-5.2, 0.8, 1.1), z: 1.75 },
+  dish: { t: V3(-4.6, 1.2, -4.0), z: 1.65 },
+  hive: { t: V3(0.7, 0.5, -0.6), z: 1.55 },
+  layers: { t: V3(0.7, 1.9, -0.6), z: 1.3 },
+  dock: { t: V3(6.0, 0.4, 3.5), z: 1.65 },
+  lab: { t: V3(6.0, 0.6, -3.0), z: 1.6 },
+  author: { t: V3(-1.6, 0.5, -4.3), z: 1.9 },
+  provider: { t: V3(7.0, 1.6, -5.4), z: 1.15 },
+};
+let lastFocusAt = -10, lastFocusKey = '';
+function focus(name, pod) {
+  if (name === 'pod' && pod) { view.wantTarget.copy(pod.grp.position).setY(0.45); view.wantZoom = 2.6 * (portrait ? 1.2 : 1); }
+  else { const p = PRESET[name] || PRESET.overview; view.wantTarget.copy(p.t); view.wantZoom = p.z * (portrait ? 1.2 : 1); }
+  lastFocusAt = simT; lastFocusKey = name === 'pod' && pod ? pod.id : name;
+  if (REDUCE) { view.target.copy(view.wantTarget); view.zoom = view.wantZoom; }
+}
+const camRight = new THREE.Vector3(), camUp = new THREE.Vector3();
+function fitBase() {
+  /* the overview frames the island and the model gateway, leaving room for the HUD */
+  const pts = [];
+  for (const x of [-8.1, 8.1]) for (const z of [-6.1, 6.1]) for (const y of [-0.9, 2.2]) pts.push(V3(x, y, z));
+  const look = PRESET.overview.t;
+  camera.position.copy(look).addScaledVector(DIR, 80); camera.up.set(0, 1, 0); camera.lookAt(look); camera.updateMatrixWorld(true);
+  const inv = camera.matrixWorldInverse; const c0 = look.clone().applyMatrix4(inv);
+  let mx = 0, my = 0;
+  for (const p of pts) { const v = p.clone().applyMatrix4(inv).sub(c0); mx = Math.max(mx, Math.abs(v.x)); my = Math.max(my, Math.abs(v.y)); }
+  const aspect = W / H;
+  const usableH = (H - (portrait ? 200 : 170)) / H, usableW = portrait ? 0.98 : 0.86;
+  view.baseHalf = Math.max(my / usableH, mx / aspect / usableW);
+  camera.getWorldDirection(camRight); camRight.cross(camera.up).normalize(); camUp.copy(camera.up);
+}
+function applyCamera(dt) {
+  const k = REDUCE ? 1 : 1 - Math.exp(-dt * 3.2);
+  view.target.lerp(view.wantTarget, k);
+  view.zoom += (view.wantZoom - view.zoom) * k;
+  view.par.lerp(view.wantPar, 1 - Math.exp(-dt * 4));
+  const t = view.target.clone().addScaledVector(camRight, view.par.x).addScaledVector(V3(0, 0, 1).applyAxisAngle(V3(0, 1, 0), AZ), -view.par.y);
+  camera.position.copy(t).addScaledVector(DIR, 80); camera.lookAt(t);
+  const aspect = W / H, hh = view.baseHalf;
+  camera.left = -hh * aspect; camera.right = hh * aspect; camera.top = hh; camera.bottom = -hh;
+  camera.zoom = view.zoom;
+  /* while the tour card covers the lower part of the screen, lift the subject into the upper part */
+  const wantShift = tourStep >= 0 && tourStep !== 0 && tourStep !== 7 ? (portrait ? 0.24 : 0.17) : (portrait ? 0.04 : 0.0);
+  view.shift = (view.shift || 0) + (wantShift - (view.shift || 0)) * k;
+  /* the frustum centre is not scaled by zoom, so divide the offset by it to move the subject by a fixed share of the screen */
+  const off = (hh * view.shift * 2) / Math.max(0.01, view.zoom);
+  camera.top -= off; camera.bottom -= off;
+  camera.updateProjectionMatrix();
+}
+
+/* =================================================================== 14. HUD */
+function applyWords() {
+  document.documentElement.lang = LANG;
+  document.querySelectorAll('[data-t]').forEach((el) => { el.textContent = tr(el.dataset.t); });
+  $('#btn-lang').textContent = LANG === 'fr' ? 'EN' : 'FR';
+  $('#btn-lang').setAttribute('aria-label', LANG === 'fr' ? 'English' : 'Français');
+  $('#btn-legend').setAttribute('aria-label', tr('buttons.legend'));
+  $('#btn-about').setAttribute('aria-label', tr('buttons.about'));
+  $('#btn-settings').setAttribute('aria-label', tr('buttons.settings'));
+  for (const z of zoneLabels) z.el.textContent = tr(`zones.${z.key}.title`) || z.key;
+  for (const L of layers) L.lab.textContent = tr(`layers.${L.key}`);
+  if (boardBlock) boardBlock.userData.set('');
+  updateReplayButton();
+  buildStepper();
+  refreshHud();
+  if (tourStep >= 0) showTourStep(tourStep);
+  if (panelState) openPanel(panelState.kind, panelState.arg);
+}
+function refreshHud() {
+  let head = net.block;
+  if (director.mode === 'now') head = director.liveOk ? director.liveHead + Math.floor((performance.now() - director.liveAt) / 1000 / 0.5086) : Number(DATA.stats.head || DATA.chain.headBlock);
+  $('#st-block').textContent = tr('status.block', { n: fmtInt(head || 0) });
+  const total = director.mode === 'now' ? DATA.pods.length : shownCount();
+  $('#st-pods').textContent = tr('status.pods', { live: liveCount(), total });
+  $('#st-paid').textContent = tr('status.paid', { usdc: fmtUsdc(net.paid) });
+  $('#st-calls').textContent = tr('status.calls', { n: net.calls });
+  $('#st-bounties').textContent = tr('status.bounties', { n: director.mode === 'replay' ? net.bounties.size : Number(DATA.stats.bounties), usdc: fmtUsdc(net.bountyPool) });
+  const mode = $('#st-mode');
+  mode.classList.toggle('live', director.liveOk && director.mode === 'now');
+  $('#st-mode-text').textContent = director.mode === 'replay' ? tr('status.replay', { date: fmtDay(net.t || isoToUnix(DATA.capturedAt)) })
+    : director.liveOk ? tr('status.live') : tr('status.stale', { time: fmtDate(isoToUnix(DATA.capturedAt)) });
+  if (boardBlock) boardBlock.userData.set(String(head), fmtInt(head || 0));
+  if (boardPaid) boardPaid.userData.set(String(net.paid), fmtUsdc(net.paid));
+}
+function setClock(t) { $('#ticker-clock').textContent = t ? fmtDate(t) : ''; $('#act-clock').textContent = t ? fmtDate(t) : ''; }
+function showAct(i, t) {
+  const a = (COPY[LANG].acts || COPY.en.acts || [])[i] || DATA.acts[i] || {};
+  $('#act-title').textContent = a.title || ''; $('#act-story').textContent = a.story || '';
+  setClock(t); $('#act').classList.add('on');
+}
+function hideAct() { $('#act').classList.remove('on'); }
+const ticks = [];
+function clearTicks() { ticks.length = 0; $('#ticks').innerHTML = ''; }
+function pushTick(kind, text, b) {
+  if (!text) return;
+  ticks.unshift({ kind, text, t: b ? b.t : null, tx: b ? b.tx : null, pod: b ? b.pod : null });
+  if (ticks.length > 4) ticks.pop();
+  const box = $('#ticks'); box.innerHTML = '';
+  for (const k of ticks) {
+    const row = document.createElement('div'); row.className = 'tick';
+    const dot = document.createElement('i'); dot.style.background = EV_COLOR[k.kind] || '#A6AED0';
+    const body = document.createElement('div');
+    const btn = document.createElement('button'); btn.type = 'button';
+    const b2 = document.createElement('b'); b2.textContent = k.text; btn.appendChild(b2);
+    btn.addEventListener('click', () => { const p = k.pod && pods.get(k.pod); if (p && p.shown) { director.follow = false; focus('pod', p); openPanel('pod', p.id); } });
+    const meta = document.createElement('small');
+    meta.textContent = k.t ? fmtDate(k.t) + ' · ' : '';
+    if (k.tx) { const a = document.createElement('a'); a.href = `${EXPLORER}/tx/${k.tx}`; a.target = '_blank'; a.rel = 'noopener'; a.textContent = short(k.tx); meta.appendChild(a); }
+    body.append(btn, meta); row.append(dot, body); box.appendChild(row);
+  }
+}
+let toastTimer = 0;
+function toast(text) { if (!text) return; const t = $('#toast'); t.textContent = text; t.classList.add('on'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), 4200); }
+function updateReplayButton() {
+  const b = $('#btn-replay'); const replaying = director.mode === 'replay';
+  b.querySelector('.txt').textContent = replaying ? tr('buttons.now') : tr('buttons.replay');
+  b.setAttribute('aria-label', b.querySelector('.txt').textContent);
+}
+function buildStepper() {
+  const st = $('#stepper'); st.innerHTML = '';
+  const steps = tr('stepper') || [];
+  const zones = ['dock', 'dish', 'hive', 'pad'];
+  steps.forEach((label, i) => {
+    if (i) { const s = document.createElement('i'); s.textContent = '›'; st.appendChild(s); }
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = label;
+    b.addEventListener('click', () => { director.follow = false; focus(zones[i]); openPanel('zone', zones[i] === 'pad' ? 'pad' : zones[i]); st.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b)); });
+    st.appendChild(b);
+  });
+}
+
+/* panels: pod card, zone popup, legend, about, settings */
+let panelState = null;
+function closePanel() { $('#panel').classList.remove('on'); panelState = null; }
+function el(tag, attrs = {}, text) { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); if (text != null) e.textContent = text; return e; }
+function panelHead(title) {
+  const p = $('#panel'); p.innerHTML = '';
+  const h = el('header'); const t = el('h2', {}, title); const x = el('button', { class: 'x', type: 'button', 'aria-label': tr('buttons.close') }, '✕');
+  x.addEventListener('click', closePanel); h.append(t, x); p.appendChild(h); return p;
+}
+function openPanel(kind, arg) {
+  panelState = { kind, arg };
+  const p = $('#panel');
+  if (kind === 'pod') {
+    const pod = pods.get(arg); if (!pod) return;
+    const info = pod.info;
+    panelHead(tr('pod.title', { short: short(info.id) }));
+    const st = pod.state;
+    const chip = el('span', { class: 'chip' }, tr(`pod.statuses.${st === 'retired' && info.status && info.status.startsWith('expired') ? 'expired' : st}`) || st);
+    chip.style.background = (STATE_HEX[st] || '#7B8194') + '33'; chip.style.color = STATE_HEX[st] || '#A6AED0';
+    p.appendChild(chip);
+    const kv = el('dl', { class: 'kv' });
+    const row = (k, v, code) => { kv.appendChild(el('dt', {}, k)); const d = el('dd'); if (code) d.appendChild(el('code', {}, v)); else d.textContent = v; kv.appendChild(d); };
+    row(tr('pod.service'), productName(info.product));
+    row(tr('pod.operator'), short(info.operator), true);
+    row(tr('pod.level'), info.level ? tr(`pod.levels.${info.level}`) || info.level : '—');
+    if (info.last) row(tr('pod.checked'), fmtDate(isoToUnix(info.last)));
+    if (info.expires) row(tr('pod.valid'), fmtDate(isoToUnix(info.expires)));
+    if (info.regs) row(tr('pod.renewals'), String(info.regs));
+    if (info.workload) row(tr('pod.fingerprint'), info.workload, true);
+    if (info.ppid) row(tr('pod.machine'), short(info.ppid), true);
+    p.appendChild(kv);
+    p.appendChild(el('p', { class: 'muted' }, (info.fault || []).length ? tr('pod.liar') : tr('pod.sealed')));
+    const how = tr(`products.${info.product}.how`); if (how) p.appendChild(el('p', { class: 'fact' }, how));
+    const a = el('a', { class: 'link', href: `${EXPLORER}/address/${info.id}`, target: '_blank', rel: 'noopener' }, tr('pod.explorer') + ' ↗');
+    p.appendChild(a);
+  } else if (kind === 'zone') {
+    panelHead(tr(`zones.${arg}.title`) || arg);
+    p.appendChild(el('p', {}, tr(`zones.${arg}.body`)));
+    const f = tr(`zones.${arg}.fact`); if (f) p.appendChild(el('p', { class: 'fact' }, f));
+  } else if (kind === 'legend') {
+    panelHead(tr('legend.title'));
+    if (tr('legend.intro')) p.appendChild(el('p', { class: 'muted' }, tr('legend.intro')));
+    const ul = el('ul', { class: 'legend-list' });
+    for (const s of tr('legend.states') || []) {
+      const li = el('li'); const i = el('i'); i.style.background = STATE_HEX[s.key] || '#7B8194';
+      const d = el('div'); d.append(el('b', {}, s.label), el('span', {}, s.hint)); li.append(i, d); ul.appendChild(li);
+    }
+    p.appendChild(ul);
+    const notes = tr('legend.notes') || [];
+    if (notes.length) { const n = el('ul', { class: 'notes' }); for (const t of notes) n.appendChild(el('li', {}, t)); p.appendChild(n); }
+  } else if (kind === 'about') {
+    panelHead(tr('about.title'));
+    for (const t of tr('about.paras') || []) p.appendChild(el('p', {}, t));
+    p.appendChild(el('p', { class: 'fact' }, `${tr('status.stale', { time: fmtDate(isoToUnix(DATA.capturedAt)) })} · ${DATA.timeline.length} events`));
+  } else if (kind === 'settings') {
+    panelHead(tr('settings.title'));
+    const seg = (label, opts, cur, on, hint) => {
+      const f = el('div', { class: 'field' }); f.appendChild(el('label', {}, label));
+      const s = el('div', { class: 'seg', role: 'group', 'aria-label': label });
+      for (const [v, t, dis] of opts) { const b = el('button', { type: 'button', 'aria-pressed': String(v === cur) }, t); if (dis) b.disabled = true; b.addEventListener('click', () => on(v)); s.appendChild(b); }
+      f.appendChild(s); if (hint) f.appendChild(el('small', {}, hint)); p.appendChild(f);
+    };
+    seg(tr('settings.language'), [['en', 'English'], ['fr', 'Français']], LANG, (v) => setLang(v));
+    seg(tr('settings.pace'), [[0.75, '0.75×'], [1.5, '1.5×'], [3, '3×'], [5, '5×']], PACE, (v) => { PACE = v; store.set('pace', String(v)); openPanel('settings'); });
+    seg(tr('settings.mode'), [['replay', tr('settings.modeReplay')], ['live', director.liveOk ? tr('settings.modeLive') : tr('buttons.now')]], director.mode === 'replay' ? 'replay' : 'live',
+      (v) => { if (v === 'replay') startReplay(); else endReplay(false); openPanel('settings'); }, director.liveOk ? tr('settings.modeHint') : tr('toasts.noLive'));
+    seg(tr('settings.follow'), [['1', tr('settings.on')], ['0', tr('settings.off')]], store.get('follow') === '0' ? '0' : '1', (v) => { store.set('follow', v); openPanel('settings'); });
+    const f = el('div', { class: 'field' }); f.appendChild(el('label', {}, tr('settings.jump')));
+    const s = el('div', { class: 'seg' });
+    ((COPY[LANG].acts || COPY.en.acts || [])).forEach((a, i) => { const b = el('button', { type: 'button' }, `${i + 1}. ${a.title}`); b.addEventListener('click', () => { startReplay(i); closePanel(); }); s.appendChild(b); });
+    f.appendChild(s); p.appendChild(f);
+  }
+  p.classList.add('on');
+}
+function setLang(v) { LANG = COPY[v] ? v : 'en'; store.set('lang', LANG); applyWords(); }
+
+/* tooltip */
+const tip = $('#tooltip');
+function showTip(pod, x, y) {
+  const st = pod.state;
+  tip.innerHTML = '';
+  tip.append(el('b', {}, `${productName(pod.info.product)}`), el('span', {}, `${tr(`pod.statuses.${st}`) || st} · ${short(pod.id)}`));
+  const w = 250; tip.style.left = `${Math.min(innerWidth - w - 12, x + 14)}px`; tip.style.top = `${Math.max(12, y - 54)}px`;
+  tip.classList.add('on');
+}
+function hideTip() { tip.classList.remove('on'); }
+
+/* =================================================================== 15. the tour */
+let tourStep = -1;
+const TOUR_FOCUS = ['overview', 'pad', 'gate', 'pod', 'layers', 'dock', 'lab', 'overview'];
+function startTour() { closePanel(); director.follow = false; tourStep = 0; showTourStep(0); }
+function showTourStep(i) {
+  const steps = tr('tour') || [];
+  if (i >= steps.length) { endTour(); return; }
+  tourStep = i;
+  const s = steps[i];
+  $('#tour-title').textContent = s.title; $('#tour-body').textContent = s.body;
+  const dots = $('#tour-dots'); dots.innerHTML = ''; steps.forEach((_, k) => { const d = el('i'); if (k === i) d.className = 'on'; dots.appendChild(d); });
+  $('#tour-skip').textContent = tr('buttons.skip'); $('#tour-back').textContent = tr('buttons.back'); $('#tour-back').hidden = i === 0;
+  $('#tour-next').textContent = i === steps.length - 1 ? tr('buttons.start') : tr('buttons.next');
+  $('#tour').classList.add('on'); $('#dim').classList.add('on');
+  const f = TOUR_FOCUS[i] || 'overview';
+  if (f === 'pod') {
+    const p = [...pods.values()].find((x) => x.shown && x.info.product === '7' && x.state === 'live') || [...pods.values()].find((x) => x.shown && x.state === 'live');
+    if (p) { focus('pod', p); view.wantZoom *= 1.3; xray(p, true); } else { focus('hive'); xray(null, false); }
+  } else xray(null, false);
+  if (f === 'layers') { layersDescend = 0; tween(2.6, (k) => { layersDescend = k; }, (k) => k); }
+  for (const z of zoneLabels) z.el.classList.toggle('off', f !== 'overview' && z.key !== f);
+  if (f !== 'pod') focus(f);
+}
+function endTour() {
+  tourStep = -1; xray(null, false);
+  $('#tour').classList.remove('on'); $('#dim').classList.remove('on');
+  for (const z of zoneLabels) z.el.classList.remove('off');
+  store.set('tourDone', '1');
+  $('#stepper').hidden = false;
+  focus('overview');
+  if (director.mode !== 'replay') startReplay(); else director.follow = true;
+}
+/* x-ray: see through one pod's dome to the sealed core */
+let xrayPod = null, core = null;
+function xray(pod, on) {
+  if (xrayPod && xrayPod.mats.dark) { xrayPod.mats.dark.transparent = false; xrayPod.mats.dark.opacity = 1; xrayPod.mats.dark.needsUpdate = true; }
+  if (core) core.visible = false;
+  xrayPod = on ? pod : null;
+  if (!pod || !on) return;
+  if (!core) {
+    core = new THREE.Group();
+    const chip = new THREE.Mesh(new RoundedBoxGeometry(0.4, 0.1, 0.4, 2, 0.02), new THREE.MeshStandardMaterial({ color: '#2a2f3a' }));
+    const die = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.012, 0.2), new THREE.MeshBasicMaterial({ color: '#FFA034' }));
+    die.position.y = 0.056;
+    const shell = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.3, 0.58), new THREE.MeshBasicMaterial({ color: '#5B8CFF', transparent: true, opacity: 0.32, depthWrite: false }));
+    shell.position.y = 0.1;
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(shell.geometry), new THREE.LineBasicMaterial({ color: '#9DB7FF' }));
+    edges.position.y = 0.08;
+    core.add(chip, die, shell, edges); scene.add(core);
+  }
+  core.position.copy(pod.grp.position).setY(0.3); core.visible = true;
+  if (pod.mats.dark) { pod.mats.dark.transparent = true; pod.mats.dark.opacity = 0.28; pod.mats.dark.needsUpdate = true; }
+}
+
+/* =================================================================== 16. picking */
+const ray = new THREE.Raycaster(); const ndc = new THREE.Vector2();
+let hoverPod = null, downAt = null;
+function pick(x, y) {
+  ndc.set((x / innerWidth) * 2 - 1, -(y / innerHeight) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const hp = ray.intersectObjects(hitPods.filter((h) => h.parent.visible), false)[0];
+  if (hp) return { pod: hp.object.userData.pod };
+  const hz = ray.intersectObjects([...hitZones, layerHit].filter(Boolean), false)[0];
+  if (hz) return { zone: hz.object.userData.zone };
+  return null;
+}
+canvas.addEventListener('pointermove', (e) => {
+  if (e.pointerType === 'mouse') view.wantPar.set(((e.clientX / innerWidth) - 0.5) * (tourStep >= 0 || REDUCE ? 0 : 1.1), ((e.clientY / innerHeight) - 0.5) * (tourStep >= 0 || REDUCE ? 0 : 0.9));
+  if (tourStep >= 0) return;
+  const h = pick(e.clientX, e.clientY);
+  canvas.classList.toggle('hot', !!h);
+  hoverPod = h && h.pod ? h.pod : null;
+  if (hoverPod && e.pointerType === 'mouse') showTip(hoverPod, e.clientX, e.clientY); else hideTip();
+});
+canvas.addEventListener('pointerleave', () => { hideTip(); view.wantPar.set(0, 0); canvas.classList.remove('hot'); });
+canvas.addEventListener('pointerdown', (e) => { downAt = { x: e.clientX, y: e.clientY }; });
+canvas.addEventListener('pointerup', (e) => {
+  if (!downAt || Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 6) { downAt = null; return; }
+  downAt = null;
+  if (tourStep >= 0) return;
+  const h = pick(e.clientX, e.clientY);
+  if (!h) { closePanel(); return; }
+  director.follow = false;
+  if (h.pod) { focus('pod', h.pod); openPanel('pod', h.pod.id); hideTip(); }
+  else if (h.zone) { focus(h.zone === 'layers' ? 'layers' : h.zone); openPanel('zone', h.zone === 'author' ? 'layers' : h.zone); }
+});
+addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { if (tourStep >= 0) endTour(); else { closePanel(); focus('overview'); } }
+  if (tourStep >= 0 && (e.key === 'ArrowRight' || e.key === 'Enter')) { e.preventDefault(); showTourStep(tourStep + 1); }
+  if (tourStep > 0 && e.key === 'ArrowLeft') showTourStep(tourStep - 1);
+});
+
+/* =================================================================== 17. wiring, stars, resize, loop */
+$('#btn-tour').addEventListener('click', startTour);
+$('#tour-next').addEventListener('click', () => showTourStep(tourStep + 1));
+$('#tour-back').addEventListener('click', () => showTourStep(Math.max(0, tourStep - 1)));
+$('#tour-skip').addEventListener('click', endTour);
+$('#btn-legend').addEventListener('click', () => (panelState && panelState.kind === 'legend' ? closePanel() : openPanel('legend')));
+$('#btn-about').addEventListener('click', () => (panelState && panelState.kind === 'about' ? closePanel() : openPanel('about')));
+$('#btn-settings').addEventListener('click', () => (panelState && panelState.kind === 'settings' ? closePanel() : openPanel('settings')));
+$('#btn-lang').addEventListener('click', () => setLang(LANG === 'fr' ? 'en' : 'fr'));
+$('#btn-replay').addEventListener('click', () => { if (director.mode === 'replay') endReplay(false); else startReplay(); });
+
+function drawStars() {
+  const c = $('#stars'); const dpr = Math.min(2, devicePixelRatio || 1);
+  c.width = innerWidth * dpr; c.height = innerHeight * dpr;
+  const g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height);
+  let s = 99; const r = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+  for (let i = 0; i < 260; i++) { const a = 0.25 + r() * 0.65; g.fillStyle = `rgba(220,228,255,${a})`; const z = r() < 0.08 ? 1.6 : 0.9; g.fillRect(r() * c.width, r() * c.height, z * dpr, z * dpr); }
+}
+let W = innerWidth, H = innerHeight, portrait = false;
+function resize() {
+  W = innerWidth; H = innerHeight; portrait = W / H < 0.9;
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, portrait ? 1.6 : 2));
+  renderer.setSize(W, H, false); css.setSize(W, H);
+  fitBase(); drawStars();
+}
+addEventListener('resize', resize);
+
+const clock = new THREE.Clock();
+let hudTick = 0, liveTick = 0;
+function tick() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  runClock(dt);
+  for (const a of agents) a.update(dt);
+  for (const f of floaters) f.o.position.y = f.y + Math.sin(simT * 0.6 + f.ph) * 0.18;
+  for (const f of flyers) { const a = simT * f.sp + f.ph; f.o.position.set(Math.cos(a) * f.r, f.h + Math.sin(a * 2) * 0.4, Math.sin(a) * f.r * 0.7 - 2); f.o.rotation.y = -a + (f.sp > 0 ? 0 : Math.PI); }
+  if (dishObj) dishObj.rotation.y = 0.95 + Math.sin(simT * 0.15) * 0.25;
+  for (const p of pods.values()) {
+    if (!p.shown) continue;
+    p.flash = Math.max(0, p.flash - dt * 1.4);
+    const lit = p.state !== 'retired';
+    const pulse = p.state === 'checking' ? 0.5 + 0.5 * Math.sin(simT * 10) : p.state === 'fault' ? 0.5 + 0.5 * Math.sin(simT * 5) : 0.85 + 0.15 * Math.sin(simT * 2 + p.grp.position.x);
+    p.glow.material.opacity = lit ? 0.35 + 0.55 * pulse : 0.3;
+    p.beacon.scale.setScalar(1 + p.flash * 0.9);
+  }
+  updateLayers(dt);
+  updateConfetti(dt);
+  hudTick += dt; if (hudTick > 0.5) { hudTick = 0; refreshHud(); }
+  liveTick += dt; if (liveTick > 20 && director.liveOk) { liveTick = 0; refreshLive(); }
+  applyCamera(dt);
+  renderer.render(scene, camera); css.render(scene, camera);
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) renderer.setAnimationLoop(null); else { clock.getDelta(); renderer.setAnimationLoop(tick); } });
+window.__base = { scene, camera, renderer, pods, net, director, view, startReplay, endReplay, focus, openPanel, get tourStep() { return tourStep; } };
+
+async function main() {
+  resize();
+  $('#load-text').textContent = tr('brand.name') || 'ArcHive';
+  await loadPacks();
+  buildWorld();
+  BEATS = buildBeats();
+  applySnapshotState();
+  director.mode = 'now';
+  applyWords();
+  probeLive();
+  focus('overview'); view.target.copy(view.wantTarget); view.zoom = view.wantZoom;
+  await document.fonts.ready;
+  if (boardBlock) { boardBlock.userData.set(''); refreshHud(); }
+  renderer.compile(scene, camera);
+  $('#loader').classList.add('done');
+  clock.getDelta();
+  renderer.setAnimationLoop(tick);
+  if (!store.get('tourDone')) startTour(); else startReplay();
+}
+main().catch((err) => {
+  console.error(err);
+  $('#load-text').textContent = tr('errors.models') || 'The base could not load its 3D models.';
+  $('#load-sub').textContent = tr('errors.live') || 'Reload the page to try again.';
+});
+</script>
