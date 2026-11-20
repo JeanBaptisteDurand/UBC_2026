@@ -9,7 +9,7 @@
 import { startLeaving } from './pageload'
 
 // The header and its bar stay above the veil (it starts under the header, styles.css): leaving, the bar becomes the
-// loading bar (ui/pageload.ts, design/MOTION.md M9)
+// loading bar (ui/pageload.ts, MOTION.md M9)
 const root = document.documentElement
 const W = window as unknown as { __frontReady?: boolean; __world?: { sceneReady?: boolean } }
 const OUT_MS = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 220
